@@ -508,3 +508,100 @@ def _classify_load(total: int) -> str:
     if total <= 5:
         return "high"
     return "saturated"
+
+
+async def _resolve_my_technician_id(*, tenant_id: str, user_id: str) -> str:
+    """登入技師 user_id（JWT sub = users.id）→ technicians.id（work_orders.technician_id 比對此值）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "SELECT id FROM technicians WHERE user_id = %s::uuid AND tenant_id = %s::uuid",
+        (user_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("TECHNICIAN_NOT_FOUND", "No technician profile for this user", 404)
+    return str(row[0])
+
+
+async def get_my_workload_heatmap(
+    *, tenant_id: str, user_id: str, days: int = 30
+) -> dict:
+    """CR-0088：技師自助版 workload heatmap（self-scoped，修 A37 端點 IDOR）。
+    由 user_id 解析自身 technician_id 後重用 get_technician_workload_heatmap。"""
+    technician_id = await _resolve_my_technician_id(tenant_id=tenant_id, user_id=user_id)
+    return await get_technician_workload_heatmap(
+        tenant_id=tenant_id, technician_id=technician_id, days=days
+    )
+
+
+async def get_my_dashboard_summary(*, tenant_id: str, user_id: str) -> dict:
+    """CR-0088：技師端決策屏聚合 — 今日/本週收入、本月毛額（含未結預估）、完成率、
+    今日新單、平均到場分鐘、客戶評分摘要 + 近期評價。
+
+    口徑：收入用 estimated_price（預估報酬，非實收，UI 須標「預估」）；完成以
+    completed_at 判定。**不含租戶內排名**（業主 CR-0088 §8-3 裁決不對技師開放）。
+    以 technician_id 單一過濾（self-scoped，天然 tenant-safe）。
+    """
+    technician_id = await _resolve_my_technician_id(tenant_id=tenant_id, user_id=user_id)
+
+    cur = await db_module._conn.execute(
+        "SELECT "
+        "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at::date = CURRENT_DATE), 0), "
+        "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at >= date_trunc('week', CURRENT_DATE)), 0), "
+        "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at >= date_trunc('month', CURRENT_DATE)), 0), "
+        "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at IS NULL AND status IN "
+        "    ('accepted','scheduled','assigned','en_route','arrived','in_progress')), 0), "
+        "  COUNT(*) FILTER (WHERE created_at >= date_trunc('month', CURRENT_DATE)), "
+        "  COUNT(*) FILTER (WHERE completed_at >= date_trunc('month', CURRENT_DATE)), "
+        "  COUNT(*) FILTER (WHERE accepted_at::date = CURRENT_DATE), "
+        "  AVG(EXTRACT(EPOCH FROM (started_at - accepted_at)) / 60.0) FILTER ("
+        "    WHERE started_at IS NOT NULL AND accepted_at IS NOT NULL "
+        "    AND completed_at >= date_trunc('month', CURRENT_DATE)), "
+        "  AVG(rating::numeric) FILTER (WHERE rating IS NOT NULL), "
+        "  COUNT(rating) "
+        "FROM work_orders WHERE technician_id = %s::uuid",
+        (technician_id,),
+    )
+    r = await cur.fetchone()
+    (today_e, week_e, month_done_e, pending_e, month_total,
+     month_done, today_new, avg_arr, avg_rating, rating_count) = r
+
+    completion_rate = (
+        round(float(month_done) / float(month_total) * 100.0, 1)
+        if month_total and int(month_total) > 0 else None
+    )
+
+    cur = await db_module._conn.execute(
+        "SELECT rating, feedback, completed_at FROM work_orders "
+        "WHERE technician_id = %s::uuid AND feedback IS NOT NULL "
+        "ORDER BY completed_at DESC NULLS LAST LIMIT 3",
+        (technician_id,),
+    )
+    fb_rows = await cur.fetchall()
+    recent_feedback = [
+        {
+            "rating": int(fr[0]) if fr[0] is not None else None,
+            "feedback": fr[1],
+            "completed_at": fr[2].isoformat() if fr[2] else None,
+        }
+        for fr in fb_rows
+    ]
+
+    return {
+        "technician_id": technician_id,
+        "today_earnings": float(today_e or 0),
+        "week_earnings": float(week_e or 0),
+        "month_gross_est": float((month_done_e or 0) + (pending_e or 0)),
+        "month_completed_earnings": float(month_done_e or 0),
+        "month_pending_est": float(pending_e or 0),
+        "completion_rate_pct": completion_rate,
+        "month_total_orders": int(month_total or 0),
+        "month_completed_orders": int(month_done or 0),
+        "today_new_orders": int(today_new or 0),
+        "avg_arrival_minutes": round(float(avg_arr), 1) if avg_arr is not None else None,
+        "avg_rating": round(float(avg_rating), 2) if avg_rating is not None else None,
+        "rating_count": int(rating_count or 0),
+        "recent_feedback": recent_feedback,
+        "computed_at": datetime.now(timezone.utc).isoformat(),
+    }

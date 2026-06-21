@@ -33,6 +33,35 @@ router = APIRouter()
 _technician_only = role_required("technician")
 
 
+# ⚠️ 路由順序：/technicians/me/* 必須註冊在 /technicians/{technician_id}/* 之前，
+# 否則 {technician_id} 會以 "me" 命中 → uuid cast 失敗 500（CR-0088 踩過此雷）。
+@router.get(
+    "/technicians/me/dashboard-summary",
+    operation_id="getMyDashboardSummary",
+    summary="技師決策屏聚合（今日/本週收入、本月毛額、完成率、到場時間、客戶評價；CR-0088）",
+)
+async def my_dashboard_summary(user: CurrentUser = Depends(_technician_only)) -> dict:
+    data = await technician_service.get_my_dashboard_summary(
+        tenant_id=user.tenant_id, user_id=user.user_id,
+    )
+    return {"data": data}
+
+
+@router.get(
+    "/technicians/me/workload-heatmap",
+    operation_id="getMyWorkloadHeatmap",
+    summary="技師自助 workload heatmap（self-scoped，修 A37 端點 IDOR；CR-0088）",
+)
+async def my_workload_heatmap(
+    days: int = Query(default=30, ge=1, le=90),
+    user: CurrentUser = Depends(_technician_only),
+) -> dict:
+    data = await technician_service.get_my_workload_heatmap(
+        tenant_id=user.tenant_id, user_id=user.user_id, days=days,
+    )
+    return {"data": data}
+
+
 @router.get(
     "/technicians/{technician_id}/workload-heatmap",
     operation_id="getTechnicianWorkloadHeatmap",
