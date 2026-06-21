@@ -223,12 +223,16 @@ async def register_technician(req: dict) -> dict:
     capabilities = req.get("capabilities") or []
     regions = req.get("regions") or []
 
-    # 重複 email 檢查
+    # 重複 email 檢查（CR-0090：依角色限定 — 同 email 可同時為技師與廠商，
+    # 但同一角色內仍唯一。登入端點以 role 過濾故不衝突）
     cur = await db_module._conn.execute(
-        "SELECT 1 FROM users WHERE email = %s LIMIT 1", (email,)
+        "SELECT 1 FROM users WHERE email = %s AND role = 'technician' LIMIT 1",
+        (email,),
     )
     if await cur.fetchone():
-        raise ApiError("EMAIL_TAKEN", f"Email {email} is already registered", 409)
+        raise ApiError(
+            "EMAIL_TAKEN", f"Email {email} is already registered as a technician", 409
+        )
 
     user_id = str(uuid.uuid4())
     technician_id = str(uuid.uuid4())
@@ -292,11 +296,15 @@ async def register_vendor(req: dict) -> dict:
             422,
         )
 
+    # CR-0090：依角色限定（同 email 可同時為技師與廠商，但廠商角色內唯一）
     cur = await db_module._conn.execute(
-        "SELECT 1 FROM users WHERE email = %s LIMIT 1", (email,)
+        "SELECT 1 FROM users WHERE email = %s AND role = 'vendor' LIMIT 1",
+        (email,),
     )
     if await cur.fetchone():
-        raise ApiError("EMAIL_TAKEN", f"Email {email} is already registered", 409)
+        raise ApiError(
+            "EMAIL_TAKEN", f"Email {email} is already registered as a vendor", 409
+        )
 
     user_id = str(uuid.uuid4())
     vendor_id = str(uuid.uuid4())
