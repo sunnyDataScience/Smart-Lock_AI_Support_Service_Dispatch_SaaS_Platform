@@ -90,7 +90,7 @@ async def create_quote(
     *, tenant_id: str, work_order_id: str, created_by: str | None = None,
     urgent: bool = False,
 ) -> dict:
-    """從 work_order 建 draft 報價（version 1，有效期 BR-M04-05）。"""
+    """從 work_order 建 draft 報價（version 沿同工單遞增，有效期 BR-M04-05）。"""
     conn = await _conn()
     # 取 problem_card_id（沿 work_order）
     pc = await (await conn.execute(
@@ -100,10 +100,15 @@ async def create_quote(
         raise ApiError("NOT_FOUND", "work order not found", 404)
     days = await _validity_days(urgent)
     expiry = datetime.now(timezone.utc) + timedelta(days=days)
+    # CR-0095 UX2：version 沿同工單遞增（DB default 恆為 1，會讓可讀編號 TP-000001-Qn 撞號）
+    next_version = (await (await conn.execute(
+        "SELECT COALESCE(MAX(version), 0) + 1 FROM quote WHERE work_order_id = %s::uuid",
+        (work_order_id,),
+    )).fetchone())[0]
     row = await (await conn.execute(
-        "INSERT INTO quote (work_order_id, problem_card_id, state, expiry_at, tenant_id, created_by) "
-        "VALUES (%s::uuid, %s, 'draft', %s, %s::uuid, %s) RETURNING id",
-        (work_order_id, pc[0], expiry, tenant_id, created_by),
+        "INSERT INTO quote (work_order_id, problem_card_id, state, expiry_at, tenant_id, created_by, version) "
+        "VALUES (%s::uuid, %s, 'draft', %s, %s::uuid, %s, %s) RETURNING id",
+        (work_order_id, pc[0], expiry, tenant_id, created_by, next_version),
     )).fetchone()
     return await get_quote(quote_id=str(row[0]), tenant_id=tenant_id, include_cost=True)
 

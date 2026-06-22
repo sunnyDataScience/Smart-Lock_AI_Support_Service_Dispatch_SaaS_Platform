@@ -181,6 +181,26 @@ async def test_list_quotes_and_wo_number():
 
 @pytest.mark.component
 @pytest.mark.asyncio
+async def test_create_quote_version_increments_per_work_order():
+    """CR-0095 UX2：同工單建多張報價時 version 遞增（Q1, Q2…），避免可讀編號撞號。
+
+    回歸：create_quote 原未設 version，靠 DB default 恆為 1 → 第二張也叫 TP-xxxxxx-Q1。
+    """
+    assert await db_module._ensure_conn()
+    wid, pid, uid = await _seed_chain(None)
+    try:
+        q1 = await quote_engine_service.create_quote(tenant_id=TID, work_order_id=wid)
+        q2 = await quote_engine_service.create_quote(tenant_id=TID, work_order_id=wid)
+        assert q1["version"] == 1
+        assert q2["version"] == 2
+        assert q1["quote_number"].endswith("-Q1"), q1["quote_number"]
+        assert q2["quote_number"].endswith("-Q2"), q2["quote_number"]
+    finally:
+        await _cleanup(uid, pid)
+
+
+@pytest.mark.component
+@pytest.mark.asyncio
 async def test_quote_event_synced_to_conversation():
     """CR-0095：報價同意事件 → 對話管理系統訊息（quote→wo→pc→conversation）。"""
     assert await db_module._ensure_conn()

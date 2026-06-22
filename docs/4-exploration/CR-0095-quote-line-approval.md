@@ -147,6 +147,12 @@ related: [CR-0027, CR-0028, CR-0032, CR-0033, CR-0034, CR-0042]
 | 前端 | `/admin/quotes` 送單按鈕文案「送出並推 LINE」+ lineApprovalHint + i18n（中英）|
 | 測試 | `test_cr_0095` 8/8（builder postback / gate 409 / accepted 放行 / override / 擁有權 403 / accept→accepted）+ 全套件 1403 passed / 0 回歸 + agent 120 passed + tsc 0 |
 
+### UX2 後續修補（2026-06-22）
+
+- **報價事件同步對話管理**（commit 7478ee9c）：`transition(send/accept/decline)` 經 `quote→wo→pc→conversation` 反查，best-effort 寫一則 system 訊息（`conversation_service.append_event_note`）→ 後台「對話管理」看得到報價發送/同意/拒絕軌跡。**只對部署後新事件生效**（不回溯既有報價）。
+- **可讀編號 `TP-000001-Q{version}`**（commit 7478ee9c）+「開啟」改新分頁（列表保持）。
+- **version 遞增修補**（branch `fix/quote-version-increment`）：可讀編號上線後發現 `create_quote` INSERT 未帶 version、靠 DB default 恆為 1 → 同工單第二張報價也叫 `-Q1` 撞號。修：先 `SELECT COALESCE(MAX(version),0)+1` 取下一版號再 INSERT（沿工單遞增 Q1→Q2…）。單一 function bug fix、無 contract 變更 → 不觸發 CIA。`test_cr_0095` 加 `test_create_quote_version_increments_per_work_order`（共 10 passed）+ quote 全相關 42 passed 0 回歸。
+
 ### 🔴 連帶修復 runtime 斷鏈（重大）
 
 實作時發現 **`api/templates/line_flex/__init__.py` 未匯出 `build_messages`**，而 worker 以
