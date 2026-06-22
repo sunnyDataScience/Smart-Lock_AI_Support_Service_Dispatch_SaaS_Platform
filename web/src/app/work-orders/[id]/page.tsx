@@ -1590,6 +1590,18 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
             </span>
           </div>
 
+          {order && (
+            <div className="mx-8 mt-4 flex justify-end">
+              <Link
+                href={`/admin/quotes?wo=${order.id}`}
+                className="inline-flex items-center gap-2 rounded-md border border-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-[var(--primary)] transition hover:bg-[var(--primary-light)]"
+              >
+                <FileText className="h-4 w-4" />
+                {t("quoteCta")}
+              </Link>
+            </div>
+          )}
+
           <DispatchOrderView order={order} onUpdated={setOrder} />
 
           <ProblemCardSummary

@@ -154,10 +154,13 @@ async def _recompute_total(quote_id: str) -> None:
 
 async def get_quote(*, tenant_id: str, quote_id: str, include_cost: bool) -> dict:
     conn = await _conn()
+    # CR-0095 UX：join work_orders 帶出友善公單號（TP-000001）+ 客戶名供前端顯示
     r = await (await conn.execute(
-        "SELECT id, work_order_id, version, state, total_amount, deposit_required, "
-        "       expiry_at, snapshot_hash, is_mock, created_at "
-        "FROM quote WHERE id = %s::uuid AND (tenant_id = %s::uuid OR tenant_id IS NULL)",
+        "SELECT q.id, q.work_order_id, q.version, q.state, q.total_amount, q.deposit_required, "
+        "       q.expiry_at, q.snapshot_hash, q.is_mock, q.created_at, "
+        "       wo.document_number, wo.customer_name "
+        "FROM quote q LEFT JOIN work_orders wo ON q.work_order_id = wo.id "
+        "WHERE q.id = %s::uuid AND (q.tenant_id = %s::uuid OR q.tenant_id IS NULL)",
         (quote_id, tenant_id))).fetchone()
     if not r:
         raise ApiError("NOT_FOUND", "quote not found", 404)
@@ -176,7 +179,29 @@ async def get_quote(*, tenant_id: str, quote_id: str, include_cost: bool) -> dic
         "state": r[3], "total_amount": _dec(r[4]), "deposit_required": _dec(r[5]),
         "expiry_at": r[6].isoformat() if r[6] else None, "snapshot_hash": r[7],
         "is_mock": bool(r[8]), "lines": lines, "cost_visible": include_cost,
+        "work_order_number": r[10], "customer_name": r[11],
     }
+
+
+async def list_quotes(*, tenant_id: str, limit: int = 100) -> list[dict]:
+    """CR-0095 UX：列出租戶所有報價（含公單號 TP + 客戶名 + 狀態），最新在前。
+
+    供 /admin/quotes 報價列表 dashboard 用，免手貼 UUID。不含明細/成本（列表輕量）。
+    """
+    conn = await _conn()
+    rows = await (await conn.execute(
+        "SELECT q.id, q.work_order_id, wo.document_number, q.state, q.total_amount, "
+        "       q.created_at, wo.customer_name "
+        "FROM quote q LEFT JOIN work_orders wo ON q.work_order_id = wo.id "
+        "WHERE q.tenant_id = %s::uuid "
+        "ORDER BY q.created_at DESC LIMIT %s",
+        (tenant_id, limit))).fetchall()
+    return [
+        {"id": str(x[0]), "work_order_id": str(x[1]) if x[1] else None,
+         "work_order_number": x[2], "state": x[3], "total_amount": _dec(x[4]),
+         "created_at": x[5].isoformat() if x[5] else None, "customer_name": x[6]}
+        for x in rows
+    ]
 
 
 async def transition(

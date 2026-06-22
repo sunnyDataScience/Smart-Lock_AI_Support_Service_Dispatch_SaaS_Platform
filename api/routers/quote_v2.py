@@ -64,6 +64,19 @@ async def create_quote_v2(
 
 
 @router.get(
+    "/tenants/{tenantId}/quotes",
+    operation_id="listQuotesV2",
+    summary="報價列表 v2（CR-0095：含公單號 TP + 狀態，供報價 dashboard）", tags=["M04 Quote"],
+)
+async def list_quotes_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    _xt(user, tenantId)
+    return {"data": await qe.list_quotes(tenant_id=tenantId)}
+
+
+@router.get(
     "/tenants/{tenantId}/quotes/{id}",
     operation_id="getQuoteV2", summary="報價詳情 v2（成本 RBAC 遮蔽）", tags=["M04 Quote"],
 )

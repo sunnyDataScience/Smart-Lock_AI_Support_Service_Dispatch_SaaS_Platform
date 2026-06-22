@@ -33,6 +33,18 @@ interface Quote {
   lines: QuoteLine[];
   cost_visible: boolean;
   public_path?: string | null; // 送客戶後回傳的客戶端查看連結（CR-0032 Phase C）
+  work_order_number?: string | null; // CR-0095：友善公單號（TP-000001）
+  customer_name?: string | null;
+}
+// CR-0095：報價列表項（GET /quotes，免手貼 UUID）
+interface QuoteListItem {
+  id: string;
+  work_order_id: string | null;
+  work_order_number: string | null;
+  state: string;
+  total_amount: string | null;
+  created_at: string | null;
+  customer_name: string | null;
 }
 
 const STATE_COLORS: Record<string, string> = {
@@ -64,6 +76,7 @@ export default function QuotesPage() {
   const [linkPath, setLinkPath] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [invoiceMsg, setInvoiceMsg] = useState<string | null>(null);
+  const [quotes, setQuotes] = useState<QuoteListItem[]>([]); // CR-0095 報價列表
 
   useEffect(() => {
     (async () => {
@@ -78,10 +91,45 @@ export default function QuotesPage() {
         setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
       }
     })();
+    // CR-0095：載入報價列表 + 處理工單頁深連結 ?wo=（免手貼 UUID）
+    (async () => {
+      const list = await fetchQuotes();
+      setQuotes(list);
+      const wo = new URLSearchParams(window.location.search).get("wo");
+      if (wo) {
+        setWoId(wo);
+        const existing = list.find((q) => q.work_order_id === wo);
+        if (existing) await loadQuote(existing.id); // 已有報價 → 直接開（避免誤建多張）
+      }
+    })();
   }, []);
 
   function fail(e: unknown) {
     setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+  }
+
+  async function fetchQuotes(): Promise<QuoteListItem[]> {
+    try {
+      const res = await api.get<{ data: QuoteListItem[] }>(tenantPath("/quotes"));
+      return res.data ?? [];
+    } catch {
+      return []; // 列表載入失敗不阻斷工作台
+    }
+  }
+
+  async function loadQuote(id: string) {
+    setBusy(true);
+    setError(null);
+    setLinkPath(null);
+    try {
+      const res = await api.get<{ data: Quote }>(tenantPath(`/quotes/${id}`));
+      setQuote(res.data);
+      if (res.data.work_order_id) setWoId(res.data.work_order_id);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function createQuote() {
@@ -91,6 +139,7 @@ export default function QuotesPage() {
     try {
       const res = await api.post<{ data: Quote }>(tenantPath(`/work-orders/${woId.trim()}/quotes`), { urgent: false });
       setQuote(res.data);
+      setQuotes(await fetchQuotes());
     } catch (e) {
       fail(e);
     } finally {
@@ -132,6 +181,7 @@ export default function QuotesPage() {
       setQuote(res.data);
       // 送客戶成功 → 後端回傳客戶端查看連結
       if (res.data.public_path) setLinkPath(res.data.public_path);
+      setQuotes(await fetchQuotes()); // 狀態變更後刷新列表
     } catch (e) {
       fail(e);
     } finally {
@@ -221,10 +271,59 @@ export default function QuotesPage() {
             </button>
           </div>
 
+          {/* CR-0095 報價列表 — 點選即開，免手貼 UUID（顯示友善公單號 TP）*/}
+          {quotes.length > 0 && (
+            <div className="mb-6 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+              <div className="border-b border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)]">
+                {t("listTitle")}（{quotes.length}）
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-[#F8FAFC] text-xs text-[var(--text-secondary)]">
+                  <tr>
+                    <th className="px-3 py-2 text-left">{t("woNumber")}</th>
+                    <th className="px-3 py-2 text-left">{t("customer")}</th>
+                    <th className="px-3 py-2 text-left">{t("statusCol")}</th>
+                    <th className="px-3 py-2 text-right">{t("total")}</th>
+                    <th className="px-3 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quotes.map((q) => (
+                    <tr key={q.id} className="border-t border-[var(--border)] hover:bg-[var(--bg-page)]">
+                      <td className="px-3 py-2 font-mono text-[13px] text-[var(--text-primary)]">{q.work_order_number ?? "—"}</td>
+                      <td className="px-3 py-2 text-[var(--text-secondary)]">{q.customer_name ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <span className={`rounded px-2 py-[2px] text-xs font-medium ${STATE_COLORS[q.state] ?? "bg-gray-100"}`}>
+                          {t(`state.${q.state}`)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right font-mono">{price(q.total_amount)}</td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          onClick={() => loadQuote(q.id)}
+                          disabled={busy}
+                          className="rounded border border-[var(--primary)] px-3 py-1 text-xs font-medium text-[var(--primary)] disabled:opacity-50"
+                        >
+                          {t("open")}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
           {quote && (
             <div className="flex flex-col gap-5">
               {/* 報價頭 */}
               <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+                {quote.work_order_number && (
+                  <div className="text-sm">
+                    <span className="text-[var(--text-secondary)]">{t("woNumber")}: </span>
+                    <span className="font-mono text-[13px] font-semibold text-[var(--text-primary)]">{quote.work_order_number}</span>
+                  </div>
+                )}
                 <div className="text-sm">
                   <span className="text-[var(--text-secondary)]">{t("quoteId")}: </span>
                   <span className="font-mono text-[12px]">{quote.id}</span>

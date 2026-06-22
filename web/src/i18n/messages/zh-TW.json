@@ -968,7 +968,8 @@
         "back": "返回",
         "submit": "送出改期",
         "submitting": "送出中…"
-      }
+      },
+      "quoteCta": "建立 / 查看報價"
     },
     "track": {
       "title": "工單即時追蹤",
@@ -1930,7 +1931,13 @@
       },
       "createInvoice": "開立應收發票",
       "invoiceCreated": "已開立發票 {no}",
-      "lineApprovalHint": "報價已推播至客戶 LINE，客戶可直接在 LINE 同意／拒絕；下方連結為網頁備援。"
+      "lineApprovalHint": "報價已推播至客戶 LINE，客戶可直接在 LINE 同意／拒絕；下方連結為網頁備援。",
+      "listTitle": "報價列表",
+      "woNumber": "公單號",
+      "customer": "客戶",
+      "statusCol": "狀態",
+      "total": "總額",
+      "open": "開啟"
     },
     "vendorApprovals": {
       "title": "廠商審核",

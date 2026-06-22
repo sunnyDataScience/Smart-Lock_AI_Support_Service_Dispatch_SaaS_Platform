@@ -968,7 +968,8 @@
         "back": "Back",
         "submit": "Send reschedule",
         "submitting": "Submitting…"
-      }
+      },
+      "quoteCta": "Create / View Quote"
     },
     "track": {
       "title": "Work order tracking",
@@ -1930,7 +1931,13 @@
       },
       "createInvoice": "Create Invoice",
       "invoiceCreated": "Invoice created: {no}",
-      "lineApprovalHint": "Quote pushed to the customer's LINE; they can approve/reject right in LINE. The link below is a web fallback."
+      "lineApprovalHint": "Quote pushed to the customer's LINE; they can approve/reject right in LINE. The link below is a web fallback.",
+      "listTitle": "Quotes",
+      "woNumber": "WO No.",
+      "customer": "Customer",
+      "statusCol": "Status",
+      "total": "Total",
+      "open": "Open"
     },
     "vendorApprovals": {
       "title": "Vendor Approvals",

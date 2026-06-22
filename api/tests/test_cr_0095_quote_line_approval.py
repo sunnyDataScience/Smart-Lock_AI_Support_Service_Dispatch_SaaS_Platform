@@ -163,6 +163,24 @@ async def test_assign_gate_supervisor_override():
 # ── component：客戶經 LINE 回覆報價（擁有權 + 狀態機）─────────────────
 @pytest.mark.component
 @pytest.mark.asyncio
+async def test_list_quotes_and_wo_number():
+    """CR-0095 UX：list_quotes + get_quote 帶友善公單號（TP），供報價 dashboard 免貼 UUID。"""
+    assert await db_module._ensure_conn()
+    wid, pid, uid = await _seed_chain(None)
+    try:
+        qid = await _make_quote(wid, pid, "draft")
+        rows = await quote_engine_service.list_quotes(tenant_id=TID)
+        mine = [r for r in rows if r["id"] == qid]
+        assert mine, "新建報價應出現在列表"
+        assert mine[0]["work_order_number"], "列表應帶公單號（TP-xxxxxx）"
+        q = await quote_engine_service.get_quote(tenant_id=TID, quote_id=qid, include_cost=True)
+        assert q.get("work_order_number"), "get_quote 應帶公單號供工作台顯示"
+    finally:
+        await _cleanup(uid, pid)
+
+
+@pytest.mark.component
+@pytest.mark.asyncio
 async def test_customer_respond_ownership_and_accept():
     assert await db_module._ensure_conn()
     owner_line = "U" + uuid.uuid4().hex[:24]
