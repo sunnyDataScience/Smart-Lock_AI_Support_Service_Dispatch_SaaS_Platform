@@ -68,9 +68,9 @@ export default function AiGovernancePage() {
   }, []);
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
-      <main className="flex-1 p-6 md:p-8">
+      <main className="flex-1 overflow-auto p-6 md:p-8">
         <header className="mb-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield size={28} className="text-purple-600" />
