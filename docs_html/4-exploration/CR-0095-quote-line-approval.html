@@ -401,6 +401,25 @@ passed / 0 回歸 + agent 120 passed + tsc 0</td>
 </tr>
 </tbody>
 </table>
+<h3 id="ux2-後續修補2026-06-22">UX2 後續修補（2026-06-22）</h3>
+<ul>
+<li><strong>報價事件同步對話管理</strong>（commit
+7478ee9c）：<code>transition(send/accept/decline)</code> 經
+<code>quote→wo→pc→conversation</code> 反查，best-effort 寫一則 system
+訊息（<code>conversation_service.append_event_note</code>）→
+後台「對話管理」看得到報價發送/同意/拒絕軌跡。<strong>只對部署後新事件生效</strong>（不回溯既有報價）。</li>
+<li><strong>可讀編號 <code>TP-000001-Q{version}</code></strong>（commit
+7478ee9c）+「開啟」改新分頁（列表保持）。</li>
+<li><strong>version 遞增修補</strong>（branch
+<code>fix/quote-version-increment</code>）：可讀編號上線後發現
+<code>create_quote</code> INSERT 未帶 version、靠 DB default 恆為 1 →
+同工單第二張報價也叫 <code>-Q1</code> 撞號。修：先
+<code>SELECT COALESCE(MAX(version),0)+1</code> 取下一版號再
+INSERT（沿工單遞增 Q1→Q2…）。單一 function bug fix、無 contract 變更 →
+不觸發 CIA。<code>test_cr_0095</code> 加
+<code>test_create_quote_version_increments_per_work_order</code>（共 10
+passed）+ quote 全相關 42 passed 0 回歸。</li>
+</ul>
 <h3 id="red_circle-連帶修復-runtime-斷鏈重大">🔴 連帶修復 runtime
 斷鏈（重大）</h3>
 <p>實作時發現 <strong><code>api/templates/line_flex/__init__.py</code>
