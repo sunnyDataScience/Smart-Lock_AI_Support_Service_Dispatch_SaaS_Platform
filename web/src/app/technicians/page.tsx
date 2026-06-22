@@ -4,7 +4,9 @@ import { useMemo, useState } from "react";
 import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
-import { ApiError, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { cacheInvalidate } from "@/lib/cache";
+import { useToast } from "@/components/ui/Toast";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -31,6 +33,7 @@ const FILTER_DROPDOWN_KEYS = [
 export default function TechniciansPage() {
   const t = useTranslations("pages.technicians");
   const tFilters = useTranslations("pages.technicians.filters");
+  const { toast } = useToast();
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const session = getCurrentSession();
@@ -42,6 +45,7 @@ export default function TechniciansPage() {
   const [ratingMinFilter, setRatingMinFilter] = useState<string>("");
   const [keyword, setKeyword] = useState<string>("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
@@ -59,6 +63,30 @@ export default function TechniciansPage() {
     pageSize: PAGE_SIZE,
     formatError: formatTechnicianError,
   });
+
+  // 核准 pending_approval 技師（onboarding → active）→ 之後才可被派工
+  async function handleApprove(tech: Technician) {
+    const initiator = session?.userId ?? "";
+    if (!initiator) {
+      toast({ variant: "error", title: t("approveFailed"), description: "缺少操作者身分（請重新登入）" });
+      return;
+    }
+    setApprovingId(tech.id);
+    try {
+      await api.post(
+        `/tenants/${encodeURIComponent(tenantId)}/technicians/${tech.id}:onboard-approve`,
+        {},
+        { headers: { "X-Initiator": initiator } },
+      );
+      toast({ variant: "success", title: t("approveSuccess", { name: tech.name }) });
+      cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refresh 取到更新後狀態
+      refresh();
+    } catch (e) {
+      toast({ variant: "error", title: t("approveFailed"), description: formatTechnicianError(e) });
+    } finally {
+      setApprovingId(null);
+    }
+  }
 
   // 從 items 抽 distinct capabilities + service areas
   const { capabilityOptions, regionOptions } = useMemo(() => {
@@ -174,7 +202,12 @@ export default function TechniciansPage() {
             </div>
           )}
 
-          <TechniciansTable items={items} loading={loading} />
+          <TechniciansTable
+            items={items}
+            loading={loading}
+            onApprove={handleApprove}
+            approvingId={approvingId}
+          />
 
           {hasMore && items.length > 0 && (
             <div className="flex justify-center pb-6">

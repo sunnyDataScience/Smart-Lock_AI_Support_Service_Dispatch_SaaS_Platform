@@ -65,6 +65,7 @@ def _tech_row_to_dict(row: tuple) -> dict:
         "service_areas": _coerce_jsonb_list(row[6]),
         "rating": float(row[7]) if row[7] is not None else 0.0,
         "completed_orders_count": int(row[8] or 0),
+        "status": row[9],  # onboarding 生命週期狀態（供前端核准/狀態徽章用）
         "circuit_breaker_until": None,
         "created_at": row[10].isoformat() if row[10] else None,
     }

@@ -93,6 +93,35 @@ async def test_list_technicians_v2_cross_tenant_403(client):
     assert body.get("error_code") == "CROSS_TENANT_READ"
 
 
+@pytest.mark.asyncio
+async def test_technician_response_exposes_onboarding_status():
+    """list/get 回應須帶 onboarding status（供前端核准按鈕/狀態徽章）。
+
+    回歸：Technician schema 原無 status 欄 → Pydantic extra=ignore 丟掉，
+    前端永遠看不出誰 pending_approval、無從顯示核准按鈕。
+    """
+    import core.db as db_module
+    from services import technician_service
+
+    assert await db_module._ensure_conn()
+    techid = str(uuid.uuid4())
+    await db_module._conn.execute(
+        "INSERT INTO technicians (id, tenant_id, name, phone, capabilities, service_regions, status) "
+        "VALUES (%s::uuid, %s::uuid, '待核技師', '0912345678', '[]'::jsonb, '[]'::jsonb, 'pending_approval')",
+        (techid, DEFAULT_TENANT_ID))
+    try:
+        page = await technician_service.list_technicians(
+            tenant_id=DEFAULT_TENANT_ID, cursor=None, limit=100, status="pending_approval")
+        mine = [t for t in page["items"] if t["id"] == techid]
+        assert mine, "新建 pending 技師應出現在 status 過濾列表"
+        assert mine[0]["status"] == "pending_approval"
+        one = await technician_service.get_technician(
+            tenant_id=DEFAULT_TENANT_ID, technician_id=techid)
+        assert one["status"] == "pending_approval"
+    finally:
+        await db_module._conn.execute("DELETE FROM technicians WHERE id=%s::uuid", (techid,))
+
+
 # ---------------------------------------------------------------------------
 # Get technician v2 (detail)
 # ---------------------------------------------------------------------------

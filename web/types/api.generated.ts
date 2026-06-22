@@ -2327,6 +2327,8 @@ export interface components {
             /** Format: float */
             rating: number;
             completed_orders_count?: number;
+            /** @description onboarding 生命週期狀態（pending_approval/active/suspended/terminated/rejected） */
+            status?: string | null;
             /** Format: date-time */
             circuit_breaker_until?: string | null;
             /** Format: date-time */

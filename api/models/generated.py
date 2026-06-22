@@ -706,6 +706,10 @@ class Technician(BaseModel):
     service_areas: list[str] = Field(..., description='服務區域代碼（行政區）')
     rating: confloat(ge=0.0, le=5.0)
     completed_orders_count: conint(ge=0) | None = None
+    status: str | None = Field(
+        None,
+        description='onboarding 生命週期狀態（pending_approval/active/suspended/terminated/rejected）',
+    )
     circuit_breaker_until: AwareDatetime | None = None
     created_at: AwareDatetime
 

@@ -457,7 +457,9 @@
       "searchPlaceholder": "Search coming soon",
       "loadFailed": "Failed to load technicians: {error}",
       "loadingMore": "Loading…",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "approveSuccess": "Technician {name} approved and ready for dispatch",
+      "approveFailed": "Approval failed"
     },
     "workOrderDetail": {
       "breadcrumb": "Home > Work orders > List > {id}",
@@ -3233,6 +3235,15 @@
           "offline": "Offline",
           "on_leave": "On leave",
           "circuit_breaker_open": "Suspended"
+        },
+        "approve": "Approve",
+        "approving": "Approving…",
+        "onboardStatus": {
+          "pending_approval": "Pending approval",
+          "active": "Active",
+          "suspended": "Suspended",
+          "terminated": "Terminated",
+          "rejected": "Rejected"
         }
       },
       "detailSidebar": {

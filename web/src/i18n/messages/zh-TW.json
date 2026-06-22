@@ -457,7 +457,9 @@
       "searchPlaceholder": "搜尋功能即將推出",
       "loadFailed": "載入技師失敗：{error}",
       "loadingMore": "載入中…",
-      "loadMore": "載入更多"
+      "loadMore": "載入更多",
+      "approveSuccess": "已核准技師 {name}，現可派工",
+      "approveFailed": "核准失敗"
     },
     "workOrderDetail": {
       "breadcrumb": "首頁 > 工單管理 > 工單列表 > {id}",
@@ -3233,6 +3235,15 @@
           "offline": "離線",
           "on_leave": "休假中",
           "circuit_breaker_open": "暫停派工"
+        },
+        "approve": "核准",
+        "approving": "核准中…",
+        "onboardStatus": {
+          "pending_approval": "待核准",
+          "active": "在職",
+          "suspended": "停權",
+          "terminated": "終止",
+          "rejected": "已駁回"
         }
       },
       "detailSidebar": {

@@ -12,7 +12,20 @@ type Availability = Technician["availability"];
 interface Props {
   items: Technician[];
   loading?: boolean;
+  /** 核准 pending_approval 技師（onboarding → active）。 */
+  onApprove?: (tech: Technician) => void;
+  /** 正在核准中的技師 id（按鈕轉 loading + disabled）。 */
+  approvingId?: string | null;
 }
+
+// onboarding 生命週期狀態徽章顏色（label 由 i18n）
+const ONBOARD_TONE: Record<string, { textColor: string; bgColor: string }> = {
+  pending_approval: { textColor: "#92400E", bgColor: "#FEF3C7" },
+  active: { textColor: "#065F46", bgColor: "#D1FAE5" },
+  suspended: { textColor: "#92400E", bgColor: "#FEF3C7" },
+  terminated: { textColor: "#991B1B", bgColor: "#FEE2E2" },
+  rejected: { textColor: "#991B1B", bgColor: "#FEE2E2" },
+};
 
 // Tone（顏色）— label 由 i18n 提供
 const AVAILABILITY_TONE: Record<
@@ -44,8 +57,12 @@ function avatarColor(id: string): string {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
-export default function TechniciansTable({ items, loading }: Props) {
+export default function TechniciansTable({ items, loading, onApprove, approvingId }: Props) {
   const t = useTranslations("components.technicians.table");
+
+  // onboarding 狀態 label（i18n；缺則回退原值）
+  const onboardLabel = (status: string | null | undefined): string =>
+    status ? t(`onboardStatus.${status}`) : "";
 
   const columns = useMemo(
     () => [
@@ -185,9 +202,30 @@ export default function TechniciansTable({ items, loading }: Props) {
                 </span>
               </div>
 
-              {/* Actions */}
-              <div className="flex min-w-0 flex-1 items-center">
-                <Ellipsis className="h-5 w-5 text-[var(--text-secondary)]" />
+              {/* Actions — pending_approval 顯核准鈕；其他非 active 顯 onboarding 狀態徽章 */}
+              <div className="flex min-w-0 flex-1 items-center gap-2">
+                {tech.status === "pending_approval" ? (
+                  <button
+                    type="button"
+                    onClick={() => onApprove?.(tech)}
+                    disabled={approvingId === tech.id}
+                    className="rounded-md bg-[var(--primary)] px-3 py-[5px] text-[12px] font-medium text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    {approvingId === tech.id ? t("approving") : t("approve")}
+                  </button>
+                ) : tech.status && tech.status !== "active" ? (
+                  <span
+                    className="rounded-full px-[10px] py-[3px] text-[12px] font-medium"
+                    style={{
+                      color: (ONBOARD_TONE[tech.status] ?? FALLBACK_BRAND).textColor,
+                      backgroundColor: (ONBOARD_TONE[tech.status] ?? FALLBACK_BRAND).bgColor,
+                    }}
+                  >
+                    {onboardLabel(tech.status)}
+                  </span>
+                ) : (
+                  <Ellipsis className="h-5 w-5 text-[var(--text-secondary)]" />
+                )}
               </div>
             </div>
           );
