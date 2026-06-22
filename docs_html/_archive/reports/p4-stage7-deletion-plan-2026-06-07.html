@@ -1,0 +1,380 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>P4 Stage 7 — v1 Router 刪除計畫 (Dry-Run)</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ _archive ／ reports ／ p4-stage7-deletion-plan-2026-06-07.md</div>
+<div class="doc"><h1 id="p4-stage-7--v1-router-刪除計畫-dry-run">P4 Stage 7 — v1 Router
+刪除計畫 (Dry-Run)</h1>
+<p>Safe list endpoints: 0 v1 router modules in main.py: 47 v1 router
+files found: 47</p>
+<h2 id="1-候選刪除檔案">§1 候選刪除檔案</h2>
+<ul>
+<li><code>api/routers/admin_schedule.py</code> (2.6 KB)</li>
+<li><code>api/routers/audit_logs.py</code> (8.6 KB)</li>
+<li><code>api/routers/auth.py</code> (3.3 KB)</li>
+<li><code>api/routers/cancellation.py</code> (2.7 KB)</li>
+<li><code>api/routers/config_m18.py</code> (17.3 KB)</li>
+<li><code>api/routers/conversations.py</code> (4.8 KB)</li>
+<li><code>api/routers/customers.py</code> (4.6 KB)</li>
+<li><code>api/routers/dashboard.py</code> (0.8 KB)</li>
+<li><code>api/routers/data_corrections.py</code> (2.8 KB)</li>
+<li><code>api/routers/deprecation_metrics.py</code> (1.2 KB)</li>
+<li><code>api/routers/device_warranty.py</code> (5.5 KB)</li>
+<li><code>api/routers/dispatch.py</code> (4.8 KB)</li>
+<li><code>api/routers/dispatch_logs.py</code> (1.4 KB)</li>
+<li><code>api/routers/disputes.py</code> (3.4 KB)</li>
+<li><code>api/routers/family_reviews.py</code> (2.5 KB)</li>
+<li><code>api/routers/inventory.py</code> (1.6 KB)</li>
+<li><code>api/routers/invoices.py</code> (1.7 KB)</li>
+<li><code>api/routers/kb_cases.py</code> (4.5 KB)</li>
+<li><code>api/routers/kb_export.py</code> (2.8 KB)</li>
+<li><code>api/routers/kb_manuals.py</code> (2.8 KB)</li>
+<li><code>api/routers/lifespan_health.py</code> (3.6 KB)</li>
+<li><code>api/routers/line_webhook.py</code> (8.5 KB)</li>
+<li><code>api/routers/media.py</code> (2.8 KB)</li>
+<li><code>api/routers/notifications.py</code> (4.0 KB)</li>
+<li><code>api/routers/pricing_rules.py</code> (3.7 KB)</li>
+<li><code>api/routers/problem_cards.py</code> (10.0 KB)</li>
+<li><code>api/routers/public.py</code> (5.0 KB)</li>
+<li><code>api/routers/reconciliations.py</code> (2.4 KB)</li>
+<li><code>api/routers/refunds.py</code> (4.1 KB)</li>
+<li><code>api/routers/reports_customer_satisfaction.py</code> (1.7
+KB)</li>
+<li><code>api/routers/reports_export.py</code> (2.8 KB)</li>
+<li><code>api/routers/reports_kpi.py</code> (1.5 KB)</li>
+<li><code>api/routers/reports_operational_kpi.py</code> (1.4 KB)</li>
+<li><code>api/routers/resolution.py</code> (1.1 KB)</li>
+<li><code>api/routers/revenue.py</code> (1.3 KB)</li>
+<li><code>api/routers/roles.py</code> (3.6 KB)</li>
+<li><code>api/routers/sentiment_alerts.py</code> (2.4 KB)</li>
+<li><code>api/routers/settlements.py</code> (1.3 KB)</li>
+<li><code>api/routers/sop_drafts.py</code> (4.5 KB)</li>
+<li><code>api/routers/system_config.py</code> (1.3 KB)</li>
+<li><code>api/routers/technicians.py</code> (8.4 KB)</li>
+<li><code>api/routers/v1_inventory.py</code> (3.8 KB)</li>
+<li><code>api/routers/vouchers.py</code> (2.3 KB)</li>
+<li><code>api/routers/vouchers_void.py</code> (2.8 KB)</li>
+<li><code>api/routers/warranty_claims.py</code> (4.4 KB)</li>
+<li><code>api/routers/work_order_actions.py</code> (3.8 KB)</li>
+<li><code>api/routers/work_orders.py</code> (19.0 KB)</li>
+</ul>
+<h2 id="2-mainpy-需修改的行">§2 main.py 需修改的行</h2>
+<h3 id="import-行">Import 行</h3>
+<ul>
+<li>L25: <code>from routers import auth as auth_router</code></li>
+<li>L26:
+<code>from routers import notifications as notifications_router</code></li>
+<li>L27:
+<code>from routers import system_config as system_config_router</code></li>
+<li>L28:
+<code>from routers import kb_cases as kb_cases_router</code></li>
+<li>L29:
+<code>from routers import kb_manuals as kb_manuals_router</code></li>
+<li>L30:
+<code>from routers import sop_drafts as sop_drafts_router</code></li>
+<li>L31:
+<code>from routers import audit_logs as audit_logs_router</code></li>
+<li>L32:
+<code>from routers import conversations as conversations_router</code></li>
+<li>L33:
+<code>from routers import dashboard as dashboard_router</code></li>
+<li>L34:
+<code>from routers import problem_cards as problem_cards_router</code></li>
+<li>L35:
+<code>from routers import work_orders as work_orders_router</code></li>
+<li>L36:
+<code>from routers import work_order_actions as work_order_actions_router</code></li>
+<li>L37:
+<code>from routers import technicians as technicians_router</code></li>
+<li>L38:
+<code>from routers import admin_schedule as admin_schedule_router</code></li>
+<li>L39: <code>from routers import media as media_router</code></li>
+<li>L40:
+<code>from routers import dispatch_logs as dispatch_logs_router</code></li>
+<li>L41:
+<code>from routers import dispatch as dispatch_router</code></li>
+<li>L42:
+<code>from routers import settlements as settlements_router</code></li>
+<li>L43:
+<code>from routers import reconciliations as reconciliations_router</code></li>
+<li>L44:
+<code>from routers import invoices as invoices_router</code></li>
+<li>L45: <code>from routers import refunds as refunds_router</code></li>
+<li>L46:
+<code>from routers import warranty_claims as warranty_claims_router</code></li>
+<li>L47:
+<code>from routers import disputes as disputes_router</code></li>
+<li>L48: <code>from routers import revenue as revenue_router</code></li>
+<li>L49:
+<code>from routers import pricing_rules as pricing_rules_router</code></li>
+<li>L50:
+<code>from routers import customers as customers_router</code></li>
+<li>L51: <code>from routers import roles as roles_router</code></li>
+<li>L52:
+<code>from routers import inventory as inventory_router</code></li>
+<li>L53:
+<code>from routers import reports_kpi as reports_kpi_router</code></li>
+<li>L54:
+<code>from routers import reports_export as reports_export_router</code></li>
+<li>L55:
+<code>from routers import resolution as resolution_router</code></li>
+<li>L56:
+<code>from routers import kb_export as kb_export_router</code></li>
+<li>L57:
+<code>from routers import sentiment_alerts as sentiment_alerts_router</code></li>
+<li>L58:
+<code>from routers import vouchers as vouchers_router</code></li>
+<li>L59:
+<code>from routers import family_reviews as family_reviews_router</code></li>
+<li>L60:
+<code>from routers import data_corrections as data_corrections_router</code></li>
+<li>L61: <code>from routers import public as public_router</code></li>
+<li>L62:
+<code>from routers import cancellation as cancellation_router</code></li>
+<li>L64:
+<code>from routers import device_warranty as device_warranty_router</code></li>
+<li>L90:
+<code>from routers import config_m18 as config_m18_router</code></li>
+<li>L97:
+<code>from routers import vouchers_void as vouchers_void_router</code></li>
+<li>L98:
+<code>from routers import line_webhook as line_webhook_router</code></li>
+<li>L102:
+<code>from routers import reports_customer_satisfaction as reports_cs_router</code></li>
+<li>L103:
+<code>from routers import reports_operational_kpi as reports_okpi_router</code></li>
+<li>L114:
+<code>from routers import deprecation_metrics as deprecation_metrics_router</code></li>
+<li>L115:
+<code>from routers import v1_inventory as v1_inventory_router</code></li>
+<li>L116:
+<code>from routers import lifespan_health as lifespan_health_router</code></li>
+</ul>
+<h3 id="include_router-行">Include_router 行</h3>
+<ul>
+<li>L186:
+<code>app.include_router(auth_router.router, prefix="/api/v1", tags=["auth"])</code></li>
+<li>L187:
+<code>app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtime"])</code></li>
+<li>L188:
+<code>app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])</code></li>
+<li>L189:
+<code>app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])</code></li>
+<li>L190:
+<code>app.include_router(kb_manuals_router.router, prefix="/api/v1", tags=["knowledge_base"])</code></li>
+<li>L191:
+<code>app.include_router(sop_drafts_router.router, prefix="/api/v1", tags=["knowledge_base"])</code></li>
+<li>L192:
+<code>app.include_router(family_reviews_router.router, prefix="/api/v1", tags=["knowledge_base"])</code></li>
+<li>L193:
+<code>app.include_router(audit_logs_router.router, prefix="/api/v1", tags=["observability"])</code></li>
+<li>L194:
+<code>app.include_router(data_corrections_router.router, prefix="/api/v1", tags=["knowledge_base"])</code></li>
+<li>L195:
+<code>app.include_router(conversations_router.router, prefix="/api/v1", tags=["customer_service"])</code></li>
+<li>L196:
+<code>app.include_router(sentiment_alerts_router.router, prefix="/api/v1", tags=["customer_service"])</code></li>
+<li>L197:
+<code>app.include_router(dashboard_router.router, prefix="/api/v1", tags=["reports"])</code></li>
+<li>L198:
+<code>app.include_router(problem_cards_router.router, prefix="/api/v1", tags=["customer_service"])</code></li>
+<li>L199:
+<code>app.include_router(work_orders_router.router, prefix="/api/v1", tags=["dispatch"])</code></li>
+<li>L200:
+<code>app.include_router(work_order_actions_router.router, prefix="/api/v1", tags=["dispatch"])</code></li>
+<li>L201:
+<code>app.include_router(technicians_router.router, prefix="/api/v1", tags=["dispatch"])</code></li>
+<li>L202:
+<code>app.include_router(admin_schedule_router.router, prefix="/api/v1", tags=["dispatch"])</code></li>
+<li>L203:
+<code>app.include_router(media_router.router, prefix="/api/v1", tags=["media"])</code></li>
+<li>L204:
+<code>app.include_router(dispatch_logs_router.router, prefix="/api/v1", tags=["dispatch"])</code></li>
+<li>L205:
+<code>app.include_router(dispatch_router.router, prefix="/api/v1", tags=["dispatch"])</code></li>
+<li>L206:
+<code>app.include_router(settlements_router.router, prefix="/api/v1", tags=["accounting"])</code></li>
+<li>L207:
+<code>app.include_router(vouchers_router.router, prefix="/api/v1", tags=["accounting"])</code></li>
+<li>L208:
+<code>app.include_router(reconciliations_router.router, prefix="/api/v1", tags=["accounting"])</code></li>
+<li>L209:
+<code>app.include_router(invoices_router.router, prefix="/api/v1", tags=["accounting"])</code></li>
+<li>L210:
+<code>app.include_router(refunds_router.router, prefix="/api/v1", tags=["accounting"])</code></li>
+<li>L211:
+<code>app.include_router(warranty_claims_router.router, prefix="/api/v1", tags=["accounting"])</code></li>
+<li>L212:
+<code>app.include_router(disputes_router.router, prefix="/api/v1", tags=["accounting"])</code></li>
+<li>L213:
+<code>app.include_router(revenue_router.router, prefix="/api/v1", tags=["reports"])</code></li>
+<li>L214:
+<code>app.include_router(pricing_rules_router.router, prefix="/api/v1", tags=["accounting"])</code></li>
+<li>L215:
+<code>app.include_router(customers_router.router, prefix="/api/v1", tags=["customer_service"])</code></li>
+<li>L216:
+<code>app.include_router(roles_router.router, prefix="/api/v1", tags=["user_management"])</code></li>
+<li>L217:
+<code>app.include_router(inventory_router.router, prefix="/api/v1", tags=["inventory"])</code></li>
+<li>L218:
+<code>app.include_router(reports_kpi_router.router, prefix="/api/v1", tags=["reports"])</code></li>
+<li>L219:
+<code>app.include_router(reports_export_router.router, prefix="/api/v1", tags=["reports"])</code></li>
+<li>L220:
+<code>app.include_router(resolution_router.router, prefix="/api/v1", tags=["customer_service"])</code></li>
+<li>L221:
+<code>app.include_router(kb_export_router.router, prefix="/api/v1", tags=["knowledge_base"])</code></li>
+<li>L224:
+<code>app.include_router(public_router.router, prefix="/api/v1", tags=["public"])</code></li>
+<li>L226:
+<code>app.include_router(cancellation_router.router, tags=["M11 AR / Payment"])</code></li>
+<li>L228:
+<code>app.include_router(refunds_v2_router.router, tags=["M11 AR / Payment"])</code></li>
+<li>L230:
+<code>app.include_router(device_warranty_router.router, tags=["M13 Warranty"])</code></li>
+<li>L231:
+<code>app.include_router(customers_v2_router.router, tags=["M04 Customer"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)</code></li>
+<li>L232:
+<code>app.include_router(rbac_v2_router.router, tags=["M17 RBAC"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)</code></li>
+<li>L235:
+<code>app.include_router(vouchers_v2_router.router, tags=["M17 Voucher"])  # spec-alignment P2-α (CR-0002-α, M17 Voucher tenant-scoped)</code></li>
+<li>L236:
+<code>app.include_router(audit_v2_router.router, tags=["M17 Audit"])  # spec-alignment P2-α (CR-0002-α)</code></li>
+<li>L237:
+<code>app.include_router(problem_cards_v2_router.router, tags=["M03 ProblemCard"])  # spec-alignment P2-α (CR-0002-α, M03 ProblemCard tenant-scoped)</code></li>
+<li>L238:
+<code>app.include_router(tech_lifecycle_v2_router.router, tags=["M07 Technician Lifecycle"])  # 必須先於 technicians_v2_router (lifecycle-events literal segment vs {techId} catch-all)</code></li>
+<li>L239:
+<code>app.include_router(technicians_v2_router.router, tags=["M05 Technician"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)</code></li>
+<li>L240:
+<code>app.include_router(dispatch_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)</code></li>
+<li>L243:
+<code>app.include_router(work_orders_ops_v2_router.router, tags=["M07 WorkOrder Ops"])  # spec-alignment P2-W4 (route-order before /{woId})</code></li>
+<li>L244:
+<code>app.include_router(work_orders_v2_router.router, tags=["M06 WorkOrder"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)</code></li>
+<li>L245:
+<code>app.include_router(pricing_v2_router.router, tags=["M11 Pricing"])  # spec-alignment P2-α (CR-0002-α, M11 Pricing calculate tenant-scoped)</code></li>
+<li>L246:
+<code>app.include_router(consumer_v2_router.router, tags=["M16 Consumer"])  # spec-alignment P2-α (CR-0002-α, M16 Consumer public token)</code></li>
+<li>L247:
+<code>app.include_router(settlements_v2_router.router, tags=["M12 Settlement"])  # spec-alignment P2 (FR-0012, M12 monthly settlement 501 stub)</code></li>
+<li>L248:
+<code>app.include_router(warranty_claims_v2_router.router, tags=["M13 Warranty"])  # spec-alignment P2 (CR-0003 P2, M13 Warranty POST create tenant-scoped)</code></li>
+<li>L249:
+<code>app.include_router(exceptions_v2_router.router, tags=["M15 Exception"])  # spec-alignment P2 (CR-0003, M15 Exception tenant-scoped)</code></li>
+<li>L250:
+<code>app.include_router(dashboard_v2_router.router, tags=["Dashboard"])  # spec-alignment P2-W1 (CR-0003 P2-W1, Dashboard tenant-scoped, FR-0021)</code></li>
+<li>L251:
+<code>app.include_router(reports_v2_router.router, tags=["Reports"])  # spec-alignment P2-W1 (CR-0003 P2-W1, FR-0021, Reports kpi/revenue/export tenant-scoped)</code></li>
+<li>L252:
+<code>app.include_router(sentiment_alerts_v2_router.router, tags=["Sentiment Alerts"])  # spec-alignment P2-W2 (CR-0003 P2-W2, FR-0018/ADR-0048, Sentiment Alerts tenant-scoped)</code></li>
+<li>L253:
+<code>app.include_router(notifications_v2_router.router, tags=["Notifications"])  # spec-alignment P2-W2 (CR-0003 P2-W2, ADR-0012, Notifications tenant-scoped)</code></li>
+<li>L254:
+<code>app.include_router(conversations_v2_router.router, tags=["Conversations"])  # spec-alignment P2-W2 (CR-0003 P2-W2, FR-0018, Conversations tenant-scoped)</code></li>
+<li>L255:
+<code>app.include_router(sops_v2_router.router, tags=["SOP Review"])  # spec-alignment P2-W3 (CR-0003 P2-W3, SOP Review dual+family flat-path)</code></li>
+<li>L256:
+<code>app.include_router(kb_v2_router.router, tags=["KB (Agent Knowledge Base)"])  # spec-alignment P2-W3 (CR-0003 P2-W3, KB documents v2, ADR-0101)</code></li>
+<li>L257:
+<code>app.include_router(invoices_v2_router.router, tags=["M11 Invoice"])  # spec-alignment P2-W5 (CR-0003 P2-W5, M11 Invoice read-only tenant-scoped, FR-0011)</code></li>
+<li>L258:
+<code>app.include_router(media_v2_router.router, tags=["Media"])  # spec-alignment P2-W6 (CR-0003 P2-W6, Media tenant-scoped upload/serve/list)</code></li>
+<li>L259:
+<code>app.include_router(dispatch_logs_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-W6 (BUILD_TENANT_SCOPED, M06 DispatchLogs read-only tenant-scoped, admin-only)</code></li>
+<li>L260:
+<code>app.include_router(config_m18_router.router, tags=["M18 Config Governance"])  # Track B S1: M18 Runtime Config Governance (ADR-0067 Phase 0 / CR-0004 §8)</code></li>
+<li>L261:
+<code>app.include_router(reconciliations_v2_router.router, tags=["M12 Reconciliation"])  # Track B S2: Reconciliation dual-sign (FR-0013 / CR-0004 §8)</code></li>
+<li>L262:
+<code>app.include_router(disputes_v2_router.router, tags=["M14 Dispute"])  # Track B S2: Dispute dual-sign 狀態機 (FR-0013 / CR-0004 §8)</code></li>
+<li>L263:
+<code>app.include_router(inventory_v2_router.router, tags=["M10 Inventory"])  # Track B S3: Inventory v2 per-tenant 庫存狀態機 (FR-0007 / CR-0004 §8)</code></li>
+<li>L264:
+<code>app.include_router(pricing_rules_v2_router.router, tags=["M11 Pricing Rules"])  # Track B S4: Pricing Rules v2 tenant-scoped CRUD + change_request 審計 (CR-0004 §8 C3 / ADR-0046)</code></li>
+<li>L265:
+<code>app.include_router(data_corrections_v2_router.router, tags=["M09 Data Corrections"])  # Track B S5: DataCorrections v2 tenant-scoped review queue (CR-0004 §8 / ADR-0029 / ADR-0030)</code></li>
+<li>L266:
+<code>app.include_router(resolution_v2_router.router, tags=["M03 ProblemCard"])  # Track B S6: Resolution engine v2 tenant-scoped suggest (CR-0004 §8 C4)</code></li>
+<li>L267:
+<code>app.include_router(vouchers_void_router.router, tags=["M17 Voucher"])  # Track B S7: Voucher Void v2 紅字沖銷 flat path (ADR-VCH-001/002 / CR-0004 §8)</code></li>
+<li>L268:
+<code>app.include_router(line_webhook_router.router, prefix="/api/v1", tags=["LINE Webhook"])  # CR-0017 Stage 4: LINE postback handler</code></li>
+<li>L269:
+<code>app.include_router(recon_exceptions_v2_router.router, tags=["M12 Reconciliation Exception"])  # CR-0018 Stage 2: Flow 13 EX5 reconciliation_exception 7 endpoints</code></li>
+<li>L270:
+<code>app.include_router(monthly_settlements_v2_router.router, tags=["M12 Monthly Settlement"])  # CR-0012 Stage 2: Manual CSV 月結 5 endpoints (HD-1 V1)</code></li>
+<li>L271:
+<code>app.include_router(sop_performance_v2_router.router, tags=["M14 SOP Performance"])  # WBS §8 P1: SOP 績效真實化</code></li>
+<li>L272:
+<code>app.include_router(reports_cs_router.router, prefix="/api/v1", tags=["Reports"])  # WBS §8 P2: 客戶滿意度 KPI</code></li>
+<li>L273:
+<code>app.include_router(reports_okpi_router.router, prefix="/api/v1", tags=["Reports"])  # WBS §8 P2: FTFR + SLA on-time KPI</code></li>
+<li>L274:
+<code>app.include_router(approval_inbox_v2_router.router, tags=["M15 Approval Inbox"])  # FR-0049 MVP: Exception Approval Inbox</code></li>
+<li>L275:
+<code>app.include_router(scheduled_reports_v2_router.router, tags=["Reports"])  # Admin 報表排程</code></li>
+<li>L277:
+<code>app.include_router(gdpr_forget_v2_router.router, tags=["M17 GDPR Forget"])  # FR-0053 MVP: GDPR Right-to-be-Forgotten</code></li>
+<li>L278:
+<code>app.include_router(ai_gov_v2_router.router, tags=["A12 AI Governance"])  # FR-0050 MVP: AI Governance Trace Store</code></li>
+<li>L279:
+<code>app.include_router(sop_feedback_v2_router.router, tags=["A10 SOP Feedback"])  # FR-0051 MVP: SOP Feedback Spiral</code></li>
+<li>L280:
+<code>app.include_router(rma_quality_v2_router.router, tags=["M13 RMA Quality"])  # FR-0048 MVP: RMA Quality Feedback Loop</code></li>
+<li>L281:
+<code>app.include_router(tech_statement_v2_router.router, tags=["M12 Tech AP Statement"])  # FR-0045 MVP: Technician AP Statement</code></li>
+<li>L282:
+<code>app.include_router(disp_comm_v2_router.router, tags=["M12 Dispatcher Commission"])  # FR-0046 MVP: Dispatcher Commission</code></li>
+<li>L283:
+<code>app.include_router(brand_b2b_v2_router.router, tags=["M12 Brand B2B Settlement"])  # FR-0047 MVP: Brand B2B Settlement</code></li>
+<li>L284:
+<code>app.include_router(deprecation_metrics_router.router, prefix="/api/v1", tags=["Admin Deprecation Metrics"])  # P4 Cutover 規劃</code></li>
+<li>L285:
+<code>app.include_router(v1_inventory_router.router, prefix="/api/v1", tags=["Admin V1 Inventory"])  # P4 Cutover 規劃</code></li>
+<li>L286:
+<code>app.include_router(lifespan_health_router.router, prefix="/api/v1", tags=["Admin Lifespan Health"])  # 8 monitor 健康查詢</code></li>
+</ul>
+<h2 id="3-業主簽核對應-safe-list">§3 業主簽核對應 safe list</h2>
+<p>⚠️ 未提供 safe list — 不可執行真實刪除</p>
+<h2 id="4-後續真實刪除-pr-步驟非本-script">§4 後續真實刪除 PR 步驟（非本
+script）</h2>
+<ol type="1">
+<li>開 branch <code>chore/p4-stage7-delete-v1-routers</code></li>
+<li>依 §1 刪除 router 檔案</li>
+<li>依 §2 移除 main.py import + include_router 行</li>
+<li>刪除 router 對應 test 檔案 (<code>api/tests/test_*_v1.py</code>
+等)</li>
+<li>更新 <code>docs/architecture/api/openapi.yaml</code> 移除 v1
+path</li>
+<li>跑 <code>.venv/bin/pytest api/tests/</code> 確認無 regression</li>
+<li>跑 <code>scripts/ops/smoke_test_production.py</code> 確認 v2
+全綠</li>
+<li>開 PR + reference ADR (新立 ADR 記錄 Stage 7 完成)</li>
+<li>Merge 後 push, ops 觀察 24h</li>
+</ol>
+<h2 id="5-risk-mitigation">§5 Risk Mitigation</h2>
+<ul>
+<li>❗ <strong>若 safe list 與 router files 不對應</strong>:
+不可執行刪除 → 業主重簽 / 重跑 aggregate report</li>
+<li>❗ <strong>若 main.py import 在 §3 之外仍被引用</strong>: dead code,
+刪後 Python import error → run 完整 pytest 抓</li>
+<li>❗ <strong>若 v1 router 與 v2 共用 service</strong>: 安全 (service
+不刪)</li>
+<li>❗ <strong>若 v1 router 有獨有 helper</strong>: 移到對應 v2 router
+或共用 lib</li>
+</ul>
+</div></div></body></html>

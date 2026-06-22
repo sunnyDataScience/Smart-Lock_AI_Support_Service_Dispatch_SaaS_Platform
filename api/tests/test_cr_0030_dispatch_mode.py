@@ -89,7 +89,9 @@ async def test_assign_under_platform_paid_marks_dispatched_via(client):
             tenant_id=DEFAULT_TENANT_ID, mode="platform_paid")
         await work_order_service.assign_order(
             tenant_id=DEFAULT_TENANT_ID, wo_id=woid, technician_id=tid,
-            reason_code="manual")
+            reason_code="manual",
+            # CR-0095 報價同意 gate 由 test_cr_0095 覆蓋；本測試只驗 dispatched_via → 主管 override
+            actor_role="admin", override_reason="dispatch-mode 測試略過報價 gate")
         cur = await db_module._conn.execute(
             "SELECT dispatched_via FROM work_orders WHERE id = %s::uuid", (woid,))
         assert (await cur.fetchone())[0] == "platform"

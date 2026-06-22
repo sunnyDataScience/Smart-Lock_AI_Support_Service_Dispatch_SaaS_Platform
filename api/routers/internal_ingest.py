@@ -135,3 +135,40 @@ async def ingest_escalation(
         body.is_explicit,
     )
     return {"data": result, "error": None}
+
+
+@router.post(
+    "/internal/quotes/{quote_id}:customer-respond",
+    operation_id="customerRespondQuoteInternal",
+    summary="內部：客戶經 LINE postback 同意/拒絕報價（CR-0095，agent gateway 用）",
+    tags=["internal"],
+)
+async def customer_respond_quote(
+    quote_id: str,
+    body: dict,
+    _auth: None = Depends(require_internal_token),
+) -> dict:
+    """agent 收 LINE postback（q:a|/q:r|）→ 旁路呼此端點。
+
+    service 端先驗 line_user_id 確實是此報價客戶（防跨客戶誤同意）→ 403 不符；
+    再走狀態機（accept→accepted / reject→decline→rejected）。
+    """
+    from services import quote_engine_service
+
+    tenant_id = _resolve_tenant_id((body or {}).get("tenant_id", ""))
+    line_user_id = (body or {}).get("line_user_id")
+    decision = (body or {}).get("decision")
+    if not line_user_id or decision not in {"accept", "reject"}:
+        raise HTTPException(
+            status_code=422,
+            detail="line_user_id + decision('accept'|'reject') required",
+        )
+    result = await quote_engine_service.customer_respond_to_quote(
+        tenant_id=tenant_id, quote_id=quote_id,
+        line_user_id=line_user_id, decision=decision,
+    )
+    logger.info(
+        "quote customer-respond: quote=%s decision=%s state=%s line=%s",
+        quote_id[:8], decision, result.get("state"), line_user_id[:8],
+    )
+    return {"data": result, "error": None}

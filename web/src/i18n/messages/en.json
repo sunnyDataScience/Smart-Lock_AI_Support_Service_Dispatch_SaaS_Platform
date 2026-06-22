@@ -1923,13 +1923,14 @@
       },
       "action": {
         "submit": "Submit",
-        "send": "Send to Customer",
+        "send": "Send & push to LINE",
         "approve": "Approve",
         "reject": "Reject",
         "accept": "Mark Accepted"
       },
       "createInvoice": "Create Invoice",
-      "invoiceCreated": "Invoice created: {no}"
+      "invoiceCreated": "Invoice created: {no}",
+      "lineApprovalHint": "Quote pushed to the customer's LINE; they can approve/reject right in LINE. The link below is a web fallback."
     },
     "vendorApprovals": {
       "title": "Vendor Approvals",

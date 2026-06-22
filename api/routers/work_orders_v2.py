@@ -364,6 +364,10 @@ async def assign_work_order_v2(
     body: WorkOrderAssignRequest,
     tenantId: str = Path(...),
     id: str = Path(...),
+    override_reason: str | None = Query(
+        default=None,
+        description="CR-0095：主管強制派工原因（繞過『須有已同意報價』gate；僅 admin/ops 生效，audited）",
+    ),
     user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -378,7 +382,20 @@ async def assign_work_order_v2(
         technician_id=str(body.technician_id),
         reason_code=reason_code,
         reason_text=body.reason_text,
+        actor_role=user.role,
+        override_reason=override_reason,
     )
+    # CR-0095：主管 override 報價同意 gate → 留稽核軌跡
+    if override_reason and override_reason.strip():
+        await audit_log_service.log_event(
+            event_type="dispatch_decision",
+            actor_id=user.user_id,
+            actor_role=user.role,
+            action="quote_gate_override",
+            target_type="work_order",
+            target_id=id,
+            payload={"endpoint": "assignWorkOrderV2", "override_reason": override_reason.strip()},
+        )
     # PM Q6=A — 客服繞過自動派工必須留稽核軌跡
     if user.role in _BYPASS_ROLES:
         await audit_log_service.log_event(

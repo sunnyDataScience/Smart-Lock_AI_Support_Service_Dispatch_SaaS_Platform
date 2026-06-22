@@ -14,6 +14,8 @@ postback data 格式（短碼節省 LINE 300/1000 字限）：
   - "r:r|<proposal_id>"             — reschedule reject
   - "s:a|<scope_change_id>"         — scope_change accept
   - "s:r|<scope_change_id>"         — scope_change reject
+  - "q:a|<quote_id>"                — quote accept（CR-0095 初始報價）
+  - "q:r|<quote_id>"                — quote reject（CR-0095 初始報價）
   - schedule_conflict 為 admin-only，無 postback（含 URI button 跳 web）
 """
 
@@ -449,6 +451,109 @@ def render_work_order_document(payload: dict) -> list[dict]:
     return [_make_flex_message(alt_text="服務已完成，電子工單已開立", contents=bubble)]
 
 
+def render_quote_proposal(payload: dict) -> list[dict]:
+    """CR-0095 初始報價推 LINE — Flex bubble 含項目/對客總價 + 同意/拒絕 postback + web fallback。
+
+    payload schema（quote :send enqueue）：
+      - quote_id (uuid str)
+      - work_order_id (uuid str | None)
+      - items (list of {name, customer_price, quantity}) — 只露對客價，無內部成本
+      - total (str | None) — 對客總額
+      - public_token (str | None) — quote_view token，URI fallback → /quotes/{token}
+
+    同意/拒絕走 postback（q:a|/q:r|，agent gateway 接），另附「查看完整報價」URI 網頁 fallback。
+    """
+    quote_id = str(payload.get("quote_id", ""))
+    wo_id = str(payload.get("work_order_id") or "")
+    items = payload.get("items") or []
+    total = payload.get("total") or "—"
+    token = payload.get("public_token")
+
+    if not quote_id:
+        return [_make_text_message("報價參數不完整，請洽客服")]
+
+    item_rows: list[dict] = []
+    for it in items[:8]:
+        nm = str(it.get("name", "?"))[:40]
+        qty = it.get("quantity", 1)
+        price = it.get("customer_price", "?")
+        item_rows.append({
+            "type": "box", "layout": "horizontal", "spacing": "sm",
+            "contents": [
+                {"type": "text", "text": f"• {nm}", "size": "sm",
+                 "color": "#555555", "flex": 4, "wrap": True},
+                {"type": "text", "text": f"×{qty}", "size": "sm",
+                 "color": "#999999", "flex": 1, "align": "end"},
+                {"type": "text", "text": str(price), "size": "sm",
+                 "color": "#111111", "flex": 2, "align": "end"},
+            ],
+        })
+
+    footer_buttons: list[dict] = [
+        {
+            "type": "button", "style": "primary", "color": "#1DB446", "height": "sm",
+            "action": {
+                "type": "postback", "label": "同意報價",
+                "data": f"q:a|{quote_id}", "displayText": "同意報價",
+            },
+        },
+        {
+            "type": "button", "style": "secondary", "height": "sm",
+            "action": {
+                "type": "postback", "label": "不同意",
+                "data": f"q:r|{quote_id}", "displayText": "不同意",
+            },
+        },
+    ]
+    if token:
+        footer_buttons.append({
+            "type": "button", "style": "link", "height": "sm",
+            "action": {
+                "type": "uri", "label": "查看完整報價",
+                "uri": f"{_WEB_BASE_URL}/quotes/{token}",
+            },
+        })
+
+    bubble = {
+        "type": "bubble",
+        "header": {
+            "type": "box", "layout": "vertical",
+            "contents": [
+                {"type": "text", "text": "📋 維修報價單", "weight": "bold",
+                 "color": "#1A73E8", "size": "md"},
+                *([{"type": "text", "text": f"工單 {wo_id[:8]}", "size": "xs",
+                    "color": "#888888"}] if wo_id else []),
+            ],
+        },
+        "body": {
+            "type": "box", "layout": "vertical", "spacing": "md",
+            "contents": [
+                {"type": "text", "text": "報價項目", "size": "xs", "color": "#999999"},
+                *(item_rows or [{"type": "text", "text": "（明細請點下方查看）",
+                                 "size": "sm", "color": "#999999"}]),
+                {"type": "separator", "margin": "md"},
+                {"type": "box", "layout": "horizontal",
+                 "contents": [
+                     {"type": "text", "text": "報價總額", "size": "sm", "color": "#555555"},
+                     {"type": "text", "text": str(total), "weight": "bold",
+                      "size": "md", "align": "end"},
+                 ]},
+                {"type": "text", "text": "同意後將為您安排技師到府服務。",
+                 "size": "xs", "color": "#999999", "wrap": True},
+            ],
+        },
+        "footer": {
+            "type": "box", "layout": "vertical", "spacing": "sm",
+            "contents": footer_buttons,
+        },
+    }
+
+    return [_make_flex_message(
+        alt_text=f"維修報價單（{wo_id[:8]}） 總額 {total}",
+        contents=bubble,
+    )]
+
+
 # Dispatch table（worker 用 push_kind 路由）
 BUILDERS: dict[str, Callable[[dict], list[dict]]] = {
     "reschedule_proposal": render_reschedule_proposal,
@@ -460,6 +565,8 @@ BUILDERS: dict[str, Callable[[dict], list[dict]]] = {
     "scope_change_result": render_scope_change_result,
     # CR-0027 完工電子工單通知
     "work_order_document": render_work_order_document,
+    # CR-0095 初始報價推 LINE
+    "quote_proposal": render_quote_proposal,
 }
 
 

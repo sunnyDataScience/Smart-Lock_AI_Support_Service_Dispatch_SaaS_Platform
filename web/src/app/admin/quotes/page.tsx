@@ -343,6 +343,10 @@ export default function QuotesPage() {
               {/* 客戶端查看連結（已送客戶才有） */}
               {hasCustomerLink && (
                 <div className="rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-4">
+                  {/* CR-0095：報價送出已推 LINE 給客戶（含 postback 同意/拒絕）；網頁連結為備援 */}
+                  <div className="mb-2 rounded bg-[#EFF6FF] px-3 py-2 text-[12px] text-[#1D4ED8]">
+                    {t("lineApprovalHint")}
+                  </div>
                   <div className="mb-2 text-sm font-medium text-[var(--text-primary)]">{t("customerLink")}</div>
                   {linkPath ? (
                     <div className="flex flex-wrap items-center gap-2">

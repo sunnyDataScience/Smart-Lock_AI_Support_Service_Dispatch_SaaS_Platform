@@ -159,6 +159,47 @@ async def _forward_escalation_safe(esc: Any, tenant: str, user_id: str, before_i
         logger.warning("escalation 轉發失敗(已略過,不影響客人)", exc_info=True)
 
 
+async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> str | None:
+    """CR-0095：解析 LINE 報價 postback（q:a|<quote_id> 同意 / q:r|<quote_id> 拒絕）
+    → 旁路 POST 給 API（X-Internal-Token；API 端驗 line_user 擁有此報價 + 走狀態機）。
+
+    回客戶確認文字（同意/拒絕）；非報價 postback 回 None（交由呼叫端略過）。
+    fail-soft：bridge env 未設 / 失敗一律回友善訊息，絕不 raise。
+    """
+    parts = (data or "").split("|", 1)
+    if len(parts) != 2 or parts[0] not in ("q:a", "q:r"):
+        return None  # 非報價 postback（如 s:a/s:r scope_change，本 CR 未接，走網頁 fallback）
+    decision = "accept" if parts[0] == "q:a" else "reject"
+    quote_id = parts[1].strip()
+    if not quote_id:
+        return None
+
+    base_url = os.environ.get("LOCK_API_BASE_URL")
+    token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
+    if not (base_url and token):
+        logger.warning("報價 postback 收到但 bridge 未設定（LOCK_API_BASE_URL/INTERNAL_API_TOKEN）")
+        return "系統忙線中，請稍後再試或洽客服 🙏"
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_PERSIST_TIMEOUT_SEC) as client:
+            resp = await client.post(
+                f"{base_url.rstrip('/')}/api/v1/internal/quotes/{quote_id}:customer-respond",
+                json={"tenant_id": tenant, "line_user_id": user_id, "decision": decision},
+                headers={"X-Internal-Token": token},
+            )
+        if resp.status_code >= 400:
+            logger.warning("報價回覆轉發回 {}:{}", resp.status_code, resp.text[:160])
+            return "您的回覆可能未送達（報價或已失效），請稍後再試或洽客服 🙏"
+    except Exception:  # noqa: BLE001 — 轉發絕不可影響客人
+        logger.warning("報價回覆轉發失敗（已略過）", exc_info=True)
+        return "系統忙線中，請稍後再試或洽客服 🙏"
+
+    if decision == "accept":
+        return "已收到您的同意 ✅ 我們將盡快為您安排技師到府服務，感謝您！"
+    return "已收到您的回覆 🙏 如需調整報價內容，客服將盡快與您聯繫。"
+
+
 def load_dotenv(path: str | Path) -> dict[str, str]:
     """極簡 .env 載入器(無外部依賴):把 KEY="value" 設進 os.environ(不覆蓋既有)。"""
     p = Path(path)
@@ -223,7 +264,7 @@ def build_webapp(
         ReplyMessageRequest,
         TextMessage,
     )
-    from linebot.v3.webhooks import MessageEvent, TextMessageContent
+    from linebot.v3.webhooks import MessageEvent, PostbackEvent, TextMessageContent
 
     parser = WebhookParser(channel_secret)
     config = Configuration(access_token=channel_access_token)
@@ -240,6 +281,23 @@ def build_webapp(
         async with AsyncApiClient(config) as api_client:
             line_api = AsyncMessagingApi(api_client)
             for event in events:
+                # CR-0095：客戶在 LINE 點報價「同意/拒絕」（postback）→ 旁路呼 api
+                # 走報價狀態機，並用 reply_token 即時回覆確認（不阻塞、fail-soft）。
+                if isinstance(event, PostbackEvent):
+                    pb_native = getattr(event.source, "user_id", None)
+                    if pb_native:
+                        _, pb_user = resolve_identity("line", pb_native, tenant)
+                        pb_reply = await _route_quote_postback_safe(
+                            tenant, pb_user, getattr(event.postback, "data", "") or "",
+                        )
+                        if pb_reply and event.reply_token:
+                            await line_api.reply_message(
+                                ReplyMessageRequest(
+                                    reply_token=event.reply_token,
+                                    messages=[TextMessage(text=pb_reply)],
+                                )
+                            )
+                    continue
                 if not isinstance(event, MessageEvent):
                     continue
                 if not isinstance(event.message, TextMessageContent):

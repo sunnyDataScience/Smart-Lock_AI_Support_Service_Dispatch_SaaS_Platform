@@ -58,8 +58,9 @@ async def test_full_ops_pipeline_happy_path():
         # 確保服務地址（結案地址閘 CR-0064）
         await db_module._conn.execute(
             "UPDATE work_orders SET customer_address='台北市信義區1號' WHERE id=%s::uuid", (wid,))
-        # assign → accept
-        await svc.assign_order(tenant_id=TID, wo_id=wid, technician_id=tech, reason_code="manual")
+        # assign → accept（CR-0095 報價 gate 由 test_cr_0095 覆蓋；此 E2E 用主管 override 略過）
+        await svc.assign_order(tenant_id=TID, wo_id=wid, technician_id=tech, reason_code="manual",
+                               actor_role="admin", override_reason="E2E 略過報價同意 gate")
         await svc.accept_order(tenant_id=TID, wo_id=wid)
         # arrival → door-check（前置閘）
         await svc.record_arrival(tenant_id=TID, wo_id=wid, arrived_at="2026-06-20T10:00:00Z",
@@ -101,7 +102,8 @@ async def test_doorcheck_requires_arrival_409():
         await _cleanup(uid, pid); pytest.skip("需要 active 技師")
     try:
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
-        await svc.assign_order(tenant_id=TID, wo_id=wo["id"], technician_id=tech, reason_code="manual")
+        await svc.assign_order(tenant_id=TID, wo_id=wo["id"], technician_id=tech, reason_code="manual",
+                               actor_role="admin", override_reason="E2E 略過報價同意 gate")
         await svc.accept_order(tenant_id=TID, wo_id=wo["id"])
         with pytest.raises(ApiError) as e:
             await svc.submit_door_check_v2(tenant_id=TID, wo_id=wo["id"], checklist={"x": 1})

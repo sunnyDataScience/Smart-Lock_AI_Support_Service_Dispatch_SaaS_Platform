@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>廠商註冊新增統一編號 + 公司名必填</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0089-vendor-tax-id.md</div>
+<div class="doc"><h1 id="cr-0089-廠商註冊新增統一編號--公司名必填">CR-0089:
+廠商註冊新增統一編號 + 公司名必填</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → Change Impact Analysis
+<strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code>（觸發：DB schema + API
+contract） <strong>背景</strong>: 業主逐頁測試廠商註冊時，先遇
+404（路徑缺 <code>/api/v1</code>，已由
+<code>fix/register-path-and-fields</code> cherry-pick
+修復），再評估「是否需更多資訊」。</p>
+</blockquote>
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>: 廠商（發案者：品牌商/鎖店/經銷商）註冊收 7
+欄（類型/聯絡人/公司名(選填)/手機/Email/密碼/地址）。<code>vendors</code>
+表無統一編號欄位。</p>
+<p><strong>To-be</strong>: 新增「統一編號」（必填，8 碼）+
+公司名改必填。台灣 B2B 對廠商開立發票/對帳/簽約需統編。</p>
+<p><strong>Driver</strong>: 業主裁決（逐頁測試
+AskUserQuestion）「加統一編號 + 公司名必填」。研究 B2B 供應商 onboarding
+慣例（tax ID 為核心）。</p>
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UF-廠商註冊</code>（CR-0029 衍生）</td>
+<td>Modified</td>
+<td>廠商分頁新增統編欄、公司名改必填</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-affected-spec">3. Affected Spec</h2>
+<table>
+<thead>
+<tr>
+<th>Spec ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FR-vendor-register</code>（CR-0029）</td>
+<td>Modified</td>
+<td>註冊欄位 +tax_id（必填 8 碼）、company_name 改必填</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API</th>
+<th>Endpoint</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>registerVendor</td>
+<td><code>POST /api/v1/vendors/register</code></td>
+<td>Schema tighten</td>
+<td>局部</td>
+<td><code>VendorRegisterBody</code> +tax_id(<code>^\d{8}$</code>
+必填)、company_name 由 optional 改 min_length=1。唯一 caller
+為註冊頁，已同步；舊請求缺 tax_id/company_name → 422</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-affected-data">5. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+<th>Migration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>vendors</code></td>
+<td>+<code>tax_id VARCHAR(8)</code></td>
+<td><strong>migration 076</strong>（ADD COLUMN IF NOT EXISTS，既有列
+NULL 向後相容、不回溯，idempotent）</td>
+</tr>
+</tbody>
+</table>
+<p>無 state machine 影響。無唯一性約束（同公司可多聯絡人；未來如需以
+tax_id 去重另議）。</p>
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_cr_0089_vendor_tax_id</code></td>
+<td>New</td>
+<td>VendorRegisterBody 驗證：統編 8 碼必填、公司名必填（9 案，pytest
+unit）</td>
+</tr>
+<tr>
+<td><code>test_cr_0029_registration</code></td>
+<td>Unchanged</td>
+<td>走 service 層（繞 Pydantic），tax_id nullable → 不破；service INSERT
+已含 tax_id</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<p>無模組邊界變更；無新 ADR。</p>
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>✅ <strong>業主已裁決（2026-06-21，逐頁測試）：加統一編號 +
+公司名必填。</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>決策</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>廠商欄位範圍</td>
+<td><strong>加統一編號 +
+公司名必填</strong>（不含負責人/職稱/銀行/營登上傳，列 Phase II）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>統編格式/必填</td>
+<td>必填、8 碼數字（<code>^\d{8}$</code>）；既有列允許
+NULL（不回溯）</td>
+</tr>
+<tr>
+<td>3</td>
+<td>統編唯一性</td>
+<td>MVP 不設 UNIQUE（同公司多聯絡人情境）；未來如需另議</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-implementation已完成">9. Implementation（已完成）</h2>
+<ol type="1">
+<li>✅ migration 076 <code>vendors +tax_id</code>（套 dev + 記
+schema_migrations 076）</li>
+<li>✅ <code>VendorRegisterBody</code> +tax_id 必填 + company_name
+必填</li>
+<li>✅ <code>register_vendor</code> INSERT/return 含 tax_id</li>
+<li>✅ 前端註冊頁廠商分頁加統編欄(required pattern \d{8}) + 公司名
+required + i18n（taxId/taxIdHint 中英）</li>
+<li>✅ test_cr_0089 9/9 + 回歸 267 unit 全綠</li>
+<li>✅ 實機：帶統編 201 落庫、缺統編 422、非 8 碼 422</li>
+</ol>
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>緩解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>既有 caller 缺欄 422</td>
+<td>唯一 caller=註冊頁，已同步；無其他外部 caller</td>
+</tr>
+<tr>
+<td>既有 vendors 列無統編</td>
+<td>欄位 nullable，不回溯；僅新註冊強制</td>
+</tr>
+</tbody>
+</table>
+<p>Rollback：欄位 nullable 純加法可逆；前端/Pydantic 變更可單獨
+revert。</p>
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li>負責人 / 聯絡人職稱 / 銀行帳戶 / 營業登記證上傳（Phase II）</li>
+<li>統編真實性驗證（財政部 API 勾稽）</li>
+<li>對既有廠商回填統編</li>
+</ul>
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product / 業主</td>
+<td>2026-06-21</td>
+<td>✅（逐頁測試裁決）</td>
+</tr>
+</tbody>
+</table>
+</div></div></body></html>

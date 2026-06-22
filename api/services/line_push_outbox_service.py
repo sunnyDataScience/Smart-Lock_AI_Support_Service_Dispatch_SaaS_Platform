@@ -40,6 +40,8 @@ PushKind = Literal[
     "scope_change_result",
     # CR-0027 完工電子工單通知
     "work_order_document",
+    # CR-0095 初始報價推 LINE 給客戶（含 postback 同意/拒絕）
+    "quote_proposal",
 ]
 
 # 對齊 chk_push_status CHECK

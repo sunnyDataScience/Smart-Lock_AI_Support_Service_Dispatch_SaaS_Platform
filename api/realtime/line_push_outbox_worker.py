@@ -174,6 +174,19 @@ class LinePushOutboxWorker:
                     "JOIN users u ON c.user_id = u.id "
                     "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid"
                 )
+            elif reference_table == "quote":
+                # CR-0095：報價推 LINE。quote → work_order → problem_card →
+                # conversation → user.line_user_id（quote 有 tenant_id 欄）。
+                sql = (
+                    "SELECT u.line_user_id "
+                    "FROM quote q "
+                    "JOIN work_orders wo ON q.work_order_id = wo.id "
+                    "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+                    "JOIN conversations c ON pc.conversation_id = c.id "
+                    "JOIN users u ON c.user_id = u.id "
+                    "WHERE q.id = %s::uuid "
+                    "AND (q.tenant_id = %s::uuid OR q.tenant_id IS NULL)"
+                )
             elif reference_table == "scope_changes":
                 # 同上：scope_changes 與 work_orders 皆無 tenant_id 欄，走 users.tenant_id。
                 sql = (

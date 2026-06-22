@@ -1923,13 +1923,14 @@
       },
       "action": {
         "submit": "送審",
-        "send": "送客戶",
+        "send": "送出並推 LINE",
         "approve": "核准",
         "reject": "駁回",
         "accept": "標記接受"
       },
       "createInvoice": "開立應收發票",
-      "invoiceCreated": "已開立發票 {no}"
+      "invoiceCreated": "已開立發票 {no}",
+      "lineApprovalHint": "報價已推播至客戶 LINE，客戶可直接在 LINE 同意／拒絕；下方連結為網頁備援。"
     },
     "vendorApprovals": {
       "title": "廠商審核",

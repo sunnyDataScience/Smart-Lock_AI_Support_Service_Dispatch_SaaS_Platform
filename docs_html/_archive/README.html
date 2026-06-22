@@ -1,0 +1,294 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>散落文件歸檔索引</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _archive ／ README.md</div>
+<div class="doc"><h1 id="docs_archive--歸檔區索引">docs/_archive — 歸檔區索引</h1>
+<blockquote>
+<p>本目錄保留<strong>已非現行事實但具歷史/audit
+價值</strong>的文件。所有檔案皆為 <code>status: archived</code> 性質：
+<strong>可讀作歷史脈絡，但不可當 source of
+truth、不可被新文件引用為現行依據。</strong> 現行正典請走各 tier
+對應文件。</p>
+</blockquote>
+<p>子區索引：<a
+href="blueprints/README.md"><code>blueprints/</code></a>（週會藍圖）、<a
+href="extras/README.md"><code>extras/</code></a>（前端工具方法論）、<a
+href="legacy/README.md"><code>legacy/</code></a>（舊 design-spec
+pipeline）。</p>
+<hr />
+<h2 id="2026-06-18-批次--散落文件治理稽核歸檔">2026-06-18 批次 —
+散落文件治理稽核歸檔</h2>
+<p>來源：一次全 repo 散落/暫存文件稽核（107 檔分 12 叢集），結論 0
+刪除、其餘保留或歸檔。 本批次實際歸檔 <strong>17 檔</strong>（git 歷史以
+rename 保留）。稽核原建議歸檔 27 檔，執行時調整：</p>
+<ul>
+<li>4 檔在已不存在於工作樹的 <code>20260617資料/</code> ——
+無法搬移（見報告）。</li>
+<li>7 份 <code>docs/governance/reviews/</code> critique ——
+<strong>暫不歸檔</strong>（見下方 D 段，append-only ADR
+反向連結不可改）。</li>
+</ul>
+<h3 id="a-重寫前架構殘留白皮書早期規格">A.
+重寫前架構殘留（白皮書/早期規格）</h3>
+<table>
+<thead>
+<tr>
+<th>歸檔位置</th>
+<th>原位置</th>
+<th>簡介</th>
+<th>歸檔理由 / 對應現行</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_x-EA-whitepaper-v3.md</code></td>
+<td><code>/agent_x.md</code></td>
+<td>115KB AI 藍領客服 EA 白皮書 v3，建立在 Hermes / Belief-Driven
+Runtime / ReAct / LangGraph</td>
+<td>架構主軸已於 2026-06-04 被 <strong>LockCore 重寫</strong>取代（見
+<code>CLAUDE.md</code> Architecture Lock +
+<code>ADR-0107</code>）；無引用、無 frontmatter</td>
+</tr>
+<tr>
+<td><code>prd/BIZ-0001-executive-architecture-overview.md</code></td>
+<td><code>docs/prd/</code></td>
+<td>六層系統架構總覽 v2.0（2026-04-04），L3 為 LangGraph/8-Layer
+Harness</td>
+<td>L3 AI 服務層已被 LockCore + <code>ADR-0107</code> 取代</td>
+</tr>
+<tr>
+<td><code>prd/SOW-0001-2026-q1.md</code></td>
+<td><code>docs/prd/</code></td>
+<td>軟體需求/工作說明書 SOW v1.0（已批准），技術棧 LangChain 0.3 /
+Gemini 2.5 Flash</td>
+<td>LLM 框架已被 LockCore + LiteLLM 取代；被 <code>CR-0004</code> audit
+引用故歸檔不刪</td>
+</tr>
+</tbody>
+</table>
+<h3 id="b-一次性報告--session-快照機器產出可重跑再生">B. 一次性報告 /
+session 快照（機器產出，可重跑再生）</h3>
+<table>
+<thead>
+<tr>
+<th>歸檔位置</th>
+<th>原位置</th>
+<th>簡介</th>
+<th>歸檔理由 / 對應現行</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>reports/p4-stage7-deletion-plan-2026-06-07.md</code></td>
+<td><code>/reports/</code></td>
+<td>dry-run script 產出的 47 個 v1 router 刪除清單</td>
+<td>tier-5 機器快照，可由
+<code>scripts/ops/p4_stage7_delete_v1_dry_run.py</code> 重跑</td>
+</tr>
+<tr>
+<td><code>reports/p4-stage7-dev-readiness-2026-06-07.md</code></td>
+<td><code>/reports/</code></td>
+<td>P4 Stage 7 dev 就緒摘要</td>
+<td>內容已被 <code>docs/_audit/P4-stage-2-7-prep-checklists.md</code> +
+<code>ADR-0109</code> 涵蓋</td>
+</tr>
+<tr>
+<td><code>reports/uat-report-2026-06-07.md</code></td>
+<td><code>/reports/</code></td>
+<td>UAT-001~010 全 100% 通過執行輸出</td>
+<td><code>uat_runner.py</code> 一次性快照；規格在
+<code>docs/_ops/uat-plan-2026-q3.md</code></td>
+</tr>
+<tr>
+<td><code>_audit/playwright-e2e-verify-session-2026-06-07.md</code></td>
+<td><code>docs/_audit/</code></td>
+<td>單次 Playwright e2e 驗證 session 記錄</td>
+<td>結論與 bug 已落 commit；一次性過程記錄</td>
+</tr>
+<tr>
+<td><code>_audit/session-2026-06-05-final-stats.md</code></td>
+<td><code>docs/_audit/</code></td>
+<td>2026-06-05 session 統計總表</td>
+<td>frontmatter 原已標 <code>status: archived</code></td>
+</tr>
+<tr>
+<td><code>_audit/session-summary-2026-06-05.md</code></td>
+<td><code>docs/_audit/</code></td>
+<td>2026-06-05 session 成果摘要</td>
+<td>原已標 <code>status: archived</code>；與 final-stats 高度重疊</td>
+</tr>
+<tr>
+<td><code>_ops/release-checklist-2026-06-05.md</code></td>
+<td><code>docs/_ops/</code></td>
+<td>2026-06-05 session 一次性發布 checklist</td>
+<td>綁定該 session 的 migration 017-027，已部署完成</td>
+</tr>
+</tbody>
+</table>
+<h3 id="c-被現行活躍文件取代時點快照">C.
+被現行活躍文件取代（時點快照）</h3>
+<table>
+<thead>
+<tr>
+<th>歸檔位置</th>
+<th>原位置</th>
+<th>簡介</th>
+<th>被誰取代</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>web-docs/progress-report-2026-04-29.md</code></td>
+<td><code>web/docs/</code></td>
+<td>PM 兩週進度報告（凍結於 04-29）</td>
+<td>→ <code>web/docs/system-completion-status.md</code>（每輪強制更新的
+SSOT）</td>
+</tr>
+<tr>
+<td><code>web-docs/progress-report-2026-05-05.md</code></td>
+<td><code>web/docs/</code></td>
+<td>PM 進度報告（凍結於 05-05）</td>
+<td>→ 同上</td>
+</tr>
+<tr>
+<td><code>web-docs/wbs-completion-report.md</code></td>
+<td><code>web/docs/</code></td>
+<td>WBS-vs-合約對照（05-05，仍稱師傅端未開發）</td>
+<td>→ 同上</td>
+</tr>
+<tr>
+<td><code>ops/release-readiness.md</code></td>
+<td><code>docs/ops/</code></td>
+<td>舊版 Release Readiness（2026-05-23，PRD v2.1）</td>
+<td>→ <code>docs/ops/release-readiness-smart-lock-saas.md</code>（雙向
+frontmatter 註記 Supersedes）</td>
+</tr>
+<tr>
+<td><code>index/traceability-matrix.md</code></td>
+<td><code>docs/_index/</code></td>
+<td>FR↔︎BR↔︎ADR 追溯矩陣（auto-gen，停在 75 ADR）</td>
+<td>已失準（repo 已到 ADR-0114）；生成器
+<code>tools/traceability_matrix.py</code>
+已遺失，<strong>需重建後再生</strong></td>
+</tr>
+<tr>
+<td><code>index/migration/fr-mapping-2026-05-27.md</code></td>
+<td><code>docs/_index/migration/</code></td>
+<td>一次性 FR 遷移規劃骨架（status: partial）</td>
+<td>規劃已落地為 <code>docs/analysis/fr/</code> 53 個 FR 檔</td>
+</tr>
+</tbody>
+</table>
+<h3 id="d-審查過程記錄--已評估但暫不歸檔留在-docsgovernancereviews">D.
+審查過程記錄 — 已評估但<strong>暫不歸檔</strong>（留在
+<code>docs/governance/reviews/</code>）</h3>
+<p><code>docs/governance/reviews/</code> 的 7 份 lane-a
+critique，稽核原判 ARCHIVE（verdict 都已落地對應 ADR）。
+但執行時的反向連結檢查發現：<strong>7 個 tier-1 ADR 以 clickable link
+引用這些 critique 作為審查證據</strong> （如 <code>ADR-0040</code> →
+<code>[...](../../governance/reviews/ADR-0040-lane-a-critique-2026-05-28.md)</code>），
+且 <code>docs/governance/freeze-sign-off-2026-05-28.md</code>
+frontmatter <code>related_evidence</code> 也列入這 7 檔。 依
+<code>context-stability</code> 規則 <strong>accepted ADR / frozen
+sign-off 為 append-only 不可就地編輯</strong>，
+歸檔會造成這些連結永久失效且無法修復，故<strong>本批次不動，維持原位</strong>。
+（若日後要歸檔，須先以新 ADR 處理連結，或由人裁決。）</p>
+<h3 id="e-業主裁決快照已-deferred-accepted">E. 業主裁決快照（已
+deferred-accepted）</h3>
+<table>
+<thead>
+<tr>
+<th>歸檔位置</th>
+<th>原位置</th>
+<th>簡介</th>
+<th>歸檔理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>governance/pending-business-decisions-2026-06-06.html</code></td>
+<td><code>/pending-business-decisions-2026-06-06.html</code></td>
+<td>4 項業主待裁決卡片</td>
+<td>事項 2/3 已 deferred-accepted（commit <code>a02057c6</code>）、落地
+<code>ADR-0108</code>；<strong>改歸檔保留</strong>而非硬刪（仍被
+ADR-0108/0109 引為證據）</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="斷鏈引用處置2026-06-18">斷鏈引用處置（2026-06-18）</h2>
+<p>搬移後做了反向連結檢查，原以舊路徑引用這些檔的地方處理如下：</p>
+<p><strong>✅ 已更新指向新歸檔路徑（可編輯的 active
+文件）：</strong></p>
+<ul>
+<li><code>pending-business-decisions-...html</code> ←
+<code>docs/_audit/wbs-recalc-2026-06-07.md</code>、<code>docs/_ops/p4-stage7-readiness-runbook.md</code>、<code>web/docs/system-completion-status.md</code></li>
+<li><code>traceability-matrix.md</code> ←
+<code>docs/qa/test-plan-cascade-strategy-2026-05-28.md</code>（clickable
+link）</li>
+<li><code>session-2026-06-05-final-stats.md</code> /
+<code>session-summary-2026-06-05.md</code> ←
+<code>docs/_ops/uat-plan-2026-q3.md</code>、<code>docs/_ops/wbs-100-closeout-plan.md</code>、<code>docs/_audit/phase-ii-web-integration-plan.md</code></li>
+<li><code>release-checklist-2026-06-05.md</code> ←
+<code>docs/_ops/uat-plan-2026-q3.md</code>、<code>docs/_ops/alert-receivers-comparison.md</code>、<code>docs/_audit/P4-stage1-build-checklist.md</code></li>
+<li><code>release-readiness.md</code> ←
+<code>docs/ops/release-readiness-smart-lock-saas.md</code>（frontmatter
+<code>related_docs</code> + Supersedes 指標）</li>
+</ul>
+<p><strong>⚠️ 刻意不動（歷史紀錄 /
+append-only，路徑指向搬移前狀態屬合理）：</strong></p>
+<ul>
+<li><p><code>docs/architecture/adr/ADR-0108-*.md</code>、<code>ADR-0109-*.md</code>
+—— tier-1 ADR append-only，仍以根路徑引用 pending-business
+HTML；連結失效但內容於本區可追溯。</p></li>
+<li><p><code>docs/governance/freeze-sign-off-2026-05-28.md</code> ——
+frozen 簽核紀錄，body/表格以原 <code>docs/_index/</code> 路徑記載
+traceability-matrix 為 freeze 當下的交付證據（commit
+<code>44f16f3</code>），屬歷史事實不改寫。</p></li>
+<li><p><code>CHANGELOG.md</code>、<code>web/docs/system-completion-status.md</code>
+內的<strong>日期化歷史 log 條目</strong>（描述「6/07 寫了
+reports/p4-stage7-dev-readiness」等）——
+屬當時事件紀錄，保留原文。</p></li>
+<li><p><code>docs/governance/reviews/user-flow-v2-gate2-critique-2026-05-28.md</code>
+多處引用 <code>docs/_index/traceability-matrix.md</code> —— 該 critique
+為 2026-05-28 已完成的歷史審查記錄（且本身因 append-only ADR
+連結而留原位，見 D 段），路徑屬歷史
+reasoning，不改寫；檔案於本區可追溯。</p></li>
+</ul>
+<p><strong>📌 順帶發現（本批次未處理，pre-existing /
+非斷鏈）：</strong></p>
+<ul>
+<li><code>docs/_ops/uat-plan-2026-q3.md</code> 引用
+<code>docs/_ops/phase-ii-web-integration-plan.md</code>，但該檔實際在
+<code>docs/_audit/</code> —— 與本次搬移無關的既有錯路徑。</li>
+<li><code>scripts/ops/README.md</code> 的
+<code>--output reports/p4-stage7-deletion-plan.md</code> 是 script
+重新產生報告的命令範例（非引用本批次歸檔檔）；script 重跑時會自行重建
+<code>reports/</code>。</li>
+</ul>
+<hr />
+<h2 id="不要做">不要做</h2>
+<ul>
+<li>❌ 把本區任何檔當作<strong>現行事實</strong>或新文件的引用來源 ——
+它們是歷史快照。</li>
+<li>❌ 編輯後再「復活」回原位 —— 若要重啟某文件，走 CR/CIA
+開新正典檔，本區保持唯讀。</li>
+<li>❌ 依本區描述的架構（LangGraph / ReAct / Hermes / Belief-Driven
+Runtime / <code>agent/skills/</code>）推斷現況 —— 現行架構是
+LockCore，見 <code>CLAUDE.md</code> Architecture Lock。</li>
+</ul>
+</div></div></body></html>

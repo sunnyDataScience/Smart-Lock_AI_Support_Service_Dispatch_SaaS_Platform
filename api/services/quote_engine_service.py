@@ -240,6 +240,32 @@ async def transition(
     if action == "send":
         link = await mint_view_token(tenant_id=tenant_id, quote_id=quote_id)
         result = {**result, **link}
+        # CR-0095：送單同時推 LINE 報價給客戶（含 postback 同意/拒絕 + 網頁 fallback）。
+        # best-effort：複用 CR-0017 outbox，worker 從 reference 反查 LINE uid；
+        # 失敗不阻斷送單（與 assign/complete 推送一致，只露對客價不含內部成本）。
+        try:
+            from services import line_push_outbox_service
+
+            await line_push_outbox_service.enqueue(
+                tenant_id=tenant_id,
+                push_kind="quote_proposal",
+                payload={
+                    "quote_id": result["id"],
+                    "work_order_id": result.get("work_order_id"),
+                    "items": [
+                        {"name": ln.get("item_name"),
+                         "customer_price": ln.get("customer_price"),
+                         "quantity": ln.get("quantity")}
+                        for ln in result.get("lines", [])
+                    ],
+                    "total": result.get("total_amount"),
+                    "public_token": link.get("public_token"),
+                },
+                reference_id=quote_id,
+                reference_table="quote",
+            )
+        except Exception:  # noqa: BLE001 — 推送失敗不阻斷送單
+            logger.exception("outbox enqueue quote_proposal failed (non-fatal) quote=%s", quote_id)
     return result
 
 
@@ -275,6 +301,47 @@ async def mint_view_token(*, tenant_id: str, quote_id: str) -> dict:
     # token_expires_at 明確命名（token 的過期，非報價的 expiry_at），避免與 get_quote 欄位混淆
     return {"public_token": token, "public_path": f"/quotes/{token}",
             "token_expires_at": r[1].isoformat() if r[1] else None}
+
+
+async def resolve_customer_line_uid(*, tenant_id: str, quote_id: str) -> str | None:
+    """反查此報價對應客戶的 LINE userId（quote→work_order→problem_card→conversation→user）。
+
+    與 line_push_outbox_worker._resolve_line_uid 的 quote 路徑一致；查無回 None。
+    """
+    conn = await _conn()
+    row = await (await conn.execute(
+        "SELECT u.line_user_id "
+        "FROM quote q "
+        "JOIN work_orders wo ON q.work_order_id = wo.id "
+        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE q.id = %s::uuid AND (q.tenant_id = %s::uuid OR q.tenant_id IS NULL)",
+        (quote_id, tenant_id))).fetchone()
+    return row[0] if row else None
+
+
+async def customer_respond_to_quote(
+    *, tenant_id: str, quote_id: str, line_user_id: str, decision: str,
+) -> dict:
+    """CR-0095：客戶經 LINE postback 同意/拒絕報價（agent gateway → internal 端點呼叫）。
+
+    安全：先驗證 line_user_id 確實是此報價對應客戶（防客戶 A 同意客戶 B 的報價）；
+    不符 → 403。再走狀態機 transition（accept→accepted / reject→decline→rejected）。
+    decision='accept'|'reject'。
+    """
+    if decision not in {"accept", "reject"}:
+        raise ApiError("VALIDATION_ERROR", "decision must be 'accept' or 'reject'", 422)
+    owner = await resolve_customer_line_uid(tenant_id=tenant_id, quote_id=quote_id)
+    if owner is None:
+        raise ApiError("NOT_FOUND", "quote not found", 404)
+    if owner != line_user_id:
+        # 不洩露歸屬細節，但 log 供稽核
+        logger.warning("quote %s respond denied: line_user mismatch", quote_id)
+        raise ApiError("FORBIDDEN", "this LINE user does not own the quote", 403)
+    action = "accept" if decision == "accept" else "decline"
+    result = await transition(tenant_id=tenant_id, quote_id=quote_id, action=action)
+    return {"quote_id": result["id"], "state": result["state"], "decision": decision}
 
 
 async def _freeze_snapshot(quote_id: str, tenant_id: str) -> None:

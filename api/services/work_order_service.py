@@ -1218,6 +1218,40 @@ async def _assert_not_high_risk_hold(wo_id: str) -> None:
         )
 
 
+# CR-0095 D2：派工前報價同意 gate 的 override 角色（沿用 FULL_ACCESS / ops 慣例）
+_QUOTE_GATE_OVERRIDE_ROLES = {"admin", "operations_manager", "tenant_admin", "super_admin"}
+
+
+async def _assert_quote_accepted(
+    wo_id: str, actor_role: str | None, override_reason: str | None,
+) -> None:
+    """CR-0095 D2（業主裁決：一律需報價同意）：派工前工單須有 accepted 報價，否則 409。
+
+    過期報價不算 accepted（D4：過期視同未同意）。主管（admin/ops）帶 override_reason
+    可強制派工（急修安全閥，沿用 CR-0042 開單 override 模式；稽核由 router 記）。
+    """
+    if (
+        actor_role in _QUOTE_GATE_OVERRIDE_ROLES
+        and override_reason
+        and override_reason.strip()
+    ):
+        logger.info("assign quote-gate overridden by %s for wo=%s", actor_role, wo_id[:8])
+        return
+    cur = await db_module._conn.execute(
+        "SELECT COUNT(*) FROM quote "
+        "WHERE work_order_id = %s::uuid AND state = 'accepted'",
+        (wo_id,),
+    )
+    n = int((await cur.fetchone())[0])
+    if n == 0:
+        raise ApiError(
+            "QUOTE_NOT_ACCEPTED",
+            "派工前須有已同意的報價（客戶須先在 LINE 同意報價）；"
+            "主管可帶 override_reason 強制派工",
+            409,
+        )
+
+
 async def assign_order(
     *,
     tenant_id: str,
@@ -1225,12 +1259,17 @@ async def assign_order(
     technician_id: str,
     reason_code: str,
     reason_text: str | None = None,
+    actor_role: str | None = None,
+    override_reason: str | None = None,
 ) -> dict:
     """created | assigned → assigned。
 
     驗證技師同租戶且 status='active'；附加 [ASSIGNED] 註記到 service_report。
     MVP 不執行 circuit-breaker / cross-area / skill-shortage 規則檢查（OpenAPI
     override_flags 接受但忽略），留待派工引擎模組接入後啟用。
+
+    CR-0095 D2：派工前須有客戶已同意的報價（QUOTE_NOT_ACCEPTED 409）；
+    主管（actor_role∈admin/ops）帶 override_reason 可強制派工。
     """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -1247,6 +1286,8 @@ async def assign_order(
     await _assert_dispatch_ready(wo_id)
     # CR-0041 / BR-M15-03：high_risk_hold 擋派工
     await _assert_not_high_risk_hold(wo_id)
+    # CR-0095 D2：報價同意 gate（一律需 accepted 報價；主管可 override）
+    await _assert_quote_accepted(wo_id, actor_role, override_reason)
 
     # Verify technician exists, same tenant, active
     cur = await db_module._conn.execute(
