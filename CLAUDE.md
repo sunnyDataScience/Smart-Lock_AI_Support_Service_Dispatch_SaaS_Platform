@@ -47,6 +47,7 @@ Smart Lock AI Support & Service Dispatch SaaS Platform —— LINE Bot 智慧鎖
 - **測試走 pytest**（agent 重寫後新建 `agent/tests/`，~13 個測試含 `test_e2e_mock_turn.py` / `test_skills_loaded.py` / `test_tool_allowlist.py` / `test_litellm_provider.py` / `test_line_gateway.py` 等）—— **不再有 quality_check / LLM-as-Judge 套件**（已刪）。
 - **Config pattern**：`agent/config.toml` 用 `lockcore/app_config.py:tomllib` 載入；機密（`GEMINI_API_KEY` / `LINE_CHANNEL_*` / `credentials.json`）放 `.env` 或 gitignore 檔，**不入 toml**。
 - **永不手動構建 `POSTGRES_URI`** —— 用 `./scripts/deploy/agent.sh --update-db-uri`（自動 URL-encode + round-trip 驗證）。
+- **文件一律雙版本：寫 `docs/` 的 `.md`，再跑產生器同步 `docs_html/`** —— `docs_html/` 是 `.venv/bin/python tools/gen_docs_html.py`（pandoc）從 `docs/` **整包 `rmtree` 重建**的 HTML 鏡像，**絕不手寫 / 手改 `docs_html/`**（手改下次 regen 會被覆蓋）。新增或修改**任何** `docs/` 文件後，**必須重跑產生器**讓 HTML 同步；mirror 漂移會在下次 regen 冒出大量非預期 diff。純 HTML 報告（無 .md 源）放 `docs/` 下，產生器會自動回生成 .md 源。
 
 ## 最常用指令（完整清單見 `@.claude/docs/commands.md`）
 
