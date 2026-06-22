@@ -73,6 +73,13 @@ def _dec(v) -> str | None:
     return None if v is None else f"{float(v):.2f}"
 
 
+def _quote_number(work_order_number: str | None, version) -> str | None:
+    """CR-0095：可讀報價編號 = {公單號}-Q{版本}（如 TP-000001-Q1）；無公單號則 None（前端 fallback 顯 UUID 短碼）。"""
+    if work_order_number:
+        return f"{work_order_number}-Q{int(version)}"
+    return None
+
+
 async def _conn():
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -180,6 +187,7 @@ async def get_quote(*, tenant_id: str, quote_id: str, include_cost: bool) -> dic
         "expiry_at": r[6].isoformat() if r[6] else None, "snapshot_hash": r[7],
         "is_mock": bool(r[8]), "lines": lines, "cost_visible": include_cost,
         "work_order_number": r[10], "customer_name": r[11],
+        "quote_number": _quote_number(r[10], r[2]),  # CR-0095 可讀編號 TP-000001-Q1
     }
 
 
@@ -191,7 +199,7 @@ async def list_quotes(*, tenant_id: str, limit: int = 100) -> list[dict]:
     conn = await _conn()
     rows = await (await conn.execute(
         "SELECT q.id, q.work_order_id, wo.document_number, q.state, q.total_amount, "
-        "       q.created_at, wo.customer_name "
+        "       q.created_at, wo.customer_name, q.version "
         "FROM quote q LEFT JOIN work_orders wo ON q.work_order_id = wo.id "
         "WHERE q.tenant_id = %s::uuid "
         "ORDER BY q.created_at DESC LIMIT %s",
@@ -199,7 +207,8 @@ async def list_quotes(*, tenant_id: str, limit: int = 100) -> list[dict]:
     return [
         {"id": str(x[0]), "work_order_id": str(x[1]) if x[1] else None,
          "work_order_number": x[2], "state": x[3], "total_amount": _dec(x[4]),
-         "created_at": x[5].isoformat() if x[5] else None, "customer_name": x[6]}
+         "created_at": x[5].isoformat() if x[5] else None, "customer_name": x[6],
+         "quote_number": _quote_number(x[2], x[7])}  # CR-0095 可讀編號
         for x in rows
     ]
 
@@ -291,7 +300,42 @@ async def transition(
             )
         except Exception:  # noqa: BLE001 — 推送失敗不阻斷送單
             logger.exception("outbox enqueue quote_proposal failed (non-fatal) quote=%s", quote_id)
+    # CR-0095：把報價事件（發送 / 客戶同意 / 客戶拒絕）同步到對話管理，best-effort。
+    if action in ("send", "accept", "decline"):
+        try:
+            await _log_quote_event_to_conversation(quote_id, action, result)
+        except Exception:  # noqa: BLE001 — 事件記錄不可阻斷主流程
+            logger.exception("quote event → conversation note failed (non-fatal) quote=%s", quote_id)
     return result
+
+
+async def _resolve_conversation_id(quote_id: str) -> str | None:
+    """quote → work_order → problem_card → conversation_id（同步報價事件到對話用）。"""
+    conn = await _conn()
+    row = await (await conn.execute(
+        "SELECT pc.conversation_id FROM quote q "
+        "JOIN work_orders wo ON q.work_order_id = wo.id "
+        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "WHERE q.id = %s::uuid", (quote_id,))).fetchone()
+    return str(row[0]) if row and row[0] else None
+
+
+async def _log_quote_event_to_conversation(quote_id: str, action: str, result: dict) -> None:
+    """CR-0095：報價事件 → 對話管理系統訊息。conv 查無則略過。"""
+    conv_id = await _resolve_conversation_id(quote_id)
+    if not conv_id:
+        return
+    from services import conversation_service
+
+    label = result.get("quote_number") or f"報價 {quote_id[:8]}"
+    total = result.get("total_amount")
+    if action == "send":
+        note = f"🧾 已發送報價單 {label}（總額 NT$ {total}）給客戶，等待客戶於 LINE 回覆。"
+    elif action == "accept":
+        note = f"✅ 客戶已同意報價單 {label}（總額 NT$ {total}），可進行派工。"
+    else:  # decline
+        note = f"❌ 客戶不同意報價單 {label}，請客服調整後重送。"
+    await conversation_service.append_event_note(conversation_id=conv_id, content=note)
 
 
 def _ttl_days_from(expiry: datetime | None) -> int:

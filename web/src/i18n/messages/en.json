@@ -1937,7 +1937,8 @@
       "customer": "Customer",
       "statusCol": "Status",
       "total": "Total",
-      "open": "Open"
+      "open": "Open",
+      "quoteNo": "Quote No."
     },
     "vendorApprovals": {
       "title": "Vendor Approvals",

@@ -237,6 +237,17 @@ async def create_conversation(
     return conv, True
 
 
+async def append_event_note(*, conversation_id: str, content: str) -> None:
+    """CR-0095：把系統事件（報價發送 / 客戶同意拒絕等）寫進對話，供對話管理顯示。
+
+    role='system' → 前端 ChatTimeline 渲染為 SystemMessage（系統訊息）。
+    best-effort 由 caller 包 try（事件記錄不可阻斷主流程）。
+    """
+    await _append_message(
+        conv_id=conversation_id, role="system", content=content, sender_role="system",
+    )
+
+
 async def _append_message(
     *, conv_id: str, role: str, content: str, sender_role: str
 ) -> None:

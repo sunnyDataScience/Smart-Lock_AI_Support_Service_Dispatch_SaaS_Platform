@@ -181,6 +181,28 @@ async def test_list_quotes_and_wo_number():
 
 @pytest.mark.component
 @pytest.mark.asyncio
+async def test_quote_event_synced_to_conversation():
+    """CR-0095：報價同意事件 → 對話管理系統訊息（quote→wo→pc→conversation）。"""
+    assert await db_module._ensure_conn()
+    wid, pid, uid = await _seed_chain(None)
+    try:
+        qid = await _make_quote(wid, pid, "sent")
+        await quote_engine_service.transition(tenant_id=TID, quote_id=qid, action="accept")
+        cur = await db_module._conn.execute(
+            "SELECT count(*) FROM messages m "
+            "JOIN problem_cards pc ON m.conversation_id = pc.conversation_id "
+            "WHERE pc.id = %s::uuid AND m.role = 'system' AND m.content LIKE %s",
+            (pid, "%同意報價單%"))
+        assert int((await cur.fetchone())[0]) >= 1, "對話應出現『客戶已同意報價單』系統訊息"
+        # 可讀編號 TP-xxxxxx-Q1 形式
+        q = await quote_engine_service.get_quote(tenant_id=TID, quote_id=qid, include_cost=True)
+        assert q.get("quote_number") and "-Q" in q["quote_number"]
+    finally:
+        await _cleanup(uid, pid)
+
+
+@pytest.mark.component
+@pytest.mark.asyncio
 async def test_customer_respond_ownership_and_accept():
     assert await db_module._ensure_conn()
     owner_line = "U" + uuid.uuid4().hex[:24]

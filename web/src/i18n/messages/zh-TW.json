@@ -1937,7 +1937,8 @@
       "customer": "客戶",
       "statusCol": "狀態",
       "total": "總額",
-      "open": "開啟"
+      "open": "開啟",
+      "quoteNo": "報價單號"
     },
     "vendorApprovals": {
       "title": "廠商審核",

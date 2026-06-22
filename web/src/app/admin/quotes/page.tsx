@@ -34,6 +34,7 @@ interface Quote {
   cost_visible: boolean;
   public_path?: string | null; // 送客戶後回傳的客戶端查看連結（CR-0032 Phase C）
   work_order_number?: string | null; // CR-0095：友善公單號（TP-000001）
+  quote_number?: string | null; // CR-0095：可讀報價單號（TP-000001-Q1）
   customer_name?: string | null;
 }
 // CR-0095：報價列表項（GET /quotes，免手貼 UUID）
@@ -41,6 +42,7 @@ interface QuoteListItem {
   id: string;
   work_order_id: string | null;
   work_order_number: string | null;
+  quote_number: string | null;
   state: string;
   total_amount: string | null;
   created_at: string | null;
@@ -95,7 +97,13 @@ export default function QuotesPage() {
     (async () => {
       const list = await fetchQuotes();
       setQuotes(list);
-      const wo = new URLSearchParams(window.location.search).get("wo");
+      const params = new URLSearchParams(window.location.search);
+      const open = params.get("open"); // CR-0095：列表「開啟」新分頁深連結 → 載入該報價
+      if (open) {
+        await loadQuote(open);
+        return;
+      }
+      const wo = params.get("wo");
       if (wo) {
         setWoId(wo);
         const existing = list.find((q) => q.work_order_id === wo);
@@ -280,7 +288,7 @@ export default function QuotesPage() {
               <table className="w-full text-sm">
                 <thead className="bg-[#F8FAFC] text-xs text-[var(--text-secondary)]">
                   <tr>
-                    <th className="px-3 py-2 text-left">{t("woNumber")}</th>
+                    <th className="px-3 py-2 text-left">{t("quoteNo")}</th>
                     <th className="px-3 py-2 text-left">{t("customer")}</th>
                     <th className="px-3 py-2 text-left">{t("statusCol")}</th>
                     <th className="px-3 py-2 text-right">{t("total")}</th>
@@ -290,7 +298,7 @@ export default function QuotesPage() {
                 <tbody>
                   {quotes.map((q) => (
                     <tr key={q.id} className="border-t border-[var(--border)] hover:bg-[var(--bg-page)]">
-                      <td className="px-3 py-2 font-mono text-[13px] text-[var(--text-primary)]">{q.work_order_number ?? "—"}</td>
+                      <td className="px-3 py-2 font-mono text-[13px] font-semibold text-[var(--text-primary)]">{q.quote_number ?? q.work_order_number ?? "—"}</td>
                       <td className="px-3 py-2 text-[var(--text-secondary)]">{q.customer_name ?? "—"}</td>
                       <td className="px-3 py-2">
                         <span className={`rounded px-2 py-[2px] text-xs font-medium ${STATE_COLORS[q.state] ?? "bg-gray-100"}`}>
@@ -299,13 +307,14 @@ export default function QuotesPage() {
                       </td>
                       <td className="px-3 py-2 text-right font-mono">{price(q.total_amount)}</td>
                       <td className="px-3 py-2 text-right">
-                        <button
-                          onClick={() => loadQuote(q.id)}
-                          disabled={busy}
-                          className="rounded border border-[var(--primary)] px-3 py-1 text-xs font-medium text-[var(--primary)] disabled:opacity-50"
+                        <a
+                          href={`/admin/quotes?open=${q.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-block rounded border border-[var(--primary)] px-3 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary-light)]"
                         >
                           {t("open")}
-                        </button>
+                        </a>
                       </td>
                     </tr>
                   ))}
@@ -318,16 +327,13 @@ export default function QuotesPage() {
             <div className="flex flex-col gap-5">
               {/* 報價頭 */}
               <div className="flex flex-wrap items-center gap-4 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4">
-                {quote.work_order_number && (
-                  <div className="text-sm">
-                    <span className="text-[var(--text-secondary)]">{t("woNumber")}: </span>
-                    <span className="font-mono text-[13px] font-semibold text-[var(--text-primary)]">{quote.work_order_number}</span>
-                  </div>
-                )}
                 <div className="text-sm">
-                  <span className="text-[var(--text-secondary)]">{t("quoteId")}: </span>
-                  <span className="font-mono text-[12px]">{quote.id}</span>
+                  <span className="text-[var(--text-secondary)]">{t("quoteNo")}: </span>
+                  <span className="font-mono text-[14px] font-semibold text-[var(--text-primary)]">
+                    {quote.quote_number ?? quote.work_order_number ?? quote.id.slice(0, 8)}
+                  </span>
                 </div>
+                <span className="font-mono text-[11px] text-[var(--text-disabled)]">{quote.id.slice(0, 8)}</span>
                 <span className={`rounded px-2 py-[2px] text-xs font-medium ${STATE_COLORS[quote.state] ?? "bg-gray-100"}`}>
                   {t(`state.${quote.state}`)}
                 </span>
