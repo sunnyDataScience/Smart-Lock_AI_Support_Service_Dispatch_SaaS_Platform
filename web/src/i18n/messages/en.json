@@ -283,6 +283,12 @@
     "loggedOut": "Not signed in",
     "logout": "Sign out",
     "loggingOut": "Signing out",
+    "section": {
+      "operations": "Operations",
+      "review": "Review & Exceptions",
+      "insight": "Knowledge & Reports",
+      "configuration": "Settings & Master Data"
+    },
     "nav": {
       "dashboard": "Dashboard",
       "conversations": "Conversations",

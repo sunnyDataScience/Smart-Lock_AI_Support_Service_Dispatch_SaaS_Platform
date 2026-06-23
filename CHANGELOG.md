@@ -81,6 +81,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **後台 sidebar 依「開單流程」重排 + 分組標題（branch `feat/sidebar-reorder`，2026-06-23）**：業主反映原 sidebar 在開單時不順手——開單流程（進線→問題卡→開單→報價→派工→完工結算）的選單被打散（報價單在第 10、客戶主檔第 12、知識庫卡在流程中段第 4）。重排為 4 分組：**開單流程**（儀表板/對話/問題卡/派工管理/報價單/技師/客戶/帳務結算）、**審核與例外**（廠商審核/異常）、**知識與報表**（知識庫/報表）、**設定與主檔**（報價主檔/拆帳規則/庫存/稽核權限/系統設定）。`navItems` 改 `navSections` 結構，render 加灰色分組標題（整組無可見項則連標題隱藏，沿用既有角色過濾）+ 中英 i18n（sidebar.section.* 4 key）。純前端、不動路由/權限,tsc 0。
+
 - **CR-0067 reconciliation_exception 狀態機修正（🔴 latent bug）**：`_ALLOWED_TRANSITIONS["detected"]` 補 `fix_proposed`，使 propose_fix 與其 SQL（`status IN ('detected','ops_review')`）/docstring 一致。影響：對帳異常修正流程首次可從 detected 狀態真正運作（先前必 409）。
 
 - **CR-0066 測試計畫覆蓋 Batch 4 — M07/M08 現場執行 4 項 +1 假綠 bug 修（branch `feat/cr-0066-coverage-batch4-m07m08`，2026-06-20）**：**TI-M07-03** 技師接單 `accept_order`（assigned→accepted+accepted_at；錯狀態 409）補 pytest。**TI-M08-01** GPS 到場 proof：新增純函式 `compute_arrival_gps_proof`（Haversine 距離 + 容忍半徑判定），`record_arrival` 接 gps.ref_lat/ref_lng 算 proof 落 event payload。**TI-M08-03** 簽名 fallback_method 稽核：`submit_work_order_signature` 加 fallback_method（liff/qr/paper，非法 422）落 signature_data。**TI-M08-04** scope change 客戶 30min 未回覆暫停旗標 cron `flag_timed_out_scope_changes`（pending 逾時標記 + audit，不自動拒絕）。**🔴 假綠 bug 修**：`signature_service` 原用 `wo.technician_id`（=technicians.id）當 `digital_signatures.signer_id`（FK→users.id），技師簽名必 FK violation；既有測試都手動 insert 簽名繞過從未測到。改取 `technicians.user_id`。test_cr_0066 5/5 + 回歸全套 844 passed 0 fail。

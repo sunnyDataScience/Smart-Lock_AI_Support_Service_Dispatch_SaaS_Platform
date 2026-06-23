@@ -283,6 +283,12 @@
     "loggedOut": "未登入",
     "logout": "登出",
     "loggingOut": "正在登出",
+    "section": {
+      "operations": "開單流程",
+      "review": "審核與例外",
+      "insight": "知識與報表",
+      "configuration": "設定與主檔"
+    },
     "nav": {
       "dashboard": "儀表板",
       "conversations": "對話管理",

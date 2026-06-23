@@ -51,76 +51,104 @@ interface NavItem {
   children?: NavChild[];
 }
 
-// id 對應 messages/{locale}.json 的 sidebar.nav.* 鍵
-const navItems: NavItem[] = [
-  { icon: LayoutDashboard, id: "dashboard", href: "/dashboard" },
-  { icon: MessageSquare, id: "conversations", href: "/conversations" },
-  { icon: ClipboardList, id: "problemCards", href: "/problem-cards" },
+interface NavSection {
+  /** translation key under sidebar.section.*；分組標題 */
+  titleId: string;
+  items: NavItem[];
+}
+
+// 分組 + 排序依「開單流程」：進線 → 問題卡 → 開單 → 報價 → 派工 → 完工結算。
+// 上半為日常開單流程主線，下半依序為審核例外／知識報表／設定主檔。
+// id 對應 messages/{locale}.json 的 sidebar.nav.*；section titleId 對應 sidebar.section.*。
+const navSections: NavSection[] = [
   {
-    icon: BookOpen,
-    id: "knowledgeBase",
-    href: "/knowledge-base/cases",
-    children: [
-      { id: "kbCases", href: "/knowledge-base/cases" },
-      { id: "kbManuals", href: "/knowledge-base/manuals" },
-      { id: "kbSopDrafts", href: "/knowledge-base/sop-drafts" },
-      { id: "kbFamilyReviews", href: "/knowledge-base/family-reviews" },
+    titleId: "operations",
+    items: [
+      { icon: LayoutDashboard, id: "dashboard", href: "/dashboard" },
+      { icon: MessageSquare, id: "conversations", href: "/conversations" },
+      { icon: ClipboardList, id: "problemCards", href: "/problem-cards" },
+      {
+        icon: Truck,
+        id: "dispatch",
+        href: "/work-orders",
+        children: [
+          { id: "workOrders", href: "/work-orders" },
+          { id: "dispatchQueue", href: "/admin/dispatch-queue" },
+          { id: "materialRequests", href: "/admin/material-requests" },
+        ],
+      },
+      { icon: FileText, id: "quotes", href: "/admin/quotes" },
+      { icon: Users, id: "technicians", href: "/technicians" },
+      { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
+      {
+        icon: Receipt,
+        id: "accounting",
+        href: "/accounting",
+        children: [
+          { id: "settlements", href: "/accounting" },
+          { id: "vouchers", href: "/accounting/vouchers" },
+          { id: "refunds", href: "/admin/refunds" },
+          { id: "warranty", href: "/admin/warranty-claims" },
+          { id: "disputes", href: "/admin/disputes" },
+        ],
+      },
     ],
   },
   {
-    icon: Truck,
-    id: "dispatch",
-    href: "/work-orders",
-    children: [
-      { id: "workOrders", href: "/work-orders" },
-      { id: "dispatchQueue", href: "/admin/dispatch-queue" },
-      { id: "materialRequests", href: "/admin/material-requests" },
-    ],
-  },
-  { icon: Users, id: "technicians", href: "/technicians" },
-  { icon: AlertTriangle, id: "exceptions", href: "/admin/exceptions" },
-  { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
-  { icon: Tag, id: "quoteCatalog", href: "/admin/quote-catalog" },
-  { icon: FileText, id: "quotes", href: "/admin/quotes" },
-  { icon: Banknote, id: "payoutRules", href: "/admin/payout-rules" },
-  { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
-  {
-    icon: Receipt,
-    id: "accounting",
-    href: "/accounting",
-    children: [
-      { id: "settlements", href: "/accounting" },
-      { id: "vouchers", href: "/accounting/vouchers" },
-      { id: "refunds", href: "/admin/refunds" },
-      { id: "warranty", href: "/admin/warranty-claims" },
-      { id: "disputes", href: "/admin/disputes" },
-    ],
-  },
-  { icon: Package, id: "inventory", href: "/admin/inventory" },
-  {
-    icon: BarChart3,
-    id: "reports",
-    href: "/admin/reports/kpi",
-    children: [
-      { id: "kpi", href: "/admin/reports/kpi" },
-      { id: "techRanking", href: "/admin/reports/technician-ranking" },
-      { id: "revenue", href: "/admin/reports/revenue" },
-      { id: "sopPerformance", href: "/admin/knowledge-base/sop-performance" },
+    titleId: "review",
+    items: [
+      { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
+      { icon: AlertTriangle, id: "exceptions", href: "/admin/exceptions" },
     ],
   },
   {
-    icon: ShieldCheck,
-    id: "audit",
-    href: "/admin/roles", // 父項點選導向角色管理（對齊「父 href = 第一個子項」慣例）
-    children: [
-      { id: "roles", href: "/admin/roles" },
-      { id: "staff", href: "/admin/staff" },
-      { id: "configGovernance", href: "/admin/config-governance" },
-      { id: "auditLogs", href: "/admin/audit-events" },
-      { id: "sentimentAlerts", href: "/admin/sentiment-alerts" },
+    titleId: "insight",
+    items: [
+      {
+        icon: BookOpen,
+        id: "knowledgeBase",
+        href: "/knowledge-base/cases",
+        children: [
+          { id: "kbCases", href: "/knowledge-base/cases" },
+          { id: "kbManuals", href: "/knowledge-base/manuals" },
+          { id: "kbSopDrafts", href: "/knowledge-base/sop-drafts" },
+          { id: "kbFamilyReviews", href: "/knowledge-base/family-reviews" },
+        ],
+      },
+      {
+        icon: BarChart3,
+        id: "reports",
+        href: "/admin/reports/kpi",
+        children: [
+          { id: "kpi", href: "/admin/reports/kpi" },
+          { id: "techRanking", href: "/admin/reports/technician-ranking" },
+          { id: "revenue", href: "/admin/reports/revenue" },
+          { id: "sopPerformance", href: "/admin/knowledge-base/sop-performance" },
+        ],
+      },
     ],
   },
-  { icon: Settings, id: "settings", href: "/settings" },
+  {
+    titleId: "configuration",
+    items: [
+      { icon: Tag, id: "quoteCatalog", href: "/admin/quote-catalog" },
+      { icon: Banknote, id: "payoutRules", href: "/admin/payout-rules" },
+      { icon: Package, id: "inventory", href: "/admin/inventory" },
+      {
+        icon: ShieldCheck,
+        id: "audit",
+        href: "/admin/roles", // 父項點選導向角色管理（對齊「父 href = 第一個子項」慣例）
+        children: [
+          { id: "roles", href: "/admin/roles" },
+          { id: "staff", href: "/admin/staff" },
+          { id: "configGovernance", href: "/admin/config-governance" },
+          { id: "auditLogs", href: "/admin/audit-events" },
+          { id: "sentimentAlerts", href: "/admin/sentiment-alerts" },
+        ],
+      },
+      { icon: Settings, id: "settings", href: "/settings" },
+    ],
+  },
 ];
 
 function isParentActive(item: NavItem, pathname: string): boolean {
@@ -170,6 +198,7 @@ export default function Sidebar() {
   const { isOpen, isMobile, close } = useSidebar();
   const tSidebar = useTranslations("sidebar");
   const tNav = useTranslations("sidebar.nav");
+  const tSection = useTranslations("sidebar.section");
   const tRole = useTranslations("role");
   const [loggingOut, setLoggingOut] = useState(false);
   const [session, setSession] = useState<CurrentSession | null>(null);
@@ -208,16 +237,22 @@ export default function Sidebar() {
   }
 
   // CR-0021：依角色過濾 nav（父項可存取、或有任一可見子項才顯示）。
+  // 分組保留：先過濾各 section 的 items，整組無可見項則連標題一起移除。
   const role = session?.role ?? null;
-  const visibleNavItems = navItems
-    .map((item) => ({
-      ...item,
-      children: item.children?.filter((c) => canAccessRoute(c.href, role)),
+  const visibleSections = navSections
+    .map((section) => ({
+      titleId: section.titleId,
+      items: section.items
+        .map((item) => ({
+          ...item,
+          children: item.children?.filter((c) => canAccessRoute(c.href, role)),
+        }))
+        .filter(
+          (item) =>
+            canAccessRoute(item.href, role) || (item.children?.length ?? 0) > 0,
+        ),
     }))
-    .filter(
-      (item) =>
-        canAccessRoute(item.href, role) || (item.children?.length ?? 0) > 0,
-    );
+    .filter((section) => section.items.length > 0);
 
   return (
     <>
@@ -257,7 +292,12 @@ export default function Sidebar() {
         className="flex flex-1 flex-col gap-[2px] overflow-y-auto px-3 py-2"
         aria-label={tSidebar("pageNavAria")}
       >
-        {visibleNavItems.map((item) => {
+        {visibleSections.map((section) => (
+          <div key={section.titleId} className="flex flex-col gap-[2px]">
+            <div className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-disabled)] opacity-60">
+              {tSection(section.titleId)}
+            </div>
+            {section.items.map((item) => {
           const active = isParentActive(item, pathname);
           const hasChildren = !!item.children;
           const submenuId = hasChildren ? `submenu-${item.href.replace(/\//g, "-")}` : undefined;
@@ -316,7 +356,9 @@ export default function Sidebar() {
               )}
             </div>
           );
-        })}
+            })}
+          </div>
+        ))}
       </nav>
 
       <div className="flex items-center gap-3 border-t border-[#334155] px-5 py-4">
