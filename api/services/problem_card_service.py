@@ -592,8 +592,12 @@ async def escalation_to_draft_pc(
 
     snapshot = facts_snapshot or {}
     excerpt = (snapshot.get("user_input_excerpt") or "").strip()
-    # 症狀文字優先取客人原話摘要，否則用 agent 轉接理由
-    symptom_text = (excerpt or reason or "").strip()[:1000] or "（客人轉真人，詳見對話）"
+    # CR-0098：LLM 在 transfer_to_human 已從對話抽出的裝置/症狀 → 建卡時自動填，免客服重打。
+    ai_brand = (snapshot.get("brand") or "").strip()
+    ai_model = (snapshot.get("model") or "").strip()
+    ai_symptom = (snapshot.get("symptom") or "").strip()
+    # 症狀文字優先取 LLM 抽出的精準症狀，其次客人原話摘要，再否則 agent 轉接理由
+    symptom_text = (ai_symptom or excerpt or reason or "").strip()[:1000] or "（客人轉真人，詳見對話）"
 
     # TI-M03-06 / A06：sha256 冪等鍵 + 24h dedup 視窗（抵抗 DLQ/outbox retry 重複建卡）。
     # brand 在 AI 草擬卡多為空，鍵以 conv_id + 症狀 為主。命中 24h 內同鍵 → 回既有（冪等）。
@@ -640,21 +644,26 @@ async def escalation_to_draft_pc(
         card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
         return {"problem_card_id": pc_id, "conversation_id": conv_id, "created": False, "card": card}
 
-    # 新建寬鬆草擬卡（brand/model 留空，待客服補；urgency 依 is_explicit）
+    # CR-0098：LLM 已從對話抽出的 brand/model 自動填入（沒抽到才留空待客服補）；
+    # ai_missing_fields 動態剔除已填欄位，前端「待補」徽章才準確。
+    filled = {"brand": ai_brand, "model": ai_model}
+    missing = [f for f in _AI_DRAFT_MISSING_FIELDS if not filled.get(f)]
     urgency = "high" if is_explicit else "normal"
     cur = await db_module._conn.execute(
         "INSERT INTO problem_cards "
-        "  (conversation_id, category, symptoms, urgency, intent, status, "
+        "  (conversation_id, brand, model, category, symptoms, urgency, intent, status, "
         "   source, ai_missing_fields, idempotency_key) "
-        "VALUES (%s::uuid, %s, %s::jsonb, %s, 'repair', 'incomplete', "
+        "VALUES (%s::uuid, %s, %s, %s, %s::jsonb, %s, 'repair', 'incomplete', "
         "        'ai_line', %s::jsonb, %s) "
         "RETURNING id",
         (
             conv_id,
+            ai_brand or None,
+            ai_model or None,
             "其他",
             json.dumps([symptom_text], ensure_ascii=False),
             urgency,
-            json.dumps(_AI_DRAFT_MISSING_FIELDS),
+            json.dumps(missing),
             idem_key,
         ),
     )

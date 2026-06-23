@@ -60,6 +60,10 @@ def _is_explicit_transfer_request(text: str) -> bool:
 @tool_parameters(
     tool_parameters_schema(
         reason=StringSchema("一句話摘要轉接原因(會寫進稽核紀錄供營運查詢)"),
+        # CR-0098：客戶對話中若提過裝置/症狀，呼叫時一併帶上 → 問題卡自動填好，免客服重打。
+        brand=StringSchema("客戶對話中提到的鎖品牌（如 Chatlock、Dormakaba、Yale）；沒提到留空字串"),
+        model=StringSchema("客戶提到的型號（如 A90、AS701、YDM7220）；沒提到留空字串"),
+        symptom=StringSchema("故障症狀一句話（如 鎖舌卡住、紅燈閃4次、電池耗電快）；沒明確症狀留空字串"),
         required=["reason"],
     )
 )
@@ -125,7 +129,14 @@ class TransferToHumanTool(Tool, ContextAware):
             return "(目前尚未掌握您的聯絡與裝置資訊)"
         return "\n".join(f"- {e.content}" for e in entries)
 
-    async def execute(self, reason: str, **kwargs: Any) -> str:
+    async def execute(
+        self,
+        reason: str,
+        brand: str = "",
+        model: str = "",
+        symptom: str = "",
+        **kwargs: Any,
+    ) -> str:
         user_id = self._user_id.get() or "anonymous"
         user_text = self._user_input.get()
         is_explicit = _is_explicit_transfer_request(user_text)
@@ -134,6 +145,10 @@ class TransferToHumanTool(Tool, ContextAware):
         snapshot = {
             "facts_block": facts_block,
             "user_input_excerpt": user_text[:200],
+            # CR-0098：LLM 從對話抽出的結構化裝置/症狀 → 旁路帶給 API 自動填問題卡。
+            "brand": (brand or "").strip()[:100],
+            "model": (model or "").strip()[:100],
+            "symptom": (symptom or "").strip()[:200],
         }
 
         if self._escalation_store:
