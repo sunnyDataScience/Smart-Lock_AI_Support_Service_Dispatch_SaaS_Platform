@@ -34,6 +34,7 @@ _ALLOWED_PURPOSES = {
     "completion_before",
     "completion_during",   # CR-0054：施工中拓孔結構照（PDF §四 施工前/中/後三類）
     "completion_after",
+    "completion_signature",  # 技師完工客戶簽名（前端 my-orders/[id] 簽名上傳用）
     "dispute_evidence_customer",
     "dispute_evidence_technician",
     "other",

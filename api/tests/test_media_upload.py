@@ -47,6 +47,22 @@ async def test_upload_invalid_purpose(client, admin_headers):
 
 
 @pytest.mark.asyncio
+async def test_upload_completion_signature_purpose(client, admin_headers):
+    """技師完工簽名上傳用 purpose=completion_signature，須被接受（前後端 enum 對齊）。
+
+    回歸守門：前端 my-orders/[id] 簽名上傳送此值，先前不在 _PURPOSE Literal → 422。
+    """
+    fake_png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 16
+    files = {"file": ("sig.png", fake_png, "image/png")}
+    data = {"purpose": "completion_signature"}
+    res = await client.post(
+        "/api/v1/media", headers=admin_headers, files=files, data=data
+    )
+    assert res.status_code == 200, res.text
+    assert res.json()["url"].startswith("/api/v1/media/")
+
+
+@pytest.mark.asyncio
 async def test_upload_unsupported_content_type(client, admin_headers):
     fake = b"hello world"
     files = {"file": ("doc.txt", fake, "text/plain")}
