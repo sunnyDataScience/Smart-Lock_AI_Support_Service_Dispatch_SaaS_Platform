@@ -13,6 +13,7 @@ import {
 import TechShell from "@/components/tech/TechShell";
 import StatusBadge from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
+import SignaturePad from "@/components/tech/SignaturePad";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
@@ -45,6 +46,7 @@ export default function MyOrderDetailPage() {
   const tForm = useTranslations("techPortal.detail.form");
   const tSub = useTranslations("techPortal.detail.subflows");
   const tCommon = useTranslations("techPortal.common");
+  const tSig = useTranslations("techPortal.signature");
 
   const [wo, setWo] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(false);
@@ -60,8 +62,10 @@ export default function MyOrderDetailPage() {
   const [photoUploading, setPhotoUploading] = useState<
     "before" | "during" | "after" | null
   >(null);
-  const [signature, setSignature] = useState<{ id: string; url: string } | null>(null);
-  const [sigUploading, setSigUploading] = useState(false);
+  // CR：完工簽名改用 canvas 雙簽名（與 /signature 頁一致），送 /signature 建 digital_signatures
+  // 紀錄（完工硬閘 _signature_exists 認的是這個，非 /media 上傳的圖）。base64 dataURL。
+  const [techSig, setTechSig] = useState("");
+  const [custSig, setCustSig] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
@@ -119,27 +123,6 @@ export default function MyOrderDetailPage() {
     }
   }
 
-  async function uploadSignature(file: File) {
-    if (!wo) return;
-    setSigUploading(true);
-    setSubmitError(null);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("purpose", "completion_signature");
-      fd.append("work_order_id", wo.id);
-      const res = await api.upload<{ id: string; url: string; filename: string }>(
-        tenantPath("/media"),
-        fd,
-      );
-      setSignature({ id: res.id, url: res.url });
-    } catch (e) {
-      setSubmitError(formatErr(e));
-    } finally {
-      setSigUploading(false);
-    }
-  }
-
   async function submitCompletion() {
     if (!wo || submitting) return;
     if (summary.trim().length < 5) {
@@ -149,12 +132,22 @@ export default function MyOrderDetailPage() {
     setSubmitting(true);
     setSubmitError(null);
     try {
-      // CR-0039：技師走正規完工硬閘 /onsite/completion（照片≥3 / 簽名 / 安裝案序號）。
-      // 不再打 :complete（後台 override 端點，技師會被後端 403 擋下）。
+      // 1) 先送雙簽名 → 建 digital_signatures 紀錄。完工硬閘 _signature_exists 認的是
+      //    這個（customer 簽名紀錄），非 /media 上傳的簽名圖。與 /signature 頁同一端點。
+      await api.post(
+        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/signature`),
+        {
+          customer_signature: custSig,
+          technician_signature: techSig,
+          signed_at: new Date().toISOString(),
+        },
+      );
+      // 2) CR-0039 正規完工硬閘 /onsite/completion（照片≥3 / 簽名紀錄存在）。
+      //    signature_evidence_id 後端僅寫進稽核 summary、不驗證，傳標記即可。
       await api.post<{ work_order_id: string; completed_at: string | null }>(
         tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/onsite/completion`),
         {
-          signature_evidence_id: signature?.id,
+          signature_evidence_id: "onsite-signature",
           photo_evidence_ids: completionPhotos.map((p) => p.id),
           notes: summary.trim(),
         },
@@ -162,7 +155,8 @@ export default function MyOrderDetailPage() {
       setSubmitOk(true);
       setShowForm(false);
       setCompletionPhotos([]);
-      setSignature(null);
+      setTechSig("");
+      setCustSig("");
       // onsite/completion 回 {work_order_id, completed_at}（非 envelope）→ refetch 取最新狀態
       await fetchOrder();
     } catch (e) {
@@ -487,42 +481,13 @@ export default function MyOrderDetailPage() {
                 </span>
               </div>
 
-              {/* CR-0039 客戶簽名（完工硬閘必填）*/}
-              <div className="flex flex-col gap-2">
+              {/* CR-0039 完工簽名（雙 canvas 簽名 → /signature 建 digital_signatures；硬閘必填）*/}
+              <div className="flex flex-col gap-3">
                 <span className="text-[12px] font-medium text-[var(--text-secondary)]">
                   {tForm("signatureLabel")} <span className="text-red-500">*</span>
                 </span>
-                {signature ? (
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={signature.url}
-                      alt="signature"
-                      className="h-16 w-28 rounded border border-[var(--border)] bg-[var(--bg-surface)] object-contain"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setSignature(null)}
-                      className="text-[12px] text-[var(--error)] hover:underline"
-                    >
-                      {tCommon("clear")}
-                    </button>
-                  </div>
-                ) : (
-                  <label className="flex h-16 cursor-pointer items-center justify-center gap-1 rounded-md border-2 border-dashed border-[var(--border)] text-[12px] text-[var(--text-secondary)] hover:border-[var(--primary)]">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) uploadSignature(f);
-                        e.target.value = "";
-                      }}
-                    />
-                    {sigUploading ? tForm("signatureUploading") : tForm("signatureUploadCta")}
-                  </label>
-                )}
+                <SignaturePad label={tSig("techLabel")} onChange={setTechSig} />
+                <SignaturePad label={tSig("customerLabel")} onChange={setCustSig} />
               </div>
 
               <p className="rounded-md bg-[var(--bg-page)] px-3 py-2 text-[11px] text-[var(--text-secondary)]">
@@ -547,7 +512,12 @@ export default function MyOrderDetailPage() {
                 <button
                   type="button"
                   onClick={submitCompletion}
-                  disabled={submitting || completionPhotos.length < 3 || !signature}
+                  disabled={
+                    submitting ||
+                    completionPhotos.length < 3 ||
+                    custSig.length <= 100 ||
+                    techSig.length <= 100
+                  }
                   className="h-11 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
                 >
                   {submitting ? tForm("submitting") : tForm("submit")}
