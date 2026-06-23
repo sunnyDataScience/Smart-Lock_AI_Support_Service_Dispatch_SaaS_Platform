@@ -201,12 +201,14 @@ async def list_orders(
         args.append(created_after)
 
     if keyword:
+        # 公單號（document_number，如 TP-000001）一併納入搜尋 —— 讓使用者用可讀編號
+        # 找工單（如報價頁選工單），免貼內部 UUID。additive：response schema 不變。
         where.append(
             "(wo.customer_name ILIKE %s OR wo.customer_address ILIKE %s "
-            "OR wo.customer_phone ILIKE %s)"
+            "OR wo.customer_phone ILIKE %s OR wo.document_number ILIKE %s)"
         )
         like = f"%{keyword}%"
-        args.extend([like, like, like])
+        args.extend([like, like, like, like])
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { FileText, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
@@ -259,16 +260,11 @@ export default function QuotesPage() {
         <div className="flex-1 overflow-auto pl-14 pr-4 md:px-8 py-6">
           {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
-          {/* 建報價 */}
+          {/* 建報價 —— 用公單號（TP-000001）/ 客戶名選工單，免手貼 UUID */}
           <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-[var(--text-secondary)]">{t("woId")}</span>
-              <input
-                value={woId}
-                onChange={(e) => setWoId(e.target.value)}
-                placeholder="work_order uuid"
-                className="w-80 rounded border border-[var(--border)] px-3 py-2 font-mono text-[12px]"
-              />
+              <span className="text-[var(--text-secondary)]">{t("woPickerLabel")}</span>
+              <WorkOrderPicker value={woId} onChange={setWoId} />
             </label>
             <button
               onClick={createQuote}
