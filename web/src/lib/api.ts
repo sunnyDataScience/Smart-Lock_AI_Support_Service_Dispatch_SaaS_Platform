@@ -484,13 +484,13 @@ export async function login(email: string, password: string): Promise<LoginRespo
 // 技師登入走專用端點 POST /api/v1/technicians/login（auth.py:58,回傳與 admin
 // login 相同的 {data:{access_token,refresh_token,...}} 信封,token 內 role=technician）。
 // 之前暫接 admin login() 是 WIP stub,demo-tech 密碼存技師庫 → admin 端點必 401。
-// identifier 可為 email 或手機;後端以 email 欄位接收。
+// CR-0099：identifier 可為手機（09xxxxxxxx）或 email，後端以 identifier 欄位解析。
 export async function loginTechnician(
   identifier: string,
   password: string,
 ): Promise<LoginResponse> {
   const res = await request<LoginResponse>("POST", "/api/v1/technicians/login", {
-    body: { email: identifier, password },
+    body: { identifier: identifier.trim(), password },
     skipAuth: true,
   });
   auth.setTokens(res.data.access_token, res.data.refresh_token);

@@ -1043,6 +1043,8 @@ paths:
       operationId: loginTechnician
       description: |
         Authenticates users with role `technician`.
+        CR-0099: `identifier` accepts a Taiwan mobile number (`09xxxxxxxx`) OR an email.
+        A mobile matching more than one account → 409 (caller must use email).
         Returns JWT access token (TTL=1h) and opaque refresh token.
       requestBody:
         required: true
@@ -1050,9 +1052,13 @@ paths:
           application/json:
             schema:
               type: object
-              required: [email, password]
+              required: [identifier, password]
               properties:
-                email: { type: string, format: email }
+                identifier:
+                  type: string
+                  minLength: 1
+                  maxLength: 255
+                  description: Mobile number (09xxxxxxxx) or email
                 password: { type: string, minLength: 8 }
       responses:
         '200':
@@ -1065,6 +1071,9 @@ paths:
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
         '403':
           description: Role not allowed (not technician)
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: AMBIGUOUS_IDENTIFIER — mobile matches multiple accounts; use email
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
   ## ============================================================

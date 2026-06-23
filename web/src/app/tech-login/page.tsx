@@ -85,7 +85,7 @@ export default function TechLoginPage() {
               type="password"
               autoComplete="current-password"
               required
-              minLength={4}
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={loading}

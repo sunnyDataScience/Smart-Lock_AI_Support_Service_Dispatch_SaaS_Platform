@@ -20,6 +20,12 @@ class LoginBody(BaseModel):
     password: str = Field(min_length=8)
 
 
+class TechnicianLoginBody(BaseModel):
+    # CR-0099：技師可用手機號（09xxxxxxxx）或 Email 登入，故收通用 identifier 而非 EmailStr。
+    identifier: str = Field(min_length=1, max_length=255, description="手機號（09xxxxxxxx）或 Email")
+    password: str = Field(min_length=8)
+
+
 class RefreshBody(BaseModel):
     refresh_token: str
 
@@ -81,12 +87,13 @@ async def login_admin(body: LoginBody) -> dict:
 @router.post(
     "/technicians/login",
     operation_id="loginTechnician",
-    summary="技師登入",
+    summary="技師登入（手機號或 Email）",
     status_code=200,
 )
-async def login_technician(body: LoginBody) -> dict:
-    return await auth_service.login(
-        email=body.email, password=body.password, allowed_roles=["technician"]
+async def login_technician(body: TechnicianLoginBody) -> dict:
+    # CR-0099：identifier 解析手機/email；手機多筆相符 → 409（改用 Email）。
+    return await auth_service.login_with_identifier(
+        body.identifier, body.password, allowed_roles=["technician"]
     )
 
 

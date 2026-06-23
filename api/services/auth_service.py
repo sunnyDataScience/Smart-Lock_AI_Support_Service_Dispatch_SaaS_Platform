@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import secrets
 import uuid
 from datetime import datetime, timezone
@@ -80,6 +81,74 @@ async def login(email: str, password: str, *, allowed_roles: list[str]) -> dict:
         raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
     if not user["password_hash"] or not verify_password(password, user["password_hash"]):
         raise ApiError("UNAUTHENTICATED", "Invalid email or password", 401)
+
+    return _build_login_payload(
+        user_id=user["id"],
+        role=user["role"],
+        tenant_id=user["tenant_id"] or "00000000-0000-0000-0000-000000000001",
+    )
+
+
+# 台灣手機格式（與 TechnicianRegisterBody.phone 一致）。符合 → 視為手機查詢，否則當 email。
+_TW_MOBILE_RE = re.compile(r"^09\d{8}$")
+
+
+async def _find_users_by_phone(phone: str, role_in: list[str]) -> list[dict]:
+    """依手機 + 角色查使用者。phone 無唯一約束 → 回全部相符以偵測歧義（CR-0099 §8.1）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    placeholders = ",".join(["%s"] * len(role_in))
+    cur = await db_module._conn.execute(
+        f"SELECT id, email, password_hash, role, tenant_id, is_active "
+        f"FROM users "
+        f"WHERE phone = %s AND role IN ({placeholders})",
+        (phone, *role_in),
+    )
+    rows = await cur.fetchall()
+    return [
+        {
+            "id": str(r[0]),
+            "email": r[1],
+            "password_hash": r[2],
+            "role": r[3],
+            "tenant_id": str(r[4]) if r[4] else None,
+            "is_active": r[5],
+        }
+        for r in rows
+    ]
+
+
+async def login_with_identifier(
+    identifier: str, password: str, *, allowed_roles: list[str]
+) -> dict:
+    """以 identifier（台灣手機 09xxxxxxxx 或 Email）登入（CR-0099，技師專用）。
+
+    解析規則：
+      - 符合手機格式 → 查 phone；手機非唯一，多筆相符 → 409 AMBIGUOUS_IDENTIFIER，
+        要求改用 Email（§8.1 業主裁決）。
+      - 否則 → 走既有 email 查詢（不符 email 格式者自然查無 → 401）。
+    密碼驗證、停用檢查、token 簽發與 login() 一致。
+    """
+    ident = (identifier or "").strip()
+    if _TW_MOBILE_RE.match(ident):
+        users = await _find_users_by_phone(ident, allowed_roles)
+        if len(users) > 1:
+            raise ApiError(
+                "AMBIGUOUS_IDENTIFIER",
+                "此手機號對應多個帳號，請改用 Email 登入",
+                409,
+            )
+        user = users[0] if users else None
+    else:
+        user = await _find_user_by_email(ident, allowed_roles)
+
+    if not user:
+        raise ApiError("UNAUTHENTICATED", "Invalid credentials", 401)
+    if not user["is_active"]:
+        raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
+    if not user["password_hash"] or not verify_password(password, user["password_hash"]):
+        raise ApiError("UNAUTHENTICATED", "Invalid credentials", 401)
 
     return _build_login_payload(
         user_id=user["id"],
