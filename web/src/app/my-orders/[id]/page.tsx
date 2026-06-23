@@ -55,11 +55,11 @@ export default function MyOrderDetailPage() {
   const [summary, setSummary] = useState("");
   const [actualAmount, setActualAmount] = useState("");
   const [completionPhotos, setCompletionPhotos] = useState<
-    { section: "before" | "after"; id: string; url: string; filename: string }[]
+    { section: "before" | "during" | "after"; id: string; url: string; filename: string }[]
   >([]);
-  const [photoUploading, setPhotoUploading] = useState<"before" | "after" | null>(
-    null,
-  );
+  const [photoUploading, setPhotoUploading] = useState<
+    "before" | "during" | "after" | null
+  >(null);
   const [signature, setSignature] = useState<{ id: string; url: string } | null>(null);
   const [sigUploading, setSigUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -87,7 +87,7 @@ export default function MyOrderDetailPage() {
   }, [fetchOrder]);
 
   async function uploadCompletionPhoto(
-    section: "before" | "after",
+    section: "before" | "during" | "after",
     file: File,
   ) {
     if (!wo) return;
@@ -96,10 +96,8 @@ export default function MyOrderDetailPage() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      fd.append(
-        "purpose",
-        section === "before" ? "completion_before" : "completion_after",
-      );
+      // section 值（before/during/after）對應 purpose completion_before/during/after。
+      fd.append("purpose", `completion_${section}`);
       fd.append("work_order_id", wo.id);
       const res = await api.upload<{ id: string; url: string; filename: string }>(
         tenantPath("/media"),
@@ -437,8 +435,8 @@ export default function MyOrderDetailPage() {
                 <span className="text-[12px] font-medium text-[var(--text-secondary)]">
                   {tForm("photosLabel")}
                 </span>
-                <div className="grid grid-cols-2 gap-2">
-                  {(["before", "after"] as const).map((section) => (
+                <div className="grid grid-cols-3 gap-2">
+                  {(["before", "during", "after"] as const).map((section) => (
                     <label
                       key={section}
                       className="flex h-20 cursor-pointer items-center justify-center gap-1 rounded-md border-2 border-dashed border-[var(--border)] text-[12px] text-[var(--text-secondary)] hover:border-[var(--primary)]"
@@ -456,9 +454,13 @@ export default function MyOrderDetailPage() {
                       />
                       {photoUploading === section
                         ? tCommon("uploading")
-                        : section === "before"
-                          ? tForm("photoBefore")
-                          : tForm("photoAfter")}
+                        : tForm(
+                            section === "before"
+                              ? "photoBefore"
+                              : section === "during"
+                                ? "photoDuring"
+                                : "photoAfter",
+                          )}
                     </label>
                   ))}
                 </div>
