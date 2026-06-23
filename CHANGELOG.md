@@ -85,6 +85,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **技師端深色模式修正（接單畫面字看不見，branch `fix/tech-portal-dark-mode`，2026-06-23）**：業主用師傅帳號登入後反映「接單畫面 UI 根本看不清楚」，且技師端找不到切換顏色的地方。**根因**：globals.css 早有深色覆寫機制（`[data-theme="dark"] .bg-[#FFFFFF]{...!important}` 等），設計約定「硬寫表面色要用有覆寫保護的形式 / 一律用 CSS 變數」。但**技師端頁面用的是 Tailwind 關鍵字 `bg-white`**（不在覆寫名單內），逃出安全網 → 深色模式下卡片永遠白底、而文字用 `var(--text-primary)`（深色模式變近白）→ **近白字印白底＝幾乎看不見**；技師端又無主題切換鈕無法自救。**修**：把技師端 24 個檔（`pool`/`my-orders` 全流程/`account`/`home`/`components/tech/*` 含 TechShell/Sidebar/BottomNav）的中性硬寫色 token 化——`bg-white`→`bg-[var(--bg-surface)]`、`#F1F5F9`→surface-strong、`#EFF6FF`→primary-light、`#F8FAFC`→bg-page、`#1D4ED8`→primary-hover、`#1E293B`/`#64748B`/`#475569`/`#94A3B8`→對應 text 變數（122 處 1:1）。**保留**語意徽章（amber/blue/red/green 自帶 bg+text 對，雙模式皆可讀）與 `bg-white/15` 半透明疊層。淺色模式視覺幾乎不變（變數值≈原硬寫色），深色模式恢復可讀。tsc 0。純前端視覺修正、不涉契約/流程，免 CIA。
+
 - **後台 sidebar 依「開單流程」重排 + 分組標題（branch `feat/sidebar-reorder`，2026-06-23）**：業主反映原 sidebar 在開單時不順手——開單流程（進線→問題卡→開單→報價→派工→完工結算）的選單被打散（報價單在第 10、客戶主檔第 12、知識庫卡在流程中段第 4）。重排為 4 分組：**開單流程**（儀表板/對話/問題卡/派工管理/報價單/技師/客戶/帳務結算）、**審核與例外**（廠商審核/異常）、**知識與報表**（知識庫/報表）、**設定與主檔**（報價主檔/拆帳規則/庫存/稽核權限/系統設定）。`navItems` 改 `navSections` 結構，render 加灰色分組標題（整組無可見項則連標題隱藏，沿用既有角色過濾）+ 中英 i18n（sidebar.section.* 4 key）。純前端、不動路由/權限,tsc 0。
 
 - **CR-0067 reconciliation_exception 狀態機修正（🔴 latent bug）**：`_ALLOWED_TRANSITIONS["detected"]` 補 `fix_proposed`，使 propose_fix 與其 SQL（`status IN ('detected','ops_review')`）/docstring 一致。影響：對帳異常修正流程首次可從 detected 狀態真正運作（先前必 409）。

@@ -27,7 +27,7 @@ export default function TechBottomNav() {
   );
 
   return (
-    <nav className="sticky bottom-0 z-30 grid grid-cols-4 border-t border-[var(--border)] bg-white pb-[env(safe-area-inset-bottom,0)] md:hidden">
+    <nav className="sticky bottom-0 z-30 grid grid-cols-4 border-t border-[var(--border)] bg-[var(--bg-surface)] pb-[env(safe-area-inset-bottom,0)] md:hidden">
       {tabs.map(({ label, href, Icon, match }) => {
         const active = match.test(pathname);
         return (
@@ -35,7 +35,7 @@ export default function TechBottomNav() {
             key={href}
             href={href}
             className={`flex h-14 flex-col items-center justify-center gap-[2px] text-[11px] font-medium ${
-              active ? "text-[var(--primary)]" : "text-[#94A3B8]"
+              active ? "text-[var(--primary)]" : "text-[var(--text-tertiary)]"
             }`}
           >
             <Icon className="h-5 w-5" />

@@ -29,7 +29,7 @@ export default function StatusEarningsPill({ availability, amountLabel, caption 
   const t = useTranslations("techPortal.home.status");
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-white px-4 py-3 shadow-sm">
+    <div className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 shadow-sm">
       <div className="flex items-center gap-2">
         <span
           className="inline-block h-2.5 w-2.5 rounded-full"

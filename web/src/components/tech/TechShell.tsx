@@ -25,14 +25,14 @@ export default function TechShell({ title, wide = false, children }: Props) {
       <TechSidebar />
       <div className="flex min-h-screen w-full flex-1 flex-col">
         {title && (
-          <header className="sticky top-0 z-20 flex h-14 items-center border-b border-[var(--border)] bg-white px-4">
-            <h1 className="text-[18px] font-semibold text-[#1E293B]">{title}</h1>
+          <header className="sticky top-0 z-20 flex h-14 items-center border-b border-[var(--border)] bg-[var(--bg-surface)] px-4">
+            <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{title}</h1>
           </header>
         )}
         <main className="flex-1 overflow-y-auto">
           <div
             className={`mx-auto w-full ${
-              wide ? "md:max-w-[1280px]" : "min-h-full bg-white shadow-sm md:max-w-[680px]"
+              wide ? "md:max-w-[1280px]" : "min-h-full bg-[var(--bg-surface)] shadow-sm md:max-w-[680px]"
             }`}
           >
             {children}

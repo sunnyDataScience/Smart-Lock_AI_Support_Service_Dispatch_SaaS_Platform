@@ -50,7 +50,7 @@ export default function TodayScheduleSummary({ orders, loading }: Props) {
   const current = active[0];
 
   return (
-    <section className="rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-[var(--primary)]" />
@@ -94,7 +94,7 @@ export default function TodayScheduleSummary({ orders, loading }: Props) {
               {current.address}
             </h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-              <span className="rounded bg-[#F1F5F9] px-2 py-[2px]">
+              <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px]">
                 {current.brand} {current.model}
               </span>
               <span>{current.district}</span>

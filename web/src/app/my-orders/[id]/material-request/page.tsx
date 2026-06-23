@@ -110,7 +110,7 @@ export default function MaterialRequestPage() {
         </div>
       )}
 
-      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("listTitle")}
@@ -118,7 +118,7 @@ export default function MaterialRequestPage() {
           <button
             type="button"
             onClick={() => setItems((prev) => [...prev, newItem()])}
-            className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--primary)] hover:bg-[#EFF6FF]"
+            className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--primary)] hover:bg-[var(--primary-light)]"
           >
             <Plus className="h-3 w-3" />
             {t("addItem")}
@@ -128,7 +128,7 @@ export default function MaterialRequestPage() {
         {items.map((it, idx) => (
           <div
             key={it.id}
-            className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-3"
+            className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] p-3"
           >
             <div className="flex items-start gap-2">
               <Package className="mt-2 h-4 w-4 flex-shrink-0 text-[var(--text-secondary)]" />
@@ -140,7 +140,7 @@ export default function MaterialRequestPage() {
                     updateItem(idx, { brand: e.target.value })
                   }
                   placeholder={t("brandPlaceholder")}
-                  className="rounded-md border border-[var(--border)] bg-white px-2 py-1 text-[13px]"
+                  className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px]"
                 />
                 <input
                   type="text"
@@ -149,7 +149,7 @@ export default function MaterialRequestPage() {
                     updateItem(idx, { model: e.target.value })
                   }
                   placeholder={t("modelPlaceholder")}
-                  className="rounded-md border border-[var(--border)] bg-white px-2 py-1 text-[13px]"
+                  className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px]"
                 />
                 <label className="flex items-center gap-1 text-[12px]">
                   <span className="text-[var(--text-secondary)]">{t("quantityLabel")}</span>
@@ -162,7 +162,7 @@ export default function MaterialRequestPage() {
                         quantity: parseInt(e.target.value) || 0,
                       })
                     }
-                    className="w-20 rounded-md border border-[var(--border)] bg-white px-2 py-1"
+                    className="w-20 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1"
                   />
                 </label>
               </div>
@@ -182,7 +182,7 @@ export default function MaterialRequestPage() {
         ))}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("urgencyLabel")}
         </span>
@@ -192,8 +192,8 @@ export default function MaterialRequestPage() {
               key={u.value}
               className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
                 urgency === u.value
-                  ? "border-[var(--primary)] bg-[#EFF6FF]"
-                  : "border-[var(--border)] bg-white"
+                  ? "border-[var(--primary)] bg-[var(--primary-light)]"
+                  : "border-[var(--border)] bg-[var(--bg-surface)]"
               }`}
             >
               <input
@@ -208,7 +208,7 @@ export default function MaterialRequestPage() {
         </div>
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("noteLabel")}
         </span>

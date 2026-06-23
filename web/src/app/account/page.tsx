@@ -148,7 +148,7 @@ export default function AccountPage() {
             aria-label={t("ariaToggleOnline")}
           >
             <span
-              className="absolute top-[2px] h-6 w-6 rounded-full bg-white shadow transition-all"
+              className="absolute top-[2px] h-6 w-6 rounded-full bg-[var(--bg-surface)] shadow transition-all"
               style={{ left: online ? "22px" : "2px" }}
             />
           </button>
@@ -164,7 +164,7 @@ export default function AccountPage() {
       {/* 桌面：內容區改 2 欄吃滿寬度（手機維持單欄堆疊）*/}
       <div className="md:grid md:grid-cols-2 md:items-start md:gap-x-4 md:px-2">
       {/* income_overview / performance_dashboard — MVP 顯示骨架 */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("monthIncome")}
         </span>
@@ -180,7 +180,7 @@ export default function AccountPage() {
       </section>
 
       <section className="mx-4 mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-center shadow-sm">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
           <Wrench className="mx-auto h-4 w-4 text-[var(--text-secondary)]" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.completed_orders_count ?? "—"}
@@ -189,7 +189,7 @@ export default function AccountPage() {
             {t("completedOrders")}
           </span>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-center shadow-sm">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
           <Star className="mx-auto h-4 w-4 fill-amber-400 text-amber-400" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.rating != null ? tech.rating.toFixed(1) : "—"}
@@ -198,7 +198,7 @@ export default function AccountPage() {
             {t("rating")}
           </span>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-white p-3 text-center shadow-sm">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
           <ShieldCheck className="mx-auto h-4 w-4 text-[var(--text-secondary)]" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.level ?? "—"}
@@ -208,7 +208,7 @@ export default function AccountPage() {
       </section>
 
       {/* profile_section */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
           {t("personal")}
         </span>
@@ -247,7 +247,7 @@ export default function AccountPage() {
       </section>
 
       {/* settings_section */}
-      <section className="mx-4 mt-4 mb-6 overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-sm">
+      <section className="mx-4 mt-4 mb-6 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-sm">
         <Link
           href="/account/schedule"
           className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-page)]"

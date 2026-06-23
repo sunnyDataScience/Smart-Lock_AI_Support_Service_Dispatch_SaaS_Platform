@@ -219,7 +219,7 @@ export default function SchedulePage() {
   return (
     <TechShell>
       {/* schedule_month_header — 自訂返回鈕（返回 /account 而非 my-orders） */}
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-white px-2 py-3">
+      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-2 py-3">
         <button
           type="button"
           onClick={() => router.push("/account")}
@@ -247,7 +247,7 @@ export default function SchedulePage() {
       )}
 
       {/* 月份切換 + 配額摘要 */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <button
             type="button"
@@ -283,7 +283,7 @@ export default function SchedulePage() {
               {standbyCount}
             </span>
           </div>
-          <div className="rounded-md bg-[#F1F5F9] px-2 py-1">
+          <div className="rounded-md bg-[var(--surface-strong)] px-2 py-1">
             <span className="block text-[10px] text-[var(--text-secondary)]">
               {t("monthOrders")}
             </span>
@@ -298,7 +298,7 @@ export default function SchedulePage() {
       </section>
 
       {/* schedule_calendar_view */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-3 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-sm">
         <div className="grid grid-cols-7 gap-1 text-center">
           {WEEKDAY_KEYS.map((w) => (
             <span
@@ -360,7 +360,7 @@ export default function SchedulePage() {
       </section>
 
       {/* close_today_accept_switch */}
-      <section className="mx-4 mt-4 flex items-center justify-between rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <div className="flex flex-col">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("closeToday")}
@@ -379,7 +379,7 @@ export default function SchedulePage() {
           aria-label={t("closeTodayAria")}
         >
           <span
-            className="absolute top-[2px] h-6 w-6 rounded-full bg-white shadow transition-all"
+            className="absolute top-[2px] h-6 w-6 rounded-full bg-[var(--bg-surface)] shadow transition-all"
             style={{ left: closeToday ? "22px" : "2px" }}
           />
         </button>
@@ -406,7 +406,7 @@ export default function SchedulePage() {
       </section>
 
       {/* pending_requests_list */}
-      <section className="mx-4 mt-4 mb-6 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 mb-6 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("pending")}
@@ -426,7 +426,7 @@ export default function SchedulePage() {
             {requests.map((r) => (
               <li
                 key={r.id}
-                className="flex items-start justify-between gap-2 rounded-lg border border-[var(--border)] bg-[#F8FAFC] p-3"
+                className="flex items-start justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] p-3"
               >
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center gap-2">
@@ -480,7 +480,7 @@ export default function SchedulePage() {
           onClick={() => !submitting && setModalType(null)}
         >
           <div
-            className="w-full max-w-[480px] rounded-t-2xl bg-white p-5"
+            className="w-full max-w-[480px] rounded-t-2xl bg-[var(--bg-surface)] p-5"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-3 flex items-center justify-between">

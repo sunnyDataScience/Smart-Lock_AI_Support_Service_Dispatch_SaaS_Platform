@@ -16,7 +16,7 @@ export default function SubflowHeader({ workOrderId, title, backTo }: Props) {
   const tCommon = useTranslations("techPortal.common");
   const target = backTo ?? `/my-orders/${workOrderId}`;
   return (
-    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-white px-2 py-3">
+    <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-2 py-3">
       <button
         type="button"
         onClick={() => router.push(target)}

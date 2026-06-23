@@ -112,7 +112,7 @@ export default function MyStatementsPage() {
             type="button"
             onClick={fetchStatements}
             disabled={loading}
-            className="flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-md border border-gray-300 bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
             重新整理
@@ -125,7 +125,7 @@ export default function MyStatementsPage() {
           </div>
         )}
 
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+        <div className="overflow-hidden rounded-lg border border-gray-200 bg-[var(--bg-surface)]">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -138,7 +138,7 @@ export default function MyStatementsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">申訴期限</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+            <tbody className="divide-y divide-gray-200 bg-[var(--bg-surface)]">
               {items.length === 0 && !loading && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-500">無對帳單</td>

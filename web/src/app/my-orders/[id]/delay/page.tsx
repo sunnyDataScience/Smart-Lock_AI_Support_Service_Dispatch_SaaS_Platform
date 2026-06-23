@@ -109,7 +109,7 @@ export default function DelayPage() {
         </div>
       )}
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("durationLabel")}
         </span>
@@ -122,7 +122,7 @@ export default function DelayPage() {
               className={`rounded-md border px-3 py-2 text-[13px] font-medium ${
                 delayMinutes === opt.value
                   ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                  : "border-[var(--border)] bg-white text-[var(--text-primary)]"
+                  : "border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)]"
               }`}
             >
               {opt.label}
@@ -142,7 +142,7 @@ export default function DelayPage() {
         </label>
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("reasonLabel")}
         </span>
@@ -152,8 +152,8 @@ export default function DelayPage() {
               key={r}
               className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
                 reasonKey === r
-                  ? "border-[var(--primary)] bg-[#EFF6FF]"
-                  : "border-[var(--border)] bg-white"
+                  ? "border-[var(--primary)] bg-[var(--primary-light)]"
+                  : "border-[var(--border)] bg-[var(--bg-surface)]"
               }`}
             >
               <input
@@ -177,7 +177,7 @@ export default function DelayPage() {
         )}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("notifyLabel")}
         </span>

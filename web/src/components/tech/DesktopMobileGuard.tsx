@@ -53,7 +53,7 @@ export default function DesktopMobileGuard({
       : "";
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--bg-page)] px-4">
-        <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border border-[var(--border)] bg-white p-8 shadow-sm">
+        <div className="flex w-full max-w-md flex-col items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-8 shadow-sm">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--primary)]/10">
             <Smartphone className="h-7 w-7 text-[var(--primary)]" />
           </div>

@@ -97,8 +97,8 @@ export default function MyOrdersPage() {
   return (
     <TechShell wide>
       {/* page_header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3">
-        <h1 className="text-[18px] font-semibold text-[#1E293B]">{t("title")}</h1>
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
+        <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
         <button
           type="button"
           onClick={fetchList}
@@ -111,7 +111,7 @@ export default function MyOrdersPage() {
       </div>
 
       {/* tab_bar */}
-      <div className="sticky top-[57px] z-10 grid grid-cols-3 border-b border-[var(--border)] bg-white">
+      <div className="sticky top-[57px] z-10 grid grid-cols-3 border-b border-[var(--border)] bg-[var(--bg-surface)]">
         {tabs.map((tabItem) => (
           <button
             key={tabItem.value}
@@ -120,7 +120,7 @@ export default function MyOrdersPage() {
             className={`relative flex h-12 items-center justify-center gap-1 text-[14px] font-medium ${
               tab === tabItem.value
                 ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
-                : "text-[#64748B]"
+                : "text-[var(--text-secondary)]"
             }`}
           >
             {tabItem.label}
@@ -129,7 +129,7 @@ export default function MyOrdersPage() {
                 className={`min-w-[18px] rounded-full px-[6px] py-[1px] text-[10px] font-bold ${
                   tab === tabItem.value
                     ? "bg-[var(--primary)] text-white"
-                    : "bg-[#E2E8F0] text-[#475569]"
+                    : "bg-[var(--border)] text-[var(--text-secondary)]"
                 }`}
               >
                 {counts[tabItem.value]}
@@ -168,7 +168,7 @@ export default function MyOrdersPage() {
             <Link
               key={wo.id}
               href={`/my-orders/${wo.id}`}
-              className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm transition hover:bg-[var(--bg-page)]"
+              className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm transition hover:bg-[var(--bg-page)]"
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] text-[var(--text-disabled)]">
@@ -183,7 +183,7 @@ export default function MyOrdersPage() {
                 {wo.address}
               </h3>
               <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-                <span className="rounded bg-[#F1F5F9] px-2 py-[2px]">
+                <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px]">
                   {wo.brand} {wo.model}
                 </span>
                 <span>·</span>

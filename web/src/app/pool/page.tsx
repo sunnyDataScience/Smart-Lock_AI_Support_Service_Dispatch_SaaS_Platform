@@ -111,10 +111,10 @@ export default function PoolPage() {
   return (
     <TechShell wide>
       {/* Page Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3">
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-[18px] font-semibold text-[#1E293B]">{t("title")}</h1>
+            <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
             <RealtimeIndicator status={poolStatus} compact />
           </div>
           <p className="text-[12px] text-[var(--text-secondary)]">
@@ -156,7 +156,7 @@ export default function PoolPage() {
             <button
               type="button"
               onClick={fetchPool}
-              className="mt-2 rounded-md border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--primary)] hover:bg-[#EFF6FF]"
+              className="mt-2 rounded-md border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--primary)] hover:bg-[var(--primary-light)]"
             >
               {t("refreshTitle")}
             </button>
@@ -172,7 +172,7 @@ export default function PoolPage() {
             return (
               <article
                 key={wo.id}
-                className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm"
+                className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm"
                 style={{ borderLeftColor: urgencyBorder, borderLeftWidth: 4 }}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -185,10 +185,10 @@ export default function PoolPage() {
                   {wo.address}
                 </h3>
                 <div className="flex flex-wrap items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-                  <span className="rounded bg-[#F1F5F9] px-2 py-[2px]">
+                  <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px]">
                     {wo.brand} {wo.model}
                   </span>
-                  <span className="rounded bg-[#F1F5F9] px-2 py-[2px]">
+                  <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px]">
                     {wo.district}
                   </span>
                   {wo.estimated_reward && (
@@ -207,7 +207,7 @@ export default function PoolPage() {
                   type="button"
                   onClick={() => acceptOrder(wo)}
                   disabled={!!accepting}
-                  className="mt-2 h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
+                  className="mt-2 h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
                 >
                   {accepting === wo.id ? t("accepting") : t("accept")}
                 </button>

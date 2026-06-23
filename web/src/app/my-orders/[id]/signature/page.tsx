@@ -119,7 +119,7 @@ function SignaturePad({ label, onChange }: SignaturePadProps) {
         onTouchStart={start}
         onTouchMove={move}
         onTouchEnd={end}
-        className="h-32 w-full rounded-lg border-2 border-dashed border-[var(--border)] bg-white touch-none"
+        className="h-32 w-full rounded-lg border-2 border-dashed border-[var(--border)] bg-[var(--bg-surface)] touch-none"
       />
     </div>
   );
@@ -200,11 +200,11 @@ export default function SignaturePage() {
         {t("instruction")}
       </p>
 
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <SignaturePad label={t("techLabel")} onChange={setTechSig} />
       </section>
 
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <SignaturePad label={t("customerLabel")} onChange={setCustSig} />
       </section>
 

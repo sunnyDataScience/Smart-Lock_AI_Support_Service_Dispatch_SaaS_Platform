@@ -31,7 +31,7 @@ function PhotoThumb({
   const tCommon = useTranslations("techPortal.common");
   return (
     <div className="relative h-20 overflow-hidden rounded-md border border-[var(--border)]">
-      <span className="flex h-full w-full items-center justify-center bg-[#F1F5F9] text-[10px] text-[var(--text-secondary)]">
+      <span className="flex h-full w-full items-center justify-center bg-[var(--surface-strong)] text-[10px] text-[var(--text-secondary)]">
         <ImageIcon className="mr-1 h-3 w-3" />
         {photo.filename.length > 12
           ? photo.filename.slice(0, 10) + "…"
@@ -219,7 +219,7 @@ export default function DoorCheckPage() {
         onChange={(e) => handleFileChange("after", e)}
       />
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("beforeLabel")}
         </span>
@@ -227,7 +227,7 @@ export default function DoorCheckPage() {
           type="button"
           onClick={() => fileInputBeforeRef.current?.click()}
           disabled={uploading === "before"}
-          className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[#EFF6FF] disabled:opacity-60"
+          className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)] disabled:opacity-60"
         >
           <Camera className="h-5 w-5" />
           {uploading === "before" ? tCommon("uploading") : t("captureCta")}
@@ -247,7 +247,7 @@ export default function DoorCheckPage() {
         )}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("afterLabel")}
         </span>
@@ -255,7 +255,7 @@ export default function DoorCheckPage() {
           type="button"
           onClick={() => fileInputAfterRef.current?.click()}
           disabled={uploading === "after"}
-          className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[#EFF6FF] disabled:opacity-60"
+          className="flex h-24 items-center justify-center gap-2 rounded-lg border-2 border-dashed border-[var(--border)] text-[13px] text-[var(--text-secondary)] hover:border-[var(--primary)] hover:bg-[var(--primary-light)] disabled:opacity-60"
         >
           <Camera className="h-5 w-5" />
           {uploading === "after" ? tCommon("uploading") : t("captureCta")}
@@ -275,7 +275,7 @@ export default function DoorCheckPage() {
         )}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("checklistLabel", { checked: checked.size, total: CHECKLIST_KEYS.length })}
         </span>
@@ -285,7 +285,7 @@ export default function DoorCheckPage() {
             className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
               checked.has(item.key)
                 ? "border-green-500 bg-green-50"
-                : "border-[var(--border)] bg-white"
+                : "border-[var(--border)] bg-[var(--bg-surface)]"
             }`}
           >
             <input
@@ -299,7 +299,7 @@ export default function DoorCheckPage() {
         ))}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("notesLabel")}
         </span>

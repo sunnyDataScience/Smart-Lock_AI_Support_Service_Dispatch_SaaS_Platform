@@ -297,7 +297,7 @@ export default function ReschedulePage() {
   return (
     <TechShell>
       {/* wo_summary_header */}
-      <div className="sticky top-0 z-10 flex items-start gap-2 border-b border-[var(--border)] bg-white px-2 py-3">
+      <div className="sticky top-0 z-10 flex items-start gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-2 py-3">
         <button
           type="button"
           onClick={() => router.back()}
@@ -322,7 +322,7 @@ export default function ReschedulePage() {
             </span>
           )}
           {wo?.scheduled_time && (
-            <span className="mt-1 inline-flex w-fit items-center gap-1 rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
+            <span className="mt-1 inline-flex w-fit items-center gap-1 rounded bg-[var(--surface-strong)] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
               <CalendarDays className="h-3 w-3" />
               {t("originalScheduled")}
               {new Date(wo.scheduled_time).toLocaleString("zh-TW", {
@@ -355,7 +355,7 @@ export default function ReschedulePage() {
 
       {/* customer_availability_hint */}
       {(preferredHours.length > 0 || dndHours.length > 0 || pastCount > 0) && (
-        <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-white p-3 shadow-sm">
+        <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-sm">
           <span className="text-[11px] font-medium text-[var(--text-secondary)]">
             {t("customerInfoTitle")}
           </span>
@@ -401,7 +401,7 @@ export default function ReschedulePage() {
       )}
 
       {/* calendar_view: 7 日水平 strip */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-3 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("selectDate")}
@@ -438,8 +438,8 @@ export default function ReschedulePage() {
                   isSelected
                     ? "border-[var(--primary)] bg-[var(--primary)] text-white"
                     : isToday
-                      ? "border-[var(--primary)] bg-white text-[var(--primary)]"
-                      : "border-[var(--border)] bg-white text-[var(--text-primary)]"
+                      ? "border-[var(--primary)] bg-[var(--bg-surface)] text-[var(--primary)]"
+                      : "border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)]"
                 }`}
                 style={{ minWidth: 60 }}
               >
@@ -453,7 +453,7 @@ export default function ReschedulePage() {
       </section>
 
       {/* time_slot_picker */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-3 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("slotsTitle")}
@@ -494,10 +494,10 @@ export default function ReschedulePage() {
                     isSelected
                       ? "border-[var(--primary)] bg-[var(--primary)] text-white"
                       : isHard
-                        ? "border-[var(--border)] bg-[#F1F5F9] text-[var(--text-disabled)] cursor-not-allowed"
+                        ? "border-[var(--border)] bg-[var(--surface-strong)] text-[var(--text-disabled)] cursor-not-allowed"
                         : isSoft
                           ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                          : "border-[var(--border)] bg-white text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+                          : "border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
                   }`}
                   title={
                     s.conflict_reason
@@ -552,7 +552,7 @@ export default function ReschedulePage() {
       )}
 
       {/* customer_notification_preview */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-white p-3 shadow-sm">
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-sm">
         <span className="mb-1 block text-[13px] font-semibold text-[var(--text-primary)]">
           {t("messageTitle")}
         </span>
@@ -589,7 +589,7 @@ export default function ReschedulePage() {
       )}
 
       {/* action_bar */}
-      <div className="sticky bottom-14 mt-4 flex items-center gap-2 border-t border-[var(--border)] bg-white px-4 py-3">
+      <div className="sticky bottom-14 mt-4 flex items-center gap-2 border-t border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
         <Link
           href={`/my-orders/${id}`}
           className="flex h-11 flex-1 items-center justify-center rounded-md border border-[var(--border)] text-[14px] font-medium text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
@@ -600,7 +600,7 @@ export default function ReschedulePage() {
           type="button"
           onClick={submitReschedule}
           disabled={!canSubmit}
-          className="flex h-11 flex-[2] items-center justify-center gap-1 rounded-md bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-60"
+          className="flex h-11 flex-[2] items-center justify-center gap-1 rounded-md bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
         >
           <Send className="h-4 w-4" />
           {submitting ? t("submitting") : t("submit")}

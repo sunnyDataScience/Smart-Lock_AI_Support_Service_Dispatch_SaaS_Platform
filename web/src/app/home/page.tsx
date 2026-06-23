@@ -115,8 +115,8 @@ export default function TechHomePage() {
 
   return (
     <TechShell wide>
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-white px-4 py-3 md:px-6">
-        <h1 className="text-[18px] font-semibold text-[#1E293B]">{greeting}</h1>
+      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 md:px-6">
+        <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{greeting}</h1>
         <button
           type="button"
           onClick={load}
@@ -136,7 +136,7 @@ export default function TechHomePage() {
             amountLabel={earningsLabel}
             caption={earningsCaption}
           />
-          <div className="flex items-center justify-center rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
             <GoOnlineToggle
               availability={availability}
               onChanged={(next) => setAvailability(next)}

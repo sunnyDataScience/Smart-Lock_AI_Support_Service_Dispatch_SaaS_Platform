@@ -45,7 +45,7 @@ export default function MonthlySnapshot({ summary, loading }: Props) {
 
   if (loading && !summary) {
     return (
-      <section className="rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
         <div className="py-4 text-center text-[13px] text-[var(--text-disabled)]">
           {t("loading")}
         </div>
@@ -84,7 +84,7 @@ export default function MonthlySnapshot({ summary, loading }: Props) {
   const recent = (s?.recent_feedback ?? []).filter((f) => f.feedback);
 
   return (
-    <section className="rounded-xl border border-[var(--border)] bg-white p-4 shadow-sm">
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
       <div className="mb-3 flex items-center gap-2">
         <TrendingUp className="h-4 w-4 text-[var(--primary)]" />
         <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">{t("title")}</h2>

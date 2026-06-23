@@ -53,7 +53,7 @@ export default function TechSidebar() {
   }
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto border-r border-[var(--border)] bg-white md:flex">
+    <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--bg-surface)] md:flex">
       {/* brand */}
       <div className="flex h-16 items-center gap-2 border-b border-[var(--border)] px-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--primary)]">
@@ -79,7 +79,7 @@ export default function TechSidebar() {
               href={href}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] font-medium transition ${
                 active
-                  ? "bg-[#EFF6FF] text-[var(--primary)]"
+                  ? "bg-[var(--primary-light)] text-[var(--primary)]"
                   : "text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
               }`}
             >
