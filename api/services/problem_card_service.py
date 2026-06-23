@@ -484,15 +484,18 @@ async def create_card(
             404,
         )
 
-    # PC 表 conversation_id 為 UNIQUE：若已存在 PC，回 409
+    # CR-0096：同一 conversation 同時只能有一張「仍 active」的卡（部分唯一索引）。
+    # 已轉工單/結案的舊卡不算 → 同一客人可再開新卡。撞 active 卡才回 409。
     cur = await db_module._conn.execute(
-        "SELECT id FROM problem_cards WHERE conversation_id = %s::uuid",
+        "SELECT id FROM problem_cards "
+        "WHERE conversation_id = %s::uuid "
+        "  AND status NOT IN ('resolved', 'escalated') AND converted_at IS NULL",
         (conversation_id,),
     )
     if await cur.fetchone():
         raise ApiError(
             "STATE_CONFLICT",
-            "Problem card already exists for this conversation",
+            "An active problem card already exists for this conversation",
             409,
         )
 
@@ -594,10 +597,13 @@ async def escalation_to_draft_pc(
 
     # TI-M03-06 / A06：sha256 冪等鍵 + 24h dedup 視窗（抵抗 DLQ/outbox retry 重複建卡）。
     # brand 在 AI 草擬卡多為空，鍵以 conv_id + 症狀 為主。命中 24h 內同鍵 → 回既有（冪等）。
+    # CR-0096：只認「仍 active」的卡為 dedup 目標 —— 已轉工單/結案的舊卡不算，
+    #          否則客人對已派工的舊問題再提同症狀會被誤 dedup 回舊卡、開不了新卡。
     idem_key = compute_pc_idempotency_key(conv_id, symptom_text, snapshot.get("brand"))
     kcur = await db_module._conn.execute(
         "SELECT id FROM problem_cards "
         "WHERE idempotency_key = %s AND created_at > NOW() - INTERVAL '24 hours' "
+        "  AND status NOT IN ('resolved', 'escalated') AND converted_at IS NULL "
         "ORDER BY created_at DESC LIMIT 1",
         (idem_key,),
     )
@@ -608,9 +614,13 @@ async def escalation_to_draft_pc(
         return {"problem_card_id": pc_id, "conversation_id": conv_id,
                 "created": False, "deduplicated": True, "card": card}
 
-    # 去重：conversation_id UNIQUE
+    # CR-0096：只找「仍 active」的卡來併入（未結案 且 未轉工單）。
+    # 舊卡已轉工單/結案 → existing 為空 → 落到下方建「新卡」（同一 LINE 客人的新問題獨立成卡）。
     cur = await db_module._conn.execute(
-        "SELECT id, symptoms FROM problem_cards WHERE conversation_id = %s::uuid",
+        "SELECT id, symptoms FROM problem_cards "
+        "WHERE conversation_id = %s::uuid "
+        "  AND status NOT IN ('resolved', 'escalated') AND converted_at IS NULL "
+        "ORDER BY created_at DESC LIMIT 1",
         (conv_id,),
     )
     existing = await cur.fetchone()

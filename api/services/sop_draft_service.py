@@ -233,9 +233,11 @@ async def create_draft(
         # case_entries 可能有 problem_card_id ref，未實作時 keep None
         pc_id = None
     elif source_type == "conversation":
-        # 從 conversation 找關聯 PC
+        # 從 conversation 找關聯 PC（CR-0096：一 conversation 可有多張卡 → 取最新一張，
+        # 讓行為確定，不再依賴隱含的 physical row order）
         cur = await db_module._conn.execute(
-            "SELECT id FROM problem_cards WHERE conversation_id = %s::uuid LIMIT 1",
+            "SELECT id FROM problem_cards WHERE conversation_id = %s::uuid "
+            "ORDER BY created_at DESC LIMIT 1",
             (source_case_id,),
         )
         row = await cur.fetchone()

@@ -85,6 +85,7 @@
 | 073 | `073-bom-two-layer.sql` | CR-0078 | 🟢 idempotent ✅ 2026-06-20 套 dev | 兩層 BOM（TI-FIN-BOM-03/BR-M10/Q079-087，Phase I mock）：新表 saas.product_model（第一層 brand/model）+ saas.bom_line（第二層子件 + material_owner CHECK brand/company/locksmith/customer + cost_attribution CHECK customer/brand/technician/company + return_deadline_days nullable）。Phase II 接退回狀態機。可重套 |
 | 074 | `074-family-review-ledger.sql` | CR-0079 | 🟢 idempotent ✅ 2026-06-20 套 dev | 家族覆核不可篡改 ledger（TI-A10-02/合約 4.4d 紅線）：family_reviews +prev_hash +entry_hash（hash chain 篡改偵測，複用 067 audit 機制）。雙審 distinct（家族覆核者≠初審 admin）在 service 層強制。純 ADD COLUMN 可重套 |
 | 075 | `075-vendor-partner-scope.sql` | CR-0084 | 🟢 idempotent ✅ 2026-06-20 套 dev | Partner scope 隔離（TI-PORTAL-01）：vendors +brand_partner_id + partial index。修「vendor 可讀全品牌 statement」假綠 —— partner_scope_service.resolve_partner_scope 用此欄 fail-closed 強制過濾（未綁 partner→403、跨 partner 讀→403、admin 不受限）。純 ADD COLUMN 可重套 |
+| 077 | `077-problem-card-per-issue.sql` | CR-0096 | 🟢 idempotent ✅ 2026-06-23 套 dev | 修「同一 LINE 客人不同問題擠進同張問題卡」：problem_cards +converted_at（標記已轉工單）+ DROP 全唯一 conversation_id + 部分唯一索引 uniq_pc_conversation_active（同 conversation 同時只一張 active 卡）。ADD COLUMN IF NOT EXISTS + DROP CONSTRAINT IF EXISTS + CREATE INDEX IF NOT EXISTS 可重套。**註**：076→077 之間無 076 缺號（076=vendor-tax-id 已存在）|
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

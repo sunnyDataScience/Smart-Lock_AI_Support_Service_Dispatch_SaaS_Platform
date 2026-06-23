@@ -1,0 +1,156 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>CR-0096 — 同一 LINE 客人的不同問題各自獨立成卡</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0096-problem-card-per-issue.md</div>
+<div class="doc"><h1 id="cr-0096--同一-line-客人的不同問題各自獨立成卡">CR-0096 — 同一
+LINE 客人的不同問題各自獨立成卡</h1>
+<blockquote>
+<p><strong>狀態</strong>: ✅ 已實作（業主 2026-06-23 裁決方案
+A，同日實作） <strong>分支</strong>:
+<code>fix/problem-card-per-issue</code>（疊於
+<code>feat/quote-wo-picker</code>） <strong>觸發面向</strong>: Domain
+model（問題卡生命週期）+ DB schema（約束變更）+ User
+flow（進線建卡）</p>
+</blockquote>
+<h2 id="1-背景--問題">1. 背景 / 問題</h2>
+<p>業主實測：透過 LINE
+闡述新問題、成功生成「新問題卡」，但<strong>內容跟第一次開的問題卡寫在一起</strong>
+（問題卡 <code>49c8e184-…</code>）。</p>
+<h2 id="2-根因code-grounded">2. 根因（code-grounded）</h2>
+<p>三連鎖：</p>
+<ol type="1">
+<li><strong>LINE 同一用戶永遠同一 conversation</strong> ——
+<code>line_gateway</code> 的
+<code>session_id = {tenant}:{user_id}</code>；
+<code>conversation_service.create_conversation</code> 以
+<code>WHERE session_id = … LIMIT 1</code> 復用既有，不開新的。</li>
+<li><strong>一個 conversation 只能掛一張問題卡</strong> ——
+<code>problem_cards.conversation_id</code> 全唯一
+（<code>Schema.sql:228</code>，設計註解明寫「每個 Conversation 至多一張
+ProblemCard 1:1」）。</li>
+<li><strong>第二次進線 → 找到既有卡 → append 新症狀（不建新卡）</strong>
+—— <code>problem_card_service.escalation_to_draft_pc</code> 的
+<code>existing</code> 分支把新症狀併進舊卡 <code>symptoms</code>， 回
+<code>created: False</code>（API 回 200
+但其實沒建新卡）。且<strong>不看舊卡狀態</strong>，連已轉工單的卡也照
+append。</li>
+</ol>
+<p>結果：<strong>一個客人一輩子只有一張問題卡</strong>，所有後續需求全擠進同一張，無法分單
+/ 分別派工 / 分別報價。</p>
+<h2 id="3-決策8-業主裁決">3. 決策（§8 業主裁決）</h2>
+<table>
+<thead>
+<tr>
+<th>決策點</th>
+<th>選項</th>
+<th>裁決（2026-06-23）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>何時開「新問題卡」 vs 併入舊卡</td>
+<td>A=已轉工單/已結案才開新卡；B=已確認後就開新卡；C=每次轉真人都開新卡</td>
+<td><strong>A</strong> —— 舊卡仍在 draft / 已確認但未派工 →
+新訊息視為同問題補充併入；舊卡「已轉工單 或 已結案」→ 新訊息＝新需求 →
+開新卡</td>
+</tr>
+</tbody>
+</table>
+<p>技術方案（實作層自選，最小破壞）：加 <code>converted_at</code>
+標記已轉工單；<code>conversation_id</code> 全唯一改
+<strong>部分唯一索引</strong>（同 conversation 同時只允許一張「仍
+active」的卡），不動 <code>status</code> 語意。
+<code>active = status NOT IN (resolved/escalated) AND converted_at IS NULL</code>。</p>
+<h2 id="4-影響盤點所有碰-problem_cardsconversation_id-的點">4.
+影響盤點（所有碰 <code>problem_cards.conversation_id</code> 的點）</h2>
+<table>
+<thead>
+<tr>
+<th>位置</th>
+<th>原假設 1:1</th>
+<th>處置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>problem_card_service.escalation_to_draft_pc</code> idempotency
+查詢</td>
+<td>同鍵回既有</td>
+<td>加 active 條件（已轉工單/結案不當 dedup 目標）</td>
+</tr>
+<tr>
+<td><code>problem_card_service.escalation_to_draft_pc</code> existing
+查詢</td>
+<td>回唯一既有</td>
+<td>加 active 條件 + <code>ORDER BY created_at DESC LIMIT 1</code>（只併
+active 卡）</td>
+</tr>
+<tr>
+<td><code>problem_card_service.create_card</code> 409 檢查</td>
+<td>任何既有卡→409</td>
+<td>改成只有 active 卡才 409</td>
+</tr>
+<tr>
+<td><code>work_order_service.create_from_problem_card</code></td>
+<td>（無）</td>
+<td>轉工單成功後 set <code>converted_at = NOW()</code></td>
+</tr>
+<tr>
+<td><code>sop_draft_service</code>（conversation→PC）</td>
+<td><code>LIMIT 1</code> 無排序</td>
+<td>加 <code>ORDER BY created_at DESC</code>（1:N 後行為確定）</td>
+</tr>
+<tr>
+<td><code>conversation_service</code>（escalation reason）</td>
+<td>已有 <code>ORDER BY updated_at DESC LIMIT 1</code></td>
+<td>無需改（本就 1:N 安全）</td>
+</tr>
+<tr>
+<td><code>problem_card_service.list_cards</code> by conversation_id</td>
+<td>列表</td>
+<td>無需改（列表本可多筆）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-實作">5. 實作</h2>
+<ul>
+<li><strong>migration 077</strong>
+<code>077-problem-card-per-issue.sql</code>：<code>+converted_at</code>
++ DROP 全唯一 +
+<code>CREATE UNIQUE INDEX uniq_pc_conversation_active … WHERE status NOT IN (resolved,escalated) AND converted_at IS NULL</code></li>
+<li>service 改動 5 處（見 §4）</li>
+</ul>
+<h2 id="6-測試">6. 測試</h2>
+<p><code>test_cr_0096_problem_card_per_issue</code> 3/3：</p>
+<ul>
+<li>舊卡 active → 第二問題 append 同卡</li>
+<li>舊卡已轉工單（converted_at）→ 新問題開新卡（同 conversation）</li>
+<li>舊卡已結案（resolved）→ 新問題開新卡</li>
+</ul>
+<p>回歸：轉工單 / 工單 v2 / escalation / convert / create_card /
+sop_draft / ingest 共 64 passed 0 fail。</p>
+<h2 id="7-follow-up已知限制">7. Follow-up（已知限制）</h2>
+<ul>
+<li><strong>對話串顯示仍混在一起</strong>：一個 conversation
+多張卡共用同一對話訊息串，問題卡詳情頁的
+<code>LinkedConversationCard</code> 仍顯示整段對話。卡 /
+工單已分開（核心痛點已解），但對話串要完全分需 「每個新問題開新
+conversation」——更大改動（影響 ingest / handover /
+對話管理），列後續。</li>
+<li>prod 套用 migration 077 待部署流程。</li>
+</ul>
+</div></div></body></html>

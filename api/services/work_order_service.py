@@ -392,6 +392,13 @@ async def create_from_problem_card(
         raise ApiError("INTERNAL_ERROR", "Failed to insert work order", 500)
     new_wo_id = str(new_row[0])
 
+    # CR-0096：標記 PC 已轉工單 → 該卡不再 active，同 conversation（同一 LINE 客人）
+    # 之後的新問題可開「新卡」而非 append 進這張已派工的舊卡。
+    await db_module._conn.execute(
+        "UPDATE problem_cards SET converted_at = NOW() WHERE id = %s::uuid",
+        (pc_id,),
+    )
+
     # 5. WS publish + return
     wo = await _publish_and_return(
         tenant_id=tenant_id, wo_id=new_wo_id, event_type="work_order.created"
