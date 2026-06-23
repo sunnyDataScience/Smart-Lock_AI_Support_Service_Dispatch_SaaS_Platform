@@ -8,11 +8,77 @@ import json
 
 import pytest
 
-from lockcore.channels.line_gateway import handle_text_turn, load_dotenv, resolve_identity
+from lockcore.channels.line_gateway import (
+    _apply_handoff_fallback_safe,
+    _promised_handoff,
+    handle_text_turn,
+    load_dotenv,
+    resolve_identity,
+)
 
 
 def test_resolve_identity_line_uses_userid():
     assert resolve_identity("line", "U1234", "locksmart") == ("locksmart", "U1234")
+
+
+# ── CR-0097 方案 A 兜底：AI 承諾轉接卻沒呼叫工具 → 程式補 escalation ──────────────
+
+
+def test_promised_handoff_detects_real_shibboleth():
+    # 實測 prod 蒸發的那句（AI 說了卻沒呼叫工具）
+    assert _promised_handoff("好的，這部分我已幫您轉接給真人專員處理 🙋") is True
+    assert _promised_handoff("已為您安排專員，將與您聯繫") is True
+    assert _promised_handoff("我幫您安排師傅到府維修") is True
+
+
+def test_promised_handoff_ignores_plain_info():
+    assert _promised_handoff("您的鎖是 Dormakaba AS701，可以長按設定鍵重設") is False
+    assert _promised_handoff("") is False
+
+
+def _mk_store():
+    from lockcore.agent.user_memory.escalation import EscalationStore
+
+    return EscalationStore(":memory:")
+
+
+def test_fallback_logs_when_promised_but_no_tool_call():
+    """AI 承諾轉接 + 本輪 escalation 未新增 → 兜底補一筆。"""
+    esc = _mk_store()
+    before = 0  # 本輪前無 escalation
+    _apply_handoff_fallback_safe(
+        esc, "locksmart", "U1", "門鎖壞了 Chatlock A90 鎖舌卡住 0922371211",
+        "好的，我已幫您轉接給真人專員處理 🙋", before,
+    )
+    recs = esc.list_for_user("locksmart", "U1")
+    assert len(recs) == 1
+    assert recs[0].facts_snapshot.get("fallback") is True
+
+
+def test_fallback_skips_when_tool_already_called():
+    """本輪 AI 已正常呼叫工具（escalation 較 before 新增）→ 不重複補。"""
+    esc = _mk_store()
+    before = 0  # turn 前無 escalation
+    esc.log("locksmart", "U1", "正常轉真人", True, {})  # turn 中 AI 呼叫 transfer_to_human 寫一筆
+    _apply_handoff_fallback_safe(
+        esc, "locksmart", "U1", "報價多少", "已幫您轉接給真人專員", before,
+    )
+    # _latest(1) > before(0) → 已 escalate，兜底不再補；仍只有那 1 筆
+    assert len(esc.list_for_user("locksmart", "U1")) == 1
+
+
+def test_fallback_skips_when_no_promise():
+    """AI 沒承諾轉接（純資訊回答）→ 不兜底。"""
+    esc = _mk_store()
+    _apply_handoff_fallback_safe(
+        esc, "locksmart", "U1", "怎麼重設密碼", "長按設定鍵 3 秒即可重設", 0,
+    )
+    assert esc.list_for_user("locksmart", "U1") == []
+
+
+def test_fallback_none_store_is_noop():
+    """無 escalation store → 安靜略過，不爆。"""
+    _apply_handoff_fallback_safe(None, "locksmart", "U1", "x", "已幫您轉接真人專員", 0)
 
 
 def test_load_dotenv_parses_quoted(tmp_path, monkeypatch):

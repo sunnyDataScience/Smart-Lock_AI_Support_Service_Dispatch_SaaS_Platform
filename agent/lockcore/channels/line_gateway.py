@@ -159,6 +159,61 @@ async def _forward_escalation_safe(esc: Any, tenant: str, user_id: str, before_i
         logger.warning("escalation 轉發失敗(已略過,不影響客人)", exc_info=True)
 
 
+# CR-0097 方案 A 兜底：LLM tool-calling 不可靠 —— 會生成「已轉接/已安排師傅」話術卻
+# 不呼叫 transfer_to_human，案子靜默蒸發（後台收不到問題卡）。偵測「AI 承諾轉接 + 本輪
+# escalation 未新增（=沒呼叫工具）」→ 程式補一筆 escalation，讓既有 _forward_escalation
+# 仍建問題卡。承諾話術用「完成式/指派式」字樣，降低純資訊提及的誤判。
+_HANDOFF_PROMISE_MARKERS: tuple[str, ...] = (
+    "已幫您轉接", "已為您轉接", "已轉接", "幫您轉接", "轉接給真人", "轉接給專員",
+    "已為您安排", "已幫您安排", "為您安排專員", "安排專員",
+    "已登記", "已為您登記",
+    "專員會", "專員將", "由專員", "請專員", "真人專員", "專員聯繫", "專員與您",
+    "會與您聯繫", "將與您聯繫",
+    "安排師傅", "安排技師", "派師傅", "派技師", "師傅到府", "技師到府", "請師傅到",
+)
+
+
+def _promised_handoff(reply: str) -> bool:
+    """AI 回應是否「承諾了轉接/安排師傅」（偵測說了卻沒呼叫工具的蒸發）。"""
+    if not reply:
+        return False
+    return any(m in reply for m in _HANDOFF_PROMISE_MARKERS)
+
+
+def _apply_handoff_fallback_safe(
+    esc: Any, tenant: str, user_id: str, user_text: str, reply: str, before_id: int
+) -> None:
+    """CR-0097 方案 A 兜底：AI 回應承諾轉接但本輪未呼叫 transfer_to_human
+    （escalation 未新增）→ 補一筆 escalation，使後續 _forward_escalation 仍建問題卡。
+
+    fail-soft：任何錯誤只 log，不影響客人。設計取捨——誤判（純資訊提及）寧可多建卡，
+    也不讓真正的報修靜默蒸發（漏建卡 = 客人來過卻沒人知道，後果嚴重得多）。
+    """
+    if esc is None or not (reply or "").strip():
+        return
+    if _latest_escalation_id(esc, tenant, user_id) > before_id:
+        return  # 本輪 AI 已正常呼叫工具 → 不重複補
+    if not _promised_handoff(reply):
+        return  # AI 沒承諾轉接 → 不兜底
+    try:
+        esc.log(
+            tenant,
+            user_id,
+            "[兜底] AI 承諾轉接但未呼叫 transfer_to_human（CR-0097）",
+            False,
+            {
+                "user_input_excerpt": (user_text or "")[:200],
+                "assistant_excerpt": (reply or "")[:200],
+                "fallback": True,
+            },
+        )
+        logger.warning(
+            "CR-0097 兜底觸發：AI 承諾轉接卻未呼叫工具，已補 escalation user={}", user_id[:8]
+        )
+    except Exception:  # noqa: BLE001 — 兜底絕不可影響客人
+        logger.exception("CR-0097 兜底補 escalation 失敗（已略過，不影響客人）")
+
+
 async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> str | None:
     """CR-0095：解析 LINE 報價 postback（q:a|<quote_id> 同意 / q:r|<quote_id> 拒絕）
     → 旁路 POST 給 API（X-Internal-Token；API 端驗 line_user 擁有此報價 + 走狀態機）。
@@ -331,8 +386,12 @@ def build_webapp(
                         )
                     )
                 # 回覆送出後再旁路(不影響客人回覆延遲;皆 fail-soft):
-                # (1) 方案 A 對話持久化 (2) CR-0022 若本輪轉真人 → 建 AI 草擬問題卡。
+                # (1) 方案 A 對話持久化 (2) CR-0097 兜底:AI 承諾轉接卻沒呼叫工具 → 補
+                # escalation(須在 forward 前) (3) CR-0022 若本輪轉真人 → 建 AI 草擬問題卡。
                 await _persist_turn_safe(tenant, user_id, user_text, reply)
+                _apply_handoff_fallback_safe(
+                    escalation_store, tenant, user_id, user_text, reply, esc_before
+                )
                 await _forward_escalation_safe(escalation_store, tenant, user_id, esc_before)
         return web.Response(text="OK")
 
