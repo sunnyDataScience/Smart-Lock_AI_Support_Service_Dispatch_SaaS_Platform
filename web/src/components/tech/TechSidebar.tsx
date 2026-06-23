@@ -12,6 +12,7 @@ import {
   KeyRound,
 } from "lucide-react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import { auth, logout } from "@/lib/api";
 
 /**
@@ -66,6 +67,9 @@ export default function TechSidebar() {
           <span className="text-[11px] text-[var(--text-secondary)]">
             {t("sidebar.subtitle")}
           </span>
+        </div>
+        <div className="ml-auto">
+          <ThemeToggle />
         </div>
       </div>
 

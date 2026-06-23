@@ -14,6 +14,7 @@ import {
   Wrench,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, auth, getCurrentSession, logout } from "@/lib/api";
 import type { components } from "@/types/api.generated";
@@ -244,6 +245,14 @@ export default function AccountPage() {
             {t("noProfile")}
           </div>
         )}
+      </section>
+
+      {/* appearance_section — 主題切換（技師端深色模式入口）*/}
+      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+        <span className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
+          {t("appearance")}
+        </span>
+        <ThemeToggle variant="segmented" />
       </section>
 
       {/* settings_section */}
