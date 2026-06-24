@@ -1,0 +1,872 @@
+---
+title: M01–M20 模組完成度盤點報告（對齊 01-workorder-erp-final-spec）
+status: active
+tier: _audit
+created: 2026-06-24
+owner: 啟恆 / Sunny 裁決
+method: 40-agent 對抗式驗證 workflow（20 模組 × 盤點 + 對抗查證），以 file:line 與 migration/測試實查，不信完成度文件自評
+sources:
+  - 20260617資料/01-workorder-erp-final-spec-20260520.xlsx（M01–M20 模組地圖 + BR 業務規則 + Phase 0/I/II Scope + Coding 必做）
+  - docs/4-exploration/CR-0038-gap-inventory-20260617.md（2026-06-19 基線，35-agent 盤點）
+---
+
+> ⚠️ 本文件為 `_audit` 稽核軌跡：以「**端到端可動率**」而非「檔案存在率」評定。讀作補完起點，實作前個別缺口仍須走 CIA。狀態反映 2026-06-24 當下 codebase（branch `fix/completion-during-photo-slot` 基礎），會隨後續開發變動。
+
+# 智慧鎖 AI 派工 SaaS — M01–M20 模組完成度盤點報告
+
+**盤點對象**：`20260617資料/01-workorder-erp-final-spec-20260520.xlsx`（智慧鎖工單 ERP Final Blueprint，定義系統該有的 20 個模組與全部業務規則 / Phase scope）。
+
+## 1. 執行摘要（一頁看懂）
+
+逐模組對照規格與真實 code 後，**全系統 20 個模組平均端到端完成度約 `45%`**。檔案、端點、migration「都在」，但大量功能停在骨架、假資料（mock）、或硬寫常數（違反規格「金額/規則必須 configurable」紅線）。這與會議自評的「99.8%」是兩個維度——前者是檔案存在率，本報告量的是**可動率**。
+
+| 指標 | 數值 |
+|---|---|
+| 盤點功能項總數（規格 BR-/Q-/G- 對照）| **206** |
+| ✅ DONE_VERIFIED（端到端可動）| **36（17%）** |
+| 🟡 PARTIAL（部分，缺關鍵 gate/欄位）| 99（48%）|
+| 🔶 MOCK_ONLY（假資料/佔位/stub）| 15（7%）|
+| 🔴 BROKEN（code 在但 migration 未套/斷鏈）| 10（5%）|
+| ⬜ MISSING（完全沒 code）| 44（21%）|
+| ⏸️ DEFERRED_OK（規格明示後續 Phase）| 2 |
+| 對抗驗證揪出的「假綠」旗標 | **77 個（散佈 18/20 模組）** |
+| Phase I「Build Now」必交 14 模組已就緒 | **2/14**（M05, M08）|
+
+**三句話結論：**
+
+1. **真正端到端可動的功能僅約 17%**；近一半（48%）卡在 PARTIAL——有殼、缺 gate/欄位/流程串接。
+2. **Phase I 還不能 launch**：14 個 Build-Now 模組只有 `M05, M08`（WorkOrder 狀態機、現場施工）就緒，金流（M11）、入口建案（M01）、報價同意 gate（M04）、派工 SLA（M06）等關鍵環節都未過關。
+3. 相較 4 天前 CR-0038 基線（DONE_VERIFIED ≈9%），客戶主檔、報價引擎、完工證據鏈等有實質進步，但**系統性「假綠」仍在**（mock 主檔未轉正、money 規則 hardcode、migration 套用脫鉤）。
+
+## 2. 盤點方法
+
+- **40-agent 對抗式驗證 workflow**：20 個模組各派 1 個盤點 agent（讀規格切片 + Read/Grep/Glob 實查 codebase 給 file:line 證據），再各派 1 個「skeptic」agent **預設懷疑**、逐項挑戰 DONE/PARTIAL 宣稱，揪 mock/未套 migration/stub 假綠。
+- **查證範圍**：`api/routers/*.py`（端點，`_v2` = `saas.*` schema）、`api/services/*.py`（業務邏輯）、`SQL/migrations/*.sql`（78 支）、`web/src/app/*`（前端）、`agent/lockcore/`（LINE Bot）、`api/tests/` + `agent/tests/`（真測試 vs FakeConn 假綠）。
+- **狀態定義（嚴格）**：
+
+| 狀態 | 定義 |
+|---|---|
+| ✅ DONE_VERIFIED | code + service + migration 表都在，非 mock，有真測試端到端可動 |
+| 🟡 PARTIAL | 部分子功能做了，但缺關鍵 gate / 欄位 / 流程串接 |
+| 🔶 MOCK_ONLY | 只有 `is_mock=TRUE` seed、placeholder、stub 回傳、佔位 |
+| 🔴 BROKEN | code 在但 migration 未套用 / 斷鏈 / 測試跑不了 |
+| ⬜ MISSING | 完全沒 code |
+| ⏸️ DEFERRED_OK | 規格明示後續 Phase（如 M14 → Phase III）→ 不計入 Phase I 缺口 |
+
+## 3. 模組完成度總覽
+
+| 模組 | 名稱 | Domain | Phase | 完成度 | 進度條 | 狀態 | Phase I 就緒 |
+|---|---|---|---|---:|---|---|:---:|
+| M01 | 客戶入口與案件建立 (Intake) | D1 市場/客戶 | Phase I | 12% | `█░░░░░░░░░` | ⬜ 缺 | ❌ |
+| M02 | 客戶/地址/設備主檔 | D1 市場/客戶 | Phase I | 42% | `████░░░░░░` | 🟡 部分 | ❌ |
+| M03 | AI 分診與 ProblemCard | D2 Service-to-Cash | Phase I | 48% | `█████░░░░░` | 🟡 部分 | ❌ |
+| M04 | 報價/價格/核准 | D2 Service-to-Cash | Phase I | 55% | `██████░░░░` | 🟡 部分 | ❌ |
+| M05 | WorkOrder 生命週期與狀態 | D2 Service-to-Cash | Phase I | 78% | `████████░░` | 🟡 部分 | ✅ |
+| M06 | 派工/媒合/排程 | D2 Service-to-Cash | Phase I | 36% | `████░░░░░░` | 🟡 部分 | ❌ |
+| M07 | 師傅與技術人力管理 | D3 師傅人力/供應 | Phase I | 48% | `█████░░░░░` | 🟡 部分 | ❌ |
+| M08 | 現場施工與行動流程 | D2 Service-to-Cash | Phase I | 75% | `████████░░` | 🟡 部分 | ✅ |
+| M09 | 照片/影片/文件與證據 | D6 治理/平台營運 | Phase I | 55% | `██████░░░░` | 🟡 部分 | ❌ |
+| M10 | 品牌/商品/BOM/庫存 | D3 師傅人力/供應 | Phase I (Light) | 36% | `████░░░░░░` | 🟡 部分 | ❌ |
+| M11 | 客戶付款/應收 AR/退款 | D4 財務/結算 | Phase I | 36% | `████░░░░░░` | 🟡 部分 | ❌ |
+| M12 | 師傅/派工者/品牌月結 AP | D4 財務/結算 | Phase I (Export) | 52% | `█████░░░░░` | 🟡 部分 | ❌ |
+| M13 | 客訴/保固/RMA/品質 | D5 品質/售後 | Phase I (Light) | 20% | `██░░░░░░░░` | 🟡 部分 | ❌ |
+| M14 | 品牌/經銷/建商 Partner Portal | D1 市場/客戶 | Phase III | 10% | `█░░░░░░░░░` | 🟡 部分 | ⏸️ |
+| M15 | 異常/核准/風險控制 | D2 Service-to-Cash | Phase I | 56% | `██████░░░░` | 🟡 部分 | ❌ |
+| M16 | 聊天/通知/溝通紀錄 | D6 治理/平台營運 | Phase I | 42% | `████░░░░░░` | 🟡 部分 | ❌ |
+| M17 | 權限/安全/稽核 RBAC | D6 治理/平台營運 | Phase 0 | 64% | `██████░░░░` | 🟡 部分 | ❌ |
+| M18 | 系統設定/主檔配置/IT維運 | D6 治理/平台營運 | Phase 0 | 52% | `█████░░░░░` | 🟡 部分 | ❌ |
+| M19 | 報表/BI/KPI | D6 治理/平台營運 | Phase I (Basic) | 56% | `██████░░░░` | 🟡 部分 | ❌ |
+| M20 | AI 營運/知識庫/品質治理 | D6 治理/平台營運 | Phase I (Guardrails) | 22% | `██░░░░░░░░` | 🟡 部分 | ❌ |
+
+> 平均完成度 **45%**。Domain 別平均：**D1 市場/客戶** 21%；**D2 Service-to-Cash** 58%；**D3 師傅人力/供應** 42%；**D4 財務/結算** 44%；**D5 品質/售後** 20%；**D6 治理/平台營運** 48%。
+
+## 4. Phase I 上線就緒度（關鍵路徑）
+
+規格定義 Phase I「Market Launch Core」主流程：**Intake → ProblemCard → Quote → Payment Gate → WorkOrder → Dispatch → Onsite → Evidence → Completion**。逐站盤點：
+
+| 流程站 | 模組 | 完成度 | 就緒 | 卡關點 |
+|---|---|---:|:---:|---|
+| 入口建案 Intake | M01 | 12% | ❌ | 無 M01 Case/Inquiry 承載實體 — 唯一 case 表是 KB case_entries(無關)，problem_cards 僅是綁 LINE  |
+| AI 分診 ProblemCard | M03 | 48% | ❌ | BR-M03-01 規格 5-state（Ready for Quote / Need Info / Need Photo / Need Human / Clo |
+| 報價 Quote | M04 | 55% | ❌ | BR-M04-01 內部成本未拆維度：quote_line_items 僅 unit_price 單欄，無 labor/material/travel/marg |
+| 付款閘 Payment Gate | M11 | 36% | ❌ | 金流 payment_service 全套寫齊但無 router 註冊（BROKEN，API 不可達） |
+| 工單 WorkOrder | M05 | 78% | ✅ | 無集中 state transition matrix：8 組散落 _*_FROM 集合，spec Coding Gate「state transition m |
+| 派工 Dispatch | M06 | 36% | ❌ | BR-M06-02 搶單池(P0 阻擋)完全 MISSING：無 grab pool 表/FOR UPDATE 防重領/low-risk 分類/1hr 車程過濾 |
+| 現場施工 Onsite | M08 | 75% | ✅ | Q060 客戶簽名仍為技師裝置同機 canvas，非客戶 LIFF 獨立簽收；LIFF→QR→紙本 fallback 鏈缺 |
+| 證據 Evidence | M09 | 55% | ❌ | legal_hold（BR-M09-03 warranty/dispute buffer 核心）只有欄位 + cron 讀取，無任何設定 API/UI 把它設為 |
+
+**結論：主流程 8 站中只有 WorkOrder（M05）與 Onsite（M08）就緒。** 鏈條最前端（M01 入口建案 12%）與金流（M11）兩個斷點，使「跑完一張標準工單」目前無法端到端達成規格 Exit Criteria。
+
+## 5. 系統性「假綠」風險（對抗驗證彙整）
+
+對抗驗證共揪出 **77 個假綠旗標**，歸納為四類系統性問題：
+
+1. **Mock 主檔未轉正**：報價/finance/device 多批 `is_mock=TRUE` seed 或 best-effort 推算佔位，端點回的不是真資料。
+2. **Money / 規則 hardcode**：拆帳、退款門檻、取消費、佣金率等寫死在 Python 常數，違反規格「金額/比例/threshold 必須 configurable」紅線。
+3. **軟閘偽裝硬閘**：DB 欄位有 `DEFAULT` 但無 `NOT NULL`/`CHECK`，或端點存在但無實際 gate 擋下，看似有驗證實則不阻擋。
+4. **測試假綠**：部分測試用 `FakeConn` mock DB、不驗 schema 是否真存在；migration registry 標 applied ≠ 真套用。
+
+各模組假綠明細見下方逐模組「🚩 假綠旗標」。
+
+## 6. 逐模組明細
+
+### M01 · 客戶入口與案件建立 (Intake)
+
+`D1 市場/客戶` ｜ Phase I ｜ **完成度 12%** ｜ 總評狀態 ⬜ 缺 ｜ Phase I 就緒：❌
+
+M01 作為獨立 intake 模組的核心實體「全渠道 Case/Inquiry」在 codebase 中不存在。現有的 conversations(只 line/web/api 3 值且預設 line) + problem_cards(僅綁 LINE conversation 的 AI 診斷卡) 只覆蓋 LINE 單一入口，無 8 渠道 source tracking、無『報價前先建 Case』流程 gate、無 first SLA clock。相對 4 天前 CR-0038 基線(BR-M01-01 PARTIAL / BR-M01-02 MISSING) 無任何改善，期間 CR-0096/0097 改的是 problem-card per-issue 與 handoff，未觸及 M01 intake 缺口。BR-M01-03 external portal 規格明示 Phase III，屬 DEFERRED_OK。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M01-01 | Channel source 必填（8 渠道綁 Case：LINE/電話/web/brand/store/dealer/builder/referral） | 🟡 部分 | SQL/Schema.sql:160 conversations.channel VARCHAR(50) DEFAULT 'line'，註解僅列 'line','web','api' 3 值；非 8 渠道、非 Case 級、有 DEFAULT 而非 NOT NULL 硬閘。problem_cards(Schema.sql:226-272) 透過 conversation_id 綁 conversations，本身無 source_channel 欄。problem_cards.source(032-problem-card-ai-draft.sql:15) 僅 'human'/'ai_line' 二值，是 AI vs 客服來源，非營運 8 渠道。grep builder/referral/dealer/store 於 api/+SQL/ 全無 channel 用途命中。 | 缺 8 值 channel enum、缺承載於 Case 級的 source_channel 欄、缺 NOT NULL 硬閘（P0 BR-M01-01 列為阻擋 coding/acceptance）。現況只有 3 值且預設 line，無法區分 brand/store/dealer/builder/referral。 |
+| BR-M01-02 / Q006 | 先建立 Case 再進報價 + 全渠道入口（凡可報價/派工/退款/客訴 inquiry 必先建 Case） | ⬜ 缺 | 無任何 M01「Case/Inquiry」實體：唯一 case 表是 KB 知識庫 case_entries(api/services/case_service.py:122 INSERT case_entries，source 硬寫 'manual_input')，與 intake 案件無關。problem_cards 是 AI 從 conversation 擷取的診斷卡(Schema.sql:274 註解)，僅綁 LINE conversation(conversation_id UNIQUE)，非全渠道 Case。api/routers/line_webhook.py 處理 LINE 入口但不建立 intake Case。電話/web/brand/store/dealer/builder/referral 7 渠道無任何建案入口端點。 | 無 Case/Inquiry 承載實體、無『報價前必先建 Case』流程 gate、7 個非 LINE 渠道完全無接線。需新增 Case 實體(source_channel + customer_contact + first SLA clock) + 各渠道接線 + CIA。 |
+| BR-M01-03 | External portal 權限限制（外部夥伴只能建/看自己的 case；internal 可代建） | ⏸️ 延後 | grep external/partner+case/portal 於 api/routers/*.py 無命中。CR-0038 docs/4-exploration/CR-0038-gap-inventory-20260617.md:257 明列『Partner Portal 全套(BR-M14-01/02、BR-M01-03 external scope)→ 會議 #11 明示 Phase III；品牌/經銷/建商自助入口非當前 single-tenant Beta 範圍』。 | 無實作，但規格明示 Phase III 延後，非 Phase I 缺口。（075-vendor-partner-scope.sql 為 vendor scope 雛形，與 external case portal 權限不同。） |
+| G036 | Lead source 與 marketing attribution（每 Case 保留入口來源供轉換分析） | ⬜ 缺 | 依附 BR-M01-01 的 source_channel；既無 Case 級 source_channel 欄(見上)，亦無 attribution 彙整端點。grep lead source/attribution 於 api/ 無 M01 相關命中。關聯模組 M19 CRM control 未提供來源歸因。 | 缺 source 歸因欄與轉換成效彙整；前置 BR-M01-01 未完成即無法成立。 |
+| first-SLA-clock | first SLA clock（建案即啟動首次回應 SLA 計時） | ⬜ 缺 | grep first_sla/sla_clock/first_response/first_response_at 於 SQL/+api/ 全無命中。approval_inbox_service.py:54 _SLA_DAYS_BY_TYPE 是 approval/dispute SLA 天數(MVP hardcode)，非 intake first-response 計時。 | Case 建立未啟動任何首次回應 SLA 計時欄/邏輯。 |
+| web-intake-ui | 後台/前端建案入口 UI | ⬜ 缺 | web/src/app/problem-cards/page.tsx + [id]/page.tsx 僅檢視 AI 診斷卡，無建案表單；web/src/app/knowledge-base/cases/new 是 KB 知識庫建案(非 intake)；web/src/app/admin/customers 是客戶資料 CRUD。無多渠道 intake 建案 UI。 | 缺客服代建 Case 的多渠道 intake 表單（含 source channel 選擇 + customer contact）。 |
+
+**關鍵缺口：**
+- 無 M01 Case/Inquiry 承載實體 — 唯一 case 表是 KB case_entries(無關)，problem_cards 僅是綁 LINE 的 AI 診斷卡，無 Case 級 source_channel
+- BR-M01-01 P0 硬閘未達標：channel 只 3 值(line/web/api)且 DEFAULT line，缺 8 渠道 enum 與 NOT NULL，brand/store/dealer/builder/referral 完全缺
+- BR-M01-02『報價前必先建 Case』流程 gate 不存在；電話/web/brand/store/dealer/builder/referral 7 渠道無建案入口接線
+- first SLA clock 完全缺(grep first_sla/sla_clock/first_response 零命中)
+- G036 lead source attribution 缺(依附未完成的 source_channel)，後台無多渠道 intake 建案 UI
+
+**🚩 假綠旗標：**
+- conversations.channel 有 DEFAULT 'line' 但無 NOT NULL、無 CHECK 約束 — DB 層完全不阻擋任意字串，註解宣稱僅 3 值但無強制力（軟閘偽裝硬閘）
+- API 層 ConversationChannel StrEnum 僅 3 值（line/web/voice）且預設 line — 看似有 enum 驗證實則只覆蓋 3/8 渠道，brand/store/dealer/builder/referral 全缺，且綁在 conversation 級非 Case(problem_cards) 級
+- problem_cards.source（migration 032）僅 human/ai_line 二值，是 AI vs 客服來源語意，被誤當成營運渠道來源會造成假綠 — 與 BR-M01-01 的 8 渠道無關
+
+> **驗證註記**：逐項挑戰結果：原 PARTIAL 判定成立且證據充分，不需改判。實查確認：(1) SQL/Schema.sql:160 conversations.channel VARCHAR(50) DEFAULT 'line'，註解僅 'line','web','api' 3 值，無 NOT NULL 無 CHECK，DB 不阻擋。(2) grep builder/referral/dealer/store 於 SQL/ + api/ 全無 channel 用途命中（唯一其他 channel 出現在 035-password-reset email 送達管道，與本需求無關）。(3) problem_cards(Schema.sql:226-272) 經 conversation_id 綁 conversations，本身無 source_channel 欄。(4) migration 032 problem_cards.source 僅 human/ai_line 二值（AI 草擬 vs 手建），非營運 8 渠道。新發現補強原盤點：API 層 api/models/generated.py:1091 ConversationChannel StrEnum 僅 line/web/voice 3 值、預設 line（conversations_v2.py:111 直接吃此 enum），即唯一的「
+
+### M02 · 客戶/地址/設備主檔
+
+`D1 市場/客戶` ｜ Phase I ｜ **完成度 42%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+Customer 主檔（= users role='line_user'）這一條腿真的可動：tenant-scoped v2 CRUD + cursor 分頁 + 歷史聚合 + 前端 list/detail/new 三頁 + phone 去重 422 + 真實 pytest，相對 CR-0038 基線（BR-M02-01 由 MISSING 升 PARTIAL）有明確進步。但 M02 的另外兩條腿幾乎空白：沒有獨立 Device 主檔表（brand/model/serial/purchase/install/warranty date 一個都沒有實體欄位），device_warranty 端點自註「表尚未建，留 P3」、GET best-effort 推算、PATCH 回 pending 佔位；Site Group（建商/社區案）完全沒表、只有 1 個 boolean 旗標。三項 P0-阻擋規則中只有 BR-M02-01 部分達標。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M02-01 | Customer 去重規則（phone + LINE ID 為主，address 輔助） | 🟡 部分 | api/services/customer_service.py:335-349 create 時同租戶 phone 重複 → 422 DUPLICATE_CUSTOMER；:322-333 line_user_id UNIQUE 預查 422；真測試 api/tests/test_cr_0042_alpha_closeout.py:100-110 test_phone_dedup_422。相對 CR-0038 基線（MISSING）已升級 | 未做 phone+LINE ID 複合 key 比對（兩者各別查，非組合）；無人工合併/merge 端點（G001 要求同電話多地址合併歷史查詢）；update 路徑不去重 |
+| BR-M02-02 | 保固用 Device record（brand/model/serial/purchase/install/warranty date） | 🔶 假資料 | grep CREATE TABLE device→0（無 device 表）；api/routers/device_warranty.py:13,64 自註『device_warranty 獨立表尚未建留 P3』，GET best-effort 以 purchase_date+品牌 default 推算（:67-85），PATCH 回 status='pending_supervisor_approval' change_request_id=None 佔位（:131-136）；device_serial 僅 warranty_claims 的 optional 欄位（SQL/migrations/068），供 RMA serial 級 abuse 偵測（warranty_service.py:545-571），非 Device 主檔 | 建 device 主檔表（brand/model/serial/purchase_date/install_date/warranty_start）+ customer/site 關聯 + 建立 UI/API + device_warranty 接真資料；前端 CustomerForm 無任何 device 欄位（web/src/components/admin/CustomerForm.tsx 只有 display_name/phone/email/address） |
+| BR-M02-03 | Project / Site Group（建商/社區案，batch dispatch/warranty/settlement/reporting） | ⬜ 缺 | grep CREATE TABLE site_group→0；唯一相關為 SQL/migrations/003-warranty-5mode.sql:78 warranty_inherit_from_site_group boolean 旗標 + warranty_service.py:214-225 site_group_mode TODO(P3) 佔位；無 batch dispatch/月結/共用保固實作 | 建 site_group 表 + 成員關聯 + batch dispatch/settlement/reporting 串接（須先 CIA，跨 M14/M12） |
+| Q008 | 自動建立客戶資料（一進線即建 Customer） | 🟡 部分 ⚠️驗證下修自 PARTIAL | create_customer 真實可動（customer_service.py:313-365）；前端 web/src/app/admin/customers/new + CustomerForm 手動建檔可動。但 agent/lockcore/channels/line_gateway.py 不 INSERT users、不呼 create_customer（grep 無） | LINE/phone/web 各渠道進線自動 create_customer（含去重），目前僅 admin 手動 |
+| Q012 | 保留案件歷史（派工/客訴/保固連回 customer/site/device） | 🟡 部分 | get_customer 聚合歷史可動（customer_service.py:156-284）：work_order 狀態分佈、avg rating、dispute_count、refund 總額、recent_orders/conversations，前端 customers/[id] detail 頁呈現 | 歷史只連 customer↔work_order/dispute/refund；缺 device/site 維度連結（因 device/site 表不存在）；歷史保存期限政策（1年/保固期）未實作 |
+| G001 | 客戶主檔去重主鍵 + 人工合併權限 | 🟡 部分 | 同 BR-M02-01：phone+line_user_id 去重於 create；create 限 role_required('admin','operations_manager')（customers_v2.py:35） | 無人工合併端點與權限；同電話多地址合併歷史查詢未做 |
+| G002 | 設備主檔與保固起算（建商交屋日/零售安裝日） | 🔶 假資料 | 5-mode 起算純函式存在（warranty_service.py resolve/compute/is_within_warranty），device_warranty.py GET 用之；但無 device 表存放 anchor 日期，GET 固定回 start_mode='purchase_date' today 推算（device_warranty.py:67-69 TODO P3） | 建 device 表存 purchase/install/warranty/handover date + 依建商/零售案選 anchor mode 落庫 |
+| G003 | 社區/建案/多戶 Site Group（批次派工/月結/共用保固） | ⬜ 缺 | 同 BR-M02-03：僅 warranty_inherit_from_site_group boolean，無 site_group 表/實體 | 建 site_group 主檔 + 批次工單/月結（跨 M14/M12，須 CIA） |
+| M02-INFRA-customer-api | Customer v2 tenant-scoped API + 前端 | ✅ 完成 | api/routers/customers_v2.py 全 CRUD（list/create/get/update）+ cross-tenant guard（ADR-0030）+ cursor 分頁 + 篩選；已 wire api/main.py:254；前端 web/src/app/admin/customers/{page,[id],new} 三頁 + CustomerForm（phone 09 驗證、email 驗證）；真測試 test_cr_0042_alpha_closeout.py | — |
+| M02-INFRA-address | Address / Site profile 結構化主檔 | ⬜ 缺 | grep CREATE TABLE address/addresses→0；address 僅為 users 表自由文字欄位（customer_service.py:301 _ALLOWED_UPDATE_FIELDS 含 address） | 無獨立 address/site profile 表，無社區/建案/原住址結構化；spec『地址/社區/建案』未落地 |
+
+**關鍵缺口：**
+- BR-M02-02 保固用 Device 主檔：grep CREATE TABLE device→0；device serial 僅為 warranty_claims 的 optional 欄位（RMA abuse 用），無 brand/model/purchase/install/warranty date 主檔、無建立 UI/API。device_warranty.py GET 為純函式 best-effort 推算、PATCH 回佔位（P0 阻擋規則未達標）
+- BR-M02-03 Site Group（建商/社區批次派工/月結/共用保固）：完全無 site_group 表，僅 warranty_inherit_from_site_group 一個 boolean + warranty_service 內 site_group_mode TODO(P3) 佔位（MISSING）
+- Q008 一進線即建 Customer：LINE gateway（agent/lockcore/channels/line_gateway.py）不 INSERT users / 不呼 create_customer，僅 admin 手動建檔；各渠道自動建客尚未接
+- BR-M02-01 去重只做到 create 時 phone 同租戶 422，line_user_id UNIQUE 預查；缺『phone + LINE ID 複合 key』完整比對 + 人工合併端點（G001 要求 merge 歷史查詢）
+- address 為 users 自由文字欄位，無獨立 address/site profile 表，無社區/建案/原住址結構化資料（Site profile 缺）
+
+**🔻 驗證改判：**
+- `Q008`：🟡 部分 → 🟡 部分 — 狀態 tier 維持 PARTIAL,但盤點 evidence/gap 的核心論述有誤需更正。盤點稱『line_gateway 不 INSERT users、不呼 create_customer (grep 無),目前僅 admin 手動』—— 此說法只對了一半。實測 LINE 進線確實會自動建 users row:完整鏈路為 agent/lockcore/channels/line_gateway.py:67 `_persist_turn_safe` → POST /api/v1/internal/conversations/ingest (internal_ingest.py:63) → conversation_service.ingest_turn → create_conversation → conversation_service.py:210 `INSERT INTO users (line_user_id,...) ON CONFLICT (line_user_id) DO UPDATE`。所以 LINE 渠道『一進線即建 Customer(users row)』是有實作的,並非僅 admin 手動。真正的 gap 應改為:(1) 自動建檔走 conversation upsert 旁路,且 fire-and-forget 受 LOCK_API_BASE_URL+INTERNAL_API_TOKEN env gate,env 未設則靜默跳過;(2) 自動建檔『不做去重』,只靠 line_user_id ON CONFLICT,無 phone 去重;(3) phone/web 純對話以外渠道進線無自動 create_customer。tier 仍 PARTIAL 但完成度比盤點credited 的高。
+
+> **驗證註記**：逐項實測結論:無假綠。唯一 DONE_VERIFIED (M02-INFRA-customer-api) 經查屬實 —— api/routers/customers_v2.py 全 CRUD(list/create/get/update),已 wire api/main.py:254,cross-tenant guard(ADR-0030)真實存在,前端三頁真內容(page.tsx 413 行 / [id]/page.tsx 463 行 / new + CustomerForm.tsx 含 PHONE_REGEX /^09\\d{8}$/ 與 EMAIL_REGEX 驗證),真測試 test_cr_0042_alpha_closeout.py:test_phone_dedup_422 為真 DB 測試(db_module._ensure_conn + 真 INSERT + 真 DELETE 清理,非 FakeConn mock)。不降級。  重要 schema 事實澄清(影響 _v2 慣例判讀):customers_v2 雖帶 _v2 後綴,但實際讀 public.users(無 saas. 前綴),靠 users.tenant_id 欄位過濾達成 tenant 隔離(Schema.sql:496 註明 tenant_id 為 multi-tenant 預留、目前 single-t
+
+### M03 · AI 分診與 ProblemCard
+
+`D2 Service-to-Cash` ｜ Phase I ｜ **完成度 48%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+M03 的「問題卡資料層」相對紮實：CRUD/v2 tenant-scoped 端點、AI 草擬卡 HITL（escalation→draft PC，含冪等鍵與 CR-0096 per-issue 部分唯一索引）、三級必填分類、轉 WO 完整度硬閘（M18 config 0.8 門檻可調 + 主管 override）皆為真實 code 且有測試。但「AI 分診」本體單薄：規格核心的五向分診結果物件不存在、BR-M03-01 的 5-state 狀態（Need Photo/Need Human/Closed Remote）完全未實作、G037 completeness score 不常駐顯示、BR-M03-02 的 3-cycle 與 angry/safety 升級無 code-level gate（純 SOP prose 靠 LLM 自律）。BR-M03-03（AI 不做 final quote）因工具白名單無報價工具而結構性達成。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M03-01 | ProblemCard completeness gate / 5-state 狀態顯示（Ready for Quote / Need Info / Need Photo / Need Human / Closed Remote） | 🟡 部分 | api/services/problem_card_service.py:44-49 狀態僅 incomplete/confirmed/resolved/escalated 四態；_DB_STATUS_TO_API 映成 draft/confirmed/resolved。web/src/app/problem-cards/[id]/page.tsx:56-57 與 ProblemCardDetailSidebar.tsx:31-32 標籤只有 已確認/已解決。全 repo grep 'Ready for Quote\|Need Info\|Need Photo\|Need Human\|Closed Remote' 零命中。完整度 gate 本身存在：problem_card_service.py:346-410 assert_completeness 讀 M18 config 在轉 WO 前算 score 並 422 硬擋。 | 規格 5-state（含 Need Photo / Need Human / Closed Remote）完全未實作；現況 4 內部狀態無法表達『需照片/需真人/遠端結案』。completeness gate 已做但狀態語意與規格不符。 |
+| BR-M03-02 | AI escalation 轉真人（urgent / angry / 高金額 / 保固不明 / refund / safety-legal / 3 次失敗循環） | 🟡 部分 | agent/lockcore/agent/tools/transfer.py:27-36 TRANSFER_KEYWORDS 涵蓋『明確要求人工』+『金錢/退款/報價』；handoff-and-dispatch.md:17-34 SOP 另含急迫派工、連續兩次不滿。transfer.py:12 明註『不做 gating』，escalation 純靠 LLM 依 SOP prose 判斷。agent/tests/test_transfer_to_human.py 存在。escalation→建草擬卡 problem_card_service.py:547-673 escalation_to_draft_pc 完整（含 conversation escalated 狀態切換）。 | 無『3 次失敗循環』計數器（grep cycle/失敗次數 在 agent 業務層零命中）；angry customer / 高金額 / 保固不明 / safety-legal 僅 SOP 文字提示，無 code-level 強制 gate。P0 阻擋規則靠 LLM 自律，非硬閘。 |
+| BR-M03-03 | AI 不做 final quote（只能建議 range/draft） | ✅ 完成 | agent 工具白名單（CLAUDE.md CS_TOOL_ALLOWLIST：read_file/list_dir/find_files/grep/web_search/transfer_to_human）不含任何報價工具；transfer.py:26-36 任何金錢/報價字眼一律轉真人；SKILL.md:27、56『不報價、不承諾費用』。AI 結構上無法產生 final price。 | — |
+| Q013 | AI 第一輪五向分診（安裝/維修/保固/客訴 + 急件 + 可否報價 + 是否需真人 + 是否需照片） | 🟡 部分 ⚠️驗證下修自 PARTIAL | 分類靠 agent SOP prose（handoff-and-dispatch.md / booking.md / warranty.md）+ LLM 判斷。grep 'triage_result\|分診結果\|TriageResult' 全 repo 零命中——無結構化分診結果物件。問題卡有 intent 欄（problem_card_service.py:296-302 inquiry/repair/complaint/other）。 | 無『五向分診』結構化輸出（triage_result entity 不存在）；need_photo/need_human/can_quote 維度未具體化為可查欄位，無法供 M04/M06 一致消費。 |
+| Q014 | ProblemCard 為 Service Ticket，遠端可結案不一定轉 WO | 🟡 部分 | problem_card_service.py:256-283 resolve_card（confirmed→resolved，記 resolution_layer L1/L2/L3）與 convert-to-WO（problem_cards_v2.py:320-364）為兩條獨立路徑，確實可遠端結案不轉單。 | 無 'Closed Remote' 專屬狀態（resolve 不區分遠端結案 vs 到場結案，僅靠 resolution_layer L1 隱含）；Q014 未決問題『遠端結案是否需客戶確認關閉』未落地。 |
+| Q015 | ProblemCard 必填欄位三級分類（必填 / 可後補 / 派工前必填，含照片 gate） | 🟡 部分 ⚠️驗證下修自 PARTIAL | problem_card_service.py:316-333 _PC_FIELD_TIERS 三級（required: brand/model/symptom/urgency；pre_dispatch: customer_address/problem_type；optional: serial/door/network）+ required_field_tiers() 對外揭露。assert_completeness 回 missing_by_tier（:406-409）。 | 照片未列為 pre_dispatch 硬閘——work_order_service.py:586『照片 photos 列為建議（非硬擋）』，與 Q015『派工前必填照片』衝突。serial/門厚等仍 optional。 |
+| Q016 | 安裝 ProblemCard 必問（門型/門厚/舊鎖照片/價格可接受/LINE 確認） | ⬜ 缺 | problem_card_service.py create_card 僅通用欄（brand/model/symptom/urgency/door_status/network_status/category/location）。grep 門厚/門型/價格可接受/LINE 確認 於 PC 服務層無對應欄位。 | 安裝專屬分診欄位（門型/門厚/舊鎖照片/價格可接受/LINE 確認）完全未建模。 |
+| Q017 | 維修分診（門型/內外門/原鑰匙/被鎖門外 → 急件判定） | ⬜ 缺 | 無維修專屬欄位；door_status enum 僅 locked_out/partially_functional/normal（:293）。被鎖門外→Red Code 規則僅 SOP prose（handoff-and-dispatch.md），無欄位化判定。 | 維修專屬分診欄位（內外門/原鑰匙/被鎖判定）未建模；急件判定無結構化規則。 |
+| Q018 | 保固 ProblemCard 必連品牌/序號/發票/購買日 + 禁 AI 最終報價 | 🟡 部分 | AI 禁最終報價端見 BR-M03-03（DONE）。warranty.md:9 僅建議客戶提供購買憑證。PC 有 serial_number（optional tier）。 | 保固專屬必填（序號/發票/購買日）未列為保固案 required；無保固案類型專屬 gate 強制連這些欄位。 |
+| Q019 | 客訴/RMA 獨立 Case（連原工單與原地址） | 🟡 部分 | api/routers/exception_cases_v2.py 與 kb_cases.py 存在（獨立 exception/complaint case 端點）；intent 含 'complaint'（problem_card_service.py:301 mapping complaint→DB）。 | 未驗證 RMA case 強制連原工單+原地址；RMA 編號格式（Q019 未決）未定；M03 PC 本身未串 complaint→原工單關聯。屬本次盤點 M03 邊界外（exception_cases 屬另一塊）。 |
+| Q020 | AI 轉真人規則：高風險立即轉 + AI 3 cycle 失敗轉 | 🟡 部分 | 高風險（金錢/明確要求）立即轉已實作（transfer.py）。 | 『AI 3 cycle 失敗轉』無計數器（agent 業務層 grep cycle/失敗次數 零命中）；Q020 未決『2 次還是 3 次』未在 code 固化。 |
+| G037 | ProblemCard completeness score 顯示（可報價/可派工/需補資料/需真人） | 🟡 部分 | assert_completeness 在轉 WO 時算 score（problem_card_service.py:388）但卡片本身 confidence_score 永遠 None（:101）。web ProblemCardDetailSidebar.tsx:133 僅在 confidence_score!=null 時顯示（故永不顯示）。 | score 未持久化/未常駐顯示在卡上；僅在 convert-to-WO 422 時揭露 missing。『可報價/可派工/需補資料/需真人』四象限分類未呈現於卡片。 |
+| INFRA-migration | DB schema 套用（032 ai-draft / 051 completeness-config / 077 per-issue） | 🟡 部分 | MIGRATION_REGISTRY.md:63 051 🟢✅ 2026-06-19 套 dev；:88 077 🟢✅ 2026-06-23 套 dev。032-problem-card-ai-draft.sql 存在但 registry:91 標『028-032 registry 待補登』未確認套用狀態。 | 032（AI 草擬欄 source/ai_missing_fields）套用狀態未在 registry 確認；prod 套用全未驗證（registry 標的多為 dev）。 |
+
+**關鍵缺口：**
+- BR-M03-01 規格 5-state（Ready for Quote / Need Info / Need Photo / Need Human / Closed Remote）完全未實作，現況僅 4 內部狀態，前後端皆無此語意——分診結果無法被 M04/M06 一致消費
+- 五向分診結構化結果物件（triage_result entity）不存在；安裝/維修/保固專屬必問欄位（門型/門厚/序號/發票/原鑰匙）多數未建模（Q016/Q017/Q018 MISSING-PARTIAL）
+- BR-M03-02/Q020 P0 阻擋規則：3 次失敗循環無計數器、angry/高金額/保固不明/safety-legal 僅 SOP 文字，無 code-level 升級 gate——P0 規則靠 LLM 自律非硬閘
+- G037 completeness score 未持久化於卡片（confidence_score 恆 None，:101），『可報價/可派工/需補資料/需真人』四象限不顯示；分數只在轉 WO 422 時露出
+- 照片未列派工前硬閘（work_order_service.py:586 明定『非硬擋』），與 Q015『派工前必填照片』直接衝突；migration 032 套用狀態未確認、prod 套用全未驗證
+
+**🔻 驗證改判：**
+- `Q013`：🟡 部分 → 🟡 部分 — 宣稱仍正確但低估嚴重度：除了無 triage_result 結構化輸出（grep triage_result/need_photo/need_human/can_quote 全 repo 零命中，已實證），『需照片』分診維度根本無法成立——LINE gateway agent/lockcore/channels/line_gateway.py:358 對任何非文字訊息 `if not isinstance(event.message, TextMessageContent): continue` 直接 skip，圖片/影片訊息在通道層被靜默丟棄。inbound_debounce.py:24 雖宣稱處理 image/video kind，但 grep 證實它從未被 line_gateway 串接（dead code）。故 need_photo 維度為純文字提示、無實際媒體進入路徑。
+- `Q015`：🟡 部分 → 🟡 部分 — 盤點正確（work_order_service.py:586『照片 photos 列為建議（非硬擋）』已實證，與 Q015 派工前必填照片衝突）。補強證據：即便要求補照片，客人也無法經 LINE 上傳——gateway 丟棄非文字訊息（line_gateway.py:358）。照片 gate 不僅未列 pre_dispatch 硬閘，連照片到達路徑都斷。photo gate 真正存在處是『完工』時 work_order_service.py:876-881 min_photos>=3 硬擋（與派工前 gate 無關，不可混為一談）。
+
+**🚩 假綠旗標：**
+- confidence_score 永遠 None 硬寫：problem_card_service.py:101 `"confidence_score": None`，配合 web ProblemCardDetailSidebar.tsx 僅在 !=null 時顯示 → G037『completeness score 顯示』在卡片上永不顯示，僅在 convert-to-WO 422 時短暫揭露 missing。score 從未持久化。
+- 5-state 狀態（Ready for Quote / Need Info / Need Photo / Need Human / Closed Remote）全 repo（api/web/agent）grep 零命中，DB 僅 incomplete/confirmed/resolved/escalated 四態，API 映成 draft/confirmed/resolved 三態。規格 5-state 完全未實作。
+- triage_result / TriageResult / need_photo / need_human / can_quote 結構化分診物件全 repo 零命中（Q013）——分診純靠 LLM 讀 SOP prose，無可供 M04/M06 一致消費的結構化欄位。
+- LINE gateway 丟棄圖片/影片：line_gateway.py:358 非 TextMessageContent 一律 continue；inbound_debounce.py 的 image/video 處理為未串接死碼。『需照片』分診與照片證據經 LINE 收集的能力實際為 0。
+- AI 3-cycle 失敗轉真人計數器不存在：agent/lockcore 業務層無 fail_count/attempt_count/連續失敗計數（runner.py 的 _MAX_INJECTION_CYCLES 是 LLM 注入循環上限，非『AI 答不出 3 次轉人』業務閘）。P0 高風險轉人除金錢/明確要求關鍵字（transfer.py:27-36 硬比對）外，angry/高金額/保固不明/safety-legal 全靠 LLM 自律 SOP prose，無 code gate。
+- INFRA-migration 032 套用狀態未證實：MIGRATION_REGISTRY.md:15/91 自承『028-032 registry 待補登』『逐表 reconcile 待後續輪』；051/077 標 dev 已套但 prod 套用狀態全未驗證（registry 自承 ≠ 各環境 schema_migrations 真實）。
+
+> **驗證註記**：逐項實證後結論：盤點整體誠實，無『宣稱 DONE 實為 mock』的典型假綠，但有兩處系統性缺陷被低估，故 pct 由 52 下修至 48。  【DONE_VERIFIED 經查站得住】BR-M03-03（AI 不做 final quote）：CS_TOOL_ALLOWLIST（app_config.py:20-27）確認只開 read_file/list_dir/find_files/grep/web_search/transfer_to_human，無任何報價工具；transfer.py:27-36 TRANSFER_KEYWORDS 含報價/價錢/費用/付款等金錢字眼硬比對 _is_explicit_transfer_request；test_transfer_to_human.py 存在。結構上 AI 無法產生 final price → 維持 DONE_VERIFIED，不降級。  【測試非假綠】convert/escalation 測試走真 DB chain（test_pc_convert_to_wo.py 建 user→conversation→PC 真鏈、7 案矩陣含 tenant 隔離；conftest.py:92-97 明確對抗 CR-0038 FakeConn 跨檔污染），非 FakeConn mock 假綠。completeness gate 為真硬閘：pr
+
+### M04 · 報價/價格/核准
+
+`D2 Service-to-Cash` ｜ Phase I ｜ **完成度 55%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+M04 自 CR-0038 基線（2026-06-19）明顯前進：報價狀態機、成本 server 端 RBAC 遮蔽、客戶端 token 查看、LINE 送單/同意 postback、派工前須 accepted quote 的 gate（CR-0095）、核准門檻與有效期改讀 M18 config（CR-0046/0044）全部接線且有 component/live-DB 測試，基線標的 BROKEN（041 未套）已大致解除。但核心商務正確性仍未達標：(1) 全部金額 is_mock=TRUE，正式價待 esales；(2) 內部成本只有單欄 unit_price，未拆 labor/material/travel/margin/brand（BR-M04-01 未滿足）；(3) surcharge_rule 主檔只唯讀、quote 引擎從不套加價→金額系統性偏低；(4) 客戶端報價條款（公司抬頭/保固/取消費/追加價，Q-12）只 seed 進 config，前端未渲染；(5) 報價 pending_approval 未進統一 approval inbox。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M04-01 | Internal quote 與 customer quote 分離（成本拆 labor/material/travel/margin/brand） | 🟡 部分 | 分離機制真實：quote_service.py:30-43 與 quote_engine_service.py:182-196 server 端依 include_cost RBAC 遮蔽 unit_price；_COST_VISIBLE_ROLES={admin,operations_manager,tenant_admin}（quote_v2.py:23,32-33）；客戶端 get_quote include_cost=False 結構上不含 unit_price；客戶頁 quotes/[token]/page.tsx 只露 customer_price/total。 | 成本只有單欄 unit_price（037:24），未拆 labor/material/travel/margin/brand cost；規格明列 internal view 須保留 5 維成本拆分，目前無此 schema 與 UI。 |
+| BR-M04-02 | Price table 版本管理（effective date + owner；已確認 WO 保留原核准價格） | 🟡 部分 | 已確認 WO 保價有實作：transition send→_freeze_snapshot 凍結 line items 進 pricing_rule_snapshot + snapshot_hash（quote_engine_service.py:263-264,421-433；041 表）。price table 版本：saas.price_rule 有 state machine + effective_date（008:118-120）+ created_by；M18 config_version 有 effective_at 排程（062）+ owner_role_codes（004:58）。 | price_rule 版本與 quote 引擎脫節——add_line 直接從 catalog copy 售價（quote_engine_service.py:144-146），不讀版本化 price_rule；snapshot 只凍 line items 不含 surcharge（加價未接）；catalog（service/material）本身無 effective_date/owner 欄，全 is_mock。 |
+| BR-M04-03 | 依金額/風險核准（高金額/折扣/類 refund 在 customer confirmation 前需 approval） | 🟡 部分 | 金額門檻 gate 真實且 config 化：transition send 時若 draft 且 total>threshold 擋 APPROVAL_REQUIRED 409（quote_engine_service.py:236-247）；門檻讀 M18 discount_policy.approval_threshold（fallback 10000，CR-0046，不寫死）；狀態機 submit→pending_approval→approve/reject 寫 quote_approval（256-262）；:approve/:reject 限管理角色（quote_v2.py:141-150,_APPROVE_ROLES）。 | 只覆蓋『高金額』一維；特殊門/保固不明/discount/類 refund adjustment 等風險觸發未實作（無 risk flag 接入）；門檻值 is_mock 範例待業主；pending_approval 報價未進統一 approval inbox（approval_inbox_service 不含 quote）。 |
+| Q021/Q031/BR-M03-03/BR-M20-02 | AI 不可 final price，只可給區間/草稿 | 🟡 部分 | agent skill 有指引：locksmith-product-knowledge/.../dispatch.md:114『不可承諾具體費用（一律轉真人報價）』；報價建立/送出全走 OPS_ROLES 人工端點，無 AI 自動 final price 路徑。 | 無強制性程式 gate 阻擋 AI 產生 final price（僅靠 prompt/SOP 文字約束）；AI quote range/draft 生成器未見實作；屬 M03/M20 主責，M04 端僅被動不開放 AI 寫入。 |
+| Q032/BR-M04-05 | 報價有效期分級（3/7/15/30 天依案件/品牌） | 🟡 部分 | 有效期 config 化：_validity_days 讀 M18 quote_validity_policy（urgent_days/normal_days，CR-0044，不寫死），fallback 一般 14d / 急件 3d（quote_engine_service.py:42-53）；create_quote 依 urgent 設 expiry_at（101-102）；accept 過期擋並轉 expired（250-254）。 | 只支援 normal/urgent 二元，未做依案件類型 7/15/30 天或品牌規則分級；預設天數待主管拍板。 |
+| Q034/前期-P0-01 | 報價欄位：內部含原價/折扣/實付/退款/各成本，外部只顯實付 | 🟡 部分 | 外部只顯實付：已落地（客戶頁僅 customer_price/total_amount）。內部：unit_price + customer_price 兩欄 RBAC 區分。 | 內部欄位不完整——無原價、折扣、退款、產品費/工資/材料/車馬/急件分項欄位；規格列的內部報價多維欄位大多缺。 |
+| Q007/前期-P0-02 | 訂金/預付款（在報價階段定義，付款方式） | 🔶 假資料 | quote 表有 deposit_required 欄（041:23），get_quote 回傳此欄（quote_engine_service.py:191）；M18 deposit_policy config 已 seed（044：訂金 0.3/min 1000，is_mock）。 | deposit_required 從未被寫入/計算（grep 僅 SELECT，無 INSERT/UPDATE 設值）；報價建立流程不觸發訂金計算；付款方式（末五碼/現金/信用卡/web link）在 M04 報價階段未定義（屬 M11 但報價 gate 需引用）。 |
+| CR-0032-state-machine | 報價狀態機（draft→pending_approval→approved→sent→accepted/rejected/expired） | ✅ 完成 ⚠️驗證下修自 DONE_VERIFIED | _TRANSITIONS 完整（quote_engine_service.py:28-35）；6 端點 submit/send/accept/approve/reject + version 遞增（104-107）；測試 test_cr_0032_quote_engine.py + test_cr_0095_quote_line_approval.py（component/live DB）；基線標 BROKEN（041 未套）已解除。 | — |
+| CR-0032-snapshot-freeze | 送客戶凍結 pricing snapshot + hash | 🟡 部分 ⚠️驗證下修自 PARTIAL | _freeze_snapshot 凍 line items + sha256 寫 pricing_rule_snapshot + snapshot_hash（quote_engine_service.py:421-433）；send 時觸發（263-264）。 | 只凍 line items，不含 surcharge/加價規則（加價引擎未接）→ snapshot 不完整，無法真正保護『已核准價』全貌。 |
+| CR-0095-customer-view+LINE | 客戶端報價查看 + LINE 送單/同意拒絕 postback | 🟡 部分 | public_token（HMAC stateless quote_view，mint_view_token 358-377）；客戶頁 quotes/[token]/page.tsx 含 accept/reject（109,179,224）；送單推 LINE quote_proposal Flex 含 q:a\|/q:r\| postback + URI fallback（transition send 285-307；test_cr_0095 builder 測試驗 postback/fallback）；customer_respond_to_quote 驗擁有權防越權（398-418）。 | 客戶頁未渲染條款（公司抬頭/保固/取消費/追加價）—— Q-12 company_profile 只 seed config 未上前端；無同意勾選 gate，僅按鈕。 |
+| esales-Q12-customer-quote-text | 客戶報價固定文案（抬頭/電話/保固/取消費/追加價條款）+ 同意 gate | 🔶 假資料 | company_profile M18 config 已 seed 且明標 is_mock + 含 company_name/customer_service_phone/warranty_text/cancellation_clause/surcharge_clause（CR-0046，056-company-profile-discount-mock.sql；test_cr_0046 驗 seed 齊全）。 | 前端完全未引用：grep web/src/app/quotes/ 無任何 company_profile/warranty/條款渲染；文案為範例 mock 待業主定稿；無條款同意勾選 gate。 |
+| CR-0034-catalog | 報價基礎主檔（service/material/surcharge catalog） | 🔶 假資料 | service_catalog/material_catalog/surcharge_rule 三表 + 28 服務 seed（040），quote_catalog_service 唯讀讀取 + admin/quote-catalog 前端頁展示。 | 全 is_mock=TRUE，正式價待 esales Q-01/02；surcharge_rule 只被唯讀、不進計價；catalog 無 effective_date/owner 版本欄。 |
+| esales-Q03~Q06-surcharge-engine | 加價/車馬/急件套用引擎 | ⬜ 缺 | surcharge_rule 僅 quote_catalog_service.py:76 唯讀；quote_engine_service.add_line（116-155）grep 無 surcharge，只 copy catalog 售價。 | quote 引擎完全不套加價/車馬/急件 → recompute 只 Σ(customer_price×qty)，報價金額系統性偏低；基線標 MISSING 至今未動。 |
+| CR-0035-invoice-from-quote | 報價 accepted→開立客戶應收發票 | 🟡 部分 | accept 時 best-effort invoice_service.create_from_quote（quote_engine_service.py:267-275）；invoices 加 quote_id + is_mock（042）；失敗不阻斷 accept 並 log ERROR 供人工補開。 | 稅率/金額 mock（042 is_mock）；best-effort 解耦——開票失敗時金流斷層僅靠 log，無自動重試/補償，可能漏開。 |
+| BR-M05-03/CR-0095-D2 | 派工前須客戶已同意報價 gate（M04↔M05 接點） | ✅ 完成 ⚠️驗證下修自 DONE_VERIFIED | _assert_quote_accepted（work_order_service.py:1234-1257）派工前無 accepted 報價→409 QUOTE_NOT_ACCEPTED；assign 前呼叫（1299）；主管 override 可繞過（測試驗主管/非主管）；test_cr_0095 component 覆蓋。 | — |
+| approval-inbox-quote | 報價核准進統一 approval inbox（BR-M15-02 精神） | ⬜ 缺 | approval_inbox_service.list_pending_approvals 聚合 scope_change/refund/dispute/reschedule/recon_exception（4-6,108-189）；獨缺 quote pending_approval。 | pending_approval 報價不出現在主管 approval inbox，須另開報價列表頁查看，approval 分散。 |
+
+**關鍵缺口：**
+- BR-M04-01 內部成本未拆維度：quote_line_items 僅 unit_price 單欄，無 labor/material/travel/margin/brand cost 拆分（037:24），不符『internal view 保留 labor/material/travel/margin/brand cost』
+- 全模組金額 is_mock=TRUE（037/040/041 schema 註解 + quote 主表 is_mock default TRUE），正式價/訂金/門檻待 esales Q-01~Q-12，未轉正式 = MOCK_ONLY 不可當 DONE
+- Surcharge 引擎缺位：surcharge_rule 僅 quote_catalog_service 唯讀讀取，quote_engine_service.add_line 從不套加價/車馬/急件 → 報價金額系統性偏低（基線 esales-Q03~Q06 仍 MISSING）
+- 客戶端報價條款/同意文案未落地：company_profile（抬頭/電話/保固/取消費/追加價條款，CR-0046 Q-12）只 seed 進 M18 config，web/src/app/quotes/[token]/page.tsx 未渲染任何條款，只有裸金額表 + accept/reject
+- 報價核准未進統一 approval inbox：approval_inbox_service 聚合 scope_change/refund/dispute/reschedule/recon_exception，獨缺 quote pending_approval（違反 BR-M15-02 approvals 不應只留 chat 的精神）
+- Migrations 037/040/041 在 MIGRATION_REGISTRY 仍標『036-041 registry 待補登』，dev 套用真實狀態未逐表 reconcile（registry 標記 ≠ 事實）
+
+**🔻 驗證改判：**
+- `CR-0032-state-machine`：✅ 完成 → ✅ 完成 — 維持 DONE：_TRANSITIONS + 6 端點 + 6 個真 component 測試（test_cr_0032_quote_engine.py，live DB 非 FakeConn）覆蓋 submit→approve→send→accept、APPROVAL_REQUIRED 門檻、snapshot hash、cost RBAC，端到端可動。唯一保留：041 migration 不在 MIGRATION_REGISTRY 的 schema_migrations 確認清單（registry 線 15 僅稱『多已套 dev』），無法零風險證明已套；但測試若未套會 UndefinedTable FAIL，故不降為 BROKEN。
+- `BR-M05-03/CR-0095-D2`：✅ 完成 → ✅ 完成 — 維持 DONE：_assert_quote_accepted (work_order_service.py:1234-1261) 真實 COUNT accepted 報價→409 QUOTE_NOT_ACCEPTED，主管 override 需 override_reason，assign 前呼叫；test_cr_0095 component 測試 (live DB seed/cleanup) 覆蓋無報價擋/有報價過/override/非主管不可 override。真實。
+- `CR-0032-snapshot-freeze`：🟡 部分 → 🟡 部分 — 維持 PARTIAL，gap 屬實且更嚴重：_freeze_snapshot (421-433) 只凍 line items（item_name/category/customer_price/quantity）+ sha256，quote_engine_service.py 全檔 grep 無 surcharge/加價/急件加成，確認加價引擎完全未接；snapshot 不含內部 unit_price 也不含加價規則，無法真正保護『已核准價全貌』。
+
+**🚩 假綠旗標：**
+- quote.is_mock DEFAULT TRUE（041:27）— 報價主檔全 mock，狀態機可動但每個數值都是 esales mock 草稿，正式門檻待 Q-01~Q-12
+- quote_line_items.is_mock DEFAULT TRUE（037:27）— 報價明細成本/售價全 mock，打 8 成待財務覆核
+- service_catalog.is_mock + material_catalog.is_mock DEFAULT TRUE（040:30,47）— add_line 帶的價全源自 mock catalog，無 effective_date/owner 欄，是會議點名的金額假綠根源
+- invoices.is_mock（042:15）+ 稅率/金額 mock — CR-0035 報價→發票 best-effort，開票失敗僅 log ERROR 無重試/補償，金流可能漏開
+- 041/042/037 migration 不在 MIGRATION_REGISTRY 的 schema_migrations 確認清單（線 15『036-044 registry 待補登多已套 dev』，非逐表 reconcile）— 套用真實性未證實，與 CR-0038 點名的 035/045 假綠同類風險
+- AI 不可 final price 僅靠 dispatch.md:114 SOP 文字約束，無程式 gate 阻擋（Q021/Q031）
+- 加價/surcharge 引擎完全未接（quote_engine 全檔無 surcharge），snapshot 不完整
+- 客戶報價頁無條款渲染（公司抬頭/保固/取消費/追加價）、無同意勾選 gate — company_profile 僅 seed config 未上前端（grep [token]/page.tsx 0 命中）
+
+> **驗證註記**：對抗式稽核結論：M04 盤點大致誠實，狀態機與派工 gate 兩個 DONE_VERIFIED 經真 component 測試（live DB，非 FakeConn 假綠）驗證屬實，維持不降。但有三點壓低真實完成度：(1) 整條報價/finance 主檔鏈全 is_mock=TRUE（quote/line_items/service_catalog/material_catalog/invoices）— 狀態機機制可動但流經的每個金額都是 mock 草稿，待 esales Q-01~Q-12，這正是會議與 CR-0038 點名的『is_mock 報價/finance 主檔』紅線；(2) 核心 migration 041/042/037 不在 schema_migrations 確認清單，registry 僅稱『多已套 dev』未逐表 reconcile，套用真實性無法零風險證明（測試若未套會 UndefinedTable FAIL，故不降 BROKEN 但屬 audit-trail 斷鏈風險）；(3) 加價引擎未接致 snapshot 不完整、客戶頁無條款/同意 gate。RBAC 成本遮蔽（_COST_VISIBLE_ROLES）、門檻 config 化（discount_policy）、有效期 config 化（quote_validity_policy）、稅率 config 
+
+### M05 · WorkOrder 生命週期與狀態
+
+`D2 Service-to-Cash` ｜ Phase I ｜ **完成度 78%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：✅
+
+M05 是本 codebase 完成度最高、最深的模組之一：完整 state machine（create→assign→accept→complete→confirm + cancel/reopen/reschedule/reassign/escalate）以 service 層落地，含 RBAC role_required 守衛、reason gate、派工前必填 gate、報價同意 gate、完工硬閘、子流程結構化事件表，並有 ~20 支 pytest 與全套前端頁面。相對 2026-06-19 基線（CR-0038）已補上 reopen 端點（BR-M05-02 PARTIAL→DONE）與派工報價同意 gate（CR-0095，BR-M05-03 MISSING→PARTIAL）。主要缺口：(1) 無集中 transition matrix（7 組散落 _*_FROM 集合，spec「Coding 前必決 state transition matrix approved」未以單一可審圖落地）；(2) 無專屬 status_history / state_transition_audit 表，狀態變更稽核分散在 service_report 字串 + work_order_events + audit_events 三處；(3) BR-M05-03 的「payment gate」僅做到報價 accepted，真正付款狀態未檢查（payments 表 is_mock=TRUE）。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M05-01-statemachine | 正式 state machine（approved roles 才可推動 core states） | 🟡 部分 | api/services/work_order_service.py:556-571 定義 _ACCEPT_FROM/_COMPLETE_FROM/_CANCEL_FROM/_ASSIGN_FROM/_REASSIGN_FROM/_ESCALATE_FROM/_CONFIRM_FROM/_RESCHEDULE_FROM 八組轉移集合；每個 action service（accept_order:712 / complete_order:925 / cancel_order:1069 / assign_order:1264 / confirm_order:1549 等）皆驗 current∈allowed 否則 409 STATE_CONFLICT。RBAC：api/routers/work_orders_v2.py + work_order_actions.py:56-57 以 role_required('admin','operations_manager','tenant_admin'[,'dispatcher'/'technician']) 守衛端點。 | 轉移規則散落 8 個獨立常數集合，無單一 _ALLOWED_TRANSITIONS 圖/矩陣；spec Coding Gate「state transition matrix approved」未以單一可審文物落地（CR-0038 已點名建議重構，4 天後仍未做）。 |
+| BR-M05-01-reasongate | cancel/reopen/reschedule/refund/dispute 必填 status reason | ✅ 完成 | cancel_order 強制 reason 否則 422（work_order_service.py:1086-1091）並寫結構化 status_reason 欄；reopen_order:528-529 reason 必填+寫 status_reason；reassign_order:1409-1410 reason 必填+1461 落 status_reason；escalate_order:1520-1521 reason 必填。Router 層 Pydantic 再加 min_length（work_orders_v2.py:119 reopen reason min_length=4；:131/:526 reassign min_length）。migration 036:51 已加 status_reason TEXT 欄。 | — |
+| BR-M05-02-reopen | Reopen/返修/warranty-return 必須連回原工單，不覆蓋歷史 | ✅ 完成 | reopen_order (work_order_service.py:518-553) 以 INSERT...SELECT 由原單衍生子單，parent_work_order_id 連回原 id、發新公單號、status='created' 重進流程、複製設備/客戶欄；端點 work_orders_v2.py:266-295 reopen_work_order_v2。migration 036:54-66 parent_work_order_id UUID + FK fk_work_orders_parent ON DELETE SET NULL。相對 CR-0038 基線（PARTIAL：欄在但無端點）已補完。 | — |
+| BR-M05-03-quotegate | Customer confirmation gate：price/time gate 滿足才可派工 | ✅ 完成 | assign_order 派工前呼叫 _assert_quote_accepted (work_order_service.py:1234-1261, 1298)：查 quote.state='accepted' 否則 409 QUOTE_NOT_ACCEPTED；主管帶 override_reason 可強制（稽核由 router work_orders_v2.py:389-409 audit_log_service.log_event 記）。另 _assert_dispatch_ready:582-605 派工前必填品牌/型號/地址/問題類型。CR-0095 D2 落地，相對 CR-0038 基線（MISSING）已補。 | — |
+| BR-M05-03-paymentgate | Payment gate：需付款案件須付款後才派工（P0 工單成立點） | 🟡 部分 | assign_order gate 僅檢查 quote accepted（price/time 同意），無付款狀態檢查；grep payment/paid/deposit 在 assign 路徑為 0（work_order_service.py:1264-1380）。payments 表 migration 069-payments-mock.sql:21 is_mock NOT NULL DEFAULT true（金流 mock-first，正式 provider 待後輪）。 | spec P0「需付款案件需付款 gate」未落地；因 M11 金流仍 is_mock，無法端到端驗付款狀態 → 只能擋到報價同意，付款 gate 缺。 |
+| M05-Q050-quote-to-dispatch-status | 報價到派工狀態（已報價/待確認/待付款/已付款/待派工/派工中） | 🟡 部分 | 粗狀態 created→assigned 由 assign_order 落地（work_order_service.py:1330），佇列快照 get_dispatch_queue_snapshot:1720-1753 映 pending/assigning/assigned。報價狀態在 quote 表（state='accepted' 被 assign gate 引用）。 | 「待付款/已付款」細狀態未在 work_orders 反映（依賴 M11 付款，目前 mock）；Q050 完整六段未全部以可審狀態欄落地。 |
+| M05-Q051-dispatch-to-onsite-status | 派工到上工狀態 + 師傅端按鈕（接單/改派/取消/到場/上工） | ✅ 完成 | accept_order:712（assigned→accepted）、reassign_order:1383（改派寫 dispatch_logs+work_order_events）、cancel_order:1069、record_arrival:2210（到場寫 event_type='arrival'+補 started_at+GPS proof compute_arrival_gps_proof:2184）。前端師傅端頁齊全：web/src/app/my-orders/[id]/page.tsx + scope-change/signature/door-check/delay/reschedule/material-request 子頁。 | — |
+| M05-Q052-completion-substatus | 完工六段細狀態（待回報/待照片/待客戶確認/待客服審核/已完工/已結案） | 🟡 部分 | completion_status 欄 migration 036:46-48；轉移已接 state actions：accept→'pending_report'(work_order_service.py:733)、complete→'pending_customer_confirm'(989)、confirm→'closed'(1586)。 | 六段中 pending_photos / pending_cs_review 未有對應轉移驅動；無 completion_status 白名單/狀態機 enforcement（任意賦值無 CHECK），客服審核 gate（Q052 '完工後進帳務前需客服 gate'）未獨立落地。 |
+| BR-M05-statetransition-audit | status history / state transition audit（規格產出物） | 🟡 部分 | 稽核分三處：work_order_events 表（migration 050/059，記 arrival/reassign/scope_change/material_request/delay/door_check 等子事件，list_work_order_events:2419）；audit_events 表（audit_log_service.py，hash chain，被 assign/reassign override 呼叫 work_orders_v2.py:390/401/566）；service_report 文字 append（[ASSIGNED]/[CANCELLED]/[ESCALATED]/[RESCHEDULE@] 標記）。 | 無專屬 work_order_status_history / state_transition_audit 表（grep status_history=0）；core 狀態轉移（create/assign/accept/complete/confirm/cancel）本身未逐筆寫進統一稽核表，散落字串軌跡+部分 events，不利完整回放與「state transition audit」交付物。 |
+| G032-reopen-new-number | 重開用新工單號（取消重開/返修/新需求關聯原單） | ✅ 完成 | reopen_order:541 generate_wo_number(customer_address) 發新公單號、parent_work_order_id 連回原單；_wo_row_to_dict:110-111 讀回 parent_work_order_id。 | — |
+| M05-subflow-scope-change-gate | 範圍變更/加價分級閘（major 需主管核准，未決 scope 擋完工） | ✅ 完成 | record_scope_change:1898 INSERT scope_changes(status='pending')+mint public_token+enqueue LINE push；_classify_scope_tier:1872 minor/standard/major 門檻讀 M18 config scope_change_policy（非寫死，fallback _SCOPE_TIER_DEFAULTS:1864）；_has_pending_scope_change:823 + 完工硬閘 909-915 未決 scope 擋完工(409)。test_cr_0049_pending_scope_gate.py。 | — |
+| M05-completion-hard-gate | 完工硬閘（照片≥config/簽名存在/安裝案序號/地址；門檻 configurable） | ✅ 完成 | _enforce_completion_gate:843-922 門檻讀 M18 config completion_policy（config_m18_service.read_global_value，非硬編；_COMPLETION_POLICY_DEFAULTS:798 僅 fallback）；照片<min→422、_signature_exists:832 驗 digital_signatures 真存在、安裝案 serial gate、結案地址必填；admin override 須 reason 並留稽核註記。migration 047-completion-policy-config.sql / 061-completion-materials-payment.sql。 | — |
+| M05-reschedule-limit | 改期 24h 次數上限 + 衝突偵測 + 客戶 RSVP | ✅ 完成 | propose_reschedule:1596 24h 內≤3 次(_RESCHEDULE_LIMIT_24H:571)、同技師同時段衝突 409；propose_reschedule_v2:2331 寫 saas.reschedule_proposal 表（migration 014）；confirm_reschedule_by_customer:2525 / reject_reschedule_by_customer:2616 客戶端 RSVP+WS publish。test_reschedule_delay.py。 | v1 改期次數以 service_report 字串標記 [RESCHEDULE@] 計數（非結構化欄位）；v1/v2 兩套並存。 |
+| M05-tenant-isolation | 租戶隔離 | ✅ 完成 | v1 經 _WO_JOIN(work_order_service.py:157-162) work_orders→problem_cards→conversations→users.tenant_id 多層 join 過濾；v2 路徑 work_orders 已有 tenant_id 欄（migration 036:60）直接過濾，_cross_tenant_read/_write 守衛 (work_orders_v2.py:140-160)。 | — |
+
+**關鍵缺口：**
+- 無集中 state transition matrix：8 組散落 _*_FROM 集合，spec Coding Gate「state transition matrix approved」未以單一可審文物/dict 落地（CR-0038 已建議重構，4 天後仍未做）
+- BR-M05-03 payment gate 只做到報價 accepted，真正付款狀態未檢查（payments 表 is_mock=TRUE，依賴 M11 金流仍 mock）→ P0「需付款案件需付款 gate」未端到端可動
+- 無專屬 status_history / state_transition_audit 表：core 狀態轉移稽核散落 service_report 字串 + work_order_events + audit_events 三處，不利完整回放與規格交付物
+- Q052 完工六段細狀態僅部分轉移驅動（pending_photos/pending_cs_review 無對應觸發），無 completion_status 白名單/狀態機 enforcement，客服審核 gate 未獨立落地
+- Q050『待付款/已付款』狀態未在 work_orders 反映（依賴 mock 金流）
+
+> **驗證註記**：對抗式逐項驗證後：盤點誠實，無假綠，無需改判，維持 completion_pct=78、phaseI_ready=true。  【DONE 全數通過】 - BR-M05-01-reasongate：cancel_order:1086 / reopen_order:528 / reassign_order:1409 / escalate_order:1520 皆強制 reason 否則 422，router 層 Pydantic min_length 確認（work_orders_v2.py:119 reopen=4、:131 scope reason=10、:526 reassign=1）。status_reason 欄 migration 036:41 確存。title 提及的 refund/dispute reason gate 不在 M05 service 範圍（屬 M11 finance），但 evidence 未誤稱有做，故無虛報。 - BR-M05-02-reopen / G032-reopen-new-number：reopen_order:534 真 INSERT...SELECT 衍生子單，parent_work_order_id 連回原 id（FK fk_work_orders_parent migration 036:52 ON DELETE SET NULL
+
+### M06 · 派工/媒合/排程
+
+`D2 Service-to-Cash` ｜ Phase I ｜ **完成度 36%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+M06 的「人工指派 + 媒合評分」主幹真實可動：候選排序含 skill/distance(Haversine 近似)/rating/績效，並有生命週期+品牌授權 eligibility 硬閘、報價同意 gate、reassign 留痕，前端 dispatch-manual/queue/pool 頁皆真打 API，多支測試存在。但兩個 P0 阻擋項——BR-M06-02 搶單池、BR-M06-03 接單 SLA 逾時自動改派——仍完全 MISSING（相對 4 天前 CR-0038 基線零變化），dispatch contract 的 accept/reject/timeout/grab/urgent 自動化尚缺。dispatch_logs 寫路徑只有 reassign，其餘 action 靠模擬 seed。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M06-01 | Dispatch eligibility（area/availability/skill/brand 經驗/inventory/suspension）媒合排序 | 🟡 部分 | api/services/dispatch_service.py:226-344 _score_rows 加權評分（skill .4/distance .3/rating .3）；:127-132 _DISPATCH_INELIGIBLE_STATUSES 硬排除 pending_approval/suspended/terminated/rejected（CR-0051，test_cr_0051_dispatch_eligibility.py）；:192-209 _brand_authorized_ids 品牌授權過濾（migration 063 已套 dev）；:146-189 Haversine GIS 距離+on_time/acceptance 績效重排（migration 064 已套 dev）；router api/routers/dispatch_v2.py:49-107 listDispatchCandidatesV2+detail；前端 web/src/app/admin/dispatch-manual/page.tsx:148 真打 /dispatch:cand… | 缺 inventory eligibility 維度（Q084/料件預檢 0 實作）；distance 為區中心點近似（dispatch_service.py:136-143 僅 12 個硬編 district 中心，無 PostGIS/ST_Distance）；availability_eta 為 active=15/busy=60 固定常數非真排班空檔；技師 lat/lng/on_time/acceptance 與 brand auth 皆 mock seed（063/064 is_mock）；distance/eta 權重硬寫 Python 常數（_W_SKILL/_W_DISTAN… |
+| BR-M06-02 | 搶單限制：僅核准 travel time 內 low-risk standard jobs 進 grab-order pool（P0 阻擋） | ⬜ 缺 | 全 codebase grep grab/搶單/grab_order/claim/low_risk/travel_time → 0 命中（api/ web/src/app SQL/migrations 皆無）。web/src/app/pool/page.tsx:61 的 /realtime/pool/{techId} 是『已指派給該技師』的個人佇列（accept_order/assign_order publish event=added/taken），非競爭式搶單池；無 FOR UPDATE 防重領、無 low-risk 分類、無 1 小時車程過濾 | 需 grab_order_pool 表 + FOR UPDATE 防重領 + low-risk standard 案件分類 + 核准 travel-time(1hr) 過濾 + 進池/搶得/退池流程。相對 CR-0038 基線(220 列標 MISSING)無任何變化 |
+| BR-M06-03 | Acceptance SLA（normal 10/15 分、urgent 5 分）逾時自動重派（P0 阻擋） | ⬜ 缺 | grep acceptance_sla/accept_deadline/auto_reassign/逾時.*改派 → 0 命中。accept_order(work_order_service.py:712) 無 deadline 概念；dispatch_logs action 雖含 'timeout' enum(dispatch_log_service.py:35) 但無任何 app 寫入 timeout/accept/reject（INSERT INTO dispatch_logs 僅 reassign 一處 work_order_service.py:1469）。sla_monitor.py:6-18 的 dispatch_delay 只是 status created/assigned 逾 30 分的『soft dashboard 紅燈』(PM Q5=B 明示嚴禁串接自動動作)，非接單 5/10 分鐘時鐘+自動改派 | 需 accept_deadline 欄(依 urgency 5/10/15 分)+背景 cron 逾時偵測+自動 reassign+SLA 違約記錄+dispatch_logs timeout 真寫入。相對 CR-0038 基線(222 列 MISSING)無變化 |
+| Q038 | 派工模式：系統推薦/搶單/人工指派/推薦後人工確認/原師傅返修（按案件類型預設） | 🟡 部分 | dispatch_mode_service.py:21 VALID_MODES=(manual/platform_paid/auto_match)；set/get + dispatched_via 標記真寫入 assign_order(work_order_service.py:1321-1335)；router dispatch_v2.py:212-250 get/set + audit；test_cr_0030_dispatch_mode.py。人工指派 manual 模式完整可動 | 搶單模式缺(見 BR-M06-02)；auto_match 模式『本輪不自動執行僅保留設定值』(dispatch_mode_service.py:6)；推薦後人工確認/原師傅返修 fallback 無專屬流程；無『按案件類型決定預設模式』邏輯 |
+| Q040 | 必須人工指派（急件/高金額/客訴/保固/特殊門型/品牌指定/資深） | 🟡 部分 | _assert_not_high_risk_hold(work_order_service.py:1297) high_risk_hold 擋自動流；manual 指派端點 dispatch_v2.py planDispatchV2 + 客服 bypass 強制 audit(dispatch_v2.py:180-193)；assign_order quote-gate override 限 admin/ops | 無『依案件屬性(急件/高金額/品牌指定)強制 route 到人工指派而禁止搶單』的分類規則；品牌指定師傅 override 系統排序未實作（Q040 待業主問項仍開放） |
+| Q041 | 媒合排序維度（距離/地區/空檔/工資/品牌經驗/型號經驗/評分/接單率/客訴率/庫存） | 🟡 部分 | dispatch_service.py 已含 skill(品牌)/distance/rating + on_time_rate/acceptance_rate 績效 bonus(:184-187)；score_breakdown 提供『為什麼推薦』rationale(:267-286) | 缺 型號經驗、工資、客訴率、庫存維度；空檔僅 active/busy 二元近似非真排班；權重硬編非 configurable |
+| Q045 | 接單後取消/逾時：逾時自動改派、接單後取消需客服+原因、客戶改期需新 schedule | 🔴 斷鏈 ⚠️驗證下修自 PARTIAL | reassign_order(work_order_service.py:1383)強制改派(_REASSIGN_FROM assigned/accepted/in_progress)必填原因(BR-M05-01)+寫 dispatch_logs.action=reassign+events；cancel_order 必填 reason_code；reschedule proposals(migration 014)+ reject/confirm by customer(work_order_service.py:2616/3117) | 『逾時自動改派』自動化缺(見 BR-M06-03，目前僅 admin 手動 reassign)；接單後取消無強制『客服接手』角色 gate；無『原師傅找代班』流程 |
+| Q046 | 預約精度 1 小時區間 + 師傅電話聯絡 + 改期回系統 | 🔴 斷鏈 ⚠️驗證下修自 PARTIAL | work_orders.scheduled_at + technician_schedule_service.py 月排班/休假/備勤(technician_schedule_requests 表)；reschedule_proposals(migration 014)改期回系統真實；admin_schedule 路由 | scheduled_at 為單一 timestamp，無『1 小時 slot 區間模型』(start/end window)；無客戶端 1 小時區間顯示契約；師傅電話聯絡結果無記錄欄位 |
+| G033 | 多師傅/多段工單（parent case + child work orders，建商/大型案） | ⬜ 缺 | grep parent_case/child_work_order/多戶 → 工單僅單一 technician_id(work_orders.technician_id)；無 parent/child 結構；M14 Partner Portal site_group 相關但非 dispatch 多師傅模型 | 需 parent case + child work orders schema + 多師傅/多日期/多戶派工。spec 標關聯 M14/M12，較可能 Phase II/III 範圍 |
+| BR-M05-03 | Customer confirmation gate：價/時/付款 gate 滿足前不得進 dispatch（P0 跨模組） | 🟡 部分 | _assert_quote_accepted(work_order_service.py:1234-1262) CR-0095 D2：派工前須有 quote.state=accepted 否則 409 QUOTE_NOT_ACCEPTED（過期不算），admin/ops 可 override_reason；_assert_dispatch_ready(:582) 必填欄位 422 gate | 僅檢『報價已同意』，未檢『付款 gate』(grep payment.gate→0；CR-0038:206 標 MISSING)；需付款案件的 paid gate 依賴金流模組(payments migration 069 為 mock)；time gate(scheduled_at)未強制 |
+| DISPATCH-LOGS | DispatchLog 派工日誌（assign/accept/reject/timeout/reassign/cancel 全序列） | 🔶 假資料 ⚠️驗證下修自 PARTIAL | dispatch_log_service.py list/get 真讀(4 層 tenant JOIN 隔離)；router dispatch_logs_v2.py；test_dispatch_logs_v2.py。reassign 真寫(work_order_service.py:1469) | 讀路徑完整但寫路徑僅 reassign；assign/accept/reject/timeout 從不由 app 寫入(service 註解明示『由 AI 派工引擎背景產生』但該引擎不存在)；SQL/seeds/dispatch_logs.sql 為『模擬』派工序列，非真實流程產出 |
+| SCHEDULE-CONFLICT | 排班衝突偵測（Flow 14） | 🟡 部分 | _detect_schedule_conflict_and_publish assign 時 best-effort 軟偵測(work_order_service.py:1136/1338)；test_schedule_conflict_detection.py | 僅軟訊號不阻擋；無真正 capacity/產能上限管控 |
+
+**關鍵缺口：**
+- BR-M06-02 搶單池(P0 阻擋)完全 MISSING：無 grab pool 表/FOR UPDATE 防重領/low-risk 分類/1hr 車程過濾；現有 pool 頁是個人指派佇列非競爭池
+- BR-M06-03 接單 SLA(5/10/15 分)逾時自動改派(P0 阻擋)完全 MISSING：無 accept_deadline、無 auto-reassign cron；sla_monitor 只做 soft dashboard 紅燈(PM Q5=B 禁自動動作)，dispatch_logs timeout/accept/reject 從不被 app 寫入
+- 媒合 eligibility 缺 inventory 維度、距離為 12 個硬編區中心近似(非 PostGIS)、空檔為 active/busy 二元近似非真排班；GIS/績效/品牌授權皆 mock seed；評分權重硬編非 configurable
+- BR-M05-03 customer confirmation gate 僅檢報價同意，付款 paid gate MISSING(依賴 mock 金流 069)；時間 gate 未強制
+- G033 parent/child 多師傅多戶工單未實作；auto_match 模式只存設定不執行、platform_paid 計費為 mock
+
+**🔻 驗證改判：**
+- `DISPATCH-LOGS`：🟡 部分 → 🔶 假資料 — dispatch_log_service.py 第 1-5 行明示 read-only，寫入『由 AI 派工引擎背景產生』；全 services/ 樹只有 1 處 INSERT INTO dispatch_logs（work_order_service.py:1469 reassign 路徑），assign/accept/reject/timeout 全部從不寫入。所謂『AI 派工引擎』不存在。讀路徑列出的序列實質來自 SQL/seeds/dispatch_logs.sql 模擬資料，非真實流程產出。6 個 action 中 5 個無寫入來源 → 實為讀殼 + mock 序列，降 MOCK_ONLY。
+- `Q045`：🟡 部分 → 🔴 斷鏈 — evidence 稱『reschedule proposals (migration 014) ... 真實』，但 MIGRATION_REGISTRY.md 第 014 列標 🟡 pending-apply（未套用 dev）。work_order_service.py:2370/3113/3129/3162 直接讀寫 saas.reschedule_proposal，DB 無該表 → runtime 必失敗（斷鏈）。改派/取消 reason 部分可動，但客戶改期回系統依賴未套表 → 主要子流程 BROKEN。
+- `Q046`：🟡 部分 → 🔴 斷鏈 — 同 Q045：核心 evidence『reschedule_proposals (migration 014) 改期回系統真實』所依賴的 014 為 pending-apply（未套 dev），saas.reschedule_proposal 表不存在但 code 直讀直寫 → 斷鏈。加上原 gap 已述無 1 小時 slot 區間模型（scheduled_at 為單一 timestamp，grep scheduled_end/slot/window 0 命中）、師傅電話聯絡無記錄欄位。降 BROKEN。
+
+**🚩 假綠旗標：**
+- DISPATCH-LOGS 假綠：service 自承讀-only、寫入靠不存在的『AI 派工引擎』，全樹僅 reassign 1 處 INSERT；6 action 中 5 個無寫入來源，列表內容來自 seeds 模擬序列非真實流程
+- brand 授權過濾（063）seed is_mock BOOLEAN NOT NULL DEFAULT TRUE — technician_brand_authorization 主資料全 mock，過濾邏輯在跑但比對對象是假資料
+- GIS 距離+多維績效（064）technicians latitude/longitude/on_time_rate/acceptance_rate 全 mock seed（migration 註解明示 mock；績效 bonus 重排吃的是 id-hash 散值）
+- 媒合權重 _W_SKILL/_W_DISTANCE/_W_RATING + 績效 bonus 係數（20×）全為 Python 硬編常數，非 configurable — 違反『權重須可調』，BR-M06-01/Q041 排序非可治理
+- distance 為 12 個硬編 _DISTRICT_CENTROIDS 區中心點 Haversine 近似，無 PostGIS/ST_Distance；availability_eta 為 active=15/busy=60 固定常數，非真排班空檔
+- BR-M05-03 customer confirmation gate 只檢 quote.state=accepted；payment gate grep（payment.gate/payment_gate/paid gate/_assert_paid）0 命中 — 需付款案件的 paid gate 完全未實作，且依賴的 payments(069) 為 is_mock 骨架
+- auto_match 模式 dispatch_mode_service.py:6 自承『本輪不自動執行僅保留設定值』— 設定值可寫入但無執行引擎，等同佔位
+- SCHEDULE-CONFLICT _detect_schedule_conflict_and_publish 明示『不 raise』軟訊號，無 capacity/產能上限阻擋 — 偵測到衝突仍可派工
+- reschedule（Q045/Q046）evidence 引 migration 014 為『真實』，但 014 registry 標 🟡 pending-apply 未套 dev，code 直讀 saas.reschedule_proposal 未存在表 → 斷鏈
+
+> **驗證註記**：逐項挑戰結果：BR-M06-01 / Q041 評分排序邏輯本身在跑（_score_rows、score_breakdown rationale 真實），但三大支撐維度全 mock（brand auth 063 is_mock、GIS/績效 064 mock、權重硬編），缺 inventory/型號經驗/工資/客訴率維度，PARTIAL 持平合理（未降但已釐清半實作本質）。Q038/Q040 manual 指派可動、dispatched_via 真寫，auto_match/搶單/品牌指定 override 缺，PARTIAL 持平。BR-M05-03 只有 quote gate 無 payment gate（grep 0），PARTIAL 持平但點名 payment gate MISSING。三項改判：DISPATCH-LOGS 由 PARTIAL 降 MOCK_ONLY（寫路徑名存實亡，僅 reassign，AI 引擎不存在）；Q045/Q046 由 PARTIAL 降 BROKEN（依賴 migration 014 reschedule_proposal 表，registry 標 pending-apply 未套 dev，code 直讀寫該表必 runtime 斷鏈）。測試多為 @pytest.mark.unit 純邏輯 + @pytest.mark.component 需 l
+
+### M07 · 師傅與技術人力管理
+
+`D3 師傅人力/供應` ｜ Phase I ｜ **完成度 48%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+技師生命週期狀態機（onboard-approve/reject/suspend/reactivate/terminate）與 audit event 後端+前端 UI 完整且非 mock，且 dispatch eligibility 硬閘正確排除 pending/suspended/terminated/rejected，是本模組相對 CR-0038 基線（PARTIAL）的最大進展（新增 lifecycle v2 + skill/brand-auth + GIS/績效三波 CR-0060/0061）。但 onboarding 必填仍缺 bank/payment info 與 contract status 兩個 P0(BR-M07-01)欄位（DB 完全無此欄）；skill matrix 與 brand authorization 雖建表但 seed 全 is_mock=TRUE、技師詳情頁 skill matrix 為純前端 hardcode 示意（明文標「示意待接入」）、skill level(A/B/C) 完全未進派工；BR-M07-03 多維績效(on_time/acceptance)為 mock seed 從不由真實工單重算，ranking 報表仍只用單一 rating。整體可動骨架在，但核心資格資料層多為 mock 與佔位。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M07-01 | Technician onboarding 必填(profile/bank/skill matrix/brand auth/service area/contract status) | 🟡 部分 | create_technician api/services/technician_service.py:294-355 寫 name/phone/email/capabilities/service_regions/user_id；POST router api/routers/technicians_v2.py:131-167；前端 CreateTechnicianModal.tsx 僅收 display_name/phone/email/coverage_areas/capabilities。skill matrix 表 SQL/migrations/063 technician_skill 存在、brand auth 表 technician_brand_authorization 存在。 | DB technicians 表(Schema.sql:435-450)與所有 migration 完全無 bank/payment_info 與 contract_status 欄位（兩者皆 BR-M07-01 明列必填、P0 阻擋）；onboarding modal 不收 skill matrix/brand auth/bank/contract；phone 無值時填佔位 '0900000000'。屬 P0 缺口。 |
+| G004 | 師傅 onboarding eligibility gate（身分/服務區/可接類型/品牌授權/銀行/合約） | 🟡 部分 | 狀態機 technician_service create 預設 status='pending_approval'，dispatch_service.py:127-132 _DISPATCH_INELIGIBLE_STATUSES 硬排除 pending_approval/suspended/terminated/rejected → eligibility gate 後端真實生效。 | gate 只檢查 status，不檢查必填資料完整性（bank/contract 欄位根本不存在）；無「資料未齊不可核准上線」的 gate 邏輯。 |
+| BR-M07-02 | 停權條件（高客訴/no-show/未繳代收/未退料/安全）→ 暫停 dispatch eligibility | 🟡 部分 | technician_lifecycle_service.py:160-170 suspend() 走狀態機 active→suspended + audit；router technician_lifecycle_v2.py:101-119 :suspend；前端 admin/technicians-lifecycle/page.tsx 有 suspend/reactivate/terminate UI；suspended 技師被 dispatch 硬排除(dispatch_service.py:127)。suspension reason 字典 config namespace 已建 SQL/migrations/004:144 technician_suspension_reasons。 | 純手動 suspend，reason 自由字串；無 BR-M07-02 列舉條件的自動偵測/警示（complaint_rate/no_show/未繳代收/未退料 皆無計算或門檻引擎）；reason 字典 config 為空殼 schema {type:object} 未填實。 |
+| G006 | 停權自動警示 + 主管核准 + 恢復條件 | 🟡 部分 | 狀態機完整含 reactivate(suspended→active) lifecycle_service.py:173-183；suspend/reactivate 需 DISPATCH_ROLES + X-Initiator header(technician_lifecycle_v2.py:24-29) 約等於核准者記錄。 | 無『高客訴率/拒單率/逾時/未退料/帳務異常自動警示』引擎（G006 明列自動警示）；恢復條件無門檻檢查，任意 reason 即可 reactivate；suspend 未強制雙人核准(SoD)。 |
+| G005 | 品牌/型號技能矩陣(初階/一般/資深 A/B/C 級) | 🔶 假資料 | SQL/migrations/063 technician_skill(skill_code+level_id LV-A/B/C, is_mock DEFAULT TRUE) 建表 + seed 全 active 技師通用 LV-B；technician_brand_authorization 同樣 is_mock=TRUE seed。前端技師詳情 web/src/app/technicians/[id]/page.tsx:146-151 SkillMatrix 為 hardcode 示意陣列，page.tsx:253 明文『示意，待認證/排班/結算模組接入後將顯示真實資料』。 | skill level(A/B/C) 完全未進派工(dispatch_service.py:16 註明『levels DB 暫無 level → 不過濾』，line 298 levels_filter 形同虛設)；無任何 CRUD API 維護 technician_skill；詳情頁 UI 未連 technician_skill 表；seed is_mock=TRUE。 |
+| BR-M07-03 | Performance feedback(RMA責任/on-time/acceptance/rejection/customer feedback)影響 dispatch ranking | 🔶 假資料 | SQL/migrations/064 technicians +on_time_rate/acceptance_rate(mock seed via md5 hash, line 14-19)；dispatch_service.py:157-188 _enrich_gis_performance 讀 on_time/acceptance 進排序 bonus。ranking 報表 web/src/app/admin/reports/technician-ranking/page.tsx:49 compositeScore 僅用 rating*20。 | on_time_rate/acceptance_rate 為 mock seed，全專案無任何 UPDATE/recompute 由真實工單回算(grep 無 recompute)；rejection_rate/complaint/RMA責任 完全未納入 ranking；報表 composite 仍單一 rating。相對 CR-0038 基線(PARTIAL)實際退化為 mock 維度堆疊。 |
+| Q044 | 拒單 reason code 連技師評分與派工排序 | 🟡 部分 | dispatch_log_service.py:8,68 dispatch_logs 表有 rejection_reason 欄並回傳；dispatch v2 端點存在。 | rejection_reason 僅記錄，未回算成 rejection_rate 進技師評分/排序（dispatch_service ranking 無 rejection 維度）；無『拒單率超過X暫停派工』自動門檻(Q044 業務確認項仍開放)。 |
+| LIFECYCLE-AUDIT | 技師生命週期 audit event 表 | 🔴 斷鏈 | lifecycle_service.py:108-120 寫 saas.technician_lifecycle_event；list_lifecycle_events 讀同表；前端 admin/technicians-lifecycle 顯示 event log。 | SQL/migrations/020-tech-lifecycle.sql 在 MIGRATION_REGISTRY.md:42 標 🟡 pending-apply（未套用），而 063/064 標 2026-06-20 已套 dev → audit INSERT 可能命中不存在的表。code 用 try/except best-effort 吞錯(lifecycle_service.py:121-125)，故狀態變更仍成功但 audit 靜默遺失，list events 可能 500。需確認 020 是否實際套用。 |
+| TECH-PROFILE-READ | 技師 profile 讀取/列表/詳情(admin 視角) | ✅ 完成 | list_technicians/get_technician api/services/technician_service.py:77-166 真實 DB 查 technicians 表 + tenant 隔離 + cursor 分頁 + status/capability/region/rating/keyword filter；router technicians_v2.py:58-128；前端 technicians/page.tsx 連線 usePaginatedFetch；test_technicians_v2_endpoint.py 存在。 | — |
+
+**關鍵缺口：**
+- BR-M07-01(P0): DB technicians 表與全部 78 支 migration 完全無 bank/payment_info 與 contract_status 欄位，兩者皆規格明列 onboarding dispatch 前必填且 P0 阻擋 coding/acceptance — 真正的硬缺口
+- G005/BR-M07-03 核心資格層全 mock：technician_skill/brand_auth seed is_mock=TRUE、技師詳情頁 skill matrix 為前端 hardcode 示意(明文標待接入)、skill level(A/B/C) 完全未進派工、on_time/acceptance 從不由真實工單重算
+- BR-M07-02/G006 缺自動警示引擎：停權純手動，無高客訴率/拒單率/逾時/未退料/帳務異常的偵測或門檻；suspension reason config namespace 為空殼 schema 未填實
+- LIFECYCLE-AUDIT 潛在斷鏈：migration 020(技師 lifecycle event 表)在 registry 標 pending-apply 而 063/064 已套，audit 寫入靠 try/except 吞錯，狀態變更成功但 audit 可能靜默遺失、list events 可能報錯，需驗證 020 實際套用狀態
+- Q044 拒單率閉環未成：rejection_reason 僅記錄未回算成 rejection_rate 進評分/排序，ranking 報表仍只用單一 rating，多維 feedback 未真正進排序公式
+
+**🚩 假綠旗標：**
+- test_technician_lifecycle.py 全用 FakeConn mock DB（suspend/reactivate/terminate/approve 7 個狀態機測試皆 monkeypatch _ensure_conn + db_module._conn=FakeConn），無真實 DB 端到端驗證 → 正是 CR-0038 點名的假綠 root；suspend/reactivate 的 DB mutation 從未被真 DB 測過，只有 dispatch 排除側（_is_dispatch_eligible / _score_rows 純函數）是真測。
+- SQL/migrations/063 technician_skill 與 technician_brand_authorization 兩表 seed 全 is_mock=TRUE（會議『mock 先做可動態改』），且未接入 onboarding modal / create_technician API / dispatch _skill_score（_skill_score 仍吃 capabilities 自由清單，不查 brand_authorization 表）→ 技能矩陣/品牌授權屬 schema+mock seed，未實際參與媒合或核准 gate。
+- config_namespace technician_suspension_reasons 為空殼 schema {"type":"object"}，無任何 reason 值註冊（travel_fee_distance_tiers 同樣空殼）→ 停權 reason 字典宣稱『已建』實為空 placeholder。
+- create_technician 對缺 phone 填佔位 '0900000000' 通過 ^09\d{8}$ 驗證 → 假資料可上線（pending 狀態），onboarding 資料完整性無 gate。
+
+> **驗證註記**：逐項查證結論：(1) TECH-PROFILE-READ 維持 DONE_VERIFIED — service api/services/technician_service.py:77-166 真 DB 查 technicians + tenant 隔離 + cursor 分頁 + 5 filter；test_technicians_v2_endpoint.py 的 test_technician_response_exposes_onboarding_status 做真 INSERT/SELECT/DELETE（非 FakeConn），list/get 端點測試走真 client+fixture。唯一保留意見：availability/level filter 為 OpenAPI 殼欄位、service code 明註『本 phase 不做實際過濾』，屬已知非阻擋落差。(2) BR-M07-01/G004 維持 PARTIAL — 經 grep SQL/migrations/*.sql 與 Schema.sql 確認 technicians 表(Schema.sql:435-450)及全 78 支 migration 完全無 bank/payment_info/contract_status 欄位，盤點 gap 屬實，為 P0 阻擋。(3) BR-M07-02/G006 維持 
+
+### M08 · 現場施工與行動流程
+
+`D2 Service-to-Cash` ｜ Phase I ｜ **完成度 75%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：✅
+
+M08 核心 onsite workflow 自 CR-0038 基線（completion gate BROKEN、scope tier MOCK_ONLY、pending-scope 不阻擋 PARTIAL）後經 CR-0039/0049/0050/0053/0058 等大量補強，已多為 DONE_VERIFIED：GPS 到場（含 Haversine 範圍判定）、scope change tier 分級（config 驅動非 hardcode）+ 客戶 public-token 確認 + pending-scope 阻擋完工、完工五件硬閘（照片≥config/簽名真存在/序號/教學/用料）、24/48h 自動結案 cron（排除客訴爭議保固）全部真實可動且有真測試斷言。剩餘缺口集中在客戶端 LIFF 獨立簽收/fallback 鏈（仍技師同機 canvas）、scope timeout 暫停 cron 未接生產、G038 到場後不在場專屬異常端點、Q066 五步驟固定順序異常回報。金流/費用規則皆走 config namespace，未踩 hardcode 假綠紅線。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M08-01 / Q056 | GPS 到場打卡（GPS + timestamp，可選照片，地址範圍判定） | ✅ 完成 | router api/routers/work_orders_v2.py:733-768 onsiteArrival(POST /onsite/arrival, idempotent, status_code 201)；service work_order_service.py:2210-2258 record_arrival 寫 work_order_events event_type='arrival'（payload 含 arrived_at + gps + gps_proof）+ COALESCE started_at（arrival KPI）；compute_arrival_gps_proof (2184-2207) Haversine 距離 + within_tolerance 真做地址範圍判定；migration 059 補 CHECK 'arrival'；測試 test_cr_0053_arrival_doorcheck.py:43-60 驗 door-check 前置閘 409→arrival→通過、started_at 落地 | 前端 GPS 取座標僅在 /signature 頁 navigator.geolocation（page.tsx:49），到場專屬 check-in 頁未見 geolocation；offline queue/fallback 仍無（基線同點，非阻擋） |
+| BR-M08-02 / Q057 | 現場 scope change / 加價：客戶確認 + evidence 前置（P0 阻擋規則） | ✅ 完成 | router work_orders_v2.py:621-697 recordScopeChangeV2 + adminOverrideScopeChangeV2(Flow 3)；service record_scope_change (1898+) INSERT scope_changes status='pending' + mint public_token(purpose='scope_change',ttl 7d)；客戶確認 scope_change_service.py:122 respond_public(accept→wo in_progress / reject) + admin_override(251) + flag_timed_out_scope_changes(351)；前端客戶頁 web/src/app/scope-change/[token]/page.tsx + 技師頁 my-orders/[id]/scope-change | flag_timed_out_scope_changes 僅 test 呼叫(test_cr_0066:165)，無 production cron/scheduler 接 30min timeout 暫停（基線指出的 timeout cron 仍缺） |
+| BR-M08-02-tier | scope change 金額分級閘門（configurable，非 hardcode） | ✅ 完成 | _classify_scope_tier (work_order_service.py:1872) 讀 M18 config scope_change_policy（config_m18_service.read_global_value），minor/standard/major 依 standard_max/major_pct/minor_max，major→requires_supervisor；金額門檻走 config 非 Python 常數（避開假綠紅線）。相對基線 MOCK_ONLY（一律 pending、grep 501/2000/50%→0）已修正 | — |
+| BR-M08-02-block-complete | pending scope 期間阻擋完工 | ✅ 完成 | _has_pending_scope_change (work_order_service.py:823) + _enforce_completion_gate:909-915 有 pending scope→409 PENDING_SCOPE_CHANGE（admin override 路徑可繞，符合 spec）；測試 test_cr_0049_pending_scope_gate.py。相對基線 PARTIAL（complete_order 無硬阻擋）已修正 | — |
+| BR-M08-03 / Q059 | Completion package：照片≥N / 簽名 / 用料 / 付款狀態 / 客戶簽名 / 教學 | ✅ 完成 | 硬閘 _enforce_completion_gate (work_order_service.py:843-922)：min_photos(預設3)→422 INSUFFICIENT_PHOTOS、require_signature 查 digital_signatures 真存在→422 SIGNATURE_REQUIRED、安裝案 serial→422 SERIAL_REQUIRED、address required；門檻全讀 M18 config completion_policy(_COMPLETION_POLICY_DEFAULTS 僅 fallback)；complete_order:966-973 用料/付款證明 config 開才硬擋 + persist materials_used/payment_proof/teaching_note(981-1001)；router onsiteCompletion(778-820) is_override=False 走正規閘；migration 058/061 補欄位；測試 test_cr_0039_completion… | 用料/付款證明 config 預設 off（require_materials/require_payment_proof=false），故預設組態下非強制（spec 列為完工套件五件但 BR-M08-03『是否阻擋=否』，符合）；付款核銷子系統屬 P2 |
+| Q060 | 客戶簽名 / LINE 確認為完工 gate（電子簽名形式） | 🟡 部分 | signature_service.py:51 submit_work_order_signature 寫 digital_signatures 兩列(customer/technician, sha256, 409 防重)；前端 my-orders/[id]/page.tsx:135-153 完工先送雙簽名(canvas dataURL)再 onsite/completion；完工硬閘 _signature_exists 認 customer 簽名紀錄 | 簽名仍為技師裝置同機 canvas（SignaturePad.tsx），非客戶 LIFF 端獨立簽收；consumer_v2 LIFF 僅綁定(line 388-415) 非簽名；LIFF→QR→紙本 fallback 鏈未見（基線同點） |
+| Q061 | 使用教學紀錄（新安裝需教學） | ✅ 完成 | migration 058 work_orders.teaching_note TEXT；complete_order teaching_note 參數 + UPDATE 991；router onsiteCompletion body teaching_note(work_orders_v2.py:729)；測試 test_cr_0050_teaching_note.py | 教學為選填(max_length 1000, nullable)，未對『新安裝強制必填』設專屬閘（spec ERP 建議新安裝需教學，但 Q『是否必填』仍待業主；非阻擋） |
+| Q062 | 結案多 gate：師傅提交→客服審核→客戶簽收→會計 AR | 🟡 部分 ⚠️驗證下修自 DONE_VERIFIED | complete_order 後 completion_status='pending_customer_confirm'(989)；confirmTechCompletionV2 客戶確認 completed→confirmed(work_orders_v2.py:463)；技師完工(onsite/completion) vs admin override(:complete, 436-445 阻技師走後台路徑) 分流；狀態機 _COMPLETE_FROM / _SUBFLOW_FROM 強制 | 客服審核作為獨立 gate 步驟未見明確獨立 endpoint（目前技師完工→客戶確認→自動/AR）；會計 AR 確認屬 M11 連動 |
+| Q063 | 客戶未回覆自動結案（標準 24/48h，客訴/保固/退款/爭議不自動） | ✅ 完成 | auto_confirm_stale_completed (work_order_service.py)：completed 超 config auto_confirm_policy.hours(預設48)→confirmed/closed，WHERE high_risk_hold=FALSE AND NOT EXISTS open/investigating/escalated exception_case（排除客訴/爭議/保固）；cron realtime/auto_confirm_cron.py worker，main.py:154 auto_confirm_cron.start()（生產已 wired）。相對基線缺 cron 已補 | 預設 48h 非 spec 原述 24h（但 spec ERP 建議『標準案 24h』為待確認項，且 configurable，非假綠） |
+| G038 | 客戶現場不在場流程（GPS/時間/聯絡紀錄→取消費/車馬費/改期） | 🟡 部分 | cancellation_service.py:73 reason_codes['customer_not_onsite'] + compute_fees/_travel_fee(146) travel_fee_min/max/per_km + cancel fee 分 6 stage，全走 system_config.cancellation namespace（configurable，ADR-0102 §E）；router cancellation.py:30 cancelWorkOrder6Stage 讀 config_service.get_cancellation_config；測試 test_cancellation_endpoint.py | 無『到場但客戶不在』專屬 onsite-exception 端點記 GPS/時間/聯絡紀錄後分流決策；目前透過泛用 6-stage cancel reason_code 處理，未串到場 arrival 證據；不在場收費規則金額待業主最終確認 |
+| Q058 / Q066 | 外觀風險提醒 + 特殊門簽名同意 / onsite 異常固定順序回報 | 🟡 部分 | consent_service.py CONSENT_TEXTS(new_installation/lock_destruction/personal_data) + record_consents/get_consents；_enforce_completion_gate:901-908 require_consents(config 開才擋)；前端 consent/[token]/page.tsx；door-check my-orders/[id]/door-check 含 photos_before/after | 三段免責 config 預設 off（require_consents=False）；無『特殊門/開孔/切割』條件式強制簽名分支；Q066 五步驟固定順序異常回報未見（基線 MISSING，目前以 scope_change + exception_case 泛用流程替代） |
+| Evidence package(連動 M09) | 完工證據包聚合（照片+簽名+到場/門檢事件） | ✅ 完成 | router work_orders_v2.py:950-964 getWorkOrderEvidencePackageV2 → evidence_package_service.get_evidence_package(role-aware)；客戶版電子工單 PDF getWorkOrderDocumentV2(928-947) 只露最終價 | —（M09 shared service，M08 連動點到位） |
+
+**關鍵缺口：**
+- Q060 客戶簽名仍為技師裝置同機 canvas，非客戶 LIFF 獨立簽收；LIFF→QR→紙本 fallback 鏈缺
+- scope change 30min timeout 暫停 cron 未接生產（flag_timed_out_scope_changes 僅 test 呼叫，無 scheduler）
+- G038 無『到場但客戶不在』專屬 onsite-exception 端點（記 GPS/時間/聯絡紀錄後分流取消費/車馬費/改期），目前借泛用 6-stage cancel reason_code
+- Q066 onsite 五步驟固定順序異常回報流程缺（以 scope_change + exception_case 泛用替代）
+- Q058 特殊門/開孔/切割條件式強制簽名分支缺；三段免責 require_consents config 預設 off
+
+**🔻 驗證改判：**
+- `Q062`：✅ 完成 → 🟡 部分 — 宣稱「結案多 gate：師傅→客服審核→客戶簽收→會計 AR」四道閘，但實際只實作了 2 道：技師完工(onsite/completion→pending_customer_confirm) 與 客戶確認(confirmWorkOrderV2/confirmTechCompletionV2→confirmed)。『客服審核』無獨立 gate endpoint（gap 自承 not seen），『會計 AR』推給 M11 連動未實作。核心狀態機(_COMPLETE_FROM/_SUBFLOW_FROM/pending_customer_confirm)真實存在，故非 MOCK，但四閘只有兩閘 → 嚴格定義應為 PARTIAL。
+
+**🚩 假綠旗標：**
+- Q062 宣稱四道結案閘 DONE，實際只有 師傅→客戶 兩閘為真 gate；客服審核(無獨立 endpoint)與會計AR(推 M11)未實作，屬半綠
+
+> **驗證註記**：逐項實查結論（預設懷疑，大多通過）：  【通過 DONE_VERIFIED — 非假綠，有真 code+migration+真DB測試】 - BR-M08-01 到場打卡：record_arrival (work_order_service.py:2210) 真寫 work_order_events event_type='arrival' + COALESCE started_at；compute_arrival_gps_proof:2184 是真 Haversine（地球半徑6371km、atan2、within_tolerance）。測試 test_cr_0053_arrival_doorcheck.py:43 真斷言 door-check 前置閘 409→arrival→通過、started_at 落地，用真 DB（db_module._conn.execute，非 FakeConn/MagicMock，全檔 grep 無 mock）。 - BR-M08-02-tier 金額分級：_classify_scope_tier:1872 讀 config_m18_service.read_global_value(namespace='scope_change_policy')，_SCOPE_TIER_DEFAULTS(500/2000/0.5) 僅 policy.update 
+
+### M09 · 照片/影片/文件與證據
+
+`D6 治理/平台營運` ｜ Phase I ｜ **完成度 55%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+相對 4 天前 CR-0038 基線（BR-M09-02 / BR-M09-03 皆 MISSING）已大幅推進：媒體上傳/下載/列表 v2 端到端可動，角色可見性規則式過濾（CR-0040）、保存期 retention_until + 每日清除 cron（已掛 main.py）、legal_hold 欄位 + cron 尊重（CR-0067）、Evidence Package 聚合端點（CR-0055）、完工 ≥3 照片硬閘（config 化）皆落地且有真測試（4 支共 520 行）。但仍缺：legal_hold 無設定入口（只 cron 讀）、影片 gate（Q023）完全缺、報價/派工照片 checklist gate（Q022/Q024）缺、品牌展示匿名化遮蔽（G022）未實作、角色可見性硬編在 Python dict（非 configurable，違 BR-M09-02 「Central admin 可控」精神）。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M09-01/G021 | Evidence package 自動聚合（before/after/簽名/加價/付款/聊天/用料） | 🟡 部分 | api/services/evidence_package_service.py:13 get_evidence_package 聚合 media+digital_signatures+arrival/door_check events+summary；端點 api/routers/work_orders_v2.py:956 getWorkOrderEvidencePackageV2；test_cr_0055_evidence_package.py 58行 | 只聚合 media/簽名/事件三類；規格列的 quote、added-price approval、payment proof、chat links 未納入 package（summary 無 has_quote/has_payment_proof/has_chat）；非「結案時自動形成」而是唯讀按需聚合 |
+| BR-M09-02/Q026 | Evidence 角色可見性分流（Brand/locksmith/accounting/customer 不同 sets） | 🟡 部分 | media_service.py:74 _HIDDEN_PURPOSES_BY_ROLE（brand 隱環境照、accounting 隱門檢照）；get_media:247 不可見→404；list_media_for_work_order:267 過濾；test_cr_0040 覆蓋 | 規則硬編 Python dict 非 config，Central admin 不可調（違 P0 可治理）；無 case-ownership 維度（customer 只能看自己案件）—customer 角色未在表中、無 ownership 過濾；dispute media list 無角色過濾 |
+| BR-M09-03/Q027 | 保存期政策（一般1年 / 保固/RMA/爭議延長 + legal hold） | 🟡 部分 | SQL/migrations/048 retention_until+deleted_at+backfill；media_service.py:158 upload 時 dispute/warranty=2年；soft_delete_expired_media:86 軟刪；cron api/realtime/media_retention_cron.py 已掛 api/main.py:153；066 legal_hold 欄位+cron 尊重(media_service.py:97) | legal_hold 無任何 setter（grep SET legal_hold=0，只 cron 讀）→ 訴訟/爭議中延長保存實務無法觸發；buffer 期間 hardcode 2年非 config；無人工標記延長/復原 deleted_at 的端點 |
+| Q022/G021 | 安裝前照片 checklist + 缺照禁止報價 gate | ⬜ 缺 | grep quote.*photo / 報價.*照 在 quote_service/quote_engine_service 無命中；door_check_before purpose 存在但無報價前阻擋 | 報價流程無 before-photo checklist gate；無「哪些照片缺少禁止報價」判定邏輯 |
+| Q023 | 維修前影片 gate（門打不開 100% 要影片，可 LINE 上傳） | ⬜ 缺 | media_service.py:43 _ALLOWED_CONTENT_TYPES 只 image+pdf，不接受 video/mp4；problem_card 無 video_required；agent/lockcore 無 video gate | 完全不支援影片上傳；ProblemCard 無無法開門→強制影片閘；LINE 影片上傳路徑未實作 |
+| Q024 | 派工照片 gate（門型/舊鎖/門框/型號/施工空間/風險）+ 人工 override | ⬜ 缺 | dispatch 服務無 photo gate（grep dispatch.*photo=0）；purpose 列舉無 dispatch 專用 | 派工流程無缺照阻擋與人工 override 機制 |
+| Q025 | 完工照片（≥3）連到收款/保固/客訴 + 客戶簽名 | ✅ 完成 | work_order_service.py:876-886 完工硬閘 min_photos(config completion_policy 預設3)+require_signature+_signature_exists 驗 digital_signatures；purpose completion_before/during/after/signature 全支援(media_service.py:31-41)；migration 078 簽名 purpose；前端 my-orders/[id]/signature/page.tsx + SignaturePad.tsx | — |
+| G022 | 匿名化政策（展示給品牌/師傅時遮蔽客戶姓名） | ⬜ 缺 | grep anonym/遮蔽/mask 在 media_service/evidence_package=0；角色可見性僅按 purpose 隱整張照，無欄位級姓名遮蔽 | 無姓名/PII 遮蔽邏輯；evidence package 對 brand/locksmith 展示時不去識別化 |
+| INFRA | 媒體上傳/下載/列表 v2（tenant 隔離 + sha256 去重 + 大小/型別驗證） | 🟡 部分 ⚠️驗證下修自 DONE_VERIFIED | api/routers/media_v2.py uploadMediaV2/getMediaV2/listMediaForWorkOrderV2/listMediaForDisputeV2 + cross-tenant guard；media_service.py upload/get/list 真寫 FS(MEDIA_ROOT)+DB；sha256 去重(:169)；MAX 20MiB+content-type 驗證；前端 MediaGallery.tsx blob+Bearer；test_media_v2.py 236行 | —（儲存仍本機 FS，MVP 可接受；GCS 後續） |
+
+**關鍵缺口：**
+- legal_hold（BR-M09-03 warranty/dispute buffer 核心）只有欄位 + cron 讀取，無任何設定 API/UI 把它設為 true → 保固/爭議延長保存實際無法觸發
+- 影片 gate（Q023：門打不開 100% 要影片）完全缺：media_service 不接受 video content-type（_ALLOWED_CONTENT_TYPES 只有 image+pdf），problem_card 無 video_required 閘
+- 報價照片 checklist gate（Q022）與派工照片 gate（Q024）缺：quote/dispatch 流程無 before-photo 阻擋（規格標可人工 override，但連基本 gate 都無）
+- G022 品牌/師傅展示匿名化（遮蔽客戶姓名）未實作：evidence package 與 media list 無姓名遮蔽邏輯（grep anonym/遮蔽=0）
+- BR-M09-02 角色可見性硬編在 media_service.py:74 的 _HIDDEN_PURPOSES_BY_ROLE dict，非走 config，Central admin 無法調整 → 不符 P0「依角色與 case ownership 看到不同 sets」可治理要求
+
+**🔻 驗證改判：**
+- `INFRA`：✅ 完成 → 🟡 部分 — 核心實作為真（media_files 表在 SQL/Schema_media.sql：tenant_id NOT NULL + sha256 + 3 indexes；media_service.upload 真寫 FS(MEDIA_ROOT)+DB INSERT，非 stub；sha256 去重 media_service.py:170 為真；MAX 20MiB+content-type 驗證為真；cross-tenant 403 測試為真認證層測試）。但降級理由：(1) media_files 表只在非編號 Schema_media.sql，不在 000-078 numbered migration 鏈內，MIGRATION_REGISTRY 不追蹤其套用狀態 → prod 是否套用無 audit trail（CR-0038 已點名 registry 不可盡信，此表更脆弱因連 registry 都沒列）；(2) test_media_v2.py 的 component 測試全部 assert status_code in (200, 503)，即 DB 不存在回 503 也算 PASS（line 190/206/218/233）→ CI 綠燈不代表真有 DB 端到端寫入，是 CR-0038 點名的『CI 假綠』模式。auth/cross-tenant 是真測試，但 upload→DB→read 全鏈未被 CI 強制驗證。儲存仍本機 FS（MVP 可接受）。
+
+**🚩 假綠旗標：**
+- INFRA 測試假綠：test_media_v2.py component 測試 assert status_code in (200, 503)（line 190/206/218/233），DB 不可用時回 503 也算通過 → CI 綠不證明 upload→DB→read 端到端可動，僅 auth/cross-tenant 403 為真測試
+- media_files 表定義在非編號 SQL/Schema_media.sql，不在 000-078 numbered migration 鏈，MIGRATION_REGISTRY.md 未列 → prod 套用狀態無 audit trail（比 registry-標記 更弱的追蹤）
+- BR-M09-03 legal_hold 死信欄位：media_files.legal_hold 全 codebase 無任何 setter（grep 確認只有 cron soft_delete_expired_media:97 讀 'AND legal_hold IS NOT TRUE'）。gdpr_forget_service.deny_legal_hold 操作的是 forget_request 表（不同 entity），與 media 保留無關 → 訴訟/爭議延長保存實務上永遠無法觸發，宣稱的『legal hold』功能等同無作用
+- line_gateway 丟棄圖片/影片：agent/lockcore/channels/line_gateway.py:358 'if not isinstance(event.message, TextMessageContent): continue' → LINE 客戶傳的 ImageMessage/VideoMessage 被靜默丟棄，客戶端經 LINE 提供照片證據的路徑不存在（僅技師端 web 上傳可用）
+
+> **驗證註記**：逐項驗證結果：  [Q025 DONE_VERIFIED 維持] 完工硬閘為真且 config 驅動。work_order_service.py:876 min_photos=int(policy.get('min_photos',3)) 讀 M18 config completion_policy（非 hardcode 常數，符合可治理）；:884 require_signature 走 _signature_exists(wo_id) 真查 digital_signatures 表（非僅驗非空字串）；migration 078 確實 DROP+ADD CHECK 把 completion_signature 補進 DB（4 層白名單對齊：router v2/v1/service/DB CHECK 全到位）；另含 serial/consents/pending-scope/address 多道閘。digital_signatures 表存在於 Schema_v2_extensions.sql。此項為 M09 最扎實項目，維持 DONE_VERIFIED。  [BR-M09-01 PARTIAL 維持] evidence_package_service.py:43 回傳 summary 僅 photo_count/signature_count/has_customer_signa
+
+### M10 · 品牌/商品/BOM/庫存
+
+`D3 師傅人力/供應` ｜ Phase I (Light) ｜ **完成度 36%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+庫存子域（FR-0007 inventory v2 + 完工 serial 硬閘 BR-M10-03）真實端到端可動，是 M10 唯一 DONE_VERIFIED 部分，相對 CR-0038 基線（serial-gate MISSING）有明確進展。但 Phase I 真正的核心「兩層 BOM + material ownership + 材料費歸屬」(CR-0078/073) 只落到資料表 + service + unit test，缺 router/API、缺前端、缺真實品牌主檔 seed、且 cost_attribution/material_owner 完全未接 finance 與派工流程，端到端不通。庫存 owner enum（platform/brand/locksmith）與 spec P0 BR-M10-02 四值（brand/company/locksmith/customer）不一致是需裁決的紅旗。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| FR-0007-inventory-v2 | per-tenant 庫存品項 + 異動 ledger（庫存主檔/領料/退料/補貨/異動查詢） | ✅ 完成 | api/routers/inventory_v2.py（6+ endpoints: list/get/create/consume/return/restock/patch/transactions）；api/services/inventory_v2_service.py（FOR UPDATE row-lock consume:339-400、INSUFFICIENT_INVENTORY 409、stock_status 衍生）；SQL/migrations/007-inventory-v2.sql（saas.inventory_item + inventory_transaction，registry ✅done，backfill 自 public.inventory_items 非 mock seed）；web/src/app/admin/inventory/page.tsx(235行真接 API)；api/tests/test_inventory_v2.py(29 tests) | — |
+| BR-M10-03 | 序號綁工單（主鎖/保固/高價件 serial bound WorkOrder） | ✅ 完成 | work_order_service.py:887-908 完工硬閘 serial gate：service_category in serial_required_categories(['install']) 且無 serial → 422 'SERIAL_REQUIRED ...(BR-M10-03)'；門檻讀 M18 config completion_policy 非寫死；inventory_v2 consume serial_required → 422（service:373-379, migration 007 serial_required 欄）；warranty_claims.device_serial（068，registry ✅2026-06-20）+ check_rma_abuse serial 級偵測 | 相對 CR-0038 基線（spec-m10-serial-gate MISSING）已補齊。device serial 反查保固仍部分（見 Q107 跨 M02） |
+| BR-M10-01 | Two-layer BOM（Brand/Model → material list 兩層） | 🟡 部分 ⚠️驗證下修自 PARTIAL | SQL/migrations/073-bom-two-layer.sql（saas.product_model 第一層 + saas.bom_line 第二層，registry ✅2026-06-20 套 dev）；api/services/bom_service.py（create_product_model/add_bom_line/list_bom，兩層結構正確）；api/tests/test_cr_0078_bom.py(6 tests) | 關鍵缺口：bom_service 無對應 router（grep api/routers 0 命中），未暴露為 API；無前端頁面；product_model/bom_line 預設 is_mock=TRUE 且無真實 seed（173 migration 註明 Phase I mock）。停在「資料層+service+unit test」，未端到端可動 |
+| BR-M10-02 | Inventory ownership（owner=brand/company/locksmith/customer 決定 billing/return/warranty） | 🟡 部分 | bom_line.material_owner CHECK IN ('brand','company','locksmith','customer')（073 正確 4 值，符合 P0 spec）；bom_service._VALID_MATERIAL_OWNER 對齊 | 嚴重不一致：庫存主檔 saas.inventory_item.owner CHECK 僅 ('platform','brand','locksmith')（007:62 + inventory_v2_service.py:49 _VALID_OWNER），缺 spec 要求的 customer/company，且把 platform 取代 company —— 與 P0 BR-M10-02 四值不符。ownership→billing/return/warranty responsibility 的下游 wiring 完全未建（settlement/brand_b2b 無 cost_att… |
+| Q079-Q081 | 品牌型號資料庫 + 每品牌 BOM + BOM 料件（兩層） | 🟡 部分 ⚠️驗證下修自 PARTIAL | 073 product_model(brand/model)+bom_line 結構支援；bom_service CRUD | 無 API/UI 維護介面；無首批品牌（Chatlock/大內高手）真實主檔 seed；無『誰維護 BOM』的角色流程 |
+| Q082/Q087 | 料件歸屬 + 材料費入帳（每料件選費用歸屬連客戶/品牌/師傅帳） | 🟡 部分 | bom_line.cost_attribution CHECK IN ('customer','brand','technician','company')（073，符合 Q087 四值） | cost_attribution 純資料欄位，未接任何 finance：grep settlement_service / brand_b2b_statement_service 對 cost_attribution 0 命中。材料費歸屬未進結算/拆帳/B2B 月結，端到端不通 |
+| Q083/G034 | 派工前庫存確認（soft gate 提醒備料，高價/保固件 hard gate）+ 庫存位置保管責任轉移 | ⬜ 缺 | grep dispatch_service / work_order_service 對 reservation/material readiness/stock soft-gate 0 命中；流程地圖 step10 'BOM/material readiness'(spec-cross-cutting:167) 無對應 code | 派工前 BOM/serial/stock/material-owner 預檢（流程 Gate step10）完全未建；無 material reservation；無庫存位置（品牌/公司倉/師傅車/客戶現場）轉移紀錄 |
+| Q084 | 現場用料登記（BOM checklist 帶出/打勾/加照片/數量金額） | 🟡 部分 | work_orders.materials_used TEXT 自由文字欄（061-completion-materials-payment.sql:8，registry ✅2026-06-20）；completion_policy require_materials 預設 false | 僅自由文字/JSON 欄位，非 spec 要求的『BOM checklist 帶出→勾選→照片→數量』結構化登記；grep WO 對 bom_line/checklist 帶出 0 命中；未扣庫存連動（consume 與 material_request 語意整合 HD-INV-03 留 follow-up） |
+| Q085 | 序號綁工單（鎖體/主機板是否要序號的細分） | 🟡 部分 | 完工 serial gate 已做（work_order_service:887）；inventory_v2 serial_required 旗標 | serial 綁定僅單一 work_orders.serial_number + 完工 install 類別 gate；保固件/高價電子件的逐料件 serial 綁定（依 bom_line）未建；序號→Device record 綁定未連 M02 |
+| Q086/G035 | 退換瑕疵料（退回期限/照片/退回狀態機）+ 替代相容料欄位 | 🔶 假資料 | bom_line.return_deadline_days nullable（073，但註明 Phase II 預留，現 NULL）；inventory_v2 return_material_v2 僅做基本退料庫存異動(transaction_type='return') | 瑕疵料退換工作流（期限/照片/退回狀態 pending→returned/品牌回收）完全未建，073 明示 Phase II 接退回狀態機；替代/相容料欄位（G035 BR-M10-01 substitute-compatible fields）在 bom_line 不存在（無 substitute_ref/compatible 欄） |
+
+**關鍵缺口：**
+- 兩層 BOM 無 router/API 與前端：bom_service.py 存在且有 6 個 unit test，但 grep api/routers 0 命中、無 web 頁面、product_model 預設 is_mock=TRUE 無真實品牌 seed → 全模組停在資料層，無法端到端使用
+- BR-M10-02（P0）owner enum 不一致：inventory_item.owner = platform/brand/locksmith（007:62）缺 spec 要求的 customer/company；BOM 用對的四值但兩表不對齊，且 ownership→billing/return/warranty 下游 wiring 未建
+- Q087 材料費歸屬未接帳務：bom_line.cost_attribution 純資料欄，settlement_service / brand_b2b_statement_service 0 消費 → 材料費入帳端到端不通
+- Q083 派工前 BOM/material readiness 預檢（流程 Gate step10）+ 庫存位置保管責任轉移（G034）完全未建
+- Q086 瑕疵料退換工作流（期限/照片/退回狀態機）+ G035 替代相容料欄位 未實作（073 明示 Phase II），return_deadline_days/substitute 欄位 NULL 或不存在
+
+**🔻 驗證改判：**
+- `BR-M10-01`：🟡 部分 → 🟡 部分 — 驗證確認 PARTIAL 偏弱：073 建表正確（product_model 第一層 + bom_line 第二層），bom_service.py 108 行有 create_product_model/add_bom_line/list_bom 三函式，6 個 test 走真 DB（db_module._conn 非 FakeConn）。但 grep api/routers 0 命中 BOM router、main.py 無 include_router、無任何 BOM router 註冊；product_model.is_mock 預設 TRUE 且 grep 全 SQL/ 無 product_model/bom_line 真 seed 檔。資料層+service+unit test 為真，但端到端不可動。狀態維持 PARTIAL 但實質接近 MOCK_ONLY（資料全 mock 預設值）。
+- `Q079-Q081`：🟡 部分 → 🟡 部分 — 同 BR-M10-01：073 結構支援 + bom_service CRUD 為真，但無 API/UI 暴露、無首批品牌真實主檔 seed（grep 確認 0 seed）。PARTIAL 成立但端到端缺口屬實。
+
+**🚩 假綠旗標：**
+- BR-M10-01 / Q079-Q081 BOM：宣稱資料層完成但 bom_service 無對應 router（grep api/routers 0 命中、main.py 無 include_router），且 saas.product_model.is_mock 預設 TRUE、全 SQL/ 無真實 BOM seed 檔 → BOM 端到端為 MOCK_ONLY，僅資料層+service+unit test 可動
+- Q082/Q087 材料費歸屬：bom_line.cost_attribution 為純 CHECK 資料欄，grep api/services（含 settlement_service / brand_b2b_statement_service）0 命中 cost_attribution → 完全未接結算/拆帳/B2B 月結，材料費歸屬端到端不通（假綠：欄位存在 ≠ 功能完成）
+- BR-M10-02 ownership 下游 wiring：material_owner grep api/services（排除 bom_service）0 命中 → owner→billing/return/warranty responsibility 全未建；且 inventory_item.owner CHECK 為 platform/brand/locksmith，與 spec 四值 brand/company/locksmith/customer 不符（兩個 owner enum 不一致）
+- Q084 現場用料登記：materials_used 為 work_orders 自由文字欄（require_materials gate 僅檢查字串非空，非 BOM checklist 帶出/勾選/數量結構化）；grep work_order_service 0 命中 consume/inventory_v2 → 完工未連動扣庫存
+
+> **驗證註記**：逐項實查結論：  DONE_VERIFIED 全部站得住，無假綠： 1. FR-0007-inventory-v2：migration 007 真建 saas.inventory_item + saas.inventory_transaction（兩 CHECK + trigger + index）；router inventory_v2.py 8 endpoints（list/get/create/consume/return/restock/patch/transactions）已於 main.py:290 include_router 註冊；consume(service:354-400) 真 FOR UPDATE row-lock + serial_required 422 + INSUFFICIENT_INVENTORY 409 + ledger insert，非 stub/None；web/admin/inventory/page.tsx 真 api.get(tenantPath('/inventory/items'))；test_inventory_v2.py 29 tests 走真 psycopg AsyncConnection（conftest _isolate_db_conn 明確排除 FakeConn 污染），非 mock-DB 假綠。 2. BR-M10-0
+
+### M11 · 客戶付款/應收 AR/退款
+
+`D4 財務/結算` ｜ Phase I ｜ **完成度 36%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+退款分層核准（BR-M11-02）自 CR-0038 基線（BROKEN/hardcode）顯著進步：v2 路徑 5-tier + 三維 SoD + refund_class 必填分類，門檻已改由 config_service.get_refund_config 讀取（解除硬編碼紅線），端到端可動，是本模組唯一接近 DONE 的部分。但 BR-M11-01（每筆 payment 核銷到 WO/訂金/尾款/車馬/退款/RMA）與 BR-M11-03（發票責任歸屬 B2C/B2B/建商/平台代收）仍未建模。金流關鍵斷鏈：payments 表（069）已套、payment_service.py（PAY-01~05 intent/confirm/webhook/fallback/dispute/gate）已寫齊，但無任何 router 註冊，整個付款子系統 API 不可達——Q088 八種付款方式無法收款。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M11-02-refund-tier | 退款金額分層核准（5-tier + 雙簽 + 分類） | 🟡 部分 ⚠️驗證下修自 DONE_VERIFIED | api/routers/refunds_v2.py:42 create_refund_sod + :87 decision + :124 get + :217 list（已於 main.py:251 註冊 tags=M11 AR/Payment）；refund_service.py:473 resolve_tier 門檻來自 config、:494 validate_refund_class 必填 product/labor/material/travel/inspection、:551 create_refund_sod 寫 tier/refund_class/三維 SoD/audit_event_id/config_version_used；config_service.py:132 get_refund_config 從 system_config 讀 refund namespace（缺則 DEFAULT_REFUND_CONFIG）；migration 002 ✅done 加欄+CHECK(tier L1-L5、refund_class enum、SoD initiato… | 門檻已解硬編碼（相對基線改善），但 refund namespace 無 migration seed（執行時 fallback DEFAULT），tenant 未上 config 仍走程式預設值；legacy refunds.py/submit_decision 路徑仍用硬編碼 _DUAL_SIGN_THRESHOLD=100000（refund_service.py:120,260）；無獨立 executor 執行端點（執行態靠 decision 狀態機） |
+| BR-M11-02-partial-classification | 部分退款分類欄位（Q095：退產品費/工資/材料/扣車馬/扣檢測） | ✅ 完成 | refund_service.py:445 refund_classes=[product,labor,material,travel,inspection]，:494 validate_refund_class 缺值 422 REFUND_CLASS_REQUIRED、非法 422；migration 002 refund_requests_class_chk CHECK 五值；前端 REFUND_CLASSES 對應中文標籤 | 單筆 refund 只能帶單一 refund_class；Q095『一張退款拆多類金額（退產品費X+扣車馬Y）』的多行 line-item 拆分未建模 |
+| BR-M11-01-reconciliation | 每筆 payment 核銷到 WO/訂金/尾款/車馬/退款/RMA（含末五碼、付款連結對帳） | ⬜ 缺 | 無 customer-payment reconciliation service/router；reconciliation_service.py 全為 M12 settlement period/approved 結算對帳（grep 無 deposit/balance/travel/refund/rma 核銷對象）；payments 表(069)有 work_order_id/purpose(service/deposit) 但無核銷分帳結構 | 需建客戶付款核銷主體：payment ↔ WO/deposit/balance/travel_fee/refund/RMA adjustment 對應；末五碼(轉帳)與付款連結對帳；會計每日/每週核銷流程（G027） |
+| BR-M11-03-invoice-responsibility | 發票責任歸屬（B2C/B2B brand/builder project/platform collection 切分） | ⬜ 缺 | grep issued_by/issuer_type/invoice_party/builder_project/collection_model → 0（migrations 與 invoice_service.py 皆無）；invoice_service.py docstring 明列 tax_id/category 等『目前 DB 無欄位全部不傳』 | 無 issuer 判定邏輯與欄位；B2C 平台 vs B2B 派工人/品牌/建商開票對象未建模（Q099 建商專案誰開票仍待業主，但欄位骨架亦缺） |
+| Q088-payment-methods | 付款方式（信用卡/轉帳末五碼/現金/LINE Pay/平台代收/師傅代收/品牌月結/付款連結） | 🔴 斷鏈 | payment_service.py 完整 create_payment_intent/confirm_payment/handle_linepay_webhook(驗簽+冪等)/record_payment_fallback/report_cash_dispute（DB 落 payments 表，migration 069 ✅2026-06-20 套 dev）；但 grep 全 api：無 payments router、main.py 無 include_router、無任何呼叫端 import payment_service | 服務寫齊卻無 API 入口=不可達；method 僅 cash/apple_pay/line_pay 三軌（缺信用卡/轉帳末五碼/平台代收/師傅代收/品牌月結/付款連結對應）；全部 is_mock，正式 provider 待下輪 |
+| Q089-Q090-payment-timing | 事前/事後付款（quote rule、高金額門檻、未收款報表） | 🟡 部分 | migration 044 deposit_policy config(rate 0.3/min 1000，is_mock:true)+invoices.deposit_required 欄位(NUMERIC)；invoice_service.py:258 create_invoice_from_quote 帶 deposit_required | deposit_required 只是欄位+config 草稿值（is_mock），無事前付款 gate 觸發；事後付款『未收款報表』(AR aging)未實作；高金額門檻/熟客標準待業主 |
+| Q092-cancellation-fee | 取消費（付款後/當日/出發後/到場後分階段） | ⏸️ 延後 | 取消費歸屬 cancellation_service（M15 Exception/M18 config），refund_service.py:50 重用 check_sod from cancellation_service；本模組 M11 不重做 | 取消費規則主體屬 M15/M18，M11 僅消費其結果做退款分類；於 M11 範圍視為 DEFERRED_OK |
+| Q099-AR-status | AR status / customer ledger / payment proof | 🟡 部分 | work_orders.payment_proof TEXT(migration 061 ✅2026-06-20 套，completion_policy require_payment_proof 預設 false)；invoices 有 status(pending/issued/voided)+payment_method(028)；invoices_v2 list/get read-only | payment_proof 僅自由文字佔位欄、completion 預設不擋；無 customer ledger 主檔、無 AR status 聚合/aging 報表；comment 明寫『正式核銷 P2』 |
+| Q094-refund-approval-routing | 退款核准分層路由（客服主管/主管/會計雙簽/品牌商） | 🟡 部分 | refund_service.py:524 approver_role_for_tier + DEFAULT_REFUND_CONFIG approver_roles(L1 supervisor..L5 cfo)、required_approvals(L3=2/L5=3)；submit_decision csm_approved 雙簽中介態 | approver_roles/required_approvals 僅程式 DEFAULT（無 migration seed 進 config）；品牌商參與核准未建模；實際路由到具體人員/inbox 未串 approval_inbox |
+| refund-agent-initiate | Agent 自動退款 single-actor 路徑（CR-0009 HD-02 / ADR-0106） | 🟡 部分 | refunds_v2.py:163 agent_initiate_refund_v2，actor role 限 agent/system、requires_dual_sign=False、寫 audit log | 呼叫 legacy create_refund_request（含硬編碼 100000 上限註解），未走 SoD/config 路徑；金額上限以 dual-sign threshold 隱含，非明確 config gate |
+
+**關鍵缺口：**
+- 金流 payment_service 全套寫齊但無 router 註冊（BROKEN，API 不可達）
+- BR-M11-01 客戶付款核銷未建（MISSING；現有 reconciliation 為 M12 結算）
+- BR-M11-03 發票責任歸屬 B2C/B2B/建商/平台 未建模（MISSING）
+- AR status/customer ledger/aging 報表缺；payment_proof 僅佔位 TEXT
+- 退款雙模型並存，legacy 路徑仍硬編碼 10 萬門檻；payment 全 is_mock
+
+**🔻 驗證改判：**
+- `BR-M11-02-refund-tier`：✅ 完成 → 🟡 部分 — SoD create/get/tier 路徑為真（refund_service.py:551 create_refund_sod + migration 002 已套 + test_refund_sod_endpoint.py 真打 dev DB 驗 tier L1/L3/L5、SoD 403、refund_class 422、roundtrip，非 FakeConn 假綠）。但觸發 CR-0038 configurable 紅線而須降級：(1) refund namespace 全 repo 無任何 DB seed（config_service.py DEFAULT_CONFIG:16-50 無 'refund' key、無 migration seed system_config.refund），get_refund_config:153 永遠 fallback 程式常數 DEFAULT_REFUND_CONFIG → tier 門檻/approver_roles/required_approvals 只是『形狀可設定』，實務上 tenant 無法改，等同 hardcode；(2) legacy submit/create 路徑 refund_service.py:120/260 仍硬編碼 _DUAL_SIGN_THRESHOLD=100000；(3) validate_refund_class:505 忽略傳入 refund_config 改用硬編碼 DEFAULT_REFUND_CONFIG['refund_classes']；(4) 無獨立 executor 執行端點。gap 自承『tenant 未上 config 仍走程式預設值』。money/refund 規則須 configurable 未達標 → PARTIAL。
+
+**🚩 假綠旗標：**
+- refund namespace 從未進 DB：config_service.DEFAULT_CONFIG 無 'refund' key，無 migration seed system_config.refund namespace → get_refund_config 永遠回程式常數 DEFAULT_REFUND_CONFIG，tier 門檻/核准角色實務不可被 tenant 設定（偽 configurable）
+- refund_service.py:120/260 legacy 路徑 _DUAL_SIGN_THRESHOLD=100000 硬編碼仍在用（refunds.py:78/124 legacy router + agent_initiate 都走此 create_refund_request）
+- validate_refund_class (refund_service.py:494-511) 收了 refund_config 參數卻不用，class 白名單硬讀 DEFAULT_REFUND_CONFIG['refund_classes']
+- agent_initiate_refund_v2 (refunds_v2.py:163) docstring 宣稱『amount 上限由 service 層既有檢查 NT$100,000』，但 create_refund_request 不對 amount 設任何上限，只設 requires_dual_sign 旗標且被覆寫為 False → 宣稱的金額 gate 不存在
+- migration 044 deposit_policy seed value is_mock:true、esales_status:draft（訂金率 0.3/min 1000 為 mock 草稿值）
+- invoice_service.py is_mock 沿報價旗標、tax mock 0（Q-07 待 esales）→ AR/發票主檔含 mock
+- Q099 AR：work_orders.payment_proof 僅自由文字 TEXT 佔位、completion_policy require_payment_proof 預設 false 不擋（migration 061 註明正式核銷 P2）；無 customer ledger / AR aging（grep ar_aging/customer_ledger/未收款報表 全 repo 零命中）
+
+> **驗證註記**：驗證手法：實讀 refund_service.py / config_service.py / refunds_v2.py / refunds.py + migration 002/044/061 + 全 4 支 refund 測試 + conftest（確認 dev DB 真連非 FakeConn）+ grep AR ledger/aging。  判定： - BR-M11-02-refund-tier：DONE_VERIFIED → PARTIAL（唯一改判）。SoD create 路徑 code/migration/真 e2e 測試三項都過，但 configurable 紅線未閉合（refund namespace 無 DB seed、legacy 100000 hardcode、validate_refund_class 不吃 config、無 executor 端點）。test_refund_sod_5tier.py 僅覆蓋 PURE 函式（resolve_tier/validate_class/check_sod），DB 編排靠 test_refund_sod_endpoint.py（真 e2e，這支是真的）。 - BR-M11-02-partial-classification：維持 DONE_VERIFIED（borderline）。單一 refund_class 欄
+
+### M12 · 師傅/派工者/品牌月結 AP
+
+`D4 財務/結算` ｜ Phase I (Export) ｜ **完成度 52%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+M12 三條獨立帳（師傅 AP / 派工 commission / 品牌 B2B）三張獨立表 + 各 6 狀態機 + 7 天 dispute window + 8 endpoint router 全已落地且註冊於 main.py，非 mock、有 pytest 覆蓋，Phase I「Manual CSV export + 手動 mark_paid」核心交付存在，相對 CR-0038 基線（當時月結幾近 0）有大幅推進。但兩條 P0 業務規則只做到「手填欄位」而非規則化：代收抵扣（BR-M12-02）無真實代收 ledger / 無自動 hold payout；dispute withholding（BR-M12-03）暫扣金額靠人工輸入、未強制「只扣爭議金額」。拆帳費率（80/20）仍在 reconciliation 寫死（ADR-0041），config 版本（dispatch_commission，is_mock=true）僅釘選版本未接計算，payout 規則主檔 69 筆全 is_mock 未 wired，違反「money 規則不可 hardcode」紅線→整體保守降為 PARTIAL。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M12-01 | 分開 AP ledgers（technician AP / dispatcher commission / brand settlement / partner settlement 必須分開 ledger / report） | 🟡 部分 ⚠️驗證下修自 DONE_VERIFIED | 三張獨立表：SQL/migrations/025-tech-ap-statements.sql (saas.technician_statement)、026-dispatcher-commission.sql (saas.dispatcher_commission_statement)、027-brand-b2b-statements.sql (saas.brand_b2b_statement)；各自 service（technician_statement_service.py / dispatcher_commission_service.py / brand_b2b_statement_service.py）與獨立 router（technician_statement_v2/dispatcher_commission_v2/brand_b2b_statement_v2，各 8 endpoint，main.py:308-310 註冊）；registry 確認 025-027 dev DB 實存 | partner settlement（合作派工廠商）未獨立成第四表，混在 dispatcher_commission；brand 為 AR/AP/NET 同表分 direction（可接受） |
+| BR-M12-02 | 代收款抵扣（technician cash collection 抵扣 monthly payable；未繳回代收款可 hold payout） | 🟡 部分 | technician_statement_service.py:56 generate_statement 有 cash_collection_deduction 參數並計入 net（line 71-75）；migration 025:25 dispute_hold_amount 欄位；router technician_statement_v2.py:49 暴露 cash_collection_deduction | 無真實『代收 ledger』表記錄師傅每筆代收；數字靠人工填入 generate_statement，非自動核銷；『未繳回可 hold payout』無自動阻擋邏輯（無 grep 命中 cash_collection ledger / hold_payout 規則） |
+| BR-M12-03 | Dispute withholding（除 fraud/severe misconduct，只暫扣 disputed amount） | 🟡 部分 ⚠️驗證下修自 PARTIAL | 6 狀態機含 disputed（025:33）+ dispute_window_ends_at 7d（technician_statement_service.py:26,173）+ dispute_hold_amount 欄位（025:25）+ dispute_statement/approve/reject 流程齊備；三表皆同 pattern | dispute_hold_amount 人工輸入，未由爭議工單明細自動推導『只扣爭議金額』；fraud/severe misconduct 全單暫扣例外未建模；dispute window 過期自動 approved 的 cron 註解標『留下輪』未實作（technician_statement_service.py:12） |
+| Q035/Q097 | 師傅月結欄位（工單號/日期/服務/工資/加價/材料/代收/扣款/暫扣/備註/實撥） | 🟡 部分 | 025 表含 gross_amount/travel_fee_deduction/cash_collection_deduction/dispute_hold_amount/other_deductions/net_amount/notes/total_completed_orders；service 完整 CRUD + 狀態機；web/src/app/account/statements/page.tsx 技師自助頁 | 欄位為彙總層級（gross/deductions 總額），非『逐工單明細』(工單號/服務類型/材料/客訴返修逐筆)；無明細行表；師傅下載 Excel（Q097 待確認）未見 |
+| Q036/G029 | 派工人月結（dispatcher commission 與師傅工資分表 + 平台抽成公式） | 🟡 部分 | 026 表 + dispatcher_commission_service.py 完整：base_commission + performance_bonus - penalty = net_commission（line 74）；completion_rate/avg_csat 指標；獨立於師傅表；web/src/app/account/commission-statements/page.tsx | 抽成公式（G029 待業主確認）為手填 base/bonus/penalty，非由 config 規則自動計算；commission rate config（dispatch_commission namespace 044）is_mock=true 未接此 service |
+| Q098 | 品牌商月結（工單號/品牌/型號/服務/品牌價/材料/退款/客訴/發票 + AR/AP） | 🟡 部分 | 027 表 + brand_b2b_statement_service.py：direction AR/AP/NET + _compute_net（ar_service_fee - ap_commission + warranty_deduction + sla_penalty，line 47-83）+ net_payable_to 判定 + 6 狀態機 | 金額為彙總（ar_service_fee/ap_commission/warranty/sla 總額）非逐工單明細；型號/材料/發票欄位未見；品牌是否看工資（Q098 待確認）無 RBAC 隔離證據於此 service |
+| PhaseI-Export | Phase I Manual First / Export（monthly settlement export；disputed manual withheld） | 🟡 部分 ⚠️驗證下修自 DONE_VERIFIED | monthly_settlement_service.py：generate_monthly_batch（UNIQUE tenant+year+month 冪等）+ export_batch_csv（settlement_id/technician_id/amount_twd/currency/recon_id/period 欄位，settled_eligible 過濾，line 198+）+ mark_csv_exported + mark_manual_paid；monthly_settlements_v2 router 5 endpoint（main.py:297 註冊）；settlement_service.py batch_action confirm/mark_paid；test_cr_0012_monthly_settlement.py | CSV 欄位未含 80/20 拆帳明細列（僅 amount 總額）；bank API retry 預留 retry_count=0 未啟用（HD-3，Phase I 可接受） |
+| BR-M12-money-config | money/拆帳/費率不可 hardcode，須 configurable + 版本化 | 🟡 部分 | M18 config governance 存在：044-finance-config.sql seed dispatch_commission(rate 0.08)/deposit_policy namespace（is_mock=true,draft）；072-settlement-config-versioning.sql 加 settlement.applied_config_version_id 釘選；config_m18_service.py:254 resolve_settlement_rate_version；test_cr_0073_settlement_versioning.py | 關鍵：80/20 拆帳實際計算仍寫死於 reconciliation（monthly_settlement_service.py:14 ADR-0041，045 docstring 自承『reconciliation 拆帳重算 × 0.8 → 查表 NOT wired 待 Phase II』）；config 值 is_mock=true 為 esales 草稿；釘選版本但未接計算來源 → 仍違反 configurable 紅線 |
+| payout-rule-master | 師傅拆帳規則主檔（23 服務 × A/B/C 級別 + 夜間/急件加成） | 🔶 假資料 | 045-technician-payout-rule.sql：technician_payout_rule 表 + 69 筆 seed（045:32 is_mock NOT NULL DEFAULT TRUE，全 draft）；payout_rule_service.py list_rules/get_rule/compute_payout（純函式）；admin/payout-rules/page.tsx；test_cr_0037_payout_rules.py | 全 is_mock=TRUE 正式值待業主 Q-09 確認；compute_payout 純函式未被 reconciliation 呼叫（NOT wired，service docstring line 6 明示）；需 work_orders 夜間/急件旗標才能接通 |
+| settlements_v2-trigger | M12 monthly settlement 觸發端點（POST /settlements/monthly） | ✅ 完成 | settlements_v2.py:55 已從 501 stub 接通既有 CR-0012 月結批次服務（CR-0035，註解 line 7『501 stub 接通既有 CR-0012』）；main.py:273 註冊 | — |
+| reconciliation-approval | 對帳核准 → 產生 settlement（approveReconciliation） | 🟡 部分 | reconciliation_v2_service.py（approve 時 resolve_settlement_rate_version 釘選 config 版本 line 271 + INSERT settlement，applied_config_version_id line 275）；legacy reconciliation_service.py:144 approve 建 settlement；test_reconciliations_v2.py | technician_payout 金額在 reconciliation row 建立時就已存（80/20 來源未明於可配置計算）；segregation of duties（BR-M17-02 同人不可 create+approve+reconcile）未在此驗證 |
+| accounting-admin-ui | 會計端 admin 月結/對帳/三表審批前端 | ⬜ 缺 | 前端僅 web/src/app/account/statements（技師自助）、account/commission-statements（派工自助）、admin/payout-rules（規則）；find web/src/app/admin 無 settle/statement/commission/finance/recon/monthly 目錄 | 會計角色（權限矩陣指定 M11/M12/M19）無 admin 月結批次管理 / 三表 approve / CSV 匯出 / dispute 處理 UI；目前只能走 API |
+
+**關鍵缺口：**
+- 拆帳 80/20 仍 hardcode 於 reconciliation（ADR-0041）；config 為 is_mock draft 且只釘選版本未接計算 → 違反 money configurable 紅線
+- BR-M12-02 代收抵扣與 BR-M12-03 dispute withholding 僅手填欄位，無真實代收 ledger、無自動 hold payout、未強制只扣爭議金額
+- technician_payout_rule 69 筆全 is_mock=TRUE 且未 wired 進 reconciliation 計算
+- 三表月結欄位為彙總層級，缺逐工單明細行；師傅/品牌 Excel 下載未見
+- 會計端 admin 月結批次/三表審批/CSV 匯出/dispute 處理前端缺席，只能走 API
+
+**🔻 驗證改判：**
+- `BR-M12-01`：✅ 完成 → 🟡 部分 — 三表/三service/三router 結構真實存在（MIGRATION_REGISTRY 明載 017-027 dev DB 實際已存在，非僅 registry 標記；router 非 stub）。但 DONE_VERIFIED 定義要求『有真測試端到端可動』未達標：唯一相關測試 test_cr_0012_monthly_settlement.py 檔頭自承『不依賴 DB』，只測 _coerce_decimal 純函式 + route 數 + CSV header schema；service 層測試（test_technician_statement.py）用 FakeConn/FakeCur mock DB = 典型假綠 pattern，無任何 E2E 證明三 ledger 真能 generate/persist 正確 row。加上 partner settlement 第四 ledger 確實缺。結構齊但端到端未驗 → PARTIAL。
+- `PhaseI-Export`：✅ 完成 → 🟡 部分 — export_batch_csv 實際只寫單一 amount_twd（line 234-242），但 service docstring line 6-8 對外宣稱 CSV 欄位含『80% payout / 20% platform fee』——文件宣稱 ≠ 實作，是假綠。CSV 端僅靠 DB-free header-schema assert 驗證，無真 export E2E。且 amount 來源為 recon.technician_payout，其 80/20 計算來源全 codebase 找不到（見 money-config）。冪等 batch UPSERT 邏輯本身真實，但整體達不到 DONE_VERIFIED。
+- `BR-M12-03`：🟡 部分 → 🟡 部分 — 狀態不變但 gap 描述需修正：盤點稱『dispute window 過期自動 approved 的 cron 註解標留下輪未實作』為陳述過期——realtime/statement_auto_approval_cron.py 已實作（涵蓋三表、1hr interval）且已 wire 進 main.py lifespan（line 143/151/160）並有 test_statement_auto_approval.py。真正未做的是：dispute_hold_amount 仍人工輸入未由爭議工單明細自動推導；fraud/severe misconduct 全單暫扣例外未建模。
+
+**🚩 假綠旗標：**
+- monthly_settlement_service.export_batch_csv docstring 宣稱 CSV 欄含『80% payout / 20% platform fee』，實際只輸出單一 amount_twd 欄（line 234-242）——文件假綠
+- 80/20 拆帳『計算』全 codebase 不存在：grep 無任何 technician_payout = revenue × 0.8 / platform_fee = × 0.2 的計算碼；monthly_settlement_service.py:14-15 註解『reconciliation 已 store 本 service 信賴』，但 reconciliation_v2_service / reconciliation_service 也只是讀已存的 r.technician_payout 欄，無人算 → 拆帳來源懸空
+- resolve_settlement_rate_version 只回 version_id/effective_date 釘到 settlement row（config_m18_service.py:254-270），完全不參與 payout 金額計算；config『版本化』是空殼，計算仍未接 config → 違反 configurable 紅線（045 header line 18 自承 NOT wired 待 Phase II）
+- 044-finance-config.sql dispatch_commission rate=0.08 / deposit_policy 皆 is_mock:true, esales_status:draft（esales 草稿主檔）；dispatcher_commission_service 未接此 config，base_commission/performance_bonus/penalty 全為人工填入參數（default 0.0）
+- 045-technician-payout-rule.sql 69 筆 base_payout 全 is_mock=TRUE、decision_status draft/draft_review，正式值待業主 Q-09，且未 wired 進任何計算
+- test_cr_0012_monthly_settlement.py 檔頭明寫『不依賴 DB』，只測純函式+route 數+CSV header schema，無 generate_monthly_batch / 結算 E2E；test_technician_statement.py 用 FakeConn/FakeCur mock DB — 三表服務無真 DB 端到端測試
+- brand_b2b_statement_service.py 零 RBAC/工資遮蔽邏輯（grep mask/role/permission/遮蔽 全無命中）——Q098『品牌是否看師傅工資』隔離無證據
+
+> **驗證註記**：對抗稽核結論：M12 結構面真實（三 ledger 表確存於 dev、router 非 501 stub、settlements_v2 trigger 確接 generate_monthly_batch、auto-approve cron 確實做且 wired），這部分盤點誠實。但兩個 DONE_VERIFIED 都不過 auditor 自訂門檻：(1) BR-M12-01 無端到端測試、僅 FakeConn mock；(2) PhaseI-Export 的 CSV docstring 宣稱 80/20 拆帳列實際不存在。最嚴重紅線 = money-config：80/20 拆帳『計算邏輯』整個 codebase 找不到（既非 hardcode 也非 configurable，是懸空——上游 reconciliation row 的 technician_payout 哪裡算出來的無 code 證據），所有 finance 主檔（044/045 commission/payout/deposit）全 is_mock=TRUE 草稿且未接計算，config 版本化只釘 label 不驅動計算。此違反『money/拆帳必須 configurable』核心紅線，且代收 ledger（BR-M12-02）、逐工單明細（Q035/Q097/Q098）、partner settlement 第
+
+### M13 · 客訴/保固/RMA/品質
+
+`D5 品質/售後` ｜ Phase I (Light) ｜ **完成度 20%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+M13 真實完成度約 28%：保固期 5-mode 判斷（Q107）是唯一端到端可動且有測試的 DONE，較 CR-0038 基線升級（補 device_serial）。但 spec 兩個 P0 阻擋規則仍缺：BR-M13-02 責任矩陣全 repo 0 命中（MISSING），BR-M13-03 quality feedback loop code 齊全但 migration 024 仍 pending-apply 表未建（BROKEN）。BR-M13-01 獨立 RMA case 用 warranty_claims 兼充但編號是 WC 非 RMA-YYYYMM、未連 site/device/payment（PARTIAL）。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M13-01 / Q100 / Q054 | 獨立 RMA case（RMA-YYYYMM-流水號編號 + 連結 customer/site/device/WorkOrder/payment） | 🟡 部分 | 無 saas.rma_case 表，全 repo grep rma_number / RMA-YYYYMM = 0；現以 warranty_claims 表（068-warranty-device-serial.sql:CREATE）兼作 RMA 載體：warranty_service.py:428-449 INSERT 用 generate_doc_number('WC','doc_seq_wc') → 編號前綴是 'WC' 非 spec P0 要求的 'RMA-YYYYMM-流水號'（31-wo-region-numbering.sql:4 確認 WC 維持既有類型前綴）。連結僅 work_order_id + customer_id（warranty_service.py:430-433），無 site_id / device_id FK、無 payment 連結。warranty_claims_v2.py POST/GET/decision 端點存在且 tenant-scoped | 缺獨立 RMA case 實體與生命週期；編號格式不符 P0（WC 而非 RMA-YYYYMM-serial）；未連 site/device/payment。warranty_claims 只是保固申請，非規格定義的 RMA 案件 |
+| BR-M13-02 / Q101 / Q102 (P0 blocking) | 責任矩陣（product/brand、installation/technician、customer use、environment、quote/CS、dispatch、material delay 7 分類 + 初判規則） | ⬜ 缺 | 全 repo grep responsibility / liability_split / liability_matrix / 責任矩陣 / 責任歸屬 在 SQL/migrations/ 與 web/src/ = 0 命中。rma_quality_finding（024）只有 failure_mode/root_cause/brand_quality/technician_quality 評分欄，無責任分類 enum、無比例 split、無初判規則。warranty submit_decision 僅 approve/reject/in_progress（warranty_service.py:461-465），無責任歸屬 | P0 阻擋項完全缺：責任 7 分類 enum、責任比例 split、Q102 初判規則（產品→品牌商、安裝→原師傅等）。此為 spec 標『是』阻擋 coding 的核心規則，需先 CIA |
+| BR-M13-03 / FR-0048 / G030 | Quality feedback loop（Closed RMA 回寫 technician rating / brand quality / quote rule / dispatch eligibility） | 🔴 斷鏈 | code 齊全：rma_quality_v2.py 4 端點 + rma_quality_service.py（log_finding/list/brand_summary/technician_summary）+ 024-rma-quality-feedback.sql 建表 + web/src/app/admin/rma-quality/page.tsx UI + test_rma_quality.py（DB mocked）。但 MIGRATION_REGISTRY.md:46 標 024 = 🟡 pending-apply（未套 dev），故 saas.rma_quality_finding 表不存在 → 端點 runtime 會 DB error。cascade 僅實打 sop_feedback（rma_quality_service.py:97-123），未真正回寫 technician rating 主檔 / dispatch eligibility / quote rule | migration 024 未套用 = 表未建，端點不可動；cascade 只到 sop_feedback，缺對 M07 績效主檔 / dispatch ranking / quote rule 的實際回寫 |
+| Q107 / 保固期判斷 (P0) | 保固期判斷（購買日 + 序號；5-mode 起算含建商點交日） | 🟡 部分 ⚠️驗證下修自 DONE_VERIFIED | warranty_service.py:97-209 純函式 resolve_start_date（6 mode 含 handover_date）/ compute_warranty_end / resolve_period_months（品牌 override Yale 36/Dormakaba 60/預設 24）/ is_within_warranty 邊界判定；003-warranty-5mode.sql ✅done（registry:003）+ 068 device_serial ✅套 dev；057 work_orders.warranty_expiry_date ✅套 dev；test_warranty_5mode.py 覆蓋。較 CR-0038 已從 PARTIAL 升級（補了 serial 欄 068） | — |
+| Q108 / 保固返修派工 | 保固返修派工（優先原師傅，原師傅被客訴則派資深） | 🟡 部分 | warranty_service.py:161-182 recalc_after_rma 返修保固期重算 + parent_work_order_id 連結（CR-0038 baseline 確認）；但 grep 返修派工 / fallback 資深 = 0，無「RMA→自動建返修工單 + 派原師傅 / fallback 資深師傅」編排 | 缺 RMA 觸發返修工單自動建立 + 原師傅優先/資深 fallback 派工編排 |
+| Q106 | 客訴結果連帳務（返修/折讓/退款/換貨/重派/拒絕/升級主管 → 影響原工單金額） | ⬜ 缺 | warranty submit_decision 僅 approve/reject/start_review 三態（warranty_service.py:461-465），approve 可帶 discount_offered 但僅存欄位（warranty_service.py:533-541），無連動 refund / 工單金額調整 / inventory / 重派 wiring | 缺結果 enum（7 種）與連動帳務調整、退款、重派、換料的 wiring |
+| Q101 / Q109 | 客訴分類統一（9 分類）+ 證據連動 | ⬜ 缺 | grep 施工品質/報價爭議/教學不足/complaint_category = 0（api/ 與 migrations/）。disputes_v2.py 是 FR-0013 財務爭議 dual-sign 流程（另一套 dispute_type），非 M13 客訴 9 分類。無客訴證據（完工照/聊天/簽名）與責任矩陣的連動 | 缺統一客訴 9 分類 enum + 連責任矩陣 + Q109 證據（含施工前照）連動扣責規則 |
+| RMA-permissions / Brand User 視角 | 權限矩陣（Brand User 只看自己品牌 M13 紀錄、RMA 支援） | 🔴 斷鏈 ⚠️驗證下修自 PARTIAL | warranty_claims_v2.py / rma_quality_v2.py 有 cross-tenant guard（_guard_tenant / require_tenant）與 REVIEW_ROLES 角色限制；brand_summary 端點存在（rma_quality_v2.py:96-113）。但無 brand-scoped row-level 過濾（品牌商只看自己品牌案件）的細粒度權限 | 缺 Brand User row-level 品牌隔離（spec 權限矩陣要求只看自己品牌 M10/M13 紀錄） |
+
+**關鍵缺口：**
+- BR-M13-02 責任矩陣（P0 阻擋）完全 MISSING：無責任 7 分類 enum、無比例 split、無 Q102 初判規則，全 repo grep responsibility/liability = 0
+- BR-M13-03 quality feedback loop BROKEN：migration 024 仍 🟡 pending-apply（自 CR-0038 基線至今未套），saas.rma_quality_finding 表未建，4 端點 runtime 會 DB error
+- BR-M13-01 獨立 RMA case PARTIAL：無 saas.rma_case 表、編號用 'WC' 非 P0 規定的 RMA-YYYYMM-流水號、未連 site/device/payment
+- Q106 客訴結果連帳務 MISSING：decision 只 approve/reject，無 7 種結果 enum 與 refund/工單金額/重派 wiring
+- Q101 客訴 9 分類統一 + Q109 證據連動 MISSING：disputes_v2 是另一套財務爭議，非 M13 客訴分類
+
+**🔻 驗證改判：**
+- `Q107 / 保固期判斷 (P0)`：✅ 完成 → 🟡 部分 — 純函式 (resolve_start_date/compute_warranty_end/resolve_period_months/is_within_warranty) 確實存在且 test_warranty_5mode.py 真測——但該測試純函式無 DB（檔頭自述『本檔保證核心起算規則可在無 DB 環境穩定』），完全不驗證持久化欄位是否存在。撐起 5-mode 模型的 003-warranty-5mode.sql（warranty_start_mode 6-enum / warranty_period_months / B2B override 欄）在 MIGRATION_REGISTRY 僅標『✅ done』、缺其鄰居 045/046/047/053/057/068 都有的『✅ YYYY-MM-DD 套 dev』apply 標記；registry 頂部明示『狀態欄是意圖不是事實』且 035/045 前例證實『done』標記實際未套用導致 UndefinedTable/Column FAIL。057/068 已套 dev 為真，但 003 的 5-mode 核心欄落庫未驗證。依規則『migration 須真套+端到端可動』降 PARTIAL。
+- `RMA-permissions / Brand User 視角`：🟡 部分 → 🔴 斷鏈 — 本項『RMA 支援』證據引 rma_quality_v2.py brand_summary 端點與 guard，但其後端表 saas.rma_quality_finding 由 migration 024 建立，024 在 registry 標『🟡 pending-apply』=dev 未套用。rma_quality_service 全部 INSERT/SELECT 打 saas.rma_quality_finding，live DB 必 UndefinedTable。CR-0038-gap-inventory 自己已把此 quality feedback loop 標 BROKEN（『024 🟡 pending→表未建』）。唯一測試 test_rma_quality.py 檔頭自述『DB mocked』全用 FakeConn，是打在未建表上的假綠。warranty_claims_v2 的 tenant guard 仍真，但本 id 命名指向的 RMA 支援面在 runtime 為斷鏈→BROKEN（且 brand row-level 隔離原 gap 仍完全缺，grep brand_id/品牌商只看=0）。
+
+**🚩 假綠旗標：**
+- test_rma_quality.py 全 FakeConn mock DB（檔頭『DB mocked』），打在 migration 024 未套用的 saas.rma_quality_finding 上——表不存在但測試全綠，典型假綠；對應 router rma_quality_v2 brand_summary/findings 端點 live DB 必 UndefinedTable
+- 003-warranty-5mode.sql registry 標『✅ done』為人工意圖非事實，缺『套 dev』/schema_migrations apply 標記（鄰居 045/046/047/053/057/068 皆有）；Q107 DONE_VERIFIED 仰賴此 migration 但其落庫未經任何 DB 測試驗證
+- test_warranty_5mode.py 純函式無 DB 覆蓋被當作 5-mode 持久化模型『可動』的證據——只證計算公式對，不證 warranty_start_mode/period_months/override 欄真存在於任何環境
+- rma_quality_service log_finding 的 sop_feedback cascade 包在 try/except Exception 全吞（120-123 行），即使表不存在或 cascade 失敗也靜默 logger.exception 後照常回 201，掩蓋斷鏈
+
+> **驗證註記**：逐項對抗驗證結果：(1) Q100/Q054 PARTIAL 維持——全 repo grep rma_case/rma_cases/RMA-YYYYMM=0 確認無獨立 RMA 實體；warranty_service.py:438 確用 generate_doc_number('WC','doc_seq_wc')，Schema_doc_numbering.sql:25 確認 doc_seq_wc 為 WarrantyClaim 前綴非 RMA；INSERT 僅 work_order_id+customer_id 無 site/device/payment FK。PARTIAL 合理（偏向 RMA-case 實體 MISSING，但 warranty_claims 兼作載體故 PARTIAL 可接受）。(2) Q108 PARTIAL 維持——recalc_after_rma (warranty_service.py:161-182) 為純函式真存在且 test_warranty_5mode.py 覆蓋；grep 返修派工/fallback 資深=0 確認無編排，缺口屬實。(3) Q107 降 PARTIAL：核心降級理由為 003 migration 落庫未驗（純函式測試 ≠ 端到端）。(4) RMA-permissions 降 BROKEN：024 pending-apply +
+
+### M14 · 品牌/經銷/建商 Partner Portal
+
+`D1 市場/客戶` ｜ Phase III ｜ **完成度 10%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：✅
+
+M14 完整 Partner Portal 規格明示為 Phase III（Later），Phase I 僅需內部員工代操作 + partner boundary 文件 sample，故 Phase I scope 視為就緒（DEFERRED_OK）。實際 codebase 自 CR-0038 基線後新增 CR-0084 partner scope 隔離（partner_scope_service.py + migration 075，fail-closed brand_partner_id 過濾），對 BR-M14-01/G007 的「只看自己」資料邊界打下骨架，但僅套在 M17 brand B2B 結算讀路徑。建商專案主檔、partner 代客建案流程、dealer/門市入口、partner 自助登入頁全缺。以完整 M14 端到端可動率計約 12%。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M14-01 | Partner account scope — brand/dealer/builder 依 contract 只看自己的 cases/projects/settlement | 🟡 部分 ⚠️驗證下修自 PARTIAL | api/services/partner_scope_service.py:24-44 resolve_partner_scope() 純函式 fail-closed：vendor/brand/dealer/builder 角色未綁 partner→403 PARTNER_NOT_BOUND、跨 partner 讀→403 CROSS_PARTNER_READ、admin bypass；SQL/migrations/075-vendor-partner-scope.sql:8 vendors+brand_partner_id 連結欄與 partial index。但此隔離僅套在 brand B2B statement 讀取路徑（M17 面），未涵蓋 cases、projects；且無真正 partner 登入入口套用此 scope（web/src/app/vendor/page.tsx 只顯示自身帳號狀態）。 | 隔離只蓋 settlement 一條讀路徑；cases/projects 無 partner scope 過濾；無 partner 自助登入入口實際套用此 scope；端到端不可動。 |
+| BR-M14-02 | Builder project setup — site group/unit list/handover/warranty date/contract price/SLA/invoice rules 主檔 | ⬜ 缺 | 全 76 支 migration grep builder_project/project_contract/site_group(table)/unit_list/contract_price/invoice_rule 皆無對應建商專案主檔表；僅 003-warranty-5mode.sql:78 有 warranty_inherit_from_site_group 旗標與 handover_date 作為保固起算錨點之一，非建商專案主檔。 | 完全沒有 builder project 主檔（案場群組、戶數清單、點交/保固日、合約價、SLA、發票規則），無 code、無 table、無 endpoint、無頁面。 |
+| BR-M14-03 | Partner-created case 仍需通過平台 ProblemCard / quote-payment / dispatch gates（標來源、佣金/責任） | ⬜ 缺 | grep created_by_partner/partner_created/case_source/commission(來源標記) 於 api/ 無 partner 建案來源標記；僅有 dispatcher_commission（M12 派工人佣金）與 brand_b2b ap_commission（M17 結算）欄位，非 dealer/門市代客建案的來源/佣金/責任標示。 | 沒有 partner/dealer 代客建案流程、無來源標示、無佣金/責任歸屬欄位、無串接 ProblemCard→quote→dispatch gate 的 partner 入口。 |
+| G007 | 品牌商資料邊界 — 只看自己品牌案件/保固/照片/RMA/月結，不看他牌/內部工資/平台毛利 | 🟡 部分 ⚠️驗證下修自 PARTIAL | partner_scope_service.py:35-42 強制 brand_partner_id 過濾達成「只看自己」原則骨架（fail-closed），但目前只在 brand B2B statement（月結）面落地；保固/照片/RMA/案件未套此邊界，且無品牌商實際登入頁套用。 | 邊界只覆蓋月結；保固/照片/RMA/案件未做品牌邊界；無內部工資/平台毛利隱藏的實際驗證面（無品牌商 portal）。 |
+| G008 | 經銷商/門市入口 — 可代客建案、標來源/佣金/責任、可否看後續狀態 | ⬜ 缺 | web/src/app/vendor/page.tsx 僅 150 行、只顯示 vendor 帳號狀態（pending_approval/active/suspended/rejected）+ VTYPE distributor=經銷商 標籤，無代客建案、無來源/佣金標示、無案件後續狀態查詢。 | 無經銷商/門市代客建案功能；vendor 頁只是帳號狀態檢視，非營運入口；佣金/責任/後續狀態可見性全缺。 |
+| G009 | 建商專案合約規則 — 專案主檔（案場/戶數/點交日/保固期/月結/發票/責任人） | ⬜ 缺 | 同 BR-M14-02：無建商專案主檔表；003-warranty-5mode.sql 僅提供 handover_date / warranty_inherit_from_site_group 作為保固計算輸入，非合約主檔。 | 建商案專屬合約主檔與流程完全未建。 |
+| Q003/Q037 | 參與方/品牌案報價對象 — B2C/B2B brand price/internal technician cost 三層價對品牌可見性 | ⬜ 缺 | 無品牌商可見價格層級控制 code；brand_b2b_statement_v2.py 為 OPS_ROLES 內部操作生成結算，非品牌商自助查看分層報價。 | 三層價（B2C/B2B/internal cost）對 partner 的可見性控制未實作。 |
+| PORTAL-FRONTEND | Partner 自助登入入口（brand/dealer/builder portal 頁） | ⬜ 缺 | web/src/app/ 下無 partner/portal/builder/dealer 自助頁；相關頁面為 admin/brand-b2b（內部）、admin/vendor-approvals（內部審核）、vendor（僅帳號狀態）。 | 無 partner 面向的 self-service portal（規格本就 Phase III）。 |
+
+**關鍵缺口：**
+- Builder project 主檔完全缺（BR-M14-02/G009）：site group/unit list/handover/warranty date/contract price/SLA/invoice rules 無 table 無 code
+- Partner-created case 流程缺（BR-M14-03/G008）：dealer/門市代客建案、來源/佣金/責任標示、串 ProblemCard→quote→dispatch gate 全無
+- Partner 自助 portal 前端缺：web 僅有內部 admin/brand-b2b 與只顯示帳號狀態的 vendor 頁，無 brand/dealer/builder self-service 入口
+- Partner scope 隔離（CR-0084）僅覆蓋 brand B2B 月結讀路徑，未延伸到 cases/projects/保固/RMA/照片
+- 三層價（B2C/B2B brand price/internal cost）對 partner 可見性控制未實作（Q037）
+
+**🔻 驗證改判：**
+- `BR-M14-01`：🟡 部分 → 🟡 部分 — 狀態維持 PARTIAL，但盤點對「已覆蓋 settlement 讀路徑」的宣稱是假綠且需修正描述。實查：resolve_partner_scope() 與 get_vendor_brand_partner_id() 在 api/routers 與 api/services 中 ZERO caller（dead code）。實際端點 api/routers/brand_b2b_statement_v2.py:82-94 list_ 把 brand_partner_id 當 caller 自選 Query param 直接傳入 svc.list_statements，只做 _guard_tenant（tenant 級隔離），完全沒 import 也沒呼叫 resolve_partner_scope。這正是 075 migration 自己 WHY 註解描述要修的假綠 —— 修補（把 resolver 接進 router）從未完成。partner scope 強制過濾僅存在於測試（test_cr_0084_partner_scope.py component 測試手動先呼叫 pss.resolve_partner_scope 再傳給 list_statements，模擬了生產 code 不存在的接線）。故連唯一宣稱覆蓋的月結路徑，在 request layer 也未端到端強制 partner scope。
+- `G007`：🟡 部分 → 🟡 部分 — 維持 PARTIAL。根因同 BR-M14-01：盤點稱『邊界只覆蓋月結』本身仍過於樂觀 —— 月結端點實際也未在 request layer 強制 brand_partner_id（resolver 是 dead code，過濾只在測試模擬）。保固/照片/RMA/案件確實未套品牌邊界、無品牌商 portal 也屬實。內部工資/平台毛利隱藏無實際驗證面成立。
+
+**🚩 假綠旗標：**
+- resolve_partner_scope() 與 get_vendor_brand_partner_id() 是 dead code — api/routers 與 api/services 中零 caller，partner scope 隔離從未接進實際 request flow
+- brand_b2b_statement_v2.py:list_ 端點把 brand_partner_id 當 caller 自選 Query param 直傳，只 _guard_tenant，未呼叫 resolve_partner_scope — 即 075 migration WHY 註解點名要修的假綠『list_statements brand_partner_id 是 caller 自選而非身分強制』，修補未完成
+- test_cr_0084_partner_scope.py component 測試手動先呼叫 resolver 再傳入 list_statements，測的是『生產 router 並不存在的接線』；單元測試只測純函式 resolver，皆無法證明 endpoint 真的擋跨 partner 讀（test-only wiring 假綠）
+- 盤點宣稱『隔離已套在 brand B2B statement 讀取路徑』與『邊界覆蓋月結』為不實 — endpoint 層實際無 partner scope 強制
+
+> **驗證註記**：migration 075（ALTER vendors ADD brand_partner_id + partial index）與 027（CREATE TABLE saas.brand_b2b_statement）皆有真實 DDL，非僅 registry 標記。partner_scope_service.py 邏輯為真（fail-closed、非 stub/None/mock），無 money/refund/拆帳 hardcode 問題。核心問題：服務層做好了但 router 從未接線，是「組件齊全、最後一根線沒接」的假綠——所有 partner scope 強制只存在於測試模擬與 dead code，request flow 仍只有 tenant 級隔離。verified_completion_pct 由 12 微降至 10，反映連唯一宣稱覆蓋的月結路徑在端點層也未真正落地（盤點 12 略高估）。phaseI_ready 維持 true：目前無 partner 自助登入入口，vendor/brand 角色在 Phase I 無法觸及這些端點（端點走 OPS_ROLES / require_tenant + _guard_tenant），故跨 partner 洩漏在 Phase I 尚不可被外部觸發；但 resolver dead-wire 一旦 Phase II 開放 par
+
+### M15 · 異常/核准/風險控制
+
+`D2 Service-to-Cash` ｜ Phase I ｜ **完成度 56%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+相對 CR-0038 基線（M15 幾乎全 MOCK_ONLY/MISSING/BROKEN）有實質躍進：CR-0041 落地真 exception_case 框架（migration 049 + service + v2 router + 前端頁 + component 測試），BR-M15-03 high_risk_hold 真接 dispatch/complete 422 硬閘，BR-M15-01 9-value return_path 落表並驗證，approval inbox 與 exceptions_v2 誤命名問題已處理。但仍非端到端閉環：return_path 只記錄決策不編排實際動作（HD-1 MVP），high_risk 由人工 severity 觸發而非自動偵測 5 大停工條件，approval inbox 未納入新 exception_case（兩套並行），liability reason 完全缺席。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M15-01 | Exception return path（9 選 1：continue/requote/reschedule/reassign/new_wo/cancel/refund/rma/dispute） | 🟡 部分 | SQL/migrations/049-exception-framework.sql:21 return_path 欄；api/services/exception_service.py:23-26 _RETURN_PATHS 9 值集合，:144-149 resolve 驗證，:163-169 寫入 status=resolved+return_path；api/routers/exception_cases_v2.py:104-124 :resolve 端點；web/src/app/admin/exceptions/page.tsx:140 前端呼叫 resolve。tests test_cr_0041_exception_framework.py:92-110 驗 return_path 記錄 | return_path 僅『記錄決策 + 提示既有端點』（service docstring:6 / :141 HD-1 MVP）— resolve 不會實際觸發 cancel/refund/reassign/new_wo 動作，缺統一編排；無 gate12『已選 return path 才可 approve』於 WO 狀態機 |
+| BR-M15-02 | Approval inbox（supervisor/accounting/brand approvals 進 inbox 不留 chat） | 🟡 部分 ⚠️驗證下修自 PARTIAL | api/services/approval_inbox_service.py:63-220 list_pending_approvals 聚合 scope_change/refund/dispute/reschedule/recon_exception 5 類，附 severity+SLA+days_overdue；api/routers/approval_inbox_v2.py:24-47 GET /approval-inbox；web/src/app/admin/approval-inbox/page.tsx 真前端頁；main.py:301 已掛載 | 未納入新 saas.exception_case（grep 確認 inbox 不含 exception_case）→ 與 exception 框架兩套並行；MVP 自陳不做 routing engine / escalation matrix / bulk ops（service docstring:14-17）；無各角色 approval SLA 設定 |
+| BR-M15-03 | High-risk stop rule（保固不明/品牌責任/安全風險/拒絕加價/高風險開孔 須 pause 至核准） | 🟡 部分 | SQL/migrations/049:44 work_orders.high_risk_hold 旗標；exception_service.py:86-90 high/critical+WO→設 hold，:172-184 resolve 後若無其他 open high-risk 異常則解除；work_order_service.py:1212-1226 _assert_not_high_risk_hold 拋 HIGH_RISK_HOLD 422，:955 complete_order 呼叫、:1297 assign_order 呼叫；tests test_cr_0041:71-87 驗擋派工/完工。auto_confirm_cron 排除 high_risk_hold | hold 由人工填 severity=high/critical 觸發，未『自動偵測』規格列舉的 5 大停工條件（warranty unclear/brand responsibility/safety risk/customer refuses added price/high-risk drilling）；無 risk_flag 分類維度 |
+| Q064/G026 | Exception taxonomy 異常代碼分類 | ✅ 完成 | exception_service.py:16-20 _EXCEPTION_TYPES 10 值（no_show/customer_absent/scope_change_rejected/material_shortage/delay_severe/appearance_refused/payment_failed/quality_complaint/schedule_conflict/other），open 時驗證 422；對齊 generated.py model | —（相對 Q065 提及的 12 類略有出入但核心 taxonomy 已落地並接線；基線 CR-0038 標 MOCK_ONLY『零接線』已修正） |
+| Q047 | 客戶不在/師傅延遲 return path + 車馬費 | 🟡 部分 | exception_type 含 customer_absent/delay_severe/no_show；cancellation_service.py:8-9 費用/閾值 configurable（system_config cancellation namespace, ADR-0102），:43-50 travel_fee/inspection_fee 為 config 預設值非 hardcode 常數 | customer_absent 異常與 cancellation_service 車馬費未經 exception 框架 return_path 編排串接；無自動將『師傅延遲』升級異常 |
+| Q069/Q070 | 加價前確認（師傅提出→客戶確認→客服留紀錄）+ 加價證據（簽名） | 🟡 部分 | work_order_service.py:1898-1990 record_scope_change：INSERT scope_changes status=pending + mint public_token(purpose=scope_change) 供客戶確認；:1872-1896 _classify_scope_tier major→requires_supervisor（門檻讀 M18 config）；:884-886 完工驗客戶簽名存在(digital_signatures) | 加價拒絕（Q071 customer refuses added price）未走 exception approval return path（基線 P2-13-upcharge-refusal 仍 MISSING）；加價同意/拒絕未統一進 approval inbox |
+| Q071/Q072 | 客戶不同意加價收費 / 減價折讓（依責任歸屬，超門檻主管核准） | ⬜ 缺 | grep liability/responsibility/責任歸屬 於 api/models、api/services、SQL/migrations、web/src → 0 命中（僅 exception_service docstring 註解提及） | liability reason 責任歸屬完全無實體（無 column / 無 enum / 無比例 split / 無初判規則）；折讓上限門檻與主管核准未強制；此為跨所有 M15 規格列重複出現的核心欄位 |
+| Q066 | 現場異常回報固定順序（選類型→填原因→填加價→打電話→等客服）+ 照片 gate | ⬜ 缺 | exception_service.open_exception 接受 type/severity/description 單步建立；無 5 步驟流程編排；grep report_exception/異常回報 5 步驟→0；scope_changes 為加價提案非 5 步驟異常流程 | 無師傅端固定 5 步驟異常回報 wizard；無『所有異常都要照片』的 photo gate（基線 CR-0038 已標 MISSING，未改善） |
+| G025 | Approval task inbox（各 approval SLA） | 🟡 部分 ⚠️驗證下修自 PARTIAL | approval_inbox_service.py:53-60 _SLA_DAYS_BY_TYPE 各類 SLA（scope_change 1d/refund 3d/dispute 60d/reschedule 1d/recon 7d）+ :43-50 days_overdue 計算 | SLA 為程式內預設常數非 config 驅動；無 escalation matrix；不含 exception_case 類別的 SLA |
+| exceptions_v2-rename | exceptions_v2 誤命名修正（基線 BROKEN） | 🟡 部分 | api/routers/exceptions_v2.py:1-12 已標 DEPRECATED（CR-0041 2026-06-19），明示誤命名實為 technician_schedule，真 M15 已移至 exception_cases_v2.py；保留 30 天過渡 | 尚未實際改名為 technician_schedule_v2、尚未遷前端 admin/schedule-requests，誤命名路徑 /exceptions 仍存活 |
+| Q011 | M15 斷點控制點（不可 hardcode money） | 🟡 部分 | cancellation_service.py 費用 configurable（ADR-0102 system_config）；scope tier 門檻讀 M18 config；exception 框架有 audit 欄位 created_by/resolved_by/resolved_at | approvals 未統一（exception_case 不進 inbox）；goodwill/折讓門檻未強制接 gate；return_path 未串閉環 |
+
+**關鍵缺口：**
+- liability reason（責任歸屬）完全 MISSING — 跨所有 M15 規格列與 Q071/Q072 的核心欄位，無 column / 無 enum / 無初判規則，影響收費歸責決策
+- BR-M15-03 high_risk_hold 僅由人工填 severity=high/critical 觸發，未自動偵測規格 5 大停工條件（保固不明/品牌責任/安全風險/客戶拒絕加價/高風險開孔）
+- BR-M15-02 approval inbox 與新 exception_case 是兩套並行系統 — inbox 聚合 5 種 legacy 任務但不含 exception_case；違反『不散落』的單一 inbox 精神
+- BR-M15-01 return_path 為『決策記錄 + 指向既有端點』(HD-1)，resolve 不會實際觸發 cancel/refund/reassign/new_wo，缺統一編排與 gate12 串接
+- Q066 現場異常 5 步驟回報固定順序（選類型→填原因→填加價→打電話→等客服）+ 全異常照片 gate 無專屬流程
+
+**🔻 驗證改判：**
+- `BR-M15-02`：🟡 部分 → 🟡 部分 — PARTIAL 維持，但新增風險證據：approval inbox 聚合的 recon_exception 類別讀 saas.reconciliation_exception（migration 017），而 017 在 MIGRATION_REGISTRY.md 標 🟡 pending-apply（未套用）。即 inbox 五類聚合中 recon_exception 在 dev/prod 可能查無此表而 broken；其餘四類（scope_change/refund/dispute/reschedule）讀既有表正常。原 gap（不含 exception_case、SLA 非 config、無 escalation matrix）全部屬實。
+- `G025`：🟡 部分 → 🟡 部分 — PARTIAL 維持。_SLA_DAYS_BY_TYPE 確為 Python dict 常數（approval_inbox_service.py:53-60），非 system_config 驅動，gap 屬實。同 BR-M15-02：recon_exception SLA 對應的來源表（017）未套用。
+
+**🚩 假綠旗標：**
+- approval_inbox_service.py recon_exception 類別宣稱聚合 saas.reconciliation_exception，但 migration 017 registry 標 pending-apply（未套用）→ 該類別在未套 017 的環境會查無表而失效，是依賴未套 migration 的潛在假綠（非 service 本身 mock，而是 DB 斷鏈）
+- approval_inbox_service.py _SLA_DAYS_BY_TYPE 各類 SLA 為 Python 常數（非 system_config），與 Q011『不可 hardcode』精神不符（屬時間閾值非 money，嚴重度低於金額 hardcode，但仍是假 config 綠）
+
+> **驗證註記**：逐項對抗式查證結論：  【DONE_VERIFIED 嚴查 — 通過，非假綠】Q064/G026 Exception taxonomy：migration 049 有真 CREATE TABLE saas.exception_case（SQL/migrations/049-exception-framework.sql:13-36，非僅 registry 標記）；exception_service.py:16-20 _EXCEPTION_TYPES 10 值 + :69-74 open 時 422 驗證（非 stub）；test_cr_0041_exception_framework.py 為真 component 測試（@pytest.mark.component，真 DB INSERT/SELECT work_orders + saas.exception_case，非 FakeConn mock）。三條全過，維持 DONE_VERIFIED。  【money hardcode 紅線 — 查證後澄清，非假綠】Q047/Q011 取消費：DEFAULT_CANCELLATION_CONFIG（cancellation_service.py:39-91）乍看像 Python 常數，但實為 fallback default plane。router cancellation.py:5
+
+### M16 · 聊天/通知/溝通紀錄
+
+`D6 治理/平台營運` ｜ Phase I ｜ **完成度 42%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+M16 的「對話/通知 CRUD 基礎建設」相當扎實且有真測試（conversations_v2、notifications_v2、CR-0024 接管狀態機、CR-0062 內部 alert 皆 DONE_VERIFIED），完成度遠優於非核心模組。但 Phase I Coding Gate 點名的三條 P0 業務規則只達成一半：BR-M16-03（模板核准）DB+service 層做得很完整且有四眼 CHECK，卻是 service-layer 孤島（無 router、真實發送路徑繞過 gate）；BR-M16-01（角色可見性分流）與 BR-M16-02（電話/口頭確認 gate）相對 4 天前基線仍完全 MISSING。整體屬 PARTIAL，未達 Phase I 可驗收標準。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M16-01 / Q073 / Q075 | Conversation visibility — customer/technician/brand/accounting/internal notes 依角色分流（P0 阻擋） | ⬜ 缺 | messages 表（SQL/Schema.sql:185-204）只有 role(user/assistant/system)+content_type+metadata，無 visibility/audience scope 欄；conversation_service.list_messages（api/services/conversation_service.py:320-367）僅以 tenant_id JOIN users 過濾，回該對話全部訊息，無依 requester role 過濾；conversations_v2.py listConversationMessages 無角色可見性 guard。品牌/會計/內部頻道完全不存在。 | messages/notes 需加 visibility scope 欄（customer/technician/brand/accounting/internal）+ list 依角色過濾 + 品牌只看本品牌案件、不可見內部成本（Q075）。此為 P0 會阻擋 acceptance testing。相對 CR-0038 基線無進展。 |
+| BR-M16-02 / Q074 / G024 | 電話確認限制 — 電話可記錄結果，但改價/改期/取消/退款必須寫入 system 或 LINE | ⬜ 缺 | grep phone_call/call_record/電話紀錄/verbal/口頭 於 api/ 與 SQL/ 僅命中 appearance_change_consents.consent_method='verbal_recorded'（SQL/Schema.sql:925）與 digital_signatures.signature_method（Schema_v2_extensions.sql:185）— 屬簽署同意，非通話紀錄；無『電話結果記錄』實體；改價/改期/取消/退款流程無『須補 LINE/system 確認』gate。 | 缺通話紀錄實體 + 改價/改期/取消/退款的 system/LINE 證據 gate（口頭不可作正式證據）。相對 CR-0038 基線無進展。 |
+| BR-M16-03 / G023 / Q078 | Notification templates — 七類對客通知須 approved templates，主管核准後才可發（P0 阻擋） | 🟡 部分 | DB+service 層完整：SQL/migrations/071-notification-template-approval.sql 建 notification_template（status pending_approval→approved/rejected + notif_template_four_eyes CHECK 建立者≠核准者 + seed 7 類 approved 全域模板）+ notifications.template_id FK；notification_template_service.py 有 create_template(強制 pending_approval)/approve_template(APPROVER_ROLES+四眼+防重複)/send_from_template(僅 approved 否則 TEMPLATE_NOT_APPROVED 409)/list_templates(角色可見性分層)；單測 api/tests/test_cr_0072_notif_template.py 覆蓋 create→approve→send。BUT… | 核准 gate 是 service-layer 孤島：未接 router（無法從 UI/API 建立或核准模板），且真實通知發送路徑不經 send_from_template，gate 形同未 enforce。需 (1) 補 notification_template router；(2) 讓對客通知改走 send_from_template 強制 gate。相對 CR-0038（MISSING）有進展但僅止於 DB/service。 |
+| conversations-v2 | 對話列表/詳情/訊息/接管/交還（tenant-scoped） | ✅ 完成 | api/routers/conversations_v2.py 5+1 端點（list/create/get/listMessages/sendChatMessage/resolveHandover）全接真 conversation_service，含 cross-tenant guard（ADR-0030）、idempotency_guard、RBAC（send/resolve 僅 admin/customer_service/manager/supervisor）；conversation_service.py(548行)讀真 conversations+users+messages 表、cursor 分頁、send_message 含 escalated 狀態 gate + LINE push（fail-soft）+ message_count 更新；接管狀態機 escalated↔active（resolve_handover/get_handover_state CR-0024）；測試 test_conversations_v2_endpoint.py / test_cr… | —（殘留：send_message/handover 的專屬 audit log 為 TODO，conversation_service.py:392,473；非 P0） |
+| conversation-persist-bridge | LINE 對話旁路持久化（ingest_turn） | 🟡 部分 | conversation_service.ingest_turn(api/services/conversation_service.py:265-317)由 agent gateway 經 internal token 寫 user+assistant 訊息、message_count 累加；append_event_note(240-248)寫系統事件（CR-0095）。 | CR-0038 標記『DB round-trip 此環境未實證』；此次盤點未見新增整合測試證明端到端 persist 後查得回，沿用 PARTIAL。 |
+| notifications-v2 | In-app 通知中心（列表/標記已讀/封存/批次/全標已讀） | ✅ 完成 | api/routers/notifications_v2.py 4 端點（list/update/bulk/mark-all-read）+ notification_service.py(229行)接真 notifications 表（SQL/Schema_api_phase1.sql:104-129，含 tenant_id+user_id+type+severity+template_id），status/type 過濾、cursor 分頁、bulk 1000 上限、mark-all-read 排除 critical；cross-tenant guard + idempotency；測試 test_notifications_v2_endpoint.py。 | —（type 仍為 free-form VARCHAR + CHECK 列舉於 comment，非獨立 registry 表；非阻擋） |
+| CR-0062-auto-notify | 工單事件自動站內通知（被指派/待審核結案 等內部 alert） | ✅ 完成 | work_order_service._auto_notify(api/services/work_order_service.py:639-648)在指派/狀態變更時呼 notification_service.push_notification 寫站內通知（:1057,:1372 觸發點）；測試 test_cr_0062_auto_notify.py。規格定位為內部員工 alert，刻意不受 template gate（migration 071 註明分流）。 | —（規格認可的直發分流；但對客事件如完工/報價亦走此路徑而非 template gate，與 BR-M16-03 缺口重疊） |
+| notification-template-router | 通知模板 管理/核准 API endpoint | ⬜ 缺 | grep notification_template_service / create_template / approve_template / send_from_template / list_templates 於 api/routers + agent → 0 命中（除 service 檔本身與單測）。無 router 註冊。 | service 完整但無 HTTP 暴露面，前端與外部無法建立/核准/列模板，亦無 send_from_template 觸發點。 |
+| web-comms-pages | 前端 對話管理 / 通知中心 頁面 | 🟡 部分 | web/src/app/conversations/page.tsx(122) + [id]/page.tsx + loading.tsx；web/src/app/notifications/page.tsx(713) 頁面存在；ChatTimeline/SystemMessage 渲染（conversation_service append_event_note 註）。 | CR-0038 標『conversations/reports 等頁無 Playwright e2e』；本次未見對應 web/tests e2e；無模板管理 UI（因 router 缺）。 |
+
+**關鍵缺口：**
+- BR-M16-01 可見性分流完全缺：messages 無 visibility/audience 欄，list_messages 不依角色過濾，品牌/會計/內部頻道不存在（P0 阻擋 acceptance）
+- BR-M16-03 模板 gate 未 enforce 端到端：notification_template_service 無 router 暴露，且真實對客通知走 push_notification/line_push 繞過 send_from_template，gate 形同虛設
+- BR-M16-02 電話確認限制缺：無通話紀錄實體，改價/改期/取消/退款無『須補 LINE/system 確認』證據 gate（與 M09 evidence 缺口連動）
+- notification_template 無管理/核准 API endpoint，前端無法建立或核准模板，七類模板無法被營運維護
+- conversation-persist-bridge 與 web 對話/通知頁缺端到端/Playwright 真測試，沿用 CR-0038 PARTIAL 未補強
+
+**🚩 假綠旗標：**
+- line_gateway.py:358 — webhook 僅處理 TextMessageContent，非文字訊息（圖片/影片/貼圖/語音/檔案/位置）一律 `continue` 直接丟棄：既不跑 turn、也不 _persist_turn_safe。對話旁路持久化（conversation-persist-bridge）對任何非文字輸入靜默遺失，客服在對話管理看不到客人傳的圖。屬隱性缺口，原盤點未點名。
+- BR-M16-03：seed 7 類模板皆直接以 status='approved' + approved_at=NOW() 入庫（migration 071:38-48），created_by/approved_by 皆 NULL → 四眼 CHECK 因 NULL 短路不檢、核准 gate 對 seed 模板形同未經人工核准。雖 seed 為全域主檔屬合理便利，但「approved 全域模板」並非真經過 create→approve 流程驗證，gate 的端到端有效性仍只在單測證明，未在真實發送路徑生效。
+
+> **驗證註記**：逐項以 Read/Grep 實證，原盤點誠實，無 DONE_VERIFIED 需降級，無假綠主檔（無 is_mock）、無 money hardcode（M16 不涉金流規則）。  BR-M16-03 (PARTIAL) 證實：migration 071 真建 notification_template（status gate + notif_template_four_eyes CHECK + notifications.template_id FK），notification_template_service.py 四函式皆真 SQL（create 強制 pending_approval / approve 強制 APPROVER_ROLES+四眼+防重複 / send_from_template 僅 approved 否則 409）。但 grep api/routers/ + main.py 確認零 router 暴露這四函式（只 service+單測引用）；真實對客送通知走 notification_service.push_notification:223（INSERT 無 template_id 無核准檢查）。gate = service-layer 孤島，PARTIAL 正確。  conversations-v2 (DONE_VERIFIED) 證實：router 6
+
+### M17 · 權限/安全/稽核 RBAC
+
+`D6 治理/平台營運` ｜ Phase 0 ｜ **完成度 64%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+RBAC 守衛骨幹紮實且自 CR-0038 基線後明顯前進：CR-0092 把 80 個原本只有 require_tenant 的敏感端點補上角色 gate（FULL_ACCESS/OPS/DISPATCH/REVIEW 角色集中於 deps.py 單一真相源）、CR-0068 上線 audit hash-chain 篡改偵測（067 已套 dev）、CR-0071 補上 user role 指派雙人 SoD（070 已套 dev，補了基線點名的「零生產碼假綠」）。但三項 P0 BR 仍未閉環：BR-M17-01 角色矩陣仍缺 can-approve 維度（_perm 只有 read/write/delete/locked，且 5 系統角色 vs spec 11-14 角色命名仍三方不一）；BR-M17-03 IT 臨時授權（time-limited/reason-coded/audited）完全 MISSING（grep it_temporary/it_support/break-glass 僅命中 password 後備，無表無角色）；CR-0071 role-assignment SoD service 無任何 router 暴露，僅測試直呼 service，API 端到端不可達。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M17-01 | Can view/edit/approve matrix（每角色拆三維，除 audited admin 外不接受 all access） | 🟡 部分 | api/services/role_service.py:62 _perm() 僅 read/write/delete/locked，無 approve 維度（grep approve 於 role_service.py 零命中）；_MATRIX:88 僅定義 5 系統角色 admin/reviewer/technician/brand_oem/line_user，與 spec SHEET-11 的 11-14 角色（Customer/AI Bot/CS/Dispatcher/Dealer/Supervisor/Central Admin/System Setup Admin/IT Support/Auditor…）命名不一；list_roles/update_role_permissions 有動態 override + 階層強制(can_grant) + locked 防護 + 越權升級防護(get_flat_permissions)，端點 GET/PUT 走 rbac_v2.py:34/75 tenant-scoped + cross-tenant guard，role_se… | 缺 can-approve 維度（規格硬性三維）；角色 enum 未對齊 spec 角色清單；approval_limit（核准金額上限）未在矩陣建模 |
+| BR-M17-02 | Segregation of duties（同一 user 不可無 second approval 同時 create/approve/reconcile refund） | ✅ 完成 | refund SoD：api/services/refund_service.py:33 同一 user 不可在 approval_chain 出現第二次(DUAL_SIGN_SAME_USER 409)、csm_approved 雙簽中介態、requires_dual_sign 金額自動判定；複用 cancellation_service.check_sod primitive(refund_service.py:50)；migration 002-refund-sod-5tier.sql ✅done；測試 test_refund_sod_5tier.py / test_refund_sod_endpoint.py。role-assign SoD：role_assignment_service.py:127 approver≠proposer(SOD_VIOLATION_RBAC 403) + 070 DB CHECK role_assign_dual_sign_distinct 雙防線，test_cr_0071_rbac_sod.py 8 測試 | — (refund/role-assign SoD 邏輯+DB 防線+測試齊備；唯 role-assign 經 API 不可達見下) |
+| BR-M17-03 | Temporary IT support access（time-limited、reason-coded、audit logged） | ⬜ 缺 | grep it_temporary/it_support/temporary_access 於 SQL/migrations 與 api/ 零命中；無 it_support 角色（ROLE_HIERARCHY 無 it_support）；無到期失效表/欄位；auth_service.py:250 僅有 break-glass 臨時密碼後備（非 IT 維運臨時授權） | 完全缺：需新表 it_temporary_access(expires_at + reason_code + audit) + it_support 角色 + 到期自動失效 + 觸發 CIA。與 CR-0038 基線相同，未推進 |
+| Q114/BR-M19-02 | Audit event 全覆蓋（報價/改價/退款/派工/改派/取消/客訴/月結/權限變更皆 audit）+ 篡改偵測 | 🟡 部分 ⚠️驗證下修自 PARTIAL | audit_log_service.py:377 log_event/425 log_event_returning_id 各業務廣泛呼叫；CR-0068 hash-chain：_chain_fields:60 + verify_audit_chain:75 sha256 鏈 + 067 已套 dev + test_cr_0068_audit_hash_chain.py 3 測試；查詢/匯出 list_audit_logs:159 + stream_audit_events:305 keyset 分頁 + audit_v2.py tenant-scoped 端點(role_required FULL_ACCESS) | audit_events 無 tenant_id（audit_log_service.py:8 註明本期不做 tenant 過濾，多租戶隔離缺口）；報表下載 audit(BR-M19-02 cross) 仍缺(基線 grep download_audit→0)；保存期限(Q055/Q114「保存多久」)未見 retention policy 落地 |
+| Q026/Q042/Q077/Q112 | Data access boundary（角色/案件 ownership 決定可見欄位與照片：內部成本/工資/品牌成本對技師/品牌商遮罩） | 🟡 部分 ⚠️驗證下修自 PARTIAL | 端點層角色 gate 到位(deps.py:154 FULL_ACCESS/OPS/REVIEW 角色集 + CR-0092 補 80 端點 + role_required raise 403)；work_order_service.py:47 有地址 district 解析；media-evidence 可見權限 048-media-evidence-governance.sql 存在 | 未見 row/field-level 角色遮罩（grep mask/redact/internal cost role-filter 於 work_order_service 命中皆為 .strip() 非遮罩邏輯）；技師看不到品牌成本、品牌商看不到內部工資的 field-level boundary 未在 service 層強制；Q042 接單前/後地址分級未落地 |
+| CR-0071-router | Role assignment SoD propose/approve/apply 經 API 端到端可達 | 🔴 斷鏈 | role_assignment_service.py propose/approve/apply 三段 + 070 migration 完整；但 grep role_assignment_service 於 api/routers/ 與 main.py 零命中，無任何 endpoint 暴露；test_cr_0071_rbac_sod.py:10 直接 import service 呼叫，非 HTTP | service+migration+test 齊備但無 router → 前端/外部無法觸發 role 指派 SoD 流程；需補 routers 暴露 propose/approve/apply（端到端不可動） |
+| G013 | 財務高風險雙簽（退款/折讓主管或會計雙簽） | ✅ 完成 | refund_service.py 雙簽鏈 + 002 migration ✅done（同 BR-M17-02）；cancellation_service.check_sod 共用 primitive | — |
+| G014 | IT user 預設不看隱私/財務 + 臨時授權有效期限與 audit + 資料遮罩 | ⬜ 缺 | 無 it_support 角色於 ROLE_HIERARCHY；無臨時授權機制（同 BR-M17-03）；無 IT 預設遮罩規則 | 與 BR-M17-03 同根：缺 IT 角色定義、臨時授權到期、預設資料遮罩 |
+
+**關鍵缺口：**
+- BR-M17-03/G014 IT 臨時授權（time-limited + reason-coded + audited）完全 MISSING，無表無 it_support 角色，與 CR-0038 基線相比零推進 —— P0 BR 阻擋項
+- BR-M17-01 角色矩陣缺 can-approve 維度（_perm 僅 RWD+locked，規格硬性要求三維）且 5 系統角色 vs spec 11-14 角色命名三方不一、approval_limit 未建模
+- CR-0071 role-assignment SoD service+070 migration+8 測試齊備但無任何 router 暴露，僅測試直呼 service，API 端到端不可達（BROKEN）
+- Data access boundary（Q077/Q112）僅做端點層角色 gate，缺 field-level 遮罩：技師看品牌成本、品牌商看內部工資、接單前後地址分級皆未在 service 層強制
+- audit_events 無 tenant_id（多租戶 audit 隔離缺口）；報表下載 audit(BR-M19-02)缺；audit 保存期限(retention)未落地
+
+**🔻 驗證改判：**
+- `Q114/BR-M19-02`：🟡 部分 → 🟡 部分 — 狀態不變但證據被推翻兩點：(1) gap 宣稱「報表下載 audit 仍缺(grep download_audit→0)」為假陰性——export 端點實際存在 api/routers/audit_v2.py:128 export_audit_events_v2 + api/routers/audit_logs.py:129，是 role-gated(admin/ops) + cross-tenant guard + 真實 filtered count/query，非 stub；grep 字串選錯(download_audit vs export_audit)。(2) hash-chain 經查為真(067 ALTER ADD prev_hash/entry_hash 已套 dev + test_cr_0068 real-DB tamper-detection 測試)。剩餘真 gap：audit_events 無 tenant_id(service:8 明註本期不做)、retention/保存期限政策確實 0 命中(audit_log_service 無 retention/purge/TTL)。故維持 PARTIAL，但 gap 清單高估。
+- `Q026/Q042/Q077/Q112`：🟡 部分 → 🟡 部分 — 狀態不變但 gap 核心宣稱「未見 row/field-level 角色遮罩」「field-level boundary 未在 service 層強制」為實質假陰性。實際存在兩處 service/router 層欄位遮罩：(1) media_service.py:70-83 _HIDDEN_PURPOSES_BY_ROLE 依角色過濾媒體 purpose(brand_oem 不看客戶環境照)，不可見回 404 不洩漏存在性(get/list 皆套用)；(2) 成本欄位遮罩 quote_service._row_to_item(include_cost=False 時不輸出 unit_price 內部成本) 由 _COST_VISIBLE_ROLES={admin,operations_manager,tenant_admin} 在 catalog_v2:35/quote_v2/work_orders_v2:896 驅動，是真欄位 strip 非僅 flag。維持 PARTIAL 的真 gap：成本可見為單一二元 gate(技師與品牌都被擋)，未做 spec 要的『品牌成本 vs 內部工資』差異化分流；Q042 接單前/後地址分級未落地。屬較強的 PARTIAL。
+
+**🚩 假綠旗標：**
+- BR-M17-02 role-assign SoD：role_assignment_service.py(127 SOD_VIOLATION_RBAC 403)+070 DB CHECK(role_assign_dual_sign_distinct)+test_cr_0071 8 測試齊備且為 real-DB，但 service 未被任何 router 引用(grep api/routers/*.py role_assignment→0 命中，main 無 include)→ 經 API 完全不可達。SoD 邏輯與 DB 防線『存在且正確』但端到端使用者流程不可觸發，屬 plumbing-incomplete。BR-M17-02 整體仍可保 DONE_VERIFIED(refund SoD 主軸完整可達)，但 role-assign 半邊不能算端到端可用。
+- BR-M17-01：_DUAL_SIGN_THRESHOLD=100000.0 在 refund_service.py:120 為 Python 常數——惟此為 fallback；正式門檻走 config_service.get_refund_config(DB system_config jsonb) + resolve_tier 用 config thresholds[1000/5000/30000/100000]，故非 hardcode 違規(configurable 已落地)。列此僅提醒常數仍在程式碼但已非唯一來源。
+
+> **驗證註記**：逐項實查結果：(1) 兩個 DONE_VERIFIED(BR-M17-02、G013)無假綠——refund SoD 為真：002 migration 三維 SoD CHECK(initiator≠approver、executor 區別)、門檻 config-loaded(system_config DB) 非 hardcode、test_refund_sod_endpoint.py 走 real-DB(_ensure_conn+真 INSERT/DELETE)；audit hash-chain(067 已套 dev)+role-assign DB CHECK(070) 皆真。(2) 唯一端到端缺口：role_assignment_service 未掛 router=API 不可達(已列 fake_green_flags)。(3) PARTIAL 三項狀態全部維持(BR-M17-01 確無 approve 維度、角色 enum 不對齊；Q114、Q026 維持 PARTIAL)，但 Q114 與 Q026 的 gap 描述含假陰性(audit export 實存在；media+cost field 遮罩實存在於 service/router 層)——盤點低估已完成度，故 verified_completion_pct 由 62→64 微升。(4) phaseI_ready 維持 
+
+### M18 · 系統設定/主檔配置/IT維運
+
+`D6 治理/平台營運` ｜ Phase 0 ｜ **完成度 52%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+M18 的核心「runtime config 治理」（BR-M18-01）已是 codebase 中最成熟的治理引擎之一：4 張 saas.config_* 表、7 個端點、SoD 雙簽、JSON Schema 驗證、append-only audit、canary/instant rollout + rollback + 排程生效 + cron 自動推進，前端 config-governance 頁面與多支測試齊備，端到端可動，DONE_VERIFIED。但 M18 的另兩個 P0（BR-M18-02 變更流程的 rollback_note 獨立欄與正式 approval workflow、BR-M18-03 初始建置匯入工具）以及 G010 公司/分店/服務區設定、G040 IT support ticket 流程仍缺。M18 不只是 config namespace，規格要求的「主檔配置層 + IT 維運層」只完成 config 子集，故整體 PARTIAL。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M18-01 | Master configuration owner + approval（service items/price/status/SLA/templates/roles/regions 需明確 owner 與核准） | ✅ 完成 | SQL/migrations/004-config-m18.sql:54-152（4 表 config_namespace/version/rollout/audit + owner_role_codes + append-only trigger + seed 6 namespaces，registry 標 ✅done，CR-0038 §245 證 live DB config_version=63/audit=153）；api/routers/config_m18.py:1-388（7 端點 + SoD _require_sod_two:74-88）；api/services/config_m18_service.py:100-321（schema 驗證 + draft + audit）；web/src/app/admin/config-governance/page.tsx:48-119（namespace 列/建 draft/start-rollout 真接 API）；api/tests/test_config_m18.py | — |
+| BR-M18-02 | Change request process（request / owner approval / effective date / rollback note） | 🟡 部分 | effective_at 已加：SQL/migrations/062-config-effective-date.sql:5 + 排程啟用 config_m18_service.py:1023-1048 activate_due_scheduled，cron 已掛 api/main.py:134-150；rollback 端點 config_m18.py:235-260 + parent 重啟 service.py:493-571；change_request 治理表 SQL/migrations/008-pricing-rules-v2.sql:103；測試 test_cr_0059_config_effective.py | 無獨立 rollback_note 欄（回滾理由僅入 config_audit.diff）；正式 approval workflow 表 change_request_approval 明示 Phase II 省略（008 註解 line 11）；變更申請僅靠 draft+SoD，未有完整 request→approve→effective→rollback 一體流程 UI |
+| BR-M18-03 | Initial setup import（brands/models/BOM/technicians/price/regions/roles/customers/open WO 首批匯入） | ⬜ 缺 | grep bulk/csv/initial.setup/import 於 api/routers 無專屬匯入端點（命中皆為 python import 關鍵字）；api/services 無 import/seed/onboard 服務；CR-0038:115 已標 MISSING，本次盤點未見新增 | 完全無批次匯入工具或 CLI；上線前第一批主檔匯入無路徑，屬 Coding/UAT 前 P0 阻擋 |
+| G010 | 公司/分店/服務區/區域負責人/可派工範圍/假日設定 | ⬜ 缺 | grep branch/service_area/holiday 僅 technician_service.py / dispatch_service.py 散落使用，無專屬主檔表與 admin setup 端點/頁面；web/src/app/admin 無 branch/region setup 頁 | 無 central admin 多公司/分店/服務區/假日主檔設定；無區域負責人與可派工範圍維護 |
+| G011 | 服務項目與價格表主檔（含版本） | 🟡 部分 | 價格走 saas.price_rule + change_request 審計 SQL/migrations/008-pricing-rules-v2.sql；前端 web/src/app/admin/quote-catalog/page.tsx、payout-rules/page.tsx 存在 | M18 規格要求由 admin 維護並留版本之服務項目/標準工資/檢測費/車馬費/急件費/加班費主檔，部分散在 M04/M11/M12，M18 未集中為單一可治理主檔層（價格 namespace HD-04 仍 Phase II 未 seed 入 config governance） |
+| G012 | 狀態與原因代碼設定（工單狀態/異常/取消/拒單/退款原因） | 🟡 部分 | cancellation_reason_codes / technician_suspension_reasons 以 config namespace seed：004-config-m18.sql:128-146（含 applies_to enum schema） | 以 config namespace 存在但無專屬狀態/原因代碼主檔 admin UI；規格問「哪些代碼允許前線新增」未實作前線新增機制；工單狀態/拒單原因代碼未全部納管 |
+| G015 | 資料匯入與初始建置（同 BR-M18-03） | ⬜ 缺 | 與 BR-M18-03 同，無匯入工具 | 上線前匯入品牌/型號/BOM/師傅/價格/服務區/角色/現有客戶/未結工單之路徑缺 |
+| G039 | Change request process（價格/權限/狀態/SLA/模板/AI SOP 設定變更需申請/核准/生效日/回滾） | 🟡 部分 | config governance 提供 draft/SoD/effective_at/rollback（config_m18.py + 062 migration）；通知模板核准 gate SQL/migrations/071-notification-template-approval.sql + notification_template_service.py:73 approve_template | 跨 SLA/權限/AI SOP 的統一變更申請-核准-生效-回滾流程僅 config namespace 涵蓋；權限變更(roles)、AI SOP(M20) 未統一納入同一 change request 治理；無 rollback_note 與正式 approval inbox 串接 |
+| G040 | IT support ticket workflow（系統問題/帳號/資料修正/匯入錯誤建 IT 支援單） | ⬜ 缺 | grep support_ticket/it_ticket/incident 於 routers/services/migrations 全無命中 | 完全無 IT 支援工單模型與流程；資料修正僅有 data_corrections(009) 隊列，非 IT support ticket |
+| Q120/Q121-configurable | money/規則 configurable（價格/加價/退款/工資/取消費不得 hardcode） | 🟡 部分 | config namespace 已備 refund_tier_thresholds / cancellation_fee_tiers / dispatch_commission 等（004:128-146 + CR-0036 finance config test_cr_0036_finance_config.py）；read_global_value/resolve_settlement_rate_version 提供讀取 | CR-0038:180 指出 refund 5-tier thresholds 等仍部分 hardcode（紅線），雖 namespace 已建，實際各業務模組是否全面改讀 M18 config 尚未端到端驗證；ACL read caller 接入 config_m18.py:368 自述『實際 caller 接入留各模組後續波次』 |
+| notification-template | 通知模板主檔 + 核准 gate | ✅ 完成 | SQL/migrations/071-notification-template-approval.sql（notification_template 表 + 四眼 CHECK notif_template_four_eyes + seed 7 類模板）；api/services/notification_template_service.py:55-137（create/approve/send_from_template/list） | — |
+
+**關鍵缺口：**
+- BR-M18-03 初始建置匯入工具完全缺（無 bulk/CSV/initial setup import；brands/models/BOM/technicians/price/regions/roles/customers/open WO 無批次匯入）— Coding/UAT 前 P0 阻擋項
+- G040 IT support ticket workflow 完全缺（無 support_ticket/it_ticket/incident 表或端點）
+- G010 公司/分店/服務區/區域負責人/假日設定 無專屬主檔 CRUD（branch/service_area/holiday 僅散落於 technician/dispatch service，無 admin setup 頁與表）
+- BR-M18-02 缺獨立 rollback_note 欄位（回滾理由僅存於 config_audit.diff），且正式 change_request approval workflow（change_request_approval 表）明示 deferred Phase II
+- G012 狀態/原因代碼主檔無 admin 維護 UI（cancellation_reason_codes 等以 config namespace seed，但無前線可新增之代碼維護介面）
+
+**🚩 假綠旗標：**
+- Q120/Q121-configurable 雙軌假象（非假綠但需釐清）：實際取消費/退款費率由 config_service.py 讀 public.system_config（可 configurable，fallback 才用 Python DEFAULT_CANCELLATION_CONFIG / refund DEFAULTS 常數），而 migration 004 建的 M18 governance namespaces（saas.config_namespace 的 refund_tier_thresholds / cancellation_fee_tiers / cancellation_reason_codes）grep 全專案 service 層【零 caller 讀取】—— 治理層（draft/SoD/rollout/audit）與實際業務讀取路徑完全脫鉤。namespace 只 seed 不被讀，等於治理空殼。
+- BR-M18-01 的 ACL read endpoint（config_m18.py:368 GET active config）router docstring 自承『Phase 0: endpoint + cache 建好；實際 caller 接入留各模組後續波次』—— 業務模組無一接入此 endpoint，M18 governance config 對 runtime 行為目前無實際影響力（read-only 展示層）。
+
+> **驗證註記**：逐項對抗驗證結論：盤點整體誠實，無典型假綠（無 is_mock=TRUE 主檔、無 stub/None 端點殼、測試非 FakeConn 假綠）。  【兩個 DONE_VERIFIED 都站得住】 - BR-M18-01：004-config-m18.sql 真 CREATE 4 表（config_namespace/version/rollout/audit）+ append-only trigger（tg_block_mutation BEFORE UPDATE/DELETE）+ config_one_active partial unique index + seed 6 namespaces，全為真 DDL。config_m18.py 7 端點 SoD 雙閘（_require_sod_two header 檢 X-Initiator≠X-Approver→403 + config_rollout DB CHECK initiator<>approver）。test_config_m18.py 為真 @pytest.mark.component live-DB 測試，涵蓋 instant/canary rollout、SoD violation、rollback reactivates parent、ACL read 409 version mismatch、cross-te
+
+### M19 · 報表/BI/KPI
+
+`D6 治理/平台營運` ｜ Phase I (Basic) ｜ **完成度 56%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+Phase I「basic dashboard + basic counts」這層其實做得相當紮實：dashboard_service / kpi_service / operational_kpi_service / revenue_service 都是真實多層 JOIN tenant 隔離 SQL，非 mock，且有 unit/endpoint 測試（test_export_report / test_operational_kpi / test_dashboard_v2_endpoint 等）。CSV/PDF 匯出真實可動。但兩個被規格標為 P0「阻擋 coding/acceptance」的硬閘 BR-M19-01（KPI formula owner 治理物件）與 BR-M19-02（report download audit）皆未落地，且 G017 角色分流報表（師傅只看自己月結 / 品牌看品牌）完全缺。相對 CR-0038 基線（2026-06-19）無實質變化，兩個 P0 缺口仍在。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M19-01 | KPI formula ownership（每個 KPI 須有 formula owner 與穩定定義，official 前審批） | ⬜ 缺 | grep formula_owner/kpi_definition/official 於 SQL/migrations、api、web → 0。KPI 公式硬寫在 api/services/kpi_service.py:53-56 (_ratio)、169-185 (_avg_handle_minutes)、operational_kpi_service.py:78-131（FTFR/SLA 直接 SQL 算）。無治理物件、無 owner、無 official 狀態。 | 需建 kpi_definition 表（formula/owner/version/official 審批狀態機）+ KPI 變更治理流程。規格標 P0 阻擋。相對 CR-0038 基線無變化。 |
+| BR-M19-02 | Report download audit（依 role access 控管並 audit logged） | 🟡 部分 | role 控管有：api/routers/reports_export.py:26 _export_role_gate=role_required('admin','operations_manager','accountant')，reports_v2.py:29,143 相同；test_export_report.py:89-103 驗 reviewer→403。但 audit logged 缺：grep audit 於 reports_export.py/reports_kpi.py/reports_operational_kpi.py → 0；export service 未呼 audit_log_service（基建存在 api/services/audit_log_service.py 但未串）。 | role gate 有但下載稽核完全沒寫入。需在 export 端點寫 report_download_audit。規格標 P0 阻擋。相對 CR-0038 基線（標 PARTIAL）無變化。 |
+| BR-M19-03 | Management dashboard scope（涵蓋 WorkOrders/dispatch/completion/RMA/refund/AR/AP/inventory/tech performance） | 🟡 部分 | dashboard_service.py get_stats() 真實聚合 conversations/problem_cards/work_orders/token 成本（多層 tenant JOIN）；kpi_service.py funnel 涵蓋 conversations→problem_cards→work_orders→dispatched→completed + refund/warranty/dispute rate；operational_kpi_service.py 補 FTFR/SLA。dashboard_v2.py / reports_v2.py tenant-scoped。test_dashboard_v2_endpoint.py / test_cr_0088_dashboard_summary.py 存在。 | WorkOrders/dispatch/completion/RMA/refund/tech performance 已涵蓋；但 AR/AP（應收應付）、inventory（庫存）兩塊未進 default dashboard。規格標『部分』。 |
+| Q115 | 後台報表全列入（工單/派工/客訴/退款/師傅績效/月結/庫存/品牌） | 🟡 部分 | KPI 報表（reports_kpi.py + reports_v2.py）、revenue/品牌占比（revenue_service.py by_brand JOIN）、結算/月結（report_export_service.py:190-203 accounting reuse settlement_service）、customer satisfaction（reports_customer_satisfaction.py + test_customer_satisfaction.py）已有；CSV/PDF 匯出真實（report_export_service.py reportlab）。 | 師傅績效報表（technician_ranking）為 placeholder stub（_technician_ranking_to_rows 回『尚未實作』）；庫存報表未見專屬 report。 |
+| Q116/G016 | KPI 全列入（派工時間/接單率/準時率/完工率/客訴率/返修率/退款率/毛利/未收款）+ 公式 owner | 🟡 部分 | 完工率/退款率/返修率/客訴率：kpi_service.py:270-273 dispute_rates + funnel；派工準時率/到場準時率/FTFR：operational_kpi_service.py:96-131；毛利/未收款：revenue_service.py kpis（issued+paid 計營收、draft 未收）。SLA/NPS/滿意度標 notes 未算（kpi_service.py:278-283）。 | 接單率（acceptance rate）未見專門指標；多數 KPI 已算但公式 owner 治理缺（見 BR-M19-01）。SLA 閾值用 env 常數（operational_kpi_service.py:30-31）非 DB configurable。 |
+| G017 | 報表角色分流（師傅只看自己月結/品牌看品牌/會計看財務/主管看全部）+ 下載 audit | ⬜ 缺 | grep technician.*only/own.*settlement/brand.*scope/role.*filter 於 export/kpi service/router → 0。export 僅 flat role gate（admin/operations_manager/accountant），KPI/revenue 端點僅 tenant 隔離無 per-role 資料 scoping。 | 無『師傅只看自己、品牌只看品牌』的資料層分流；audit 同 BR-M19-02 缺。權限矩陣（Accounting 角色）未在報表層落實。 |
+| scheduled_report | 報表排程（週/月/季 email 發送） | 🔴 斷鏈 | scheduled_report_service.py + scheduled_reports_v2.py CRUD code 存在（create_schedule 寫 saas.scheduled_report）；但 029-scheduled-reports.sql 檔存在（SQL/migrations/029-scheduled-reports.sql）卻未登錄 MIGRATION_REGISTRY.md（grep ^\| 029 → 0）→ 表未套。cron 發送 worker docstring 自承『由 roadmap 另立 backend cron worker』未實作。 | migration 029 套用 + 登 registry；cron 發送 worker。Phase I 非必需但 code 目前斷鏈。 |
+| technician_ranking | 師傅績效排行報表 | 🔶 假資料 | report_export_service.py:114-119 _technician_ranking_to_rows() 回 stub『尚未實作技師排行 service，請待後續 endpoint 補上』；web/src/app/admin/reports/technician-ranking/page.tsx:118 TODO[E7x] client-side 從 tenantPath('/technicians') 列表算，無後端 ranking service。 | 後端技師排行聚合 service（完工數/平均星等/綜合評分 SQL）。 |
+| export-csv-pdf | 報表匯出（CSV/PDF） | ✅ 完成 | report_export_service.py CSV stream（generator 行內）+ PDF（reportlab STSong-Light CID 中文字型）真實生成；reports_export.py + reports_v2.py 雙掛端點；test_export_report.py 驗 KPI/revenue CSV 200、PDF magic bytes %PDF、422、401、reviewer 403。 | —（技師排行匯出為 stub 屬該功能缺，非匯出機制缺） |
+
+**關鍵缺口：**
+- BR-M19-01（P0，阻擋）：KPI formula owner / official 審批治理物件完全缺。公式硬寫在 kpi_service.py / operational_kpi_service.py 的 SQL（grep formula_owner / kpi_definition → 0），無 kpi_definition 表、無 owner 欄、無 official 狀態機。
+- BR-M19-02（P0，阻擋）：report download audit 缺。reports_export.py / reports_v2.py 有 role_required 三角色閘門且有 403 測試，但匯出時零 audit 寫入（grep audit in export → 0），雖然 audit_log_service.py 基建已存在卻未被 export 呼叫。
+- G017：報表角色分流缺。export 只有 flat role gate（admin/operations_manager/accountant），無「師傅只看自己月結 / 品牌只看品牌 / 會計看財務」的 per-role 資料 scoping。
+- scheduled_report CRUD（029）BROKEN：029-scheduled-reports.sql 檔存在但未登錄 MIGRATION_REGISTRY → saas.scheduled_report 表未套；且 cron 發送 worker 明示 roadmap 未做（service docstring 自承）。
+- technician_ranking 報表為 placeholder：report_export_service._technician_ranking_to_rows() 回 stub 列『尚未實作技師排行 service』；前端頁面改用 client-side 從 /technicians 列表計算（page.tsx:118 TODO[E7x]）。
+
+**🚩 假綠旗標：**
+- Q116/G016 evidence overclaims 毛利（gross margin）: revenue_service.py 完全沒有 margin/cost/profit 計算（grep margin\|毛利\|cost\|成本\|profit → 0 hit）。_query_kpis 只回 month_revenue / average_invoice_amount / paid_rate / outstanding_amount / outstanding_count。『未收款』(outstanding=draft invoices) 為真，但『毛利』為假綠未實作。
+- Q115 / export-csv-pdf: technician_ranking 為 placeholder stub — _technician_ranking_to_rows() (report_export_service.py:114-119) 硬回 [['','尚未實作技師排行 service...','','']]，meta subtitle 也標『service 尚未實作』。test_export_report.py:48-53 test_export_technician_ranking_csv_stub 斷言此 stub 回 200（測試 docstring 第6行明寫『stub csv』）——這是『綠燈測試蓋在 stub 之上』，CSV 機制過但內容是佔位。
+- 庫存報表（inventory）在 Q115 完全無專屬 report；VALID_REPORT_TYPES 只有 kpi/revenue/technician_ranking/accounting，無 inventory。
+- BR-M19-02: audit_log_service.py 為真實 hash-chain 稽核服務（_compute_entry_hash / verify_audit_chain / INSERT），但 reports_export.py / reports_v2.py 完全未 import 或呼叫它（只用 report_export_service）——下載稽核基建存在但零串接，P0 阻擋項屬實未做。
+
+> **驗證註記**：逐項對抗式查核（Read/Grep 實證，非憑空）：  BR-M19-02 (PARTIAL) — 維持。role gate 真：reports_export.py:26 _export_role_gate=role_required('admin','operations_manager','accountant')，端點 Depends 掛上 (:50)。audit 缺：grep audit 於 4 個 report router → 0；report_export_service.py 內 audit 只出現在 docstring 註解(:18)非實作；audit_log_service.py 雖為真實 hash-chain service 但 export 路徑零呼叫。盤點正確。  BR-M19-03 (PARTIAL) — 維持。dashboard_service.py 真實 SQL 聚合 conversations/problem_cards/work_orders + technician_service/work_order_service JOIN；grep 確認無 AR/AP/inventory。gap 描述準確。  Q115 (PARTIAL) — 維持。KPI/revenue/accounting(reuse settlement_service)/cust
+
+### M20 · AI 營運/知識庫/品質治理
+
+`D6 治理/平台營運` ｜ Phase I (Guardrails) ｜ **完成度 22%** ｜ 總評狀態 🟡 部分 ｜ Phase I 就緒：❌
+
+M20 治理「物件層」有真實進展——SOP 版本核准（雙人初審+家族覆核+不可篡改 hash ledger，074 已套 dev）是這次相對 CR-0038 基線最實質的升級，已從 PARTIAL 走向接近可用。但 Phase I 三根支柱中最關鍵的兩根仍是假綠：AI forbidden-decision 硬閘（BR-M20-02）只有 prompt/SOP 軟約束，agent loop 零 output guardrail；AI 品質回饋與 decision trace（BR-M20-03/FR-0050）表與唯讀 dashboard 齊備但零生產者、migration 022/023 仍 pending-apply、測試全 DB-mock 非端到端。整體端到端可動率低。
+
+| ID | 項目 | 狀態 | 證據（file:line）| 缺口 |
+|---|---|---|---|---|
+| BR-M20-01 | AI knowledge owner + version approval（SOP/brand FAQ/price range/escalation/forbidden 需 owner 與版本核准） | 🟡 部分 | SOP 物件治理已成熟：api/routers/sops_v2.py（雙人初審 sopDualReview approve/reject + 家族覆核 sopFamilyReview，狀態機 pending_review→approved→adopted）+ api/routers/sop_drafts.py:107-148（管理員初審 approve/reject + approver_id）+ migration 074-family-review-ledger.sql（hash chain 不可篡改 ledger，registry 標 🟢 idempotent ✅ 2026-06-20 套 dev）+ 前端 web/src/app/knowledge-base/sop-drafts、family-reviews。雙審 distinct(family≠admin) service 層強制。 | owner+version 治理只涵蓋 SOP draft / case_entry / family review；brand FAQ、price range、escalation rules、forbidden actions 這四類知識物件無對應治理物件（無 owner/version/approval 欄位與 endpoint）。migration 016-sop-v2-list-expand 仍 🟡 pending-apply。 |
+| BR-M20-02 | AI forbidden decisions 硬閘（不可 final quote / approve refund / decide warranty liability / promise legal-safety / modify settlement） | 🔶 假資料 | 僅 prompt/SOP 軟性指示：agent/lockcore/skills/locksmith-cs-sop/references/warranty.md:15「不可承諾保固話術」、references/_common/dispatch.md:113-114「不可承諾具體時間/費用，一律轉真人報價」。工具白名單 agent/lockcore/app_config.py:20 CS_TOOL_ALLOWLIST 只開唯讀 + transfer_to_human（間接限制）。migration 022 有 decision_type='guardrail_block' 欄位。 | agent loop（agent/lockcore/agent/loop.py / runner.py）無任何 output guardrail：grep loop.py 只有內部 StateTraceEntry 狀態機 trace，零 output-level forbidden-decision 攔截、零 guardrail_block 寫入。靠 prompt 軟約束，無硬閘 = 不符合 Phase I「AI guardrails: forbidden decisions」必做。Coding Gate「AI allowed/forbidden action tests approved… |
+| BR-M20-03 | AI quality feedback 閉環（human 修正 AI triage/quote/answer 的原因回寫 quality review queue） | 🔶 假資料 | queue 表+服務+唯讀前端都在：migration 023-sop-feedback.sql（saas.sop_feedback 5 來源 customer_thumbs/technician_onsite/rma_finding/ai_eval/csm_manual + sentiment + score）、api/services/sop_feedback_service.py:36 log_feedback 真實 INSERT、api/routers/sop_feedback_v2.py、前端 web/src/app/admin/sop-feedback/page.tsx。RMA 品質路徑 migration 024 + api/services/rma_quality_service.py + web/src/app/admin/rma-quality。 | 純讀無生產：sop-feedback 前端只 GET（page.tsx:53-59 list），無 CSM 修正 AI 時觸發回寫的 producer——grep 全 api/ 無任何呼叫方呼叫 log_feedback（除 router 自身）；無「客服修正 AI 分診/報價/回答→自動入 queue」入口。migration 023 仍 🟡 pending-apply。 |
+| FR-0050-trace | AI decision trace store（每個 AI 行為可回溯 PRD source / charter rule / 業主裁決） | 🔴 斷鏈 | 表 schema 完整 migration 022-ai-decision-trace.sql（saas.ai_decision_trace 5 decision_type + 三軸 traceability + 6 indexes）+ api/routers/ai_governance_trace_v2.py（POST log / GET list / GET summary）+ api/services/ai_governance_trace_service.py:242行 + 前端 web/src/app/admin/ai-governance/page.tsx（GET traces + summary dashboard）。 | (1) migration 022 registry 標 🟡 pending-apply = 表未套用到任何 DB；(2) agent runtime 零生產者：grep agent/ 無任何 POST /ai-governance/traces 呼叫、loop.py 不寫 trace store；(3) 全 api/ 無呼叫方呼叫 log_decision（除 router）；(4) 測試 test_ai_governance_trace.py:1「DB mocked」用 FakeConn 非端到端。表存在 + 零真實資料 + 表未套 = BROKEN。 |
+| G018 | AI 知識庫 owner（SOP/FAQ/價格範圍/不能回答清單/轉真人規則需 owner 與版本核准） | 🟡 部分 | 同 BR-M20-01：SOP 與 case_entry 有完整 owner/approval/version 治理（sops_v2 雙審 + 074 ledger）。知識庫前端 web/src/app/knowledge-base（cases/manuals/sop-drafts/family-reviews）。 | FAQ / 價格範圍 / 不能回答清單 / 轉真人規則 四類無治理物件；且業主裁決項（客服主管 vs 品牌共維）spec 標『業務確認』未決。 |
+| G019 | AI 不可決策清單（不可 final price/退款核准/保固責任/法律安全承諾/改月結） | 🔶 假資料 | 同 BR-M20-02：清單以文字寫在 SOP skill references；工具白名單限唯讀 + transfer_to_human。 | 無 runtime 硬閘執行此清單；無 configurable 不可決策清單治理物件（hardcode 在 prompt/SOP 文字，非可配置規則表）。 |
+| G020 | AI 品質回饋閉環（客服修正回寫原因作為 SOP/知識更新來源） | 🔶 假資料 | 同 BR-M20-03：sop_feedback queue 表+服務+唯讀 dashboard 存在。 | 無『修正→回寫→更新 SOP』閉環的生產端與審核流；feedback 入 queue 後無自動觸發 SOP 更新 pipeline（sop_draft_service.py:366 target_case_id『更新既有案例 pipeline 尚未開放』）。 |
+| AUX-sop-performance | SOP 績效 metrics（取代前端 placeholder 開發中） | 🔴 斷鏈 ⚠️驗證下修自 PARTIAL | api/services/sop_performance_service.py:3「提供 SOP 績效真實 metrics 取代前端 placeholder開發中」+ api/routers/sop_performance_v2.py + 前端 web/src/app/admin/knowledge-base/sop-performance。 | 依賴 SOP feedback / adoption 資料；底層 023 pending-apply 且無生產者，metrics 實際無資料來源。測試亦為 mock。非 Phase I 核心 scope。 |
+| PERM-ai-ops-admin | AI Ops Admin 權限矩陣（知識庫/SOP/測試案例/轉真人；不可改財務/派工正式規則） | 🟡 部分 ⚠️驗證下修自 PARTIAL | router 用 core.deps OPS_ROLES / role_required / require_tenant + _guard_tenant 跨租戶防護（ai_governance_trace_v2.py:25-29）。 | spec 標『必須確認精確 can-view/can-edit/can-approve 矩陣』；AI Ops Admin 角色細粒度權限（限 M20/M03/M16 read/testing、禁改財務派工）未見專屬定義，沿用通用 OPS_ROLES。 |
+
+**關鍵缺口：**
+- BR-M20-02 forbidden-decision 無 runtime 硬閘：agent/lockcore/agent/loop.py 零 output guardrail，僅靠 SOP prompt 文字軟約束，違反 Phase I『AI guardrails: forbidden decisions』必做，Coding Gate『forbidden action tests approved』未達成
+- FR-0050 AI decision trace 三斷鏈：migration 022 pending-apply（表未套）+ agent runtime 零生產者（無 POST /ai-governance/traces）+ 測試 DB-mock → BROKEN，dashboard 永遠空
+- BR-M20-03/G020 品質回饋閉環只有讀沒有寫：sop-feedback 前端僅 GET，grep 全 api/ 無 log_feedback producer，無『客服修正 AI→自動入 queue』入口；migration 023 pending-apply
+- 知識治理範圍偏窄：owner+version approval 只涵蓋 SOP/case_entry；brand FAQ、price range、escalation rules、forbidden actions 四類無治理物件（BR-M20-01/G018/G019）
+- 不可決策清單 hardcode 在 prompt/SOP 文字而非 configurable 規則表，無法版本核准與 runtime 執行
+
+**🔻 驗證改判：**
+- `AUX-sop-performance`：🟡 部分 → 🔴 斷鏈 — service sop_performance_service.py 查 sop_drafts.deleted_at（migration 016 仍 🟡 pending-apply，未套 dev/prod）→ 對真實 schema 會在 WHERE deleted_at IS NULL 報錯。唯一測試 test_sop_performance.py 第1行明寫『DB mocked』、用 FakeConn 餵固定 rows，非真端到端。盤點 evidence 自承『底層 023 pending-apply 且無生產者，metrics 實際無資料來源、測試亦為 mock』—— 符合 BROKEN（code 在但依賴 migration 未套 + 假綠 mock 測試），不應停在 PARTIAL。
+- `PERM-ai-ops-admin`：🟡 部分 → 🟡 部分 — 狀態維持 PARTIAL 但須加重註記：無專屬 AI Ops Admin 角色，沿用 core/deps.py:156 OPS_ROLES = FULL_ACCESS_ROLES+operations_manager，而 OPS_ROLES 註解明寫涵蓋 accounting/billing/pricing/vendor/結算 寫入 + 衍生 DISPATCH_ROLES 派工寫入。spec 紅線『AI Ops Admin 不可改財務/派工正式規則』實際被違反（同一角色集放行財務+派工寫），不只是『矩陣未確認』。屬未達成的硬約束。
+
+**🚩 假綠旗標：**
+- AUX-sop-performance：test_sop_performance.py 第1行 docstring 自承『DB mocked』，class FakeConn 餵預設 rows，6 個測試全 mock，無真 DB 聚合驗證 → 假綠
+- AUX-sop-performance：sop_performance_service.py 依賴 sop_drafts.deleted_at（migration 016 🟡 pending-apply 未套），對真 schema 會 fail，但盤點標 PARTIAL 看似可動 → 假綠
+- PERM-ai-ops-admin：宣稱『跨租戶防護 + role_required + OPS_ROLES』看似有權限治理，但 OPS_ROLES 同時放行財務/派工寫入，spec 要求的『禁改財務派工』反而未守 → 治理外觀掩蓋紅線缺口
+- knowledge-base version 治理外觀：kb_v2.py 對 FAQ/manual 回傳 version:None / effective_date:None（第77、97、106 行 TODO 自承欄位不存在），呈現有 version 欄位實為佔位 None
+
+> **驗證註記**：逐項查證結果：(1) BR-M20-01 / G018 — PARTIAL 正確，不降。SOP 雙審+家族覆核 ledger 為真實實作：family_review_service.py 有 sha256 hash-chain（_fr_entry_hash / verify_family_review_ledger 重算驗篡改）、sops_v2.py 真 router（dual/family/adopt 帶 approver_id、distinct reviewer 強制）、family_reviews 表在 Schema_v2_extensions.sql:342 + 074 ADD COLUMN prev_hash/entry_hash（registry 標 ✅ 2026-06-20 套 dev）、test_cr_0079_sop_dual_review.py 為 @pytest.mark.component 真 DB 測試（assert _ensure_conn() + 真 INSERT/DELETE sop_drafts/family_reviews，非 FakeConn）。gap 屬實：FAQ/價格範圍/不能回答清單/轉真人規則四類無治理物件（grep brand_faq/price_range/forbidden_action/escalation_rule 全 0 命
+
+## 7. 優先補完建議（依 Phase I 關鍵路徑排序）
+
+以下依「擋住 Phase I launch 的程度」排序，非完整 backlog：
+
+| 優先 | 模組 | 缺口 | 為何擋 launch |
+|---|---|---|---|
+| P0 | M11 | 金流核心：payment 表、AR/退款 gate、拆帳/退款門檻 configurable 化 | 付款閘擋派工；無真金流則整條 Service-to-Cash 收不了錢 |
+| P0 | M01 | 全渠道 Case/Inquiry 實體 + 報價前建案 gate + first SLA clock | 主流程最前端斷點，案件來源/責任無法追蹤 |
+| P0 | M04 | 客戶報價固定文案 + 同意 gate；內外成本拆項；report 有效期分級 | 報價未經客戶同意即可往下，商務風險 |
+| P1 | M06 | 派工 matching 規則 + accept/reject/timeout SLA + 改派 reason | 派工無法控 SLA 與師傅責任 |
+| P1 | M03 | ProblemCard 三層必填 gate + 照片/影片 gate + completeness 影響派工 | 缺資訊即可報價/派工，下游連鎖出錯 |
+| P1 | M09 | media 完整度 gate + line_gateway 接收圖片/影片（現多被丟棄） | 客訴/會計/保固無證據 |
+| P2 | M02 | Device 主檔表 + Site Group；各渠道進線自動建客 | 保固/RMA/重複服務無法連回正確資料 |
+| P2 | M15 | exception return path + approval inbox 串接各模組 | 異常留在 chat 不可控 |
+| P3 | M12/M13/M19/M20 | AP 月結 export、RMA 責任矩陣、KPI、AI guardrails 補強 | 規格列 Manual First，可後補但需收尾 |
+
+## 8. 與 CR-0038 基線（2026-06-19）的變化
+
+- **進步**：客戶主檔 v2 CRUD + 去重（M02 BR-M02-01 由 MISSING→PARTIAL）、報價引擎骨架（M04）、完工證據鏈與簽名上傳（M08/M09，近期 CR-0078 簽名 purpose 對齊 + 完工照片 ≥3 硬閘）、ProblemCard per-issue 分卡（CR-0096）、AI handoff 兜底（CR-0097）。
+- **未動**：M01 入口建案、金流 M11 核心、money 規則 configurable 化、Device/Site 主檔——仍是最大結構性缺口。
+- **DONE_VERIFIED 比率**：CR-0038 ≈9% → 本次 ≈17%，方向正確但距 Phase I launch 仍有顯著距離。
+
+---
+
+*本報告由 40-agent 對抗式驗證 workflow 產出，所有狀態均附 file:line 證據；如與其他完成度文件衝突，以實查證據為準並回報具體 ID。*
