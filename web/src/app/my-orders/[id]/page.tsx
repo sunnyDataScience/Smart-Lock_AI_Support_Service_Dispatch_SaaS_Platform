@@ -134,14 +134,20 @@ export default function MyOrderDetailPage() {
     try {
       // 1) 先送雙簽名 → 建 digital_signatures 紀錄。完工硬閘 _signature_exists 認的是
       //    這個（customer 簽名紀錄），非 /media 上傳的簽名圖。與 /signature 頁同一端點。
-      await api.post(
-        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/signature`),
-        {
-          customer_signature: custSig,
-          technician_signature: techSig,
-          signed_at: new Date().toISOString(),
-        },
-      );
+      //    冪等：若已完整簽署（後端回 409 STATE_CONFLICT），紀錄本就存在 → 視為成功、續送完工。
+      try {
+        await api.post(
+          tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/signature`),
+          {
+            customer_signature: custSig,
+            technician_signature: techSig,
+            signed_at: new Date().toISOString(),
+          },
+        );
+      } catch (sigErr) {
+        if (!(sigErr instanceof ApiError && sigErr.status === 409)) throw sigErr;
+        // 409 = 已完整簽署；digital_signatures 已存在，完工硬閘可過 → 不阻擋，續送完工。
+      }
       // 2) CR-0039 正規完工硬閘 /onsite/completion（照片≥3 / 簽名紀錄存在）。
       //    signature_evidence_id 後端僅寫進稽核 summary、不驗證，傳標記即可。
       await api.post<{ work_order_id: string; completed_at: string | null }>(
