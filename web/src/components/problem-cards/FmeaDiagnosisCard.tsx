@@ -1,63 +1,13 @@
 "use client";
 
-import {
-  CircleAlert,
-  Zap,
-  TriangleAlert,
-  CircleX,
-  ArrowRight,
-} from "lucide-react";
-
-interface FmeaNode {
-  icon: React.ElementType;
-  label: string;
-  text: string;
-  color: string;
-  bg: string;
-  borderColor: string;
-}
-
-const nodes: FmeaNode[] = [
-  {
-    icon: CircleAlert,
-    label: "Symptom",
-    text: "輸入密碼後無法解鎖，螢幕顯示E3",
-    color: "#2563EB",
-    bg: "#DBEAFE",
-    borderColor: "#2563EB",
-  },
-  {
-    icon: Zap,
-    label: "Failure",
-    text: "離合器模組機械傳動失效",
-    color: "#6366F1",
-    bg: "#E0E7FF",
-    borderColor: "#6366F1",
-  },
-  {
-    icon: TriangleAlert,
-    label: "Failure Mode",
-    text: "離合器齒輪磨損導致傳動力不足",
-    color: "#D97706",
-    bg: "#FEF3C7",
-    borderColor: "#F59E0B",
-  },
-  {
-    icon: CircleX,
-    label: "Defect",
-    text: "離合器組件製造缺陷，需更換",
-    color: "#EF4444",
-    bg: "#FEE2E2",
-    borderColor: "#EF4444",
-  },
-];
-
-const arrows = ["推斷", "分析", "根因"];
-
+// FMEA 分層信心診斷引擎為已刪的 Belief-Augmented ReAct 殘影、後端無實作，且 spec 01
+// (M20 AI Ops)明令「不做 AI auto diagnosis」——詳見
+// docs/_audit/diagnosis-engine-doc-trace-20260625.md（source-of-truth 衝突待業主裁決）。
+// 原本寫死的「離合器」假診斷鏈已移除，改誠實空狀態，避免 demo 誤導成「AI 已完成診斷」。
 export default function FmeaDiagnosisCard() {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-      <div className="flex flex-col gap-5">
+      <div className="flex flex-col gap-3">
         <div>
           <h2 className="text-[18px] font-bold text-[var(--text-primary)]">
             FMEA 診斷推理鏈
@@ -66,42 +16,10 @@ export default function FmeaDiagnosisCard() {
             Symptom → Failure → Failure Mode → Defect 四層推理過程
           </p>
         </div>
-
-        <div className="flex w-full items-center justify-center">
-          {nodes.map((node, i) => (
-            <div key={node.label} className="flex items-center">
-              <div
-                className="flex w-[140px] flex-col items-center gap-[6px] rounded-xl p-3 px-4"
-                style={{
-                  backgroundColor: node.bg,
-                  border: `2px solid ${node.borderColor}`,
-                }}
-              >
-                <node.icon
-                  className="h-6 w-6"
-                  style={{ color: node.color }}
-                />
-                <span
-                  className="text-center text-[10px] font-semibold"
-                  style={{ color: node.color }}
-                >
-                  {node.label}
-                </span>
-                <span className="text-center text-[11px] text-[var(--text-primary)]">
-                  {node.text}
-                </span>
-              </div>
-
-              {i < nodes.length - 1 && (
-                <div className="flex w-10 flex-col items-center gap-[2px]">
-                  <ArrowRight className="h-5 w-5 text-[var(--text-secondary)]" />
-                  <span className="text-center text-[9px] text-[var(--text-secondary)]">
-                    {arrows[i]}
-                  </span>
-                </div>
-              )}
-            </div>
-          ))}
+        <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)]">
+          <span className="text-[13px] text-[var(--text-disabled)]">
+            尚未產生 FMEA 診斷鏈（診斷引擎未啟用）
+          </span>
         </div>
       </div>
     </div>

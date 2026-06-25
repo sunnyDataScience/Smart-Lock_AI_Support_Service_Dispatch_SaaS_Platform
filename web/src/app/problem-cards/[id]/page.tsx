@@ -506,7 +506,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
             <div className="flex items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
               <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[#64748B]" />
               <span className="text-[13px] leading-[1.6] text-[#475569]">
-                以下 FMEA 診斷鏈、解決時間軸與關聯對話為示意，待診斷引擎模組接入後將顯示真實資料。
+                FMEA 診斷鏈與解決嘗試歷程為示意（信心診斷引擎未實作，見 _audit 文件）；關聯對話與工單資訊為即時資料。
               </span>
             </div>
 
