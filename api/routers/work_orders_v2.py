@@ -612,9 +612,13 @@ async def submit_work_order_signature_v2(
         gps_lng=body.gps_lng,
         signed_at=body.signed_at.isoformat() if body.signed_at else None,
     )
+    # response_model=ApiResponseGeneric 要求 data 欄；signature_service 回的是
+    # {success, message, request_id}（無 data）→ 直接 return 會在成功路徑炸
+    # ResponseValidationError（500，瀏覽器顯示 Load failed）。包進 data 對齊契約。
+    payload = {"data": result, "message": result.get("message")}
     if idem is not None:
-        await idem.save(200, result)
-    return result
+        await idem.save(200, payload)
+    return payload
 
 
 @router.post(
