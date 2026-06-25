@@ -510,7 +510,7 @@
         "loadFailed": "Failed to load work order: {error}",
         "loadingOrder": "Loading…"
       },
-      "infoBanner": "Problem-card summary, customer media, and timeline are live data; SLA timeline, conversation, completion report, and exceptions are placeholders pending the SLA / completion-report modules.",
+      "infoBanner": "Work order info, SLA progress, history, conversation & media, completion report and exception records are all live data; only the device panel (battery / connectivity / last activity) is illustrative, pending smart-lock telemetry integration.",
       "sla": {
         "create": "Created",
         "dispatch": "Dispatched",
@@ -766,7 +766,7 @@
       },
       "info": {
         "title": "Notice",
-        "banner": "Problem-card summary, customer media, and the work-order timeline are live data; the SLA timeline, conversation thread, completion report, and exceptions are placeholders until the SLA / completion-report modules are wired in."
+        "banner": "Work order info, SLA progress, history, conversation & media, completion report and exception records are all live data; only the device panel (battery / connectivity / last activity) is illustrative, pending smart-lock telemetry integration."
       },
       "toast": {
         "accepted": "Dispatch accepted",
