@@ -217,6 +217,29 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
+// Session 失效（access + refresh 皆過期/無效）→ 清 token 並導去對應入口的登入頁。
+// 為何需要：AuthGuard 只驗「token 存在」不驗「是否過期」，隔夜後過期 token 仍會放行頁面，
+// 頁面拿過期 token 一路 401（refresh 也失敗）就白屏。在 API 層統一兜底，任何 portal 皆適用。
+function loginPathForCurrentLocation(): string {
+  if (typeof window === "undefined") return "/login";
+  const p = window.location.pathname;
+  if (p.startsWith("/vendor")) return "/vendor-login";
+  // 技師入口路由（與 TechBottomNav 一致）
+  if (/^\/(home|pool|my-orders|account|tech-login)(\/|$)/.test(p)) return "/tech-login";
+  return "/login";
+}
+
+let sessionExpiredHandled = false;
+function handleSessionExpired(): void {
+  if (typeof window === "undefined" || sessionExpiredHandled) return;
+  sessionExpiredHandled = true; // 並發 401 只導一次（full nav 後模組重載自動歸零）
+  auth.clear();
+  const target = loginPathForCurrentLocation();
+  if (window.location.pathname !== target) {
+    window.location.replace(target); // replace：不在歷史留下已失效的死頁
+  }
+}
+
 async function rawRequest<T>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   path: string,
@@ -256,6 +279,7 @@ async function rawRequest<T>(
       if (newToken) (init.headers as Record<string, string>)["Authorization"] = `Bearer ${newToken}`;
       res = await fetch(buildUrl(path, options.query), init);
     }
+    if (res.status === 401) handleSessionExpired(); // 刷新失敗/仍 401 → session 失效，導登入頁
   }
 
   if (res.status === 204) return undefined as T;
@@ -320,6 +344,7 @@ async function uploadMultipart<T>(
       if (newToken) headers["Authorization"] = `Bearer ${newToken}`;
       res = await fetch(buildUrl(path), { method: "POST", headers, body: formData });
     }
+    if (res.status === 401) handleSessionExpired();
   }
 
   const contentType = res.headers.get("content-type") ?? "";
@@ -351,6 +376,7 @@ async function downloadBlob(
       if (newToken) headers["Authorization"] = `Bearer ${newToken}`;
       res = await fetch(buildUrl(path, opts?.query), { method: "GET", headers });
     }
+    if (res.status === 401) handleSessionExpired();
   }
 
   if (!res.ok) {
@@ -413,6 +439,7 @@ async function downloadBlobPost(
       if (newToken) (init.headers as Record<string, string>)["Authorization"] = `Bearer ${newToken}`;
       res = await fetch(buildUrl(path), init);
     }
+    if (res.status === 401) handleSessionExpired();
   }
 
   if (!res.ok) {
