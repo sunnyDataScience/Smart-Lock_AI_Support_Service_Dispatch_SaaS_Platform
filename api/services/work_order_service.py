@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import re
@@ -132,6 +133,11 @@ def _wo_row_to_dict(row: tuple) -> dict:
         out["warranty_expiry_date"] = row[35].isoformat()
     if len(row) > 36 and row[36] is not None:
         out["teaching_note"] = row[36]
+    # CR-0100：完工乾淨摘要（37）+ 功能測試逐項結果（38；jsonb，psycopg 已 decode 成 list）
+    if len(row) > 37 and row[37] is not None:
+        out["completion_summary"] = row[37]
+    if len(row) > 38 and row[38]:
+        out["function_tests"] = row[38]
     return out
 
 
@@ -151,7 +157,9 @@ _WO_SELECT = (
     "wo.customer_name, wo.customer_phone, wo.dealer, wo.install_date, "
     "wo.rain_exposure, wo.special_door_surcharge, wo.payment_method, "
     # CR-0047（index 35）：保固到期日；CR-0050（index 36）：教學紀錄
-    "wo.warranty_expiry_date, wo.teaching_note"
+    "wo.warranty_expiry_date, wo.teaching_note, "
+    # CR-0100（index 37/38）：完工乾淨摘要 + 功能測試逐項結果
+    "wo.completion_summary, wo.function_tests"
 )
 
 _WO_JOIN = (
@@ -265,6 +273,36 @@ async def list_work_order_pool(*, tenant_id: str) -> dict:
     return {"items": items, "next_cursor": None, "has_more": False}
 
 
+# CR-0100 SLA 政策：三級時數（high/medium/low），SLA 計時起點＝created_at（M18 config
+# sla_policy 治理，不寫死；emergency 4h 留未來）。sla_deadline 不落欄，讀時 computed。
+_SLA_POLICY_DEFAULTS = {
+    "hours_by_urgency": {"high": 8, "medium": 24, "low": 48},
+    "clock_start": "created_at",
+}
+
+
+async def _compute_sla_deadline(created_at_iso: str | None, urgency: str | None) -> str | None:
+    """SLA deadline = created_at + hours_by_urgency[urgency]（缺政策/時間 → None）。"""
+    if not created_at_iso or not urgency:
+        return None
+    from datetime import datetime, timedelta
+
+    from services import config_m18_service
+
+    policy = dict(_SLA_POLICY_DEFAULTS)
+    cfg = await config_m18_service.read_global_value(namespace="sla_policy")
+    if cfg:
+        policy.update(cfg)
+    hours = (policy.get("hours_by_urgency") or {}).get(urgency)
+    if hours is None:
+        return None
+    try:
+        base = datetime.fromisoformat(created_at_iso)
+        return (base + timedelta(hours=float(hours))).isoformat()
+    except (ValueError, TypeError):
+        return None
+
+
 async def get_order(*, tenant_id: str, wo_id: str) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -277,7 +315,12 @@ async def get_order(*, tenant_id: str, wo_id: str) -> dict:
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "Work order not found", 404)
-    return _wo_row_to_dict(row)
+    out = _wo_row_to_dict(row)
+    # CR-0100：SLA deadline computed（單筆詳情用；列表視圖不需倒數，省一次 config 讀取）
+    sla = await _compute_sla_deadline(out.get("created_at"), out.get("urgency"))
+    if sla:
+        out["sla_deadline"] = sla
+    return out
 
 
 def _map_service_category(pc_category: str | None) -> str:
@@ -936,6 +979,7 @@ async def complete_order(
     teaching_note: str | None = None,
     materials_used: str | None = None,
     payment_proof: str | None = None,
+    function_tests: list | None = None,
 ) -> dict:
     """accepted | in_progress → completed, set completed_at = NOW (auto-fill started_at).
 
@@ -951,6 +995,8 @@ async def complete_order(
             f"Cannot complete work order in status '{current}'; expected one of {sorted(_COMPLETE_FROM)}",
             409,
         )
+    # CR-0100 B0：原始技師摘要（gate override 會在 summary 前綴稽核註記，此處留乾淨版落 completion_summary）
+    clean_summary = summary.strip() if summary and summary.strip() else None
     # CR-0041 / BR-M15-03：high_risk_hold 擋完工（含 override，須先 resolve 異常解除 hold）
     await _assert_not_high_risk_hold(wo_id)
     # CR-0039 完工硬閘 — 通過回（可能被 override 註記的）summary，違反 → 422
@@ -991,12 +1037,17 @@ async def complete_order(
         "  teaching_note = COALESCE(%s, teaching_note), "
         "  materials_used = COALESCE(%s, materials_used), "
         "  payment_proof = COALESCE(%s, payment_proof), "
+        # CR-0100：完工乾淨摘要（B0）+ 功能測試逐項結果（B1；空則保留既有）
+        "  completion_summary = COALESCE(%s, completion_summary), "
+        "  function_tests = COALESCE(%s::jsonb, function_tests), "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
         (summary, final_price,
          (teaching_note.strip() if teaching_note and teaching_note.strip() else None),
          (materials_used.strip() if materials_used and materials_used.strip() else None),
          (payment_proof.strip() if payment_proof and payment_proof.strip() else None),
+         clean_summary,
+         (json.dumps(function_tests) if function_tests else None),
          wo_id),
     )
     await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)

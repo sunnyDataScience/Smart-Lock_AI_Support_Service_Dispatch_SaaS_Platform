@@ -519,6 +519,7 @@
         "complete": "完工",
         "confirm": "確認",
         "remaining": "剩餘 {time}",
+        "overdue": "逾時 {time}",
         "stage": {
           "created": "建立",
           "dispatched": "派工",
@@ -809,7 +810,14 @@
         "notCompleted": "尚未完工",
         "statusLabel": "完工狀態",
         "finalAmountLabel": "實收金額",
-        "detailNote": "詳細施工摘要與功能測試結果待後端補欄位後顯示"
+        "summaryLabel": "施工摘要",
+        "noSummary": "（無施工摘要）",
+        "functionTestsLabel": "功能測試",
+        "testResult": {
+          "pass": "通過",
+          "fail": "失敗",
+          "na": "不適用"
+        }
       },
       "completeDialog": {
         "title": "標記完工",

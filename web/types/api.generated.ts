@@ -1910,6 +1910,12 @@ export interface components {
              * @description CR-0047 保固到期日（由 serial/購買日自動算）
              */
             warranty_expiry_date?: string | null;
+            /** @description CR-0100 完工乾淨摘要（技師 notes 抽出） */
+            completion_summary?: string | null;
+            /** @description CR-0100 功能測試逐項結果 [{key,result}]，result∈pass/fail/na */
+            function_tests?: { key: string; result: "pass" | "fail" | "na" }[] | null;
+            /** @description CR-0100 SLA deadline（computed：created_at + sla_policy[urgency]） */
+            sla_deadline?: string | null;
         };
         WorkOrderEnvelope: components["schemas"]["ApiResponseGeneric"] & {
             data?: components["schemas"]["WorkOrder"];

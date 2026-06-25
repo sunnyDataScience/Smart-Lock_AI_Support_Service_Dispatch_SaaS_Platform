@@ -1,8 +1,10 @@
 ---
 title: "CR-0100 — 工單詳情頁 B 類後端欄位（SLA deadline + 完工摘要 + 功能測試）"
-status: draft
+status: active
 tier: 4-exploration
 created: 2026-06-25
+decided: 2026-06-25
+implemented: 2026-06-25
 owner: 啟恆 / Sunny 裁決
 trigger: API contract（WorkOrder envelope 新欄位 + completion 端點）+ DB schema（migration）+ Domain model（SLA 政策、功能測試）
 related:
@@ -64,15 +66,15 @@ related:
 
 無新模組/邊界。SLA 政策沿用 M18 config 機制；function_tests/summary 落既有 work_orders 表。
 
-## 8. 🛑 Human Decisions Required（待業主裁決）
+## 8. Human Decisions Required（✅ 業主 2026-06-25 已裁決）
 
-| # | 決策 | 選項 / 建議 |
+| # | 決策 | ✅ 業主裁決 |
 |---|---|---|
-| **1** | **SLA 計時起點** | 建議 `created_at`（工單建立起算，最直覺）。替代：派工時間 / 排程時間。 |
-| **2** | **四級 vs 三級對齊** ⚠️ | 系統 `urgency` 實際只有 **3 級（low / medium / high）**，與你說的「四級」不符。建議二選一：<br>(a) **三級對齊**：high=8h、medium=24h、low=48h，「緊急 4h」保留給未來 emergency 旗標；<br>(b) **沿用四級但補 emergency**：先加一個 emergency 級（high→8h、medium→24h、low→48h、emergency→4h），需技師/派工端能設 emergency。 |
-| **3** | **功能測試項目清單** | 建議預設 6 項（可勾 pass / fail / N/A）：指紋、密碼、卡片(RFID)、App/藍牙、機械鑰匙、電池電壓。請增刪。 |
-| **4** | **功能測試是否為完工硬閘** | 建議**否**（選填，不擋完工，避免又卡關）。與 CR-0039 三道硬閘（照片≥3 / 簽名 / serial）脫鉤。 |
-| **5** | **completion_summary 來源** | 建議：completion 的 `notes` 直接落 `completion_summary`（乾淨），`service_report` 維持稽核串不變。確認即可。 |
+| **1** | **SLA 計時起點** | **`created_at`**（採建議）。 |
+| **2** | **四級 vs 三級對齊** | **三級對齊**：high=8h / medium=24h / low=48h；「緊急 4h」保留給未來 emergency 旗標。 |
+| **3** | **功能測試項目清單** | **預設 6 項**：指紋、密碼、卡片(RFID)、App/藍牙、機械鑰匙、電池電壓。 |
+| **4** | **功能測試是否為完工硬閘** | **否**（選填，不擋完工）。 |
+| **5** | **completion_summary 來源** | completion `notes` 直接落 `completion_summary`（乾淨欄），`service_report` 稽核串不變。 |
 
 ## 9. Suggested Implementation Order（待 §8 後）
 
@@ -97,6 +99,7 @@ related:
 
 ## 12. Sign-off
 
-- [ ] 業主裁決 §8 五項
-- [ ] 依 §9 實作
-- [ ] 測試 + 部署（api migration 079 + web）
+- [x] 業主裁決 §8 五項（2026-06-25）
+- [x] 依 §9 實作（branch `feat/wo-detail-b-fields`）：migration 079 套 dev、service/契約/model、技師端勾選 UI、admin 顯示（SLA 倒數 + 摘要 + 功能測試）
+- [x] 測試：test_cr_0100_b_fields 8 passed + 完工/簽名回歸 91 passed；E2E playwright 驗證 admin 顯示（剩餘 23h57m / 摘要 / 功能測試失敗·不適用）
+- [ ] 部署 prod（api migration 079 比照 077/078 先備份 + api/web 重部署）— 待業主授權

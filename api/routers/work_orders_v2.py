@@ -34,6 +34,8 @@ Operational 雜項（reschedule / delay / material-request / door-check 等）
 
 from __future__ import annotations
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Path, Query, Response
 from pydantic import BaseModel, Field
 
@@ -719,6 +721,13 @@ class _ArrivalEventRequest(BaseModel):
     gps: _ArrivalGps = Field(..., description="GPS 到場座標")
 
 
+class _FunctionTestResult(BaseModel):
+    """CR-0100 功能測試逐項結果（技師完工時填）。result ∈ pass/fail/na。"""
+
+    key: str = Field(..., min_length=1, max_length=40, description="測項代碼，如 fingerprint")
+    result: Literal["pass", "fail", "na"] = Field(..., description="通過 / 失敗 / 不適用")
+
+
 class _CompletionSubmitRequest(BaseModel):
     """FR-0009 完工送簽（signature evidence + photo evidence）。
 
@@ -731,6 +740,10 @@ class _CompletionSubmitRequest(BaseModel):
     photo_evidence_ids: list[str] = Field(..., min_length=1, description="完工照片媒體 ID 清單（至少 1 張）")
     notes: str | None = Field(default=None, max_length=1000, description="備註（選填）")
     teaching_note: str | None = Field(default=None, max_length=1000, description="教學紀錄（BR-M08-03 完工套件，選填）")
+    # CR-0100：功能測試逐項結果（選填，不擋完工硬閘）
+    function_tests: list[_FunctionTestResult] | None = Field(
+        default=None, description="功能測試逐項結果（指紋/密碼/卡片/App/鑰匙/電池…，選填）"
+    )
 
 
 @router.post(
@@ -814,6 +827,10 @@ async def onsite_completion_v2(
         signature_evidence_id=body.signature_evidence_id,
         is_override=False,
         teaching_note=body.teaching_note,  # CR-0050 BR-M08-03 完工套件
+        # CR-0100：功能測試逐項結果（選填，落 work_orders.function_tests jsonb）
+        function_tests=(
+            [t.model_dump() for t in body.function_tests] if body.function_tests else None
+        ),
     )
     payload = {
         "work_order_id": order.get("id"),

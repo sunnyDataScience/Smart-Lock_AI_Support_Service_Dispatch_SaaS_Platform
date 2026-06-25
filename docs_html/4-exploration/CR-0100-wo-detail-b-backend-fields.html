@@ -127,52 +127,46 @@ array、落 jsonb、envelope 回傳、非法 result 值 422。</li>
 <h2 id="7-affected-architecture">7. Affected Architecture</h2>
 <p>無新模組/邊界。SLA 政策沿用 M18 config 機制；function_tests/summary
 落既有 work_orders 表。</p>
-<h2 id="8-stop_sign-human-decisions-required待業主裁決">8. 🛑 Human
-Decisions Required（待業主裁決）</h2>
+<h2
+id="8-human-decisions-requiredwhite_check_mark-業主-2026-06-25-已裁決">8.
+Human Decisions Required（✅ 業主 2026-06-25 已裁決）</h2>
 <table>
 <thead>
 <tr>
 <th>#</th>
 <th>決策</th>
-<th>選項 / 建議</th>
+<th>✅ 業主裁決</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>1</strong></td>
 <td><strong>SLA 計時起點</strong></td>
-<td>建議 <code>created_at</code>（工單建立起算，最直覺）。替代：派工時間
-/ 排程時間。</td>
+<td><strong><code>created_at</code></strong>（採建議）。</td>
 </tr>
 <tr>
 <td><strong>2</strong></td>
-<td><strong>四級 vs 三級對齊</strong> ⚠️</td>
-<td>系統 <code>urgency</code> 實際只有 <strong>3 級（low / medium /
-high）</strong>，與你說的「四級」不符。建議二選一：<br>(a)
-<strong>三級對齊</strong>：high=8h、medium=24h、low=48h，「緊急
-4h」保留給未來 emergency 旗標；<br>(b) <strong>沿用四級但補
-emergency</strong>：先加一個 emergency
-級（high→8h、medium→24h、low→48h、emergency→4h），需技師/派工端能設
-emergency。</td>
+<td><strong>四級 vs 三級對齊</strong></td>
+<td><strong>三級對齊</strong>：high=8h / medium=24h / low=48h；「緊急
+4h」保留給未來 emergency 旗標。</td>
 </tr>
 <tr>
 <td><strong>3</strong></td>
 <td><strong>功能測試項目清單</strong></td>
-<td>建議預設 6 項（可勾 pass / fail /
-N/A）：指紋、密碼、卡片(RFID)、App/藍牙、機械鑰匙、電池電壓。請增刪。</td>
+<td><strong>預設 6
+項</strong>：指紋、密碼、卡片(RFID)、App/藍牙、機械鑰匙、電池電壓。</td>
 </tr>
 <tr>
 <td><strong>4</strong></td>
 <td><strong>功能測試是否為完工硬閘</strong></td>
-<td>建議<strong>否</strong>（選填，不擋完工，避免又卡關）。與 CR-0039
-三道硬閘（照片≥3 / 簽名 / serial）脫鉤。</td>
+<td><strong>否</strong>（選填，不擋完工）。</td>
 </tr>
 <tr>
 <td><strong>5</strong></td>
 <td><strong>completion_summary 來源</strong></td>
-<td>建議：completion 的 <code>notes</code> 直接落
-<code>completion_summary</code>（乾淨），<code>service_report</code>
-維持稽核串不變。確認即可。</td>
+<td>completion <code>notes</code> 直接落
+<code>completion_summary</code>（乾淨欄），<code>service_report</code>
+稽核串不變。</td>
 </tr>
 </tbody>
 </table>
@@ -213,9 +207,17 @@ builder。</li>
 </ul>
 <h2 id="12-sign-off">12. Sign-off</h2>
 <ul class="task-list">
-<li><label><input type="checkbox" />業主裁決 §8 五項</label></li>
-<li><label><input type="checkbox" />依 §9 實作</label></li>
-<li><label><input type="checkbox" />測試 + 部署（api migration 079 +
-web）</label></li>
+<li><label><input type="checkbox" checked="" />業主裁決 §8
+五項（2026-06-25）</label></li>
+<li><label><input type="checkbox" checked="" />依 §9 實作（branch
+<code>feat/wo-detail-b-fields</code>）：migration 079 套
+dev、service/契約/model、技師端勾選 UI、admin 顯示（SLA 倒數 + 摘要 +
+功能測試）</label></li>
+<li><label><input type="checkbox"
+checked="" />測試：test_cr_0100_b_fields 8 passed + 完工/簽名回歸 91
+passed；E2E playwright 驗證 admin 顯示（剩餘 23h57m / 摘要 /
+功能測試失敗·不適用）</label></li>
+<li><label><input type="checkbox" />部署 prod（api migration 079 比照
+077/078 先備份 + api/web 重部署）— 待業主授權</label></li>
 </ul>
 </div></div></body></html>

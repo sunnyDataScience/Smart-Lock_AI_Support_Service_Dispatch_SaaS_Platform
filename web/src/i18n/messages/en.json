@@ -519,6 +519,7 @@
         "complete": "Completed",
         "confirm": "Confirmed",
         "remaining": "Remaining {time}",
+        "overdue": "Overdue {time}",
         "stage": {
           "created": "Created",
           "dispatched": "Dispatched",
@@ -809,7 +810,14 @@
         "notCompleted": "Not yet completed",
         "statusLabel": "Completion status",
         "finalAmountLabel": "Final amount",
-        "detailNote": "Detailed work summary and function-test results will appear once backend fields are added"
+        "summaryLabel": "Work summary",
+        "noSummary": "(no work summary)",
+        "functionTestsLabel": "Function tests",
+        "testResult": {
+          "pass": "Pass",
+          "fail": "Fail",
+          "na": "N/A"
+        }
       },
       "completeDialog": {
         "title": "Mark completed",

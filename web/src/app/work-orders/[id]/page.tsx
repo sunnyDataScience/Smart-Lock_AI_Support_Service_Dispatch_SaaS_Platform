@@ -234,6 +234,28 @@ function SlaTimeline({ order }: { order: WorkOrder | null }) {
       ? 100
       : Math.round((lastReached / (SLA_STAGES.length - 1)) * 100);
 
+  // CR-0100：SLA 倒數/逾時（用 computed sla_deadline；終態不顯示倒數）。
+  const slaBadge = (() => {
+    const terminal = [
+      "completed",
+      "billed",
+      "paid",
+      "closed",
+      "cancelled",
+    ].includes(order.status);
+    if (terminal || !order.sla_deadline) return null;
+    const ms = new Date(order.sla_deadline).getTime();
+    if (Number.isNaN(ms)) return null;
+    const diff = ms - Date.now();
+    const overdue = diff < 0;
+    const mins = Math.floor(Math.abs(diff) / 60000);
+    const dur = `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, "0")}m`;
+    return {
+      overdue,
+      label: overdue ? t("overdue", { time: dur }) : t("remaining", { time: dur }),
+    };
+  })();
+
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-[var(--bg-page)] p-3">
       <div className="flex items-center justify-between">
@@ -273,6 +295,15 @@ function SlaTimeline({ order }: { order: WorkOrder | null }) {
           );
         })}
       </div>
+      {slaBadge && (
+        <div className="flex justify-end">
+          <span
+            className={`text-[12px] font-semibold ${slaBadge.overdue ? "text-[var(--error)]" : "text-[var(--warning)]"}`}
+          >
+            {slaBadge.label}
+          </span>
+        </div>
+      )}
       <div className="h-2 w-full rounded bg-[var(--border)]">
         <div
           className="h-2 rounded bg-[var(--primary)] transition-all"
@@ -916,6 +947,22 @@ function ConversationThread({ conversationId }: { conversationId?: string }) {
    增 function_tests），屬 B 類全端工，待 CIA。此處先呈現真實的完工時間/摘要/
    實收金額，未完工則誠實顯示空狀態，不再顯示寫死的假測試結果。 */
 
+// CR-0100 功能測試測項中文標籤（後端存 key，前端顯示；對齊技師端勾選清單）。
+const FUNCTION_TEST_LABEL: Record<string, string> = {
+  fingerprint: "指紋解鎖",
+  password: "密碼解鎖",
+  card: "卡片(RFID)",
+  app: "App/藍牙",
+  mechanical_key: "機械鑰匙",
+  battery: "電池電壓",
+};
+
+const FUNCTION_TEST_RESULT_STYLE: Record<string, { symbol: string; color: string }> = {
+  pass: { symbol: "✓", color: "var(--success)" },
+  fail: { symbol: "✗", color: "var(--error)" },
+  na: { symbol: "—", color: "var(--text-disabled)" },
+};
+
 function CompletionReport({ order }: { order: WorkOrder | null }) {
   const t = useTranslations("pages.workOrderDetail.completion");
   if (!order) return null;
@@ -965,11 +1012,51 @@ function CompletionReport({ order }: { order: WorkOrder | null }) {
               </span>
             </div>
           )}
-          {/* 詳細施工摘要（service_report）與功能測試逐項結果未在 WorkOrder
-              envelope 上，待後端補欄位（B 類）後顯示，不再以假資料填充。 */}
-          <p className="text-[11px] text-[var(--text-disabled)]">
-            {t("detailNote")}
-          </p>
+          {/* CR-0100 施工摘要（completion_summary，技師 notes 抽出） */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[13px] font-semibold text-[var(--text-secondary)]">
+              {t("summaryLabel")}
+            </span>
+            <p className="whitespace-pre-wrap text-[13px] text-[var(--text-primary)]">
+              {order.completion_summary?.trim()
+                ? order.completion_summary
+                : t("noSummary")}
+            </p>
+          </div>
+          {/* CR-0100 功能測試逐項結果 */}
+          {order.function_tests && order.function_tests.length > 0 && (
+            <div className="flex flex-col gap-1">
+              <span className="text-[13px] font-semibold text-[var(--text-secondary)]">
+                {t("functionTestsLabel")}
+              </span>
+              <div className="flex flex-col gap-[6px]">
+                {order.function_tests.map((ft) => {
+                  const style =
+                    FUNCTION_TEST_RESULT_STYLE[ft.result] ??
+                    FUNCTION_TEST_RESULT_STYLE.na;
+                  return (
+                    <div
+                      key={ft.key}
+                      className="flex items-center gap-2 text-[13px]"
+                    >
+                      <span
+                        className="w-4 text-center font-bold"
+                        style={{ color: style.color }}
+                      >
+                        {style.symbol}
+                      </span>
+                      <span className="text-[var(--text-primary)]">
+                        {FUNCTION_TEST_LABEL[ft.key] ?? ft.key}
+                      </span>
+                      <span className="text-[12px] text-[var(--text-disabled)]">
+                        {t(`testResult.${ft.result}`)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

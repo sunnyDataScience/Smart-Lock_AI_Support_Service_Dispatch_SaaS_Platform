@@ -209,6 +209,14 @@ class WorkOrder(BaseModel):
         None, description='CR-0047 保固到期日 ISO date（由 serial/購買日自動算）'
     )
     teaching_note: str | None = Field(None, description='CR-0050 BR-M08-03 完工套件：技師教學紀錄')
+    # CR-0100 工單詳情頁 B 類後端欄位
+    completion_summary: str | None = Field(None, description='完工乾淨摘要（技師 notes 抽出）')
+    function_tests: list[dict] | None = Field(
+        None, description='功能測試逐項結果 [{key,result}]，result∈pass/fail/na'
+    )
+    sla_deadline: AwareDatetime | None = Field(
+        None, description='SLA deadline（computed：created_at + sla_policy[urgency]）'
+    )
 
 
 class WorkOrderEnvelope(ApiResponseGeneric):

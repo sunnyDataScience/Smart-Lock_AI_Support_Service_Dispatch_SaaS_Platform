@@ -29,6 +29,26 @@ const TERMINAL_STATUSES: WorkOrder["status"][] = [
   "cancelled",
 ];
 
+// CR-0100：完工功能測試 6 項（業主裁決預設）。技師逐項勾 pass/fail/na（選填）。
+const FUNCTION_TEST_ITEMS: ReadonlyArray<{ key: string; label: string }> = [
+  { key: "fingerprint", label: "指紋解鎖" },
+  { key: "password", label: "密碼解鎖" },
+  { key: "card", label: "卡片(RFID)" },
+  { key: "app", label: "App/藍牙" },
+  { key: "mechanical_key", label: "機械鑰匙" },
+  { key: "battery", label: "電池電壓" },
+];
+
+const FUNCTION_TEST_RESULTS: ReadonlyArray<{
+  value: "pass" | "fail" | "na";
+  label: string;
+  color: string;
+}> = [
+  { value: "pass", label: "通過", color: "var(--success, #16a34a)" },
+  { value: "fail", label: "失敗", color: "var(--error, #dc2626)" },
+  { value: "na", label: "不適用", color: "var(--text-disabled, #94a3b8)" },
+];
+
 function formatErr(e: unknown): string {
   return e instanceof ApiError
     ? `${e.errorCode} (${e.status})：${e.message}`
@@ -66,6 +86,10 @@ export default function MyOrderDetailPage() {
   // 紀錄（完工硬閘 _signature_exists 認的是這個，非 /media 上傳的圖）。base64 dataURL。
   const [techSig, setTechSig] = useState("");
   const [custSig, setCustSig] = useState("");
+  // CR-0100：功能測試逐項結果（選填，不擋完工）。key → pass/fail/na。
+  const [funcTests, setFuncTests] = useState<
+    Record<string, "pass" | "fail" | "na">
+  >({});
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState(false);
@@ -156,6 +180,11 @@ export default function MyOrderDetailPage() {
           signature_evidence_id: "onsite-signature",
           photo_evidence_ids: completionPhotos.map((p) => p.id),
           notes: summary.trim(),
+          // CR-0100：功能測試逐項結果（選填，已勾的才送）。
+          function_tests: Object.entries(funcTests).map(([key, result]) => ({
+            key,
+            result,
+          })),
         },
       );
       setSubmitOk(true);
@@ -163,6 +192,7 @@ export default function MyOrderDetailPage() {
       setCompletionPhotos([]);
       setTechSig("");
       setCustSig("");
+      setFuncTests({});
       // onsite/completion 回 {work_order_id, completed_at}（非 envelope）→ refetch 取最新狀態
       await fetchOrder();
     } catch (e) {
@@ -486,6 +516,61 @@ export default function MyOrderDetailPage() {
                 >
                   {tForm("photosCounter", { n: completionPhotos.length })}
                 </span>
+              </div>
+
+              {/* CR-0100 功能測試逐項勾選（選填，不擋完工） */}
+              <div className="flex flex-col gap-2">
+                <span className="text-[12px] font-medium text-[var(--text-secondary)]">
+                  功能測試（選填）
+                </span>
+                <div className="flex flex-col gap-2">
+                  {FUNCTION_TEST_ITEMS.map((item) => (
+                    <div
+                      key={item.key}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="text-[13px] text-[var(--text-primary)]">
+                        {item.label}
+                      </span>
+                      <div className="flex gap-1">
+                        {FUNCTION_TEST_RESULTS.map((r) => {
+                          const selected = funcTests[item.key] === r.value;
+                          return (
+                            <button
+                              key={r.value}
+                              type="button"
+                              onClick={() =>
+                                setFuncTests((prev) => {
+                                  if (prev[item.key] === r.value) {
+                                    const next = { ...prev };
+                                    delete next[item.key];
+                                    return next;
+                                  }
+                                  return { ...prev, [item.key]: r.value };
+                                })
+                              }
+                              className="h-8 rounded-md border px-2 text-[12px] font-medium"
+                              style={
+                                selected
+                                  ? {
+                                      backgroundColor: r.color,
+                                      color: "#fff",
+                                      borderColor: r.color,
+                                    }
+                                  : {
+                                      borderColor: "var(--border)",
+                                      color: "var(--text-secondary)",
+                                    }
+                              }
+                            >
+                              {r.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* CR-0039 完工簽名（雙 canvas 簽名 → /signature 建 digital_signatures；硬閘必填）*/}
