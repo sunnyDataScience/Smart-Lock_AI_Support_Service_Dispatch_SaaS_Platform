@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import FmeaDiagnosisCard from "@/components/problem-cards/FmeaDiagnosisCard";
 import LinkedConversationCard from "@/components/problem-cards/LinkedConversationCard";
@@ -75,6 +76,7 @@ interface PageProps {
 
 export default function ProblemCardDetailPage({ params }: PageProps) {
   const { id } = use(params);
+  const router = useRouter();
   const [card, setCard] = useState<ProblemCard | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -285,7 +287,12 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       );
       const woId = res.data?.id;
       setConvertModalOpen(false);
-      setActionToast(woId ? `工單已建立：${woId.slice(0, 8)}` : "工單已建立");
+      setActionToast(woId ? `工單已建立：${woId.slice(0, 8)}，前往工單` : "工單已建立");
+      // 開單成功後直接導向新工單頁：給明確成功回饋（原本只跳 toast、停在問題卡頁、
+      // 開單鈕還在 → 看起來像沒成功），並讓客服接續派工。
+      if (woId) {
+        router.push(`/work-orders/${encodeURIComponent(woId)}`);
+      }
     } catch (e) {
       // CR-0042：解析結構化 422 — 缺漏欄位 / 重複客戶交給 ConvertModal 顯示；其餘走 generic
       if (e instanceof ApiError && e.status === 422 && e.errorCode === "INCOMPLETE_PROBLEM_CARD") {
