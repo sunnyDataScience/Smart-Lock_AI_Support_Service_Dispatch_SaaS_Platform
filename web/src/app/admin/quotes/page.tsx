@@ -80,6 +80,13 @@ export default function QuotesPage() {
   const [copied, setCopied] = useState(false);
   const [invoiceMsg, setInvoiceMsg] = useState<string | null>(null);
   const [quotes, setQuotes] = useState<QuoteListItem[]>([]); // CR-0095 報價列表
+  // CR-0101（業主裁決：誠實版·零後端）：選定工單時帶入其問題卡 context（品牌/型號/症狀），
+  // 報價時免切回問題卡翻。自動「建議定價品項」需推薦引擎（未實作），故不猜、只帶 context。
+  const [pcContext, setPcContext] = useState<{
+    brand?: string;
+    model?: string;
+    symptom?: string;
+  } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -112,6 +119,43 @@ export default function QuotesPage() {
       }
     })();
   }, []);
+
+  // CR-0101：選定工單 → 抓 WO（品牌/型號）+ 其問題卡（症狀）顯示 context（報價參考）。
+  useEffect(() => {
+    const id = woId.trim();
+    if (!id) {
+      setPcContext(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const woRes = await api.get<{
+          data: { brand?: string; model?: string; problem_card_id?: string } | null;
+        }>(tenantPath(`/work-orders/${encodeURIComponent(id)}`));
+        const wo = woRes.data;
+        let symptom = "";
+        if (wo?.problem_card_id) {
+          try {
+            const pcRes = await api.get<{ data: { symptom?: string } | null }>(
+              tenantPath(`/problem-cards/${encodeURIComponent(wo.problem_card_id)}`),
+            );
+            symptom = pcRes.data?.symptom ?? "";
+          } catch {
+            /* 問題卡撈不到不阻斷報價工作台 */
+          }
+        }
+        if (!cancelled) {
+          setPcContext({ brand: wo?.brand, model: wo?.model, symptom });
+        }
+      } catch {
+        if (!cancelled) setPcContext(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [woId]);
 
   function fail(e: unknown) {
     setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
@@ -274,6 +318,32 @@ export default function QuotesPage() {
               {t("createDraft")}
             </button>
           </div>
+
+          {/* CR-0101：依問題卡帶入 context（品牌/型號/症狀），報價時免切回問題卡翻 */}
+          {pcContext && (pcContext.brand || pcContext.model || pcContext.symptom) && (
+            <div className="mb-6 flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] p-4">
+              <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
+                依問題卡（報價參考）
+              </span>
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-[13px]">
+                {(pcContext.brand || pcContext.model) && (
+                  <span className="text-[var(--text-primary)]">
+                    <span className="text-[var(--text-disabled)]">裝置：</span>
+                    {[pcContext.brand, pcContext.model].filter(Boolean).join(" ")}
+                  </span>
+                )}
+                {pcContext.symptom && (
+                  <span className="text-[var(--text-primary)]">
+                    <span className="text-[var(--text-disabled)]">症狀：</span>
+                    {pcContext.symptom}
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-[var(--text-disabled)]">
+                依此問題從下方挑選報價品項；自動定價品項建議需推薦引擎（未實作），故此處僅帶入問題參考、不自動猜價。
+              </span>
+            </div>
+          )}
 
           {/* CR-0095 報價列表 — 點選即開，免手貼 UUID（顯示友善公單號 TP）*/}
           {quotes.length > 0 && (

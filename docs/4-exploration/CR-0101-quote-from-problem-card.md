@@ -1,8 +1,9 @@
 ---
 title: "CR-0101 — 報價先行：從問題卡建立報價草稿（quote-from-problem-card）"
-status: draft
+status: closed-not-pursued
 tier: 4-exploration
 created: 2026-06-25
+decided: 2026-06-26
 owner: 啟恆 / Sunny 裁決
 trigger: User/Business flow（報價時點前移）+ API contract（報價建立入口）+ Domain model（報價可掛問題卡）+ DB schema（quote_line_items.work_order_id 鬆綁）
 related:
@@ -14,7 +15,11 @@ related:
 
 # CR-0101 — 報價先行：從問題卡建立報價草稿
 
-> 🛑 **draft —— 觸及 User flow / API contract / Domain / DB schema，動 code 前須業主裁決 §8。** 業主 2026-06-25 測試時提出「報價單想根據問題卡建草稿目前做不到」，裁決開 CIA 評估。
+> ✅ **業主裁決（2026-06-26）：不採「報價先行」（§8-1 否決取代/並存）。** 改在**工單報價頁加「依問題卡帶入 context」**（誠實版·零後端）—— 選定工單時帶入其問題卡的品牌/型號/症狀供報價參考，免切回問題卡翻；品項仍由客服從 catalog 挑（真實價）。原因：(1) `add_line` 強制選 catalog 品項、不能自由文字列；(2) 無症狀→品項推薦引擎、catalog 分類對不上問題卡 service_category → 「自動建議定價明細」零後端做不到，硬做＝猜測假資料。本 CIA 保留為**決策軌跡**（為何不做報價先行）。
+>
+> 實作：branch `docs/cr-0101-quote-from-pc-cia`（含本決策文件 + `web/src/app/admin/quotes/page.tsx` 帶入 context）。**真正的「報價先行」與「品項自動建議」若日後要做，§4–§9 的分析仍適用**，屆時須重啟裁決 §8。
+
+> （以下為原 CIA 分析，保留供日後若重啟「報價先行/品項建議」參考。）
 
 ## 1. Change Statement
 
@@ -107,6 +112,6 @@ M04 Quote 模組：報價父實體由「work_order 專屬」變「work_order 或
 
 ## 12. Sign-off
 
-- [ ] 業主裁決 §8 五項（重點 §8-1 取代/並存、§8-2 正典）
-- [ ] 依 §9 實作
-- [ ] 更新流程文件 + traceability + 測試
+- [x] 業主裁決 §8-1（2026-06-26）：**否決報價先行**，改 WO 報價頁「依問題卡帶入 context」（誠實版·零後端）
+- [x] 實作替代方案：`web/src/app/admin/quotes/page.tsx` 選工單時帶入問題卡 品牌/型號/症狀 context（不動 DB/contract/流程）
+- [ ] §9（報價先行全套）**未執行**（業主否決）；若日後重啟須重走 §8
