@@ -625,8 +625,9 @@
         }
       },
       "exception": {
-        "title": "Exception records (placeholder)",
-        "placeholder": "Placeholder: work-order exception events will appear here"
+        "title": "Exception records",
+        "loading": "Loading…",
+        "empty": "No exception records for this work order"
       },
       "completeModal": {
         "title": "Mark complete",
@@ -802,15 +803,13 @@
           "symptom": "Symptom"
         }
       },
-      "completionMock": {
-        "title": "Completion report (placeholder)",
-        "submittedAt": "Submitted: —",
-        "functionTests": "Function tests",
-        "tests": {
-          "fingerprint": "Fingerprint unlock",
-          "password": "Password unlock",
-          "battery": "Battery voltage (placeholder)"
-        }
+      "completion": {
+        "title": "Completion report",
+        "submittedAt": "Submitted: {time}",
+        "notCompleted": "Not yet completed",
+        "statusLabel": "Completion status",
+        "finalAmountLabel": "Final amount",
+        "detailNote": "Detailed work summary and function-test results will appear once backend fields are added"
       },
       "completeDialog": {
         "title": "Mark completed",

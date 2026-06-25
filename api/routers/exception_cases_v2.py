@@ -70,19 +70,24 @@ async def open_exception_case(
 @router.get(
     "/tenants/{tenantId}/exception-cases",
     operation_id="listExceptionCases",
-    summary="列異常案件 v2（status/severity filter）",
+    summary="列異常案件 v2（status/severity/work_order_id filter）",
     tags=["M15 Exception"],
 )
 async def list_exception_cases(
     tenantId: str = Path(...),
     status: str | None = Query(default=None),
     severity: str | None = Query(default=None),
+    work_order_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     _guard(user, tenantId)
     return await exception_service.list_exceptions(
-        tenant_id=tenantId, status=status, severity=severity, limit=limit
+        tenant_id=tenantId,
+        status=status,
+        severity=severity,
+        work_order_id=work_order_id,
+        limit=limit,
     )
 
 

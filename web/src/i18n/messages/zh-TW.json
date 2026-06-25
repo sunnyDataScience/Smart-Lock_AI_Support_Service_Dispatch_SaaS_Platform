@@ -625,8 +625,9 @@
         }
       },
       "exception": {
-        "title": "異常記錄（示意）",
-        "placeholder": "示意：工單異常事件將顯示於此"
+        "title": "異常記錄",
+        "loading": "載入中…",
+        "empty": "此工單無異常記錄"
       },
       "completeModal": {
         "title": "標記完工",
@@ -802,15 +803,13 @@
           "symptom": "症狀描述"
         }
       },
-      "completionMock": {
-        "title": "完工報告（示意）",
-        "submittedAt": "提交時間：—",
-        "functionTests": "功能測試",
-        "tests": {
-          "fingerprint": "指紋解鎖",
-          "password": "密碼解鎖",
-          "battery": "電池電壓 (示意)"
-        }
+      "completion": {
+        "title": "完工報告",
+        "submittedAt": "提交時間：{time}",
+        "notCompleted": "尚未完工",
+        "statusLabel": "完工狀態",
+        "finalAmountLabel": "實收金額",
+        "detailNote": "詳細施工摘要與功能測試結果待後端補欄位後顯示"
       },
       "completeDialog": {
         "title": "標記完工",

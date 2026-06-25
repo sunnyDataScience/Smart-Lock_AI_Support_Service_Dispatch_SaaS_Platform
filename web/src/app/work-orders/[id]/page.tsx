@@ -10,8 +10,6 @@ import {
   ExternalLink,
   Lock,
   ClipboardCheck,
-  CircleCheck,
-  CircleX,
   TriangleAlert,
   Info,
   CheckCircle2,
@@ -171,51 +169,115 @@ const PC_STATUS_TONE: Record<
   resolved: { color: "#10B981", bg: "#D1FAE5" },
 };
 
-/* ── SLA Timeline (mock) ─────────────────────────── */
+/* ── SLA Timeline（由 order.status + 時間戳衍生，非寫死）──────── */
 
-type SlaNode = { key: string; time?: string; done?: boolean; active?: boolean };
+// WorkOrderStatus 生命週期排序（cancelled 另計為 -1）。
+const STATUS_RANK: Record<string, number> = {
+  inquiring: 0,
+  qualified: 1,
+  quoted: 2,
+  negotiating: 3,
+  accepted: 4,
+  scheduled: 5,
+  dispatching: 6,
+  assigned: 7,
+  en_route: 8,
+  arrived: 9,
+  in_progress: 10,
+  completed: 11,
+  billed: 12,
+  paid: 13,
+  closed: 14,
+};
 
-const SLA_NODES: readonly SlaNode[] = [
-  { key: "created", time: "09:00", done: true },
-  { key: "dispatched", time: "09:15", done: true },
-  { key: "accepted", time: "09:32", done: true },
-  { key: "inProgress", time: "10:45", active: true },
-  { key: "completed" },
-  { key: "confirmed" },
+// 6 個 SLA 節點 → 抵達該階段所需的最低 status rank + 對應的真實時間欄位。
+const SLA_STAGES: ReadonlyArray<{
+  key: string;
+  threshold: number;
+  timeField?: keyof WorkOrder;
+}> = [
+  { key: "created", threshold: 0, timeField: "created_at" },
+  { key: "dispatched", threshold: 5, timeField: "scheduled_time" },
+  { key: "accepted", threshold: 7 },
+  { key: "inProgress", threshold: 10, timeField: "actual_arrival" },
+  { key: "completed", threshold: 11, timeField: "completion_time" },
+  { key: "confirmed", threshold: 13 },
 ];
 
-function SlaTimeline() {
+/** 緊湊時間格式 MM/DD HH:mm（SLA 節點下方小字用）。 */
+function slaTimeShort(iso?: string | null): string | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return undefined;
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${mm}/${dd} ${hh}:${mi}`;
+}
+
+function SlaTimeline({ order }: { order: WorkOrder | null }) {
   const t = useTranslations("pages.workOrderDetail.sla");
+  if (!order) return null;
+
+  const isCancelled = order.status === "cancelled";
+  const rank = STATUS_RANK[order.status] ?? -1;
+  const fullyDone = rank >= STATUS_RANK.closed; // 已結案 → 全綠
+  // 已抵達的最高節點 index（決定 active 與進度條）。
+  const lastReached = Math.max(
+    0,
+    ...SLA_STAGES.map((s, i) => (rank >= s.threshold ? i : -1)),
+  );
+  const pct = isCancelled
+    ? 0
+    : fullyDone
+      ? 100
+      : Math.round((lastReached / (SLA_STAGES.length - 1)) * 100);
+
   return (
     <div className="flex flex-col gap-2 rounded-lg bg-[var(--bg-page)] p-3">
       <div className="flex items-center justify-between">
-        {SLA_NODES.map((n) => (
-          <div key={n.key} className="flex flex-col items-center gap-1">
-            {n.active ? (
-              <div className="h-4 w-4 rounded-full border-[3px] border-[var(--primary)] bg-white" />
-            ) : n.done ? (
-              <div className="h-3 w-3 rounded-full bg-[var(--success)]" />
-            ) : (
-              <div className="h-3 w-3 rounded-full border-[1.5px] border-[#CBD5E1] bg-white" />
-            )}
-            <span
-              className={`text-[11px] ${n.active ? "font-semibold text-[var(--primary)]" : "text-[var(--text-secondary)]"}`}
-            >
-              {t(`stage.${n.key}`)}
-            </span>
-            {n.time && (
-              <span className="text-[10px] text-[var(--text-disabled)]">
-                {n.time}
+        {SLA_STAGES.map((s, i) => {
+          // 取消：僅「建立」算完成，其餘 pending。
+          const done = isCancelled
+            ? i === 0
+            : fullyDone
+              ? i <= lastReached
+              : i < lastReached;
+          const active =
+            !isCancelled && !fullyDone && i === lastReached && lastReached > 0;
+          const rawTime = s.timeField
+            ? (order[s.timeField] as string | null | undefined)
+            : undefined;
+          const time = slaTimeShort(rawTime);
+          return (
+            <div key={s.key} className="flex flex-col items-center gap-1">
+              {active ? (
+                <div className="h-4 w-4 rounded-full border-[3px] border-[var(--primary)] bg-white" />
+              ) : done ? (
+                <div className="h-3 w-3 rounded-full bg-[var(--success)]" />
+              ) : (
+                <div className="h-3 w-3 rounded-full border-[1.5px] border-[#CBD5E1] bg-white" />
+              )}
+              <span
+                className={`text-[11px] ${active ? "font-semibold text-[var(--primary)]" : "text-[var(--text-secondary)]"}`}
+              >
+                {t(`stage.${s.key}`)}
               </span>
-            )}
-          </div>
-        ))}
-        <span className="text-[14px] font-semibold text-[var(--warning)]">
-          {t("remaining", { time: "02:15" })}
-        </span>
+              {time && (
+                <span className="text-[10px] text-[var(--text-disabled)]">
+                  {time}
+                </span>
+              )}
+            </div>
+          );
+        })}
       </div>
       <div className="h-2 w-full rounded bg-[var(--border)]">
-        <div className="h-2 w-[60%] rounded bg-[var(--primary)]" />
+        <div
+          className="h-2 rounded bg-[var(--primary)] transition-all"
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
@@ -849,17 +911,17 @@ function ConversationThread({ conversationId }: { conversationId?: string }) {
   );
 }
 
-/* ── Completion Report (mock) ────────────────────── */
+/* ── Completion Report（接 order，真實完工資料）─────────────────
+   註：功能測試逐項結果（指紋/密碼/電池）需後端先補結構化欄位（service_report
+   增 function_tests），屬 B 類全端工，待 CIA。此處先呈現真實的完工時間/摘要/
+   實收金額，未完工則誠實顯示空狀態，不再顯示寫死的假測試結果。 */
 
-type FuncTestKey = "fingerprint" | "password" | "battery";
-const FUNC_TESTS: ReadonlyArray<{ key: FuncTestKey; pass: boolean }> = [
-  { key: "fingerprint", pass: true },
-  { key: "password", pass: true },
-  { key: "battery", pass: false },
-];
-
-function CompletionReport() {
-  const t = useTranslations("pages.workOrderDetail.completionMock");
+function CompletionReport({ order }: { order: WorkOrder | null }) {
+  const t = useTranslations("pages.workOrderDetail.completion");
+  if (!order) return null;
+  const done =
+    !!order.completion_time ||
+    ["completed", "billed", "paid", "closed"].includes(order.status);
   return (
     <div className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-5">
       <div className="flex items-center justify-between">
@@ -869,37 +931,109 @@ function CompletionReport() {
             {t("title")}
           </span>
         </div>
-        <span className="text-[12px] text-[var(--text-secondary)]">
-          {t("submittedAt")}
-        </span>
+        {done && order.completion_time && (
+          <span className="text-[12px] text-[var(--text-secondary)]">
+            {t("submittedAt", { time: formatDateTime(order.completion_time) })}
+          </span>
+        )}
       </div>
-      <div className="flex flex-col gap-2">
-        <span className="text-[13px] font-semibold text-[var(--text-secondary)]">
-          {t("functionTests")}
-        </span>
-        <div className="flex flex-col gap-[6px]">
-          {FUNC_TESTS.map((ft) => (
-            <div key={ft.key} className="flex items-center gap-2">
-              {ft.pass ? (
-                <CircleCheck className="h-[18px] w-[18px] text-[var(--success)]" />
-              ) : (
-                <CircleX className="h-[18px] w-[18px] text-[var(--error)]" />
-              )}
+      {!done ? (
+        <div className="flex h-16 items-center justify-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)]">
+          <span className="text-[13px] text-[var(--text-disabled)]">
+            {t("notCompleted")}
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {order.completion_status && (
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-semibold text-[var(--text-secondary)]">
+                {t("statusLabel")}
+              </span>
               <span className="text-[13px] text-[var(--text-primary)]">
-                {t(`tests.${ft.key}`)}
+                {order.completion_status}
               </span>
             </div>
-          ))}
+          )}
+          {order.customer_final_amount != null && (
+            <div className="flex items-center gap-2">
+              <span className="text-[13px] font-semibold text-[var(--text-secondary)]">
+                {t("finalAmountLabel")}
+              </span>
+              <span className="text-[14px] font-bold text-[var(--text-primary)]">
+                ${order.customer_final_amount}
+              </span>
+            </div>
+          )}
+          {/* 詳細施工摘要（service_report）與功能測試逐項結果未在 WorkOrder
+              envelope 上，待後端補欄位（B 類）後顯示，不再以假資料填充。 */}
+          <p className="text-[11px] text-[var(--text-disabled)]">
+            {t("detailNote")}
+          </p>
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-/* ── Exception Records (mock) ────────────────────── */
+/* ── Exception Records（接 work_order_id，撈 M15 exception-cases）──── */
 
-function ExceptionRecords() {
+type ExceptionCaseItem = {
+  id: string;
+  exception_type: string;
+  status: string;
+  severity: string;
+  description: string | null;
+  created_at: string | null;
+};
+
+const EXCEPTION_TYPE_LABEL: Record<string, string> = {
+  no_show: "放鴿子",
+  customer_absent: "客戶不在",
+  scope_change_rejected: "加價拒絕",
+  material_shortage: "缺料",
+  delay_severe: "嚴重延遲",
+  appearance_refused: "拒絕施工",
+  payment_failed: "付款失敗",
+  quality_complaint: "品質客訴",
+  schedule_conflict: "排班衝突",
+  other: "其他",
+};
+
+const EXCEPTION_SEVERITY_COLOR: Record<string, string> = {
+  critical: "var(--error)",
+  high: "var(--error)",
+  medium: "var(--warning)",
+  low: "var(--text-secondary)",
+};
+
+function ExceptionRecords({ workOrderId }: { workOrderId?: string }) {
   const t = useTranslations("pages.workOrderDetail.exception");
+  const [items, setItems] = useState<ExceptionCaseItem[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!workOrderId) return;
+    let cancelled = false;
+    setLoading(true);
+    api
+      .get<{ items: ExceptionCaseItem[] }>(tenantPath("/exception-cases"), {
+        query: { work_order_id: workOrderId },
+      })
+      .then((res) => {
+        if (!cancelled) setItems(res.items ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [workOrderId]);
+
   return (
     <div className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-5">
       <div className="flex items-center justify-between">
@@ -910,11 +1044,56 @@ function ExceptionRecords() {
           </span>
         </div>
       </div>
-      <div className="flex h-16 items-center justify-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)]">
-        <span className="text-[13px] text-[var(--text-disabled)]">
-          {t("placeholder")}
-        </span>
-      </div>
+      {loading ? (
+        <div className="flex h-16 items-center justify-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)]">
+          <span className="text-[13px] text-[var(--text-disabled)]">
+            {t("loading")}
+          </span>
+        </div>
+      ) : items.length === 0 ? (
+        <div className="flex h-16 items-center justify-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)]">
+          <span className="text-[13px] text-[var(--text-disabled)]">
+            {t("empty")}
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {items.map((it) => (
+            <div
+              key={it.id}
+              className="flex items-start gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2"
+            >
+              <span
+                className="mt-[6px] h-2 w-2 flex-shrink-0 rounded-full"
+                style={{
+                  backgroundColor:
+                    EXCEPTION_SEVERITY_COLOR[it.severity] ??
+                    "var(--text-secondary)",
+                }}
+              />
+              <div className="flex flex-1 flex-col gap-[2px]">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+                    {EXCEPTION_TYPE_LABEL[it.exception_type] ??
+                      it.exception_type}
+                  </span>
+                  <span className="text-[11px] text-[var(--text-disabled)]">
+                    {it.status}
+                  </span>
+                </div>
+                {it.description && (
+                  <span className="text-[12px] text-[var(--text-secondary)]">
+                    {it.description}
+                  </span>
+                )}
+                <span className="text-[11px] text-[var(--text-disabled)]">
+                  {formatDateTime(it.created_at)}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1418,7 +1597,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                 )}
               </div>
             )}
-            <SlaTimeline />
+            <SlaTimeline order={order} />
 
             {anyAction && (
               <div className="flex flex-wrap items-center gap-2 pt-1">
@@ -1613,8 +1792,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           <LineMediaGallery conversationId={problemCard?.conversation_id} />
           <WorkTimeline order={order} />
           <ConversationThread conversationId={problemCard?.conversation_id ?? undefined} />
-          <CompletionReport />
-          <ExceptionRecords />
+          <CompletionReport order={order} />
+          <ExceptionRecords workOrderId={order?.id} />
         </div>
 
         <WorkOrderDetailSidebar

@@ -96,6 +96,7 @@ async def list_exceptions(
     tenant_id: str,
     status: str | None = None,
     severity: str | None = None,
+    work_order_id: str | None = None,
     limit: int = 100,
 ) -> dict:
     conn = await _conn()
@@ -107,6 +108,9 @@ async def list_exceptions(
     if severity:
         sql += "AND severity = %s "
         params.append(severity)
+    if work_order_id:
+        sql += "AND work_order_id = %s::uuid "
+        params.append(work_order_id)
     sql += "ORDER BY created_at DESC LIMIT %s"
     params.append(min(max(limit, 1), 500))
     cur = await conn.execute(sql, params)
