@@ -10,6 +10,7 @@ import pytest
 
 from lockcore.channels.line_gateway import (
     _apply_handoff_fallback_safe,
+    _clean_symptom,
     _extract_brand_model,
     _promised_handoff,
     handle_text_turn,
@@ -120,6 +121,40 @@ def test_fallback_snapshot_carries_brand_model():
     snap = recs[0].facts_snapshot
     assert snap.get("brand") == "Chatlock"
     assert snap.get("model") == "A90"
+
+
+# ── CR-0097+：兜底症狀去噪 ──────────────────────────────────────────────────
+def test_clean_symptom_strips_phone_brand_filler():
+    """去電話 + 品牌/型號 + 開頭贅語 → 精簡症狀（非原話直搬）。"""
+    assert _clean_symptom(
+        "我的門鎖壞了 Chatlock A90 鎖舌卡住了 0922371211", "Chatlock", "A90"
+    ) == "鎖舌卡住了"
+    assert _clean_symptom(
+        "Dormakaba FA9000 面板沒反應 0912345678", "Dormakaba", "FA9000"
+    ) == "面板沒反應"
+
+
+def test_clean_symptom_preserves_lock_word():
+    """保守剝除：不可吃掉『鎖舌卡住』的『鎖』。"""
+    assert _clean_symptom("鎖舌卡住", "", "") == "鎖舌卡住"
+
+
+def test_clean_symptom_falls_back_when_nothing_left():
+    """去噪後太短 → 退回原話，不留空。"""
+    assert _clean_symptom("我的鎖壞了", "", "") == "我的鎖壞了"
+    assert _clean_symptom("") == ""
+
+
+def test_fallback_snapshot_carries_clean_symptom():
+    """CR-0097+ 回歸：兜底 snapshot 的 symptom 為去噪後精簡描述，非客人原話直搬。"""
+    esc = _mk_store()
+    _apply_handoff_fallback_safe(
+        esc, "locksmart", "U1", "我的門鎖壞了 Chatlock A90 鎖舌卡住了 0922371211",
+        "好的，關於您的 Chatlock A90 鎖舌卡住問題，我已幫您轉接專員 🙋", 0,
+    )
+    snap = esc.list_for_user("locksmart", "U1")[0].facts_snapshot
+    assert snap.get("symptom") == "鎖舌卡住了"
+    assert "0922371211" not in snap.get("symptom", "")  # 電話不入症狀
 
 
 def test_load_dotenv_parses_quoted(tmp_path, monkeypatch):

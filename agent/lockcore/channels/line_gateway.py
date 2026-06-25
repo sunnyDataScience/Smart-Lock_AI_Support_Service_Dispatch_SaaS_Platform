@@ -212,6 +212,39 @@ def _extract_brand_model(*texts: str) -> tuple[str, str]:
     return "", ""
 
 
+# CR-0097+：兜底症狀清洗。兜底時 LLM 沒呼叫工具 → 症狀原本直接用客人原話（含電話/品牌/
+# 贅語，「把對話搬進來」）。改 deterministic 去噪：移除電話、品牌/型號（已另存）、開頭
+# 「我的門鎖壞了/故障」類贅語，得精簡症狀。fail-soft：剝到太短就退回去噪版、再退原句。
+# 註：真正精準的症狀仍由 LLM transfer_to_human(symptom=) 提供（CR-0098）；本函式是 LLM
+# 未結構化時的保險，型號/症狀皆為盡力草擬值，客服可更正。
+_PHONE_RE = re.compile(r"0?\d{8,}")
+# 僅當「[招呼/我的…](門)鎖 + 壞了/故障/有問題/不能用 + 分隔符」整段才剝，避免吃掉
+# 「鎖舌卡住」的「鎖」。
+_SYMPTOM_LEAD_RE = re.compile(
+    r"^(?:我的|我家的|我家|這|那|台|部|個|請問|你好|您好|哈囉|嗨|\s)*"
+    r"(?:電子|智慧|智能)?(?:門)?鎖"
+    r"(?:壞了|故障了?|有(?:點)?問題|不能用|出問題了?|無法使用)"
+    r"(?:[\s，,。、:：!！?？-]+|$)"
+)
+
+
+def _clean_symptom(user_text: str, brand: str = "", model: str = "") -> str:
+    """從客人原話去噪得精簡症狀（CR-0097 兜底用）。抽不出有效內容則退回原話。"""
+    raw = (user_text or "").strip()
+    if not raw:
+        return ""
+    s = _PHONE_RE.sub(" ", raw)
+    for tok in (brand, model):
+        if tok:
+            s = re.sub(re.escape(tok), " ", s, flags=re.IGNORECASE)
+    noise_stripped = " ".join(s.split()).strip("：:，,。、-—  ")
+    lead_stripped = _SYMPTOM_LEAD_RE.sub("", noise_stripped, count=1)
+    lead_stripped = " ".join(lead_stripped.split()).strip("：:，,。、-—  ")
+    # 安全：去開頭後太短（<3 字）→ 用去噪版；再不行 → 原話。
+    result = lead_stripped if len(lead_stripped) >= 3 else noise_stripped
+    return (result or raw)[:200]
+
+
 def _apply_handoff_fallback_safe(
     esc: Any, tenant: str, user_id: str, user_text: str, reply: str, before_id: int
 ) -> None:
@@ -231,6 +264,8 @@ def _apply_handoff_fallback_safe(
         # CR-0097+：兜底也補抽品牌/型號（LLM 沒呼叫工具時的保險）。客人原話常已含裝置，
         # AI 回覆也常複述「品牌/型號：...」→ 兩者合併比對，沿用 CR-0098 自動填問題卡。
         fb_brand, fb_model = _extract_brand_model(user_text, reply)
+        # 症狀：去噪後的精簡描述（非原話直搬，不含電話/品牌/開頭贅語）。
+        fb_symptom = _clean_symptom(user_text, fb_brand, fb_model)
         esc.log(
             tenant,
             user_id,
@@ -242,11 +277,12 @@ def _apply_handoff_fallback_safe(
                 "fallback": True,
                 "brand": fb_brand,
                 "model": fb_model,
+                "symptom": fb_symptom,
             },
         )
         logger.warning(
-            "CR-0097 兜底觸發：AI 承諾轉接卻未呼叫工具，已補 escalation user={} brand={!r} model={!r}",
-            user_id[:8], fb_brand, fb_model,
+            "CR-0097 兜底觸發：AI 承諾轉接卻未呼叫工具，已補 escalation user={} brand={!r} model={!r} symptom={!r}",
+            user_id[:8], fb_brand, fb_model, fb_symptom,
         )
     except Exception:  # noqa: BLE001 — 兜底絕不可影響客人
         logger.exception("CR-0097 兜底補 escalation 失敗（已略過，不影響客人）")
