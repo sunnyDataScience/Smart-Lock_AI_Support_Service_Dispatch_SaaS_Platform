@@ -444,7 +444,8 @@ export default function MyOrderDetailPage() {
                       <input
                         type="file"
                         accept="image/*"
-                        capture="environment"
+                        // 不設 capture：桌機/手機模擬器無相機會「點了沒反應」，真手機則被鎖
+                        // 成只能即拍、無法選相簿現成照片。改用標準選擇器，手機仍可選拍照或相簿。
                         className="hidden"
                         onChange={(e) => {
                           const f = e.target.files?.[0];

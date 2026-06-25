@@ -202,11 +202,12 @@ export default function DoorCheckPage() {
           {submitError}
         </div>
       )}
+      {/* 不設 capture：桌機/模擬器無相機會「點了沒反應」，真手機被鎖成只能即拍。
+          改用標準選擇器，手機仍可選拍照或相簿現成照片。 */}
       <input
         ref={fileInputBeforeRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={(e) => handleFileChange("before", e)}
       />
@@ -214,7 +215,6 @@ export default function DoorCheckPage() {
         ref={fileInputAfterRef}
         type="file"
         accept="image/*"
-        capture="environment"
         className="hidden"
         onChange={(e) => handleFileChange("after", e)}
       />
