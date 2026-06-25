@@ -171,23 +171,19 @@ const PC_STATUS_TONE: Record<
 
 /* ── SLA Timeline（由 order.status + 時間戳衍生，非寫死）──────── */
 
-// WorkOrderStatus 生命週期排序（cancelled 另計為 -1）。
+// 工單「操作流程」狀態排序（cancelled 另計為 -1）。
+// 注意：WorkOrder API status 實際只用 7 值（由後端 7 值 DB enum 對映：
+//   created→inquiring / assigned / accepted / in_progress / completed / confirmed→closed / cancelled）。
+// 操作順序為 建立 → 派工(assigned) → 技師接受(accepted) → 施工中 → 完工 → 結案(closed)。
+// 不可用完整報價列舉排序（那裡 accepted=客戶接受報價，排在 assigned 之前，會把「派工中」
+// 誤顯示為「已接受」）。
 const STATUS_RANK: Record<string, number> = {
-  inquiring: 0,
-  qualified: 1,
-  quoted: 2,
-  negotiating: 3,
-  accepted: 4,
-  scheduled: 5,
-  dispatching: 6,
-  assigned: 7,
-  en_route: 8,
-  arrived: 9,
-  in_progress: 10,
-  completed: 11,
-  billed: 12,
-  paid: 13,
-  closed: 14,
+  inquiring: 0, // DB created：已建立、未派工
+  assigned: 1, // 派工給技師（待技師接受）
+  accepted: 2, // 技師已接受
+  in_progress: 3, // 施工中
+  completed: 4, // 完工（待客戶確認）
+  closed: 5, // 客戶確認結案
 };
 
 // 6 個 SLA 節點 → 抵達該階段所需的最低 status rank + 對應的真實時間欄位。
@@ -196,12 +192,12 @@ const SLA_STAGES: ReadonlyArray<{
   threshold: number;
   timeField?: keyof WorkOrder;
 }> = [
-  { key: "created", threshold: 0, timeField: "created_at" },
-  { key: "dispatched", threshold: 5, timeField: "scheduled_time" },
-  { key: "accepted", threshold: 7 },
-  { key: "inProgress", threshold: 10, timeField: "actual_arrival" },
-  { key: "completed", threshold: 11, timeField: "completion_time" },
-  { key: "confirmed", threshold: 13 },
+  { key: "created", threshold: 0, timeField: "created_at" }, // inquiring
+  { key: "dispatched", threshold: 1, timeField: "scheduled_time" }, // assigned
+  { key: "accepted", threshold: 2 }, // accepted（accepted_at 未上 envelope，無時間）
+  { key: "inProgress", threshold: 3, timeField: "actual_arrival" }, // in_progress
+  { key: "completed", threshold: 4, timeField: "completion_time" }, // completed
+  { key: "confirmed", threshold: 5 }, // closed
 ];
 
 /** 緊湊時間格式 MM/DD HH:mm（SLA 節點下方小字用）。 */
@@ -266,8 +262,7 @@ function SlaTimeline({ order }: { order: WorkOrder | null }) {
             : fullyDone
               ? i <= lastReached
               : i < lastReached;
-          const active =
-            !isCancelled && !fullyDone && i === lastReached && lastReached > 0;
+          const active = !isCancelled && !fullyDone && i === lastReached;
           const rawTime = s.timeField
             ? (order[s.timeField] as string | null | undefined)
             : undefined;
