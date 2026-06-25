@@ -14,6 +14,7 @@
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Any
 
@@ -180,6 +181,37 @@ def _promised_handoff(reply: str) -> bool:
     return any(m in reply for m in _HANDOFF_PROMISE_MARKERS)
 
 
+# CR-0097+：兜底品牌/型號補抽。CR-0098 自動填只在 LLM 正確呼叫 transfer_to_human(brand=,model=)
+# 時生效；但兜底正是「LLM 沒呼叫工具」的情況 → 品牌型號會漏。改由程式從客人原話 / AI 回覆
+# deterministic 補抽（不依賴 LLM），沿用既有 facts_snapshot.brand/model 路徑自動填問題卡。
+# 品牌清單對齊 lockcore/skills/locksmith-product-knowledge/references/{Brand}/（品牌名穩定、少變）。
+_KNOWN_BRANDS: tuple[str, ...] = (
+    "Dormakaba", "Chatlock", "Kaadas", "Philips", "Milre", "3E",
+)
+# 型號 token：品牌後相鄰的英數/中文型號段（到空白或標點為止，上限 30）。
+_MODEL_TOKEN_RE = re.compile(r"[A-Za-z0-9一-鿿()（）+.\-]{1,30}")
+
+
+def _extract_brand_model(*texts: str) -> tuple[str, str]:
+    """從客人原話 / AI 回覆找已知品牌 + 相鄰型號 token（CR-0097 兜底用）。
+
+    deterministic、fail-soft：抽不到回 ('', '')。型號為盡力而為的草擬值（客服可更正），
+    重點是避免「客人明說了品牌型號卻整欄空白」。
+    """
+    blob = " ".join(t for t in texts if t).strip()
+    if not blob:
+        return "", ""
+    low = blob.lower()
+    for brand in _KNOWN_BRANDS:
+        idx = low.find(brand.lower())
+        if idx < 0:
+            continue
+        after = blob[idx + len(brand):].lstrip(" :：-—／/、,，。\t")
+        m = _MODEL_TOKEN_RE.match(after)
+        return brand, (m.group(0).strip() if m else "")
+    return "", ""
+
+
 def _apply_handoff_fallback_safe(
     esc: Any, tenant: str, user_id: str, user_text: str, reply: str, before_id: int
 ) -> None:
@@ -196,6 +228,9 @@ def _apply_handoff_fallback_safe(
     if not _promised_handoff(reply):
         return  # AI 沒承諾轉接 → 不兜底
     try:
+        # CR-0097+：兜底也補抽品牌/型號（LLM 沒呼叫工具時的保險）。客人原話常已含裝置，
+        # AI 回覆也常複述「品牌/型號：...」→ 兩者合併比對，沿用 CR-0098 自動填問題卡。
+        fb_brand, fb_model = _extract_brand_model(user_text, reply)
         esc.log(
             tenant,
             user_id,
@@ -205,10 +240,13 @@ def _apply_handoff_fallback_safe(
                 "user_input_excerpt": (user_text or "")[:200],
                 "assistant_excerpt": (reply or "")[:200],
                 "fallback": True,
+                "brand": fb_brand,
+                "model": fb_model,
             },
         )
         logger.warning(
-            "CR-0097 兜底觸發：AI 承諾轉接卻未呼叫工具，已補 escalation user={}", user_id[:8]
+            "CR-0097 兜底觸發：AI 承諾轉接卻未呼叫工具，已補 escalation user={} brand={!r} model={!r}",
+            user_id[:8], fb_brand, fb_model,
         )
     except Exception:  # noqa: BLE001 — 兜底絕不可影響客人
         logger.exception("CR-0097 兜底補 escalation 失敗（已略過，不影響客人）")

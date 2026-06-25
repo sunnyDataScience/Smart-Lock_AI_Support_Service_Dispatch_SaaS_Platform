@@ -10,6 +10,7 @@ import pytest
 
 from lockcore.channels.line_gateway import (
     _apply_handoff_fallback_safe,
+    _extract_brand_model,
     _promised_handoff,
     handle_text_turn,
     load_dotenv,
@@ -79,6 +80,46 @@ def test_fallback_skips_when_no_promise():
 def test_fallback_none_store_is_noop():
     """無 escalation store → 安靜略過，不爆。"""
     _apply_handoff_fallback_safe(None, "locksmart", "U1", "x", "已幫您轉接真人專員", 0)
+
+
+# ── CR-0097+：兜底品牌/型號補抽 ──────────────────────────────────────────────
+def test_extract_brand_model_from_user_text():
+    """客人原話含品牌型號 → 抽出（品牌正規化為正典寫法）。"""
+    assert _extract_brand_model("我的門鎖壞了 Chatlock A90 鎖舌卡住了 0922371211") == (
+        "Chatlock",
+        "A90",
+    )
+    assert _extract_brand_model("Dormakaba FA9000 面板沒反應") == ("Dormakaba", "FA9000")
+    # 品牌不分大小寫，回正典寫法
+    assert _extract_brand_model("我家的 philips 9300 開不了") == ("Philips", "9300")
+
+
+def test_extract_brand_model_from_assistant_reply():
+    """客人原話沒明寫、AI 回覆複述「品牌/型號：…」→ 也能抽（兩來源合併）。"""
+    assert _extract_brand_model(
+        "門鎖壞了", "關於您提到的 Chatlock A90 門鎖鎖舌卡住問題"
+    ) == ("Chatlock", "A90")
+
+
+def test_extract_brand_model_none_when_no_brand():
+    """無已知品牌 → ('', '')，不亂猜。"""
+    assert _extract_brand_model("門鎖壞了 想修", "已幫您轉接專員") == ("", "")
+    assert _extract_brand_model("") == ("", "")
+
+
+def test_fallback_snapshot_carries_brand_model():
+    """CR-0097+ 回歸：兜底 escalation 的 facts_snapshot 須帶補抽的 brand/model，
+    讓 API 端 CR-0098 自動填問題卡（LLM 沒呼叫工具時不再整欄空白）。"""
+    esc = _mk_store()
+    _apply_handoff_fallback_safe(
+        esc, "locksmart", "U1", "門鎖壞了 Chatlock A90 鎖舌卡住 0922371211",
+        "好的，關於您的 Chatlock A90，我已幫您轉接給真人專員處理 🙋", 0,
+    )
+    recs = esc.list_for_user("locksmart", "U1")
+    assert len(recs) == 1
+    snap = recs[0].facts_snapshot
+    assert snap.get("brand") == "Chatlock"
+    assert snap.get("model") == "A90"
 
 
 def test_load_dotenv_parses_quoted(tmp_path, monkeypatch):
