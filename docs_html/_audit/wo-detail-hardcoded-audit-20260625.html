@@ -1,0 +1,265 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>工單詳情頁 /work-orders/id 寫死資料盤點報告</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ _audit ／ wo-detail-hardcoded-audit-20260625.md</div>
+<div class="doc"><blockquote>
+<p>⚠️ 本文件為 <code>_audit</code>
+稽核軌跡：盤點「畫面顯示值是否真實接資料」。判定基準＝該值能否對應到
+WorkOrder schema 欄位 / DB 欄位 /
+既有端點。實作修正前個別後端新欄位仍須走 CIA。狀態反映 2026-06-25 當下
+codebase（branch <code>fix/wo-detail-real-data</code> 基礎）。</p>
+</blockquote>
+<h1 id="工單詳情頁-work-ordersid-寫死資料盤點報告">工單詳情頁
+<code>/work-orders/[id]</code> 寫死資料盤點報告</h1>
+<h2 id="一總體判斷">一、總體判斷</h2>
+<p>全頁 13 區塊：<strong>真實接資料 8 區、寫死／假資料 5
+區</strong>。資訊骨架可信，但<strong>頁面最顯眼的頂部「SLA
+進度時間軸」與「完工報告」整段是假的</strong> ——
+正好是業主用來判斷「工單進度與品質」的兩個地方。</p>
+<table>
+<thead>
+<tr>
+<th>判定</th>
+<th>區塊</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅ 真實接資料（可信）</td>
+<td>WorkTimeline（<code>buildEvents(order)</code>
+衍生）、ProblemCardSummary、LineMediaGallery、ConversationThread、各
+Modal 表單群、DispatchOrderView 主體、WorkOrderDetailSidebar
+主體、Detail Header 本體</td>
+</tr>
+<tr>
+<td>❌ 寫死／假資料</td>
+<td><strong>SlaTimeline（整段假）</strong>、<strong>CompletionReport
+完工報告（整段假）</strong>、ExceptionRecords 例外紀錄（空殼
+stub）、設備面板遙測三格（誠實佔位「示意」）、DispatchOrderView
+簽名狀態（用 <code>status</code> 推斷，非查簽名紀錄）</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>一句話結論</strong>：能信的是「這張單是誰、什麼鎖、聊了什麼、報價多少」；<strong>不能信</strong>的是「現在進度到哪、SLA
+剩多久、完工驗收結果、有沒有異常」——
+後者全是每張工單長一模一樣的假畫面。</p>
+</blockquote>
+<h2
+id="二寫死項目主表依嚴重度排序已去重">二、寫死項目主表（依嚴重度排序，已去重）</h2>
+<table>
+<thead>
+<tr>
+<th>功能</th>
+<th>區塊</th>
+<th>寫死了什麼</th>
+<th>該接什麼（資料源在?）</th>
+<th>影響</th>
+<th>嚴重度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>SLA 進度時間軸（元件不接 props）</td>
+<td>SlaTimeline</td>
+<td><code>SlaTimeline()</code> 無參數渲染，整段 mock</td>
+<td><code>order</code> 時間戳 /
+<code>GET /work-orders/{id}/events</code>（<strong>已存在</strong>，EventTimeline
+在用）</td>
+<td>頂部最顯眼元件，每張單同一條假時間軸，SLA 監控失真</td>
+<td><strong>CRITICAL</strong></td>
+</tr>
+<tr>
+<td>完工功能測試（指紋✓/密碼✓/電池✗）</td>
+<td>CompletionReport</td>
+<td><code>FUNC_TESTS</code> 常數，電池恆 fail</td>
+<td>service_report / data
+需<strong>新增結構化欄位</strong>（後端無）</td>
+<td>每張單恆顯示「電池失敗」，完工驗收失稽核意義，誤導品管</td>
+<td><strong>CRITICAL</strong></td>
+</tr>
+<tr>
+<td>完工報告（元件不接 props）</td>
+<td>CompletionReport</td>
+<td><code>CompletionReport()</code> 無參數，標題「（示意）」</td>
+<td><code>order.completion_time</code> / <code>summary</code> /
+<code>completion_status</code>（<strong>已存在</strong>）</td>
+<td>任一工單（含未完工）都顯示同一份假報告</td>
+<td><strong>HIGH</strong></td>
+</tr>
+<tr>
+<td>各階段時間戳與完成狀態</td>
+<td>SlaTimeline</td>
+<td><code>SLA_NODES</code> 固定 09:00/09:15/09:32/10:45、前三綠點、第四
+active</td>
+<td>created_at / events / accepted_at / started_at / completion_time /
+confirmed_at（<strong>已存在</strong>）</td>
+<td>已完工或剛建單的工單都顯示「施工中」</td>
+<td><strong>HIGH</strong></td>
+</tr>
+<tr>
+<td>SLA 剩餘倒數「02:15」</td>
+<td>SlaTimeline</td>
+<td><code>t("remaining",{time:"02:15"})</code> 固定</td>
+<td>節點時間有源；<strong>但 SLA deadline
+欄位缺失</strong>，需後端補政策</td>
+<td>每張單永遠「剩 2 小時 15 分」，無法辨識逾時單</td>
+<td><strong>HIGH</strong></td>
+</tr>
+<tr>
+<td>進度條 60%</td>
+<td>SlaTimeline</td>
+<td><code>w-[60%]</code> 固定</td>
+<td>已完成節點數 ÷ 總節點數動態算（<strong>資料源存在</strong>）</td>
+<td>進度永遠 60%，與真實進度無關</td>
+<td><strong>HIGH</strong></td>
+</tr>
+<tr>
+<td>完工提交時間「—」</td>
+<td>CompletionReport</td>
+<td>i18n <code>submittedAt</code>=「提交時間：—」無插值</td>
+<td><code>order.completion_time</code> / DB
+<code>completed_at</code>（<strong>已存在</strong>，WorkTimeline
+已在用）</td>
+<td>看不到真實完工時刻</td>
+<td><strong>HIGH</strong></td>
+</tr>
+<tr>
+<td>異常紀錄清單（空殼）</td>
+<td>ExceptionRecords</td>
+<td><code>ExceptionRecords()</code> 無 props、無
+fetch、永遠空虛線框</td>
+<td><code>GET /tenants/{tid}/exception-cases</code>（<strong>後端已存在</strong>，/admin/exceptions
+在用；需補 work_order_id 篩選）</td>
+<td>工單有拒單/缺料/糾紛也一筆不顯示，誤導「此工單無異常」</td>
+<td><strong>HIGH／MEDIUM</strong></td>
+</tr>
+<tr>
+<td>簽名完成狀態</td>
+<td>DispatchOrderView</td>
+<td>由 <code>order.status</code> 推斷，非查
+<code>digital_signatures</code></td>
+<td>簽名紀錄端點（已存在；今日 fix/signature-response-500
+已處理同源問題）</td>
+<td>狀態與真實簽名紀錄可能脫鉤</td>
+<td><strong>MEDIUM</strong></td>
+</tr>
+<tr>
+<td>設備面板－電量</td>
+<td>WorkOrderDetailSidebar</td>
+<td>固定「—」，標「電量（示意）」</td>
+<td>智慧鎖遙測（<strong>後端無此欄位</strong>，需新整合）</td>
+<td>已誠實標「示意」、整塊淡化，誤導風險低</td>
+<td><strong>LOW</strong></td>
+</tr>
+<tr>
+<td>設備面板－連線</td>
+<td>WorkOrderDetailSidebar</td>
+<td>固定灰燈＋「—」，標「連線（示意）」</td>
+<td>同上，需設備連線端點（<strong>後端無</strong>）</td>
+<td>同上，誠實佔位</td>
+<td><strong>LOW</strong></td>
+</tr>
+<tr>
+<td>設備面板－最近操作</td>
+<td>WorkOrderDetailSidebar</td>
+<td>固定「—」，標「最近操作（示意）」</td>
+<td>同上，需 IoT 裝置遙測（<strong>後端無</strong>）</td>
+<td>同上，誠實佔位</td>
+<td><strong>LOW</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="三分類小結純前端工-vs-全端工">三、分類小結：純前端工 vs
+全端工</h2>
+<h3 id="a-該接但寫死--資料源已存在純前端沒接只需前端工">A. 該接但寫死 ——
+資料源已存在，純前端沒接（<strong>只需前端工</strong>）</h3>
+<p>修這些<strong>不用動後端</strong>，把元件改成接 <code>order</code>
+或呼叫既有端點即可：</p>
+<ul>
+<li><strong>SLA 時間軸全部節點時間戳、完成狀態、進度條</strong> →
+<code>order</code> 既有時間戳，或
+<code>GET /work-orders/{id}/events</code>（已存在，EventTimeline.tsx:239
+正在用）</li>
+<li><strong>完工提交時間／摘要／完工狀態</strong> →
+<code>order.completion_time</code> / <code>order.summary</code> /
+<code>order.completion_status</code></li>
+<li><strong>異常紀錄清單</strong> →
+<code>GET /tenants/{tid}/exception-cases</code>（後端已存在；需補一個
+<code>work_order_id</code> query
+篩選，屬小改；或前端撈清單後本地過濾）</li>
+</ul>
+<h3 id="b-該接但後端根本沒這資料--要新端點新欄位全端工須走-cia">B.
+該接但後端根本沒這資料 —— 要新端點／新欄位（<strong>全端工，須走
+CIA</strong>）</h3>
+<p>短期無法純前端修好，需後端先建欄位：</p>
+<ul>
+<li><strong>功能測試逐項結果（指紋／密碼／電池 pass-fail）</strong> →
+WorkOrder type 與 DB 皆無結構化欄位，需後端在
+<code>service_report</code> / <code>data</code> 增
+<code>function_tests</code>
+結構或開新端點。<strong>且需產品決定：測哪些項、由誰於何時填</strong>（技師完工時填）</li>
+<li><strong>SLA 剩餘倒數的「期限」</strong> → 無 SLA deadline
+欄位，需後端依 urgency / service_category 補 SLA 政策才能算倒數</li>
+<li><strong>設備面板電量／連線／最近操作</strong> → 純智慧鎖 IoT
+遙測，後端完全無此整合，需新端點（<strong>且已誠實標「示意」，非欺騙性
+mock，可暫緩</strong>）</li>
+</ul>
+<h2 id="四建議優先修的-3-項">四、建議優先修的 3 項</h2>
+<p><strong>第 1 優先 —— SLA
+進度時間軸（業主口中的「進度」，真相在此）</strong> 真相：它
+<strong>100%
+是假的</strong>。每一張工單詳情頁頂部都顯示同一條寫死時間軸——建立
+09:00、派工 09:15、接單 09:32、施工中 10:45、剩餘 02:15、進度條
+60%——<strong>無論工單實際是剛建立、已完工還是已取消，畫面永遠顯示「施工中、還剩
+2 小時 15 分」</strong>。這不是裝飾，是會直接誤導派工調度與 SLA
+催件決策的假儀表板。 修法：<strong>純前端工</strong>。資料源
+<code>order</code> 時間戳已在頁面載入（同頁 <code>buildEvents</code>
+已在消費），把 SlaTimeline 改接 <code>order</code> 即可；剩餘倒數因無
+SLA 期限欄位，先隱藏、其餘照修。</p>
+<p><strong>第 2 優先 —— 完工報告 + 功能測試結果</strong>
+任一工單（含未完工）都顯示同一份假報告：提交時間恆「—」、功能測試恆「指紋✓
+密碼✓
+電池✗」。<strong>「電池恆失敗」最危險</strong>——品管可能誤判每張單都有電池問題，或對真有問題的單視而不見，完工驗收完全失去稽核意義。
+修法：<strong>半前端半全端</strong>。提交時間／摘要／完工狀態是純前端（接
+<code>order.completion_time</code>
+等既有欄位）；功能測試逐項結果需後端先補結構化欄位——<strong>上線前此區應改空狀態或隱藏，絕不可繼續顯示假固定結果</strong>。</p>
+<p><strong>第 3 優先 —— 異常紀錄清單</strong>
+工單頁的異常區塊是永遠空的示意框，但後端 M15
+例外框架（<code>exception-cases</code>）已實際在記錄拒單／缺料／糾紛等異常。管理員在工單頁看到空框會誤判「此工單無異常」，被迫跳
+/admin/exceptions 另頁交叉比對。
+修法：<strong>幾乎純前端工</strong>。端點已存在且 /admin/exceptions
+已在用，只需把 ExceptionRecords 改接 <code>workOrderId</code> 並呼叫
+<code>GET /exception-cases</code>，後端僅需補一個
+<code>work_order_id</code> 篩選參數（小改）。</p>
+<blockquote>
+<p>設備面板三格遙測雖也是寫死，但已誠實標「示意」、整塊淡化、按鈕標
+comingSoon，<strong>誤導風險低，可排在最後或待 IoT
+整合再做</strong>，不應佔用前三優先順位。</p>
+</blockquote>
+<h2 id="五後續動作">五、後續動作</h2>
+<ul>
+<li><strong>A 類（純前端）</strong>：本輪於
+<code>fix/wo-detail-real-data</code> 實作 SlaTimeline
+真實化、完工報告時間/摘要真實化、ExceptionRecords 接
+exception-cases；功能測試與 SLA 倒數的假顯示一併改為誠實空狀態。</li>
+<li><strong>B 類（後端新欄位）</strong>：<code>function_tests</code>
+結構化欄位、SLA deadline 政策觸及 DB schema + API contract + domain
+model → 須先走 <code>sunnydata-change-impact-analysis</code> 產
+CIA、業主裁決 §8（測哪些項、SLA 政策參數）後再實作。</li>
+</ul>
+</div></div></body></html>
