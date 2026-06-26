@@ -6,6 +6,7 @@ import {
   Key,
   Phone,
   MapPin,
+  MessageCircle,
   TriangleAlert,
   Clock3,
   Star,
@@ -200,10 +201,11 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
       {/* 公單資訊 — CR-0026 標準化欄位（服務類別/保固/完工狀態/狀態原因，真實） */}
       <WorkOrderFieldsPanel workOrder={workOrder} />
 
-      {/* Customer Info — display_name + line_user_id 真實，phone 待 facts 模組 */}
+      {/* Customer Info — display_name/line_user_id 來自對話，phone 為工單 customer_phone */}
       <CustomerInfoPanel
         conversation={conversation}
         conversationId={conversationId ?? null}
+        phone={workOrder?.customer_phone ?? null}
         address={workOrder?.address ?? ""}
         error={convError}
       />
@@ -437,11 +439,13 @@ function WorkOrderFieldsPanel({ workOrder }: { workOrder?: WorkOrder }) {
 function CustomerInfoPanel({
   conversation,
   conversationId,
+  phone,
   address,
   error,
 }: {
   conversation: Conversation | null;
   conversationId: string | null;
+  phone: string | null;
   address: string;
   error: string | null;
 }) {
@@ -478,14 +482,25 @@ function CustomerInfoPanel({
           <span className="text-[14px] font-semibold text-[var(--text-primary)]">
             {conversation.display_name || "—"}
           </span>
+          {/* 真實聯絡電話（工單 customer_phone）；LINE 進線未留電話時為空 → 誠實顯「未提供」，
+              絕不拿 line_user_id 充當電話（那是 LINE 帳號識別碼，會被誤讀成亂碼電話）。 */}
+          <div className="flex items-center gap-[6px]">
+            <Phone className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
+            {phone?.trim() ? (
+              <span className="text-[13px] text-[var(--text-primary)]">{phone}</span>
+            ) : (
+              <span className="text-[13px] text-[var(--text-disabled)]">未提供</span>
+            )}
+          </div>
+          {/* LINE 帳號識別碼（line_user_id）—— 非電話，獨立標示 */}
           {linePrefix && (
             <div className="flex items-center gap-[6px]">
-              <Phone className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
+              <MessageCircle className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
               <span
                 className="font-mono text-[12px] text-[var(--text-secondary)]"
                 title={conversation.line_user_id ?? ""}
               >
-                {linePrefix}
+                LINE ID {linePrefix}
               </span>
             </div>
           )}
