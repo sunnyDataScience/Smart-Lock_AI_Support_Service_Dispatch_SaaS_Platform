@@ -153,6 +153,79 @@ async def test_re_escalation_keeps_waiting_human(client, monkeypatch):
     assert conv["status"] == "waiting_human", conv
 
 
+# --------------------------- CR-0102 電話回填 users.phone（轉工單自動帶 customer_phone）---------------------------
+
+
+@pytest.mark.asyncio
+async def test_escalation_backfills_user_phone_when_empty(client, monkeypatch):
+    """CR-0102：facts_snapshot 帶手機 → 正規化後寫進該對話 user 的 users.phone（空白時填）。
+    convert（create_from_problem_card）既有邏輯讀 users.phone → 轉工單時 customer_phone 自動填上。"""
+    monkeypatch.setenv("INTERNAL_API_TOKEN", _TOKEN)
+    body = _body()
+    body["facts_snapshot"] = {**body["facts_snapshot"], "phone": "0922-371-211"}
+    resp = await client.post(INGEST_PATH, json=body, headers={"X-Internal-Token": _TOKEN})
+    assert resp.status_code == 200, resp.text
+    conv_id = resp.json()["data"]["conversation_id"]
+
+    import core.db as db_module
+
+    cur = await db_module._conn.execute(
+        "SELECT u.phone FROM users u JOIN conversations c ON c.user_id = u.id "
+        "WHERE c.id = %s::uuid",
+        (conv_id,),
+    )
+    row = await cur.fetchone()
+    assert row is not None
+    assert row[0] == "0922371211"  # 分隔符正規化後寫入
+
+
+@pytest.mark.asyncio
+async def test_escalation_does_not_overwrite_existing_phone(client, monkeypatch):
+    """CR-0102：users.phone 已有值 → 不被新偵測到的電話覆蓋（fill-if-empty，護住客服手動值）。"""
+    monkeypatch.setenv("INTERNAL_API_TOKEN", _TOKEN)
+    body = _body()
+    body["facts_snapshot"] = {**body["facts_snapshot"], "phone": "0911111111"}
+    r1 = await client.post(INGEST_PATH, json=body, headers={"X-Internal-Token": _TOKEN})
+    assert r1.status_code == 200
+    conv_id = r1.json()["data"]["conversation_id"]
+
+    # 同 session 再 escalation 帶不同電話 → 不覆蓋首次寫入
+    body2 = {**body, "facts_snapshot": {**body["facts_snapshot"], "phone": "0922222222"}}
+    r2 = await client.post(INGEST_PATH, json=body2, headers={"X-Internal-Token": _TOKEN})
+    assert r2.status_code == 200
+
+    import core.db as db_module
+
+    cur = await db_module._conn.execute(
+        "SELECT u.phone FROM users u JOIN conversations c ON c.user_id = u.id "
+        "WHERE c.id = %s::uuid",
+        (conv_id,),
+    )
+    row = await cur.fetchone()
+    assert row[0] == "0911111111"  # 維持首次寫入，第二次不覆蓋
+
+
+@pytest.mark.asyncio
+async def test_escalation_ignores_non_mobile_phone(client, monkeypatch):
+    """CR-0102：非台灣手機（市話/雜訊）→ 不寫入 users.phone（API 端正規化擋）。"""
+    monkeypatch.setenv("INTERNAL_API_TOKEN", _TOKEN)
+    body = _body()
+    body["facts_snapshot"] = {**body["facts_snapshot"], "phone": "02-12345678"}
+    resp = await client.post(INGEST_PATH, json=body, headers={"X-Internal-Token": _TOKEN})
+    assert resp.status_code == 200
+    conv_id = resp.json()["data"]["conversation_id"]
+
+    import core.db as db_module
+
+    cur = await db_module._conn.execute(
+        "SELECT u.phone FROM users u JOIN conversations c ON c.user_id = u.id "
+        "WHERE c.id = %s::uuid",
+        (conv_id,),
+    )
+    row = await cur.fetchone()
+    assert not row[0]  # 市話未通過手機正規化 → 不寫（NULL 或空）
+
+
 # --------------------------- source filter（service 層，免 JWT）---------------------------
 
 

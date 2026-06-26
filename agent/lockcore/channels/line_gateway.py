@@ -118,7 +118,9 @@ def _latest_escalation_id(esc: Any, tenant: str, user_id: str) -> int:
         return 0
 
 
-async def _forward_escalation_safe(esc: Any, tenant: str, user_id: str, before_id: int) -> None:
+async def _forward_escalation_safe(
+    esc: Any, tenant: str, user_id: str, before_id: int, user_text: str = ""
+) -> None:
     """CR-0022:若本輪 agent 觸發了 transfer_to_human(escalation 變新),旁路 POST 給 API
     建 AI 草擬問題卡。env 未設 → 略過;失敗 fail-soft(只 log,不影響客人)。
 
@@ -137,13 +139,24 @@ async def _forward_escalation_safe(esc: Any, tenant: str, user_id: str, before_i
     if not recs or recs[0].id <= before_id:
         return  # 本輪沒有新 escalation
     rec = recs[0]
+    snapshot = dict(rec.facts_snapshot or {})
+    # CR-0102：正常路徑（LLM 呼叫 transfer_to_human）的 snapshot 無 phone → 從本輪原話 /
+    # facts_block / 原話摘要補抽台灣手機，讓 API 寫進 users.phone（只在空白時）。兜底路徑已自帶。
+    if not snapshot.get("phone"):
+        p = _extract_phone(
+            user_text,
+            snapshot.get("facts_block", ""),
+            snapshot.get("user_input_excerpt", ""),
+        )
+        if p:
+            snapshot["phone"] = p
     payload = {
         "tenant_id": tenant,
         "line_user_id": user_id,
         "session_id": f"{tenant}:{user_id}",
         "reason": rec.reason or "",
         "is_explicit": bool(rec.is_explicit),
-        "facts_snapshot": rec.facts_snapshot or {},
+        "facts_snapshot": snapshot,
     }
     try:
         import httpx
@@ -245,6 +258,30 @@ def _clean_symptom(user_text: str, brand: str = "", model: str = "") -> str:
     return (result or raw)[:200]
 
 
+# CR-0102：兜底電話補抽。客人在 LINE 報修常一併留手機（「我電話 0912-345-678」），但
+# transfer_to_human 只抽 brand/model/symptom（CR-0098）、兜底也只抽品牌型號（CR-0097），
+# 電話從未進 facts → 轉工單時 customer_phone 永遠空。改 deterministic 從對話文字補抽台灣
+# 手機，沿 facts_snapshot.phone 由 API 寫進 users.phone（只在空白時填）→ convert 既有邏輯
+# 自動帶入。只認手機（09 開頭 10 碼，容 +886 與分隔符）；市話/分機不抽（誤判風險高）。
+_PHONE_EXTRACT_RE = re.compile(r"(?:\+?886[\s-]?|0)9(?:[\s-]?\d){8}")
+
+
+def _extract_phone(*texts: str) -> str:
+    """從對話文字補抽台灣手機號 → 正規化 09xxxxxxxx；抽不到回空字串。"""
+    for text in texts:
+        if not text:
+            continue
+        m = _PHONE_EXTRACT_RE.search(text)
+        if not m:
+            continue
+        digits = re.sub(r"\D", "", m.group(0))
+        if digits.startswith("886"):  # +886 9... → 09...
+            digits = "0" + digits[3:]
+        if len(digits) == 10 and digits.startswith("09"):
+            return digits
+    return ""
+
+
 def _apply_handoff_fallback_safe(
     esc: Any, tenant: str, user_id: str, user_text: str, reply: str, before_id: int
 ) -> None:
@@ -266,6 +303,7 @@ def _apply_handoff_fallback_safe(
         fb_brand, fb_model = _extract_brand_model(user_text, reply)
         # 症狀：去噪後的精簡描述（非原話直搬，不含電話/品牌/開頭贅語）。
         fb_symptom = _clean_symptom(user_text, fb_brand, fb_model)
+        fb_phone = _extract_phone(user_text, reply)  # CR-0102：兜底也補抽手機
         esc.log(
             tenant,
             user_id,
@@ -278,6 +316,7 @@ def _apply_handoff_fallback_safe(
                 "brand": fb_brand,
                 "model": fb_model,
                 "symptom": fb_symptom,
+                "phone": fb_phone,
             },
         )
         logger.warning(
@@ -466,7 +505,9 @@ def build_webapp(
                 _apply_handoff_fallback_safe(
                     escalation_store, tenant, user_id, user_text, reply, esc_before
                 )
-                await _forward_escalation_safe(escalation_store, tenant, user_id, esc_before)
+                await _forward_escalation_safe(
+                    escalation_store, tenant, user_id, esc_before, user_text
+                )
         return web.Response(text="OK")
 
     app = web.Application()

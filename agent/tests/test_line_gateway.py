@@ -12,6 +12,7 @@ from lockcore.channels.line_gateway import (
     _apply_handoff_fallback_safe,
     _clean_symptom,
     _extract_brand_model,
+    _extract_phone,
     _promised_handoff,
     handle_text_turn,
     load_dotenv,
@@ -155,6 +156,38 @@ def test_fallback_snapshot_carries_clean_symptom():
     snap = esc.list_for_user("locksmart", "U1")[0].facts_snapshot
     assert snap.get("symptom") == "鎖舌卡住了"
     assert "0922371211" not in snap.get("symptom", "")  # 電話不入症狀
+
+
+# ── CR-0102：兜底電話補抽（客人留手機 → 自動填工單 customer_phone）─────────────
+def test_extract_phone_various_formats():
+    """台灣手機各種寫法 → 正規化 09xxxxxxxx；市話/無電話 → 空字串。"""
+    assert _extract_phone("我的門鎖壞了 0922371211 麻煩盡快") == "0922371211"
+    assert _extract_phone("電話 0912-345-678") == "0912345678"
+    assert _extract_phone("手機是 0912 345 678 喔") == "0912345678"
+    assert _extract_phone("+886912345678 找我") == "0912345678"
+    assert _extract_phone("+886 912 345 678") == "0912345678"
+    # 市話/分機不抽（誤判風險高）
+    assert _extract_phone("公司電話 02-12345678") == ""
+    # 無電話
+    assert _extract_phone("門鎖壞了想修", "已幫您轉接") == ""
+    assert _extract_phone("") == ""
+
+
+def test_extract_phone_prefers_first_text_then_next():
+    """多來源依序找：本輪原話沒有 → 退 facts_block / 摘要。"""
+    assert _extract_phone("沒提電話", "facts: 客人手機 0933888999") == "0933888999"
+
+
+def test_fallback_snapshot_carries_phone():
+    """CR-0102 回歸：兜底 escalation 的 facts_snapshot 須帶補抽的手機，
+    讓 API 端寫進 users.phone → 轉工單時 customer_phone 自動填上。"""
+    esc = _mk_store()
+    _apply_handoff_fallback_safe(
+        esc, "locksmart", "U1", "門鎖壞了 Chatlock A90 鎖舌卡住 我電話 0922-371-211",
+        "好的，已幫您轉接給真人專員處理 🙋", 0,
+    )
+    snap = esc.list_for_user("locksmart", "U1")[0].facts_snapshot
+    assert snap.get("phone") == "0922371211"
 
 
 def test_load_dotenv_parses_quoted(tmp_path, monkeypatch):

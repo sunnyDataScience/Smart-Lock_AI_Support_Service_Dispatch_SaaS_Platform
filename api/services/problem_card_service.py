@@ -20,6 +20,7 @@ import hashlib
 import io
 import json
 import logging
+import re
 
 import core.db as db_module
 from core.db import _ensure_conn
@@ -544,6 +545,20 @@ async def create_card(
 _AI_DRAFT_MISSING_FIELDS = ["brand", "model", "location"]
 
 
+# CR-0102：台灣手機正規化（API 端防禦驗證；agent 已抽好，這裡再驗一次才寫 users）。
+# 只認手機 09xxxxxxxx（容 +886 與分隔符）；非手機回空字串，不寫入。
+_TW_MOBILE_RE = re.compile(r"^09\d{8}$")
+
+
+def _normalize_tw_mobile(raw: str | None) -> str:
+    if not raw:
+        return ""
+    digits = re.sub(r"\D", "", str(raw))
+    if digits.startswith("886"):  # +886 9... → 09...
+        digits = "0" + digits[3:]
+    return digits if _TW_MOBILE_RE.match(digits) else ""
+
+
 async def escalation_to_draft_pc(
     *,
     tenant_id: str,
@@ -596,6 +611,22 @@ async def escalation_to_draft_pc(
     ai_brand = (snapshot.get("brand") or "").strip()
     ai_model = (snapshot.get("model") or "").strip()
     ai_symptom = (snapshot.get("symptom") or "").strip()
+
+    # CR-0102：客人在 LINE 留的手機 → 寫進該對話 user 的 users.phone（只在空白時填，不蓋
+    # 客服手動值或客人先前提供的號碼）。convert（create_from_problem_card）既有邏輯讀
+    # users.phone 帶進 work_orders.customer_phone → 轉工單時客戶電話自動填上（業主需求）。
+    # best-effort：寫入失敗不阻斷建卡（電話是加值，建卡是主流程）。
+    ai_phone = _normalize_tw_mobile(snapshot.get("phone"))
+    if ai_phone:
+        try:
+            await db_module._conn.execute(
+                "UPDATE users SET phone = %s, updated_at = NOW() "
+                "WHERE id = (SELECT user_id FROM conversations WHERE id = %s::uuid) "
+                "  AND (phone IS NULL OR phone = '')",
+                (ai_phone, conv_id),
+            )
+        except Exception:  # noqa: BLE001 — 電話回填失敗不可阻斷建卡主流程
+            logger.warning("CR-0102 回填 users.phone 失敗（已略過）", exc_info=True)
     # 症狀文字優先取 LLM 抽出的精準症狀，其次客人原話摘要，再否則 agent 轉接理由
     symptom_text = (ai_symptom or excerpt or reason or "").strip()[:1000] or "（客人轉真人，詳見對話）"
 
