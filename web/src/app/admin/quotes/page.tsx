@@ -202,6 +202,16 @@ export default function QuotesPage() {
     };
   }, [woId]);
 
+  // 工單選擇變動（清除回瀏覽 / 切換到別張工單）時，若目前開啟的報價不屬於這張
+  // 工單 → 收起報價詳情。否則回到「全部列表」瀏覽模式時，會殘留上一張報價的編輯區
+  // （業主回報：明明在全部列表卻看到 TP-xxx-Qn 詳情）。報價詳情只屬於其所屬工單脈絡。
+  // loadQuote 會先 setQuote 再 setWoId(該報價的 work_order_id)，故開啟報價時兩者一致、不誤清。
+  useEffect(() => {
+    const id = woId.trim();
+    // truthy guard：work_order_id 為 null 的報價（未綁工單）無工單脈絡可比，不自動收起。
+    setQuote((q) => (q && q.work_order_id && q.work_order_id !== id ? null : q));
+  }, [woId]);
+
   function fail(e: unknown) {
     setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
   }
