@@ -69,6 +69,7 @@ from routers import vouchers_v2 as vouchers_v2_router  # spec-alignment P2-α (C
 from routers import audit_v2 as audit_v2_router  # spec-alignment P2-α (CR-0002-α, M17 audit tenant-scoped)
 from routers import problem_cards_v2 as problem_cards_v2_router  # spec-alignment P2-α (CR-0002-α, M03 ProblemCard tenant-scoped)
 from routers import technicians_v2 as technicians_v2_router  # spec-alignment P2-α (CR-0002-α, M05 Technician tenant-scoped)
+from routers import technician_certifications_v2 as tech_certs_v2_router  # CR-0104 技能認證矩陣（M05 Technician 子資源）
 from routers import dispatch_v2 as dispatch_v2_router  # spec-alignment P2-α (CR-0002-α, M06 Dispatch tenant-scoped)
 from routers import work_orders_v2 as work_orders_v2_router  # spec-alignment P2-α (CR-0002-α, M06 WorkOrder tenant-scoped)
 from routers import vendors_v2 as vendors_v2_router  # CR-0029 收尾：廠商核准管理
@@ -260,6 +261,7 @@ app.include_router(audit_v2_router.router, tags=["M17 Audit"])  # spec-alignment
 app.include_router(problem_cards_v2_router.router, tags=["M03 ProblemCard"])  # spec-alignment P2-α (CR-0002-α, M03 ProblemCard tenant-scoped)
 app.include_router(tech_lifecycle_v2_router.router, tags=["M07 Technician Lifecycle"])  # 必須先於 technicians_v2_router (lifecycle-events literal segment vs {techId} catch-all)
 app.include_router(technicians_v2_router.router, tags=["M05 Technician"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
+app.include_router(tech_certs_v2_router.router, tags=["M05 Technician"])  # CR-0104 技能認證矩陣（子資源 /certifications，多一層 literal 段不與 {techId} 衝突）
 app.include_router(dispatch_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(vendors_v2_router.router, tags=["M14 Vendor"])  # CR-0029 收尾：廠商核准管理
 app.include_router(catalog_v2_router.router, tags=["M04 Quote"])  # CR-0034：報價主檔

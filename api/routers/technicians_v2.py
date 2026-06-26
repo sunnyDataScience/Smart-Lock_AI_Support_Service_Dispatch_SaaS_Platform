@@ -169,13 +169,15 @@ async def create_technician_v2(
 
 class _TechnicianUpdateRequest(BaseModel):
     """CR-0103 admin 編輯技師基本資料（部分更新，欄位皆選填；只更新有帶的欄位）。
-    狀態變更不走這裡 —— active↔suspended 用 lifecycle :suspend/:reactivate（須附 reason）。"""
+    狀態變更不走這裡 —— active↔suspended 用 lifecycle :suspend/:reactivate（須附 reason）。
+    CR-0104：+level（等級手動指派，值域 S/A/B/C 由 TechnicianLevel enum 守門）。"""
 
     display_name: str | None = Field(default=None, description="技師顯示姓名")
     phone: str | None = Field(default=None, description="聯絡電話")
     email: str | None = Field(default=None, description="電子郵件")
     coverage_areas: list[str] | None = Field(default=None, description="服務覆蓋區域代碼清單")
     capabilities: list[str] | None = Field(default=None, description="可服務品牌/技能碼")
+    level: TechnicianLevel | None = Field(default=None, description="技師等級（S/A/B/C，手動指派）")
 
 
 @router.patch(
@@ -207,6 +209,7 @@ async def update_technician_v2(
         "email": body.email,
         "capabilities": body.capabilities,
         "regions": body.coverage_areas,
+        "level": body.level.value if body.level else None,
     }
     technician = await technician_service.update_technician(
         tenant_id=tenantId, technician_id=techId, patch=patch,

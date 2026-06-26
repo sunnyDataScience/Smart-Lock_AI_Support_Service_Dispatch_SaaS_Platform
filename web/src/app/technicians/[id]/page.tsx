@@ -5,6 +5,7 @@ import { ChevronRight, Pencil, Ban, RotateCcw, Star, Info, X } from "lucide-reac
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import TechnicianDetailSidebar from "@/components/technicians/TechnicianDetailSidebar";
+import CertificationMatrix from "@/components/technicians/CertificationMatrix";
 import { ApiError, api, getCurrentSession } from "@/lib/api";
 import { cacheInvalidate } from "@/lib/cache";
 import type { components } from "@/types/api.generated";
@@ -142,67 +143,7 @@ function Field({
   );
 }
 
-/* ─── Mock Sections (banner declares it) ─────────────────────── */
-
-const skills = [
-  { name: "電子鎖安裝認證", brand: "Yale", obtainDate: "2023-06-15", expireDate: "2025-06-15", status: { label: "有效", textColor: "#065F46", bgColor: "#D1FAE5" } },
-  { name: "智慧門鎖維修", brand: "Samsung", obtainDate: "2023-09-20", expireDate: "2025-09-20", status: { label: "有效", textColor: "#065F46", bgColor: "#D1FAE5" } },
-  { name: "指紋辨識模組", brand: "Gateman", obtainDate: "2024-01-10", expireDate: "2026-01-10", status: { label: "有效", textColor: "#065F46", bgColor: "#D1FAE5" } },
-  { name: "WiFi 模組更換", brand: "Yale", obtainDate: "2023-03-05", expireDate: "2025-03-05", expireDateColor: "var(--warning)", status: { label: "即將到期", textColor: "#92400E", bgColor: "#FEF3C7" } },
-  { name: "藍牙配對認證", brand: "Samsung", obtainDate: "2022-11-20", expireDate: "2024-11-20", expireDateColor: "var(--error)", status: { label: "已過期", textColor: "#991B1B", bgColor: "#FEE2E2" } },
-];
-
-const skillColumns = [
-  { label: "認證項目", width: "w-[160px]" },
-  { label: "品牌", width: "w-[100px]" },
-  { label: "取得日期", width: "w-[100px]" },
-  { label: "到期日期", width: "w-[100px]" },
-  { label: "狀態", width: "flex-1" },
-];
-
-function SkillMatrix() {
-  return (
-    <section className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-6">
-      <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">
-        技能認證矩陣
-      </h2>
-      <div className="overflow-hidden rounded-lg border border-[var(--border)]">
-        <div className="flex h-[40px] items-center bg-[var(--bg-page)] px-4">
-          {skillColumns.map((col) => (
-            <div key={col.label} className={`flex items-center ${col.width}`}>
-              <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
-                {col.label}
-              </span>
-            </div>
-          ))}
-        </div>
-        {skills.map((s, idx) => (
-          <div
-            key={s.name}
-            className={`flex h-[44px] items-center px-4 ${idx < skills.length - 1 ? "border-b border-[var(--border)]" : ""}`}
-          >
-            <div className="flex w-[160px]"><span className="text-[13px] text-[var(--text-primary)]">{s.name}</span></div>
-            <div className="flex w-[100px]"><span className="text-[13px] text-[var(--text-primary)]">{s.brand}</span></div>
-            <div className="flex w-[100px]"><span className="text-[13px] text-[var(--text-primary)]">{s.obtainDate}</span></div>
-            <div className="flex w-[100px]">
-              <span className="text-[13px]" style={{ color: s.expireDateColor || "var(--text-primary)" }}>
-                {s.expireDate}
-              </span>
-            </div>
-            <div className="flex flex-1">
-              <span
-                className="rounded-full px-[10px] py-[2px] text-[11px] font-medium"
-                style={{ color: s.status.textColor, backgroundColor: s.status.bgColor }}
-              >
-                {s.status.label}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
+/* ─── Mock Sections（本週排班仍為示意；技能認證矩陣已改真資料 CertificationMatrix）─── */
 
 const scheduleDays = [
   { dayLabel: "週一", date: "20", shift: "早班", shiftTextColor: "#1E40AF", bgColor: "#DBEAFE" },
@@ -251,7 +192,7 @@ function MockBanner() {
     <div className="mx-8 mt-4 flex items-start gap-2 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3">
       <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[var(--text-secondary)]" />
       <span className="text-[12px] text-[var(--text-secondary)]">
-        以下「技能認證矩陣」、「本週排班」與右側「可用狀態 / 佣金摘要 / 獎懲紀錄」為示意，待認證/排班/結算模組接入後將顯示真實資料；右側「進行中工單」已連線真實資料。
+        以下「本週排班」與右側「佣金摘要 / 獎懲紀錄」為示意，待排班/結算模組接入後將顯示真實資料；「技能認證矩陣」、右側「可用狀態」與「進行中工單」已連線真實資料。
       </span>
     </div>
   );
@@ -272,7 +213,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
   const [actionBusy, setActionBusy] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", skills: "", regions: "" });
+  const [editForm, setEditForm] = useState({ name: "", phone: "", skills: "", regions: "", level: "" });
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const session = getCurrentSession();
@@ -346,6 +287,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
       phone: technician.phone ?? "",
       skills: (technician.skills ?? []).join(", "),
       regions: (technician.service_areas ?? []).join(", "),
+      level: technician.level ?? "",
     });
     setActionMsg(null);
     setEditOpen(true);
@@ -365,6 +307,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
           phone: editForm.phone.trim() || undefined,
           capabilities: splitCsv(editForm.skills),
           coverage_areas: splitCsv(editForm.regions),
+          level: editForm.level || undefined,
         },
       );
       cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refetch 取到更新後資料
@@ -470,7 +413,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
             <>
               <ProfileCard technician={technician} />
               <MockBanner />
-              <SkillMatrix />
+              <CertificationMatrix tenantId={tenantId} technicianId={id} />
               <WeeklySchedule />
             </>
           ) : (
@@ -482,7 +425,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        <TechnicianDetailSidebar technicianId={id} />
+        <TechnicianDetailSidebar technicianId={id} availability={technician?.availability} />
       </div>
 
       {/* CR-0103 編輯技師基本資料 modal（姓名/電話/技能/區域；狀態變更走停權/復權鈕）*/}
@@ -515,6 +458,19 @@ export default function TechnicianDetailPage({ params }: PageProps) {
                   onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                   className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
                 />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-[var(--text-secondary)]">等級</span>
+                <select
+                  value={editForm.level}
+                  onChange={(e) => setEditForm((f) => ({ ...f, level: e.target.value }))}
+                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
+                >
+                  <option value="S">S（頂級）</option>
+                  <option value="A">A（資深）</option>
+                  <option value="B">B（中級）</option>
+                  <option value="C">C（入門）</option>
+                </select>
               </label>
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-[var(--text-secondary)]">技能 / 品牌（逗號分隔）</span>

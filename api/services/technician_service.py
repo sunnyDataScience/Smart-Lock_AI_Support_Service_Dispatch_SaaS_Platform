@@ -50,18 +50,22 @@ def _coerce_jsonb_list(value) -> list[str]:
 _TECH_SELECT = (
     "t.id, t.user_id, t.name, t.phone, t.email, "
     "t.capabilities, t.service_regions, t.rating, t.completed_orders, "
-    "t.status, t.created_at"
+    "t.status, t.created_at, t.online_state, t.level"
 )
 
 
 def _tech_row_to_dict(row: tuple) -> dict:
-    """row 順序對齊 _TECH_SELECT。Technician schema：必填欄位都要齊。"""
+    """row 順序對齊 _TECH_SELECT。Technician schema：必填欄位都要齊。
+
+    CR-0104：availability 改讀真實 online_state（Schema_tech_schedule.sql 既有欄，CHECK 值域與
+    TechnicianAvailability enum 完全相同）、level 改讀真實 level 欄（migration 080，DEFAULT 'C'），
+    取代原本對所有技師硬補常數的假值。NULL 時退回預設值防呆（理論上 DEFAULT 已保證非 NULL）。"""
     out: dict = {
         "id": str(row[0]),
         "name": row[2] or "",
         "phone": row[3] or "",
-        "level": _DEFAULT_LEVEL,
-        "availability": _DEFAULT_AVAILABILITY,
+        "level": row[12] or _DEFAULT_LEVEL,
+        "availability": row[11] or _DEFAULT_AVAILABILITY,
         "skills": _coerce_jsonb_list(row[5]),
         "service_areas": _coerce_jsonb_list(row[6]),
         "rating": float(row[7]) if row[7] is not None else 0.0,
@@ -253,6 +257,10 @@ async def update_technician(*, tenant_id: str, technician_id: str, patch: dict) 
     if "regions" in patch and patch["regions"] is not None:
         sets.append("service_regions = %s::jsonb")
         args.append(json.dumps(list(patch["regions"])))
+    # CR-0104：等級手動指派（值域 S/A/B/C 由 API enum TechnicianLevel 守門）
+    if "level" in patch and patch["level"] is not None:
+        sets.append("level = %s")
+        args.append(patch["level"])
 
     if sets:
         args.extend([technician_id, tenant_id])

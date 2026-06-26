@@ -29,7 +29,19 @@ const ACTIVE_STATUSES: ReadonlySet<WorkOrderStatus> = new Set([
 
 interface Props {
   technicianId?: string;
+  /** CR-0104：技師真實在線狀態（online_state），由 admin 詳情頁傳入，供 AvailabilityCard 顯示真值 */
+  availability?: string;
 }
+
+/* CR-0104：在線狀態顯示對照（值域對齊後端 online_state CHECK / TechnicianAvailability enum）。
+   與主頁 header 徽章標籤一致。 */
+const AVAILABILITY_DISPLAY: Record<string, { label: string; color: string; dot: string }> = {
+  available: { label: "可用", color: "#059669", dot: "#059669" },
+  busy: { label: "外出中", color: "#1E40AF", dot: "#1E40AF" },
+  offline: { label: "離線", color: "var(--text-secondary)", dot: "var(--text-disabled)" },
+  on_leave: { label: "休假中", color: "#92400E", dot: "#92400E" },
+  circuit_breaker_open: { label: "暫停派工", color: "#991B1B", dot: "#991B1B" },
+};
 
 interface CommissionRow {
   labelKey: "repair" | "install" | "customMaterial" | "bonus" | "penalty";
@@ -65,10 +77,10 @@ const logEntries: LogEntry[] = [
   { type: "bonus", title: "客戶推薦獎金", date: "2026-04-15", amount: "+NT$ 500" },
 ];
 
-export default function TechnicianDetailSidebar({ technicianId }: Props) {
+export default function TechnicianDetailSidebar({ technicianId, availability }: Props) {
   return (
     <aside className="w-[360px] flex-shrink-0 flex flex-col gap-4 bg-[#F1F5F9] p-4 overflow-y-auto h-full">
-      <AvailabilityCard />
+      <AvailabilityCard availability={availability} />
       <ActiveOrdersCard technicianId={technicianId} />
       <CommissionSummaryCard />
       <PenaltyBonusLog />
@@ -115,36 +127,23 @@ function MockBadge() {
   );
 }
 
-function AvailabilityCard() {
+function AvailabilityCard({ availability }: { availability?: string }) {
   const t = useTranslations("components.technicians.detailSidebar");
+  // CR-0104：讀真實 online_state（取代原本永遠在線的假 toggle）。無值退回 offline。
+  const disp = AVAILABILITY_DISPLAY[availability ?? "offline"] ?? AVAILABILITY_DISPLAY.offline;
   return (
     <CardWrapper>
       <div className="flex items-center gap-2">
         <CardTitle>{t("availabilityTitle")}</CardTitle>
-        <MockBadge />
       </div>
-      <div className="flex items-center justify-between w-full">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="w-3.5 h-3.5 rounded-full"
-            style={{ backgroundColor: "#059669" }}
-          />
-          <span className="text-sm font-semibold" style={{ color: "#059669" }}>
-            {t("availabilityOnline")}
-          </span>
-        </div>
-        <div
-          className="relative w-[44px] h-[24px] rounded-full"
-          style={{ backgroundColor: "var(--success)" }}
-        >
-          <span className="absolute right-1 top-1 w-4 h-4 rounded-full bg-white shadow-sm" />
-        </div>
+      <div className="flex items-center gap-2.5">
+        <span className="w-3.5 h-3.5 rounded-full" style={{ backgroundColor: disp.dot }} />
+        <span className="text-sm font-semibold" style={{ color: disp.color }}>
+          {disp.label}
+        </span>
       </div>
-      <p className="text-xs" style={{ color: "var(--text-disabled)" }}>
-        {t("lastOnline")}
-      </p>
       <p className="text-[11px]" style={{ color: "var(--text-disabled)" }}>
-        {t("autoOffline")}
+        在線狀態由技師端 App 切換；管理後台僅檢視。
       </p>
     </CardWrapper>
   );
