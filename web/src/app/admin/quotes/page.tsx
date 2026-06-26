@@ -86,6 +86,7 @@ export default function QuotesPage() {
     brand?: string;
     model?: string;
     symptom?: string;
+    woNumber?: string; // 選定工單的友善公單號（TP-000002），供列表 scoped 標題用
   } | null>(null);
 
   useEffect(() => {
@@ -131,7 +132,12 @@ export default function QuotesPage() {
     (async () => {
       try {
         const woRes = await api.get<{
-          data: { brand?: string; model?: string; problem_card_id?: string } | null;
+          data: {
+            brand?: string;
+            model?: string;
+            problem_card_id?: string;
+            document_number?: string;
+          } | null;
         }>(tenantPath(`/work-orders/${encodeURIComponent(id)}`));
         const wo = woRes.data;
         let symptom = "";
@@ -146,7 +152,12 @@ export default function QuotesPage() {
           }
         }
         if (!cancelled) {
-          setPcContext({ brand: wo?.brand, model: wo?.model, symptom });
+          setPcContext({
+            brand: wo?.brand,
+            model: wo?.model,
+            symptom,
+            woNumber: wo?.document_number,
+          });
         }
       } catch {
         if (!cancelled) setPcContext(null);
@@ -324,6 +335,16 @@ export default function QuotesPage() {
   // 已送客戶（含後續狀態）才有客戶連結
   const hasCustomerLink = quote != null && ["sent", "accepted", "rejected", "expired"].includes(quote.state);
 
+  // 報價列表 scoped 規則：選定工單 → 只列「這張工單」的報價（避免與工單脈絡混淆，
+  // 不再把別張工單的報價混進來）；未選工單 → 瀏覽模式，顯示全部報價。
+  const trimmedWo = woId.trim();
+  const scoped = trimmedWo.length > 0;
+  const visibleQuotes = scoped
+    ? quotes.filter((q) => q.work_order_id === trimmedWo)
+    : quotes;
+  // scoped 標題優先用 WO context 撈到的公單號；撈不到時退回列表項自帶的公單號。
+  const woNumberLabel = pcContext?.woNumber ?? visibleQuotes[0]?.work_order_number ?? null;
+
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
@@ -331,7 +352,10 @@ export default function QuotesPage() {
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <FileText className="h-7 w-7 text-[var(--primary)]" />
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">{t("title")}</h1>
-          <span className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[11px] text-[#92400E]">{t("mockBadge")}</span>
+          {/* 「示意資料」僅在開啟的報價真為 mock 時才標（is_mock）；原本恆亮會誤導真資料畫面 */}
+          {quote?.is_mock && (
+            <span className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[11px] text-[#92400E]">{t("mockBadge")}</span>
+          )}
         </div>
 
         <div className="flex-1 overflow-auto pl-14 pr-4 md:px-8 py-6">
@@ -379,11 +403,16 @@ export default function QuotesPage() {
           )}
 
           {/* CR-0095 報價列表 — 點選即開，免手貼 UUID（顯示友善公單號 TP）*/}
-          {quotes.length > 0 && (
+          {(scoped || quotes.length > 0) && (
             <div className="mb-6 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
               <div className="border-b border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)]">
-                {t("listTitle")}（{quotes.length}）
+                {scoped ? `${woNumberLabel ?? "本工單"} 的報價` : "全部報價"}（{visibleQuotes.length}）
               </div>
+              {visibleQuotes.length === 0 ? (
+                <div className="px-4 py-6 text-center text-[13px] text-[var(--text-disabled)]">
+                  尚無報價，點上方「建立草稿」新增
+                </div>
+              ) : (
               <table className="w-full text-sm">
                 <thead className="bg-[#F8FAFC] text-xs text-[var(--text-secondary)]">
                   <tr>
@@ -395,7 +424,7 @@ export default function QuotesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {quotes.map((q) => (
+                  {visibleQuotes.map((q) => (
                     <tr key={q.id} className="border-t border-[var(--border)] hover:bg-[var(--bg-page)]">
                       <td className="px-3 py-2 font-mono text-[13px] font-semibold text-[var(--text-primary)]">{q.quote_number ?? q.work_order_number ?? "—"}</td>
                       <td className="px-3 py-2 text-[var(--text-secondary)]">{q.customer_name ?? "—"}</td>
@@ -434,6 +463,7 @@ export default function QuotesPage() {
                   ))}
                 </tbody>
               </table>
+              )}
             </div>
           )}
 
