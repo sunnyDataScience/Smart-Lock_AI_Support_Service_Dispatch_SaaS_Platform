@@ -130,6 +130,20 @@ async def remove_quote_line_v2(
     return {"data": await qe.remove_line(tenant_id=tenantId, quote_id=id, line_id=lineId)}
 
 
+@router.delete(
+    "/tenants/{tenantId}/quotes/{id}",
+    operation_id="deleteQuoteV2",
+    summary="刪除整張報價單 v2（僅 draft/pending_approval 硬刪 cascade）", tags=["M04 Quote"],
+)
+async def delete_quote_v2(
+    tenantId: str = Path(...), id: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    _xt(user, tenantId)
+    await qe.delete_quote(tenant_id=tenantId, quote_id=id)
+    return {"data": {"deleted": True, "id": id}}
+
+
 async def _transition(tenantId: str, id: str, action: str, user: CurrentUser, comment: str | None = None) -> dict:
     _xt(user, tenantId)
     return {"data": await qe.transition(

@@ -238,6 +238,22 @@ export default function QuotesPage() {
     }
   }
 
+  // CR：刪除整張報價單（僅草稿/待核可刪，硬刪 cascade）。破壞性動作，先確認。
+  async function deleteQuote(id: string) {
+    if (typeof window !== "undefined" && !window.confirm(t("deleteConfirm"))) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.delete(tenantPath(`/quotes/${encodeURIComponent(id)}`));
+      if (quote?.id === id) setQuote(null); // 若刪的是目前開啟的報價 → 收起編輯區
+      setQuotes(await fetchQuotes());
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function transition(action: string) {
     if (!quote) return;
     setBusy(true);
@@ -390,14 +406,29 @@ export default function QuotesPage() {
                       </td>
                       <td className="px-3 py-2 text-right font-mono">{price(q.total_amount)}</td>
                       <td className="px-3 py-2 text-right">
-                        <a
-                          href={`/admin/quotes?open=${q.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-block rounded border border-[var(--primary)] px-3 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary-light)]"
-                        >
-                          {t("open")}
-                        </a>
+                        <div className="inline-flex items-center gap-2">
+                          <a
+                            href={`/admin/quotes?open=${q.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-block rounded border border-[var(--primary)] px-3 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary-light)]"
+                          >
+                            {t("open")}
+                          </a>
+                          {/* 僅草稿/待核可刪整張；已送客戶/接受的報價為紀錄不可刪 */}
+                          {(q.state === "draft" || q.state === "pending_approval") && (
+                            <button
+                              type="button"
+                              onClick={() => deleteQuote(q.id)}
+                              disabled={busy}
+                              title={t("deleteQuote")}
+                              aria-label={t("deleteQuote")}
+                              className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--text-disabled)] hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}

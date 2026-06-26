@@ -173,6 +173,25 @@ async def remove_line(*, tenant_id: str, quote_id: str, line_id: str) -> dict:
     return await get_quote(quote_id=quote_id, tenant_id=tenant_id, include_cost=True)
 
 
+async def delete_quote(*, tenant_id: str, quote_id: str) -> None:
+    """硬刪整張報價單（子表 lines/approval/snapshot 皆 ON DELETE CASCADE）。
+    僅 draft / pending_approval 可刪；已送客戶/接受的報價為對外紀錄，不可刪（請用 reject）。"""
+    conn = await _conn()
+    q = await (await conn.execute(
+        "SELECT state FROM quote WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (quote_id, tenant_id),
+    )).fetchone()
+    if not q:
+        raise ApiError("NOT_FOUND", "quote not found", 404)
+    if q[0] not in ("draft", "pending_approval"):
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"cannot delete quote in '{q[0]}'；已送客戶/接受的報價為紀錄，請改用 reject",
+            409,
+        )
+    await conn.execute("DELETE FROM quote WHERE id = %s::uuid", (quote_id,))
+
+
 async def _recompute_total(quote_id: str) -> None:
     conn = await _conn()
     total = (await (await conn.execute(

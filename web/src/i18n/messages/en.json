@@ -1924,6 +1924,8 @@
       "qty": "Qty",
       "addLine": "Add Item",
       "removeLine": "Remove item",
+      "deleteQuote": "Delete quote",
+      "deleteConfirm": "Delete this entire quote? This cannot be undone.",
       "name": "Name",
       "category": "Category",
       "cost": "Cost",

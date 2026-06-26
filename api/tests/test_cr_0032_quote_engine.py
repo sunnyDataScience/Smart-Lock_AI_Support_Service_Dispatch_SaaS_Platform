@@ -92,6 +92,33 @@ async def test_remove_line_recompute_total(client):
 
 
 @pytest.mark.asyncio
+async def test_delete_quote_draft_cascade_and_frozen_409(client):
+    """刪整張報價單：草稿硬刪（子表 cascade、查無）；已送客戶（sent）→ 409。"""
+    assert await db_module._ensure_conn()
+    woid, ids = await _seed_wo()
+    try:
+        q = await qe.create_quote(tenant_id=DEFAULT_TENANT_ID, work_order_id=woid, created_by=ADMIN_USER_ID)
+        await qe.add_line(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], service_code="SVC-RES-001", quantity=1)
+        # 刪草稿 → 成功；子表 cascade（line_items 歸零）
+        await qe.delete_quote(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"])
+        n = (await (await db_module._conn.execute(
+            "SELECT COUNT(*) FROM quote_line_items WHERE quote_id = %s::uuid", (q["id"],))).fetchone())[0]
+        assert n == 0
+        # 再刪同一張 → 404（已不存在）
+        with pytest.raises(ApiError) as ei:
+            await qe.delete_quote(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"])
+        assert ei.value.status_code == 404
+        # 已送客戶（sent）為紀錄 → 不可刪 409
+        q2 = await qe.create_quote(tenant_id=DEFAULT_TENANT_ID, work_order_id=woid, created_by=ADMIN_USER_ID)
+        await db_module._conn.execute("UPDATE quote SET state='sent' WHERE id = %s::uuid", (q2["id"],))
+        with pytest.raises(ApiError) as ei2:
+            await qe.delete_quote(tenant_id=DEFAULT_TENANT_ID, quote_id=q2["id"])
+        assert ei2.value.status_code == 409
+    finally:
+        await _cleanup(ids)
+
+
+@pytest.mark.asyncio
 async def test_state_machine_and_snapshot_freeze(client):
     assert await db_module._ensure_conn()
     woid, ids = await _seed_wo()

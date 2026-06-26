@@ -1924,6 +1924,8 @@
       "qty": "數量",
       "addLine": "新增項目",
       "removeLine": "移除項目",
+      "deleteQuote": "刪除報價單",
+      "deleteConfirm": "確定刪除整張報價單？此動作無法復原。",
       "name": "名稱",
       "category": "類別",
       "cost": "成本",
