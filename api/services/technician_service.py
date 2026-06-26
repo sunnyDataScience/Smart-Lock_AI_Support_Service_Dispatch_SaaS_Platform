@@ -225,6 +225,45 @@ async def update_my_profile(*, tenant_id: str, user_id: str, patch: dict) -> dic
     return _tech_row_to_dict(refreshed) if refreshed else _tech_row_to_dict(row)
 
 
+async def update_technician(*, tenant_id: str, technician_id: str, patch: dict) -> dict:
+    """admin 編輯任意技師基本資料（CR-0103）— name/phone/email/capabilities/regions 五欄
+    部分更新（與 update_my_profile 同 SET 邏輯，差別在以 technician_id 定位、需 admin 權限）。
+    狀態變更不走這裡（用 lifecycle :suspend/:reactivate/:terminate）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 存在性 + 跨租戶守門（get_technician 不存在會 404）
+    await get_technician(tenant_id=tenant_id, technician_id=technician_id)
+
+    sets: list[str] = []
+    args: list = []
+    if "name" in patch and patch["name"] is not None:
+        sets.append("name = %s")
+        args.append(patch["name"])
+    if "phone" in patch and patch["phone"] is not None:
+        sets.append("phone = %s")
+        args.append(patch["phone"])
+    if "email" in patch and patch["email"] is not None:
+        sets.append("email = %s")
+        args.append(patch["email"])
+    if "capabilities" in patch and patch["capabilities"] is not None:
+        sets.append("capabilities = %s::jsonb")
+        args.append(json.dumps(list(patch["capabilities"])))
+    if "regions" in patch and patch["regions"] is not None:
+        sets.append("service_regions = %s::jsonb")
+        args.append(json.dumps(list(patch["regions"])))
+
+    if sets:
+        args.extend([technician_id, tenant_id])
+        await db_module._conn.execute(
+            f"UPDATE technicians SET {', '.join(sets)} "
+            f"WHERE id = %s::uuid AND tenant_id = %s::uuid",
+            args,
+        )
+
+    return await get_technician(tenant_id=tenant_id, technician_id=technician_id)
+
+
 async def get_my_availability(
     *,
     tenant_id: str,
