@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 import logging
 from datetime import datetime, time, timedelta, timezone
 
@@ -373,17 +374,31 @@ async def create_technician(
     capabilities_json = json.dumps(capabilities or [])
     service_regions_json = json.dumps(coverage_areas)
 
-    # CR-0038 桶5 / FR-0044：寫 user_id（連結登入帳號 → 修 _fetch_status JOIN users 永遠 404
-    # 的斷鏈；註冊流程建 user 後傳入；NULL::uuid 相容舊呼叫端）
-    cur = await db_module._conn.execute(
-        "INSERT INTO technicians "
-        "  (tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
-        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
-        "RETURNING id",
-        (tenant_id, user_id, display_name, phone_val, email, capabilities_json, service_regions_json),
-    )
-    row = await cur.fetchone()
-    new_id = str(row[0])
+    # CR-0103-fix：admin「新增技師」原本不傳 user_id → technician.user_id=NULL →
+    # 核准（_fetch_status JOIN users）永遠 404（業主實測「核准失敗 not found in tenant」）。
+    # 比照 register_technician 一併建 user(role='technician', is_active)，技師才核准得了、
+    # 未來能手機登入（密碼待技師自設/重設，password_hash 暫 NULL）。註冊流程已自建 user 並
+    # 傳 user_id → 此處只在 user_id 缺時補建。user + technician 同 transaction（全有或全無）。
+    async with db_module._conn.transaction():
+        resolved_user_id = user_id
+        if resolved_user_id is None:
+            resolved_user_id = str(uuid.uuid4())
+            await db_module._conn.execute(
+                "INSERT INTO users "
+                "  (id, tenant_id, tenant_type, display_name, phone, email, role, is_active) "
+                "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, 'technician', TRUE)",
+                (resolved_user_id, tenant_id, display_name, phone_val, email),
+            )
+        cur = await db_module._conn.execute(
+            "INSERT INTO technicians "
+            "  (tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
+            "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
+            "RETURNING id",
+            (tenant_id, resolved_user_id, display_name, phone_val, email,
+             capabilities_json, service_regions_json),
+        )
+        row = await cur.fetchone()
+        new_id = str(row[0])
 
     # 重新 SELECT 以取得完整 row（含 created_at 等欄位）
     cur = await db_module._conn.execute(

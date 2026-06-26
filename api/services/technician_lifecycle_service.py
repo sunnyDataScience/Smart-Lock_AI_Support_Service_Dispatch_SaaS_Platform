@@ -51,11 +51,12 @@ _EVENT_TRANSITIONS: dict[str, tuple[str, str]] = {
 
 
 async def _fetch_status(tech_id: str, tenant_id: str) -> str:
-    """從 technicians JOIN users 取 status + tenant 隔離。"""
+    """取 technician status + tenant 隔離。CR-0103-fix：改用 technicians.tenant_id 直接判，
+    不 JOIN users —— 原 JOIN users 在 user_id 為 NULL（admin 新增、舊資料）時撈不出列，
+    導致核准/停權誤回 404 'not found in tenant'。technicians.tenant_id 為 NOT NULL 權威來源。"""
     cur = await db_module._conn.execute(
-        "SELECT t.status FROM technicians t "
-        "JOIN users u ON t.user_id = u.id "
-        "WHERE t.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "SELECT status FROM technicians "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
         (tech_id, tenant_id),
     )
     row = await cur.fetchone()

@@ -82,3 +82,15 @@ relates:
 ✅ S1 done（branch `feat/technician-admin-edit`，疊於 phone 分支）：service update_technician +
 PATCH updateTechnicianV2 + 移除 501 死碼 stub；前端編輯 modal + 停權/復權接線 + cache 修正；
 API 38 passed；Playwright 全流程驗證。**待部署 api+web**。
+
+✅ S2 done（後續 bug 修復）— 業主實測「核准失敗 NOT_FOUND：technician … not found in tenant」。
+**根因（又一個從沒端到端測過的假綠）**：admin「新增技師」（createTechnician v2）呼叫
+`create_technician` **沒傳 user_id** → technician.user_id=NULL；而 approve 的 `_fetch_status`
+用 `technicians JOIN users ON user_id WHERE u.tenant_id` → NULL user_id JOIN 不出列 → 404。
+**凡後台新增的 pending 技師全核准不了。** 業主裁決「完整修」：① `create_technician` 在 user_id
+缺時比照 `register_technician` 一併建 `users(role='technician', is_active)` 並連 user_id（user +
+technician 同 transaction；password_hash 暫 NULL，技師日後自設/重設，走手機登入）；②
+`_fetch_status` 改用 `technicians.tenant_id` 直接判（不 JOIN users，對 NULL user_id / 舊資料防呆）。
+順手修 onboard 測試不清理污染 dev DB 的問題（加 `_cleanup_technician` + 既有 2 測試補清理）。
+test_technicians_onboard +1（create→user_id→approve 回歸）→ 技師相關 39 passed + live E2E
+（建技師 user_id 非 NULL → 核准 200 → active，已清）。**待部署 api**。
