@@ -117,6 +117,19 @@ async def add_quote_line_v2(
         service_code=body.service_code, material_code=body.material_code, item_name=body.item_name)}
 
 
+@router.delete(
+    "/tenants/{tenantId}/quotes/{id}/lines/{lineId}",
+    operation_id="removeQuoteLineV2",
+    summary="移除報價項 v2（draft/pending_approval 可改，移除後重算總額）", tags=["M04 Quote"],
+)
+async def remove_quote_line_v2(
+    tenantId: str = Path(...), id: str = Path(...), lineId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    _xt(user, tenantId)
+    return {"data": await qe.remove_line(tenant_id=tenantId, quote_id=id, line_id=lineId)}
+
+
 async def _transition(tenantId: str, id: str, action: str, user: CurrentUser, comment: str | None = None) -> dict:
     _xt(user, tenantId)
     return {"data": await qe.transition(

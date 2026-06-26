@@ -1923,6 +1923,7 @@
       "materials": "Materials",
       "qty": "Qty",
       "addLine": "Add Item",
+      "removeLine": "Remove item",
       "name": "Name",
       "category": "Category",
       "cost": "Cost",

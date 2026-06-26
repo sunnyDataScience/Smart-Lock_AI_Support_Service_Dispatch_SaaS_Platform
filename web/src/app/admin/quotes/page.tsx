@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FileText, Plus } from "lucide-react";
+import { FileText, Plus, Trash2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
 import { ApiError, api, tenantPath } from "@/lib/api";
@@ -214,6 +214,23 @@ export default function QuotesPage() {
       setQuote(res.data);
       setPick("");
       setQty(1);
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // CR：移除報價明細（草稿/待核可改；後端重算總額後回傳）。
+  async function removeLine(lineId: string) {
+    if (!quote) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api.delete<{ data: Quote }>(
+        tenantPath(`/quotes/${quote.id}/lines/${encodeURIComponent(lineId)}`),
+      );
+      setQuote(res.data);
     } catch (e) {
       fail(e);
     } finally {
@@ -465,27 +482,47 @@ export default function QuotesPage() {
                       <th className="px-3 py-2 text-right">{t("qty")}</th>
                       {quote.cost_visible && <th className="px-3 py-2 text-right">{t("cost")}</th>}
                       <th className="px-3 py-2 text-right">{t("custPrice")}</th>
+                      <th className="px-3 py-2"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {quote.lines.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-3 py-6 text-center text-[var(--text-disabled)]">
+                        <td colSpan={6} className="px-3 py-6 text-center text-[var(--text-disabled)]">
                           {t("noLines")}
                         </td>
                       </tr>
                     ) : (
-                      quote.lines.map((l) => (
-                        <tr key={l.id} className="border-t border-[var(--border)]">
-                          <td className="px-3 py-2 text-[var(--text-primary)]">{l.item_name}</td>
-                          <td className="px-3 py-2 text-[var(--text-secondary)]">{l.category}</td>
-                          <td className="px-3 py-2 text-right">{l.quantity}</td>
-                          {quote.cost_visible && (
-                            <td className="px-3 py-2 text-right font-mono text-[var(--text-disabled)]">{price(l.unit_price)}</td>
-                          )}
-                          <td className="px-3 py-2 text-right font-mono font-medium">{price(l.customer_price)}</td>
-                        </tr>
-                      ))
+                      quote.lines.map((l) => {
+                        // 僅草稿/待核可移除（已送客戶/接受的報價凍結，不可改）
+                        const editable =
+                          quote.state === "draft" || quote.state === "pending_approval";
+                        return (
+                          <tr key={l.id} className="border-t border-[var(--border)]">
+                            <td className="px-3 py-2 text-[var(--text-primary)]">{l.item_name}</td>
+                            <td className="px-3 py-2 text-[var(--text-secondary)]">{l.category}</td>
+                            <td className="px-3 py-2 text-right">{l.quantity}</td>
+                            {quote.cost_visible && (
+                              <td className="px-3 py-2 text-right font-mono text-[var(--text-disabled)]">{price(l.unit_price)}</td>
+                            )}
+                            <td className="px-3 py-2 text-right font-mono font-medium">{price(l.customer_price)}</td>
+                            <td className="px-3 py-2 text-right">
+                              {editable && (
+                                <button
+                                  type="button"
+                                  onClick={() => removeLine(l.id)}
+                                  disabled={busy}
+                                  title={t("removeLine")}
+                                  aria-label={t("removeLine")}
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded text-[var(--text-disabled)] hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>

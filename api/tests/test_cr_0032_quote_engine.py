@@ -67,6 +67,31 @@ async def test_create_add_line_from_catalog_and_total(client):
 
 
 @pytest.mark.asyncio
+async def test_remove_line_recompute_total(client):
+    """移除報價明細（add_line 反向）→ 重算總額；移除不存在明細 → 404。"""
+    assert await db_module._ensure_conn()
+    woid, ids = await _seed_wo()
+    try:
+        q = await qe.create_quote(tenant_id=DEFAULT_TENANT_ID, work_order_id=woid, created_by=ADMIN_USER_ID)
+        q = await qe.add_line(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], service_code="SVC-RES-001", quantity=1)  # 800
+        q = await qe.add_line(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], material_code="MAT-PWR-001", quantity=2)  # +600=1400
+        assert len(q["lines"]) == 2 and q["total_amount"] == "1400.00"
+        # 移除服務項（800）→ 重算 600、剩 1 項
+        svc_line = next(l for l in q["lines"] if l.get("service_code") == "SVC-RES-001")
+        q = await qe.remove_line(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], line_id=svc_line["id"])
+        assert len(q["lines"]) == 1
+        assert q["total_amount"] == "600.00"
+        # 移除不存在的明細 → 404
+        with pytest.raises(ApiError) as ei:
+            await qe.remove_line(
+                tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], line_id=str(uuid.uuid4())
+            )
+        assert ei.value.status_code == 404
+    finally:
+        await _cleanup(ids)
+
+
+@pytest.mark.asyncio
 async def test_state_machine_and_snapshot_freeze(client):
     assert await db_module._ensure_conn()
     woid, ids = await _seed_wo()

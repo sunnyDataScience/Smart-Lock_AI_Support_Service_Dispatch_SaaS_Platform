@@ -155,6 +155,24 @@ async def add_line(
     return await get_quote(quote_id=quote_id, tenant_id=tenant_id, include_cost=True)
 
 
+async def remove_line(*, tenant_id: str, quote_id: str, line_id: str) -> dict:
+    """移除一筆報價項（add_line 的反向；僅 draft / pending_approval 可改，移除後重算總額）。"""
+    conn = await _conn()
+    q = await (await conn.execute("SELECT state FROM quote WHERE id = %s::uuid", (quote_id,))).fetchone()
+    if not q:
+        raise ApiError("NOT_FOUND", "quote not found", 404)
+    if q[0] not in ("draft", "pending_approval"):
+        raise ApiError("STATE_CONFLICT", f"cannot remove line from quote in '{q[0]}'", 409)
+    cur = await conn.execute(
+        "DELETE FROM quote_line_items WHERE id = %s::uuid AND quote_id = %s::uuid",
+        (line_id, quote_id),
+    )
+    if cur.rowcount == 0:
+        raise ApiError("NOT_FOUND", "line item not found", 404)
+    await _recompute_total(quote_id)
+    return await get_quote(quote_id=quote_id, tenant_id=tenant_id, include_cost=True)
+
+
 async def _recompute_total(quote_id: str) -> None:
     conn = await _conn()
     total = (await (await conn.execute(
