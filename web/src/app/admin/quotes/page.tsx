@@ -50,6 +50,24 @@ interface QuoteListItem {
   customer_name: string | null;
 }
 
+// 瀏覽模式列「尚無報價的工單」需要的最小工單欄位
+interface WorkOrderLite {
+  id: string;
+  document_number: string | null;
+  customer_name: string | null;
+  status: string;
+}
+// 工單狀態中文標籤（與營運七態對齊）
+const WO_STATUS_LABEL: Record<string, string> = {
+  inquiring: "詢價中",
+  assigned: "已派工",
+  accepted: "已接單",
+  in_progress: "服務中",
+  completed: "已完工",
+  closed: "已結案",
+  cancelled: "已取消",
+};
+
 const STATE_COLORS: Record<string, string> = {
   draft: "bg-[#E2E8F0] text-[#475569]",
   pending_approval: "bg-[#FEF3C7] text-[#92400E]",
@@ -80,6 +98,9 @@ export default function QuotesPage() {
   const [copied, setCopied] = useState(false);
   const [invoiceMsg, setInvoiceMsg] = useState<string | null>(null);
   const [quotes, setQuotes] = useState<QuoteListItem[]>([]); // CR-0095 報價列表
+  // 瀏覽模式「尚無報價的工單」清單來源（與報價算差集）；woTruncated=工單超過 100 筆只載前頁
+  const [workOrders, setWorkOrders] = useState<WorkOrderLite[]>([]);
+  const [woTruncated, setWoTruncated] = useState(false);
   // CR-0101（業主裁決：誠實版·零後端）：選定工單時帶入其問題卡 context（品牌/型號/症狀），
   // 報價時免切回問題卡翻。自動「建議定價品項」需推薦引擎（未實作），故不猜、只帶 context。
   const [pcContext, setPcContext] = useState<{
@@ -117,6 +138,19 @@ export default function QuotesPage() {
         setWoId(wo);
         const existing = list.find((q) => q.work_order_id === wo);
         if (existing) await loadQuote(existing.id); // 已有報價 → 直接開（避免誤建多張）
+      }
+    })();
+    // 載入工單清單，供瀏覽模式列「尚無報價的工單」（與報價 client 端算差集）。
+    // 端點上限 100，超過則 has_more=true → 誠實標註只顯示前 100 筆，不靜默截斷。
+    (async () => {
+      try {
+        const res = await api.get<{ items: WorkOrderLite[]; has_more?: boolean }>(
+          `${tenantPath("/work-orders")}?limit=100`,
+        );
+        setWorkOrders(res.items ?? []);
+        setWoTruncated(Boolean(res.has_more));
+      } catch {
+        /* 工單清單載入失敗不阻斷報價工作台 */
       }
     })();
   }, []);
@@ -345,6 +379,13 @@ export default function QuotesPage() {
   // scoped 標題優先用 WO context 撈到的公單號；撈不到時退回列表項自帶的公單號。
   const woNumberLabel = pcContext?.woNumber ?? visibleQuotes[0]?.work_order_number ?? null;
 
+  // 瀏覽模式「尚無報價的工單」：所有工單扣掉已有報價者，並排除終態（已結案/已取消，
+  // 列在「待報價」會誤導）。讓管理員一眼看出哪些工單還沒開報價、可直接「去報價」。
+  const quotedWoIds = new Set(quotes.map((q) => q.work_order_id).filter(Boolean));
+  const woNoQuote = workOrders.filter(
+    (wo) => !quotedWoIds.has(wo.id) && wo.status !== "cancelled" && wo.status !== "closed",
+  );
+
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
@@ -463,6 +504,54 @@ export default function QuotesPage() {
                   ))}
                 </tbody>
               </table>
+              )}
+            </div>
+          )}
+
+          {/* 瀏覽模式（未選工單）才列「尚無報價的工單」，提醒哪些工單待開報價 */}
+          {!scoped && woNoQuote.length > 0 && (
+            <div className="mb-6 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+              <div className="border-b border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)]">
+                尚無報價的工單（{woNoQuote.length}）
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-[#F8FAFC] text-xs text-[var(--text-secondary)]">
+                  <tr>
+                    <th className="px-3 py-2 text-left">公單號</th>
+                    <th className="px-3 py-2 text-left">客戶</th>
+                    <th className="px-3 py-2 text-left">狀態</th>
+                    <th className="px-3 py-2"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {woNoQuote.map((wo) => (
+                    <tr key={wo.id} className="border-t border-[var(--border)] hover:bg-[var(--bg-page)]">
+                      <td className="px-3 py-2 font-mono text-[13px] font-semibold text-[var(--text-primary)]">
+                        {wo.document_number ?? wo.id.slice(0, 8)}
+                      </td>
+                      <td className="px-3 py-2 text-[var(--text-secondary)]">{wo.customer_name ?? "—"}</td>
+                      <td className="px-3 py-2">
+                        <span className="rounded bg-[var(--bg-page)] px-2 py-[2px] text-xs text-[var(--text-secondary)]">
+                          {WO_STATUS_LABEL[wo.status] ?? wo.status}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setWoId(wo.id)}
+                          className="inline-block rounded border border-[var(--primary)] px-3 py-1 text-xs font-medium text-[var(--primary)] hover:bg-[var(--primary-light)]"
+                        >
+                          去報價
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {woTruncated && (
+                <div className="border-t border-[var(--border)] px-4 py-2 text-[11px] text-[var(--text-disabled)]">
+                  工單超過 100 筆，此處僅比對前 100 筆；請用上方「選擇工單」搜尋特定工單。
+                </div>
               )}
             </div>
           )}
