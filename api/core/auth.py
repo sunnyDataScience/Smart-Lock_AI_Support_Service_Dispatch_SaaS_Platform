@@ -88,6 +88,30 @@ def decode_token(token: str) -> dict:
         raise
 
 
+async def load_user_security_state(user_id: str) -> dict | None:
+    """回 {is_active, password_changed_at} 供每請求 token 驗證重查（A2/A3）。
+
+    **Fail-open 設計**（對齊 is_jti_revoked）：DB 不可用、user_id 非合法 uuid、或查無此
+    使用者 → 回 None（呼叫端維持 claims-only 行為）。這是刻意的：
+      - 既有大量元件測試用「未 seed 的假 user_id」（token 驗證只看 claims）→ 查無回 None 不破測試。
+      - 真實「停權（is_active=False）」或「改密碼後（password_changed_at）」的既存帳號 → 撈得到 → 失效。
+    """
+    if not await _ensure_conn():
+        return None
+    try:
+        uuid.UUID(str(user_id))
+    except (ValueError, TypeError, AttributeError):
+        return None
+    cur = await db_module._conn.execute(
+        "SELECT is_active, password_changed_at FROM users WHERE id = %s::uuid LIMIT 1",
+        (user_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return None
+    return {"is_active": row[0], "password_changed_at": row[1]}
+
+
 async def is_jti_revoked(jti: str) -> bool:
     if not await _ensure_conn():
         return False

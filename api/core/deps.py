@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from fastapi import Header, Request
 
-from core.auth import decode_token, is_jti_revoked
+from core.auth import decode_token, is_jti_revoked, load_user_security_state
 from core.errors import ApiError
 from core.tenant import resolve_tenant_id
 
@@ -62,6 +62,25 @@ async def get_current_user(
             message="Token has been revoked",
             status_code=401,
         )
+
+    # A2/A3：每請求重查使用者狀態（停權即時失效 + 改密碼後撤既有 session）。
+    # fail-open：查無/無 DB → None → 維持 claims-only（見 load_user_security_state）。
+    state = await load_user_security_state(payload["sub"])
+    if state is not None:
+        if not state["is_active"]:
+            raise ApiError(
+                error_code="ACCOUNT_DISABLED",
+                message="Account has been disabled",
+                status_code=403,
+            )
+        pwd_changed = state["password_changed_at"]
+        iat = payload.get("iat")
+        if pwd_changed and iat is not None and int(iat) < int(pwd_changed.timestamp()):
+            raise ApiError(
+                error_code="TOKEN_STALE",
+                message="Session invalidated by password change; please log in again",
+                status_code=401,
+            )
 
     return CurrentUser(
         user_id=payload["sub"],

@@ -65,7 +65,7 @@ backlog。</p>
 都在，但無任何 middleware 真正套用</td>
 <td>登入失敗計數 + 鎖定（DB 或快取）/ 對登入端點加 rate limit
 middleware</td>
-<td>☐ 未開工</td>
+<td>✅ 完成</td>
 </tr>
 <tr>
 <td><strong>A2</strong></td>
@@ -75,7 +75,7 @@ middleware</td>
 <code>is_active</code></td>
 <td>decode 熱路徑加 <code>is_active</code> 重查；<code>refresh()</code>
 查 DB 而非純從 claim 重簽</td>
-<td>☐ 未開工</td>
+<td>✅ 完成</td>
 </tr>
 <tr>
 <td><strong>A3</strong></td>
@@ -85,7 +85,7 @@ middleware</td>
 user 其他 refresh token</td>
 <td>加 <code>users.password_changed_at</code> epoch，decode
 時比對；或改密碼即撤該 user 全 refresh</td>
-<td>☐ 未開工</td>
+<td>✅ 完成</td>
 </tr>
 </tbody>
 </table>
@@ -233,8 +233,10 @@ code「依電話」<strong>三方不一致需業主重新確認</strong>）。</
 <tbody>
 <tr>
 <td>批次 0</td>
-<td>帳號安全 A1 / A2 / A3（§1，逐一補）</td>
-<td>☐ 進行中</td>
+<td>帳號安全 A1 / A2 / A3（§1）</td>
+<td>✅ 完成（branch <code>fix/account-security-phase1</code>，migration
+084，pytest 5/5 + 全套 1454 passed 無回歸；3 個 pre-existing seed
+失敗與本批次無關）</td>
 </tr>
 <tr>
 <td>批次 1</td>

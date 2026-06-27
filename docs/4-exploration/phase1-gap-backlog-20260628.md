@@ -32,9 +32,9 @@ relates:
 
 | 序 | 缺口 | 證據（現況 code）| 補法方向 | 狀態 |
 |---|---|---|---|---|
-| **A1** | **登入無防爆破**（無 rate limit / 帳號鎖定 / 失敗計數）—— `/auth/login`、`/technicians/login`、`/vendors/login` 可無限試密碼 | `rate_limit` config 與 `expose_headers` 都在，但無任何 middleware 真正套用 | 登入失敗計數 + 鎖定（DB 或快取）/ 對登入端點加 rate limit middleware | ☐ 未開工 |
-| **A2** | **停權的人 token 不即時失效** —— 停權後 access 仍可用 ~1h、refresh 仍可續 30d | `get_current_user` 與 `refresh()` 皆不重查 DB `is_active` | decode 熱路徑加 `is_active` 重查；`refresh()` 查 DB 而非純從 claim 重簽 | ☐ 未開工 |
-| **A3** | **改密碼/重設後舊 session 不撤銷** —— 舊登入 30d 內仍有效 | `change_password` / `confirm_reset` 不撤該 user 其他 refresh token | 加 `users.password_changed_at` epoch，decode 時比對；或改密碼即撤該 user 全 refresh | ☐ 未開工 |
+| **A1** | **登入無防爆破**（無 rate limit / 帳號鎖定 / 失敗計數）—— `/auth/login`、`/technicians/login`、`/vendors/login` 可無限試密碼 | `rate_limit` config 與 `expose_headers` 都在，但無任何 middleware 真正套用 | 登入失敗計數 + 鎖定（DB 或快取）/ 對登入端點加 rate limit middleware | ✅ 完成 |
+| **A2** | **停權的人 token 不即時失效** —— 停權後 access 仍可用 ~1h、refresh 仍可續 30d | `get_current_user` 與 `refresh()` 皆不重查 DB `is_active` | decode 熱路徑加 `is_active` 重查；`refresh()` 查 DB 而非純從 claim 重簽 | ✅ 完成 |
+| **A3** | **改密碼/重設後舊 session 不撤銷** —— 舊登入 30d 內仍有效 | `change_password` / `confirm_reset` 不撤該 user 其他 refresh token | 加 `users.password_changed_at` epoch，decode 時比對；或改密碼即撤該 user 全 refresh | ✅ 完成 |
 
 > 每件依工作流：開 `fix/account-security-<a1|a2|a3>` 分支 → TDD → 測試 → 更新本表打勾 → commit。
 > 三件都涉及 auth/contract 邊界 → 各自動工前先判斷是否需 CIA（A1 多為 infra、A2/A3 動 auth 行為，建議走 CIA）。
@@ -75,7 +75,7 @@ relates:
 
 | 批次 | 範圍 | 狀態 |
 |---|---|---|
-| 批次 0 | 帳號安全 A1 / A2 / A3（§1，逐一補）| ☐ 進行中 |
+| 批次 0 | 帳號安全 A1 / A2 / A3（§1）| ✅ 完成（branch `fix/account-security-phase1`，migration 084，pytest 5/5 + 全套 1454 passed 無回歸；3 個 pre-existing seed 失敗與本批次無關）|
 | 批次 1 | M01 進線入口（P1-01 / P1-02）| ☐ 待排 |
 | 批次 2 | M03 分診完整度（P1-03 / P1-04）| ☐ 待排 |
 | 批次 3 | M08 客戶簽收（P1-05）+ M09 legal_hold 設定面（P1-06）| ☐ 待排 |

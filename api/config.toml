@@ -18,6 +18,9 @@ jwt_algorithm = "HS256"
 access_token_ttl_minutes = 60
 refresh_token_ttl_days = 30
 bcrypt_rounds = 12
+# A1 登入防爆破（CR phase1-account-security）：連續失敗達上限即鎖定 lockout_minutes
+login_max_attempts = 5
+login_lockout_minutes = 15
 
 [idempotency]
 ttl_hours = 24

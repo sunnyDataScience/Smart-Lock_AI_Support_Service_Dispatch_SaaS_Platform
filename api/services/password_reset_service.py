@@ -10,10 +10,9 @@ confirm_reset：
   - 以雜湊查未過期 / 未用 token → 改 users.password_hash → 標 token used
   - token 無效 / 過期 / 已用 → 明確錯誤碼（前端可提示重新申請）
 
-安全限制（CR-0025 §10 / follow-up）：confirm 後**未**全域撤銷該 user 既有 refresh
-token —— 現行 revoked_jti 為 per-jti，無「撤該 user 全部」路徑；全域 session 失效需
-另加 users.password_changed_at epoch 檢查（碰 decode 熱路徑），列後續 CR。核心安全性
-（舊密碼即時失效 + token 單次用）已達成。
+安全強化（Phase I 帳號安全 A3，2026-06-28）：confirm 後設 `users.password_changed_at = NOW()`，
+get_current_user / refresh 於 token 驗證時比對 `iat < password_changed_at` → 失效，
+達成「改密碼即全域撤銷該 user 既有 access/refresh session」。
 """
 
 from __future__ import annotations
@@ -131,8 +130,10 @@ async def confirm_reset(*, token: str, new_password: str) -> None:
 
     new_hash = hash_password(new_password)
     async with db_module._conn.transaction():
+        # A3：password_changed_at = NOW() → 撤銷該 user 此前所有 access/refresh token。
         await db_module._conn.execute(
-            "UPDATE users SET password_hash = %s, updated_at = NOW() WHERE id = %s::uuid",
+            "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
+            "WHERE id = %s::uuid",
             (new_hash, user_id),
         )
         await db_module._conn.execute(
