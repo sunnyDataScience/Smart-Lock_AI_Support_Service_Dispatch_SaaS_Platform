@@ -93,6 +93,8 @@
 | 082 | `082-payout-rule-accepted-q09.sql` | CR-0106 | 🟢 idempotent ✅ 2026-06-27 套 dev | 師傅佣金轉真（業主裁決 Q-09 核准草稿費率）：technician_payout_rule（045）草稿列翻 decision_status='accepted' + is_mock=FALSE（69 筆，記錄 Q-09 決議；費率值不變，業主核准 21 拆帳規則草稿原樣上線）。佣金月結引擎據此算真錢。費率仍可動態調整（Phase II Finance Config 治理）。UPDATE WHERE draft/draft_review/is_mock 可重套 |
 | 083 | `083-technician-penalty-bonus-ledger.sql` | CR-0107 | 🟢 idempotent ✅ 2026-06-27 套 dev | 師傅獎懲轉真（業主裁決「後台手動登錄+自動帶取消罰」；ERP spec Q121 師傅扣款須主管拍板、不腦補自動規則）：新表 saas.technician_penalty_bonus_ledger（entry_type bonus/penalty + title + amount≥0 + occurred_date + source_work_order_id + created_by，per-tech FK ON DELETE CASCADE）供主管逐筆登錄；自動帶入的取消失約扣款不落此表（list 時讀 public.cancellation.technician_penalty）。CREATE TABLE/INDEX IF NOT EXISTS 可重套 |
 
+| 084 | `084-account-security.sql` | phase1-account-security | 🟢 idempotent ✅ 2026-06-28 套 dev | Phase I 帳號安全（A1 登入防爆破 + A3 改密碼撤 session）：users +failed_login_attempts(INT DEFAULT 0)、+locked_until(TIMESTAMPTZ)、+password_changed_at(TIMESTAMPTZ)。A1：連續登入失敗達 [auth].login_max_attempts 設 locked_until=NOW()+login_lockout_minutes，登入回 429 LOGIN_LOCKED。A3：get_current_user/refresh 比對 token iat < password_changed_at → 失效（改密碼/重設/admin 重設時設 NOW()）。A2 停權即時失效走既有 is_active 欄不需新欄。ADD COLUMN IF NOT EXISTS 可重套 |
+
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。

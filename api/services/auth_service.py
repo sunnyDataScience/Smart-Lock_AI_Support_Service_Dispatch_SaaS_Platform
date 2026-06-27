@@ -17,6 +17,7 @@ from core.auth import (
     decode_token,
     hash_password,
     is_jti_revoked,
+    load_user_security_state,
     revoke_jti,
     verify_password,
 )
@@ -34,7 +35,7 @@ async def _find_user_by_email(email: str, role_in: list[str]) -> dict | None:
 
     placeholders = ",".join(["%s"] * len(role_in))
     cur = await db_module._conn.execute(
-        f"SELECT id, email, password_hash, role, tenant_id, is_active "
+        f"SELECT id, email, password_hash, role, tenant_id, is_active, locked_until "
         f"FROM users "
         f"WHERE email = %s AND role IN ({placeholders}) "
         f"LIMIT 1",
@@ -50,6 +51,7 @@ async def _find_user_by_email(email: str, role_in: list[str]) -> dict | None:
         "role": row[3],
         "tenant_id": str(row[4]) if row[4] else None,
         "is_active": row[5],
+        "locked_until": row[6],
     }
 
 
@@ -73,15 +75,61 @@ def _build_login_payload(*, user_id: str, role: str, tenant_id: str) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# A1 登入防爆破（Phase I 帳號安全）：連續失敗達 login_max_attempts 即鎖定
+# login_lockout_minutes。門檻入 [auth] config 不寫死。僅對「既存帳號」生效
+# （查無帳號無 row 可記，回 401 同枚舉防護；per-IP/global spray 防護列後續）。
+# ---------------------------------------------------------------------------
+
+
+def _lockout_cfg() -> tuple[int, int]:
+    cfg = load_config().auth
+    return int(cfg.get("login_max_attempts", 5)), int(cfg.get("login_lockout_minutes", 15))
+
+
+def _is_locked(user: dict) -> bool:
+    locked_until = user.get("locked_until")
+    return bool(locked_until and locked_until > datetime.now(timezone.utc))
+
+
+async def _register_login_failure(user_id: str) -> None:
+    """登入失敗 +1；達上限則設 locked_until 並把計數歸零（CASE 用 UPDATE 前舊值）。"""
+    max_attempts, lockout_minutes = _lockout_cfg()
+    await db_module._conn.execute(
+        "UPDATE users SET "
+        "  failed_login_attempts = CASE WHEN failed_login_attempts + 1 >= %s "
+        "                               THEN 0 ELSE failed_login_attempts + 1 END, "
+        "  locked_until = CASE WHEN failed_login_attempts + 1 >= %s "
+        "                      THEN NOW() + make_interval(mins => %s) ELSE locked_until END "
+        "WHERE id = %s::uuid",
+        (max_attempts, max_attempts, lockout_minutes, user_id),
+    )
+
+
+async def _reset_login_failures(user_id: str) -> None:
+    """登入成功 → 計數歸零、解鎖。"""
+    await db_module._conn.execute(
+        "UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = %s::uuid",
+        (user_id,),
+    )
+
+
+_LOCKED_MSG = "帳號因連續登入失敗已暫時鎖定，請稍後再試或聯絡管理員"
+
+
 async def login(email: str, password: str, *, allowed_roles: list[str]) -> dict:
     user = await _find_user_by_email(email, allowed_roles)
     if not user:
         raise ApiError("UNAUTHENTICATED", "Invalid email or password", 401)
     if not user["is_active"]:
         raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
+    if _is_locked(user):
+        raise ApiError("LOGIN_LOCKED", _LOCKED_MSG, 429)
     if not user["password_hash"] or not verify_password(password, user["password_hash"]):
+        await _register_login_failure(user["id"])
         raise ApiError("UNAUTHENTICATED", "Invalid email or password", 401)
 
+    await _reset_login_failures(user["id"])
     return _build_login_payload(
         user_id=user["id"],
         role=user["role"],
@@ -100,7 +148,7 @@ async def _find_users_by_phone(phone: str, role_in: list[str]) -> list[dict]:
 
     placeholders = ",".join(["%s"] * len(role_in))
     cur = await db_module._conn.execute(
-        f"SELECT id, email, password_hash, role, tenant_id, is_active "
+        f"SELECT id, email, password_hash, role, tenant_id, is_active, locked_until "
         f"FROM users "
         f"WHERE phone = %s AND role IN ({placeholders})",
         (phone, *role_in),
@@ -114,6 +162,7 @@ async def _find_users_by_phone(phone: str, role_in: list[str]) -> list[dict]:
             "role": r[3],
             "tenant_id": str(r[4]) if r[4] else None,
             "is_active": r[5],
+            "locked_until": r[6],
         }
         for r in rows
     ]
@@ -147,9 +196,13 @@ async def login_with_identifier(
         raise ApiError("UNAUTHENTICATED", "Invalid credentials", 401)
     if not user["is_active"]:
         raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
+    if _is_locked(user):
+        raise ApiError("LOGIN_LOCKED", _LOCKED_MSG, 429)
     if not user["password_hash"] or not verify_password(password, user["password_hash"]):
+        await _register_login_failure(user["id"])
         raise ApiError("UNAUTHENTICATED", "Invalid credentials", 401)
 
+    await _reset_login_failures(user["id"])
     return _build_login_payload(
         user_id=user["id"],
         role=user["role"],
@@ -169,6 +222,17 @@ async def refresh(refresh_token: str) -> dict:
     jti = payload.get("jti")
     if jti and await is_jti_revoked(jti):
         raise ApiError("TOKEN_REVOKED", "Refresh token has been revoked", 401)
+
+    # A2/A3：refresh 也重查使用者狀態（停權即時失效 + 改密碼後撤 session），
+    # 否則被停用/改密碼後仍能用舊 refresh 換新 access 達 30 天。fail-open（查無回 None）。
+    state = await load_user_security_state(payload["sub"])
+    if state is not None:
+        if not state["is_active"]:
+            raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
+        pwd_changed = state["password_changed_at"]
+        iat = payload.get("iat")
+        if pwd_changed and iat is not None and int(iat) < int(pwd_changed.timestamp()):
+            raise ApiError("TOKEN_STALE", "Refresh token invalidated by password change", 401)
 
     # Rotate：撤銷舊 jti，發新對
     if jti:
@@ -236,8 +300,10 @@ async def change_password(*, user_id: str, current_password: str, new_password: 
         raise ApiError("INVALID_CURRENT_PASSWORD", "Current password is incorrect", 401)
 
     new_hash = hash_password(new_password)
+    # A3：password_changed_at = NOW() → 此前簽發的 access/refresh token 全部失效（撤既有 session）。
     await db_module._conn.execute(
-        "UPDATE users SET password_hash = %s, updated_at = NOW() WHERE id = %s::uuid",
+        "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
+        "WHERE id = %s::uuid",
         (new_hash, user_id),
     )
 
@@ -273,8 +339,10 @@ async def admin_reset_password(*, email: str, tenant_id: str) -> str:
     # token_urlsafe(9) → 12 字元 url-safe 臨時密碼（>= 8,滿足 bcrypt 與前端規則）
     temp_password = secrets.token_urlsafe(9)
     new_hash = hash_password(temp_password)
+    # A3：admin 重設亦撤該帳號既有 session（password_changed_at = NOW()）。
     await db_module._conn.execute(
-        "UPDATE users SET password_hash = %s, updated_at = NOW() WHERE id = %s::uuid",
+        "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
+        "WHERE id = %s::uuid",
         (new_hash, row[0]),
     )
     return temp_password
