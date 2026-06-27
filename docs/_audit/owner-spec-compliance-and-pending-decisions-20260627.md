@@ -20,7 +20,12 @@
 權限角色矩陣）、`20260617資料/02-phased-test-plan-alpha-beta-rc-ga-20260617.xlsx`（四階段測試矩陣
 194 項）、`20260617 lock-AI 會議記錄.md`（工作順序拍板）\
 盤點底稿：`docs/_audit/module-completion-audit-M01-M20-20260624.md`（40-agent
-對抗式驗證）、`docs/5-views/test-plan-coverage-report-20260620.md`（測試覆蓋）、`docs/4-exploration/CR-0104~0107`（近期實作）
+對抗式驗證）、`docs/5-views/test-plan-coverage-report-20260620.md`（測試覆蓋）、`docs/4-exploration/CR-0104~0107`（近期實作）\
+**2026-06-28 增補**：經 12-叢集對抗式現況驗證（對 dev_new_arch HEAD code
+實查）→ 新增 **§十一 現況缺口驗證**（Phase I 工程待補 + Phase II/III
+延後清單供主管確認）；並**修正**原 §二 step 5「派工模式前端
+UI」誤述（實際已存在）。Phase I 工程缺口詳清單見
+`docs/4-exploration/phase1-gap-backlog-20260628.md`。
 
 </div>
 
@@ -83,6 +88,12 @@
 <div>
 
 十、[給主管的回報重點 + 下一步](#s10)
+
+</div>
+
+<div>
+
+十一、[⭐ 現況缺口驗證（06-28）+ Phase II/III 延後清單](#s11)
 
 </div>
 
@@ -214,15 +225,93 @@ pytest 通過（api 914 + agent 120，0 fail）
 依 `20260617 會議記錄 §七` 拍板的順序逐步盤點（Lite 版 =
 第一階段：多租戶骨架 + 註冊，不做金流 / 不做自動媒合）。
 
-| \# | 會議拍板步驟 | 狀態 | 現況證據（這幾天做到哪） |
-|----|----|----|----|
-| 1 | 補公單系統欄位（對 Irene esales PDF / Johnson 紙本） | <span class="b b-ok">✅ 就緒</span> | 派工單 6 模組 24 欄補完（CR-0026/0043）+ 前端 `DispatchOrderView` 內嵌編輯（CR-0091）+ 工單詳情對話逐字稿。成本明細只在後台、客戶端只看最終價（符合會議決議 §10.4）。 |
-| 2 | 對 Excel 跑功能盤點（Ultra Code workflow） | <span class="b b-ok">✅ 就緒</span> | 已產出 **M01–M20 完成度盤點**（40-agent 對抗式，06-24）+ **四階段測試覆蓋報告**（06-20）。本報告 §四 / §八 即其彙整。 |
-| 3 | 加廠商 / 師傅註冊系統（發案者 / 接案者兩路由，資料庫分開） | <span class="b b-ok">✅ 就緒</span> | 師傅註冊→**pending_approval→後台核准→active**（CR-0103 補核准入口 + 修核准 404）；廠商註冊 + 統一編號 8 碼（CR-0089）；同一 email 可兼任技師+廠商（CR-0090）；技師端響應式 + 登入儀表板（CR-0088）。師傅=共用人才池、廠商=各自隔離。 |
-| 4 | 補登入 / 忘記密碼 / 5 種角色權限隔離 | <span class="b b-ok">✅ 就緒</span> | 自助忘記密碼 email 重設（CR-0025）；**80 個敏感寫入端點補角色檢查**（原本任何登入者可寫金流 / 設定，CR-0092 硬化）；**完整 5 角色系統 + 後台建非-admin 帳號**（CR-0094，解「只有 admin」）。 |
-| 5 | 派工模式切換（租戶手動派 / 平台代派 / 自動媒合） | <span class="b b-part">🟡 部分</span> | **後端切換 API 已做**（CR-0030：`manual / platform_paid / auto_match` 三檔可設 + 稽核）；**手動派工可動**。但**「自動媒合」引擎本身仍是 stub**（`auto_dispatch_attempts` 回 `[]`）＝第二階段；前端「租戶派/平台代派」切換開關的營運 UI 待確認補齊。 |
-| 6 | Alpha + Beta 測試 | <span class="b b-part">🟡 進行中</span> | **Alpha（內部）**：pytest 1034+ 全綠 + 測試計畫就緒（§八）。**Beta（Irene/Johnson 真人點測）**：點測腳本已備、待實際進系統 + LINE 點測。會議定調 Lite 版只需測到 Beta。 |
-| 7 | （下一輪）Multi-tenant 三類租戶骨架 + 自動媒合 | <span class="b b-def">⏸️ 第二階段</span> | 會議定調「v1 仍 single-tenant by Chairlock，先補齊 + Beta 通過再轉 multi-tenant」（§10.11）。三類租戶 Agent/DB 隔離設計 + LINE Token 分發機制屬下一輪。 |
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr>
+<th width="30">#</th>
+<th>會議拍板步驟</th>
+<th width="90">狀態</th>
+<th>現況證據（這幾天做到哪）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>補公單系統欄位（對 Irene esales PDF / Johnson 紙本）</td>
+<td><span class="b b-ok">✅ 就緒</span></td>
+<td>派工單 6 模組 24 欄補完（CR-0026/0043）+ 前端
+<code>DispatchOrderView</code> 內嵌編輯（CR-0091）+
+工單詳情對話逐字稿。成本明細只在後台、客戶端只看最終價（符合會議決議
+§10.4）。</td>
+</tr>
+<tr>
+<td>2</td>
+<td>對 Excel 跑功能盤點（Ultra Code workflow）</td>
+<td><span class="b b-ok">✅ 就緒</span></td>
+<td>已產出 <strong>M01–M20 完成度盤點</strong>（40-agent
+對抗式，06-24）+ <strong>四階段測試覆蓋報告</strong>（06-20）。本報告
+§四 / §八 即其彙整。</td>
+</tr>
+<tr>
+<td>3</td>
+<td>加廠商 / 師傅註冊系統（發案者 / 接案者兩路由，資料庫分開）</td>
+<td><span class="b b-ok">✅ 就緒</span></td>
+<td>師傅註冊→<strong>pending_approval→後台核准→active</strong>（CR-0103
+補核准入口 + 修核准 404）；廠商註冊 + 統一編號 8 碼（CR-0089）；同一
+email 可兼任技師+廠商（CR-0090）；技師端響應式 +
+登入儀表板（CR-0088）。師傅=共用人才池、廠商=各自隔離。</td>
+</tr>
+<tr>
+<td>4</td>
+<td>補登入 / 忘記密碼 / 5 種角色權限隔離</td>
+<td><span class="b b-ok">✅ 就緒</span></td>
+<td>自助忘記密碼 email 重設（CR-0025）；<strong>80
+個敏感寫入端點補角色檢查</strong>（原本任何登入者可寫金流 /
+設定，CR-0092 硬化）；<strong>完整 5 角色系統 + 後台建非-admin
+帳號</strong>（CR-0094，解「只有 admin」）。</td>
+</tr>
+<tr>
+<td>5</td>
+<td>派工模式切換（租戶手動派 / 平台代派 / 自動媒合）</td>
+<td><span class="b b-ok">✅ 就緒</span> <span
+style="font-size:11px;color:#fbbf24">（06-28 修正）</span></td>
+<td><strong>後端切換
+API</strong>（CR-0030：<code>manual / platform_paid / auto_match</code>
+三檔可設 + 稽核）<strong>＋前端切換 UI
+都已做</strong>（<code>web/src/app/admin/dispatch-queue/page.tsx</code>
+的 <code>DispatchModeSelector</code>）；手動派工 /
+平台代派可動，平台代派計費標記已接線。<strong>唯「自動媒合」引擎本身仍是
+stub</strong>（<code>auto_dispatch_attempts</code> 回
+<code>[]</code>）—— 但自動媒合<strong>本就定調第二階段</strong>，不屬
+Phase I 範圍。<br />
+<span style="font-size:11.5px;color:#94a3b8">※ 原報告此格誤寫「前端 UI
+待確認補齊」，經實查更正——前端 UI 已存在。</span></td>
+</tr>
+<tr>
+<td>6</td>
+<td>Alpha + Beta 測試</td>
+<td><span class="b b-part">🟡 進行中</span></td>
+<td><strong>Alpha（內部）</strong>：pytest 1034+ 全綠 +
+測試計畫就緒（§八）。<strong>Beta（Irene/Johnson
+真人點測）</strong>：點測腳本已備、待實際進系統 + LINE 點測。會議定調
+Lite 版只需測到 Beta。</td>
+</tr>
+<tr>
+<td>7</td>
+<td>（下一輪）Multi-tenant 三類租戶骨架 + 自動媒合</td>
+<td><span class="b b-def">⏸️ 第二階段</span></td>
+<td>會議定調「v1 仍 single-tenant by Chairlock，先補齊 + Beta 通過再轉
+multi-tenant」（§10.11）。三類租戶 Agent/DB 隔離設計 + LINE Token
+分發機制屬下一輪。</td>
+</tr>
+</tbody>
+</table>
 
 <div class="note">
 
@@ -1264,11 +1353,112 @@ TI 測試項（功能）
 - **C. 啟動 Beta 點測**：把系統 URL + LINE QR 給
   Irene/Johnson，依測試計畫腳本真人點測，收回饋回填測試。
 
+## 十一、⭐ 現況缺口驗證（2026-06-28）+ Phase II/III 延後清單
+
+2026-06-27 對「現況 code（dev_new_arch HEAD，已含 CR-0102~0107）」派 12
+個 agent 逐叢集對抗式重查（280
+次實查），把「還缺什麼」分成三類。**結論：真正『缺、且 Beta
+前要補』的集中在 4 塊——①帳號安全 ②進線入口 ③AI 分診完整度
+④客戶獨立簽收；金流/自動媒合/multi-tenant
+是會議定調的第二階段、不算缺。**
+
+### 11.1 🔴 Phase I 工程缺口（純工程量、不待業主、Beta 前補）
+
+這些**不卡業主**、可立即開工。詳細逐項追蹤清單見
+`docs/4-exploration/phase1-gap-backlog-20260628.md`。**業主已裁決：先補帳號安全
+3 件、一個一個補。**
+
+<table>
+<colgroup>
+<col style="width: 33%" />
+<col style="width: 33%" />
+<col style="width: 33%" />
+</colgroup>
+<thead>
+<tr>
+<th width="120">叢集</th>
+<th>缺什麼</th>
+<th width="50">優先</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>帳號安全</strong><br />
+（最優先）</td>
+<td>① 登入無防爆破（無 rate limit/鎖定）② 停權的人 token
+不即時失效（停權後仍可用 1h+續 30d）③ 改密碼後舊 session 不撤銷</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>M01 進線入口</td>
+<td>無「Case/Inquiry」進線實體（只走 LINE，無客服代建案、無 8
+渠道來源）+ 無多渠道 intake UI</td>
+<td>P0/P1</td>
+</tr>
+<tr>
+<td>M03 AI 分診</td>
+<td>5-state 未實作、completeness_score 欄位在但全程沒 code
+在寫、轉真人升級無 code 硬閘</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>M08 客戶簽收</td>
+<td>客戶簽名仍技師同機 canvas，非客戶用自己手機獨立簽收（LIFF 鏈是
+stub）</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>M09 證據</td>
+<td>legal_hold 無設定/解除面（只能手動改 DB）</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>M02 設備</td>
+<td>無 Device 設備主檔表（保固無法跨單關聯）、device_warranty
+仍推算佔位</td>
+<td>P1</td>
+</tr>
+<tr>
+<td>M05 工單</td>
+<td>狀態詞彙雙軌（OpenAPI 16 段 vs 實際 7 段）、DB 層無 CHECK 保護</td>
+<td>P1/P2</td>
+</tr>
+</tbody>
+</table>
+
+### 11.2 ⏸️ Phase II / III 延後功能清單（⭐ 請主管確認簽核：這些「現在沒做」是照計畫，非遺漏）
+
+<div class="note">
+
+會議（06-17 §10.11 / §二）已定調：**第一階段（Lite/Beta
+目標）不做金流、不做自動媒合、不做 multi-tenant**；先補齊功能 + Beta
+通過再轉。以下逐項列出供主管確認其為「**刻意延後**」而非「漏做」。
+
+</div>
+
+| 延後功能 | 現況（已備到哪） | 階段 |
+|----|----|----|
+| **金流 / 代收代付（M11）** | payment_service 全套邏輯寫好但 **router 未註冊（API 不可達）**；三軌支付（現金/Apple Pay/LINE Pay）待選 provider；payment gate 為死碼。AR 應收發票 / 退款 SoD 雙簽**已可達**。 | Phase II |
+| **自動媒合派工（M06）** | 派工模式可設 `auto_match` 但**引擎是 stub**（不自動指派）；真正「搶單池」（多技師競爭搶 + `FOR UPDATE` 防重領 + low-risk 分類 + 1hr 車程過濾）未做。手動派工 / 平台代派**已可動**。 | Phase II |
+| **Multi-tenant 三類租戶** | v1 仍 single-tenant by Chairlock；現全綁單一 demo 租戶。**vendors 隔離有破口**（`tenant_id=%s OR IS NULL` + 全部 vendor 是 NULL → 任一租戶看得到全部廠商，轉正式前須修）；LINE Token per-tenant 分發、租戶 onboarding 流程未做。 | Phase II |
+| Partner Portal（M14） | 品牌商/門市/經銷商/建商自助發案 / 對帳入口。 | Phase III |
+| 進階治理 | 讀取端點角色收緊（193 個 MED 延後）、稽核 middleware 統一攔截、audit_events 加 tenant_id、IoT 事件預填問題卡、報價推薦定價引擎。 | Phase II |
+
+### 11.3 ⛔ 卡業務規則（待業主定義，已併入 §六/§九，此處對照 Phase 標示）
+
+first-response SLA
+級距、急件/夜間/假日/取消費金額、報價核准門檻/折扣、班別定義、legal_hold
+觸發解除規則、**客戶去重 key（Q008「依地址」vs
+code「依電話」三方不一致需你重新確認）**、AI 3-cycle
+升級、師傅核准標準。詳見 §六 + §九。
+
 <div class="note" style="margin-top:24px;color:#94a3b8;font-size:12px">
 
 本報告為 `_audit` 稽核軌跡，以 file:line / migration /
-測試實查為據，反映 2026-06-27 當下 codebase。同步輸出 `.md` 版本（由
-gen_docs_html.py 產生）。各項細節索引見來源清單（頁首）。
+測試實查為據。原始版反映 2026-06-27 codebase；**§十一 為 2026-06-28 對
+dev_new_arch HEAD 的現況驗證增補**，並修正 §二 step 5。同步輸出 `.md`
+版本（由 gen_docs_html.py 產生）。Phase I 工程缺口逐項追蹤見
+`docs/4-exploration/phase1-gap-backlog-20260628.md`。
 
 </div>
 
