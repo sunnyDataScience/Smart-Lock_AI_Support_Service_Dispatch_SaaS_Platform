@@ -1,0 +1,162 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>師傅佣金摘要轉真 — 固定工資制月結引擎（業主核准草稿費率）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0106-technician-commission-fixed-payout.md</div>
+<div class="doc"><h1 id="cr-0106--師傅佣金摘要轉真固定工資制月結引擎">CR-0106 —
+師傅佣金摘要轉真（固定工資制月結引擎）</h1>
+<h2 id="1-動機業主裁決">1. 動機（業主裁決）</h2>
+<p>CR-0105 §0 源頭查證後，佣金/月結原判為「第二階段（Beta 後）+ Q-09
+待業主」。業主 2026-06-27 裁決 <strong>「提前做佣金 + 核准 21
+拆帳規則草稿費率直接上線」</strong> → Q-09 拍板，佣金拉到本階段。</p>
+<h2 id="2-源頭查證關鍵cr-0105-0-摘要">2. 源頭查證關鍵（CR-0105 §0
+摘要）</h2>
+<ul>
+<li><strong>費率來源</strong>：<code>20260617資料/…PhaseII_FinanceSettlement…xlsx</code>「21
+鎖匠拆帳規則」66 條（業主核准）。</li>
+<li><strong>mock 模型是錯的</strong>：前端原顯示「維修 70% / 安裝 60% /
+客製料 80%」=<strong>抽成制</strong>；來源實為
+<strong>固定工資制</strong> —— 每服務每等級固定 base_payout（電子鎖安裝
+LV-B=500），月結走 AP Ledger （Σ工資 + 車馬 + 檢測 + 材料 − 平台費 −
+未繳現金 − 爭議暫扣 = 應付）。本 CR 照固定工資制重建。</li>
+</ul>
+<h2 id="3-觸發面向cia-gate">3. 觸發面向（CIA gate）</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>命中</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Domain model</td>
+<td>✅</td>
+<td>佣金=「固定工資制」（per-service-per-level payout），非抽成制</td>
+</tr>
+<tr>
+<td>DB schema</td>
+<td>✅</td>
+<td>migration 082：payout_rule 草稿→accepted（記錄 Q-09
+決議；數值不變）</td>
+</tr>
+<tr>
+<td>API contract</td>
+<td>✅</td>
+<td>新增
+<code>GET /tenants/{tid}/technicians/{techId}/commission-summary</code>（additive）</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>❌</td>
+<td>無</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-8-業主決策已裁決-本輪假設">4. §8 業主決策（已裁決）+
+本輪假設</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>決策</th>
+<th>結果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>佣金是否提前做</td>
+<td><strong>提前到本階段</strong></td>
+</tr>
+<tr>
+<td>D2</td>
+<td>費率 Q-09</td>
+<td><strong>核准 21 拆帳規則草稿費率直接上線</strong>（migration 082 翻
+accepted）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="41-本輪誠實限制待後續業主決策已在-ui回應標明">4.1
+本輪誠實限制（待後續業主決策，已在 UI/回應標明）</h3>
+<ul>
+<li><strong>夜間/急件加成不自動套用</strong>：payout_rule 有
+night/urgent 欄，但觸發條件 Q-03（急件）/ Q-04
+（夜間時段定義）仍「待回答」→ 自動判定會腦補，故
+surcharge=0、待業主定義後再開。</li>
+<li><strong>扣項（車馬/平台費/未繳現金/爭議暫扣）暫 0</strong>：AP
+Ledger 結構已備，但無結構化來源 → 待月結模組。</li>
+<li><strong>等級映射 S→LV-A</strong>：來源「19 鎖匠等級」僅定義
+A/B/C，無 S；CR-0104 level enum 有 S → S 暫映 最高已定義級
+LV-A，待業主補 S 級費率。</li>
+<li><strong>資料現實</strong>：work_orders 目前幾無帶 service_code
+的完工明細 → 多數技師佣金為 0（真但空，同
+認證矩陣）；有帶服務代碼的工單完工後自動填值。</li>
+</ul>
+<h2 id="5-實作">5. 實作</h2>
+<p><strong>資料鏈</strong>：<code>work_orders</code>（completed）→
+<code>quote_line_items</code>（service_code）→
+<code>technician_payout_rule</code> （service_code, level_id）。</p>
+<ul>
+<li>migration 082：<code>technician_payout_rule</code> 草稿列翻
+<code>decision_status='accepted', is_mock=FALSE</code>（69 筆，記錄 Q-09
+決議；費率值不變）。</li>
+<li><code>technician_commission_service.compute_monthly_commission</code>：取技師等級（S/A/B/C→LV-A/B/C）→
+撈當月 completed WO 的服務明細 LEFT JOIN payout_rule →
+<code>gross = Σ(base_payout × qty)</code>（surcharge 0）→ 扣項 0 →
+<code>net = gross</code>。回 lines（含 mapped
+旗標）/completed_orders/unmapped_count/誠實 notes。</li>
+<li><code>technician_commission_v2</code>
+router：<code>GET …/commission-summary?year=&amp;month=</code>（預設當月，DISPATCH_ROLES
+—— base_payout 為內部敏感成本；cross-tenant guard）。main.py
+已註冊。</li>
+<li>前端
+<code>CommissionSummaryCard</code>（TechnicianDetailSidebar）：抽成制
+mock → 固定工資制真資料 —— 本月工資 gross + 服務明細（service_name ×qty
+= line_total，無費率標紅）+ 應付 net + 空狀態 + 誠實註記
+「夜間/急件加成與扣項待結算模組」。移除假 45,600/百分比/Mock
+標籤。MockBanner 文案更新。</li>
+</ul>
+<h2 id="6-範圍與限制">6. 範圍與限制</h2>
+<p>見 §4.1。獎懲（CR-0105 §2）仍
+mock（同屬月結，下輪）；本週排班（§3）仍 mock。</p>
+<h2 id="7-測試">7. 測試</h2>
+<ul>
+<li>API <code>test_technician_commission.py</code>
++4：固定工資制計算（LV-B SVC-ELK-001 ×2=1000）、空案例、 無費率
+service（mapped=false/unmapped）、cross-tenant 403。技師相關 51 passed
+無回歸。</li>
+<li>Live E2E（curl + Playwright，丁啟恆 seed level=B + 完工單
+SVC-ELK-001×1 + SVC-RES-002×2）： 卡片顯「2026年6月·B級 本月工資（2
+張完工單）NT$ 1,100」+ 明細（電子鎖安裝 500 / 住宅開鎖 600）
+<ul>
+<li>應付 1,100 + 誠實註記；獎懲仍標示意。seed 已清、丁啟恆還原
+level=C。</li>
+</ul></li>
+</ul>
+<h2 id="8-進度">8. 進度</h2>
+<p>✅ S1 done（branch
+<code>feat/technician-detail-real-fields</code>）：migration
+082（payout_rule accepted）+
+technician_commission_service（固定工資制月結引擎）+
+technician_commission_v2 router（main.py 註冊）+ 前端
+CommissionSummaryCard 抽成制→固定工資制 + MockBanner 更新。API 51 passed
++ Playwright 1,100 元 真實計算驗證。<strong>待部署
+api+web</strong>。</p>
+<p><strong>下輪候選</strong>：獎懲明細（CR-0105 §2，同屬月結
+AP）；夜間/急件加成（待 Q-03/Q-04）；扣項接月結模組。</p>
+</div></div></body></html>

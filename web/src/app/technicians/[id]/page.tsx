@@ -1,11 +1,13 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { ChevronRight, Pencil, Ban, Star, Info } from "lucide-react";
+import { ChevronRight, Pencil, Ban, RotateCcw, Star, Info, X } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import TechnicianDetailSidebar from "@/components/technicians/TechnicianDetailSidebar";
+import CertificationMatrix from "@/components/technicians/CertificationMatrix";
 import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { cacheInvalidate } from "@/lib/cache";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
@@ -141,67 +143,7 @@ function Field({
   );
 }
 
-/* ─── Mock Sections (banner declares it) ─────────────────────── */
-
-const skills = [
-  { name: "電子鎖安裝認證", brand: "Yale", obtainDate: "2023-06-15", expireDate: "2025-06-15", status: { label: "有效", textColor: "#065F46", bgColor: "#D1FAE5" } },
-  { name: "智慧門鎖維修", brand: "Samsung", obtainDate: "2023-09-20", expireDate: "2025-09-20", status: { label: "有效", textColor: "#065F46", bgColor: "#D1FAE5" } },
-  { name: "指紋辨識模組", brand: "Gateman", obtainDate: "2024-01-10", expireDate: "2026-01-10", status: { label: "有效", textColor: "#065F46", bgColor: "#D1FAE5" } },
-  { name: "WiFi 模組更換", brand: "Yale", obtainDate: "2023-03-05", expireDate: "2025-03-05", expireDateColor: "var(--warning)", status: { label: "即將到期", textColor: "#92400E", bgColor: "#FEF3C7" } },
-  { name: "藍牙配對認證", brand: "Samsung", obtainDate: "2022-11-20", expireDate: "2024-11-20", expireDateColor: "var(--error)", status: { label: "已過期", textColor: "#991B1B", bgColor: "#FEE2E2" } },
-];
-
-const skillColumns = [
-  { label: "認證項目", width: "w-[160px]" },
-  { label: "品牌", width: "w-[100px]" },
-  { label: "取得日期", width: "w-[100px]" },
-  { label: "到期日期", width: "w-[100px]" },
-  { label: "狀態", width: "flex-1" },
-];
-
-function SkillMatrix() {
-  return (
-    <section className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-6">
-      <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">
-        技能認證矩陣
-      </h2>
-      <div className="overflow-hidden rounded-lg border border-[var(--border)]">
-        <div className="flex h-[40px] items-center bg-[var(--bg-page)] px-4">
-          {skillColumns.map((col) => (
-            <div key={col.label} className={`flex items-center ${col.width}`}>
-              <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
-                {col.label}
-              </span>
-            </div>
-          ))}
-        </div>
-        {skills.map((s, idx) => (
-          <div
-            key={s.name}
-            className={`flex h-[44px] items-center px-4 ${idx < skills.length - 1 ? "border-b border-[var(--border)]" : ""}`}
-          >
-            <div className="flex w-[160px]"><span className="text-[13px] text-[var(--text-primary)]">{s.name}</span></div>
-            <div className="flex w-[100px]"><span className="text-[13px] text-[var(--text-primary)]">{s.brand}</span></div>
-            <div className="flex w-[100px]"><span className="text-[13px] text-[var(--text-primary)]">{s.obtainDate}</span></div>
-            <div className="flex w-[100px]">
-              <span className="text-[13px]" style={{ color: s.expireDateColor || "var(--text-primary)" }}>
-                {s.expireDate}
-              </span>
-            </div>
-            <div className="flex flex-1">
-              <span
-                className="rounded-full px-[10px] py-[2px] text-[11px] font-medium"
-                style={{ color: s.status.textColor, backgroundColor: s.status.bgColor }}
-              >
-                {s.status.label}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
+/* ─── Mock Sections（本週排班仍為示意；技能認證矩陣已改真資料 CertificationMatrix）─── */
 
 const scheduleDays = [
   { dayLabel: "週一", date: "20", shift: "早班", shiftTextColor: "#1E40AF", bgColor: "#DBEAFE" },
@@ -250,7 +192,7 @@ function MockBanner() {
     <div className="mx-8 mt-4 flex items-start gap-2 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3">
       <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[var(--text-secondary)]" />
       <span className="text-[12px] text-[var(--text-secondary)]">
-        以下「技能認證矩陣」、「本週排班」與右側「可用狀態 / 佣金摘要 / 獎懲紀錄」為示意，待認證/排班/結算模組接入後將顯示真實資料；右側「進行中工單」已連線真實資料。
+        以下「本週排班」為示意，待排班模組接入後將顯示真實資料；「技能認證矩陣」、右側「可用狀態」「佣金摘要」「獎懲紀錄」與「進行中工單」已連線真實資料。
       </span>
     </div>
   );
@@ -267,38 +209,118 @@ export default function TechnicianDetailPage({ params }: PageProps) {
   const [technician, setTechnician] = useState<Technician | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // CR-0103 操作狀態（停權/復權/編輯）
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ name: "", phone: "", skills: "", regions: "", level: "" });
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const session = getCurrentSession();
   const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
 
+  async function loadTechnician() {
+    setError(null);
+    try {
+      const res = await api.get<TechnicianEnvelope>(
+        `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(id)}`,
+      );
+      setTechnician(res.data ?? null);
+    } catch (e) {
+      setError(
+        e instanceof ApiError
+          ? `${e.errorCode} (${e.status})：${e.message}`
+          : e instanceof Error
+            ? e.message
+            : String(e),
+      );
+    }
+  }
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    setError(null);
     (async () => {
-      try {
-        const res = await api.get<TechnicianEnvelope>(
-          `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(id)}`,
-        );
-        if (!cancelled) setTechnician(res.data ?? null);
-      } catch (e) {
-        if (cancelled) return;
-        setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      await loadTechnician();
+      if (!cancelled) setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, tenantId]);
+
+  // CR-0103：停權/復權 — 接 technician_lifecycle_v2 :suspend/:reactivate（需 X-Initiator + reason）
+  async function handleLifecycle(action: "suspend" | "reactivate") {
+    const initiator = session?.userId ?? "";
+    if (!initiator) {
+      setActionMsg("缺少操作者身分（請重新登入）");
+      return;
+    }
+    const verb = action === "suspend" ? "停權" : "復權";
+    const reason = window.prompt(`請輸入${verb}原因（會記入稽核紀錄）：`, "");
+    if (reason == null || !reason.trim()) return; // 取消或空白 → 不送
+    setActionBusy(true);
+    setActionMsg(null);
+    try {
+      await api.post(
+        `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(id)}:${action}`,
+        { reason: reason.trim() },
+        { headers: { "X-Initiator": initiator } },
+      );
+      cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refetch 取到更新後狀態
+      await loadTechnician();
+    } catch (e) {
+      setActionMsg(
+        e instanceof ApiError ? `${verb}失敗：${e.errorCode} (${e.status})` : `${verb}失敗`,
+      );
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  // CR-0103：開啟編輯（用目前資料預填姓名/電話/技能/區域）
+  function openEdit() {
+    if (!technician) return;
+    setEditForm({
+      name: technician.name ?? "",
+      phone: technician.phone ?? "",
+      skills: (technician.skills ?? []).join(", "),
+      regions: (technician.service_areas ?? []).join(", "),
+      level: technician.level ?? "",
+    });
+    setActionMsg(null);
+    setEditOpen(true);
+  }
+
+  // CR-0103：儲存編輯 — PATCH updateTechnicianV2（部分更新；逗號分隔轉陣列）
+  async function handleSaveEdit() {
+    const splitCsv = (s: string) =>
+      s.split(/[,，]/).map((x) => x.trim()).filter(Boolean);
+    setActionBusy(true);
+    setActionMsg(null);
+    try {
+      await api.patch(
+        `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(id)}`,
+        {
+          display_name: editForm.name.trim() || undefined,
+          phone: editForm.phone.trim() || undefined,
+          capabilities: splitCsv(editForm.skills),
+          coverage_areas: splitCsv(editForm.regions),
+          level: editForm.level || undefined,
+        },
+      );
+      cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refetch 取到更新後資料
+      setEditOpen(false);
+      await loadTechnician();
+    } catch (e) {
+      setActionMsg(
+        e instanceof ApiError ? `儲存失敗：${e.errorCode} (${e.status})` : "儲存失敗",
+      );
+    } finally {
+      setActionBusy(false);
+    }
+  }
 
   const status = technician
     ? AVAILABILITY_STYLE[technician.availability] ?? AVAILABILITY_STYLE.available
@@ -342,21 +364,35 @@ export default function TechnicianDetailPage({ params }: PageProps) {
               </div>
               <div className="flex items-center gap-2">
                 <button
-                  disabled
-                  title="即將推出"
-                  className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] px-4 py-2 opacity-60 cursor-not-allowed"
+                  onClick={openEdit}
+                  disabled={!technician || actionBusy}
+                  className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] px-4 py-2 hover:bg-[var(--bg-page)] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Pencil className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
                   <span className="text-[13px] text-[var(--text-primary)]">編輯</span>
                 </button>
-                <button
-                  disabled
-                  title="即將推出"
-                  className="flex items-center gap-[6px] rounded-lg border border-[var(--error)] px-4 py-2 opacity-60 cursor-not-allowed"
-                >
-                  <Ban className="h-[14px] w-[14px] text-[var(--error)]" />
-                  <span className="text-[13px] text-[var(--error)]">停權</span>
-                </button>
+                {/* 停權/復權依 onboarding 狀態切換（接 lifecycle :suspend/:reactivate）；
+                    pending_approval/terminated 等狀態不顯示（核准在列表頁、終止為不可逆另議）。 */}
+                {technician?.status === "active" && (
+                  <button
+                    onClick={() => handleLifecycle("suspend")}
+                    disabled={actionBusy}
+                    className="flex items-center gap-[6px] rounded-lg border border-[var(--error)] px-4 py-2 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    <Ban className="h-[14px] w-[14px] text-[var(--error)]" />
+                    <span className="text-[13px] text-[var(--error)]">停權</span>
+                  </button>
+                )}
+                {technician?.status === "suspended" && (
+                  <button
+                    onClick={() => handleLifecycle("reactivate")}
+                    disabled={actionBusy}
+                    className="flex items-center gap-[6px] rounded-lg border border-[var(--primary)] px-4 py-2 hover:bg-[var(--primary-light)] disabled:opacity-50"
+                  >
+                    <RotateCcw className="h-[14px] w-[14px] text-[var(--primary)]" />
+                    <span className="text-[13px] text-[var(--primary)]">復權</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -367,11 +403,17 @@ export default function TechnicianDetailPage({ params }: PageProps) {
             </div>
           )}
 
+          {actionMsg && !editOpen && (
+            <div className="mx-8 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {actionMsg}
+            </div>
+          )}
+
           {technician ? (
             <>
               <ProfileCard technician={technician} />
               <MockBanner />
-              <SkillMatrix />
+              <CertificationMatrix tenantId={tenantId} technicianId={id} />
               <WeeklySchedule />
             </>
           ) : (
@@ -383,8 +425,92 @@ export default function TechnicianDetailPage({ params }: PageProps) {
           )}
         </div>
 
-        <TechnicianDetailSidebar technicianId={id} />
+        <TechnicianDetailSidebar technicianId={id} availability={technician?.availability} />
       </div>
+
+      {/* CR-0103 編輯技師基本資料 modal（姓名/電話/技能/區域；狀態變更走停權/復權鈕）*/}
+      {editOpen && technician && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-lg bg-[var(--bg-surface)] p-6 shadow-xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">編輯技師資料</h2>
+              <button
+                onClick={() => setEditOpen(false)}
+                aria-label="關閉"
+                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-[var(--text-secondary)]">姓名</span>
+                <input
+                  value={editForm.name}
+                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-[var(--text-secondary)]">聯絡電話</span>
+                <input
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-[var(--text-secondary)]">等級</span>
+                <select
+                  value={editForm.level}
+                  onChange={(e) => setEditForm((f) => ({ ...f, level: e.target.value }))}
+                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
+                >
+                  <option value="S">S（頂級）</option>
+                  <option value="A">A（資深）</option>
+                  <option value="B">B（中級）</option>
+                  <option value="C">C（入門）</option>
+                </select>
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-[var(--text-secondary)]">技能 / 品牌（逗號分隔）</span>
+                <input
+                  value={editForm.skills}
+                  onChange={(e) => setEditForm((f) => ({ ...f, skills: e.target.value }))}
+                  placeholder="Dormakaba, Yale, Kaadas"
+                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-[var(--text-secondary)]">服務區域（逗號分隔）</span>
+                <input
+                  value={editForm.regions}
+                  onChange={(e) => setEditForm((f) => ({ ...f, regions: e.target.value }))}
+                  placeholder="TPE, NTC"
+                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
+                />
+              </label>
+            </div>
+            {actionMsg && <p className="mt-3 text-[13px] text-red-600">{actionMsg}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setEditOpen(false)}
+                disabled={actionBusy}
+                className="rounded border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={actionBusy}
+                className="rounded bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+              >
+                {actionBusy ? "儲存中…" : "儲存"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

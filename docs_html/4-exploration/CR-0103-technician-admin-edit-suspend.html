@@ -1,0 +1,186 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>技師管理「編輯 / 停權 / 復權」前端接線 + admin 編輯端點</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0103-technician-admin-edit-suspend.md</div>
+<div class="doc"><h1
+id="cr-0103--技師管理編輯--停權--復權前端接線--admin-編輯端點">CR-0103 —
+技師管理「編輯 / 停權 / 復權」前端接線 + admin 編輯端點</h1>
+<h2 id="1-動機業主回報">1. 動機（業主回報）</h2>
+<p>業主在 <code>/technicians</code>（→ 詳情頁
+<code>/technicians/[id]</code>）發現「操作沒有作用」，
+問「原本是打算做什麼」。</p>
+<h2 id="2-診斷查證結果">2. 診斷（查證結果）</h2>
+<ul>
+<li><strong>詳情頁「編輯」「停權」是 <code>disabled</code>
+佔位鈕</strong>（<code>title="即將推出"</code>），無 onClick →
+點了沒反應。</li>
+<li><strong>停權/復權/終止後端早已實作可用</strong>：<code>technician_lifecycle_v2</code>
+的 <code>:suspend</code> / <code>:reactivate</code> /
+<code>:terminate</code>（+
+<code>technician_lifecycle_service.suspend/reactivate/approve/reject</code>，須
+<code>X-Initiator</code> header + <code>{reason, notes}</code>，有
+audit）。典型「後端做了前端沒接」假綠（同 CR-0091/0094）。</li>
+<li><strong>死碼 bug</strong>：<code>technicians_v2.py</code> 另有重複的
+<code>:suspend</code> <strong>501 stub</strong>，因 main.py include 順序
+（<code>tech_lifecycle_v2_router</code> 先註冊）被遮蔽、永遠跑不到 →
+misleading dead route。</li>
+<li><strong>「編輯」後端真缺</strong>：只有技師改自己的
+<code>updateMyProfile</code>（PATCH /technicians/me）， <strong>無 admin
+改任意技師的端點</strong>。</li>
+<li>詳情頁「技能矩陣/本週排班/佣金/獎懲」為寫死示意（已有誠實
+disclaimer，本 CR 不動）。</li>
+</ul>
+<h2 id="3-觸發面向cia-gate">3. 觸發面向（CIA gate）</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>命中</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API contract</td>
+<td>✅</td>
+<td>新增
+<code>PATCH /tenants/{tid}/technicians/{techId}</code>（updateTechnicianV2）；移除未實作的
+501 stub</td>
+</tr>
+<tr>
+<td>User flow</td>
+<td>✅（弱）</td>
+<td>技師詳情頁新增可用的編輯/停權/復權操作</td>
+</tr>
+<tr>
+<td>Domain model</td>
+<td>❌</td>
+<td>不新增欄位（沿用 technicians 既有
+name/phone/email/capabilities/service_regions）</td>
+</tr>
+<tr>
+<td>DB schema</td>
+<td>❌</td>
+<td>無 migration</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-8-human-decisions-required已裁決">4. §8 Human Decisions
+Required（已裁決）</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>決策</th>
+<th>業主選擇</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>範圍</td>
+<td><strong>編輯 + 停權/復權一起做</strong>（編輯需補後端端點）</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>可編輯欄位</td>
+<td><strong>姓名 / 電話 / 技能(品牌) / 服務區域</strong>（Option B
+preview 指定；email 不在 Technician 回應 schema，本 CR 不納）</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>停權/復權</td>
+<td>接既有 <code>technician_lifecycle_v2</code>（須 reason，UI prompt
+收集；有 audit）</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>501 死碼</td>
+<td>移除 technicians_v2 重複的 <code>:suspend</code> stub</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-實作">5. 實作</h2>
+<p><strong>後端</strong></p>
+<ul>
+<li><code>technician_service.update_technician(*, tenant_id, technician_id, patch)</code>
+— 與 <code>update_my_profile</code> 同 SET
+邏輯（name/phone/email/capabilities/regions 部分更新），改以
+technician_id 定位、 get_technician 守門（404/跨租戶）。</li>
+<li><code>technicians_v2.py</code>：新
+<code>PATCH /tenants/{tenantId}/technicians/{techId}</code>（updateTechnicianV2，
+<code>_TechnicianUpdateRequest</code> 全選填、None
+不更新；DISPATCH_ROLES + cross-tenant guard）。
+<strong>移除</strong>重複未實作的 <code>:suspend</code> 501 stub（連帶清
+<code>JSONResponse</code> import）。</li>
+<li>狀態變更（停權/復權）<strong>不新增端點</strong>，沿用
+<code>technician_lifecycle_v2</code> 既有可用端點。</li>
+</ul>
+<p><strong>前端 <code>/technicians/[id]/page.tsx</code></strong></p>
+<ul>
+<li>「編輯」→ 開 modal（姓名/電話/技能/區域，逗號分隔轉陣列）→
+<code>api.patch</code> updateTechnicianV2 → refetch。</li>
+<li>「停權」（status=active）/「復權」（status=suspended）依 onboarding
+狀態切換；prompt 收 reason →
+<code>api.post :suspend/:reactivate</code>（帶
+<code>X-Initiator</code>）→ refetch。</li>
+<li>mutation 後 <code>cacheInvalidate("GET:")</code>（清 30s GET
+快取，否則 refetch 取到舊狀態 — 比照列表頁核准）。</li>
+</ul>
+<h2 id="6-範圍與限制">6. 範圍與限制</h2>
+<ul>
+<li>編輯不含 email（Technician 回應 schema 無此欄，無法預填）/ rating /
+狀態（狀態走停權復權）。</li>
+<li>「終止」(:terminate) 為不可逆，本 CR 不掛 UI（另議）。</li>
+<li>詳情頁示意資料（技能矩陣/排班/佣金/獎懲）維持現狀（已有
+disclaimer）。</li>
+</ul>
+<h2 id="7-測試">7. 測試</h2>
+<ul>
+<li>API <code>test_technicians_v2_endpoint.py</code> +3：PATCH
+部分更新（name/phone/capabilities/regions， 未帶 email
+不變）、404、cross-tenant 403 → 與 lifecycle/onboard 合計 38
+passed。</li>
+<li>Live UI（Playwright，丁啟恆）：編輯鈕啟用 → modal 預填 → 改技能存檔
+→ DB 持久化（已還原）； 停權→復權→停權 round-trip 按鈕正確切換（cache
+修正後）；測試 lifecycle events 已清。</li>
+</ul>
+<h2 id="8-進度">8. 進度</h2>
+<p>✅ S1 done（branch <code>feat/technician-admin-edit</code>，疊於
+phone 分支）：service update_technician + PATCH updateTechnicianV2 +
+移除 501 死碼 stub；前端編輯 modal + 停權/復權接線 + cache 修正； API 38
+passed；Playwright 全流程驗證。<strong>待部署 api+web</strong>。</p>
+<p>✅ S2 done（後續 bug 修復）— 業主實測「核准失敗 NOT_FOUND：technician
+… not found in tenant」。
+<strong>根因（又一個從沒端到端測過的假綠）</strong>：admin「新增技師」（createTechnician
+v2）呼叫 <code>create_technician</code> <strong>沒傳 user_id</strong> →
+technician.user_id=NULL；而 approve 的 <code>_fetch_status</code> 用
+<code>technicians JOIN users ON user_id WHERE u.tenant_id</code> → NULL
+user_id JOIN 不出列 → 404。 <strong>凡後台新增的 pending
+技師全核准不了。</strong> 業主裁決「完整修」：①
+<code>create_technician</code> 在 user_id 缺時比照
+<code>register_technician</code> 一併建
+<code>users(role='technician', is_active)</code> 並連 user_id（user +
+technician 同 transaction；password_hash 暫
+NULL，技師日後自設/重設，走手機登入）；② <code>_fetch_status</code> 改用
+<code>technicians.tenant_id</code> 直接判（不 JOIN users，對 NULL
+user_id / 舊資料防呆）。 順手修 onboard 測試不清理污染 dev DB 的問題（加
+<code>_cleanup_technician</code> + 既有 2 測試補清理）。
+test_technicians_onboard +1（create→user_id→approve 回歸）→ 技師相關 39
+passed + live E2E （建技師 user_id 非 NULL → 核准 200 →
+active，已清）。<strong>待部署 api</strong>。</p>
+</div></div></body></html>

@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import json
+import uuid
 import logging
 from datetime import datetime, time, timedelta, timezone
 
@@ -49,18 +50,22 @@ def _coerce_jsonb_list(value) -> list[str]:
 _TECH_SELECT = (
     "t.id, t.user_id, t.name, t.phone, t.email, "
     "t.capabilities, t.service_regions, t.rating, t.completed_orders, "
-    "t.status, t.created_at"
+    "t.status, t.created_at, t.online_state, t.level"
 )
 
 
 def _tech_row_to_dict(row: tuple) -> dict:
-    """row 順序對齊 _TECH_SELECT。Technician schema：必填欄位都要齊。"""
+    """row 順序對齊 _TECH_SELECT。Technician schema：必填欄位都要齊。
+
+    CR-0104：availability 改讀真實 online_state（Schema_tech_schedule.sql 既有欄，CHECK 值域與
+    TechnicianAvailability enum 完全相同）、level 改讀真實 level 欄（migration 080，DEFAULT 'C'），
+    取代原本對所有技師硬補常數的假值。NULL 時退回預設值防呆（理論上 DEFAULT 已保證非 NULL）。"""
     out: dict = {
         "id": str(row[0]),
         "name": row[2] or "",
         "phone": row[3] or "",
-        "level": _DEFAULT_LEVEL,
-        "availability": _DEFAULT_AVAILABILITY,
+        "level": row[12] or _DEFAULT_LEVEL,
+        "availability": row[11] or _DEFAULT_AVAILABILITY,
         "skills": _coerce_jsonb_list(row[5]),
         "service_areas": _coerce_jsonb_list(row[6]),
         "rating": float(row[7]) if row[7] is not None else 0.0,
@@ -225,6 +230,49 @@ async def update_my_profile(*, tenant_id: str, user_id: str, patch: dict) -> dic
     return _tech_row_to_dict(refreshed) if refreshed else _tech_row_to_dict(row)
 
 
+async def update_technician(*, tenant_id: str, technician_id: str, patch: dict) -> dict:
+    """admin 編輯任意技師基本資料（CR-0103）— name/phone/email/capabilities/regions 五欄
+    部分更新（與 update_my_profile 同 SET 邏輯，差別在以 technician_id 定位、需 admin 權限）。
+    狀態變更不走這裡（用 lifecycle :suspend/:reactivate/:terminate）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 存在性 + 跨租戶守門（get_technician 不存在會 404）
+    await get_technician(tenant_id=tenant_id, technician_id=technician_id)
+
+    sets: list[str] = []
+    args: list = []
+    if "name" in patch and patch["name"] is not None:
+        sets.append("name = %s")
+        args.append(patch["name"])
+    if "phone" in patch and patch["phone"] is not None:
+        sets.append("phone = %s")
+        args.append(patch["phone"])
+    if "email" in patch and patch["email"] is not None:
+        sets.append("email = %s")
+        args.append(patch["email"])
+    if "capabilities" in patch and patch["capabilities"] is not None:
+        sets.append("capabilities = %s::jsonb")
+        args.append(json.dumps(list(patch["capabilities"])))
+    if "regions" in patch and patch["regions"] is not None:
+        sets.append("service_regions = %s::jsonb")
+        args.append(json.dumps(list(patch["regions"])))
+    # CR-0104：等級手動指派（值域 S/A/B/C 由 API enum TechnicianLevel 守門）
+    if "level" in patch and patch["level"] is not None:
+        sets.append("level = %s")
+        args.append(patch["level"])
+
+    if sets:
+        args.extend([technician_id, tenant_id])
+        await db_module._conn.execute(
+            f"UPDATE technicians SET {', '.join(sets)} "
+            f"WHERE id = %s::uuid AND tenant_id = %s::uuid",
+            args,
+        )
+
+    return await get_technician(tenant_id=tenant_id, technician_id=technician_id)
+
+
 async def get_my_availability(
     *,
     tenant_id: str,
@@ -334,17 +382,31 @@ async def create_technician(
     capabilities_json = json.dumps(capabilities or [])
     service_regions_json = json.dumps(coverage_areas)
 
-    # CR-0038 桶5 / FR-0044：寫 user_id（連結登入帳號 → 修 _fetch_status JOIN users 永遠 404
-    # 的斷鏈；註冊流程建 user 後傳入；NULL::uuid 相容舊呼叫端）
-    cur = await db_module._conn.execute(
-        "INSERT INTO technicians "
-        "  (tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
-        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
-        "RETURNING id",
-        (tenant_id, user_id, display_name, phone_val, email, capabilities_json, service_regions_json),
-    )
-    row = await cur.fetchone()
-    new_id = str(row[0])
+    # CR-0103-fix：admin「新增技師」原本不傳 user_id → technician.user_id=NULL →
+    # 核准（_fetch_status JOIN users）永遠 404（業主實測「核准失敗 not found in tenant」）。
+    # 比照 register_technician 一併建 user(role='technician', is_active)，技師才核准得了、
+    # 未來能手機登入（密碼待技師自設/重設，password_hash 暫 NULL）。註冊流程已自建 user 並
+    # 傳 user_id → 此處只在 user_id 缺時補建。user + technician 同 transaction（全有或全無）。
+    async with db_module._conn.transaction():
+        resolved_user_id = user_id
+        if resolved_user_id is None:
+            resolved_user_id = str(uuid.uuid4())
+            await db_module._conn.execute(
+                "INSERT INTO users "
+                "  (id, tenant_id, tenant_type, display_name, phone, email, role, is_active) "
+                "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, 'technician', TRUE)",
+                (resolved_user_id, tenant_id, display_name, phone_val, email),
+            )
+        cur = await db_module._conn.execute(
+            "INSERT INTO technicians "
+            "  (tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
+            "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
+            "RETURNING id",
+            (tenant_id, resolved_user_id, display_name, phone_val, email,
+             capabilities_json, service_regions_json),
+        )
+        row = await cur.fetchone()
+        new_id = str(row[0])
 
     # 重新 SELECT 以取得完整 row（含 created_at 等欄位）
     cur = await db_module._conn.execute(

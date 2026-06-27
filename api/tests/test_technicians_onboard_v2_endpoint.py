@@ -47,6 +47,24 @@ def _onboard_payload(
     }
 
 
+async def _cleanup_technician(tech_id: str) -> None:
+    """刪除測試建立的 technician + 其連結 user + lifecycle events，避免污染 dev DB
+    （CR-0103：create_technician 現會一併建 user，測試務必連 user 一起清）。"""
+    import core.db as db_module
+
+    if not await db_module._ensure_conn():
+        return
+    cur = await db_module._conn.execute(
+        "SELECT user_id FROM technicians WHERE id = %s::uuid", (tech_id,))
+    row = await cur.fetchone()
+    await db_module._conn.execute(
+        "DELETE FROM saas.technician_lifecycle_event WHERE technician_id = %s::uuid", (tech_id,))
+    await db_module._conn.execute(
+        "DELETE FROM technicians WHERE id = %s::uuid", (tech_id,))
+    if row and row[0]:
+        await db_module._conn.execute("DELETE FROM users WHERE id = %s::uuid", (row[0],))
+
+
 # ---------------------------------------------------------------------------
 # Unit tests — pure schema validation (pytest.mark.unit, no I/O)
 # ---------------------------------------------------------------------------
@@ -134,6 +152,7 @@ async def test_create_technician_v2_201(client, admin_headers):
     data = body["data"]
     assert "id" in data
     assert data["name"] == unique_name
+    await _cleanup_technician(data["id"])  # 清理避免污染 dev DB
 
 
 @pytest.mark.asyncio
@@ -163,6 +182,7 @@ async def test_create_technician_v2_idempotency_replay(client, admin_headers):
     )
     assert res2.status_code in (200, 201), res2.text
     assert res2.json()["data"]["id"] == first_id
+    await _cleanup_technician(first_id)  # 清理避免污染 dev DB
 
 
 @pytest.mark.asyncio
@@ -216,3 +236,46 @@ async def test_create_technician_v2_missing_coverage_areas_422(client, admin_hea
         headers=headers,
     )
     assert res.status_code == 422, res.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.component
+async def test_create_technician_creates_user_and_can_approve(client, admin_headers):
+    """C-6 (CR-0103 回歸)：admin 新增技師應一併建 user(user_id 非 NULL)，核准才不會 404。
+
+    重現業主『核准失敗 NOT_FOUND：technician ... not found in tenant』根因 —— 原 admin
+    新增不建 user → technician.user_id=NULL → approve 的 _fetch_status JOIN users 撈不出列
+    → 404。修復後：① 建出來的技師有連結 user；② 核准回 200、status 轉 active。
+    """
+    import core.db as db_module
+
+    idem = str(uuid.uuid4())
+    unique_name = f"cr0103-approve-{idem[:8]}"
+    res = await client.post(
+        f"/tenants/{DEFAULT_TENANT_ID}/technicians",
+        json=_onboard_payload(display_name=unique_name),
+        headers={**admin_headers, "Idempotency-Key": idem},
+    )
+    assert res.status_code == 201, res.text
+    tech_id = res.json()["data"]["id"]
+    try:
+        # 修復點①：新增技師一併建 user（user_id 非 NULL）
+        cur = await db_module._conn.execute(
+            "SELECT user_id, status FROM technicians WHERE id = %s::uuid", (tech_id,))
+        user_id, status = await cur.fetchone()
+        assert user_id is not None, "admin 新增技師應一併建 user 帳號（CR-0103）"
+        assert status == "pending_approval"
+
+        # 修復點②：核准不再 404（送空 body + X-Initiator，比照列表頁核准鈕）
+        approve = await client.post(
+            f"/tenants/{DEFAULT_TENANT_ID}/technicians/{tech_id}:onboard-approve",
+            json={},
+            headers={**admin_headers, "X-Initiator": str(user_id)},
+        )
+        assert approve.status_code == 200, approve.text
+
+        cur = await db_module._conn.execute(
+            "SELECT status FROM technicians WHERE id = %s::uuid", (tech_id,))
+        assert (await cur.fetchone())[0] == "active"
+    finally:
+        await _cleanup_technician(tech_id)

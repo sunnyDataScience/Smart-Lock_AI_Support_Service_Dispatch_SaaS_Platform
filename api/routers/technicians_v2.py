@@ -3,20 +3,21 @@
 對齊 frozen spec §2.2 M05 Technician：
   - GET  /tenants/{tenantId}/technicians          → listTechniciansV2 (cursor 分頁)
   - GET  /tenants/{tenantId}/technicians/{techId} → getTechnicianV2 (單筆詳情)
-  - POST /tenants/{tenantId}/technicians          → createTechnician (onboard FR-0044)
-  - POST /tenants/{tenantId}/technicians/{techId}:suspend → suspendTechnicianV2
+  - POST  /tenants/{tenantId}/technicians          → createTechnician (onboard FR-0044)
+  - PATCH /tenants/{tenantId}/technicians/{techId} → updateTechnicianV2 (CR-0103 admin 編輯基本資料)
 
 舊 flat 路徑 /api/v1/technicians（routers/technicians.py 的 admin 端點）仍保留，
 加掛 Deprecation header（D3）雙掛過渡；前端遷移後於 P3 波次移除。
 
 /technicians/me/* 技師自助端點屬 mobile 端範疇，**不遷移**，保留 legacy 路由。
+狀態變更（停權/復權/終止）走 technician_lifecycle_v2 的 :suspend/:reactivate/:terminate
+（須附 reason，有 audit）；CR-0103 已移除本檔重複且未實作的 :suspend 501 stub。
 
 設計原則：
   - require_tenant + cross-tenant guard（ADR-0030）
   - idempotency_guard（POST 寫操作）
   - 呼既有 technician_service 函式，不重寫 SQL
   - envelope：{ data } 對齊既有慣例
-  - suspend：legacy service 尚無對應實作 → 標 TODO stub（回 501）
 """
 
 from __future__ import annotations
@@ -24,7 +25,6 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 
 from fastapi import APIRouter, Depends, Path, Query, Response
-from fastapi.responses import JSONResponse
 
 from core.deps import DISPATCH_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
@@ -167,18 +167,32 @@ async def create_technician_v2(
     return payload
 
 
-@router.post(
-    "/tenants/{tenantId}/technicians/{techId}:suspend",
-    operation_id="suspendTechnicianV2",
-    summary="暫停技師派工 v2（tenant-scoped）— TODO: 待 service 層實作",
+class _TechnicianUpdateRequest(BaseModel):
+    """CR-0103 admin 編輯技師基本資料（部分更新，欄位皆選填；只更新有帶的欄位）。
+    狀態變更不走這裡 —— active↔suspended 用 lifecycle :suspend/:reactivate（須附 reason）。
+    CR-0104：+level（等級手動指派，值域 S/A/B/C 由 TechnicianLevel enum 守門）。"""
+
+    display_name: str | None = Field(default=None, description="技師顯示姓名")
+    phone: str | None = Field(default=None, description="聯絡電話")
+    email: str | None = Field(default=None, description="電子郵件")
+    coverage_areas: list[str] | None = Field(default=None, description="服務覆蓋區域代碼清單")
+    capabilities: list[str] | None = Field(default=None, description="可服務品牌/技能碼")
+    level: TechnicianLevel | None = Field(default=None, description="技師等級（S/A/B/C，手動指派）")
+
+
+@router.patch(
+    "/tenants/{tenantId}/technicians/{techId}",
+    operation_id="updateTechnicianV2",
+    summary="編輯技師基本資料 v2（tenant-scoped；狀態變更走 lifecycle :suspend/:reactivate）",
+    response_model=TechnicianEnvelope,
     tags=["M05 Technician"],
-    status_code=501,
 )
-async def suspend_technician_v2(
+async def update_technician_v2(
+    body: _TechnicianUpdateRequest,
     tenantId: str = Path(...),
     techId: str = Path(...),
     user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
-) -> JSONResponse:
+) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
@@ -187,12 +201,17 @@ async def suspend_technician_v2(
             403,
         )
 
-    # TODO（M05 suspend）: technician_service 尚無 suspend 實作。
-    # 待 service 層新增 suspend_technician(tenant_id, technician_id) 後接入。
-    return JSONResponse(
-        status_code=501,
-        content={
-            "error_code": "NOT_IMPLEMENTED",
-            "message": "suspend endpoint is not yet implemented",
-        },
+    # 請求欄位 → service patch key（display_name→name、coverage_areas→regions），
+    # None 欄位不更新（部分更新語意）。
+    patch = {
+        "name": body.display_name,
+        "phone": body.phone,
+        "email": body.email,
+        "capabilities": body.capabilities,
+        "regions": body.coverage_areas,
+        "level": body.level.value if body.level else None,
+    }
+    technician = await technician_service.update_technician(
+        tenant_id=tenantId, technician_id=techId, patch=patch,
     )
+    return {"data": Technician(**technician).model_dump(mode="json")}
