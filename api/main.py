@@ -71,6 +71,7 @@ from routers import problem_cards_v2 as problem_cards_v2_router  # spec-alignmen
 from routers import technicians_v2 as technicians_v2_router  # spec-alignment P2-α (CR-0002-α, M05 Technician tenant-scoped)
 from routers import technician_certifications_v2 as tech_certs_v2_router  # CR-0104 技能認證矩陣（M05 Technician 子資源）
 from routers import technician_commission_v2 as tech_commission_v2_router  # CR-0106 師傅佣金月結（M05 Technician 子資源）
+from routers import technician_penalty_bonus_v2 as tech_pb_v2_router  # CR-0107 師傅獎懲明細（M05 Technician 子資源）
 from routers import dispatch_v2 as dispatch_v2_router  # spec-alignment P2-α (CR-0002-α, M06 Dispatch tenant-scoped)
 from routers import work_orders_v2 as work_orders_v2_router  # spec-alignment P2-α (CR-0002-α, M06 WorkOrder tenant-scoped)
 from routers import vendors_v2 as vendors_v2_router  # CR-0029 收尾：廠商核准管理
@@ -264,6 +265,7 @@ app.include_router(tech_lifecycle_v2_router.router, tags=["M07 Technician Lifecy
 app.include_router(technicians_v2_router.router, tags=["M05 Technician"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(tech_certs_v2_router.router, tags=["M05 Technician"])  # CR-0104 技能認證矩陣（子資源 /certifications，多一層 literal 段不與 {techId} 衝突）
 app.include_router(tech_commission_v2_router.router, tags=["M05 Technician"])  # CR-0106 師傅佣金月結（子資源 /commission-summary）
+app.include_router(tech_pb_v2_router.router, tags=["M05 Technician"])  # CR-0107 師傅獎懲明細（子資源 /penalty-bonus）
 app.include_router(dispatch_v2_router.router, tags=["M06 Dispatch"])  # spec-alignment P2-α (CR-0002-α, tenant-scoped)
 app.include_router(vendors_v2_router.router, tags=["M14 Vendor"])  # CR-0029 收尾：廠商核准管理
 app.include_router(catalog_v2_router.router, tags=["M04 Quote"])  # CR-0034：報價主檔

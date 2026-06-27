@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { TrendingUp, TrendingDown } from "lucide-react";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import PenaltyBonusLog from "@/components/technicians/PenaltyBonusLog";
 import { formatRelative } from "@/lib/format";
 import {
   STATUS_GROUP_MAP,
@@ -43,13 +43,6 @@ const AVAILABILITY_DISPLAY: Record<string, { label: string; color: string; dot: 
   circuit_breaker_open: { label: "暫停派工", color: "#991B1B", dot: "#991B1B" },
 };
 
-interface LogEntry {
-  type: "bonus" | "penalty";
-  title: string;
-  date: string;
-  amount: string;
-}
-
 // CR-0106 佣金月結回應（固定工資制；對齊 technician_commission_service）
 interface CommissionLine {
   service_code: string;
@@ -77,20 +70,13 @@ function ntd(n: number): string {
   return `NT$ ${Math.round(n).toLocaleString("en-US")}`;
 }
 
-const logEntries: LogEntry[] = [
-  { type: "bonus", title: "高評價獎金 (5星)", date: "2026-04-21", amount: "+NT$ 200" },
-  { type: "bonus", title: "準時完工獎金", date: "2026-04-20", amount: "+NT$ 150" },
-  { type: "penalty", title: "遲到扣款 (逾時15分鐘)", date: "2026-04-18", amount: "-NT$ 200" },
-  { type: "bonus", title: "客戶推薦獎金", date: "2026-04-15", amount: "+NT$ 500" },
-];
-
 export default function TechnicianDetailSidebar({ technicianId, availability }: Props) {
   return (
     <aside className="w-[360px] flex-shrink-0 flex flex-col gap-4 bg-[#F1F5F9] p-4 overflow-y-auto h-full">
       <AvailabilityCard availability={availability} />
       <ActiveOrdersCard technicianId={technicianId} />
       <CommissionSummaryCard technicianId={technicianId} />
-      <PenaltyBonusLog />
+      <PenaltyBonusLog technicianId={technicianId} />
     </aside>
   );
 }
@@ -118,19 +104,6 @@ function CardTitle({ children }: { children: React.ReactNode }) {
     >
       {children}
     </h3>
-  );
-}
-
-function MockBadge() {
-  const t = useTranslations("components.technicians.detailSidebar");
-  return (
-    <span
-      className="text-[10px] font-medium rounded px-1.5 py-0.5"
-      style={{ backgroundColor: "#F1F5F9", color: "var(--text-disabled)" }}
-      title={t("mockTooltip")}
-    >
-      {t("mockLabel")}
-    </span>
   );
 }
 
@@ -396,65 +369,3 @@ function CommissionSummaryCard({ technicianId }: { technicianId?: string }) {
   );
 }
 
-function PenaltyBonusLog() {
-  const t = useTranslations("components.technicians.detailSidebar");
-  return (
-    <CardWrapper>
-      <div className="flex items-center gap-2">
-        <CardTitle>{t("logTitle")}</CardTitle>
-        <MockBadge />
-      </div>
-      <div className="flex flex-col gap-2.5 w-full">
-        {logEntries.map((entry, i) => {
-          const isBonus = entry.type === "bonus";
-          return (
-            <div key={i} className="flex items-center gap-2 w-full">
-              <span
-                className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
-                style={{
-                  backgroundColor: isBonus ? "#D1FAE5" : "#FEE2E2",
-                  color: isBonus ? "#059669" : "var(--error)",
-                }}
-              >
-                {isBonus ? (
-                  <TrendingUp size={14} />
-                ) : (
-                  <TrendingDown size={14} />
-                )}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p
-                  className="text-xs font-medium truncate"
-                  style={{ color: "var(--text-primary)" }}
-                >
-                  {entry.title}
-                </p>
-                <p
-                  className="text-[11px]"
-                  style={{ color: "var(--text-disabled)" }}
-                >
-                  {entry.date}
-                </p>
-              </div>
-              <span
-                className="text-xs font-semibold flex-shrink-0"
-                style={{
-                  color: isBonus ? "#059669" : "var(--error)",
-                }}
-              >
-                {entry.amount}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-      <Link
-        href="#"
-        className="text-[13px]"
-        style={{ color: "var(--primary)" }}
-      >
-        {t("viewLogAll")}
-      </Link>
-    </CardWrapper>
-  );
-}
