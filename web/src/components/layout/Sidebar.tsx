@@ -3,6 +3,7 @@
 import {
   Lock,
   LayoutDashboard,
+  Inbox,
   MessageSquare,
   ClipboardList,
   BookOpen,
@@ -65,6 +66,7 @@ const navSections: NavSection[] = [
     titleId: "operations",
     items: [
       { icon: LayoutDashboard, id: "dashboard", href: "/dashboard" },
+      { icon: Inbox, id: "intakeCases", href: "/admin/cases" },
       { icon: MessageSquare, id: "conversations", href: "/conversations" },
       { icon: ClipboardList, id: "problemCards", href: "/problem-cards" },
       {
