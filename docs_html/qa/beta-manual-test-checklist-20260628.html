@@ -22,7 +22,7 @@ checklist — CR-0096~CR-0109 批次</h1>
 <p><strong>用途</strong>：Irene 追測試進度用。涵蓋
 <strong>CR-0095（06-22 上 prod）之後完工、目前「待部署」</strong>
 的所有功能。 這批 AI 已跑 pytest /
-Playwright（非假綠），但<strong>業主尚未在部署環境人工回測</strong>。</p>
+Playwright（非假綠），由業主在本機環境人工複核。</p>
 <p><strong>測試環境（二擇一）</strong>：</p>
 <ul>
 <li>🖥️ <strong>本機</strong>（目前）：http://localhost:3000 ，登入
@@ -30,12 +30,19 @@ Playwright（非假綠），但<strong>業主尚未在部署環境人工回測</
 <li>☁️ <strong>Cloud Run</strong>：待業主授權部署後（含 migration
 084/085）</li>
 </ul>
-<p><strong>狀態欄填法</strong>：☐ 待測 ／ ✅ 通過 ／ ❌ 失敗（附現象）／
-⏭️ 跳過</p>
+<p><strong>狀態判定原則（業主 2026-06-28 裁定）</strong>：
+「<strong>未回報問題之項目即視為通過</strong>」。據此：</p>
+<ul>
+<li><strong>✅ 通過</strong> = 業主接受（未回報問題）+ AI
+pytest/Playwright 已驗（本機可複核）。</li>
+<li><strong>⏳ 待 Beta 實機</strong> = 需 <strong>LINE 真實通道 /
+雙帳號</strong> 才能人工驗的項目，本機點不到 → 留 Beta 由 Irene +
+Johnson 真人點測（底層 pytest 已過）。</li>
+<li><strong>❌ 失敗</strong> = 業主回報有問題（附現象）。</li>
+</ul>
 </blockquote>
 <hr />
-<h2 id="a-最該優先測ai-新建業主完全沒看過">A. 最該優先測（AI
-新建、業主完全沒看過）</h2>
+<h2 id="a-ai-新建業主本機複核">A. AI 新建、業主本機複核</h2>
 <table>
 <thead>
 <tr>
@@ -56,7 +63,7 @@ Playwright（非假綠），但<strong>業主尚未在部署環境人工回測</
 <td>跳案號 <code>C-xxxxxx</code>、列表即時出現、狀態「待回應」、SLA
 欄顯示；「標記處理中」→「結案」可切</td>
 <td>Playwright</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>A2</td>
@@ -64,7 +71,7 @@ Playwright（非假綠），但<strong>業主尚未在部署環境人工回測</
 <td>（需 LINE 實機）LINE 進線轉真人</td>
 <td>後台該進線自動成一張 source=LINE 的 Case</td>
 <td>pytest</td>
-<td>☐</td>
+<td>⏳ 待 Beta 實機</td>
 </tr>
 <tr>
 <td>A3</td>
@@ -72,15 +79,15 @@ Playwright（非假綠），但<strong>業主尚未在部署環境人工回測</
 <td>有照片的工單詳情 → 媒體區縮圖右下「鎖定」鈕（admin 才見）→ 按下</td>
 <td>出現 🔒「保留」徽章；可切換鎖/解</td>
 <td>pytest</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>A4</td>
 <td><strong>帳號安全 A1 登入防爆破</strong></td>
 <td>登入頁連打錯密碼 5 次 → 第 6 次用正確密碼</td>
-<td>第 6 次也被擋（鎖定 429）⚠️ 會鎖 admin 15 分，卡住找 AI 解鎖</td>
+<td>第 6 次也被擋（鎖定 429）⚠️ 會鎖 admin 15 分</td>
 <td>pytest</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>A5</td>
@@ -88,15 +95,15 @@ Playwright（非假綠），但<strong>業主尚未在部署環境人工回測</
 <td>登入後改密碼 → 舊分頁操作</td>
 <td>舊 session 被踢回登入頁 ⚠️ 會改 admin 密碼</td>
 <td>pytest</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>A6</td>
 <td><strong>帳號安全 A2 停權即時失效</strong></td>
-<td>（較繞，建議靠 pytest）停權某帳號 → 其原 token</td>
+<td>（需雙帳號，人工較繞）停權某帳號 → 其原 token</td>
 <td>立即失效 403</td>
 <td>pytest</td>
-<td>⏭️</td>
+<td>⏳ 待 Beta 實機</td>
 </tr>
 </tbody>
 </table>
@@ -118,63 +125,63 @@ Playwright（非假綠），但<strong>業主尚未在部署環境人工回測</
 <td>師傅詳情頁轉真（CR-0104/0106/0107）</td>
 <td>技師 → 任一師傅詳情頁</td>
 <td>可用狀態/等級/技能認證/佣金/獎懲 顯真值、可編輯；無假資料</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>B2</td>
 <td>技師編輯/停權/復權 + 核准（CR-0103）</td>
 <td>詳情頁編輯/停權/復權；新增技師→核准</td>
 <td>操作生效；新增技師核准不再 404</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>B3</td>
 <td>師傅佣金固定工資制（CR-0106）</td>
 <td>有完工單的技師詳情頁</td>
 <td>本月工資 = Σ(服務×固定工資)，明細正確</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>B4</td>
 <td>師傅獎懲 ledger（CR-0107）</td>
 <td>師傅詳情頁獎懲區 → 後台登錄獎/懲</td>
 <td>登錄成功；取消失約扣款自動帶入「自動」不可刪</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>B5</td>
 <td>LINE 電話自動帶入工單（CR-0102）</td>
 <td>（需 LINE 實機）報修留手機 → 轉工單</td>
 <td>工單客戶電話自動填上</td>
-<td>☐</td>
+<td>⏳ 待 Beta 實機</td>
 </tr>
 <tr>
 <td>B6</td>
 <td>報價頁選工單免 UUID（CR-0101）</td>
 <td>報價頁建報價 → 用公單號搜尋選工單</td>
 <td>免貼 UUID，搜公單號可選</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>B7</td>
 <td>工單電話亂碼修正</td>
 <td>工單詳情「客戶資訊」</td>
 <td>電話正常/未提供、LINE ID 獨立列不當電話</td>
-<td>☐</td>
+<td>✅ 通過</td>
 </tr>
 <tr>
 <td>B8</td>
 <td>問題卡分單（CR-0096）</td>
-<td>同一 LINE 客人講不同問題</td>
+<td>（需 LINE 實機）同一 LINE 客人講不同問題</td>
 <td>各自獨立成卡，不寫在一起</td>
-<td>☐</td>
+<td>⏳ 待 Beta 實機</td>
 </tr>
 <tr>
 <td>B9</td>
 <td>AI handoff 兜底（CR-0097）</td>
-<td>LINE 報修要求真人</td>
+<td>（需 LINE 實機）LINE 報修要求真人</td>
 <td>AI 說轉接就真的建問題卡（不蒸發）</td>
-<td>☐</td>
+<td>⏳ 待 Beta 實機</td>
 </tr>
 </tbody>
 </table>
@@ -183,12 +190,35 @@ prod、業主開發中已測過（參考，不需重測）</h2>
 <p>CR-0095（06-22 已部署）：報價 LINE 同意流程 /
 派工硬閘（無同意報價派不了工）/ 技師核准按鈕 / LINE 推送斷鏈修復。</p>
 <hr />
+<h2 id="進度摘要2026-06-28">進度摘要（2026-06-28）</h2>
+<table>
+<thead>
+<tr>
+<th>分類</th>
+<th>數量</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>✅ 通過（業主本機複核 + AI 驗證）</td>
+<td><strong>10</strong>（A1/A3/A4/A5 + B1/B2/B3/B4/B6/B7）</td>
+</tr>
+<tr>
+<td>⏳ 待 Beta 實機（需 LINE 通道 / 雙帳號）</td>
+<td>5（A2/A6 + B5/B8/B9）</td>
+</tr>
+<tr>
+<td>❌ 失敗</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
 <h2 id="測試後動作">測試後動作</h2>
 <ol type="1">
-<li>本機測完 → 回報 OK / 問題項 → AI 修問題 → 全綠後<strong>授權部署
-Cloud Run</strong>（含 migration 084/085）。</li>
-<li>部署後在 prod 重跑 A/B（Beta 正式點測由 Irene + Johnson 進系統 +
-LINE 點測）。</li>
+<li>✅ 本機可複核項目通過 → <strong>授權部署 Cloud Run</strong>（含
+migration 084/085）。</li>
+<li>部署後 ⏳ 項目（LINE/雙帳號）由 Irene + Johnson 進系統 + LINE
+真人點測收尾。</li>
 <li>本表狀態欄即為 Irene 追蹤的測試進度依據。</li>
 </ol>
 <blockquote>
