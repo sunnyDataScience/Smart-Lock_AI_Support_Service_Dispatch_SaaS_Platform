@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>M09 媒體法務保留（legal_hold）手動設定面</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0109-media-legal-hold-manual.md</div>
+<div class="doc"><h1 id="cr-0109--m09-媒體法務保留手動設定面">CR-0109 — M09
+媒體法務保留手動設定面</h1>
+<h2 id="1-動機">1. 動機</h2>
+<p>現況驗證（2026-06-27）P1-06：<code>media_files.legal_hold</code> 欄與
+retention cron 排除邏輯<strong>早已存在</strong> （CR-0067 / migration
+066：legal_hold=true 即使 retention_until 過期也不軟刪，legal_hold
+wins）， 但<strong>無任何設定/解除面</strong> —— 只能手動改
+DB。運營端無法在爭議/保固/訴訟發生時把證據鎖住。</p>
+<h2 id="2-範圍手動-vs-自動">2. 範圍（手動 vs 自動）</h2>
+<ul>
+<li><strong>本
+CR：手動設定面</strong>（admin/主管/審核手動鎖/解單張媒體）。<strong>不需腦補業務規則</strong>（admin
+自行判斷何時鎖）。</li>
+<li><strong>不在本 CR（待業主）</strong>：自動觸發/解除規則 ——
+什麼情況自動上鎖（爭議開立？保固索賠？訴訟通知？）、
+留多久、自動解除條件。屬治理規則層，待業主定義（backlog §3）。</li>
+</ul>
+<h2 id="3-觸發面向cia-gate">3. 觸發面向（CIA gate）</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>命中</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API contract</td>
+<td>✅（additive）</td>
+<td>新增 1 個 PATCH 端點（不刪既有）</td>
+</tr>
+<tr>
+<td>DB schema</td>
+<td>❌</td>
+<td>legal_hold 欄已存在（CR-0067）</td>
+</tr>
+<tr>
+<td>Domain model</td>
+<td>❌</td>
+<td>無新 entity</td>
+</tr>
+<tr>
+<td>業務規則</td>
+<td>❌（手動）</td>
+<td>admin 手動操作，非自動算 → 不腦補</td>
+</tr>
+</tbody>
+</table>
+<p>→ additive 端點 + 既有欄位 + 手動操作，無新 domain/schema/flow，比照
+CR-0103/0104 wire-up。</p>
+<h2 id="4-實作">4. 實作</h2>
+<ul>
+<li><code>media_service.set_legal_hold</code>（UPDATE
+media_files.legal_hold WHERE id+tenant，404 防呆， 寫稽核
+<code>audit_log_service.log_event(event_type=media_legal_hold, action=set/release_legal_hold)</code>）。</li>
+<li><code>list_media_for_work_order</code> SELECT + items 補
+<code>legal_hold</code>（前端可顯示哪些已鎖）。</li>
+<li><code>media_v2</code> 新端點
+<code>PATCH /tenants/{tid}/media/{mediaId}/legal-hold</code>（body
+{hold, reason?}， <code>role_required(*REVIEW_ROLES)</code> ——
+admin/tenant_admin/super_admin/ops/reviewer，cross-tenant guard）。</li>
+<li>前端 <code>MediaGallery</code>：媒體縮圖加
+🔒「保留」徽章（legal_hold=true）+ 鎖/解 toggle（有權角色才顯， 用
+span+stopPropagation 避巢狀 button），PATCH
+後樂觀更新。僅工單模式（爭議模式列表未帶 legal_hold）。</li>
+</ul>
+<h2 id="5-範圍與限制">5. 範圍與限制</h2>
+<ul>
+<li>自動觸發/解除規則待業主（§2）。</li>
+<li>爭議模式（<code>list_media_for_dispute</code>）暫未帶
+legal_hold（工單模式為主證據視圖）；如需另補。</li>
+<li>留存期長度（retention_until）沿 CR-0040 既有規則，本 CR 不改。</li>
+</ul>
+<h2 id="6-測試">6. 測試</h2>
+<ul>
+<li>API <code>test_cr_0109_legal_hold</code>
+3/3（設定→列表反映→解除、cross-tenant 403、不存在 404）+ 全套 1464
+passed 無回歸。</li>
+<li>前端 tsc 0。（Playwright 因需 seed 帶 media 的工單，本輪以 pytest 真
+DB + tsc 驗證；部署後可實機點測。）</li>
+</ul>
+<h2 id="7-進度">7. 進度</h2>
+<p>✅ S1 done（branch
+<code>feat/cr-0109-legal-hold</code>）：media_service set_legal_hold +
+list 帶 legal_hold + media_v2 PATCH 端點（REVIEW_ROLES + 稽核）+ 前端
+MediaGallery 🔒 徽章/鎖解 toggle。API 3/3 + tsc 0。 <strong>待部署
+api+web</strong>（無 migration，legal_hold 欄已存在）。Phase I backlog
+批次 3 之 M09 完成；M08 客戶 LIFF 簽收（需 CIA）另議。</p>
+</div></div></body></html>

@@ -266,7 +266,7 @@ async def list_media_for_work_order(
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     hidden = _hidden_purposes(role)
     sql = (
-        "SELECT id, purpose, filename, content_type, size_bytes, created_at "
+        "SELECT id, purpose, filename, content_type, size_bytes, created_at, legal_hold "
         "FROM media_files "
         "WHERE work_order_id = %s::uuid AND tenant_id = %s::uuid "
         "  AND deleted_at IS NULL "
@@ -289,10 +289,45 @@ async def list_media_for_work_order(
             "created_at": (
                 r[5].isoformat() if isinstance(r[5], datetime) else str(r[5])
             ),
+            "legal_hold": bool(r[6]),  # CR-0109：法務保留旗標（true=不被 retention cron 清）
         }
         for r in rows
     ]
     return {"items": items}
+
+
+async def set_legal_hold(
+    *, tenant_id: str, media_id: str, hold: bool,
+    reason: str | None = None, actor_id: str | None = None, actor_role: str | None = None,
+) -> dict:
+    """CR-0109：手動設定/解除媒體法務保留（legal_hold）。
+
+    legal_hold=true → retention cron 不軟刪（爭議/保固/訴訟期間鎖證據，legal_hold wins）。
+    手動 admin/主管操作（自動觸發/解除規則待業主定義，本輪僅手動）。寫稽核軌跡。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "UPDATE media_files SET legal_hold = %s "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid AND deleted_at IS NULL "
+        "RETURNING id, work_order_id, purpose, legal_hold",
+        (hold, media_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("MEDIA_NOT_FOUND", "Media not found in this tenant", 404)
+
+    from services import audit_log_service
+    await audit_log_service.log_event(
+        event_type="media_legal_hold",
+        actor_id=actor_id,
+        actor_role=actor_role,
+        action="set_legal_hold" if hold else "release_legal_hold",
+        target_type="media_file",
+        target_id=media_id,
+        payload={"legal_hold": hold, "reason": reason, "work_order_id": str(row[1]) if row[1] else None},
+    )
+    return {"data": {"id": str(row[0]), "legal_hold": bool(row[3])}}
 
 
 async def list_media_for_dispute(
