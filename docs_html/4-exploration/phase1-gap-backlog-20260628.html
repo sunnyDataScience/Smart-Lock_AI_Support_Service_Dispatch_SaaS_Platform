@@ -249,19 +249,21 @@ Playwright 實機）。8 渠道之 partner 4 渠道屬 Phase II（M14）</td>
 <tr>
 <td>批次 2</td>
 <td>M03 分診完整度（P1-03 / P1-04）</td>
-<td>☐ 待排</td>
+<td>☐ 待排 — 🛑 <strong>需 CIA</strong>（5-state = 契約變更）+
+<strong>待業主</strong> escalation 觸發規則</td>
 </tr>
 <tr>
 <td>批次 3</td>
 <td>M08 客戶簽收（P1-05）+ M09 legal_hold 設定面（P1-06）</td>
 <td>🟡 M09 done（CR-0109：media set/release legal_hold 端點 + 前端 🔒
 鎖解 toggle，手動設定面；自動觸發規則待業主。API 3/3 + tsc 0）；M08 客戶
-LIFF 簽收（需 CIA）待</td>
+LIFF 簽收 ☐ 🛑 <strong>需 CIA</strong>（新流程 + LIFF infra）</td>
 </tr>
 <tr>
 <td>批次 4</td>
 <td>M02 Device 主檔（P1-07）+ M05 詞彙統一（P1-08）</td>
-<td>☐ 待排</td>
+<td>☐ 待排 — M02 🛑 <strong>需 CIA</strong>（新 domain entity +
+表）；M05 🛑 <strong>需 CIA</strong>（OpenAPI enum 契約變更）</td>
 </tr>
 <tr>
 <td>批次 5</td>
@@ -271,7 +273,10 @@ LIFF 簽收（需 CIA）待</td>
 </tbody>
 </table>
 <blockquote>
-<p>每補完一項：本表打勾 + <code>CHANGELOG.md [Unreleased]</code> +
+<p><strong>CIA 閘提醒</strong>：批次 2/4 + 批次 3 之 M08 皆須先產
+CIA（CR 文件）停 §8 收業主裁決後才動 code。 已完成的批次 0/1 + M09 屬
+additive 端點或既有欄位、無此前置。 每補完一項：本表打勾 +
+<code>CHANGELOG.md [Unreleased]</code> +
 <code>web/docs/system-completion-status.md</code> 同步。</p>
 </blockquote>
 </div></div></body></html>

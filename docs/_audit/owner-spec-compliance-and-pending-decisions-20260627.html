@@ -39,7 +39,7 @@ code{background:#1e293b;padding:1px 5px;border-radius:4px;color:#7dd3fc;font-siz
 來源規格：<code>20260617資料/01-workorder-erp-final-spec-20260520.xlsx</code>（M01–M20 模組地圖 + Q&amp;A 決策庫 + 業務規則庫 + 權限角色矩陣）、<code>20260617資料/02-phased-test-plan-alpha-beta-rc-ga-20260617.xlsx</code>（四階段測試矩陣 194 項）、<code>20260617 lock-AI 會議記錄.md</code>（工作順序拍板）<br>
 盤點底稿：<code>docs/_audit/module-completion-audit-M01-M20-20260624.md</code>（40-agent 對抗式驗證）、<code>docs/5-views/test-plan-coverage-report-20260620.md</code>（測試覆蓋）、<code>docs/4-exploration/CR-0104~0107</code>（近期實作）<br>
 <b>2026-06-28 增補</b>：經 12-叢集對抗式現況驗證（對 dev_new_arch HEAD code 實查）→ 新增 <b>§十一 現況缺口驗證</b>（Phase I 工程待補 + Phase II/III 延後清單供主管確認）；並<b>修正</b>原 §二 step 5「派工模式前端 UI」誤述（實際已存在）。Phase I 工程缺口詳清單見 <code>docs/4-exploration/phase1-gap-backlog-20260628.md</code>。<br>
-<b>2026-06-28 進度更新</b>：依序補完 <b>§十一.0</b> 兩批 ——（批次 0）<b>帳號安全 A1/A2/A3</b>（登入防爆破 / 停權即時失效 / 改密碼撤 session，migration 084）；（批次 1）<b>M01 進線 Case 入口</b>（Case 實體 + 客服代客建案 + SLA + Case 列表，後端 migration 085 + 前端 <code>/admin/cases</code>）。均 pytest + Playwright 實機驗證、已 merge dev_new_arch、待部署。
+<b>2026-06-28 進度更新</b>：依序補完 <b>§十一.0</b> 三批 ——（批次 0）<b>帳號安全 A1/A2/A3</b>（登入防爆破 / 停權即時失效 / 改密碼撤 session，migration 084）；（批次 1）<b>M01 進線 Case 入口</b>（Case 實體 + 客服代客建案 + SLA + Case 列表 + LINE 自動帶 Case，後端 migration 085 + 前端 <code>/admin/cases</code>，三段全到位）；（批次 3 之）<b>M09 法務保留</b>手動設定面（媒體 legal_hold 鎖/解 + 稽核）。均 pytest（+ M01 Playwright）實機驗證、已 merge dev_new_arch、待部署。<b>§四 M01/M07/M09/M17 完成度同步上修</b>（標 ↑）。剩餘 Phase I（M02/M03/M08/M05）見 §十一.1 —— 皆需先過 CIA。
 </div>
 
 <div class="toc">
@@ -60,7 +60,7 @@ code{background:#1e293b;padding:1px 5px;border-radius:4px;color:#7dd3fc;font-siz
 <h2 id="s1">一、執行摘要（一頁看懂）</h2>
 
 <div class="cards">
-  <div class="card blue"><div class="n">~45%</div><div class="l">M01–M20 平均端到端完成度（對完整規格）</div></div>
+  <div class="card blue"><div class="n">~48%</div><div class="l">M01–M20 平均端到端完成度（06-28，較 06-24 基線 45% 推進）</div></div>
   <div class="card green"><div class="n">5/7</div><div class="l">會議拍板工作順序步驟 已就緒</div></div>
   <div class="card amber"><div class="n">2/14</div><div class="l">Phase I「Build-Now」模組完全就緒（M05、M08）</div></div>
   <div class="card blue"><div class="n">194 / 96.4%</div><div class="l">測試計畫項數 / 已實作功能加權覆蓋率</div></div>
@@ -108,18 +108,18 @@ code{background:#1e293b;padding:1px 5px;border-radius:4px;color:#7dd3fc;font-siz
 
 <!-- ============================== 四、M01-M20 ============================== -->
 <h2 id="s4">四、M01–M20 模組完成度（對規格）</h2>
-<p style="font-size:13px;color:#94a3b8">來源：40-agent 對抗式盤點（2026-06-24），以「端到端可動率」而非「檔案存在率」評定。<b>M07 師傅</b>於 06-24 後再經 CR-0103/0104/0106/0107 大幅補強（詳情頁全轉真），實際已高於下表 48%。</p>
+<p style="font-size:13px;color:#94a3b8">基線：40-agent 對抗式盤點（2026-06-24），以「端到端可動率」而非「檔案存在率」評定。<b>標 ↑ 者為 06-24 後推進更新</b>：<b>M07</b> 48→72%（CR-0103/0104/0106/0107 詳情頁全轉真）、<b>M01</b> 12→42%（CR-0108 進線 Case 入口）、<b>M17</b> 64→72%（帳號安全 A1/A2/A3）、<b>M09</b> 55→62%（CR-0109 legal_hold 設定面）。其餘模組維持 06-24 基線。</p>
 
 <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:14px 18px;margin:12px 0">
-<div class="modrow"><div class="modname">M01 客戶入口 Intake <span class="modn">D1</span></div><div class="bar"><div class="seg cov" style="width:12%"></div></div><div class="modpct">12%</div></div>
+<div class="modrow"><div class="modname">M01 客戶入口 Intake <span class="modn">D1</span></div><div class="bar"><div class="seg cov" style="width:42%"></div></div><div class="modpct">42%↑</div></div>
 <div class="modrow"><div class="modname">M02 客戶/地址/設備主檔 <span class="modn">D1</span></div><div class="bar"><div class="seg cov" style="width:42%"></div></div><div class="modpct">42%</div></div>
 <div class="modrow"><div class="modname">M03 AI 分診/ProblemCard <span class="modn">D2</span></div><div class="bar"><div class="seg cov" style="width:48%"></div></div><div class="modpct">48%</div></div>
 <div class="modrow"><div class="modname">M04 報價/價格/核准 <span class="modn">D2</span></div><div class="bar"><div class="seg cov" style="width:55%"></div></div><div class="modpct">55%</div></div>
 <div class="modrow"><div class="modname">M05 WorkOrder 狀態機 <span class="modn">D2</span></div><div class="bar"><div class="seg cov" style="width:78%"></div></div><div class="modpct">78%</div></div>
 <div class="modrow"><div class="modname">M06 派工/媒合/排程 <span class="modn">D2</span></div><div class="bar"><div class="seg cov" style="width:36%"></div></div><div class="modpct">36%</div></div>
-<div class="modrow"><div class="modname">M07 師傅人力管理 <span class="modn">D3</span></div><div class="bar"><div class="seg cov" style="width:48%"></div></div><div class="modpct">48%↑</div></div>
+<div class="modrow"><div class="modname">M07 師傅人力管理 <span class="modn">D3</span></div><div class="bar"><div class="seg cov" style="width:72%"></div></div><div class="modpct">72%↑</div></div>
 <div class="modrow"><div class="modname">M08 現場施工/行動 <span class="modn">D2</span></div><div class="bar"><div class="seg cov" style="width:75%"></div></div><div class="modpct">75%</div></div>
-<div class="modrow"><div class="modname">M09 照片/證據鏈 <span class="modn">D6</span></div><div class="bar"><div class="seg cov" style="width:55%"></div></div><div class="modpct">55%</div></div>
+<div class="modrow"><div class="modname">M09 照片/證據鏈 <span class="modn">D6</span></div><div class="bar"><div class="seg cov" style="width:62%"></div></div><div class="modpct">62%↑</div></div>
 <div class="modrow"><div class="modname">M10 品牌/商品/BOM/庫存 <span class="modn">D3</span></div><div class="bar"><div class="seg cov" style="width:36%"></div></div><div class="modpct">36%</div></div>
 <div class="modrow"><div class="modname">M11 付款/應收 AR/退款 <span class="modn">D4</span></div><div class="bar"><div class="seg cov" style="width:36%"></div></div><div class="modpct">36%</div></div>
 <div class="modrow"><div class="modname">M12 師傅/品牌月結 AP <span class="modn">D4</span></div><div class="bar"><div class="seg cov" style="width:52%"></div></div><div class="modpct">52%</div></div>
@@ -127,7 +127,7 @@ code{background:#1e293b;padding:1px 5px;border-radius:4px;color:#7dd3fc;font-siz
 <div class="modrow"><div class="modname">M14 Partner Portal <span class="modn">D1 · Phase III</span></div><div class="bar"><div class="seg cov" style="width:10%"></div></div><div class="modpct">10%</div></div>
 <div class="modrow"><div class="modname">M15 異常/核准/風控 <span class="modn">D2</span></div><div class="bar"><div class="seg cov" style="width:56%"></div></div><div class="modpct">56%</div></div>
 <div class="modrow"><div class="modname">M16 聊天/通知/溝通 <span class="modn">D6</span></div><div class="bar"><div class="seg cov" style="width:42%"></div></div><div class="modpct">42%</div></div>
-<div class="modrow"><div class="modname">M17 權限/安全/稽核 RBAC <span class="modn">D6</span></div><div class="bar"><div class="seg cov" style="width:64%"></div></div><div class="modpct">64%</div></div>
+<div class="modrow"><div class="modname">M17 權限/安全/稽核 RBAC <span class="modn">D6</span></div><div class="bar"><div class="seg cov" style="width:72%"></div></div><div class="modpct">72%↑</div></div>
 <div class="modrow"><div class="modname">M18 系統設定/主檔配置 <span class="modn">D6</span></div><div class="bar"><div class="seg cov" style="width:52%"></div></div><div class="modpct">52%</div></div>
 <div class="modrow"><div class="modname">M19 報表/BI/KPI <span class="modn">D6</span></div><div class="bar"><div class="seg cov" style="width:56%"></div></div><div class="modpct">56%</div></div>
 <div class="modrow"><div class="modname">M20 AI 營運/知識庫治理 <span class="modn">D6</span></div><div class="bar"><div class="seg cov" style="width:22%"></div></div><div class="modpct">22%</div></div>
@@ -305,20 +305,21 @@ code{background:#1e293b;padding:1px 5px;border-radius:4px;color:#7dd3fc;font-siz
 <table>
 <tr><th width="150">叢集</th><th>已完成功能</th><th width="100">驗證</th></tr>
 <tr><td><b>帳號安全</b><br>（批次 0）</td><td><b>A1 登入防爆破</b>（連續密碼錯誤達上限鎖定 15 分，鎖定中回 429）+ <b>A2 停權即時失效</b>（停權帳號 token 立即 403，原可續用 1h+30d）+ <b>A3 改密碼撤既有 session</b>（改密碼/重設後舊 token 全失效 401）—— migration 084，門檻入 config。Beta 對外開放最低底線。</td><td>test 5/5 + 全套 1454 passed 無回歸</td></tr>
-<tr><td><b>M01 進線入口</b><br>（批次 1）</td><td>全渠道 <b>Case/Inquiry 進線實體</b> + <b>客服代客建案</b>（電話/官網/熟客介紹，補上非 LINE 渠道入口）+ 可讀案號 <code>C-NNNNNN</code> + <b>first-response SLA 計時</b> + <b>Case 列表</b>（狀態/SLA 逾時紅標/處理中/結案）—— migration 085 + 前端 <code>/admin/cases</code>。這是「接單從客服串到工單」最前端入口。（LINE 進線自動帶 Case 為小 follow-up）</td><td>API 5/5 + Playwright 實機（UI 建案即時入列）</td></tr>
+<tr><td><b>M01 進線入口</b><br>（批次 1）</td><td>全渠道 <b>Case/Inquiry 進線實體</b> + <b>客服代客建案</b>（電話/官網/熟客介紹，補上非 LINE 渠道入口）+ 可讀案號 <code>C-NNNNNN</code> + <b>first-response SLA 計時</b> + <b>Case 列表</b>（狀態/SLA 逾時紅標/處理中/結案）—— migration 085 + 前端 <code>/admin/cases</code>。這是「接單從客服串到工單」最前端入口。<b>+ LINE 進線也自動帶 Case（S3，三段全到位）</b>。</td><td>API 7/7 + Playwright 實機（UI 建案即時入列）</td></tr>
+<tr><td><b>M09 法務保留</b><br>（批次 3）</td><td><b>媒體 legal_hold 手動鎖/解設定面</b> —— admin/主管/審核可在爭議/保固/訴訟期間把證據鎖住不被 retention cron 清；🔒 徽章 + 鎖/解 toggle + 稽核留痕（自動觸發規則待業主）。</td><td>API 3/3 + tsc 0（無 migration）</td></tr>
 </table>
 <div class="note">兩批均走「先產 CIA/確認決策 → 業主裁決 → 實作 → 實機驗證（pytest + Playwright，非假綠）→ commit/merge」流程。<b>派工模式切換</b>（§二 step 5）亦已於本次盤點確認為「早已做」（前後端 UI 皆在），非缺口。</div>
 
-<h3>11.1 🔴 Phase I 剩餘工程缺口（純工程量、不待業主、Beta 前補）</h3>
-<p style="font-size:12.5px;color:#94a3b8"><b>帳號安全 + M01 已於 11.0 完成</b>，以下為仍待補的。詳細逐項追蹤見 <code>docs/4-exploration/phase1-gap-backlog-20260628.md</code>。</p>
+<h3>11.1 🔴 Phase I 剩餘工程缺口（Beta 前補）</h3>
+<p style="font-size:12.5px;color:#94a3b8"><b>帳號安全 / M01 / M09 已於 11.0 完成</b>，以下為仍待補的。<b>「可立即做、不卡 gate」的快贏已做完；剩餘每項都先過 CIA 閘或等業主定規則</b>（這是治理線，避免 AI 腦補 slop）。詳細追蹤見 <code>docs/4-exploration/phase1-gap-backlog-20260628.md</code>。</p>
 <table>
-<tr><th width="120">叢集</th><th>缺什麼</th><th width="50">優先</th></tr>
-<tr><td>M03 AI 分診</td><td>5-state 未實作、completeness_score 欄位在但全程沒 code 在寫、轉真人升級無 code 硬閘</td><td>P1</td></tr>
-<tr><td>M08 客戶簽收</td><td>客戶簽名仍技師同機 canvas，非客戶用自己手機獨立簽收（LIFF 鏈是 stub）</td><td>P1</td></tr>
-<tr><td>M09 證據</td><td>legal_hold 無設定/解除面（只能手動改 DB）</td><td>P1</td></tr>
-<tr><td>M02 設備</td><td>無 Device 設備主檔表（保固無法跨單關聯）、device_warranty 仍推算佔位</td><td>P1</td></tr>
-<tr><td>M05 工單</td><td>狀態詞彙雙軌（OpenAPI 16 段 vs 實際 7 段）、DB 層無 CHECK 保護</td><td>P1/P2</td></tr>
+<tr><th width="120">叢集</th><th>缺什麼</th><th width="55">優先</th><th width="180">動工前置（🛑 CIA / 待業主規則）</th></tr>
+<tr><td>M03 AI 分診</td><td>5-state 未實作、completeness_score 欄位在但全程沒 code 在寫、轉真人升級無 code 硬閘</td><td>P1</td><td>🛑 <b>需 CIA</b>（5-state = 契約變更）+ <b>待業主</b> escalation 觸發條件</td></tr>
+<tr><td>M02 設備</td><td>無 Device 設備主檔表（保固無法跨單關聯）、device_warranty 仍推算佔位</td><td>P1</td><td>🛑 <b>需 CIA</b>（新 domain entity + 新表）</td></tr>
+<tr><td>M08 客戶簽收</td><td>客戶簽名仍技師同機 canvas，非客戶用自己手機獨立簽收（LIFF 鏈是 stub）</td><td>P1</td><td>🛑 <b>需 CIA</b>（新流程 + LIFF infra，工程量最大）</td></tr>
+<tr><td>M05 工單</td><td>狀態詞彙雙軌（OpenAPI 16 段 vs 實際 7 段）、DB 層無 CHECK 保護</td><td>P2</td><td>🛑 <b>需 CIA</b>（OpenAPI enum 契約變更，恐影響消費者）</td></tr>
 </table>
+<div class="note">📋 <b>剩餘 4 項全部需先過 CIA</b>（M03 另需業主定 escalation 規則）。動工流程：先產 CIA（CR 文件）停 §8 → 業主裁決 → 實作 → 實機驗證。與本週已完成三批（帳號安全/M01/M09 屬 additive 或既有欄位、無此前置）不同。</div>
 
 <h3>11.2 ⏸️ Phase II / III 延後功能清單（⭐ 請主管確認簽核：這些「現在沒做」是照計畫，非遺漏）</h3>
 <div class="note">會議（06-17 §10.11 / §二）已定調：<b>第一階段（Lite/Beta 目標）不做金流、不做自動媒合、不做 multi-tenant</b>；先補齊功能 + Beta 通過再轉。以下逐項列出供主管確認其為「<b>刻意延後</b>」而非「漏做」。</div>
