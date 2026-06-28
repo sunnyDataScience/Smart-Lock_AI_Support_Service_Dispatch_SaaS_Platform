@@ -95,6 +95,8 @@
 
 | 084 | `084-account-security.sql` | phase1-account-security | 🟢 idempotent ✅ 2026-06-28 套 dev | Phase I 帳號安全（A1 登入防爆破 + A3 改密碼撤 session）：users +failed_login_attempts(INT DEFAULT 0)、+locked_until(TIMESTAMPTZ)、+password_changed_at(TIMESTAMPTZ)。A1：連續登入失敗達 [auth].login_max_attempts 設 locked_until=NOW()+login_lockout_minutes，登入回 429 LOGIN_LOCKED。A3：get_current_user/refresh 比對 token iat < password_changed_at → 失效（改密碼/重設/admin 重設時設 NOW()）。A2 停權即時失效走既有 is_active 欄不需新欄。ADD COLUMN IF NOT EXISTS 可重套 |
 
+| 085 | `085-intake-case.sql` | CR-0108 | 🟢 idempotent ✅ 2026-06-28 套 dev | M01 進線 Case 入口（業主裁決 §8）：新表 saas.intake_case（一次進線事件上游容器，下含多 problem_card/work_order；source_channel CHECK line/phone/web/referral=D1，partner 4 渠道 Phase II；可讀號 C-NNNNNN 走 saas.intake_case_number_seq=D5；first_response_due_at=建案+[intake].first_response_sla_minutes 暫定30=D2）+ problem_cards/work_orders ADD COLUMN case_id（nullable，D3 漸進不硬擋）。CREATE/ALTER IF NOT EXISTS 可重套 |
+
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。

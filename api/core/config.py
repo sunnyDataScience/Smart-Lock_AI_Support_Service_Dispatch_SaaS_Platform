@@ -19,6 +19,7 @@ class AppConfig:
     idempotency: dict = field(default_factory=dict)
     pagination: dict = field(default_factory=dict)
     rate_limit: dict = field(default_factory=dict)
+    intake: dict = field(default_factory=dict)  # CR-0108 M01 進線 Case SLA 級距
 
 
 _cached: AppConfig | None = None
@@ -45,6 +46,7 @@ def load_config(file_path: str | None = None) -> AppConfig:
         idempotency=data.get("idempotency", {}),
         pagination=data.get("pagination", {}),
         rate_limit=data.get("rate_limit", {}),
+        intake=data.get("intake", {}),
     )
     return _cached
 

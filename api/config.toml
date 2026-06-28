@@ -22,6 +22,10 @@ bcrypt_rounds = 12
 login_max_attempts = 5
 login_lockout_minutes = 15
 
+[intake]
+# CR-0108 M01 進線 Case：first-response SLA 級距（分鐘）。D2 暫定值待業主確認。
+first_response_sla_minutes = 30
+
 [idempotency]
 ttl_hours = 24
 # 適用 method
