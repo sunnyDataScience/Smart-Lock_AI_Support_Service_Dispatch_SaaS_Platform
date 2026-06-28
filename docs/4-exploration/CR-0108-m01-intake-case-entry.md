@@ -150,8 +150,13 @@ SLA 逾時標示 / 標記處理中 / 結案）+ Sidebar「進線案件」入口�
 tsc 0 + 重建 api+web docker + **Playwright 實機驗證**（建案頁渲染、UI 建案 C-000006 即時入列、curl POST/GET
 通；測試資料已清）。
 
-⏳ **S3 待續**（小 follow-up）：LINE escalation 順帶 ensure 一張 Case（source_channel=line）讓 LINE 進線
-也收斂到 Case 模型；客戶比對沿 D6（phone+LINE ID）。
+✅ **S3 done**（branch `feat/cr-0108-s3-line-case`）：`problem_card_service` 新 best-effort
+`_ensure_line_case` —— LINE escalation 建/併草擬卡時 ensure 一張 `source_channel=line` 的 Case
+並連 `problem_cards.case_id`（一卡一 Case、已連則略過、客戶資訊取對話 user 沿 D6、失敗不阻斷建卡）。
+**LINE 進線至此也收斂到 Case 模型**（與手動渠道一致）。API `test_cr_0108_s3_line_case` 2/2
+（卡連 case_id + intake_case source_channel=line / 同 session 併卡仍同一 Case）+ 全套 1461 passed 無回歸。
+
+**M01（CR-0108）後端 + 前端 + LINE 三段全到位** —— 進線 Case 入口完整可用。
 
 > D6 裁決已記本檔 §8.1（BR-M02-01 既為 phone+LINE，與裁決一致；Q008 原「依地址」由本 CR D6 supersede，
 > `docs/_source` 正典更新屬人工 tier-0 變更，另行處理，不由 AI 改源）。
