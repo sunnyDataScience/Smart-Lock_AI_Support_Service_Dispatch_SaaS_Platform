@@ -559,6 +559,45 @@ def _normalize_tw_mobile(raw: str | None) -> str:
     return digits if _TW_MOBILE_RE.match(digits) else ""
 
 
+async def _ensure_line_case(*, tenant_id: str, conv_id: str, pc_id: str, summary: str) -> None:
+    """CR-0108 S3：LINE 進線問題卡 ensure 一張 source_channel=line 的 Case 並連 case_id。
+
+    讓 LINE 進線也收斂到 M01 Case 模型（與電話/官網/熟客介紹手動建案一致）。
+    一卡一 Case（已連 case_id 則略過，冪等）。客戶資訊取自對話 user（D6：phone+LINE ID）。
+    **best-effort**：Case 建立失敗不阻斷建卡主流程（比照 CR-0102 電話回填）。
+    """
+    try:
+        cur = await db_module._conn.execute(
+            "SELECT case_id FROM problem_cards WHERE id = %s::uuid", (pc_id,))
+        row = await cur.fetchone()
+        if row and row[0]:
+            return  # 已連 Case
+
+        cur = await db_module._conn.execute(
+            "SELECT u.id, u.display_name, u.phone, u.line_user_id "
+            "FROM conversations c LEFT JOIN users u ON c.user_id = u.id "
+            "WHERE c.id = %s::uuid", (conv_id,))
+        urow = await cur.fetchone()
+        from services import intake_case_service  # 避免模組級循環 import
+
+        result = await intake_case_service.create_case(
+            tenant_id=tenant_id,
+            source_channel="line",
+            summary=(summary or "")[:500] or None,
+            customer_name=urow[1] if urow else None,
+            customer_phone=urow[2] if urow else None,
+            customer_line_id=urow[3] if urow else None,
+            customer_id=str(urow[0]) if urow and urow[0] else None,
+            created_by=None,
+        )
+        case_id = result["data"]["id"]
+        await db_module._conn.execute(
+            "UPDATE problem_cards SET case_id = %s::uuid WHERE id = %s::uuid AND case_id IS NULL",
+            (case_id, pc_id))
+    except Exception:  # noqa: BLE001 — ensure Case 失敗不可阻斷建卡主流程
+        logger.warning("CR-0108 S3 ensure LINE case 失敗（已略過）", exc_info=True)
+
+
 async def escalation_to_draft_pc(
     *,
     tenant_id: str,
@@ -672,6 +711,8 @@ async def escalation_to_draft_pc(
             "WHERE id = %s::uuid",
             (json.dumps(merged, ensure_ascii=False), idem_key, pc_id),
         )
+        # CR-0108 S3：併入既有 active 卡時，若該卡尚無 Case（pre-S3 舊卡）則補連一張。
+        await _ensure_line_case(tenant_id=tenant_id, conv_id=conv_id, pc_id=pc_id, summary=symptom_text)
         card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
         return {"problem_card_id": pc_id, "conversation_id": conv_id, "created": False, "card": card}
 
@@ -700,6 +741,8 @@ async def escalation_to_draft_pc(
     )
     row = await cur.fetchone()
     pc_id = str(row[0])
+    # CR-0108 S3：新 LINE 進線卡 → ensure 一張 source_channel=line 的 Case 並連 case_id。
+    await _ensure_line_case(tenant_id=tenant_id, conv_id=conv_id, pc_id=pc_id, summary=symptom_text)
     card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
     return {"problem_card_id": pc_id, "conversation_id": conv_id, "created": True, "card": card}
 

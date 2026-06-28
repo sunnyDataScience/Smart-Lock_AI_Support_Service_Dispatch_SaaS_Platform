@@ -330,9 +330,18 @@ Sidebar「進線案件」入口（開單流程群組第 2 位）+ rolePolicy
 i18n（中英 sidebar.nav.intakeCases）。 tsc 0 + 重建 api+web docker +
 <strong>Playwright 實機驗證</strong>（建案頁渲染、UI 建案 C-000006
 即時入列、curl POST/GET 通；測試資料已清）。</p>
-<p>⏳ <strong>S3 待續</strong>（小 follow-up）：LINE escalation 順帶
-ensure 一張 Case（source_channel=line）讓 LINE 進線 也收斂到 Case
-模型；客戶比對沿 D6（phone+LINE ID）。</p>
+<p>✅ <strong>S3 done</strong>（branch
+<code>feat/cr-0108-s3-line-case</code>）：<code>problem_card_service</code>
+新 best-effort <code>_ensure_line_case</code> —— LINE escalation
+建/併草擬卡時 ensure 一張 <code>source_channel=line</code> 的 Case 並連
+<code>problem_cards.case_id</code>（一卡一
+Case、已連則略過、客戶資訊取對話 user 沿 D6、失敗不阻斷建卡）。
+<strong>LINE 進線至此也收斂到 Case 模型</strong>（與手動渠道一致）。API
+<code>test_cr_0108_s3_line_case</code> 2/2 （卡連 case_id + intake_case
+source_channel=line / 同 session 併卡仍同一 Case）+ 全套 1461 passed
+無回歸。</p>
+<p><strong>M01（CR-0108）後端 + 前端 + LINE 三段全到位</strong> —— 進線
+Case 入口完整可用。</p>
 <blockquote>
 <p>D6 裁決已記本檔 §8.1（BR-M02-01 既為 phone+LINE，與裁決一致；Q008
 原「依地址」由本 CR D6 supersede， <code>docs/_source</code>
