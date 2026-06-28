@@ -1,0 +1,200 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Beta 人工測試 checklist（CR-0096~CR-0109 批次）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ qa ／ beta-manual-test-checklist-20260628.md</div>
+<div class="doc"><h1 id="beta-人工測試-checklist--cr-0096cr-0109-批次">Beta 人工測試
+checklist — CR-0096~CR-0109 批次</h1>
+<blockquote>
+<p><strong>用途</strong>：Irene 追測試進度用。涵蓋
+<strong>CR-0095（06-22 上 prod）之後完工、目前「待部署」</strong>
+的所有功能。 這批 AI 已跑 pytest /
+Playwright（非假綠），但<strong>業主尚未在部署環境人工回測</strong>。</p>
+<p><strong>測試環境（二擇一）</strong>：</p>
+<ul>
+<li>🖥️ <strong>本機</strong>（目前）：http://localhost:3000 ，登入
+<code>admin@example.com</code> / <code>changeme123</code></li>
+<li>☁️ <strong>Cloud Run</strong>：待業主授權部署後（含 migration
+084/085）</li>
+</ul>
+<p><strong>狀態欄填法</strong>：☐ 待測 ／ ✅ 通過 ／ ❌ 失敗（附現象）／
+⏭️ 跳過</p>
+</blockquote>
+<hr />
+<h2 id="a-最該優先測ai-新建業主完全沒看過">A. 最該優先測（AI
+新建、業主完全沒看過）</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>功能</th>
+<th>測試步驟</th>
+<th>預期結果</th>
+<th>AI 驗證</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A1</td>
+<td><strong>M01 進線建案頁</strong>（CR-0108）</td>
+<td>側欄「進線案件」(<code>/admin/cases</code>) → 選「電話」+
+填客戶姓名/電話/摘要 → 建立</td>
+<td>跳案號 <code>C-xxxxxx</code>、列表即時出現、狀態「待回應」、SLA
+欄顯示；「標記處理中」→「結案」可切</td>
+<td>Playwright</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>A2</td>
+<td><strong>M01 LINE 自動帶 Case</strong>（CR-0108 S3）</td>
+<td>（需 LINE 實機）LINE 進線轉真人</td>
+<td>後台該進線自動成一張 source=LINE 的 Case</td>
+<td>pytest</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>A3</td>
+<td><strong>M09 法務保留</strong>（CR-0109）</td>
+<td>有照片的工單詳情 → 媒體區縮圖右下「鎖定」鈕（admin 才見）→ 按下</td>
+<td>出現 🔒「保留」徽章；可切換鎖/解</td>
+<td>pytest</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>A4</td>
+<td><strong>帳號安全 A1 登入防爆破</strong></td>
+<td>登入頁連打錯密碼 5 次 → 第 6 次用正確密碼</td>
+<td>第 6 次也被擋（鎖定 429）⚠️ 會鎖 admin 15 分，卡住找 AI 解鎖</td>
+<td>pytest</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>A5</td>
+<td><strong>帳號安全 A3 改密碼撤 session</strong></td>
+<td>登入後改密碼 → 舊分頁操作</td>
+<td>舊 session 被踢回登入頁 ⚠️ 會改 admin 密碼</td>
+<td>pytest</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>A6</td>
+<td><strong>帳號安全 A2 停權即時失效</strong></td>
+<td>（較繞，建議靠 pytest）停權某帳號 → 其原 token</td>
+<td>立即失效 403</td>
+<td>pytest</td>
+<td>⏭️</td>
+</tr>
+</tbody>
+</table>
+<h2 id="b-業主開發中回報過修正版這批一起回測">B.
+業主開發中回報過、修正版這批一起回測</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>功能（CR）</th>
+<th>測試步驟</th>
+<th>預期結果</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>B1</td>
+<td>師傅詳情頁轉真（CR-0104/0106/0107）</td>
+<td>技師 → 任一師傅詳情頁</td>
+<td>可用狀態/等級/技能認證/佣金/獎懲 顯真值、可編輯；無假資料</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B2</td>
+<td>技師編輯/停權/復權 + 核准（CR-0103）</td>
+<td>詳情頁編輯/停權/復權；新增技師→核准</td>
+<td>操作生效；新增技師核准不再 404</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B3</td>
+<td>師傅佣金固定工資制（CR-0106）</td>
+<td>有完工單的技師詳情頁</td>
+<td>本月工資 = Σ(服務×固定工資)，明細正確</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>師傅獎懲 ledger（CR-0107）</td>
+<td>師傅詳情頁獎懲區 → 後台登錄獎/懲</td>
+<td>登錄成功；取消失約扣款自動帶入「自動」不可刪</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B5</td>
+<td>LINE 電話自動帶入工單（CR-0102）</td>
+<td>（需 LINE 實機）報修留手機 → 轉工單</td>
+<td>工單客戶電話自動填上</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B6</td>
+<td>報價頁選工單免 UUID（CR-0101）</td>
+<td>報價頁建報價 → 用公單號搜尋選工單</td>
+<td>免貼 UUID，搜公單號可選</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B7</td>
+<td>工單電話亂碼修正</td>
+<td>工單詳情「客戶資訊」</td>
+<td>電話正常/未提供、LINE ID 獨立列不當電話</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B8</td>
+<td>問題卡分單（CR-0096）</td>
+<td>同一 LINE 客人講不同問題</td>
+<td>各自獨立成卡，不寫在一起</td>
+<td>☐</td>
+</tr>
+<tr>
+<td>B9</td>
+<td>AI handoff 兜底（CR-0097）</td>
+<td>LINE 報修要求真人</td>
+<td>AI 說轉接就真的建問題卡（不蒸發）</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h2 id="c-已在-prod業主開發中已測過參考不需重測">C. 已在
+prod、業主開發中已測過（參考，不需重測）</h2>
+<p>CR-0095（06-22 已部署）：報價 LINE 同意流程 /
+派工硬閘（無同意報價派不了工）/ 技師核准按鈕 / LINE 推送斷鏈修復。</p>
+<hr />
+<h2 id="測試後動作">測試後動作</h2>
+<ol type="1">
+<li>本機測完 → 回報 OK / 問題項 → AI 修問題 → 全綠後<strong>授權部署
+Cloud Run</strong>（含 migration 084/085）。</li>
+<li>部署後在 prod 重跑 A/B（Beta 正式點測由 Irene + Johnson 進系統 +
+LINE 點測）。</li>
+<li>本表狀態欄即為 Irene 追蹤的測試進度依據。</li>
+</ol>
+<blockquote>
+<p>註：Phase I 剩餘未做功能（M02 Device / M03 分診 5-state / M08 客戶
+LIFF 簽收 / M05 詞彙統一） 皆需先過 CIA，不在本批測試範圍。詳見
+<code>docs/_audit/owner-spec-compliance-and-pending-decisions-20260627.html</code>
+§十一。</p>
+</blockquote>
+</div></div></body></html>
