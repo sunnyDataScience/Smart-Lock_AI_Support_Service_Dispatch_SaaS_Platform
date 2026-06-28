@@ -38,7 +38,8 @@ code{background:#1e293b;padding:1px 5px;border-radius:4px;color:#7dd3fc;font-siz
 產出日期：2026-06-27 ｜ 撰寫：啟恆 + Claude（對 code / migration / 測試實查，非文件自評）<br>
 來源規格：<code>20260617資料/01-workorder-erp-final-spec-20260520.xlsx</code>（M01–M20 模組地圖 + Q&amp;A 決策庫 + 業務規則庫 + 權限角色矩陣）、<code>20260617資料/02-phased-test-plan-alpha-beta-rc-ga-20260617.xlsx</code>（四階段測試矩陣 194 項）、<code>20260617 lock-AI 會議記錄.md</code>（工作順序拍板）<br>
 盤點底稿：<code>docs/_audit/module-completion-audit-M01-M20-20260624.md</code>（40-agent 對抗式驗證）、<code>docs/5-views/test-plan-coverage-report-20260620.md</code>（測試覆蓋）、<code>docs/4-exploration/CR-0104~0107</code>（近期實作）<br>
-<b>2026-06-28 增補</b>：經 12-叢集對抗式現況驗證（對 dev_new_arch HEAD code 實查）→ 新增 <b>§十一 現況缺口驗證</b>（Phase I 工程待補 + Phase II/III 延後清單供主管確認）；並<b>修正</b>原 §二 step 5「派工模式前端 UI」誤述（實際已存在）。Phase I 工程缺口詳清單見 <code>docs/4-exploration/phase1-gap-backlog-20260628.md</code>。
+<b>2026-06-28 增補</b>：經 12-叢集對抗式現況驗證（對 dev_new_arch HEAD code 實查）→ 新增 <b>§十一 現況缺口驗證</b>（Phase I 工程待補 + Phase II/III 延後清單供主管確認）；並<b>修正</b>原 §二 step 5「派工模式前端 UI」誤述（實際已存在）。Phase I 工程缺口詳清單見 <code>docs/4-exploration/phase1-gap-backlog-20260628.md</code>。<br>
+<b>2026-06-28 進度更新</b>：依序補完 <b>§十一.0</b> 兩批 ——（批次 0）<b>帳號安全 A1/A2/A3</b>（登入防爆破 / 停權即時失效 / 改密碼撤 session，migration 084）；（批次 1）<b>M01 進線 Case 入口</b>（Case 實體 + 客服代客建案 + SLA + Case 列表，後端 migration 085 + 前端 <code>/admin/cases</code>）。均 pytest + Playwright 實機驗證、已 merge dev_new_arch、待部署。
 </div>
 
 <div class="toc">
@@ -300,12 +301,18 @@ code{background:#1e293b;padding:1px 5px;border-radius:4px;color:#7dd3fc;font-siz
 <h2 id="s11">十一、⭐ 現況缺口驗證（2026-06-28）+ Phase II/III 延後清單</h2>
 <p style="font-size:13px;color:#94a3b8">2026-06-27 對「現況 code（dev_new_arch HEAD，已含 CR-0102~0107）」派 12 個 agent 逐叢集對抗式重查（280 次實查），把「還缺什麼」分成三類。<b>結論：真正『缺、且 Beta 前要補』的集中在 4 塊——①帳號安全 ②進線入口 ③AI 分診完整度 ④客戶獨立簽收；金流/自動媒合/multi-tenant 是會議定調的第二階段、不算缺。</b></p>
 
-<h3>11.1 🔴 Phase I 工程缺口（純工程量、不待業主、Beta 前補）</h3>
-<p style="font-size:12.5px;color:#94a3b8">這些<b>不卡業主</b>、可立即開工。詳細逐項追蹤清單見 <code>docs/4-exploration/phase1-gap-backlog-20260628.md</code>。<b>業主已裁決：先補帳號安全 3 件、一個一個補。</b></p>
+<h3>11.0 ✅ 本週已補完（2026-06-28，依序逐批 — 給主管看「又做好哪些」）</h3>
+<table>
+<tr><th width="150">叢集</th><th>已完成功能</th><th width="100">驗證</th></tr>
+<tr><td><b>帳號安全</b><br>（批次 0）</td><td><b>A1 登入防爆破</b>（連續密碼錯誤達上限鎖定 15 分，鎖定中回 429）+ <b>A2 停權即時失效</b>（停權帳號 token 立即 403，原可續用 1h+30d）+ <b>A3 改密碼撤既有 session</b>（改密碼/重設後舊 token 全失效 401）—— migration 084，門檻入 config。Beta 對外開放最低底線。</td><td>test 5/5 + 全套 1454 passed 無回歸</td></tr>
+<tr><td><b>M01 進線入口</b><br>（批次 1）</td><td>全渠道 <b>Case/Inquiry 進線實體</b> + <b>客服代客建案</b>（電話/官網/熟客介紹，補上非 LINE 渠道入口）+ 可讀案號 <code>C-NNNNNN</code> + <b>first-response SLA 計時</b> + <b>Case 列表</b>（狀態/SLA 逾時紅標/處理中/結案）—— migration 085 + 前端 <code>/admin/cases</code>。這是「接單從客服串到工單」最前端入口。（LINE 進線自動帶 Case 為小 follow-up）</td><td>API 5/5 + Playwright 實機（UI 建案即時入列）</td></tr>
+</table>
+<div class="note">兩批均走「先產 CIA/確認決策 → 業主裁決 → 實作 → 實機驗證（pytest + Playwright，非假綠）→ commit/merge」流程。<b>派工模式切換</b>（§二 step 5）亦已於本次盤點確認為「早已做」（前後端 UI 皆在），非缺口。</div>
+
+<h3>11.1 🔴 Phase I 剩餘工程缺口（純工程量、不待業主、Beta 前補）</h3>
+<p style="font-size:12.5px;color:#94a3b8"><b>帳號安全 + M01 已於 11.0 完成</b>，以下為仍待補的。詳細逐項追蹤見 <code>docs/4-exploration/phase1-gap-backlog-20260628.md</code>。</p>
 <table>
 <tr><th width="120">叢集</th><th>缺什麼</th><th width="50">優先</th></tr>
-<tr><td><b>帳號安全</b><br>（最優先）</td><td>① 登入無防爆破（無 rate limit/鎖定）② 停權的人 token 不即時失效（停權後仍可用 1h+續 30d）③ 改密碼後舊 session 不撤銷</td><td>P1</td></tr>
-<tr><td>M01 進線入口</td><td>無「Case/Inquiry」進線實體（只走 LINE，無客服代建案、無 8 渠道來源）+ 無多渠道 intake UI</td><td>P0/P1</td></tr>
 <tr><td>M03 AI 分診</td><td>5-state 未實作、completeness_score 欄位在但全程沒 code 在寫、轉真人升級無 code 硬閘</td><td>P1</td></tr>
 <tr><td>M08 客戶簽收</td><td>客戶簽名仍技師同機 canvas，非客戶用自己手機獨立簽收（LIFF 鏈是 stub）</td><td>P1</td></tr>
 <tr><td>M09 證據</td><td>legal_hold 無設定/解除面（只能手動改 DB）</td><td>P1</td></tr>
