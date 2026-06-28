@@ -1,0 +1,1071 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>UI 設計規格全面 Re-Sync 計畫 + WBS</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../../index.html">🏠 文件總目錄</a> ／ ui ／ web_design_spec_prompt_pipeline ／ RESYNC-PLAN-20260628.md</div>
+<div class="doc"><h1 id="ui-設計規格全面-re-sync-計畫--wbs">UI 設計規格全面 Re-Sync 計畫
++ WBS</h1>
+<blockquote>
+<p><strong>緣由</strong>：<code>pages/*.md</code>（22 份 spec）+
+<code>pages/design_all.pen</code>（56 frame mockup）最後同步是
+<strong>2026-04-23</strong>（凍結於 IA 52 頁）。 前端自此一路演進到
+CR-0109，<strong>新增 ~36 條路由</strong>、~41
+條既有頁面內容漂移。業主裁決（2026-06-28）：<strong>全面 re-sync，.md +
+.pen 兩者都做，分多批跨多輪。</strong></p>
+<p><strong>本檔性質</strong>：把「全面
+re-sync」這個模糊大工程，轉成可逐批打勾的
+backlog。後續每批執行依本檔。</p>
+</blockquote>
+<hr />
+<h2 id="0-治理定位重要">0. 治理定位（重要）</h2>
+<ul>
+<li><strong>這不是 contract / flow / architecture 變更，是「文件追上既有
+code」</strong> → tier-5 view 同步原則「<strong>code
+wins</strong>」，<strong>不需 CIA</strong>。code 已存在，spec/mockup
+是落後的地圖。</li>
+<li><strong>同步原則</strong>：
+<ol type="1">
+<li><strong>code 有、spec 無</strong> → spec 補上現況（標
+<code>➕ code 既有</code>）。</li>
+<li><strong>spec 有、code 無</strong>（設計先行未實作，如 MFA /
+surcharge tab / 租戶設定 A34-36）→ <strong>不刪</strong>，標
+<code>🚧 規格先行・未實作</code> 保留設計意圖。</li>
+<li><strong>兩者都有但不符</strong> → spec 改成符合
+code（標關鍵差異），保留未實作子項為 <code>🚧</code>。</li>
+</ol></li>
+<li><strong>分工</strong>：<code>.md</code> spec 可平行（多 agent
+各改一份）；<code>.pen</code> mockup 必須序列由主 agent 透過 Pencil MCP
+改（桌面 app 單一連線，並行會衝突）→ <strong>.pen
+是節流瓶頸，決定批次節奏</strong>。</li>
+</ul>
+<hr />
+<h2 id="1-盤點總表87-路由--12-叢集">1. 盤點總表（~87 路由 / 12
+叢集）</h2>
+<p>狀態：🆕 NEW（code 有、無 spec 無 frame）｜🔶
+DRIFTED（有對應已不符）｜✅ IN-SYNC｜👻 SPEC-ONLY（spec/frame 有、code
+無）</p>
+<h3 id="11-auth-settings">1.1 auth-settings</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/login</td>
+<td>🔶</td>
+<td>med</td>
+<td>14</td>
+<td>NONE</td>
+<td>缺 tenant_selector / MFA / footer / 密碼顯隱；多了 /register
+連結</td>
+</tr>
+<tr>
+<td>/tech-login</td>
+<td>🔶</td>
+<td>high</td>
+<td>14</td>
+<td>NONE</td>
+<td>redirect 應 /pool 卻去 /home；缺 OTP；識別碼用 email 非手機；非
+100dvh mobile</td>
+</tr>
+<tr>
+<td>/vendor-login</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>全新廠商登入，無 spec</td>
+</tr>
+<tr>
+<td>/register</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>技師/廠商雙角色註冊，無 spec</td>
+</tr>
+<tr>
+<td>/forgot-password</td>
+<td>🆕</td>
+<td>med</td>
+<td>—</td>
+<td>—</td>
+<td>CR-0025 列舉防護，無 spec</td>
+</tr>
+<tr>
+<td>/reset-password</td>
+<td>🆕</td>
+<td>med</td>
+<td>—</td>
+<td>—</td>
+<td>token 重設，無 spec</td>
+</tr>
+<tr>
+<td>/settings</td>
+<td>🔶</td>
+<td>high</td>
+<td>14</td>
+<td>NIbRH</td>
+<td>多 system tab；缺 surcharge tab；profile/MFA/session 多為
+disabled</td>
+</tr>
+<tr>
+<td>/home</td>
+<td>🆕</td>
+<td>low</td>
+<td>—</td>
+<td>—</td>
+<td>技師首頁 dashboard，無 spec</td>
+</tr>
+</tbody>
+</table>
+<h3 id="12-dashboard-conv-pc">1.2 dashboard-conv-pc</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/dashboard</td>
+<td>🔶</td>
+<td>med</td>
+<td>02</td>
+<td>mPqkN</td>
+<td>KPI 改為對話導向（CR-0003）；缺 realtime_status_bar / refresh</td>
+</tr>
+<tr>
+<td>/conversations</td>
+<td>🔶</td>
+<td>low</td>
+<td>03</td>
+<td>cWcAu</td>
+<td>tab 改 all/active/waiting_human/closed；缺 channel_filter /
+sort</td>
+</tr>
+<tr>
+<td>/conversations/[id]</td>
+<td>🔶</td>
+<td>med</td>
+<td>03</td>
+<td>ordAo</td>
+<td>多 CreateProblemCardModal / DiagnosticReasoningPanel</td>
+</tr>
+<tr>
+<td>/problem-cards</td>
+<td>🔶</td>
+<td>low</td>
+<td>04</td>
+<td>IvId3</td>
+<td>多 source filter；status enum 不符；缺 entropy badge</td>
+</tr>
+<tr>
+<td>/problem-cards/[id]</td>
+<td>🔶</td>
+<td>high</td>
+<td>04</td>
+<td>eXtZf</td>
+<td>多 auto-resolve / auto-match / convert / export / edit modal；FMEA
+仍 placeholder</td>
+</tr>
+</tbody>
+</table>
+<h3 id="13-knowledge-base">1.3 knowledge-base</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/knowledge-base</td>
+<td>✅</td>
+<td>low</td>
+<td>05</td>
+<td>—</td>
+<td>redirect</td>
+</tr>
+<tr>
+<td>/knowledge-base/cases</td>
+<td>🔶</td>
+<td>med</td>
+<td>05</td>
+<td>6NfKH</td>
+<td>PAGE_SIZE 20≠12；多 verified filter；缺 search_mode_toggle /
+success_rate / usage_count</td>
+</tr>
+<tr>
+<td>/knowledge-base/cases/[id]</td>
+<td>🔶</td>
+<td>med</td>
+<td>05</td>
+<td>6NfKH</td>
+<td>缺 usage 指標；solution 純文字非 Markdown</td>
+</tr>
+<tr>
+<td>/knowledge-base/cases/[id]/edit</td>
+<td>🔶</td>
+<td>med</td>
+<td>05</td>
+<td>6NfKH</td>
+<td>缺 applicable_models / RichText / dirty_close</td>
+</tr>
+<tr>
+<td>/knowledge-base/cases/new</td>
+<td>🔶</td>
+<td>med</td>
+<td>05</td>
+<td>6NfKH</td>
+<td>同上</td>
+</tr>
+<tr>
+<td>/knowledge-base/manuals</td>
+<td>🔶</td>
+<td>high</td>
+<td>05</td>
+<td>iooQ7</td>
+<td>缺 PDF viewer；表格欄位不符；缺 progress bar</td>
+</tr>
+<tr>
+<td>/knowledge-base/sop-drafts</td>
+<td>🔶</td>
+<td>med</td>
+<td>05</td>
+<td>SE1Ga</td>
+<td>PAGE_SIZE 20≠15；缺 sort + 完整 status filter</td>
+</tr>
+<tr>
+<td>/knowledge-base/sop-drafts/[id]</td>
+<td>🔶</td>
+<td>high</td>
+<td>05</td>
+<td>X2ubf</td>
+<td>缺 request_changes / save_draft 按鈕；缺 review_history；非 RWD</td>
+</tr>
+<tr>
+<td>/knowledge-base/family-reviews</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>全新「家族雙審」流程，無 spec</td>
+</tr>
+</tbody>
+</table>
+<h3 id="14-work-orders">1.4 work-orders</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/work-orders</td>
+<td>✅</td>
+<td>low</td>
+<td>06</td>
+<td>D6xEP</td>
+<td>列表大致符</td>
+</tr>
+<tr>
+<td>/work-orders/kanban</td>
+<td>🔶</td>
+<td>high</td>
+<td>06</td>
+<td>JedbW</td>
+<td>路由命名漂移：spec 預期 /work-orders/dispatch?view=kanban</td>
+</tr>
+<tr>
+<td>/work-orders/map</td>
+<td>🔶</td>
+<td>high</td>
+<td>06</td>
+<td>xMjEI</td>
+<td>同上：spec 預期 ?view=map</td>
+</tr>
+<tr>
+<td>/work-orders/[id]</td>
+<td>🔶</td>
+<td>high</td>
+<td>07</td>
+<td>GbKMe</td>
+<td>legal_hold🔒 / SLA 真實化 / 完工報告 / 異常 /
+客戶資訊；issue_bundles 結構不符；完工照片分類標籤缺</td>
+</tr>
+</tbody>
+</table>
+<h3 id="15-technicians">1.5 technicians</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/technicians</td>
+<td>🔶</td>
+<td>med</td>
+<td>08</td>
+<td>4386B</td>
+<td>篩選用單選非 multi-select；多 inline approve</td>
+</tr>
+<tr>
+<td>/technicians/[id]</td>
+<td>🔶</td>
+<td>high</td>
+<td>16</td>
+<td>KxaZT</td>
+<td>單頁 vs spec 三 tab
+子頁；佣金/獎懲/技能矩陣已轉真（CR-0104/06/07）；排班仍 mock</td>
+</tr>
+<tr>
+<td>/admin/technicians-lifecycle</td>
+<td>🆕</td>
+<td>low</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0044 生命週期稽核，無 spec</td>
+</tr>
+</tbody>
+</table>
+<h3 id="16-accounting">1.6 accounting</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/accounting</td>
+<td>🔶</td>
+<td>high</td>
+<td>09</td>
+<td>CXCxi</td>
+<td>spec 單頁 3-tab vs code 4 獨立路由；多 Reconciliations 區</td>
+</tr>
+<tr>
+<td>/accounting/invoices</td>
+<td>🔶</td>
+<td>med</td>
+<td>09</td>
+<td>fC8Bq</td>
+<td>獨立路由非 tab；缺 date_range / overdue toggle</td>
+</tr>
+<tr>
+<td>/accounting/revenue</td>
+<td>🔶</td>
+<td>med</td>
+<td>09</td>
+<td>WiPWg</td>
+<td>獨立路由非 tab；granularity 控制不符</td>
+</tr>
+<tr>
+<td>/accounting/vouchers</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>全新傳票/分錄頁，無 spec</td>
+</tr>
+</tbody>
+</table>
+<h3 id="17-admin-advanced">1.7 admin-advanced</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/admin/refunds</td>
+<td>🔶</td>
+<td>med</td>
+<td>10</td>
+<td>wUDUW</td>
+<td>多 CreateRefundModal / escalate / realtime</td>
+</tr>
+<tr>
+<td>/admin/roles</td>
+<td>🔶</td>
+<td>med</td>
+<td>10</td>
+<td>KesCS</td>
+<td>多重設密碼；缺自訂角色完整流程 / 臨時授權</td>
+</tr>
+<tr>
+<td>/admin/inventory</td>
+<td>🔶</td>
+<td>med</td>
+<td>10</td>
+<td>cBWxl</td>
+<td>缺行內編輯 / 調撥 / 報廢；篩選選項不符</td>
+</tr>
+<tr>
+<td>/admin/audit-events</td>
+<td>🔶</td>
+<td>med</td>
+<td>10</td>
+<td>j9E5r</td>
+<td>event type enum 不符；缺日期範圍 / actor filter / resource 欄</td>
+</tr>
+<tr>
+<td>/admin/warranty-claims</td>
+<td>🔶</td>
+<td>med</td>
+<td>10</td>
+<td>JbQPX</td>
+<td>status enum 完全不同；缺證據燈箱；多 CreateWarrantyModal</td>
+</tr>
+<tr>
+<td>/admin/warranty-claims/[id]</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>全新詳情頁，無 spec</td>
+</tr>
+<tr>
+<td>/admin/disputes</td>
+<td>🔶</td>
+<td>med</td>
+<td>10</td>
+<td>ftCX0</td>
+<td>status enum 不符；多兩階段 co-sign；缺存草稿</td>
+</tr>
+</tbody>
+</table>
+<h3 id="18-customers-diagnostics">1.8 customers-diagnostics</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/admin/customers</td>
+<td>🔶</td>
+<td>med</td>
+<td>15</td>
+<td>E3vKS</td>
+<td>缺 5
+個欄位（device/satisfaction/risk/preferred_tech/warranty）；統計卡多為
+disabled</td>
+</tr>
+<tr>
+<td>/admin/customers/[id]</td>
+<td>🔶</td>
+<td>high</td>
+<td>15</td>
+<td>E3vKS</td>
+<td>整個 5-tab
+結構未建（profile/devices/history/financial/notes_risk）；缺 merge
+modal</td>
+</tr>
+<tr>
+<td>/admin/customers/[id]/edit</td>
+<td>🆕</td>
+<td>high</td>
+<td>15</td>
+<td>—</td>
+<td>spec 預期 inline tab 編輯，code 為獨立頁</td>
+</tr>
+<tr>
+<td>/admin/customers/new</td>
+<td>🆕</td>
+<td>high</td>
+<td>15</td>
+<td>—</td>
+<td>spec 預期 Modal，code 為獨立頁</td>
+</tr>
+<tr>
+<td>/admin/ai-governance</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0050 AI 治理軌跡，無 spec</td>
+</tr>
+<tr>
+<td>/admin/sentiment-alerts</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0018 情緒告警，無 spec</td>
+</tr>
+<tr>
+<td>/admin/sop-feedback</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0051 SOP 回饋，無 spec</td>
+</tr>
+<tr>
+<td>/admin/knowledge-base/sop-performance</td>
+<td>🔶</td>
+<td>med</td>
+<td>15</td>
+<td>—</td>
+<td>code 顯示管理狀態非績效指標；缺績效表 / drilldown</td>
+</tr>
+</tbody>
+</table>
+<h3 id="19-dispatch-reports">1.9 dispatch-reports</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/admin/dispatch-queue</td>
+<td>🔶</td>
+<td>med</td>
+<td>17</td>
+<td>w2E0T</td>
+<td>4 卡語義不符；pool 用簡化卡片非完整派工日誌表</td>
+</tr>
+<tr>
+<td>/admin/dispatch-manual</td>
+<td>✅</td>
+<td>low</td>
+<td>20</td>
+<td>—</td>
+<td>大致符（排序公式為單切換非加權）</td>
+</tr>
+<tr>
+<td>/admin/reports/kpi</td>
+<td>🔶</td>
+<td>med</td>
+<td>17</td>
+<td>M59wz</td>
+<td>漏斗 5 階非 6；FTFR/SLA/滿意度 placeholder</td>
+</tr>
+<tr>
+<td>/admin/reports/revenue</td>
+<td>🔶</td>
+<td>med</td>
+<td>17</td>
+<td>MRdMj</td>
+<td>缺 slice 多維 / pivot table / brush</td>
+</tr>
+<tr>
+<td>/admin/reports/technician-ranking</td>
+<td>✅</td>
+<td>low</td>
+<td>17</td>
+<td>XwG89</td>
+<td>大致符（sort 選項少、缺營收欄）</td>
+</tr>
+<tr>
+<td>/admin/schedule-requests</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>排班例外管理，無 spec</td>
+</tr>
+<tr>
+<td>/admin/material-requests</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>補料彙整視圖，無 spec</td>
+</tr>
+</tbody>
+</table>
+<h3
+id="110-multitenant-b2b-governancespec-18-僅涵蓋-adminsettingstenant--adminsuper皆-code-無--ghost">1.10
+multitenant-b2b-governance（spec 18 僅涵蓋 /admin/settings/tenant* +
+/admin/super/*，皆 code 無 → 👻）</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/admin/brand-b2b</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0047 品牌 B2B 結算，無 spec</td>
+</tr>
+<tr>
+<td>/admin/config-governance</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>M18 設定治理 SoD 雙簽，無 spec</td>
+</tr>
+<tr>
+<td>/admin/payout-rules</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>技師薪酬規則表，無 spec</td>
+</tr>
+<tr>
+<td>/admin/rma-quality</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0048 RMA 品質，無 spec</td>
+</tr>
+<tr>
+<td>/admin/gdpr-forget-queue</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0053 GDPR 遺忘佇列，無 spec</td>
+</tr>
+<tr>
+<td>/admin/api-status</td>
+<td>🆕</td>
+<td>low</td>
+<td>—</td>
+<td>—</td>
+<td>連線 smoke test 工具頁，無 spec</td>
+</tr>
+<tr>
+<td>/admin/approval-inbox</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0049 統一審批匣（5 類），無 spec</td>
+</tr>
+<tr>
+<td>A34/A35/A36 租戶設定/品牌/超管</td>
+<td>👻</td>
+<td>—</td>
+<td>18</td>
+<td>—</td>
+<td>spec 先行・code 未建 → 標 🚧 保留</td>
+</tr>
+</tbody>
+</table>
+<h3 id="111-tech-pwa">1.11 tech-pwa</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/pool</td>
+<td>🔶</td>
+<td>high</td>
+<td>11</td>
+<td>Vv7Dq 等</td>
+<td>spec 全螢幕地圖+bottomsheet vs code grid 卡片清單</td>
+</tr>
+<tr>
+<td>/my-orders</td>
+<td>✅</td>
+<td>low</td>
+<td>12</td>
+<td>1GIKj/jLA69</td>
+<td>符</td>
+</tr>
+<tr>
+<td>/my-orders/[id]</td>
+<td>🔶</td>
+<td>med</td>
+<td>12</td>
+<td>CNR7a 等</td>
+<td>完工表單內嵌雙簽；function test 6 項</td>
+</tr>
+<tr>
+<td>/my-orders/[id]/delay</td>
+<td>✅</td>
+<td>low</td>
+<td>19</td>
+<td>—</td>
+<td>符</td>
+</tr>
+<tr>
+<td>/my-orders/[id]/door-check</td>
+<td>🔶</td>
+<td>med</td>
+<td>19</td>
+<td>—</td>
+<td>照片 ≥3（前/中/後）vs spec 前/後</td>
+</tr>
+<tr>
+<td>/my-orders/[id]/material-request</td>
+<td>✅</td>
+<td>low</td>
+<td>19</td>
+<td>—</td>
+<td>符</td>
+</tr>
+<tr>
+<td>/my-orders/[id]/reschedule</td>
+<td>🔶</td>
+<td>med</td>
+<td>22</td>
+<td>—</td>
+<td>code 7 日條 vs spec 月曆；多 cross-tab sync</td>
+</tr>
+<tr>
+<td>/my-orders/[id]/scope-change</td>
+<td>✅</td>
+<td>low</td>
+<td>19</td>
+<td>—</td>
+<td>符</td>
+</tr>
+<tr>
+<td>/my-orders/[id]/signature</td>
+<td>✅</td>
+<td>low</td>
+<td>19</td>
+<td>—</td>
+<td>符</td>
+</tr>
+<tr>
+<td>/account</td>
+<td>🔶</td>
+<td>med</td>
+<td>13</td>
+<td>qFXmE 等</td>
+<td>收入為 skeleton；缺 period_selector</td>
+</tr>
+<tr>
+<td>/account/schedule</td>
+<td>🔶</td>
+<td>med</td>
+<td>19</td>
+<td>—</td>
+<td>月曆 + 每日工單數 badge；多 close-today</td>
+</tr>
+<tr>
+<td>/account/statements</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0045 師傅薪資單，無 spec</td>
+</tr>
+<tr>
+<td>/account/commission-statements</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>FR-0046 派工佣金單，無 spec</td>
+</tr>
+</tbody>
+</table>
+<h3 id="112-global-orphans">1.12 global-orphans</h3>
+<table>
+<thead>
+<tr>
+<th>路由</th>
+<th>狀態</th>
+<th>嚴重</th>
+<th>spec</th>
+<th>frame</th>
+<th>關鍵漂移</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>/notifications</td>
+<td>✅</td>
+<td>low</td>
+<td>21</td>
+<td>—</td>
+<td>符（preference 連結少 /admin 前綴）</td>
+</tr>
+<tr>
+<td>/admin/cases</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td><strong>CR-0108 進線建案</strong>，無 spec ← Batch 1</td>
+</tr>
+<tr>
+<td>/admin/staff</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>員工帳號管理，無 spec</td>
+</tr>
+<tr>
+<td>/admin/exceptions</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>異常管理控制臺，無 spec</td>
+</tr>
+<tr>
+<td>/admin/vendor-approvals</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>廠商審核，無 spec</td>
+</tr>
+<tr>
+<td>/admin/quote-catalog</td>
+<td>🆕</td>
+<td>med</td>
+<td>—</td>
+<td>—</td>
+<td>報價目錄，無 spec</td>
+</tr>
+<tr>
+<td>/admin/quotes</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>報價工作臺，無 spec</td>
+</tr>
+<tr>
+<td>/quotes/[token]</td>
+<td>🆕</td>
+<td>med</td>
+<td>—</td>
+<td>—</td>
+<td>消費者匿名報價同意，無 spec</td>
+</tr>
+<tr>
+<td>/consent/[token]</td>
+<td>🆕</td>
+<td>med</td>
+<td>—</td>
+<td>—</td>
+<td>消費者匿名免責同意，無 spec</td>
+</tr>
+<tr>
+<td>/scope-change/[token]</td>
+<td>🆕</td>
+<td>med</td>
+<td>—</td>
+<td>—</td>
+<td>消費者匿名加價同意，無 spec</td>
+</tr>
+<tr>
+<td>/track/[token]</td>
+<td>🆕</td>
+<td>med</td>
+<td>—</td>
+<td>—</td>
+<td>消費者匿名工單追蹤，無 spec</td>
+</tr>
+<tr>
+<td>/vendor</td>
+<td>🆕</td>
+<td>high</td>
+<td>—</td>
+<td>—</td>
+<td>廠商門戶，無 spec</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="2-批次計畫wbs">2. 批次計畫（WBS）</h2>
+<blockquote>
+<p><code>.pen</code> 序列瓶頸 → 每批先平行做完 <code>.md</code>，再由主
+agent 序列補 <code>.pen</code> frame。
+一批一分支（依專案規範），完成更新本表 §3 進度 + CHANGELOG +
+system-completion-status。</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>批次</th>
+<th>範圍</th>
+<th>.md 動作</th>
+<th>.pen 動作</th>
+<th>狀態</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>B1</strong></td>
+<td>進線建案（end-to-end）+ 工單詳情 spec</td>
+<td>新建 <code>24_admin_intake_cases</code> ✅；改 <code>07</code>
+🔄</td>
+<td>新建 Intake Cases frame <code>kjAsn</code> ✅；GbKMe 改 → 併入
+B2</td>
+<td>🔄 本輪</td>
+</tr>
+<tr>
+<td><strong>B2</strong></td>
+<td>工單列表/看板/地圖/<strong>詳情</strong> + 技師</td>
+<td>改
+<code>06</code>/<code>08</code>/<code>16</code>（路由命名、技師轉真）</td>
+<td>D6xEP/JedbW/xMjEI/<strong>GbKMe</strong>/4386B/KxaZT</td>
+<td>☐</td>
+</tr>
+<tr>
+<td><strong>B3</strong></td>
+<td>全新 admin 孤兒頁（~17）</td>
+<td>新建 <code>25</code>~<code>41</code> 系列 spec</td>
+<td>新建對應 frame（量最大）</td>
+<td>☐</td>
+</tr>
+<tr>
+<td><strong>B4</strong></td>
+<td>帳務/進階/客戶/派工報表</td>
+<td>改
+<code>09</code>/<code>10</code>/<code>15</code>/<code>17</code>/<code>20</code></td>
+<td>CXCxi/wUDUW/E3vKS/w2E0T 等</td>
+<td>☐</td>
+</tr>
+<tr>
+<td><strong>B5</strong></td>
+<td>技師 PWA + 認證 + 全域 + token 頁</td>
+<td>改
+<code>11</code>/<code>12</code>/<code>13</code>/<code>19</code>/<code>22</code>/<code>14</code>；新建
+token/vendor spec</td>
+<td>pool/order/account frame + 新 token frame</td>
+<td>☐</td>
+</tr>
+<tr>
+<td><strong>收尾</strong></td>
+<td>索引 + 鏡像</td>
+<td>MAPPING.md 全面重寫；標 👻 A34-36/offline</td>
+<td>— + gen_docs_html regen</td>
+<td>☐</td>
+</tr>
+</tbody>
+</table>
+<h3 id="新頁-spec-編號預留b3--b5">新頁 spec 編號預留（B3 / B5）</h3>
+<p><code>24</code> intake-cases（B1）｜<code>25</code>
+staff｜<code>26</code> exceptions｜<code>27</code> vendor-approvals +
+vendor-portal｜<code>28</code> quotes-workbench +
+quote-catalog｜<code>29</code> approval-inbox｜<code>30</code>
+config-governance｜<code>31</code> payout-rules｜<code>32</code>
+rma-quality｜<code>33</code> gdpr-forget-queue｜<code>34</code>
+brand-b2b｜<code>35</code> ai-governance｜<code>36</code>
+sentiment-alerts｜<code>37</code> sop-feedback｜<code>38</code>
+schedule-requests + material-requests｜<code>39</code>
+technicians-lifecycle｜<code>40</code>
+tech-statements（薪資/佣金）｜<code>41</code>
+public-token-pages（consent/quote/scope-change/track）｜<code>42</code>
+auth-extras（vendor-login/register/forgot/reset/home）</p>
+<hr />
+<h2 id="21-跨切面任務cross-cutting獨立追蹤">2.1
+跨切面任務（cross-cutting，獨立追蹤）</h2>
+<ul>
+<li><strong>sidebar nav 全域漂移</strong>：每個 .pen frame 的 sidebar
+都是內嵌（非共用元件），nav 項目凍結於 4 月（缺 ~15
+個新項、群組結構與現行 <code>Sidebar.tsx</code> 不符）。逐 frame
+重做成本高 → 列為 B2~B5 各 frame 順手更新 active 項，完整 nav
+重建排「收尾」評估。本輪 cases frame <code>kjAsn</code> 已將 active
+項改為「進線案件」，其餘 nav 項沿用 clone 來源（已知暫態）。</li>
+</ul>
+<h2 id="3-進度">3. 進度</h2>
+<ul>
+<li>2026-06-28 S0 done（branch
+<code>docs/ui-spec-resync</code>）：12-叢集盤點 workflow
+完成，產出本計畫 + WBS。</li>
+<li>2026-06-28 B1 進行中（branch <code>docs/ui-spec-resync</code>）：
+<ul>
+<li>✅ 新建 <code>pages/24_admin_intake_cases.md</code>（289 行，對
+CR-0108 code 逐行查證，標 ✅ 已實作 / 🚧 規格先行）。</li>
+<li>✅ 新建 .pen frame「Admin — Intake Cases
+(進線建案)」<code>kjAsn</code>（clone E3vKS 改造：sidebar
+active=進線案件、代客建案表單卡、案件列表 4 態示例 + SLA
+逾時徽章）。screenshot 驗證通過。</li>
+<li>🔄 <code>pages/07_admin_work_order_detail.md</code> 對
+code（legal_hold🔒 / SLA / 完工 / 客戶資訊）同步中。</li>
+<li>GbKMe（工單詳情 frame）surgery → 併入 B2。</li>
+</ul></li>
+</ul>
+</div></div></body></html>
