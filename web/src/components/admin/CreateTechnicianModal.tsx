@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { LOCK_BRANDS_HINT } from "@/lib/constants/brands";
 
 export interface CreateTechnicianModalProps {
   open: boolean;
@@ -179,7 +180,7 @@ export default function CreateTechnicianModal({
               type="text"
               value={capabilities}
               onChange={(e) => setCapabilities(e.target.value)}
-              placeholder="（選填）例：Yale, Dormakaba, Samsung"
+              placeholder={`（選填）例：${LOCK_BRANDS_HINT}`}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               disabled={submitting}
             />

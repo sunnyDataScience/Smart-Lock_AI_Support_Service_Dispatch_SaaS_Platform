@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
 import { cacheInvalidate } from "@/lib/cache";
 import { useToast } from "@/components/ui/Toast";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -37,7 +37,7 @@ export default function TechniciansPage() {
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const session = getCurrentSession();
-  const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+  const tenantId = session?.tenantId ?? FALLBACK_TENANT_ID;
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [capabilityFilter, setCapabilityFilter] = useState<string>("");

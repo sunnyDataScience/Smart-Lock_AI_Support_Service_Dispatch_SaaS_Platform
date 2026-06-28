@@ -16,13 +16,15 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, getCurrentSession } from "@/lib/api";
+import { ApiError, resolveTenantId } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { LOCK_BRANDS } from "@/lib/constants/brands";
 import type { components } from "@/types/api.generated";
 
 type Customer = components["schemas"]["Customer"];
+type Technician = components["schemas"]["Technician"];
 
 function formatCustomerError(e: unknown): string {
   if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
@@ -79,8 +81,7 @@ export default function CustomersPage() {
   }, [riskFilter, brandFilter, warrantyFilter, preferredTechFilter]);
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
-  const session = getCurrentSession();
-  const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+  const tenantId = resolveTenantId();
 
   const {
     items,
@@ -95,6 +96,12 @@ export default function CustomersPage() {
     path: `/tenants/${encodeURIComponent(tenantId)}/customers${queryString}`,
     pageSize: PAGE_LIMIT,
     formatError: formatCustomerError,
+  });
+
+  // 偏好技師篩選下拉資料 — 取本租戶技師清單（取代手打 UUID）
+  const { items: technicians } = usePaginatedFetch<Technician>({
+    path: `/tenants/${encodeURIComponent(tenantId)}/technicians`,
+    pageSize: 100,
   });
 
   const filtered = searchQuery
@@ -248,10 +255,12 @@ export default function CustomersPage() {
               className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none"
             >
               <option value="">{t("filterChips.risk")}</option>
-              <option value="low">低風險</option>
-              <option value="medium">中風險</option>
-              <option value="high">高風險</option>
-              <option value="critical">緊急</option>
+              <option value="low">{t("filterChips.riskOptions.low")}</option>
+              <option value="medium">{t("filterChips.riskOptions.medium")}</option>
+              <option value="high">{t("filterChips.riskOptions.high")}</option>
+              <option value="critical">
+                {t("filterChips.riskOptions.critical")}
+              </option>
             </select>
 
             <select
@@ -260,10 +269,12 @@ export default function CustomersPage() {
               className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none"
             >
               <option value="">{t("filterChips.brand")}</option>
-              <option value="Yale">Yale</option>
-              <option value="Dormakaba">Dormakaba</option>
-              <option value="Samsung">Samsung</option>
-              <option value="Other">其他</option>
+              {LOCK_BRANDS.map((b) => (
+                <option key={b.value} value={b.value}>
+                  {b.label}
+                </option>
+              ))}
+              <option value="Other">{t("filterChips.brandOther")}</option>
             </select>
 
             <select
@@ -272,18 +283,30 @@ export default function CustomersPage() {
               className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none"
             >
               <option value="">{t("filterChips.warranty")}</option>
-              <option value="active">保固中</option>
-              <option value="expired">已過期</option>
-              <option value="none">無保固</option>
+              <option value="active">
+                {t("filterChips.warrantyOptions.active")}
+              </option>
+              <option value="expired">
+                {t("filterChips.warrantyOptions.expired")}
+              </option>
+              <option value="none">
+                {t("filterChips.warrantyOptions.none")}
+              </option>
             </select>
 
-            <input
-              type="text"
+            <select
               value={preferredTechFilter}
               onChange={(e) => setPreferredTechFilter(e.target.value)}
-              placeholder={t("filterChips.preferredTech") + "（技師 UUID）"}
-              className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none w-[300px]"
-            />
+              className="rounded-lg border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none w-[220px]"
+            >
+              <option value="">{t("filterChips.preferredTechAll")}</option>
+              {technicians.map((tech) => (
+                <option key={tech.id} value={tech.id}>
+                  {tech.name}
+                  {tech.phone ? `（${tech.phone}）` : ""}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Data Table */}

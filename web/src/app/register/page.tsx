@@ -4,6 +4,7 @@ import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ApiError, api } from "@/lib/api";
+import { LOCK_BRANDS_HINT } from "@/lib/constants/brands";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import BackToHome from "@/components/layout/BackToHome";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -220,7 +221,7 @@ export default function RegisterPage() {
                     <input
                       value={capabilities}
                       onChange={(e) => setCapabilities(e.target.value)}
-                      placeholder="Yale、Dormakaba、Kaadas"
+                      placeholder={LOCK_BRANDS_HINT}
                       className={inputCls}
                     />
                     <span className="text-xs text-[var(--text-secondary)]">{t("capabilitiesHint")}</span>

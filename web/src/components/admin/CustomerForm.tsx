@@ -23,7 +23,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, resolveTenantId } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -130,9 +130,7 @@ export function CustomerForm({
     setSubmitting(true);
     try {
       // CR-0002-α：遷移至 tenant-scoped v2 端點
-      const session = getCurrentSession();
-      const tenantId =
-        session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+      const tenantId = resolveTenantId();
 
       if (mode === "create") {
         const payload: CustomerCreateRequest = basePayload;

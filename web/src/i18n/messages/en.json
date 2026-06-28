@@ -1825,7 +1825,20 @@
           "risk": "Risk level",
           "brand": "Device brand",
           "warranty": "Warranty status",
-          "preferredTech": "Preferred technician"
+          "preferredTech": "Preferred technician",
+          "brandOther": "Other",
+          "preferredTechAll": "All technicians",
+          "riskOptions": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "critical": "Critical"
+          },
+          "warrantyOptions": {
+            "active": "In warranty",
+            "expired": "Expired",
+            "none": "No warranty"
+          }
         },
         "comingSoon": "Coming soon",
         "cols": {

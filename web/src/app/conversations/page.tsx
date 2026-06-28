@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import ConversationsTable from "@/components/conversations/ConversationsTable";
-import { ApiError, getCurrentSession } from "@/lib/api";
+import { ApiError, resolveTenantId } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -28,9 +28,6 @@ const TAB_DEFS: { value: StatusFilter; key: string }[] = [
 
 const PAGE_SIZE = 20;
 
-// Fallback tenant UUID for dev environments without a real session
-const FALLBACK_TENANT_ID = "00000000-0000-0000-0000-000000000001";
-
 export default function ConversationsPage() {
   const t = useTranslations("pages.conversations");
   const tTabs = useTranslations("pages.conversations.tabs");
@@ -41,8 +38,7 @@ export default function ConversationsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
 
   // CR-0003 P2-W2：遷移至 tenant-scoped v2 端點（FR-0018）
-  const session = getCurrentSession();
-  const tenantId = session?.tenantId ?? FALLBACK_TENANT_ID;
+  const tenantId = resolveTenantId();
 
   const { items, hasMore, loading, error, loadMore } = usePaginatedFetch<Conversation>({
     path: `/tenants/${encodeURIComponent(tenantId)}/conversations`,

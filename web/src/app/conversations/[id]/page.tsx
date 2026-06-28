@@ -7,7 +7,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import ChatTimeline from "@/components/conversations/ChatTimeline";
 import DiagnosticReasoningPanel from "@/components/conversations/DiagnosticReasoningPanel";
 import HandoverComposer from "@/components/conversations/HandoverComposer";
-import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
+import { ApiError, api, tenantPath, resolveTenantId } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -53,9 +53,6 @@ const RESOLUTION_LABEL: Record<string, string> = {
   human: "人工",
 };
 
-// Fallback tenant UUID for dev environments without a real session
-const FALLBACK_TENANT_ID = "00000000-0000-0000-0000-000000000001";
-
 export default function ConversationDetailPage({
   params,
 }: {
@@ -64,8 +61,7 @@ export default function ConversationDetailPage({
   const { id } = use(params);
 
   // CR-0003 P2-W2：tenant-scoped v2 端點（FR-0018）
-  const session = getCurrentSession();
-  const tenantId = session?.tenantId ?? FALLBACK_TENANT_ID;
+  const tenantId = resolveTenantId();
 
   const [conv, setConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);

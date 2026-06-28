@@ -15,7 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, resolveTenantId } from "@/lib/api";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface RecentOrder {
@@ -105,9 +105,7 @@ export default function CustomerDetailPage({
     (async () => {
       try {
         // CR-0002-α：遷移至 tenant-scoped v2 端點
-        const session = getCurrentSession();
-        const tenantId =
-          session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+        const tenantId = resolveTenantId();
         const res = await api.get<CustomerDetail>(
           `/tenants/${encodeURIComponent(tenantId)}/customers/${encodeURIComponent(id)}`,
         );
