@@ -2,6 +2,13 @@
 
 > 工單全生命週期的單一真實來源 (Single Source of Truth)。整合診斷鏈、派工紀錄、對話記錄、設備狀態、完工報告、異常記錄於一頁。
 > 依據 `02_smartlock_dispatch_brand_system.md` 風格 E（嵌入設備狀態面板）+ 時間軸 + 對話記錄。
+>
+> **同步狀態（2026-06，code wins）**：本 spec 已對齊現行前端 `web/src/app/work-orders/[id]/page.tsx` + `WorkOrderDetailSidebar.tsx` + `MediaGallery.tsx`（依 CR-0096~0109）。
+> - 標 **➕ code 既有**：code 已實作、原 spec 未描述者。
+> - 標 **🚧 規格先行・未實作**：原 spec 設計、code 尚未落地者（保留設計意圖，不刪）。
+> - 兩者皆有但不符者：內容已改為 code 現況，關鍵差異就地註明。
+>
+> **資料真實 / 示意分界**（依 page 頂部 info banner 與 code 註解）：問題診斷摘要、客戶上傳媒體、工單歷程、完工報告（completion 真實欄位）、公單資訊、成本明細、指派技師為**真實資料**；SLA 時間軸（部分節點仍缺時間戳）、設備狀態面板（電量/連線/遠端操作）、報價明細（零件費/出勤費/折扣拆項）、異常記錄佔位仍標**示意**。
 
 ---
 
@@ -9,12 +16,12 @@
 
 - **page_name**: 工單詳情 (Work Order Detail)
 - **route_path**: `/work-orders/[id]`
-- **page_type**: detail (左右雙欄)
+- **page_type**: detail (左主內容 + 右固定側欄 380px)
 - **ia_pages**: A12
-- **openapi_ops**: getWorkOrder, assignWorkOrder, listDispatchCandidates
-- **asyncapi_ops**: subscribeWorkOrderUpdates
-- **primary_goal**: 讓管理員完整掌握單一工單的所有資訊，並執行對應的狀態操作（指派、催促、確認、仲裁等）
-- **secondary_goal**: 整合設備即時狀態，支援遠端操作（開鎖、重置密碼）；回溯完整服務歷程供稽核使用
+- **openapi_ops**: getWorkOrder, assignWorkOrder（:assign / :reassign）, listDispatchCandidates（dispatch:candidates）, acceptWorkOrder（:accept）, completeWorkOrder（:complete）, cancelWorkOrder（/cancel）, escalateWorkOrder（:escalate）, confirmWorkOrder（:confirm）, signWorkOrder（/signature）, proposeReschedule（/reschedule:propose）, requestReschedule（/reschedule-request）, notifyDelay（/notify-delay）, materialRequest（/material-request）, getQuoteItems（/quote-items）, downloadWorkOrderDocument（/document）, listWorkOrderMedia（/media）, setMediaLegalHold（/media/{id}/legal-hold）, listExceptionCases（/exception-cases）
+- **asyncapi_ops**: subscribeWorkOrderUpdates — 🚧 規格先行・未實作（現行 code 無 WebSocket，全走 REST fetch + 手動 `setOrder` 更新）
+- **primary_goal**: 讓管理員完整掌握單一工單的所有資訊，並執行對應的狀態操作（接受派工、指派/重新指派、取消、升級、電子簽章、改期、通知延遲、缺料回報、確認結案等）
+- **secondary_goal**: 整合設備狀態（目前示意），回溯完整服務歷程供稽核使用；下載電子工單 PDF
 - **target_users**:
   - 主要：客服主管、營運管理者（處理工單問題、審核完工）
   - 次要：品牌商管理者（查看特定案例）；技師主管（查看團隊工單）
@@ -25,57 +32,80 @@
 
 ## [STRUCTURE: SECTIONS]
 
-### 左側主內容區（Left 2/3）
+> **code 現況**：左側為主內容（`flex-1`，可捲動），右側為固定寬 380px 側欄（非 2/3 比例）。動態 action 按鈕列**位於 detail_header 內**（不在側欄 action_panel），側欄底部的 action_panel 為 disabled 示意佔位。
 
-1. **detail_header**
-   - section_type: page_header + SLA_timeline
-   - section_purpose: 顯示工單編號、狀態、SLA 進度視覺化
+### 左側主內容區（主內容欄）
 
-2. **problem_card_summary**
-   - section_type: collapsible_card
+1. **detail_header** ➕ 含動態 action 按鈕列
+   - section_type: page_header + SLA_timeline + contextual_actions
+   - section_purpose: 工單編號（document_number / 短 id）、狀態群組 Badge、緊急度 Badge、品牌/型號/地址/關聯問題卡、SLA 時間軸、依狀態動態的操作按鈕列（接受派工/重新指派/取消/升級/電子簽章/送出改期/直接改約/通知延遲/缺料回報等）
+
+2. **info_banner** ➕ code 既有
+   - section_type: notice_banner
+   - section_purpose: 提示哪些區為真實資料、哪些仍示意
+
+3. **quote_cta** ➕ code 既有
+   - section_type: link_button
+   - section_purpose: 「開啟報價單」連結到 `/admin/quotes?wo={id}`（新分頁）
+
+4. **dispatch_order_view** ➕ code 既有（`DispatchOrderView` 元件）
+   - section_type: read_only_form_sections
+   - section_purpose: 派工單／施工免責與合規視圖（唯讀欄位 + 模組分區：基礎資訊、設備與計費、施工免責與合規、雙方簽認狀態）；多數欄位由其他流程管理，依工單狀態顯示
+
+5. **problem_card_summary**
+   - section_type: info_card（非可摺疊，code 為常駐展開卡）
    - section_purpose: 展示 AI 診斷結果摘要（ProblemCard 核心內容）
 
-3. **line_media_gallery**
-   - section_type: media_gallery + issue_bundle_accordion
-   - section_purpose: 集中展示客戶透過 LINE 上傳的圖片/影片與 AI 自動彙整的 issue 包（原始診斷證據）
+6. **line_media_gallery**
+   - section_type: media_gallery（縮圖網格 + 外連大圖；**非** issue_bundle 手風琴）
+   - section_purpose: 展示客戶透過 LINE 上傳的圖片/影片（由關聯對話 messages 過濾 image/video）
+   - 註：原 spec 的 issue_bundle 手風琴結構、filter_tabs、AI 分析區塊、下載/轉傳/分享操作 → code 未實作，詳見該 Section spec 內 🚧 標記
 
-4. **work_timeline**
+7. **work_timeline**
    - section_type: vertical_timeline
-   - section_purpose: 記錄工單完整生命週期的所有狀態變更與事件
+   - section_purpose: 由 WorkOrder 時間戳衍生的歷程（建立/排程/到場/完工/最後更新）
 
-5. **conversation_thread**
-   - section_type: embedded_chat
-   - section_purpose: 顯示原始 LINE 客服對話記錄（唯讀）
+8. **conversation_thread**
+   - section_type: embedded_chat（唯讀）
+   - section_purpose: 顯示關聯對話 messages（user/assistant/system 三角色氣泡）
 
-6. **completion_report**
+9. **completion_report**
    - section_type: detail_card
-   - section_purpose: 完工後的服務報告（照片、零件、測試、簽名、評分）
+   - section_purpose: 完工真實資料（完工時間、完工狀態、實收金額、施工摘要、功能測試逐項）
 
-7. **exception_records**
-   - section_type: accordion_cards
-   - section_purpose: 異常事件完整記錄（範圍變更、缺料、投訴、爭議、退款）
+10. **exception_records**
+    - section_type: list_cards（非手風琴）
+    - section_purpose: 撈 M15 exception-cases（依 work_order_id），顯示異常類型/嚴重度/狀態/描述/時間
 
-### 右側側邊欄（Right 1/3）
+### 右側側邊欄（固定 380px，`WorkOrderDetailSidebar`）
 
-8. **device_status_panel**
-   - section_type: device_info_card
-   - section_purpose: 鎖具即時狀態與遠端操作（風格 E）
+11. **device_status_panel**
+    - section_type: device_info_card
+    - section_purpose: 鎖具品牌/型號（真實）+ 電量/連線/最近操作（示意 —）+ 遠端開鎖/重置密碼（disabled 示意）
 
-9. **customer_info_card**
-   - section_type: info_card
-   - section_purpose: 客戶基本資訊與聯繫方式
-
-10. **technician_info_card**
-    - section_type: info_card
-    - section_purpose: 指派技師資訊與即時位置
-
-11. **quotation_card**
+12. **quotation_card**
     - section_type: pricing_card
-    - section_purpose: 報價明細與付款狀態
+    - section_purpose: 估價（estimated_reward，真實）+ 零件費/出勤費/折扣拆項示意提示
 
-12. **action_panel**
-    - section_type: contextual_actions
-    - section_purpose: 根據當前工單狀態顯示對應操作按鈕
+13. **cost_detail_panel** ➕ code 既有（CR-0027）
+    - section_type: pricing_card
+    - section_purpose: 後台成本拆項（quote-items；unit_price 僅後台可見）+ 「下載電子工單 PDF」按鈕
+
+14. **work_order_fields_panel** ➕ code 既有（CR-0026/0043/0047，快照標題「公單資訊」）
+    - section_type: info_card
+    - section_purpose: 標準化案件欄位（客戶姓名/聯絡電話/服務類別/問題類型/保固/門型/安裝環境/付款方式/完工狀態/狀態原因等）
+
+15. **customer_info_card**
+    - section_type: info_card
+    - section_purpose: 客戶名稱/電話（真實）+ LINE ID 獨立列 + 地址 + 查看完整對話連結（CR-0102 修正）
+
+16. **technician_info_card**
+    - section_type: info_card
+    - section_purpose: 指派技師 Avatar/姓名/星等/電話/技能（真實 fetch）；未指派顯示替代文字
+
+17. **action_panel** — 🚧 規格先行・未實作（側欄此處為 disabled 佔位）
+    - section_type: contextual_actions（disabled）
+    - section_purpose: 側欄底部「標記異常」按鈕為 disabled +「派工模組接入後可執行操作」。**實際可用的 contextual actions 在 detail_header 按鈕列**（見 §detail_header）
 
 ---
 
@@ -83,741 +113,559 @@
 
 ### Section: detail_header
 
-- **layout**: 全寬（佔左側 2/3 主內容區寬度），垂直排列
+- **layout**: 全寬（主內容欄寬度），垂直排列，白色背景 + 底部 border
 - **elements**:
-  - breadcrumb: Breadcrumb / required / 「首頁 > 工單管理 > 工單列表 > {wo_number}」/ 「工單列表」可點擊返回
-  - header_row: 水平排列，垂直置中：
-    - back_button: IconButton Ghost / ChevronLeft icon / 「返回列表」tooltip / 點擊返回上一頁（保留篩選條件）
-    - wo_number: H1 (`text.heading.xl` 28px, 700) / required / 等寬字體 JetBrains Mono / 格式 `WO-YYYYMMDD-XXXX` / `color.text.primary`
-    - status_badge: StatusBadge lg / required / 對應 13 狀態語義色 / 大尺寸版本：
-      - padding: `space.2` (8px) 水平，`space.1` (4px) 垂直
-      - font-size: `text.body.md` (14px)，font-weight 600
-      - border-radius: `radius.sm` (4px)
-      - 背景色：對應語義色 10% 透明度
-      - 文字色：對應語義色 100%
-    - copy_wo_button: IconButton Ghost / Copy icon / 點擊複製工單編號 + Toast「已複製工單編號」
-  - sla_timeline_bar: SLA 水平時間軸 / required / 全寬進度條：
-    - 容器：高度 56px，背景 `color.bg.page` (#F8FAFC)，`radius.lg` (8px)，padding `space.3` (12px)
-    - 進度軌道：高度 8px，背景 Slate 200 (#E2E8F0)，`radius.full`
-    - 進度填充：左至右，顏色依當前狀態：
-      - 正常進度：`color.primary` (#2563EB) 漸變填充
-      - SLA 警告（<= 30min）：`color.warning` (#F59E0B) 漸變填充
-      - SLA 逾時：`color.error` (#EF4444) 填充 + pulse 動畫
-    - 節點標記：進度條上方等距放置狀態節點（圓形 12px）：
-      - 已通過節點：填充對應語義色 + 白色勾號
-      - 當前節點：填充對應語義色 + 外圈 2px ring 動畫
-      - 未到達節點：灰色邊框圓圈（Slate 300）
-      - 節點下方標籤：狀態名稱 (`text.caption` 11px)
-      - 節點標籤之間連線：已通過=實線語義色，未到達=虛線灰色
-    - 節點序列（簡化顯示主線程）：建立 → 派工 → 接受 → 進行中 → 完工 → 確認
-    - 若有異常分支：在對應節點下方顯示分支標記（小三角 + 異常狀態名）
-    - sla_countdown: 進度條右側：
-      - 正常：`text.body.md`，`color.text.secondary`，「剩餘 HH:mm」
-      - 警告：`text.body.md`，bold，`color.warning`，「剩餘 HH:mm」
-      - 逾時：`text.body.md`，bold，`color.error`，「逾時 HH:mm」+ pulse
-    - 時間標記：進度條下方每個已完成節點顯示時間戳 (`text.caption`)
+  - breadcrumb: 一行小字 / 「首頁 > 工單管理 > 工單列表 > {document_number 或短 id}」（`text.caption`，`color.text.secondary`）
+    - 註：code 為純文字 breadcrumb（非可點擊麵包屑連結）；返回功能由下方 back_button 提供
+  - header_row: 水平排列，垂直置中，gap `space.3`：
+    - back_button: IconButton / ChevronLeft icon / 連結回 `/work-orders`
+    - wo_number: H1 (28px, 700) / required / 等寬字體（font-mono）/ 顯示 `order.document_number ?? id.slice(0,8)`，hover title 為完整 id
+      - 差異：code 顯示後端產生的 `document_number`（如 `TP-000185`）或短 id，**非** spec 的 `WO-YYYYMMDD-XXXX` 固定格式
+    - status_badge: 狀態群組 Badge / required / 用 `STATUS_GROUP_MAP` 把 status 映射為群組（如 assigned → 「已派工」），配色取自 `STATUS_GROUP_TONE`：
+      - padding 水平 8px / 垂直 4px，font-size 14px，font-weight 600，`radius.sm`
+      - 差異：顯示的是**狀態群組名稱**（非 13 細狀態原文）
+    - urgency_badge: 緊急度 Badge ➕ code 既有 / 用 `URGENCY_TONE` 配色 / 「緊急度：{label}」
+    - copy_icon: Copy icon ➕ 目前為純圖示，**尚未綁定複製動作**（無 onClick / Toast）— 🚧 複製工單編號互動未實作
+  - meta_row: 一行 wrap 資訊列 ➕ code 既有：品牌 / 型號 / 地址（district · address）/ 關聯問題卡連結（`/problem-cards/{pc_id}`，font-mono）
+  - sla_timeline_bar: SLA 水平時間軸 / required（`SlaTimeline` 元件，CR-0100 真實化）：
+    - 容器：`flex flex-col gap-2`，背景 `--bg-page`，`radius.lg`，padding `space.3` (12px)
+    - 節點序列（6 節點，由 `order.status` + 時間戳衍生，**非寫死**）：建立 → 派工 → 接受 → 進行中 → 完工 → 確認
+      - status rank 映射：inquiring(0) → assigned(1) → accepted(2) → in_progress(3) → completed(4) → closed(5)
+      - 每個節點：上方圓點（已完成=綠實心 3px / 當前=primary 外框環 / 未達=灰邊空心）、下方階段名稱（11px）、再下方真實時間 `MM/DD HH:mm`（10px，僅有時間欄位的節點顯示）
+      - 時間欄位來源：建立=`created_at`、派工=`scheduled_time`、進行中=`actual_arrival`、完工=`completion_time`；**接受/確認目前無時間戳**（accepted_at / closed_at 未上 envelope）→ 該兩節點只有圓點與名稱，無時間 🚧 缺時間欄位
+    - sla_countdown: 節點列下方右對齊一行 ➕ 用 computed `sla_deadline`：
+      - 正常：`剩餘 {N}h{MM}m`，`color.warning`，font-weight 600
+      - 逾時：`逾時 {N}h{MM}m`，`color.error`，font-weight 600
+      - 終態（completed/billed/paid/closed/cancelled）或無 `sla_deadline` → 不顯示倒數
+      - 差異：code **無 pulse 動畫**；正常態用 warning 橙色而非 secondary 灰色
+    - progress_bar: 最底部水平進度條（高 8px，`--border` 軌道 + `--primary` 填充），寬度 = lastReached / 5 的百分比；已結案=100%；取消=0%
+      - 差異：填充色固定 primary（**不依 SLA 三態變橙/紅**）
+  - action_buttons_row: 動態操作按鈕列 ➕ code 既有（依工單狀態 from-set 過濾顯示）：
+    - 接受派工（accept）：status ∈ {assigned} / primary 藍 / CheckCircle2 icon
+    - 重新指派 / 手動指派（assign）：status ∈ {inquiring, assigned}（assign）或 {accepted, in_progress}（reassign）/ outline 藍 / UserPlus icon / 有技師時顯示「重新指派」否則「手動指派」
+    - 取消工單（cancel）：status ∈ 多數進行中狀態 / outline 紅 / X icon
+    - 升級工單（escalate）：status ∈ 多數進行中狀態 / outline 橙 / Flag icon
+    - 確認結案（confirm）：status ∈ {completed} / 實心藍綠 #0EA5E9 / Star icon
+    - 電子簽章（signature）：status ∈ {accepted..completed} / outline 紫 #7C3AED / PenLine icon
+    - 送出改期（reschedule，多時段提案）：status ∈ 排程相關 / outline #0EA5E9 / CalendarClock icon
+    - 直接改約（requestReschedule）：status ∈ 排程相關 / outline 靛 #4338CA / CalendarClock icon
+    - 通知延遲（notifyDelay）：**常駐顯示** / outline 橙 #B45309 / TriangleAlert icon
+    - 缺料回報（materialRequest）：**常駐顯示** / outline 綠 #065F46 / Upload icon
+    - 各按鈕點擊後開對應 Modal（accept 為直接 POST）；pending 時全列 disabled
+    - action_error：按鈕列下方紅色錯誤條（API 失敗時顯示 errorCode + status + message）
 - **states**:
-  - default: 顯示工單編號 + 狀態 Badge + SLA 進度條
-  - loading: Skeleton（標題長條 + 進度條橫條 + 節點圓形）
-  - sla_normal: 進度條藍色，文字灰色
-  - sla_warning: 進度條橙色，文字橙色 bold
-  - sla_overdue: 進度條紅色 + pulse，文字紅色 bold
-  - completed: 進度條全滿綠色，所有節點打勾，不顯示倒數
-  - cancelled: 進度條灰色，當前節點紅色 X，後續節點灰色虛線
-- **copy_constraints**: 工單編號固定格式 16 字元；狀態文字最多 4 字
+  - default: 顯示編號 + 狀態群組 Badge + 緊急度 Badge + meta 列 + SLA 時間軸 + 動態按鈕列
+  - loading: 「載入工單中…」文字（code 為簡單文字提示，非 Skeleton）— 🚧 Skeleton 未實作
+  - sla_overdue: 倒數文字轉紅色 bold（無 pulse）
+  - completed/closed: 進度條全滿，節點全綠，不顯示倒數
+  - cancelled: 進度條歸 0，僅「建立」節點綠，其餘 pending
+  - error: 主內容區頂部紅色錯誤條「載入工單失敗：{error}」
+- **copy_constraints**: 工單編號顯示 document_number 或 8 字短碼；狀態群組名稱簡短
+
+> 🚧 規格先行・未實作（detail_header）：複製工單編號互動、SLA pulse 逾時動畫、SLA 三態進度條變色、節點白色勾號 / ring 動畫、異常分支標記、loading Skeleton。
 
 ---
 
 ### Section: problem_card_summary
 
-- **layout**: 全寬可摺疊卡片（Collapsible Card），白色背景，`radius.lg`，`shadow.sm`
+- **layout**: 全寬常駐展開卡片（**非可摺疊**），白色背景，`border` + `radius.xl`，padding `px-8 py-5`
+  - 差異：code 為固定展開卡，無 header 點擊摺疊；資料由 `pcId`（order.problem_card_id）fetch `/problem-cards/{pcId}`
 - **elements**:
-  - card_header: 水平排列，可點擊切換展開/摺疊：
+  - card_header: 水平排列（不可點擊摺疊）：
     - icon: FileText icon，`color.primary`
-    - title: H3 (`text.heading.md` 20px, 600) / 「問題診斷摘要」
-    - badge: Badge / 「ProblemCard」/ `color.primary` 背景 10%，Primary 文字
-    - chevron: ChevronDown icon（展開時旋轉 180 度），transition 200ms
-  - card_body（展開時顯示）:
-    - symptom_summary: 區塊 / required：
-      - label: 「症狀描述」/ `text.body.sm`，`color.text.secondary`，font-weight 600
-      - content: `text.body.lg` (16px)，`color.text.primary` / 完整症狀文字描述
-    - domain_attributes: 區塊 / required / Grid 2x2 佈局：
-      - 每個屬性為 label + value 組合
-      - label: `text.body.sm`，`color.text.secondary`
-      - value: `text.body.md`，`color.text.primary`，font-weight 500
-      - 典型屬性：品牌、型號、安裝年份、問題類型、是否在保固期
-    - resolution_level: 區塊 / required：
-      - label: 「解決層級」
-      - value: Badge 格式
-        - Level 1 (自助解決)：Emerald Badge
-        - Level 2 (遠端協助)：Blue Badge
-        - Level 3 (現場維修)：Amber Badge
-    - diagnostic_chain: 區塊 / required / 水平流程圖：
-      - 四個節點：Symptom → Failure → FailureMode → Defect
-      - 每個節點：圓角矩形 (`radius.md`)，Slate 100 背景，padding `space.2`
-      - 節點內：上方 label (`text.caption`，`color.text.secondary`)，下方 value (`text.body.sm`，`color.text.primary`，bold)
-      - 節點間：箭頭 → icon，`color.text.disabled`
-      - 若某個節點尚未確定：虛線邊框 + 「待確認」灰字
-    - confidence_score: 右上角小字 / optional / 「AI 診斷信心度 {score}%」/ 分數 >= 80% 綠色，60-79% 橙色，< 60% 紅色
+    - title: 「問題診斷摘要」(20px, 600)
+    - badge: 「ProblemCard」/ `--primary-light` 背景 + primary 文字
+    - pc_link: ➕ 右側 / 「{pcId 前 8 碼} →」font-mono 連結到 `/problem-cards/{pcId}`
+  - status_row: ➕ code 既有（card 載入後）：
+    - pc_status_badge: 圓角 Badge / 用 `PC_STATUS_TONE`（draft 靛 / confirmed 藍 / resolved 綠）/ 顯示問題卡狀態
+    - urgency_badge: 緊急度 Badge / 用 `URGENCY_TONE`
+    - confidence_score: 小字 / optional / 「AI 信心度 {score}%」（`confidence_score * 100` 取整）
+  - attributes_grid: Grid **4 欄**（code 為 `grid-cols-4`，非 2x2）/ 每格 `--bg #F1F5F9` 圓角：
+    - 品牌（brand）、型號（model）、類別（category）、關聯對話（conversation_id 短碼，連結到 `/conversations/{id}`）
+    - 差異：欄位為 品牌/型號/類別/關聯對話（**非** 安裝年份/問題類型/保固期）；空值顯示 `—`
+  - symptom_summary: 區塊 / `--bg #F8FAFC` 圓角：
+    - label: 「症狀描述」（11px，secondary）
+    - content: 症狀全文（13px，line-height 1.6）；空值顯示 `—`
 - **states**:
-  - default: 摺疊狀態（僅顯示 card_header + symptom_summary 前 2 行預覽）
-  - expanded: 展開顯示所有區塊
-  - loading: Skeleton（標題 + 4 行文字區塊）
-  - empty: 「此工單尚未產生診斷摘要」+ 灰色 FileQuestion icon
-  - no_problem_card: 「手動建立的工單無診斷資料」灰字
-- **copy_constraints**: 症狀描述最多 500 字（超出截斷 + 「顯示更多」）；每個 domain_attribute value 最多 30 字
+  - default: 常駐展開顯示 header + status_row + grid + 症狀
+  - no_pc（無 problem_card_id）: 「(無關聯問題卡提示文字)」灰字
+  - loading: 「載入中…」文字（非 Skeleton）
+  - error: 紅字「載入失敗：{error}」
+- **copy_constraints**: 症狀描述全文顯示（code 未截斷）；grid value 隨內容換行
+
+> 🚧 規格先行・未實作（problem_card_summary）：可摺疊互動、resolution_level（解決層級 Badge）、diagnostic_chain（Symptom→Failure→FailureMode→Defect 流程圖）、症狀 500 字截斷「顯示更多」、Skeleton。
+> ➕ code 既有：pc_status_badge、urgency_badge、關聯對話連結、關聯問題卡連結。
 
 ---
 
 ### Section: line_media_gallery
 
-- **layout**: 全寬卡片，白色背景，`radius.lg`，`shadow.sm`，padding `space.6` (24px)
-- **section_purpose**: 集中展示客戶透過 LINE 上傳的所有媒體資料（圖片、影片、檔案、語音）與 AI 自動彙整的 issue 包；作為 ProblemCard 背後的原始診斷證據，供客服/主管溯源
-- **visibility_rule**: 工單關聯 `bundles` 陣列長度 > 0 時顯示；全空則整個 Section 隱藏（不顯示 empty placeholder）
-- **elements**:
-  - section_header: 水平排列，垂直置中：
+- **layout**: 全寬卡片，白色背景，padding `px-8 py-5`
+- **section_purpose**: 展示客戶透過 LINE 上傳的圖片/影片
+- **code 現況（重要差異）**：此頁主內容的媒體區由 page.tsx 內部元件 `LineMediaGallery` 渲染，**資料來源是關聯對話的 messages**（`/conversations/{conversation_id}/messages?limit=100`，conversation_id 來自 problem_card），前端過濾出 `type ∈ {image, video} 且有 media_url` 的訊息。**不是** spec 設計的 issue_bundle API（`/work-orders/{id}/media` bundles）。整個 issue_bundle 手風琴 / filter_tabs / AI 分析 / 下載打包 / 轉傳 / 分享 結構 code 皆未實作。
+- **visibility_rule**: code 為**常駐顯示 Section**（即使無媒體也顯示卡片 + 空狀態提示），**非** spec 的「全空則整段隱藏」
+- **elements（code 現況）**:
+  - section_header: 水平排列：
     - icon: Images icon，`color.primary`
-    - title: H3 (`text.heading.md` 20px, 600) / 「客戶上傳媒體」
-    - source_badge: Badge sm / 「LINE」/ `color.primary.light` (#DBEAFE) 背景 + Primary 文字 + LINE icon
-    - count_summary: `text.body.sm`，`color.text.secondary` / 「共 {total} 筆（{photo_count} 圖片・{video_count} 影片・{file_count} 檔案）」
-    - filter_tabs: 右側 / Tabs 切換：「全部 / 圖片 / 影片 / Issue 包」/ 預設「全部」
-  - issue_bundles: IssueBundle[] / required / 垂直排列手風琴卡片，gap `space.4` (16px)：
-    - 每個 bundle 代表一次完整的客戶報修事件（觸發訊息 + 附帶媒體 + AI 彙整結果）
-    - 同一工單可能有多個 bundle（例如：初次報修包、補充說明包、AI 追問後的補件包）
-    - bundle_header: 水平排列，可點擊展開/摺疊，Slate 50 (#F8FAFC) 背景，`radius.md`，padding `space.3` (12px)：
-      - bundle_icon: Package icon / `color.primary` / 24px / 左側
-      - bundle_meta: 垂直排列，flex-grow：
-        - trigger_text: `text.body.md` (14px)，font-weight 600，`color.text.primary` / 觸發訊息摘要（客戶首條文字訊息），超出截斷，最多 60 字
-        - submitted_at: `text.caption` (11px)，`color.text.secondary` / 「提交時間 YYYY-MM-DD HH:mm」
-      - media_count_badges: 水平 Badge 群組 / 中右：
-        - photo_badge: 「{n} 張」+ Camera icon / Slate 背景 / 若 n=0 不顯示
-        - video_badge: 「{n} 支」+ Video icon / Slate 背景 / 若 n=0 不顯示
-        - file_badge: 「{n} 檔」+ FileText icon / Slate 背景 / 若 n=0 不顯示
-        - audio_badge: 「{n} 則」+ Mic icon / Slate 背景 / 若 n=0 不顯示
-      - ai_insight_badge: Badge sm / optional / 「AI 已分析」+ Sparkles icon / Emerald 背景 / 表示該包已產生 ProblemCard
-      - chevron: ChevronDown icon（展開時旋轉 180 度），transition 200ms
-    - bundle_body（展開時顯示）:
-      - trigger_full_text: 完整觸發訊息 / `text.body.md`，`color.text.primary`，預留換行；超過 500 字時顯示「顯示全文」切換
-      - media_grid: 縮圖網格 / required / CSS grid，`grid-template-columns: repeat(auto-fill, minmax(128px, 1fr))`，gap `space.2` (8px)：
-        - media_thumbnail: 統一 128x128px，`radius.md`，object-fit cover，position relative，overflow hidden：
-          - **圖片項**: 直接顯示縮圖；hover 時覆蓋半透明黑色遮罩 (rgba(0,0,0,0.3)) + ZoomIn icon（白色，24px）；點擊開啟 Lightbox（與 conversation_thread 共用 lightbox 元件）
-          - **影片項**: 顯示首幀靜態預覽（背景圖）；中央覆蓋 PlayCircle icon（40px，白色 + `shadow.md`）；右下角覆蓋時長 Badge 「MM:SS」黑色半透明 (rgba(0,0,0,0.6)) 背景 + 白字 `text.caption`；點擊開啟內嵌影片播放器 Modal（max-width 960px，元件含 play/pause/seek/音量/倍速 0.5x-2x/下載）
-          - **檔案項**: Slate 100 背景，中央顯示 FileText icon (40px，`color.primary`)；下方小字顯示副檔名（如「PDF」「DOCX」）；點擊觸發下載
-          - **語音項**: Slate 100 背景，中央顯示 Mic icon (40px)；底部 mini 波形條；時長 Badge 於右下角；點擊開啟 audio player 浮層（含 play/pause/seek）
-          - 縮圖左上角：index 序號 Badge（黑色半透明底 + 白字 `text.caption`，如「#1」）
-          - 縮圖右上角：source_tag Badge / `text.caption`：
-            - 「初次報修」(initial): Primary 背景
-            - 「補充說明」(supplementary): Amber 背景
-            - 「AI 追問」(ai_followup): Emerald 背景
-        - 縮圖下方：`text.caption`，`color.text.secondary` / 檔名（含副檔名）；若無則 fallback「{type}_{index}」
-      - ai_analysis_block: optional / 僅在 `ai_analysis` 存在時顯示：
-        - 容器：Emerald 50 背景，left border 3px Emerald (#10B981)，`radius.md`，padding `space.3`
-        - header: Sparkles icon + 「AI 自動分析」/ `text.body.sm`，font-weight 600，Emerald 700
-        - extracted_keywords: Chip 群組 / 從媒體抽取的症狀/部件關鍵字（最多 8 個）/ 白色背景 + Emerald 邊框 + `text.caption`
-        - linked_problem_card: Link / `text.body.sm` / 「→ 關聯 ProblemCard #{id}」/ 點擊頁面平滑捲動至 problem_card_summary 並高亮背景 2s（Primary light 漸淡）
-        - vision_identified_model: `text.body.sm` / optional / 「影像識別：{brand} {model}（信心度 {score}%）」/ 信心度 >= 80% 綠色，60-79% 橙色，< 60% 紅色
-      - bundle_actions: 水平按鈕列 / 右側對齊，gap `space.2`：
-        - download_bundle_button: Button Secondary sm / icon Download / 「下載此包 (.zip)」/ 點擊 → POST 打包 API → Loading → 成功取得 signed URL 觸發瀏覽器下載
-        - forward_to_technician_button: Button Secondary sm / icon Send / 「轉傳給技師」/ 點擊 → 二次確認 Modal「將此 issue 包推送至當前指派技師 {name} 的 LINE？」→ 成功 Toast
-        - copy_link_button: IconButton Ghost / icon Link / tooltip「複製分享連結」/ 點擊 → 複製 signed URL → Toast
-- **states**:
-  - default: 所有 issue 包摺疊（僅顯示 bundle_header）
-  - expanded: 點擊單個 bundle 展開；允許同時多個展開
-  - loading: Skeleton（3 個 bundle_header 灰條，最上一個展開顯示 media_grid 8 格縮圖灰塊）
-  - video_playing: 影片播放器 Modal 開啟，背景頁面灰色 overlay，Escape 可關閉
-  - audio_playing: 語音浮層於縮圖下方展開，不遮擋其他媒體
-  - lightbox_open: Lightbox 開啟，支援左右鍵切換（含同一 bundle 中所有圖片項）；Escape 關閉
-  - download_in_progress: download_bundle_button → Spinner + 「打包中...」Disabled
-  - download_failed: Toast Error「媒體打包失敗：{reason}，請稍後再試」+ 按鈕恢復
-  - forward_in_progress: forward_to_technician_button → Spinner + Disabled
-  - forward_success: Toast Success「已轉傳給技師 {name}」
-  - media_expired: LINE 原始媒體超過 30 天（LINE 官方保存期）且尚未備份至 GCS 時，縮圖覆蓋灰色半透明 + ImageOff icon + tooltip「媒體已過 LINE 保存期，原始檔不可用」；已備份者正常顯示
-  - backed_up_indicator: 已備份至 GCS 的媒體，縮圖右下角小 CloudCheck icon（灰色 12px）
-  - filter_applied: 切換「圖片/影片/Issue 包」tabs 時，非對應類型縮圖隱藏；若過濾後該 bundle 無匹配媒體則 bundle 整體隱藏；全部隱藏則 Section 顯示「目前篩選無資料」灰字
-  - empty: 此 Section 整體隱藏（透過 visibility_rule）
-- **copy_constraints**: 觸發訊息摘要最多 60 字；完整觸發訊息超 500 字顯示「顯示全文」；影片/語音時長格式「MM:SS」（> 1 小時則「HH:MM:SS」）；檔名最多 24 字（超出中間截斷 `filename...ext`）
+    - title: 「客戶上傳媒體」(20px, 600)
+    - source_badge: 「LINE」Badge / `--primary-light` 背景 + primary 文字（純文字，**無** LINE 品牌 icon）
+    - count_summary: 有媒體時顯示「{count}」筆數小字（非 spec 的 圖片/影片/檔案 細分）
+  - media_grid: `flex flex-wrap gap-3` 縮圖列：
+    - media_thumbnail: 128x128px，`radius.lg`，border，外層為 `<a target="_blank">` 直接連到 `media_url`（**新分頁開原圖**，非 lightbox）：
+      - **圖片項**: `<img>` object-cover；hover 輕微放大（scale 1.03）；無遮罩 / 無 ZoomIn icon
+      - **影片項**: 灰底 + 居中「影片」文字標籤（**無**首幀預覽 / PlayCircle / 時長 Badge / 內嵌播放器）
+      - 縮圖下方：上傳時間 `YYYY/MM/DD HH:mm`（11px）
+      - title（hover tooltip）：「提交時間 {time}」
+- **states（code 現況）**:
+  - no_conversation（無關聯對話）: 虛線框「(無關聯對話提示)」
+  - loading: 虛線框「載入中…」
+  - empty（有對話、無 image/video 訊息）: 虛線框「客戶尚未上傳任何媒體」
+  - error: 紅框「載入失敗：{error}」
+  - default: 顯示縮圖網格
+- **copy_constraints**: 時間格式 `YYYY/MM/DD HH:mm`
+
+> 🚧 規格先行・未實作（line_media_gallery）— 以下原 spec 設計 code 全未落地，保留設計意圖：
+> - issue_bundle 手風琴（bundle_header / bundle_meta / media_count_badges / ai_insight_badge / 展開摺疊）
+> - filter_tabs（全部/圖片/影片/Issue 包）
+> - 影片首幀預覽 + PlayCircle + 時長 Badge + 內嵌播放器 Modal（play/pause/seek/音量/倍速/下載）
+> - 檔案項 / 語音項（mini 波形 + audio player）
+> - 縮圖 index 序號 Badge、source_tag（初次報修/補充說明/AI 追問）
+> - Lightbox（與 conversation_thread 共用、左右鍵切換）
+> - ai_analysis_block（關鍵字 Chip、→ 關聯 ProblemCard 跳轉高亮、影像識別品牌/型號信心度）
+> - bundle_actions（下載此包 .zip / 轉傳給技師 / 複製分享連結）
+> - media_expired（LINE 30 天保存期遮罩）、backed_up CloudCheck 標記
+> - 「全空整段隱藏」visibility_rule（code 改為常駐 Section + 空狀態提示）
+
+> ➕ code 既有但屬另一元件（CR-0109 legal_hold，**尚未接入本頁**）：
+> `web/src/components/work-orders/MediaGallery.tsx` 是另一個獨立媒體元件，讀 `/work-orders/{id}/media`（依 purpose 分組：門面前/門面後/完工前/完工後/客戶證據/技師證據/其他），含：
+> - 縮圖左上 purpose 分類標籤、底部檔案大小 + 時間
+> - **法務保留 🔒 徽章**（CR-0109）：`legal_hold` 為真時縮圖右上顯示「🔒 保留」amber 徽章
+> - **鎖/解 toggle**：admin/tenant_admin/super_admin/operations_manager/reviewer 角色（`LEGAL_HOLD_ROLES`）可見「鎖定/解除」按鈕 → `PATCH /tenants/{tid}/media/{id}/legal-hold { hold }`
+> - lightbox（點縮圖開全螢幕預覽）、依 purpose 分組 grid（3-4 欄）、重新整理按鈕
+> **但此元件目前未被工單詳情頁 import**（grep 確認 0 引用）；現於 disputes 等場景使用。若未來把 legal_hold / purpose 分組媒體接入本頁，應取代或合併現行 `LineMediaGallery`。
 
 ---
 
 ### Section: work_timeline
 
-- **layout**: 全寬垂直時間軸，白色背景卡片，`radius.lg`，`shadow.sm`，padding `space.6` (24px)
-- **elements**:
-  - section_header: H3 / 「工單歷程」/ 右側：篩選下拉（全部 / 狀態變更 / 派工記錄 / 系統事件）
-  - timeline_list: TimelineItem[] / required / 垂直排列，左側時間軸線：
-    - 時間軸線：2px 寬，`color.border.default` (#E2E8F0)，左側 margin 20px
+- **layout**: 全寬垂直時間軸，白色背景卡片，padding `px-8 py-6`
+- **code 現況（差異）**：歷程**由 `WorkOrder` 上的時間戳欄位衍生**（`buildEvents`），**非** 獨立 timeline 分頁 API。事件種類固定：建立（created_at）、排程（scheduled_time）、到場（actual_arrival）、完工（completion_time）、最後更新（updated_at，且 ≠ created_at 時）。
+- **elements（code 現況）**:
+  - section_header: 「工單歷程」(20px, 600) / 右側「全部」篩選下拉 — **disabled**（tooltip「即將推出」）🚧 篩選未實作
+  - timeline_list: 垂直排列，左側 2px 軸線：
     - 每個 TimelineItem：
-      - node_circle: 圓形 12px，背景依事件類型：
-        - 狀態變更：對應目標狀態語義色
-        - 派工記錄：`color.primary` (#2563EB)
-        - 系統事件：Slate 400 (#94A3B8)
-        - 異常事件：`color.error` (#EF4444)
-      - timestamp: `text.caption` (11px)，`color.text.secondary`，格式「YYYY-MM-DD HH:mm:ss」
-      - actor_badge: Badge sm：
-        - 「系統」：Slate 背景
-        - 「管理員 {name}」：Primary 背景
-        - 「技師 {name}」：Blue 背景
-        - 「客戶」：Amber 背景
-      - event_title: `text.body.md` (14px)，font-weight 600，`color.text.primary`
-        - 狀態變更：「狀態變更：{old_status} → {new_status}」
-        - 派工指派：「技師指派：{technician_name}」
-        - 派工匹配：「AI 匹配完成」
-        - 異常觸發：「異常事件：{exception_type}」
-      - event_detail: `text.body.sm` (12px)，`color.text.secondary` / optional：
-        - 備註文字（管理員/技師填寫的原因）
-        - 派工匹配時顯示匹配詳情：
-          - match_score: 「匹配分數：{score}」
-          - match_factors: 水平排列 4 個小 Badge：
-            - 「距離 {distance_pct}%」
-            - 「技能 {skills_pct}%」
-            - 「評分 {rating_pct}%」
-            - 「負荷 {load_pct}%」
-          - 背景色：總分 >= 80 Emerald，60-79 Blue，< 60 Amber
-      - event_attachments: optional / 附件列表（照片縮圖、文件連結）
-  - load_more_button: Button Ghost / 「載入更多歷程」/ 預設顯示最近 20 筆
-- **states**:
-  - default: 按時間降序顯示（最新在上）
-  - loading: Skeleton timeline items（圓形 + 長條 x3）
-  - empty: 「尚無任何歷程記錄」+ Clock icon
-  - filtered: 篩選後僅顯示對應類型事件，其他隱藏
-  - live_update: WebSocket 推送新事件時，新項目從頂部滑入（300ms ease）+ 2s 高亮背景（Primary Light 漸淡）
-  - expanded_detail: 點擊某個 timeline item 可展開查看完整備註與附件
-- **copy_constraints**: 事件標題最多 40 字；備註最多 200 字（超出截斷 + 展開）
+      - node_circle: 圓形 12px，背景依事件類型固定色：建立/最後更新=Slate #94A3B8、排程=Rose #F43F5E、到場=Blue #3B82F6、完工=Emerald #10B981
+      - actor_badge: 小 Badge（badge tone）：系統（slate）/ 技師（blue）/ 排程（rose）/ 完工（emerald）
+      - event_title: 14px, 600：「工單建立」/「已排程」/「技師到場」/「完工」/「最後更新」（i18n key）
+      - event_detail: optional 12px secondary：
+        - 建立：「由問題卡 {pc 短碼} 衍生」（有 problem_card_id 時）
+        - 排程：有技師「(已指派技師 {tech 短碼})」/ 無技師「(未指派)」
+        - 最後更新：「目前狀態：{status}」
+      - timestamp: 11px disabled，格式 `YYYY/MM/DD HH:mm`
+    - 排序：按時間**降序**（最新在上）
+- **states（code 現況）**:
+  - default: 顯示衍生事件（降序）
+  - empty: 虛線框「(尚無歷程提示)」
+- **copy_constraints**: 事件標題簡短
+
+> 🚧 規格先行・未實作（work_timeline）：篩選下拉（狀態變更/派工記錄/系統事件）、狀態變更逐筆事件（old→new）、派工匹配 match_score + match_factors（距離/技能/評分/負荷 4 Badge）、異常事件項、event_attachments、「載入更多」分頁、WebSocket 即時插入滑入動畫、點擊展開完整備註、Skeleton。
+> 差異說明：現行歷程為「由工單時間戳衍生」的精簡版，非完整事件流；timestamp 格式為 `YYYY/MM/DD HH:mm`（無秒）。
 
 ---
 
 ### Section: conversation_thread
 
-- **layout**: 全寬卡片，白色背景，`radius.lg`，`shadow.sm`
-- **elements**:
-  - section_header: H3 / 「LINE 對話記錄」/ 右側：「在新視窗開啟」Link icon
-  - chat_container: 嵌入式聊天視圖 / required / max-height 480px，垂直捲動：
-    - 背景：Slate 50 (#F8FAFC)，模擬聊天視窗
-    - message_bubble: 每則訊息：
-      - 客戶訊息：左對齊，白色背景氣泡，`radius.lg`，max-width 70%
-      - Bot/系統訊息：右對齊，`color.primary.light` (#DBEAFE) 背景氣泡，`radius.lg`
-      - 技師訊息：右對齊，Emerald 10% 背景氣泡
-    - 每個氣泡內：
-      - sender_name: `text.caption`，`color.text.secondary`，font-weight 600
-      - message_content: `text.body.md`，`color.text.primary`
-      - timestamp: `text.caption`，`color.text.disabled`，右下角
-    - 特殊訊息類型：
-      - 圖片訊息：顯示縮圖（max-width 240px），可點擊放大（Lightbox）；氣泡右下角附小 Link icon「在客戶媒體區檢視」，點擊捲動至 line_media_gallery 並高亮對應縮圖 2s
-      - 影片訊息：顯示首幀預覽（max-width 240px）+ 中央 PlayCircle icon（40px，白色+陰影）+ 右下角時長 Badge「MM:SS」（黑色半透明底）；點擊開啟內嵌播放器 Modal；同樣提供「在客戶媒體區檢視」跳轉入口
-      - 檔案訊息：File icon + 檔名 + 大小 + 下載按鈕，水平排列於氣泡內
-      - 語音訊息：Mic icon + 播放按鈕 + mini 波形 + 時長；點擊展開 audio player
-      - Quick Reply 選擇：顯示為 Chip 群組，已選中的 Chip 高亮
-      - Flex Message：簡化渲染（卡片佈局）
-      - 系統事件訊息：居中灰色文字（如「對話已轉接人工客服」）
-    - scroll_to_bottom: 當捲動離底部 > 200px 時，右下角顯示「↓ 回到最新」浮動按鈕
-  - read_only_indicator: 底部灰色橫條 / 「唯讀模式 — 此為 LINE 對話備份」(`text.body.sm`，`color.text.disabled`)
-- **states**:
-  - default: 顯示完整對話記錄，可捲動瀏覽
-  - loading: Skeleton 氣泡（左右交替 3-5 個）
-  - empty: 「此工單無關聯對話記錄」+ MessageCircle icon
-  - image_lightbox: 點擊圖片後全螢幕 Lightbox 顯示原圖，支援左右切換
-  - scrolled_up: 顯示「回到最新」浮動按鈕
-- **copy_constraints**: 單則訊息無截斷（完整顯示）；發送者名稱最多 15 字
+- **layout**: 全寬卡片，白色背景，padding `px-8 py-5`
+- **code 現況**：讀關聯對話 messages（`/conversations/{conversation_id}/messages?limit=100`），API 依 created_at DESC 回傳，前端 reverse 為正序（舊→新）顯示。角色為 `user`（客人）/ `assistant`（客服/AI）/ `system`（系統）。
+- **elements（code 現況）**:
+  - section_header: 「LINE 對話記錄」(20px, 600) / 右側「在新視窗開啟」連結（ExternalLink icon → `/conversations/{conversation_id}` 新分頁）
+  - chat_container: 嵌入式聊天視圖 / max-height 420px，垂直捲動，背景 `--bg-page`：
+    - message_bubble:
+      - 客戶（user）訊息：左對齊，白底氣泡 + border，`rounded-2xl`，max-width 78%
+      - 客服/AI（assistant）訊息：右對齊，`--primary` 藍底白字氣泡
+      - 系統（system）訊息：居中灰色 pill（`#E2E8F0` 背景）
+    - 每個氣泡上方：「{角色}・{YYYY/MM/DD HH:mm}」（11px secondary）
+    - 氣泡內：訊息文字（whitespace-pre-wrap）；若有 media_url → 氣泡內附「(附件)」底線連結（新分頁開啟），**非**內嵌縮圖
+  - read_only_indicator: 底部灰色橫條 / Lock icon +「唯讀模式 — 此為 LINE 對話備份」
+- **states（code 現況）**:
+  - default: 正序顯示對話
+  - no_conversation: 虛線框「(無關聯對話提示)」
+  - loading: 虛線框「載入中…」
+  - empty: 虛線框「尚無對話訊息」
+  - error: 紅框「載入失敗：{error}」
+- **copy_constraints**: 單則訊息完整顯示（無截斷）
+
+> 🚧 規格先行・未實作（conversation_thread）：圖片/影片訊息內嵌縮圖 + Lightbox + 「在客戶媒體區檢視」跳轉、影片首幀 + PlayCircle + 時長 Badge + 內嵌播放器、檔案訊息（下載按鈕）、語音訊息（波形 + audio player）、Quick Reply Chip 群組、Flex Message 卡片渲染、「↓ 回到最新」浮動按鈕、Skeleton。
+> 差異說明：現行附件統一以「(附件)」文字連結呈現（新分頁開原檔）；技師訊息未獨立配色（並入 assistant）。
 
 ---
 
 ### Section: completion_report
 
-- **layout**: 全寬卡片，白色背景，`radius.lg`，`shadow.sm`；僅在工單狀態為 `completed`、`confirmed`、`archived` 時顯示
-- **visibility_rule**: 工單 status in [`completed`, `confirmed`, `archived`, `rework_required`] 時顯示；其他狀態隱藏此 Section
-- **elements**:
-  - section_header: H3 / 「完工報告」/ 右側：提交時間 (`text.body.sm`，`color.text.secondary`)
-  - photos_gallery: 照片區塊 / required：
-    - label: 「現場照片」
-    - thumbnails: 水平排列縮圖列表（每張 96x96px，`radius.md`，object-fit cover）
-    - 最多顯示 6 張，超出顯示「+{count}」覆蓋層
-    - 點擊縮圖 → Lightbox 全螢幕瀏覽，支援左右切換
-    - 照片分類標籤：「維修前」「維修中」「維修後」（Badge 覆蓋在縮圖左上角）
-  - service_items: 服務項目列表 / required：
-    - label: 「服務項目」
-    - 表格或列表：項目名稱 + 數量 + 單價 + 小計
-    - 底部合計列
-  - parts_used: 使用零件列表 / required：
-    - label: 「使用零件」
-    - 表格：零件名稱 + 零件編號 + 數量 + 單價 + 小計
-    - 若無使用零件：「本次服務未使用零件」灰字
-  - functional_test_results: 功能測試結果 / required：
-    - label: 「功能測試」
-    - 測試項目清單：每項為 CheckCircle (Emerald) 或 XCircle (Red) + 測試項目名稱
-    - 典型項目：指紋解鎖、密碼解鎖、卡片解鎖、APP 連線、自動上鎖、電池電壓
-  - customer_signature: 客戶簽名 / required：
-    - label: 「客戶簽名確認」
-    - 簽名圖片：max-width 320px，border 1px `color.border.default`，`radius.md`
-    - 簽署人姓名 + 簽署時間
-    - 若尚未簽名：「待客戶簽名」灰字 + Pending Badge
-  - satisfaction_rating: 客戶滿意度 / optional：
-    - label: 「客戶滿意度」
-    - 5 星評分：已填星 Amber (#F59E0B)，空星 Slate 200，星星大小 24px
-    - 評分文字：1=「非常不滿意」2=「不滿意」3=「一般」4=「滿意」5=「非常滿意」
-    - 客戶備註：`text.body.sm`，斜體
-    - 若尚未評分：「待客戶評分」灰字
-- **states**:
-  - default: 展開顯示所有區塊
-  - loading: Skeleton（圖片方塊 + 表格列 + 簽名區塊）
-  - incomplete: 部分資料尚未提交（如缺照片），缺失區塊顯示黃色 Warning 提示「技師尚未上傳現場照片」
-  - rework_note: 若狀態為 `rework_required`，頂部顯示紅色 Alert「此報告需要返工修正」+ 返工原因
-- **copy_constraints**: 服務項目名稱最多 30 字；零件名稱最多 20 字
+- **layout**: 全寬卡片，白色背景，padding `px-8 py-5`；**code 為常駐 Section**（未完工時顯示空狀態，非整段隱藏）
+- **visibility_rule**（code 現況）: 永遠渲染卡片。內部以 `done` 判斷是否完工：`completion_time` 存在 或 status ∈ {completed, billed, paid, closed}
+- **code 現況（CR-0100 真實化）**：完工資料直接取自 `WorkOrder` envelope 上的真實欄位，未完工誠實顯示空狀態，不再顯示寫死的假測試結果。
+- **elements（code 現況）**:
+  - section_header: ClipboardCheck icon（success 綠）+「完工報告」(20px, 600) / 右側完工時提交時間「提交時間：{completion_time}」
+  - 未完工（!done）: 虛線框「(尚未完工提示)」
+  - 已完工（done）顯示真實欄位：
+    - completion_status: 「完工狀態」label + `order.completion_status` 原值（有值才顯示）
+    - customer_final_amount: 「實收金額」label + `${order.customer_final_amount}`（有值才顯示，bold）
+    - completion_summary: 「施工摘要」label + `order.completion_summary`（技師 notes 抽出，whitespace-pre-wrap）；空則「(無摘要)」
+    - function_tests: 「功能測試」label + 逐項列表（有 `order.function_tests` 陣列才顯示）：
+      - 每項：結果符號 + 測項中文標籤 + 結果文字
+      - 結果符號/色：pass=「✓」綠、fail=「✗」紅、na=「—」灰
+      - 測項標籤映射（`FUNCTION_TEST_LABEL`）：fingerprint=指紋解鎖、password=密碼解鎖、card=卡片(RFID)、app=App/藍牙、mechanical_key=機械鑰匙、battery=電池電壓
+- **states（code 現況）**:
+  - not_completed: 空狀態提示框
+  - completed: 顯示真實完工欄位（依各欄位有值才渲染）
+- **copy_constraints**: 摘要 whitespace-pre-wrap 完整顯示
+
+> ➕ code 既有：completion_status、customer_final_amount、completion_summary、function_tests 逐項真實結果。
+> 🚧 規格先行・未實作（completion_report）：
+> - photos_gallery 現場照片 Gallery + Lightbox + 照片分類標籤（維修前/中/後）
+>   - 註：完工照片有上傳/驗證機制（CR-0096 後端 ≥3 硬閘 + 「施工中」格、CR-0107 雙簽名板），但**完工報告區尚未把照片以分類縮圖呈現**；相關 purpose 分組媒體展示能力在未接入的 `MediaGallery.tsx`（見 line_media_gallery §legal_hold 註）
+> - service_items 服務項目表（名稱/數量/單價/小計/合計）
+> - parts_used 使用零件表
+> - customer_signature 簽名圖片 + 簽署人/時間（簽名動作走 detail_header「電子簽章」按鈕 → SignatureModal 雙簽名板；但完工報告區尚未回顯簽名圖）
+> - satisfaction_rating 滿意度 5 星 + 評分文字 + 客戶備註（評分動作走「確認結案」ConfirmModal；報告區尚未回顯）
+> - rework_required 返工 Alert
+> - Skeleton
 
 ---
 
 ### Section: exception_records
 
-- **layout**: 全寬，垂直排列手風琴卡片（Accordion）；僅在工單有異常記錄時顯示
-- **visibility_rule**: 工單 exceptions 陣列長度 > 0 時顯示
-- **elements**:
-  - section_header: H3 / 「異常記錄」/ 右側：異常數量 Badge（Red 背景白字）
-  - exception_accordion: Accordion / required / 每個異常為一張可展開卡片：
-    - accordion_header: 水平排列，可點擊展開/摺疊：
-      - exception_type_badge: Badge md，依類型配色：
-        - 「範圍變更」(scope_change)：Amber Badge
-        - 「缺料申請」(material_request)：Amber Badge
-        - 「客戶投訴」(complaint)：Red Badge
-        - 「爭議」(dispute)：Red Badge
-        - 「退款」(refund)：Red Badge
-      - exception_title: `text.body.md`，font-weight 600，摘要描述
-      - exception_time: `text.body.sm`，`color.text.secondary`
-      - exception_status: Badge sm / 「處理中」(Amber) / 「已解決」(Emerald) / 「待處理」(Red)
-      - chevron: ChevronDown icon
-    - accordion_body（展開時）:
-      - 依異常類型顯示不同內容區塊：
-      - **scope_change（範圍變更）**：
-        - 原始範圍描述
-        - 變更後範圍描述
-        - 變更原因
-        - 價格影響：原價 → 新價（差額標示）
-        - 客戶確認狀態
-      - **material_request（缺料申請）**：
-        - 需求零件清單（名稱 + 規格 + 數量）
-        - 預計到貨時間
-        - 供應商資訊
-        - 當前處理狀態
-      - **complaint（客戶投訴）**：
-        - 投訴內容（完整文字）
-        - 投訴管道（LINE / 電話 / 其他）
-        - 處理紀錄（時間軸）
-        - 處理結果
-      - **dispute（爭議）**：
-        - 爭議方（客戶 / 技師 / 雙方）
-        - 爭議內容
-        - 雙方陳述
-        - 仲裁紀錄
-        - 仲裁結果
-      - **refund（退款）**：
-        - 退款原因
-        - 退款金額
-        - 原交易資訊
-        - 退款狀態（申請中 / 審核中 / 已退款 / 已拒絕）
-        - 審核紀錄
-- **states**:
-  - default: 所有手風琴摺疊（僅顯示 header）
-  - expanded: 點擊展開單一手風琴，其他保持摺疊（允許同時多開）
-  - loading: Skeleton accordion items
-  - empty: 此 Section 整體隱藏（不顯示空狀態）
-  - unresolved_highlight: 未解決的異常卡片左側邊框 3px Red
-- **copy_constraints**: 異常摘要最多 50 字；完整內容無截斷
+- **layout**: 全寬卡片，白色背景，padding `px-8 py-5`；**code 為常駐 Section**（無異常顯示空狀態提示，非整段隱藏）
+- **code 現況**：撈 M15 exception-cases API（`/exception-cases?work_order_id={id}`），以**簡單列表卡片**呈現（**非**可展開手風琴 / **非**按 5 種類型分區內容）。
+- **elements（code 現況）**:
+  - section_header: TriangleAlert icon（error 紅）+「異常記錄」(20px, 600)
+  - exception_list: 每個異常一張小卡（border + `--bg-page`）：
+    - severity_dot: 左側 8px 圓點，依 severity 配色（`EXCEPTION_SEVERITY_COLOR`）：critical/high=error 紅、medium=warning 橙、low=secondary 灰
+    - exception_type: 13px 600 / 中文標籤（`EXCEPTION_TYPE_LABEL`）：no_show=放鴿子、customer_absent=客戶不在、scope_change_rejected=加價拒絕、material_shortage=缺料、delay_severe=嚴重延遲、appearance_refused=拒絕施工、payment_failed=付款失敗、quality_complaint=品質客訴、schedule_conflict=排班衝突、other=其他
+    - status: 右側 11px disabled / 原始 `status` 字串
+    - description: optional 12px secondary / 異常描述
+    - created_at: 11px disabled / `YYYY/MM/DD HH:mm`
+- **states（code 現況）**:
+  - loading: 虛線框「載入中…」
+  - empty: 虛線框「(尚無異常提示)」（**非**整段隱藏）
+  - default: 異常列表
+- **copy_constraints**: 描述完整顯示
+
+> 🚧 規格先行・未實作（exception_records）：手風琴展開/摺疊、依 5 種類型（scope_change/material_request/complaint/dispute/refund）展開不同內容區塊（原始/變更範圍、價格影響、零件清單、投訴/爭議/退款明細）、異常數量 Badge、未解決左邊框高亮、Skeleton。
+> 差異說明：現行異常分類用 M15 exception_type 列舉（與 spec 5 類不同）；呈現為扁平列表卡，未做類型化展開內容。
 
 ---
 
 ### Section: device_status_panel（風格 E — 側邊欄頂部）
 
 - **layout**: 側邊欄卡片，白色背景，`radius.lg`，`shadow.sm`，padding `space.4` (16px)
-- **elements**:
-  - device_image: 鎖具圖片 / required：
-    - 容器：width 100%，aspect-ratio 4:3，背景 Slate 50，`radius.md`，居中顯示
-    - 圖片：object-fit contain，max-height 160px
-    - 若無圖片：顯示通用鎖具 icon 佔位（Lock icon，64px，Slate 300）
-  - device_model: `text.heading.md` (20px, 600) / required / 品牌 + 型號名稱
-  - device_serial: `text.body.sm`，`color.text.secondary` / optional / 序號「S/N: {serial_number}」
-  - metric_cards: 3 張小指標卡片 / required / 水平 3 等分排列，gap `space.2` (8px)：
-    - **battery_card**:
-      - 容器：Slate 50 背景，`radius.md`，padding `space.2`，text-align center
-      - icon: 電池圓環圖（SVG 圓環，36px）：
-        - 圓環填充比例 = 電量百分比
-        - 顏色：> 50% = Emerald (#10B981)；20-50% = Amber (#F59E0B)；< 20% = Red (#EF4444) + pulse 動畫
-        - 中心文字：電量數字 `text.body.sm`，bold
-      - label: 「電量」`text.caption`，`color.text.secondary`
-    - **connectivity_card**:
-      - 容器：同上
-      - icon: 圓形狀態燈（12px）：
-        - 在線：Emerald (#10B981) + 微弱光暈
-        - 離線：Slate 400 (#94A3B8)
-        - 連線中：Amber (#F59E0B) + 閃爍
-      - status_text: 「在線」(Emerald) / 「離線」(Red) / 「連線中」(Amber) / `text.body.sm`，bold
-      - label: 「連線」`text.caption`，`color.text.secondary`
-    - **last_operation_card**:
-      - 容器：同上
-      - icon: Clock icon，Slate 500
-      - time_text: 相對時間「{X} 分鐘前」/ `text.body.sm`
-      - label: 「最近操作」`text.caption`，`color.text.secondary`
-  - quick_actions: 操作按鈕組 / required / 垂直排列，gap `space.2`：
-    - remote_unlock_button: Button CTA (Amber) / full width / icon LockOpen / 「遠端開鎖」
-      - 點擊 → 二次確認 Modal「確定要遠端開鎖嗎？此操作將記錄在稽核日誌中。」
-      - 確認後 → Loading → 成功 Toast「已成功遠端開鎖」/ 失敗 Toast
-    - reset_password_button: Button Secondary / full width / icon Key / 「重置密碼」
-      - 點擊 → 二次確認 Modal「確定要重置此鎖具密碼嗎？原密碼將立即失效。」
-      - 確認後 → Loading → 成功顯示新密碼（可複製）
-  - device_offline_overlay: 設備離線時覆蓋層 / conditional：
-    - 半透明灰色覆蓋（opacity 0.6）+ 「設備離線，無法執行遠端操作」文字
-    - 操作按鈕 Disabled
-- **states**:
-  - default: 顯示設備資訊 + 即時指標 + 可操作按鈕
-  - loading: Skeleton（圖片佔位 + 3 個圓形 + 按鈕條）
-  - online: 三項指標正常顯示，按鈕可用
-  - offline: connectivity 顯示「離線」，quick_actions 按鈕 Disabled + overlay
-  - low_battery: 電量環變紅色 + pulse，若 < 10% 顯示 Warning Badge「電量極低」
-  - no_device: 「此工單未關聯設備資訊」灰字 + Lock icon
-  - unlocking: 遠端開鎖中，按鈕 Spinner + 「開鎖中...」
-- **copy_constraints**: 型號名稱最多 25 字；序號最多 20 字
+- **code 現況**：僅 **brand/model 為真實**（取自 WorkOrder），其餘指標與遠端操作全為**示意 / disabled**。
+- **elements（code 現況）**:
+  - device_image: 鎖具圖示佔位區（高 160px，`#F8FAFC` 背景，居中圓形 + 🔒 emoji 32px）— 🚧 真實鎖具圖片未實作
+  - device_model: 20px 600 / 「{brand} {model}」（真實）
+  - device_serial: 12px secondary / `S/N: {serial_number}`（有值才顯示）否則「S/N： —（示意）」
+  - metric_cards: 3 張小指標卡（**整組 opacity 70，全示意**）：
+    - battery_card: 灰邊圓 + 「—」/ label「電量（示意）」
+    - connectivity_card: 灰圓點 + 「—」/ label「連線（示意）」
+    - last_operation_card: Clock icon + 「—」/ label「最近操作（示意）」
+  - quick_actions: 2 顆按鈕（**皆 disabled**，tooltip「即將推出」）：
+    - remote_unlock_button: LockOpen icon +「遠端開鎖」/ accent 底 opacity 60 disabled
+    - reset_password_button: Key icon +「重置密碼」/ outline opacity 60 disabled
+- **states（code 現況）**:
+  - default: brand/model 真實，指標 + 操作全示意/disabled
+- **copy_constraints**: 型號名稱顯示完整
+
+> 🚧 規格先行・未實作（device_status_panel）：真實鎖具圖片、電量圓環（綠/黃/紅梯度 + pulse）、連線狀態燈（在線/離線/連線中）、最近操作相對時間、遠端開鎖 / 重置密碼（二次確認 + API + Toast + 新密碼顯示）、設備離線 overlay、low_battery 警示、no_device 狀態、Skeleton。
+> 差異說明：現行所有設備即時指標與遠端操作均為示意佔位，等設備整合模組接入後才真實化。
 
 ---
 
-### Section: customer_info_card
+### Section: customer_info_card（CR-0102 修正）
 
 - **layout**: 側邊欄卡片，白色背景，`radius.lg`，`shadow.sm`，padding `space.4`
-- **elements**:
-  - card_title: H4 (`text.heading.sm` 16px, 600) / 「客戶資訊」
-  - customer_name: `text.body.md`，font-weight 600，`color.text.primary` / 客戶姓名
-  - phone_number: `text.body.md`，`color.primary` (#2563EB)，可點擊（`tel:` 連結）/ icon Phone / 格式「09XX-XXX-XXX」
-  - address: `text.body.sm`，`color.primary`，可點擊（開啟 Google Maps 外部連結）/ icon MapPin / 完整地址，可換行
-  - risk_level_badge: Badge / optional / 風險等級：
-    - 「一般」：Slate Badge（大多數客戶）
-    - 「VIP」：Amber Badge（高價值客戶）
-    - 「高風險」：Red Badge（有投訴歷史）
-  - preferred_technician: `text.body.sm` / optional / 「偏好技師：{name}」/ 若無偏好：不顯示此行
-  - order_history_link: Link / `text.body.sm` / 「查看歷史工單 ({count} 筆) →」/ 導航至工單列表頁並帶上客戶篩選
-- **states**:
-  - default: 顯示客戶完整資訊
-  - loading: Skeleton（姓名 + 電話 + 地址）
-  - no_customer: 「客戶資訊未填寫」灰字
-- **copy_constraints**: 姓名最多 10 字；地址最多 50 字（可換行）
+- **code 現況（CR-0102 修正）**：display_name 來自關聯對話、phone 為工單 `customer_phone`、line_user_id 獨立標示**不當電話**。
+- **elements（code 現況）**:
+  - card_title: 16px 600 / 「客戶資訊」（載入失敗時右側紅色「(載入失敗)」Badge）
+  - customer_name: 14px 600 / `conversation.display_name`（空則 `—`）
+  - phone_number: Phone icon + 13px / `customer_phone`；**為空時顯示「未提供」灰字**（絕不拿 line_user_id 充當電話 — CR-0102 修正重點）
+  - line_id_row: ➕ code 既有 / MessageCircle icon + 「LINE ID {line_user_id 前 12 碼…}」font-mono（line_user_id 存在才顯示，獨立列，**非電話**）
+  - address: MapPin icon + 13px / 工單 `address`（純文字顯示，**非** Google Maps 連結）
+  - view_conversation_link: 「查看完整對話 →」連結到 `/conversations/{conversation_id}`
+- **states（code 現況）**:
+  - no_conversation: 「(無關聯對話提示)」灰字
+  - loading: 「載入中…」
+  - error: 「(載入失敗)」Badge + 錯誤文字
+  - default: 顯示客戶資訊
+- **copy_constraints**: line_user_id 截前 12 碼 + 「…」（hover title 為完整 ID）
+
+> ➕ code 既有：LINE ID 獨立列（CR-0102 修正，避免 line_user_id 被誤讀為電話）、查看完整對話連結。
+> 🚧 規格先行・未實作（customer_info_card）：地址點擊開 Google Maps、risk_level_badge（一般/VIP/高風險）、preferred_technician 偏好技師、order_history_link 歷史工單連結、Skeleton。
 
 ---
 
 ### Section: technician_info_card
 
 - **layout**: 側邊欄卡片，白色背景，`radius.lg`，`shadow.sm`，padding `space.4`
-- **elements**:
-  - card_title: H4 / 「指派技師」
-  - technician_avatar: Avatar 48px 圓形 / 技師頭像
-  - technician_name: `text.body.md`，font-weight 600 / 技師姓名
-  - rating_stars: 5 星評分，星星 16px，Amber 填充
-  - rating_number: `text.body.sm`，`color.text.secondary` / 「{rating}/5.0 ({review_count} 則評價)」
-  - skill_badges: Badge 群組 / 技能標籤：
-    - 每個技能一個 Badge，Slate 背景，`radius.sm`，`text.body.sm`
-    - 最多顯示 5 個，超出「+{count}」
-  - mini_map: 嵌入式小地圖 / optional / 高度 120px，`radius.md`：
-    - 顯示技師當前位置（Blue 圓點）
-    - 工單地址位置（Red 圓點）
-    - 兩點間灰色路線
-    - 地圖不可互動（僅展示），點擊開啟完整地圖
-  - distance_info: `text.body.sm`，`color.text.secondary` / 「距離工單地址 {distance} km」
-  - contact_button: Button Secondary sm / icon Phone / 「聯繫技師」/ 點擊開啟通訊選項（電話/LINE）
-  - unassigned_state: 未指派時的替代顯示：
-    - 灰色虛線邊框卡片
-    - UserPlus icon (48px，Slate 300)
-    - 「尚未指派技師」`text.body.md`，`color.text.secondary`
-    - 「手動指派」Button Primary / 點擊開啟 assign Modal
-- **states**:
-  - default: 顯示技師完整資訊 + 小地圖
-  - loading: Skeleton（Avatar 圓 + 姓名 + 星星 + 地圖灰塊）
-  - unassigned: 顯示 unassigned_state 替代內容
-  - technician_offline: 小地圖上技師圓點灰色 + 「技師目前離線」Badge
-  - map_loading: 小地圖區域 Skeleton + Spinner
-  - map_error: 小地圖區域灰色 + 「地圖載入失敗」小字
-- **copy_constraints**: 技師姓名最多 8 字；技能標籤每個最多 6 字
+- **code 現況**：有 `technician_id` 時真實 fetch `/technicians/{id}`。
+- **elements（code 現況）**:
+  - card_title: 16px 600 / 「指派技師」
+  - technician_avatar: 40px 圓形色塊（依 id hash 取 `AVATAR_PALETTE` 配色，**非**真實頭像圖）
+  - technician_name: 14px 600 / `technician.name`
+  - rating_stars: 5 星 / 16px / 依 `Math.floor(rating)` 填充 accent 色，其餘灰
+  - rating_number: 12px secondary / `rating.toFixed(1)`（**無** 評價則數）
+  - phone_row: Phone icon + font-mono 13px / `technician.phone`
+  - skill_badges: Badge 群組 / 技能（取前 5 個）/ `#F1F5F9` 背景
+  - unassigned_state: 無 technician_id 時 / 「(尚未指派提示)」灰字（**無** UserPlus icon / 「手動指派」按鈕——指派按鈕在 detail_header）
+- **states（code 現況）**:
+  - default: 顯示技師資訊
+  - unassigned: 顯示未指派文字
+  - loading: 「載入中…」
+  - error: 「(載入失敗)」Badge + `#{id 前 8 碼}` + 錯誤文字
+- **copy_constraints**: 技能取前 5 個
+
+> 🚧 規格先行・未實作（technician_info_card）：真實頭像圖、評價則數、mini_map（技師/工單位置 + 路線）、distance_info 距離、contact_button 聯繫技師、技師離線狀態、Skeleton。
+> 差異說明：未指派時不在側欄提供指派入口，改由 detail_header「手動指派/重新指派」按鈕統一處理。
 
 ---
 
 ### Section: quotation_card
 
 - **layout**: 側邊欄卡片，白色背景，`radius.lg`，`shadow.sm`，padding `space.4`
-- **elements**:
-  - card_title: H4 / 「報價明細」
-  - price_breakdown: 列表 / required：
-    - 每行：項目名稱 (`text.body.sm`，左對齊) + 金額 (`text.body.sm`，右對齊，等寬字體)
-    - 典型項目：
-      - 「工資」NT$ {amount}
-      - 「零件費」NT$ {amount}
-      - 「出勤費」NT$ {amount}
-      - 「加急費」NT$ {amount}（若有）
-      - 「折扣」-NT$ {amount}（紅色，若有）
-    - Divider 線
-    - total_row: 「合計」(`text.body.md`，bold) + NT$ {total} (`text.heading.sm`，bold，`color.text.primary`)
-  - payment_status: Badge / required：
-    - 「待報價」：Slate Badge
-    - 「待付款」：Amber Badge
-    - 「已付款」：Emerald Badge
-    - 「已退款」：Red Badge
-    - 「部分退款」：Amber Badge
-  - payment_method: `text.body.sm`，`color.text.secondary` / optional / 「付款方式：{method}」
-  - invoice_link: Link / `text.body.sm` / 「查看發票 →」/ 開啟發票 PDF / optional
-  - no_quotation_state: 未報價時：
-    - 「尚未建立報價」灰字 + Receipt icon
-- **states**:
-  - default: 顯示完整價格明細
-  - loading: Skeleton（4 行 + 合計行）
-  - no_quotation: 顯示 no_quotation_state
-  - payment_overdue: payment_status Badge Red + 「逾期未付款」提示文字
-- **copy_constraints**: 項目名稱最多 15 字；金額格式「NT$ X,XXX」
+- **code 現況**：僅顯示**估價（estimated_reward，真實）**一行 + 零件費/出勤費/折扣拆項示意提示。
+- **elements（code 現況）**:
+  - card_title: 16px 600 / 「報價明細」
+  - estimate_row: 「估價」label + `formatPrice(estimated_reward)`（font-mono，`NT$ X,XXX`；空值 `—`）
+  - info_hint: Info icon + 灰底提示「零件費 / 出勤費 / 折扣明細將於派工計費模組接入後顯示。」
+- **states（code 現況）**:
+  - default: 顯示估價 + 提示
+- **copy_constraints**: 金額格式 `NT$ X,XXX`
+
+> 🚧 規格先行・未實作（quotation_card）：完整 price_breakdown（工資/零件費/出勤費/加急費/折扣/合計）、payment_status（待報價/待付款/已付款/已退款/部分退款）、payment_method、invoice_link 發票、payment_overdue、Skeleton。
+> 差異說明：細項報價拆項待派工計費模組；現行僅呈現估價單值。完整成本拆項見下方 ➕ cost_detail_panel。
+
+---
+
+### Section: cost_detail_panel ➕ code 既有（CR-0027）
+
+- **layout**: 側邊欄卡片，白色背景，`radius.lg`，`shadow.sm`，padding `space.4`
+- **section_purpose**: 後台成本拆項（讀 `/work-orders/{id}/quote-items`），快照標題「成本明細」
+- **elements（code 現況）**:
+  - card_title: 16px 600 / 「成本明細」/ 右側：若任一品項 `is_mock` 為真 → amber「(示意)」Badge
+  - line_items: 每行：`{item_name} ×{quantity}`（左）+ 後台單價 `(內部) {unit_price}`（中，僅 unit_price 存在時，**僅後台可見**）+ 客戶價 `formatPrice(customer_price)`（右，font-mono）
+  - final_row: border 分隔 / 「最終金額」+ `formatPrice(customer_final_amount)`
+  - cost_hidden_note: `cost_visible` 為 false 時顯示成本隱藏小字
+  - download_document_button: 「下載電子工單 PDF」按鈕 → `api.download('/work-orders/{id}/document')`（檔名 `work-order-{id}.pdf`）
+- **states（code 現況）**:
+  - empty: 「(尚無成本拆項提示)」（快照：「尚未建立成本拆項」）
+  - loading: 「載入中…」
+  - error: 錯誤文字
+  - default: 拆項列表 + 最終金額 + 下載按鈕
+- **copy_constraints**: 金額 font-mono；unit_price 僅後台角色可見（客戶端不顯示）
+
+---
+
+### Section: work_order_fields_panel ➕ code 既有（CR-0026 / 0043 / 0047，快照標題「公單資訊」）
+
+- **layout**: 側邊欄卡片，白色背景，`radius.lg`，`shadow.sm`，padding `space.4`
+- **section_purpose**: 標準化案件欄位（有值才顯示該行；`WorkOrderFieldsPanel`）
+- **elements（code 現況，依序，有值才 push）**:
+  - 客戶姓名（customer_name）、聯絡電話（customer_phone）— CR-0043 Tier①
+  - 服務類別（service_category）：install=安裝 / warranty_in=保內 / warranty_out=保外 / repair=維修
+  - 問題類型（problem_type）
+  - 保固（warranty_status）：in_warranty=保固內 / out_warranty=保固外 / not_applicable=不適用
+  - 保固到期日（warranty_expiry_date，CR-0047 自動算）
+  - 門型（door_type）、門厚（door_thickness）、購買地點/經銷商（dealer）、安裝日期（install_date）
+  - 安裝環境（rain_exposure）：indoor=室內 / outdoor_covered=室外有遮雨 / outdoor_exposed=室外無遮雨
+  - 付款方式（payment_method）：cash=現金 / bank_transfer=轉帳 / credit_card=刷卡 / line_pay=LINE Pay
+  - 特殊門型加價（special_door_surcharge 為真時顯示「是」）
+  - 完工狀態（completion_status）：pending_report=待完工回報 / pending_photos=待照片 / pending_customer_confirm=待客戶確認 / pending_cs_review=待客服審核 / completed=已完工 / closed=已結案
+  - 狀態原因（status_reason）
+- **states（code 現況）**:
+  - empty: 「(無欄位提示)」
+  - default: label / value 兩欄列表（label 左 secondary，value 右 600）
+- **copy_constraints**: value 右對齊，可換行
 
 ---
 
 ### Section: action_panel
 
-- **layout**: 側邊欄底部固定卡片（sticky bottom within sidebar），白色背景，`radius.lg`，`shadow.sm`，padding `space.4`，border-top 2px `color.border.default`
-- **elements**: 依工單當前狀態動態顯示不同按鈕組合：
+- **code 現況（重要差異）**：實際可用的 contextual actions **位於 detail_header 的動態按鈕列**（見 §detail_header `action_buttons_row`），由各 from-set 依工單 status 過濾顯示；**側欄底部的 action_panel 卡片為 disabled 佔位**（單顆「標記異常」disabled +「派工模組接入後可執行操作」）。
 
-  - **status = `created`（已建立）**：
-    - primary_action: Button Primary full-width / icon UserPlus / 「手動指派」/ 點擊開啟 assign Modal
-    - secondary_action: Button Danger Ghost full-width / 「取消工單」/ 確認 Modal
+#### 側欄 action_panel（disabled 佔位）— 🚧 規格先行・未實作
 
-  - **status = `assigned`（已派工）**：
-    - primary_action: Button CTA (Amber) full-width / icon Bell / 「催促技師」/ 點擊 → 發送催促通知 + Toast「已發送催促通知」
-    - secondary_action: Button Secondary full-width / icon RefreshCcw / 「重新派工」/ 開啟 assign Modal（重新選技師）
-    - tertiary_action: Button Danger Ghost full-width / 「取消工單」/ 確認 Modal
+- **layout**: 側邊欄底部卡片，白色背景，`radius.lg`，`shadow.sm`，border-top 2px
+- mark_issue_button: TriangleAlert icon +「標記異常」/ accent 底 opacity 60 **disabled**（tooltip「即將推出」）
+- hint_text: 「派工模組接入後可執行操作」
 
-  - **status = `accepted`（已接受）**：
-    - info_text: `text.body.sm`，`color.text.secondary` / 「技師已接受工單，等待前往現場」
-    - secondary_action: Button Secondary full-width / 「重新派工」（特殊情況下更換技師）
+#### detail_header 動態 action 按鈕列（code 現況真正可用）
 
-  - **status = `in_progress`（進行中）**：
-    - primary_action: Button CTA (Amber) full-width / icon AlertTriangle / 「標記異常」/ 點擊開啟異常類型選擇 Modal：
-      - 「範圍變更」(scope_change)
-      - 「缺料」(material_pending)
-      - 「延遲」(delayed)
-      - 需填寫備註
-    - info_text: `text.body.sm` / 「技師正在現場作業中」
+按鈕由各 from-set 依工單 status 過濾（7 值狀態流：inquiring/assigned/accepted/in_progress/completed/closed/cancelled，及完整報價列舉的中間態）：
 
-  - **status = `scope_changed` / `material_pending` / `delayed`（異常狀態）**：
-    - exception_info: Alert Warning / 異常描述摘要
-    - primary_action: Button Primary full-width / 「恢復進行中」/ 確認 Modal
+| 按鈕 | 顯示條件（from-set） | 樣式 / icon | 行為 |
+|---|---|---|---|
+| 接受派工 | {assigned} | primary 藍 / CheckCircle2 | 直接 `POST :accept` |
+| 手動指派 / 重新指派 | {inquiring, assigned}（assign）或 {accepted, in_progress}（reassign） | outline 藍 / UserPlus | 開 AssignModal；有技師→「重新指派」；reassign 走 `:reassign`（不破壞 wo_id），其餘走 `:assign` |
+| 取消工單 | 多數進行中狀態（CANCEL_FROM） | outline 紅 / X | 開 CancelModal（6 階段取消 v2，ADR-0102/FR-0052；含 reason_code/initiator_role/X-Approver SoD/goodwill_waiver） |
+| 升級工單 | 多數進行中狀態（ESCALATE_FROM） | outline 橙 / Flag | 開 EscalateModal（operations_manager / tenant_admin）走 `:escalate` |
+| 確認結案 | {completed} | 實心 #0EA5E9 / Star | 開 ConfirmModal（5 星評分 + 回饋）走 `:confirm` |
+| 電子簽章 | {accepted..completed}（SIGNATURE_FROM） | outline 紫 #7C3AED / PenLine | 開 SignatureModal（客戶 + 技師雙簽名板 base64 + 選填 GPS）走 `/signature` |
+| 送出改期 | 排程相關（RESCHEDULE_FROM） | outline #0EA5E9 / CalendarClock | 開 RescheduleModal（1-3 時段提案 + 客戶訊息 + 通道）走 `/reschedule:propose`（CR-0007） |
+| 直接改約 | 排程相關（RESCHEDULE_FROM） | outline 靛 #4338CA / CalendarClock | 開 RequestRescheduleModal（單一新時間 + 原因）走 `/reschedule-request` |
+| 通知延遲 | **常駐** | outline 橙 #B45309 / TriangleAlert | 開 NotifyDelayModal（延遲 5-300 分 + 原因）走 `/notify-delay` |
+| 缺料回報 | **常駐** | outline 綠 #065F46 / Upload | 開 MaterialRequestModal（品牌/型號/數量 1-20 項 + 緊急度 now/today/tomorrow + 備註）走 `/material-request` |
 
-  - **status = `completed`（已完工）**：
-    - primary_action: Button Primary full-width / icon CheckCircle / 「確認完工」/ 確認 Modal「確認完工後將進入客戶確認流程」
-    - secondary_action: Button Danger full-width / icon RotateCcw / 「要求返工」/ 開啟返工 Modal：
-      - 選擇返工原因（下拉）
-      - 填寫返工說明（Textarea）
-      - 確認後工單狀態變更為 `rework_required`
+- **states（code 現況）**:
+  - default: 依 status 顯示對應按鈕（通知延遲 / 缺料回報常駐）
+  - action_pending: 點擊後該批按鈕全 disabled（`actionPending !== null`）
+  - action_success: 底部置中綠色 Toast（2.4s 自動消失）+ `setOrder` 更新（header / SLA / 按鈕列重算）
+  - action_failure: 按鈕列下方紅色錯誤條（errorCode + status + message）
+- **copy_constraints**: 按鈕文字簡短
 
-  - **status = `rework_required`（返工中）**：
-    - exception_info: Alert Danger / 「此工單需要返工」+ 返工原因
-    - info_text: 「等待技師重新處理」
-
-  - **status = `confirmed`（已確認）**：
-    - success_info: Alert Success / 「工單已確認完工」
-    - secondary_action: Button Secondary full-width / 「歸檔」/ 工單狀態變更為 `archived`
-
-  - **status = `disputed`（爭議中）**：
-    - exception_info: Alert Danger / 「此工單存在爭議」
-    - primary_action: Button Danger full-width / icon Gavel / 「進入仲裁」/ 導航至爭議仲裁頁面 `/admin/disputes/{dispute_id}`
-    - secondary_action: Button Secondary full-width / 「查看爭議詳情」
-
-  - **status = `cancelled`（已取消）**：
-    - info_text: Alert Slate / 「此工單已取消」+ 取消原因
-    - 無操作按鈕
-
-  - **status = `archived`（已歸檔）**：
-    - info_text: Alert Slate / 「此工單已歸檔」
-    - 無操作按鈕
-
-- **states**:
-  - default: 依當前狀態顯示對應按鈕
-  - loading: Skeleton 按鈕（2 個長條）
-  - action_processing: 點擊按鈕後 → 按鈕變為 Loading Spinner + Disabled
-  - action_success: Toast Success + 頁面即時刷新（SLA timeline + status_badge + work_timeline 新增紀錄）
-  - action_failure: Toast Error「操作失敗：{error_message}」+ 按鈕恢復可用
-  - permission_denied: 無權限操作 → 按鈕 Disabled + tooltip「你沒有權限執行此操作」
-- **copy_constraints**: 按鈕文字最多 6 字；info_text 最多 40 字
+> 🚧 規格先行・未實作（action_panel 設計差異）：
+> - 側欄 sticky bottom action panel（現為 disabled 佔位）
+> - 「催促技師」（spec assigned CTA）— code 無此按鈕（改以通知延遲 / 重新指派）
+> - 「標記異常」（spec in_progress 主操作）— 側欄按鈕 disabled；異常實際透過缺料回報 / 升級 / 取消等專門按鈕
+> - 「要求返工」「恢復進行中」「歸檔」「進入仲裁」「查看爭議詳情」— code 未提供
+> - 各狀態的 info_text / Alert 區塊（已取消 / 已歸檔 / 爭議中 / 返工中說明）
+> - permission_denied tooltip、Skeleton、WebSocket 即時刷新（現為 setOrder 同步更新）
+>
+> ➕ code 既有（spec 原未涵蓋）：升級工單、電子簽章（雙簽名板 + GPS）、送出改期（多時段提案）、直接改約、通知延遲、缺料回報。
 
 ---
 
 ## [INTERACTION & STATE FLOW]
 
-### 主要互動流程
+> **code 現況總述**：頁面用 React `useState` + `useEffect`（**非 TanStack Query / Zustand**）。主工單一次 GET，各子區塊各自獨立 fetch；無 WebSocket，所有更新靠 action handler 的 `setOrder(res.data)` 同步。全端點為 **tenant-scoped v2**（`tenantPath()` 注入 `/tenants/{tid}` 前綴）。
+
+### 主要互動流程（code 現況）
 
 1. **頁面載入**：
-   - 從 URL 取得 `[id]` → 並行請求：
-     - GET `/api/v1/work-orders/{id}`（工單主資料 + 客戶 + 技師 + 報價 + 設備）
-     - GET `/api/v1/work-orders/{id}/timeline`（歷程時間軸）
-     - GET `/api/v1/work-orders/{id}/exceptions`（異常記錄）
-   - 所有資料載入完成 → 渲染頁面
-   - 建立 WebSocket 連線（訂閱此工單的即時更新）
+   - 從 URL 取得 `[id]` → GET `tenantPath(/work-orders/{id})` → `setOrder`
+   - 子區塊各自 fetch：ProblemCardSummary（`/problem-cards/{pc_id}`）、LineMediaGallery + ConversationThread（`/conversations/{conv_id}/messages`）、ExceptionRecords（`/exception-cases?work_order_id=`）、側欄（technician / conversation / quote-items）
+   - **無 WebSocket 連線**
 
-2. **狀態操作（Action Panel 按鈕）**：
-   - 點擊操作按鈕 → 顯示確認 Modal（若需要）
-   - 確認 → PATCH `/api/v1/work-orders/{id}/status` → Loading
-   - 成功 → Toast Success + 即時更新：
-     - detail_header: status_badge 變更 + SLA timeline 節點推進
-     - work_timeline: 新增歷程記錄（WebSocket 或手動 refetch）
-     - action_panel: 按鈕組合依新狀態切換
-   - 失敗 → Toast Error + 按鈕恢復
+2. **狀態操作（detail_header 按鈕列）**：
+   - 點擊按鈕 → accept 直接 POST；其餘開對應 Modal
+   - 各 handler 走專屬 tenant-scoped 端點（見下表），**非** 統一 `PATCH /status`
+   - 成功 → `setOrder(res.data)`（或部分端點回非 envelope 時重新 GET）+ 底部綠色 Toast + 關閉 Modal
+   - 失敗 → 按鈕列下方紅色 actionError 條 + 按鈕恢復
 
-3. **手動指派（created 狀態）**：
-   - 點擊「手動指派」→ 開啟 assign Modal
-   - Modal 載入候選技師 → 選擇 → 指派
-   - 成功 → Modal 關閉 + 狀態變更為 `assigned` + technician_info_card 更新
+3. **指派 / 重新指派**：
+   - 開 AssignModal → GET `tenantPath(/dispatch:candidates?work_order_id=)` 載入候選（含 score / skill_match / distance_km / eta）
+   - 選技師 + reason_code（必填）+ reason_text → reassign 走 `:reassign`（reason 必填），其餘走 `:assign`
 
-4. **標記異常（in_progress 狀態）**：
-   - 點擊「標記異常」→ 選擇異常類型 + 填寫備註
-   - 確認 → 狀態變更為對應異常狀態 + exception_records 新增記錄
+4. **取消（CancelModal）**：6 階段取消 v2 — reason_code + initiator_role + X-Approver（SoD 覆核，必填且須異於發起人）+ goodwill_waiver → `POST /tenants/{tid}/work-orders/{id}/cancel`，回 CancellationResult（費用拆項 Toast），本地標記 status=cancelled
 
-5. **確認完工 / 要求返工（completed 狀態）**：
-   - 「確認完工」→ 狀態變更為 `confirmed`
-   - 「要求返工」→ 填寫返工原因 → 狀態變更為 `rework_required` + exception_records 新增記錄
+5. **完工 / 確認 / 簽章**：
+   - 完工 CompleteModal（摘要必填 + 實收金額選填）→ `:complete`
+   - 確認 ConfirmModal（5 星 + 回饋）→ `:confirm`
+   - 簽章 SignatureModal（客戶 + 技師雙簽名板上傳 base64 + 選填 GPS）→ `/signature`
 
-6. **遠端設備操作**：
-   - 點擊「遠端開鎖」/「重置密碼」→ 二次確認 Modal
-   - 確認 → API 請求 → 結果 Toast
-   - 操作記錄自動記入 work_timeline 與設備稽核日誌
+6. **設備遠端操作**：🚧 未實作（device panel 按鈕 disabled）
 
-7. **瀏覽客戶上傳媒體（LINE Media Gallery）**：
-   - 進入頁面 → 並行請求 GET `/api/v1/work-orders/{id}/media` 取得 issue 包列表
-   - 點擊 bundle_header → 展開媒體縮圖網格（允許同時多個展開）
-   - 切換 filter_tabs（全部/圖片/影片/Issue 包）→ 前端即時過濾縮圖，不重新發送 API
-   - 點擊圖片縮圖 → 開啟 Lightbox（與 conversation_thread 共用元件）；左右鍵切換同 bundle 內其他圖片
-   - 點擊影片縮圖 → 開啟內嵌播放器 Modal（play/pause/seek/音量/倍速 0.5-2x/下載）；Escape 關閉
-   - 點擊檔案/語音縮圖 → 直接下載 / 展開 audio player
-   - 點擊「下載此包」→ POST `/api/v1/work-orders/{id}/media/bundles/{bundle_id}/download` → Server 打包 zip → 回傳 signed URL → 瀏覽器觸發下載
-   - 點擊「轉傳給技師」→ 二次確認 Modal → POST `/api/v1/work-orders/{id}/media/bundles/{bundle_id}/forward` → Toast 成功/失敗
-   - 點擊 ai_analysis_block 的「→ 關聯 ProblemCard」→ 頁面平滑捲動至 problem_card_summary 並背景高亮 2s
-   - 點擊 conversation_thread 圖片/影片氣泡的「在客戶媒體區檢視」→ 捲動至 line_media_gallery 並高亮對應縮圖 2s
+7. **瀏覽客戶上傳媒體**：
+   - 由關聯對話 `conversation_id` → GET `/conversations/{id}/messages?limit=100` → 前端過濾 image/video 顯示縮圖
+   - 點縮圖 → **新分頁開啟原圖**（非 Lightbox / 非打包下載 / 非轉傳）
 
-8. **對話記錄瀏覽**：
-   - 捲動瀏覽 LINE 對話 → 點擊圖片 → Lightbox 放大
-   - 「在新視窗開啟」→ 全螢幕對話視窗
+8. **對話記錄瀏覽**：GET messages（reverse 為正序）顯示；附件以「(附件)」連結新分頁開啟；「在新視窗開啟」→ `/conversations/{id}`
 
-9. **異常記錄互動**：
-   - 點擊手風琴 header → 展開/摺疊詳情
-   - 可同時展開多個異常記錄
+9. **異常記錄**：GET `/exception-cases?work_order_id=` → 扁平列表卡（無手風琴展開）
 
-10. **即時更新（WebSocket）**：
-    - 工單狀態變更 → 全頁面相關區塊即時更新
-    - 新歷程記錄 → timeline 頂部插入新項目（滑入動畫 + 高亮 2s）
-    - 設備狀態變更 → device_status_panel 指標更新
-    - 技師位置變更 → mini_map 位置點移動
-    - 客戶於 LINE 新增上傳 → line_media_gallery 對應 bundle 內新增縮圖（滑入 + 高亮 2s）；若為新 bundle 則整張卡片從頂部插入
+10. **改期 / 延遲 / 缺料**：
+    - 送出改期 RescheduleModal（1-3 時段 + 客戶訊息 + 通道）→ `/reschedule:propose`
+    - 直接改約 RequestRescheduleModal → `/reschedule-request`（回非 envelope，重新 GET）
+    - 通知延遲 NotifyDelayModal（5-300 分）→ `/notify-delay`
+    - 缺料回報 MaterialRequestModal（1-20 項）→ `/material-request`
+
+11. **下載電子工單 PDF**：側欄 cost_detail 「下載電子工單 PDF」→ `api.download(/work-orders/{id}/document)`
+
+> 🚧 規格先行・未實作（互動）：WebSocket 即時更新、標記異常 Modal、要求返工、遠端設備操作、媒體 Lightbox / 打包下載 / 轉傳給技師、ai_analysis 跳轉高亮、conversation 圖片跳轉媒體區、異常手風琴展開。
 
 ### RWD 行為差異
 
 | 斷點 | 佈局 | 差異說明 |
 |------|------|---------|
-| Desktop LG (> 1440px) | 左 2/3 + 右 1/3 雙欄 | 完整體驗，sidebar 固定可見 |
-| Desktop (1024-1440px) | 左 2/3 + 右 1/3 雙欄 | sidebar 稍窄（min-width 320px） |
-| Tablet (768-1023px) | 全寬單欄 + sidebar 變為底部上滑面板 (BottomSheet) | 主內容全寬；sidebar 內容收入 BottomSheet，三段式高度：Collapsed (顯示 action_panel) → Half (50%) → Full (90%)；預設 Collapsed |
-| Mobile (< 768px) | 全寬單欄堆疊 | sidebar 各卡片堆疊在主內容下方；action_panel 固定底部 (sticky bottom 56px)；ProblemCard 預設摺疊；conversation_thread max-height 300px；mini_map 隱藏 |
+| Desktop | 左主內容（flex-1）+ 右固定側欄 380px | code 現況：側欄寬度固定 380px（`w-[380px] flex-shrink-0`），**非** 2/3 比例；側欄自身 overflow-auto |
+| Tablet / Mobile | 🚧 規格先行・未實作 | code 為固定雙欄佈局，**未見** BottomSheet / 單欄堆疊 / sticky bottom action panel / ProblemCard 摺疊等 RWD 分支 |
 
-### 資料更新策略
+### 資料更新策略（code 現況）
 
-- **工單主資料**：TanStack Query，staleTime 60 秒，背景 refetch on window focus
-- **時間軸**：初次載入 + WebSocket 增量更新
-- **設備狀態**：30 秒輪詢 + WebSocket 事件
-- **技師位置**：30 秒輪詢（僅 mini_map 使用）
-- **WebSocket 即時推送**：
-  - Event: `work_order.{id}.status_changed` → 更新 header + action_panel + timeline
-  - Event: `work_order.{id}.timeline_added` → timeline 新增項目
-  - Event: `work_order.{id}.exception_created` → exception_records 新增
-  - Event: `device.{device_id}.status_updated` → device_status_panel 更新
-- **Zustand Client State**：
-  - `expandedSections: Set<string>` — 展開的可摺疊區塊
-  - `lightboxState: { open: boolean, images: string[], currentIndex: number }` — 圖片瀏覽器
-  - `assignModalOpen: boolean` — 指派 Modal 狀態
-  - `confirmModalState: { open: boolean, action: string, payload: any }` — 確認 Modal
+- **狀態管理**：React `useState` + `useEffect`（**非** TanStack Query / Zustand）
+- **工單主資料**：頁面載入 GET 一次；action 成功後 `setOrder(res.data)` 就地更新
+- **子區塊**：各元件 useEffect 內獨立 fetch（problem-card / messages / exception-cases / technicians / quote-items）
+- **無 WebSocket、無輪詢**
+
+> 🚧 規格先行・未實作（資料策略）：TanStack Query staleTime / window-focus refetch、WebSocket 即時推送（status_changed / timeline_added / exception_created / device.status_updated / technician.location_updated / media_added）、設備/技師位置輪詢、Zustand client state。
 
 ---
 
 ## [DATA & API]
 
 - **uses_api**: true
-- **endpoints**:
-  - GET `/api/v1/work-orders/{id}` — 取得工單完整資料（含客戶、技師、設備、報價、ProblemCard 摘要）
-    - Response: `{ work_order: WorkOrderDetail }`
-    - WorkOrderDetail 包含：`id, wo_number, status, customer, technician, device, quotation, problem_card_summary, sla_deadline, sla_status, created_at, updated_at`
-  - GET `/api/v1/work-orders/{id}/timeline` — 取得工單歷程時間軸
-    - Query params: `page`, `page_size`, `event_type`
-    - Response: `{ events: TimelineEvent[], total: number }`
-    - TimelineEvent: `{ id, event_type, title, detail, actor: { type, name }, timestamp, metadata: { match_score?, match_factors?, exception_type? }, attachments?: [] }`
-  - GET `/api/v1/work-orders/{id}/exceptions` — 取得工單異常記錄
-    - Response: `{ exceptions: ExceptionRecord[] }`
-    - ExceptionRecord: `{ id, type, title, status, created_at, detail: { ... type-specific fields } }`
-  - GET `/api/v1/work-orders/{id}/conversation` — 取得關聯 LINE 對話記錄
-    - Response: `{ messages: ConversationMessage[] }`
-    - ConversationMessage: `{ id, sender: { type, name }, content_type, content, timestamp, metadata? }`
-  - GET `/api/v1/work-orders/{id}/media` — 取得工單關聯的客戶上傳媒體與 issue 包
-    - Response: `{ bundles: IssueBundle[] }`
-    - IssueBundle: `{ id, trigger_text, submitted_at, source: 'line', channel_message_ids: string[], media_count: { photo, video, file, audio }, media: MediaItem[], ai_analysis?: AIAnalysis }`
-    - MediaItem: `{ id, type: 'image'|'video'|'file'|'audio', url, thumbnail_url?, file_name, mime_type, duration_sec?, size_bytes, source_tag: 'initial'|'supplementary'|'ai_followup', is_expired, is_backed_up, uploaded_at }`
-    - AIAnalysis: `{ keywords: string[], linked_problem_card_id?: string, vision_model?: { brand: string, model: string, confidence: number } }`
-  - POST `/api/v1/work-orders/{id}/media/bundles/{bundle_id}/download` — 打包下載 issue 包（zip）
-    - Response: `{ download_url: string, expires_at: string, size_bytes: number }`
-    - download_url 為 signed URL，15 分鐘有效
-  - POST `/api/v1/work-orders/{id}/media/bundles/{bundle_id}/forward` — 轉傳 issue 包至指派技師 LINE
-    - Body: `{ target: 'assigned_technician' | technician_id, message?: string }`
-    - Response: `{ success: boolean, pushed_message_id?: string }`
-  - GET `/api/v1/work-orders/{id}/completion-report` — 取得完工報告
-    - Response: `{ report: CompletionReport }`
-  - PATCH `/api/v1/work-orders/{id}/status` — 變更工單狀態
-    - Body: `{ status: string, note?: string, exception_type?: string, rework_reason?: string }`
-    - Response: `{ success: boolean, work_order: WorkOrderDetail }`
-  - PATCH `/api/v1/work-orders/{id}/assign` — 指派技師
-    - Body: `{ technician_id: string }`
-    - Response: `{ success: boolean, work_order: WorkOrderDetail }`
-  - GET `/api/v1/work-orders/dispatch/candidates/{id}` — 取得候選技師
-    - Response: `{ candidates: TechnicianCandidate[] }`
-  - POST `/api/v1/work-orders/{id}/notify-technician` — 催促技師通知
-    - Body: `{ notification_type: 'reminder' }`
-    - Response: `{ success: boolean }`
-  - POST `/api/v1/devices/{device_id}/remote-unlock` — 遠端開鎖
-    - Response: `{ success: boolean, operation_id: string }`
-  - POST `/api/v1/devices/{device_id}/reset-password` — 重置密碼
-    - Response: `{ success: boolean, new_password: string }`
-  - GET `/api/v1/devices/{device_id}/status` — 取得設備即時狀態
-    - Response: `{ battery_level, connectivity, last_operation_at, is_online }`
-- **WebSocket Events**:
-  - Channel: `ws://api/v1/ws/work-orders/{id}`
-  - Events:
-    - `work_order.status_changed`: `{ old_status, new_status, actor, timestamp }`
-    - `work_order.timeline_added`: `{ event: TimelineEvent }`
-    - `work_order.exception_created`: `{ exception: ExceptionRecord }`
-    - `device.status_updated`: `{ battery_level, connectivity, last_operation_at }`
-    - `technician.location_updated`: `{ lat, lng, timestamp }`
-    - `work_order.media_added`: `{ bundle_id, is_new_bundle: boolean, bundle?: IssueBundle, media?: MediaItem }` — 客戶於 LINE 新上傳媒體時即時推送（新 bundle 時帶完整物件，既有 bundle 追加時僅帶單筆 media）
-- **error_cases**:
-  - 網路錯誤：頂部 Warning Banner + 使用快取資料
-  - API 401 Unauthorized：導向登入頁
-  - API 403 Forbidden：Toast Error「你沒有權限查看此工單」+ 3 秒後導回列表
-  - API 404 Not Found：全頁 404 狀態（「找不到工單 {id}，可能已被刪除」+ 「返回列表」按鈕）
-  - API 409 Conflict：Toast Error「工單狀態已被其他人變更，頁面將自動刷新」+ 自動 refetch
-  - API 500 Server Error：Toast Error + 重試按鈕
-  - WebSocket 斷線：頂部 Warning Banner + 自動重連
-  - 設備操作失敗：Toast Error「遠端開鎖失敗：設備無回應，請確認設備連線狀態」
-  - 設備離線：操作按鈕 Disabled + tooltip「設備離線，無法執行遠端操作」
+- **endpoint 慣例（code 現況）**：除少數標明者外，全走 `tenantPath()` 注入的 **tenant-scoped v2** 路徑（`/tenants/{tid}/...`）。狀態轉移用 RPC 風格 `:verb`（如 `:accept`），非 `PATCH /status`。回應多為 `WorkOrderEnvelope = { data: WorkOrder }`。
+- **endpoints（code 實際呼叫）**:
+  - GET `tenantPath(/work-orders/{id})` — 工單主資料 → `WorkOrderEnvelope`（WorkOrder 含 document_number / status / brand / model / address / district / customer_name / customer_phone / serial_number / scheduled_time / actual_arrival / completion_time / completion_status / completion_summary / customer_final_amount / function_tests[] / estimated_reward / service_category / problem_type / warranty_status / sla_deadline / problem_card_id 等）
+  - GET `tenantPath(/problem-cards/{pc_id})` — 問題卡 → `ProblemCardEnvelope`（brand / model / category / symptom / urgency / status / confidence_score / conversation_id）
+  - GET `tenantPath(/conversations/{conv_id})` — 對話主檔 → `ConversationEnvelope`（display_name / line_user_id）
+  - GET `tenantPath(/conversations/{conv_id}/messages?limit=100)` — 對話訊息 → `MessagePage`（items: Message[]，含 role / content / media_url / type / created_at）；media 區與對話區共用此端點
+  - GET `tenantPath(/exception-cases?work_order_id={id})` — M15 異常案件 → `{ items: ExceptionCaseItem[] }`（exception_type / status / severity / description / created_at）
+  - GET `tenantPath(/technicians/{id})` — 技師 → `TechnicianEnvelope`（name / phone / rating / skills[]）
+  - GET `tenantPath(/work-orders/{id}/quote-items)` — 成本拆項 → `{ items: QuoteLineItem[], customer_final_amount, cost_visible }`（item_name / quantity / customer_price / unit_price / is_mock）
+  - GET（download）`tenantPath(/work-orders/{id}/document)` — 電子工單 PDF（`api.download`）
+  - GET `tenantPath(/dispatch:candidates?work_order_id={id})` — 候選技師 → `{ candidates: CandidateItem[], total }`（technician / score / distance_km / skill_match / availability_eta_minutes）
+  - POST `tenantPath(/work-orders/{id}:accept)` — 接受派工 → `WorkOrderEnvelope`
+  - POST `tenantPath(/work-orders/{id}:assign)` — 指派 / Body `{ technician_id, reason_code, reason_text? }`
+  - POST `tenantPath(/work-orders/{id}:reassign)` — 強制改派（accepted/in_progress，不破壞 wo_id）/ Body `{ technician_id, reason }`（reason 必填）
+  - POST `tenantPath(/work-orders/{id}:complete)` — 完工 / Body `{ summary, actual_amount?, photos_before:[], photos_after:[] }`
+  - POST `tenantPath(/work-orders/{id}:confirm)` — 確認結案 / Body `{ rating, feedback? }`
+  - POST `tenantPath(/work-orders/{id}:escalate)` — 升級 / Body `{ level: 'operations_manager'|'tenant_admin', reason }`
+  - POST `tenantPath(/work-orders/{id}/signature)` — 雙簽名 / Body `SignaturePayload { customer_signature, technician_signature, signed_at, gps_lat?, gps_lng? }` → `ApiResponseGeneric`
+  - POST `tenantPath(/work-orders/{id}/reschedule:propose)` — 多時段改期提案（CR-0007）/ Body `{ proposed_slots:[{start,end}], message_to_customer, send_via }`（回 proposal 紀錄，非 work_order）
+  - POST `/tenants/{tid}/work-orders/{id}/cancel` — 6 階段取消 v2 / Body `{ reason_code, initiator_role, goodwill_waiver, note? }` + Headers `X-Initiator` / `X-Approver`（SoD）→ `CancellationResult { cancellation_stage, customer_fee, travel_fee, technician_penalty, reason_code, audit_event_id }`
+  - POST `/tenants/{tid}/work-orders/{id}/reschedule-request` — 直接改約 / Body `{ new_scheduled_at, reason }`（回 dict，前端重新 GET 工單）
+  - POST `/tenants/{tid}/work-orders/{id}/notify-delay` — 通知延遲 / Body `{ delay_minutes, reason }`
+  - POST `/tenants/{tid}/work-orders/{id}/material-request` — 缺料回報 / Body `{ items:[{brand,model,quantity}], urgency, note? }` → `WorkOrderEnvelope`
+  - PATCH `tenantPath(/media/{id}/legal-hold)` — 法務保留 toggle（CR-0109）/ Body `{ hold }` — ➕ 由 `MediaGallery.tsx` 使用；**此工單詳情頁尚未接入**（見 line_media_gallery §legal_hold 註）
+  - GET `tenantPath(/work-orders/{id}/media)` — purpose 分組媒體（門面/完工/證據）→ `{ items: MediaItem[] }`（含 purpose / legal_hold）— ➕ 由 `MediaGallery.tsx` 使用；**本頁主內容媒體區改用對話 messages**，此端點未在本頁呼叫
+
+> 🚧 規格先行・未實作 endpoints（原 spec 設計，code 未呼叫）：`/timeline`（分頁歷程）、`/exceptions`（工單內嵌異常，改用 M15 `/exception-cases`）、`/conversation`（改用 `/conversations/{id}/messages`）、issue_bundle `/media`（bundles）+ bundle download/forward、`/completion-report`、統一 `PATCH /status`、`/notify-technician`（催促）、`/devices/{id}/*`（遠端開鎖 / 重置密碼 / 設備狀態）。
+
+- **WebSocket Events**: 🚧 規格先行・未實作 — 現行 code **無任何 WebSocket**。原 spec 設計事件（status_changed / timeline_added / exception_created / device.status_updated / technician.location_updated / media_added）全保留為未來目標。
+- **error_cases（code 現況）**:
+  - 各 fetch / action 失敗 → 對應區塊紅色錯誤條，格式 `{errorCode} ({status})：{message}`（ApiError）
+  - 主工單載入失敗 → 主內容頂部紅色「載入工單失敗：{error}」
+  - action 失敗 → detail_header 按鈕列下方 actionError 條 + 按鈕恢復
+  - 子區塊（problem-card / messages / exception-cases / technician / quote-items）失敗 → 各自區塊內錯誤提示，不影響其他區塊
+- **error_cases — 🚧 規格先行・未實作**：401 導登入、403 導回列表、404 全頁狀態、409 自動 refetch、500 重試按鈕、WebSocket 斷線 Banner、設備操作失敗 / 離線 Toast（這些統一錯誤處理尚未細分；目前一律以區塊紅字呈現）。
 
 ---
 
 ## [EXCEPTION TO GLOBAL RULES]
 
-- **SLA 逾時 pulse 動畫**：同工單列表頁，SLA 逾時使用持續性 CSS pulse 動畫（1.5s infinite），屬合理例外
-- **對話記錄自訂氣泡**：conversation_thread 使用自訂聊天氣泡元件（非 shadcn/ui 標準元件），因為需要模擬 LINE 對話風格，屬合理例外
-- **設備狀態圓環圖**：battery_card 使用自訂 SVG 圓環圖（非 Recharts），因為是簡單的單指標環，不需引入完整圖表庫
-- **Sidebar sticky 行為**：右側 sidebar 在 Desktop 斷點下使用 `position: sticky; top: 80px`（導航列高度 + gap），跟隨主內容捲動但保持可見
-- **多 WebSocket 訂閱**：此頁面同時訂閱工單事件 + 設備事件 + 技師位置，可能有 3 條 WebSocket 連線
+- **對話記錄自訂氣泡**：conversation_thread 使用自訂聊天氣泡（user 左白底 + border / assistant 右藍底 / system 居中 pill），模擬 LINE 對話風格 ✅ code 既有
+- **SLA 逾時 pulse 動畫**：🚧 規格先行・未實作（code SLA 逾時僅紅色文字，無 pulse）
+- **設備狀態圓環圖**：🚧 規格先行・未實作（device panel 全示意，無圓環圖）
+- **Sidebar sticky 行為**：差異 — code 側欄為固定寬 380px（`flex-shrink-0`）+ 自身 overflow-auto，**非** `position: sticky`
+- **多 WebSocket 訂閱**：🚧 規格先行・未實作（現行無任何 WebSocket）
 
 ---
 
 ## [ACCEPTANCE CRITERIA]
 
+> **驗收 vs code 現況（2026-06）**：以下 checklist 為**完整設計目標**，包含尚未實作的 🚧 項目。實作完成度請對照各 Section spec 內的「code 現況 / 🚧 規格先行・未實作」標記。
+> - **已可驗收（code 現況支援）**：detail_header 編號/狀態群組/緊急度 Badge、SLA 6 節點真實時間軸、動態 action 按鈕列（接受/指派/取消/升級/確認/簽章/改期/改約/延遲/缺料）、ProblemCard 摘要（品牌/型號/類別/對話/症狀/信心度）、客戶上傳媒體縮圖（對話 image/video）、工單歷程（時間戳衍生）、對話記錄、完工報告真實欄位（completion_status/實收金額/摘要/function_tests）、異常列表（M15）、側欄 device/quotation/cost_detail/公單資訊/customer/technician、下載電子工單 PDF。
+> - **🚧 尚不可驗收（規格先行）**：所有 SLA pulse / 三態變色 / 節點 ring 動畫、media issue_bundle 手風琴 / Lightbox / 影片播放器 / 下載打包 / 轉傳 / AI 分析、timeline 篩選 / match_factors / WebSocket 即時、conversation 內嵌縮圖 / Quick Reply / Flex、completion 照片分類 / 服務項目 / 零件 / 簽名回顯 / 滿意度、exception 手風琴 / 5 類型展開、device 圓環 / 連線燈 / 遠端操作、customer Google Maps / 風險等級 / 歷史工單、technician mini_map / 距離 / 聯繫、quotation 完整拆項 / 付款狀態 / 發票、催促技師 / 標記異常 / 要求返工 / 進入仲裁、Skeleton、RWD BottomSheet / 單欄堆疊、無障礙 focus trap 等。
+>
+> ➕ code 既有但原 checklist 未列（補驗收）：升級工單、電子簽章（雙簽名板 + GPS）、送出改期（1-3 時段）、直接改約、通知延遲、缺料回報、6 階段取消（SoD X-Approver）、cost_detail 成本拆項、公單資訊欄位、客戶 LINE ID 獨立列（CR-0102）、media legal_hold（CR-0109，於 `MediaGallery.tsx`，尚未接入本頁）。
+
 ### 功能驗收 — 左側主內容
 
-- [ ] Header：工單編號正確顯示（等寬字體 JetBrains Mono）
-- [ ] Header：StatusBadge 顯示正確語義色（13 狀態 x 6 色）
-- [ ] Header：SLA 時間軸正確渲染（節點狀態、進度填充、倒數計時）
-- [ ] Header：SLA 三態（正常/警告/逾時）視覺正確
-- [ ] Header：複製工單編號功能正常
+- [ ] Header：工單編號正確顯示（等寬字體；code 顯示 document_number 或 8 字短碼，非 WO-YYYYMMDD-XXXX）
+- [ ] Header：狀態群組 Badge 顯示正確配色（code 為狀態群組，非 13 細狀態原文）
+- [ ] Header：SLA 6 節點時間軸正確渲染（建立/派工/接受/進行中/完工/確認 + 真實時間戳，接受/確認無時間戳）
+- [ ] Header：🚧 SLA 三態（正常/警告/逾時）視覺 — code 僅逾時紅字，無三態進度條變色
+- [ ] Header：🚧 複製工單編號功能 — code Copy icon 未綁定動作
 - [ ] ProblemCard：摺疊/展開切換正確
 - [ ] ProblemCard：症狀描述、domain_attributes、resolution_level、diagnostic_chain 正確顯示
 - [ ] ProblemCard：診斷鏈 Symptom→Failure→FailureMode→Defect 流程圖正確
@@ -865,82 +713,71 @@
 
 ### 功能驗收 — 右側 Sidebar
 
-- [ ] Device Panel：鎖具圖片或佔位 icon 正確
-- [ ] Device Panel：電量圓環顏色（綠/黃/紅）依電量等級正確
-- [ ] Device Panel：連線狀態燈（綠=在線/灰=離線/黃=連線中）正確
-- [ ] Device Panel：最近操作時間（相對時間格式）正確
-- [ ] Device Panel：「遠端開鎖」二次確認 + API 呼叫 + Toast 回饋
-- [ ] Device Panel：「重置密碼」二次確認 + 新密碼顯示
-- [ ] Device Panel：設備離線時操作按鈕 Disabled + overlay
-- [ ] Customer Card：電話可點擊撥號（tel: 連結）
-- [ ] Customer Card：地址可點擊開啟 Google Maps
-- [ ] Customer Card：風險等級 Badge 正確（一般/VIP/高風險）
-- [ ] Customer Card：「查看歷史工單」連結導航正確
-- [ ] Technician Card：Avatar + 姓名 + 星星評分正確
-- [ ] Technician Card：技能 Badge 顯示正確（最多 5 個 + 溢出計數）
-- [ ] Technician Card：Mini Map 顯示技師與工單位置
-- [ ] Technician Card：未指派時顯示 unassigned_state + 「手動指派」按鈕
-- [ ] Technician Card：「聯繫技師」按鈕正確
-- [ ] Quotation Card：價格明細（工資/零件/出勤/加急/折扣/合計）正確
-- [ ] Quotation Card：付款狀態 Badge 正確
-- [ ] Quotation Card：發票連結正確
-- [ ] Action Panel：13 種狀態對應的按鈕組合全部正確
-- [ ] Action Panel：所有按鈕 Loading → 成功/失敗處理正確
-- [ ] Action Panel：「手動指派」開啟 assign Modal 正確
-- [ ] Action Panel：「催促技師」發送通知 + Toast 正確
-- [ ] Action Panel：「重新派工」開啟 assign Modal 正確
-- [ ] Action Panel：「標記異常」開啟異常類型選擇 Modal 正確
-- [ ] Action Panel：「確認完工」確認 Modal + 狀態變更正確
-- [ ] Action Panel：「要求返工」填寫原因 + 狀態變更正確
-- [ ] Action Panel：「進入仲裁」導航正確
-- [ ] Action Panel：cancelled / archived 狀態無操作按鈕
+- [ ] Device Panel：brand/model 真實顯示 + 🔒 佔位圖
+- [ ] Device Panel：🚧 電量圓環 / 連線狀態燈 / 最近操作 / 遠端開鎖 / 重置密碼 / 離線 overlay — 全為示意/disabled
+- [ ] Customer Card：客戶名稱 + 電話（空顯「未提供」）+ LINE ID 獨立列（CR-0102）+ 地址 + 查看完整對話連結
+- [ ] Customer Card：🚧 地址開 Google Maps / 風險等級 Badge / 查看歷史工單
+- [ ] Technician Card：Avatar 色塊 + 姓名 + 星等 + rating + 電話 + 技能 Badge（前 5）
+- [ ] Technician Card：🚧 mini_map / 距離 / 聯繫技師 / 真實頭像 / 評價則數
+- [ ] Quotation Card：估價（estimated_reward）顯示正確 + 拆項示意提示
+- [ ] Quotation Card：🚧 完整 price_breakdown / 付款狀態 / 發票連結
+- [ ] ➕ Cost Detail：成本拆項（quote-items，unit_price 僅後台可見）+ 最終金額 + 下載電子工單 PDF
+- [ ] ➕ 公單資訊：服務類別/問題類型/保固/門型/安裝環境/付款方式/完工狀態/狀態原因等標準化欄位
+- [ ] Action 按鈕列（detail_header）：依 status 顯示對應按鈕（from-set 過濾）正確
+- [ ] Action 按鈕列：pending 時全列 disabled；成功 Toast + setOrder；失敗紅色錯誤條
+- [ ] Action：手動指派 / 重新指派 開 AssignModal（候選技師 + reason_code）正確
+- [ ] Action：接受派工（直接 POST :accept）正確
+- [ ] Action：取消工單（6 階段 + X-Approver SoD + goodwill_waiver）正確
+- [ ] ➕ Action：升級工單（operations_manager / tenant_admin）正確
+- [ ] ➕ Action：電子簽章（客戶 + 技師雙簽名板 base64 + GPS）正確
+- [ ] ➕ Action：送出改期（1-3 時段提案）/ 直接改約（單一新時間）正確
+- [ ] ➕ Action：通知延遲（5-300 分）/ 缺料回報（1-20 項）正確
+- [ ] Action：確認結案 ConfirmModal（5 星 + 回饋）正確
+- [ ] 🚧 Action：催促技師 / 標記異常 / 要求返工 / 進入仲裁 — code 未提供（側欄「標記異常」disabled）
+- [ ] 🚧 Action：cancelled / archived info_text / Alert 區塊
 
 ### 狀態驗收
 
-- [ ] Loading 狀態：所有 Section Skeleton 正確（預留高度避免 CLS）
-- [ ] Empty 狀態：ProblemCard 無資料、Conversation 無對話、Exception 隱藏
-- [ ] Error 狀態：API 錯誤友善訊息 + 重試
-- [ ] 404 狀態：工單不存在全頁 404 + 返回列表按鈕
+- [ ] Empty 狀態：ProblemCard 無資料、Conversation 無對話、Media 無媒體、Exception 無異常（均顯示空狀態提示，**非整段隱藏**）
+- [ ] Error 狀態：各區塊獨立紅字錯誤（格式 `errorCode (status)：message`）
+- [ ] 🚧 Loading Skeleton：code 為文字「載入中…」提示，無 Skeleton（CLS 未優化）
+- [ ] 🚧 404 全頁狀態 / 401 導登入 / 403 導回列表 / 409 自動 refetch — 統一錯誤處理未細分
+### 即時更新驗收 — 🚧 規格先行・未實作（現行 code 無 WebSocket）
 
-### 即時更新驗收
-
-- [ ] WebSocket 連線建立成功（訂閱工單 + 設備 + 技師位置）
-- [ ] 工單狀態變更即時反映（header Badge + SLA timeline + action_panel）
-- [ ] Timeline 即時新增事件（滑入動畫 + 高亮 2s）
-- [ ] 設備狀態即時更新（電量/連線/最近操作）
-- [ ] 技師位置即時更新（mini_map 點移動）
-- [ ] 客戶於 LINE 新上傳媒體即時推送至 line_media_gallery（新 bundle 整張卡片頂部插入 / 既有 bundle 內新增縮圖 + 高亮 2s）
-- [ ] WebSocket 斷線 Warning Banner + 自動重連
+- [ ] 🚧 WebSocket 連線建立（訂閱工單 + 設備 + 技師位置）
+- [ ] 🚧 工單狀態變更即時反映（現行靠 action 後 setOrder 同步，非推送）
+- [ ] 🚧 Timeline 即時新增事件（滑入動畫 + 高亮）
+- [ ] 🚧 設備狀態 / 技師位置即時更新
+- [ ] 🚧 客戶 LINE 新上傳媒體即時推送
+- [ ] 🚧 WebSocket 斷線 Banner + 自動重連
 
 ### RWD 驗收
 
-- [ ] Desktop LG (> 1440px)：左 2/3 + 右 1/3 雙欄，sidebar sticky
-- [ ] Desktop (1024-1440px)：雙欄，sidebar min-width 320px
-- [ ] Tablet (768-1023px)：全寬 + sidebar 變 BottomSheet（三段式）
-- [ ] Mobile (< 768px)：單欄堆疊 + action_panel 固定底部
+- [ ] Desktop：左主內容 flex-1 + 右固定側欄 380px（code 現況；**非** 2/3 + sticky）
+- [ ] 🚧 Tablet：sidebar 變 BottomSheet（三段式）— 未實作
+- [ ] 🚧 Mobile：單欄堆疊 + action_panel 固定底部 — 未實作
 
 ### 效能驗收
 
 - [ ] 頁面首次載入 LCP < 2.5s
-- [ ] Timeline 載入 20 筆事件 < 500ms
 - [ ] 對話記錄 100+ 則訊息不卡頓
-- [ ] 設備狀態輪詢不影響主線程
-- [ ] CLS < 0.1（所有區塊預留 Skeleton 高度）
+- [ ] 🚧 CLS < 0.1（需 Skeleton；code 目前用文字提示，未預留高度）
 
 ### 無障礙驗收
 
-- [ ] Tab 順序：header → main content sections → sidebar cards → action_panel
-- [ ] 所有可互動元素可透過鍵盤操作（包含手風琴展開/摺疊）
-- [ ] 圖片有 alt 文字
-- [ ] StatusBadge 同時包含顏色 + 文字標籤
+- [ ] 圖片有 alt 文字（media 縮圖、簽名板）
+- [ ] 狀態群組 Badge 同時包含顏色 + 文字標籤
 - [ ] 色彩對比度達 WCAG 2.1 AA
-- [ ] Modal focus trap 正確；Escape 關閉
-- [ ] 設備操作按鈕 Disabled 時有 aria-disabled + tooltip 說明
+- [ ] Modal Escape 關閉（部分 Modal 點背景關閉）
+- [ ] 🚧 完整 Tab 順序 / focus trap / aria-disabled tooltip — 未完整驗證
 
 ---
 
 ## T1.4 補強：候選技師手動排序 UI + 客訴升級指示器
 
+> 🚧 **規格先行・未實作（整段 T1.4）**：以下三區塊（manual_dispatch_candidate_list 側欄候選清單拖曳排序、complaint_escalation_indicator 客訴升級指示器、dispute_link_badge 爭議連結徽章）**現行 code 皆未實作**，保留設計意圖。
+> 現況對照：候選技師排序僅存在於 AssignModal 內（按 score 顯示，無拖曳排序 / 無 session 自訂順序）；客訴 / 爭議 indicator 與 banner 未在工單詳情頁呈現。
+>
 > 補 Flow 2 拒單重派、Flow 9 客訴升級在工單詳情頁的 UI 顯示缺口。
 
 ### [SECTION] manual_dispatch_candidate_list
