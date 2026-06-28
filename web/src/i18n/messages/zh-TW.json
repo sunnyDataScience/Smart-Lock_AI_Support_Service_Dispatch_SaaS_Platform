@@ -291,6 +291,7 @@
     },
     "nav": {
       "dashboard": "儀表板",
+      "intakeCases": "進線案件",
       "conversations": "對話管理",
       "problemCards": "問題卡",
       "knowledgeBase": "知識庫",

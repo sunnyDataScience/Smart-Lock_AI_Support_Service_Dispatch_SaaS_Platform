@@ -76,7 +76,7 @@ relates:
 | 批次 | 範圍 | 狀態 |
 |---|---|---|
 | 批次 0 | 帳號安全 A1 / A2 / A3（§1）| ✅ 完成（branch `fix/account-security-phase1`，migration 084，pytest 5/5 + 全套 1454 passed 無回歸；3 個 pre-existing seed 失敗與本批次無關）|
-| 批次 1 | M01 進線入口（P1-01 / P1-02）| 🟡 後端 done（CR-0108：migration 085 + intake_case service/router + case_id 欄，test 5/5；§8 D1-D6 已裁決）；前端建案頁 + LINE 自動帶 Case 待續 |
+| 批次 1 | M01 進線入口（P1-01 / P1-02）| 🟢 後端 + 前端 done（CR-0108：migration 085 + intake_case service/router + case_id 欄 + 前端進線建案頁/Case 列表/sidebar 入口，API test 5/5 + Playwright 實機）；僅 LINE 自動帶 Case 小 follow-up（S3）待續 |
 | 批次 2 | M03 分診完整度（P1-03 / P1-04）| ☐ 待排 |
 | 批次 3 | M08 客戶簽收（P1-05）+ M09 legal_hold 設定面（P1-06）| ☐ 待排 |
 | 批次 4 | M02 Device 主檔（P1-07）+ M05 詞彙統一（P1-08）| ☐ 待排 |

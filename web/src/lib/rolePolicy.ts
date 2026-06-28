@@ -35,6 +35,7 @@ const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
   { prefix: "/admin/dispatch-manual", roles: ["admin", "operations_manager", "dispatcher"] },
   { prefix: "/admin/material-requests", roles: ["admin", "operations_manager", "dispatcher"] },
   { prefix: "/technicians", roles: ["admin", "operations_manager", "dispatcher"] },
+  { prefix: "/admin/cases", roles: ["admin", "operations_manager", "dispatcher", "customer_service"] }, // CR-0108 進線 Case（客服代建）
   { prefix: "/admin/customers", roles: ["admin", "operations_manager", "customer_service"] },
   { prefix: "/admin/vendor-approvals", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/quote-catalog", roles: ["admin", "operations_manager"] },
