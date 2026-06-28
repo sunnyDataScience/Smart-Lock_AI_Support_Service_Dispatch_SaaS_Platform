@@ -78,7 +78,7 @@ relates:
 | 批次 0 | 帳號安全 A1 / A2 / A3（§1）| ✅ 完成（branch `fix/account-security-phase1`，migration 084，pytest 5/5 + 全套 1454 passed 無回歸；3 個 pre-existing seed 失敗與本批次無關）|
 | 批次 1 | M01 進線入口（P1-01 / P1-02）| ✅ **完成**（CR-0108 三段：後端 migration 085 + intake_case service/router + case_id；前端 `/admin/cases` 建案頁/Case 列表/sidebar；S3 LINE escalation 自動帶 Case。API 7/7 + Playwright 實機）。8 渠道之 partner 4 渠道屬 Phase II（M14） |
 | 批次 2 | M03 分診完整度（P1-03 / P1-04）| ☐ 待排 |
-| 批次 3 | M08 客戶簽收（P1-05）+ M09 legal_hold 設定面（P1-06）| ☐ 待排 |
+| 批次 3 | M08 客戶簽收（P1-05）+ M09 legal_hold 設定面（P1-06）| 🟡 M09 done（CR-0109：media set/release legal_hold 端點 + 前端 🔒 鎖解 toggle，手動設定面；自動觸發規則待業主。API 3/3 + tsc 0）；M08 客戶 LIFF 簽收（需 CIA）待 |
 | 批次 4 | M02 Device 主檔（P1-07）+ M05 詞彙統一（P1-08）| ☐ 待排 |
 | 批次 5 | 其餘（P1-09 ~ P1-11）| ☐ 待排 |
 

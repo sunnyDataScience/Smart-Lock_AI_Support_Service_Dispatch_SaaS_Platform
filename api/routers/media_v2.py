@@ -30,8 +30,9 @@ from __future__ import annotations
 from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Path, Response, UploadFile
+from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import media_service
 
@@ -184,4 +185,36 @@ async def list_media_for_dispute_v2(
 
     return await media_service.list_media_for_dispute(
         tenant_id=tenantId, dispute_id=disputeId
+    )
+
+
+# ---------------------------------------------------------------------------
+# PATCH /tenants/{tenantId}/media/{mediaId}/legal-hold — CR-0109 法務保留設定面
+# ---------------------------------------------------------------------------
+
+
+class _LegalHoldRequest(BaseModel):
+    hold: bool = Field(..., description="true=設定法務保留（不被 retention 清）；false=解除")
+    reason: str | None = Field(default=None, description="設定/解除事由（稽核留痕）")
+
+
+@router.patch(
+    "/tenants/{tenantId}/media/{mediaId}/legal-hold",
+    operation_id="setMediaLegalHold",
+    summary="設定/解除媒體法務保留 v2（CR-0109；admin/主管/審核）",
+    tags=["Media"],
+)
+async def set_media_legal_hold_v2(
+    body: _LegalHoldRequest,
+    tenantId: str = Path(..., description="租戶 UUID（ADR-0030）"),
+    mediaId: str = Path(..., description="媒體 UUID"),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+) -> dict:
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE", "Path tenantId does not match authenticated tenant", 403
+        )
+    return await media_service.set_legal_hold(
+        tenant_id=tenantId, media_id=mediaId, hold=body.hold, reason=body.reason,
+        actor_id=user.user_id, actor_role=user.role,
     )

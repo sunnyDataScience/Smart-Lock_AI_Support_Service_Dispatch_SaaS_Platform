@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Image as ImageIcon, RefreshCw, X } from "lucide-react";
-import { ApiError, api, auth, tenantPath } from "@/lib/api";
+import { Image as ImageIcon, RefreshCw, X, Lock, LockOpen } from "lucide-react";
+import { ApiError, api, auth, getCurrentSession, tenantPath } from "@/lib/api";
 
 interface MediaItem {
   id: string;
@@ -12,7 +12,11 @@ interface MediaItem {
   size_bytes: number;
   purpose: string;
   created_at: string;
+  legal_hold?: boolean; // CR-0109 法務保留旗標
 }
+
+// CR-0109：可設定法務保留的角色（對齊後端 REVIEW_ROLES）
+const LEGAL_HOLD_ROLES = ["admin", "tenant_admin", "super_admin", "operations_manager", "reviewer"];
 
 const PURPOSE_LABEL: Record<string, { label: string; bg: string; color: string }> = {
   door_check_before: { label: "門面前", bg: "#FEF3C7", color: "#92400E" },
@@ -33,6 +37,8 @@ function formatBytes(n: number): string {
 interface ThumbProps {
   item: MediaItem;
   onClick: () => void;
+  canManageHold?: boolean;
+  onToggleHold?: () => void;
 }
 
 /**
@@ -40,7 +46,7 @@ interface ThumbProps {
  * 因為 GET /tenants/{tid}/media/{id} 需要 token，img.src 不能直接用 URL。
  * item.url 由後端 v2 response 回傳（已是 tenant-scoped 相對路徑），前端不 hardcode。
  */
-function MediaThumb({ item, onClick }: ThumbProps) {
+function MediaThumb({ item, onClick, canManageHold, onToggleHold }: ThumbProps) {
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +108,28 @@ function MediaThumb({ item, onClick }: ThumbProps) {
       >
         {meta.label}
       </span>
+      {/* CR-0109：法務保留 🔒 徽章 + 鎖/解 toggle（用 span 避免巢狀 button） */}
+      {item.legal_hold && (
+        <span
+          className="absolute right-1 top-1 z-10 flex items-center gap-[2px] rounded bg-amber-100 px-[5px] py-[1px] text-[9px] font-bold text-amber-800"
+          title="法務保留中（不會被自動清除）"
+        >
+          <Lock className="h-2.5 w-2.5" /> 保留
+        </span>
+      )}
+      {canManageHold && onToggleHold && (
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); onToggleHold(); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); onToggleHold(); } }}
+          className="absolute bottom-5 right-1 z-10 flex cursor-pointer items-center gap-[2px] rounded bg-black/55 px-[5px] py-[2px] text-[9px] text-white hover:bg-black/75"
+          title={item.legal_hold ? "解除法務保留" : "設定法務保留"}
+        >
+          {item.legal_hold ? <LockOpen className="h-2.5 w-2.5" /> : <Lock className="h-2.5 w-2.5" />}
+          {item.legal_hold ? "解除" : "鎖定"}
+        </span>
+      )}
       {loading && (
         <div className="flex h-full w-full items-center justify-center text-[11px] text-[var(--text-disabled)]">
           載入中…
@@ -186,6 +214,28 @@ export default function MediaGallery({
     fetchItems();
   }, [fetchItems, refreshKey]);
 
+  // CR-0109：法務保留設定（僅工單模式 + 有權角色）
+  const role = getCurrentSession()?.role ?? null;
+  const canManageHold = !!workOrderId && !!role && LEGAL_HOLD_ROLES.includes(role);
+
+  const toggleHold = useCallback(
+    async (item: MediaItem) => {
+      try {
+        await api.patch(tenantPath(`/media/${encodeURIComponent(item.id)}/legal-hold`), {
+          hold: !item.legal_hold,
+        });
+        setItems((prev) =>
+          prev.map((m) => (m.id === item.id ? { ...m, legal_hold: !item.legal_hold } : m)),
+        );
+      } catch (e) {
+        setError(
+          e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e),
+        );
+      }
+    },
+    [],
+  );
+
   // 按 purpose 分組
   const grouped = items.reduce<Record<string, MediaItem[]>>((acc, it) => {
     (acc[it.purpose] ??= []).push(it);
@@ -242,6 +292,8 @@ export default function MediaGallery({
                     key={item.id}
                     item={item}
                     onClick={() => setPreviewItem(item)}
+                    canManageHold={canManageHold}
+                    onToggleHold={() => toggleHold(item)}
                   />
                 ))}
               </div>
