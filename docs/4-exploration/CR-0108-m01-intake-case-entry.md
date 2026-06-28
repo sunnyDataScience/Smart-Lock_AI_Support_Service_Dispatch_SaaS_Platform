@@ -1,11 +1,11 @@
 ---
 id: CR-0108
 title: M01 進線 Case 入口 — 全渠道 Case/Inquiry 實體 + 報價前建 Case gate + first-response SLA
-status: draft
+status: in-progress
 tier: 4-exploration
 created: 2026-06-28
-author: Claude (Opus 4.8)
-decision_status: 🛑 待業主裁決（§8）
+author: Claude (Opus 4.8) + 業主裁決
+decision_status: ✅ §8 已裁決（2026-06-28，見 §8.1）
 relates:
   - phase1-gap-backlog-20260628   # Phase I backlog 批次 1
   - owner-spec-compliance-and-pending-decisions-20260627  # §五/§十一 M01 缺口
@@ -97,6 +97,17 @@ relates:
 | **D5** | **Case 要不要可讀編號？**（類似工單 TP-000001）| (a) 要（如 `C-TP-000001`，客服好溝通）　(b) 不要（內部 UUID 即可）| **(a)** —— 與工單可讀號一致，客服/客戶溝通好用 |
 | **D6** | **客戶去重 key 確認**（既有三方不一致：你 Q008 裁「依地址」/ BR-M02-01「phone+LINE ID」/ code「phone」）| 重新裁定唯一鍵 | 建 Case 會碰客戶比對 → 需你定。建議 **phone + LINE ID 為主、地址輔助**（與多數實作一致），同步修文件 |
 
+### 8.1 業主裁決（2026-06-28）
+
+| # | 裁決 |
+|---|---|
+| **D1** | **LINE + 電話 + Web + 熟客介紹**（4 渠道，客服可代建）；品牌/門市/經銷/建商 4 個 partner 渠道留 Phase II |
+| **D2** | SLA 計時骨架先建，數值入 config 標「暫定待業主確認」（暫定一般 30 分）—— 比照 CR-0106/0104 誠實假設模式 |
+| **D3** | **漸進** —— problem_card/work_order 加 nullable case_id 先建關聯、不硬擋；硬擋之後另 CR |
+| **D4** | **Case 為上游容器** —— 一 Case 可含多 problem_card/work_order（與 CR-0096 相容）|
+| **D5** | **可讀號**（如 `C-TP-000001`，與工單一致）|
+| **D6** | **phone + LINE ID 為主、地址輔助** —— 同步修正 Q008 文件（原裁「依地址」）|
+
 ## 9. Suggested Implementation Order（§8 裁決後）
 
 1. migration：`saas.intake_case` 表 + `problem_cards/work_orders +case_id`（依 D1 定 source_channel enum）。
@@ -120,6 +131,19 @@ relates:
 
 ## 12. Sign-off
 
-- [ ] 業主裁決 §8 D1–D6
-- [ ] 確認 §9 實作順序
+- [x] 業主裁決 §8 D1–D6（2026-06-28，見 §8.1）
+- [x] 確認 §9 實作順序
 - [ ] （實作後）更新 traceability matrix + doc-freshness
+
+## 13. 進度
+
+✅ **S1 後端核心 done**（branch `docs/cr-0108-m01-intake-cia`）：migration 085（`saas.intake_case`
++ 可讀號序列 + `problem_cards/work_orders +case_id` nullable）+ `intake_case_service`（建/列/詳/改
++ first-response SLA due 計算，渠道/狀態值域守門）+ `intake_cases_v2` router（4 端點，BACKOFFICE_ROLES
+含客服、cross-tenant guard、POST idempotency，main.py 註冊）+ `[intake].first_response_sla_minutes`
+config（暫定 30 待業主 D2）。API `test_intake_case` 5/5 + 全套 1459 passed 無回歸。**待部署 api（含 migration 085）**。
+
+⏳ **S2 待續**（同 CR）：前端「進線建案」頁（選渠道 + 客戶聯絡 + 摘要）+ Case 列表（SLA 逾時標示）；
+LINE escalation 順帶 ensure 一張 Case（source_channel=line）；客戶比對沿 D6（phone+LINE ID）。
+D6 裁決已記本檔 §8.1（BR-M02-01 既為 phone+LINE，與裁決一致；Q008 原「依地址」由本 CR D6 supersede，
+`docs/_source` 正典更新屬人工 tier-0 變更，另行處理，不由 AI 改源）。
