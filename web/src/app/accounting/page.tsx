@@ -43,6 +43,10 @@ export default function AccountingPage() {
   const tCommon = useTranslations("accounting.common");
   const tS = useTranslations("accounting.settlements");
 
+  // 發票分頁紅點：是否有待處理發票（API status=pending → 後端對應 DB draft 草稿），
+  // 取代原本寫死的 dot:true 假通知（恆亮、不反映真實狀態）。
+  const [hasPendingInvoices, setHasPendingInvoices] = useState(false);
+
   const RECON_STATUS_FILTERS: { value: ReconciliationStatus | ""; label: string }[] = useMemo(
     () => [
       { value: "pending", label: tS("filterPending") },
@@ -65,7 +69,7 @@ export default function AccountingPage() {
         icon: FileText,
         label: tTabs("invoices"),
         href: "/accounting/invoices" as string | undefined,
-        dot: true,
+        dot: hasPendingInvoices,
       },
       {
         icon: BookText,
@@ -80,21 +84,15 @@ export default function AccountingPage() {
         dot: false,
       },
     ],
-    [tTabs],
+    [tTabs, hasPendingInvoices],
   );
 
-  const SEGMENTS = useMemo(
-    () => [
-      { value: "month", label: tS("segMonth") },
-      { value: "biweek", label: tS("segBiweek") },
-      { value: "week", label: tS("segWeek") },
-    ],
-    [tS],
-  );
   const [genMsg, setGenMsg] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
-  const [settlementCycle, setSettlementCycle] = useState<"month" | "biweek" | "week">("month");
-  const [periodFilter, setPeriodFilter] = useState<"last3m" | "last6m" | "all">("last3m");
+  // 期間篩選對齊後端 list_settlements 支援值（last_3_months / last_12_months / all）。
+  const [periodFilter, setPeriodFilter] = useState<"last_3_months" | "last_12_months" | "all">(
+    "last_3_months",
+  );
   const [items, setItems] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,11 +122,12 @@ export default function AccountingPage() {
     setLoading(true);
     setError(null);
     try {
-      // CR-0008（2026-06-04 業主裁 HD-01=last_3_months / HD-02=period_end_desc）
-      // 遷 v1 → v2 tenant-scoped；v2 預設過濾「最近 3 個月」+ 排序 period_end desc
-      const res = await api.get<SettlementPage>(
-        tenantPath("/settlements?limit=50"),
-      );
+      // CR-0008（業主裁 HD-01=last_3_months / HD-02=period_end_desc）。
+      // period_filter 真的帶給後端（後端支援 last_3_months/last_12_months/all）；
+      // 修正前 UI 選了卻沒傳、query 寫死 limit=50 ＝ 死控制。
+      const res = await api.get<SettlementPage>(tenantPath("/settlements"), {
+        query: { limit: 50, period_filter: periodFilter },
+      });
       setItems(res.items ?? []);
       setUpdatedAt(new Date());
     } catch (e) {
@@ -142,7 +141,7 @@ export default function AccountingPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [periodFilter]);
 
   // CR-0035 觸發本月月結批次（admin manual；需 X-Initiator 行為人 header；冪等）
   async function generateMonthly() {
@@ -155,7 +154,9 @@ export default function AccountingPage() {
         { period_year: now.getFullYear(), period_month: now.getMonth() + 1, triggered_by: "manual" },
         { headers: { "X-Initiator": getCurrentSession()?.userId ?? "operator" } },
       );
-      setGenMsg(`已觸發 ${now.getFullYear()} 年 ${now.getMonth() + 1} 月月結`);
+      setGenMsg(
+        tS("genMonthlyDone", { year: now.getFullYear(), month: now.getMonth() + 1 }),
+      );
       fetchSettlements();
     } catch (e) {
       setGenMsg(
@@ -205,6 +206,26 @@ export default function AccountingPage() {
   useEffect(() => {
     fetchReconciliations(reconStatus);
   }, [fetchReconciliations, reconStatus]);
+
+  // 發票分頁紅點：查是否有待處理（status=pending → DB draft 草稿）發票，
+  // 取代寫死的恆亮假通知；無草稿時紅點自動消失。
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<{ items?: unknown[] }>(
+          tenantPath("/accounting/invoices"),
+          { query: { status: "pending", limit: 1 } },
+        );
+        if (!cancelled) setHasPendingInvoices((res.items?.length ?? 0) > 0);
+      } catch {
+        /* 通知點查詢失敗不阻斷主頁 */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleApprove = async (recon: Reconciliation, note: string) => {
     setApproving(true);
@@ -280,13 +301,17 @@ export default function AccountingPage() {
               <span
                 className="flex items-center gap-[6px] rounded-full px-3 py-1 text-xs font-medium"
                 style={{
-                  backgroundColor: error ? "#FEE2E2" : "#DCFCE7",
-                  color: error ? "#B91C1C" : "#15803D",
+                  backgroundColor: error
+                    ? "var(--badge-danger-bg)"
+                    : "var(--badge-success-bg)",
+                  color: error
+                    ? "var(--badge-danger-fg)"
+                    : "var(--badge-success-fg)",
                 }}
               >
                 <span
                   className="h-[6px] w-[6px] rounded-full"
-                  style={{ backgroundColor: error ? "#DC2626" : "#22C55E" }}
+                  style={{ backgroundColor: error ? "var(--error)" : "var(--success)" }}
                 />
                 {error ? tCommon("disconnected") : tCommon("connected")}
               </span>
@@ -316,7 +341,7 @@ export default function AccountingPage() {
                     {tab.label}
                   </span>
                   {tab.dot && (
-                    <span className="h-2 w-2 rounded-full bg-[#EF4444]" />
+                    <span className="h-2 w-2 rounded-full bg-[var(--error)]" />
                   )}
                 </>
               );
@@ -343,39 +368,26 @@ export default function AccountingPage() {
         </div>
 
         <div className="flex items-center gap-4 px-8 py-4">
+          {/* 期間下拉對齊後端 list_settlements 支援值（last_3_months/last_12_months/all）。
+              原「結算週期 月/雙週/週」分段已移除：後端僅有月結（generate_monthly_batch），
+              雙週/週結無對應功能、為純裝飾死控制。*/}
           <select
             value={periodFilter}
             onChange={(e) => setPeriodFilter(e.target.value as any)}
             className="flex items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-[14px] py-2 text-sm text-[var(--text-primary)] outline-none"
           >
-            <option value="last3m">最近 3 個月</option>
-            <option value="last6m">最近 6 個月</option>
+            <option value="last_3_months">{tS("periodLast3m")}</option>
+            <option value="last_12_months">{tS("periodLast12m")}</option>
             <option value="all">{tS("allPeriods")}</option>
           </select>
-
-          <div className="flex rounded-md bg-[#F1F5F9] p-[3px]">
-            {SEGMENTS.map((seg) => (
-              <button
-                key={seg.value}
-                onClick={() => setSettlementCycle(seg.value as any)}
-                className={`rounded px-[14px] py-[6px] text-[13px] ${
-                  seg.value === settlementCycle
-                    ? "bg-[var(--bg-surface)] font-semibold text-[var(--text-primary)] shadow-sm"
-                    : "font-medium text-[var(--text-secondary)] hover:bg-white"
-                }`}
-              >
-                {seg.label}
-              </button>
-            ))}
-          </div>
 
           {/* CR-0035 觸發月結批次 */}
           <button
             onClick={generateMonthly}
             disabled={generating}
-            className="ml-auto rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+            className="ml-auto rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
           >
-            {generating ? "處理中…" : "觸發本月月結"}
+            {generating ? tS("genMonthlyBusy") : tS("genMonthly")}
           </button>
           {genMsg && (
             <span className="text-[13px] font-medium text-[var(--text-secondary)]">{genMsg}</span>
@@ -520,7 +532,7 @@ function ApproveReconciliationModal({
       onClick={() => !pending && onCancel()}
     >
       <div
-        className="w-full max-w-[480px] rounded-xl bg-white p-6 shadow-xl"
+        className="w-full max-w-[480px] rounded-xl bg-[var(--bg-surface)] p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center gap-2">
@@ -572,7 +584,7 @@ function ApproveReconciliationModal({
           <button
             onClick={onCancel}
             disabled={pending}
-            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+            className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
             {t("cancel")}
           </button>
