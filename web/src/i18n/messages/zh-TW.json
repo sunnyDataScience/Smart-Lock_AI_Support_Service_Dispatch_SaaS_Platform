@@ -2269,7 +2269,7 @@
       "entityInvoice": "發票"
     },
     "revenue": {
-      "banner": "KPI / 月度趨勢 / 品牌占比為 getRevenueSummary 即時資料。服務類型分佈、CSV/Excel 匯出、日 / 週粒度與日期範圍待 invoice 欄位收斂與匯出 endpoint 上線後接入。",
+      "banner": "KPI／月度趨勢／品牌占比為 getRevenueSummary 即時資料，月度趨勢可匯出 CSV。服務類型分佈、Excel（真 xlsx）、日／週粒度與日期範圍待後端接入（目前粒度恆為月）。",
       "kpiMonthRevenue": "本月營收",
       "kpiAvgInvoice": "平均發票金額",
       "kpiPaidRate": "付款成功率",
@@ -2283,7 +2283,7 @@
       "exportExcel": "Excel匯出"
     },
     "invoices": {
-      "banner": "表格為 listInvoices 即時資料。搜尋 / 狀態 / 付款方式 / 日期範圍 / 僅顯示逾期 待 invoice 寫入 endpoints 與篩選欄位收斂後接入。",
+      "banner": "表格與『搜尋／狀態／付款方式／日期範圍』篩選皆為 listInvoices 即時資料；僅『顯示逾期』為 coming soon（待後端逾期條件接入）。",
       "searchPlaceholder": "搜尋發票編號、客戶名稱...",
       "filterAllStatus": "全部狀態",
       "filterPaymentMethod": "付款方式",
