@@ -112,6 +112,44 @@ async def test_list_customers_v2_cross_tenant_403(client):
 
 
 # ---------------------------------------------------------------------------
+# Customer stats v2（聚合統計卡）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_customer_stats_v2_200(client, admin_headers):
+    """GET /tenants/{tenantId}/customers/stats → 200，回 4 個聚合計數。
+
+    驗證 /customers/stats 不被 /customers/{id} path param 吞掉（路由註冊順序）
+    且回傳結構齊全、各計數為非負整數、子計數 ≤ 總數。
+    """
+    res = await client.get(
+        f"/tenants/{DEFAULT_TENANT_ID}/customers/stats",
+        headers=admin_headers,
+    )
+    assert res.status_code == 200, res.text
+    data = res.json()["data"]
+    for key in ("total", "active_30d", "high_risk", "expired_warranty"):
+        assert key in data, f"missing stat key: {key}"
+        assert isinstance(data[key], int) and data[key] >= 0
+    assert data["active_30d"] <= data["total"]
+    assert data["high_risk"] <= data["total"]
+    assert data["expired_warranty"] <= data["total"]
+
+
+@pytest.mark.asyncio
+async def test_customer_stats_v2_cross_tenant_403(client):
+    """cross-tenant：path tenantId 與 JWT claim 不符 → 403 CROSS_TENANT_READ。"""
+    headers = _make_other_tenant_path_headers()
+    res = await client.get(
+        f"/tenants/{OTHER_TENANT_ID}/customers/stats",
+        headers=headers,
+    )
+    assert res.status_code == 403, res.text
+    assert res.json().get("error_code") == "CROSS_TENANT_READ"
+
+
+# ---------------------------------------------------------------------------
 # Create customer v2
 # ---------------------------------------------------------------------------
 

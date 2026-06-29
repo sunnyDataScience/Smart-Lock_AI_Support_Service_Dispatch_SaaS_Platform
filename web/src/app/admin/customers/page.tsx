@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Search,
   UserPlus,
@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, resolveTenantId } from "@/lib/api";
+import { ApiError, api, resolveTenantId } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -25,6 +25,15 @@ import type { components } from "@/types/api.generated";
 
 type Customer = components["schemas"]["Customer"];
 type Technician = components["schemas"]["Technician"];
+
+// 客戶聚合統計（統計卡用）— 後端 GET /tenants/{tid}/customers/stats。
+// inline 型別（未進 openapi.generated；端點為 additive read-only 聚合）。
+interface CustomerStats {
+  total: number;
+  active_30d: number; // 近 30 天有互動（活躍）
+  high_risk: number; // risk_level 高／緊急
+  expired_warranty: number; // 已過保固
+}
 
 function formatCustomerError(e: unknown): string {
   if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
@@ -103,6 +112,25 @@ export default function CustomersPage() {
     path: `/tenants/${encodeURIComponent(tenantId)}/technicians`,
     pageSize: 100,
   });
+
+  // 客戶聚合統計（統計卡）— 全租戶聚合，不隨列表分頁/篩選變動，只依 tenantId 抓一次。
+  const [stats, setStats] = useState<CustomerStats | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<{ data: CustomerStats }>(
+          `/tenants/${encodeURIComponent(tenantId)}/customers/stats`,
+        );
+        if (!cancelled) setStats(res.data);
+      } catch {
+        /* 統計載入失敗不阻斷列表（卡片回退顯示「—」）*/
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
 
   const filtered = searchQuery
     ? items.filter((c) => {
@@ -199,7 +227,7 @@ export default function CustomersPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 opacity-60">
+            <div className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50">
                 <Users className="h-5 w-5 text-green-600" />
               </div>
@@ -207,8 +235,8 @@ export default function CustomersPage() {
                 <span className="text-xs text-[var(--text-secondary)]">
                   {t("stats.active")}
                 </span>
-                <span className="text-xl font-bold text-[var(--text-disabled)]">
-                  —
+                <span className="text-xl font-bold text-[var(--text-primary)]">
+                  {stats ? stats.active_30d : "—"}
                 </span>
                 <span className="text-[11px] text-[var(--text-disabled)]">
                   {t("stats.activeNote")}
@@ -216,16 +244,16 @@ export default function CustomersPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 opacity-60">
+            <div className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-50">
-                <ShieldAlert className="h-5 w-5 text-red-400" />
+                <ShieldAlert className="h-5 w-5 text-red-500" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xs text-[var(--text-secondary)]">
                   {t("stats.highRisk")}
                 </span>
-                <span className="text-xl font-bold text-[var(--text-disabled)]">
-                  —
+                <span className="text-xl font-bold text-[var(--text-primary)]">
+                  {stats ? stats.high_risk : "—"}
                 </span>
                 <span className="text-[11px] text-[var(--text-disabled)]">
                   {t("stats.highRiskNote")}
@@ -233,16 +261,16 @@ export default function CustomersPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 opacity-60">
+            <div className="flex items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50">
-                <Clock className="h-5 w-5 text-amber-400" />
+                <Clock className="h-5 w-5 text-amber-500" />
               </div>
               <div className="flex flex-col">
                 <span className="text-xs text-[var(--text-secondary)]">
                   {t("stats.warrantyExpiring")}
                 </span>
-                <span className="text-xl font-bold text-[var(--text-disabled)]">
-                  —
+                <span className="text-xl font-bold text-[var(--text-primary)]">
+                  {stats ? stats.expired_warranty : "—"}
                 </span>
                 <span className="text-[11px] text-[var(--text-disabled)]">
                   {t("stats.warrantyNote")}

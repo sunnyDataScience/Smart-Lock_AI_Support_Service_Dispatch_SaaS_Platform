@@ -1815,11 +1815,11 @@
         "stats": {
           "pageTotal": "本頁客戶數",
           "active": "活躍客戶",
-          "activeNote": "待活躍判定規則",
+          "activeNote": "近 30 天有互動",
           "highRisk": "高風險客戶",
-          "highRiskNote": "待風險引擎",
-          "warrantyExpiring": "保固即將到期",
-          "warrantyNote": "待保固模組"
+          "highRiskNote": "風險等級 高／緊急",
+          "warrantyExpiring": "已過保固",
+          "warrantyNote": "保固已過期客戶"
         },
         "filterChips": {
           "risk": "風險等級",
