@@ -82,7 +82,7 @@ export default function IntakeCasesPage() {
         customer_name: customerName.trim() || null,
         customer_phone: customerPhone.trim() || null,
       });
-      cacheInvalidate(`GET:${tenantPath("/cases")}`);
+      cacheInvalidate("GET:"); // cache key 含完整 URL，用廣域 prefix 清 30s GET 快取
       setOk(`已建立進線案件 ${res.data.case_number}（${CHANNEL_LABEL[channel] ?? channel}）`);
       setCustomerName("");
       setCustomerPhone("");
@@ -97,12 +97,27 @@ export default function IntakeCasesPage() {
 
   async function updateStatus(id: string, status: string) {
     setError(null);
+    // 樂觀更新：立即反映狀態（含 open→in_progress 補記首次回應），免等網路往返
+    setItems((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? {
+              ...c,
+              status,
+              first_responded_at:
+                status === "in_progress" && !c.first_responded_at
+                  ? new Date().toISOString()
+                  : c.first_responded_at,
+            }
+          : c,
+      ),
+    );
     try {
       await api.patch(tenantPath(`/cases/${id}`), { status });
-      cacheInvalidate(`GET:${tenantPath("/cases")}`);
-      await load();
+      cacheInvalidate("GET:"); // cache key 含完整 URL，用廣域 prefix 清 30s GET 快取
     } catch (e) {
       setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+      await load(); // 失敗時 reload 回滾樂觀更新
     }
   }
 
