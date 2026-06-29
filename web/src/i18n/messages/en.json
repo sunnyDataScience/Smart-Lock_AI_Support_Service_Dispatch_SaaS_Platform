@@ -1815,11 +1815,11 @@
         "stats": {
           "pageTotal": "Customers on this page",
           "active": "Active customers",
-          "activeNote": "Pending active-rule",
+          "activeNote": "Active in last 30 days",
           "highRisk": "High-risk",
-          "highRiskNote": "Pending risk engine",
-          "warrantyExpiring": "Warranty expiring",
-          "warrantyNote": "Pending warranty module"
+          "highRiskNote": "Risk level high / critical",
+          "warrantyExpiring": "Warranty expired",
+          "warrantyNote": "Customers past warranty"
         },
         "filterChips": {
           "risk": "Risk level",

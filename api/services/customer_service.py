@@ -149,6 +149,49 @@ async def list_customers(
 
 
 # =============================================================================
+# Customer aggregate stats (GET /customers/stats) — 統計卡用
+# =============================================================================
+
+
+async def customer_stats(*, tenant_id: str) -> dict:
+    """客戶主檔聚合統計（前端 4 張統計卡的後三張）。
+
+    定義（業主裁決 2026-06-29，記入 CHANGELOG）：
+      - total           本租戶 line_user 客戶總數
+      - active_30d       last_active_at 近 30 天內有互動（CRM 標準「活躍」；
+                         users.is_active 欄目前全為 true 不具鑑別度故不採）
+      - high_risk        risk_level IN ('high','critical')（風險等級 高／緊急）
+      - expired_warranty warranty_status='expired'（已過保固，再行銷名單；
+                         客戶層級無保固到期日資料，故不做「即將到期」）
+
+    全部 WHERE tenant_id=%s AND role='line_user'，單次掃描以 FILTER 聚合。
+    NOW() 用 DB 伺服器時間（real time），與列表的 last_active_at 相對計算一致。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        """
+        SELECT
+            COUNT(*)                                                              AS total,
+            COUNT(*) FILTER (WHERE last_active_at >= NOW() - INTERVAL '30 days')  AS active_30d,
+            COUNT(*) FILTER (WHERE risk_level IN ('high', 'critical'))            AS high_risk,
+            COUNT(*) FILTER (WHERE warranty_status = 'expired')                   AS expired_warranty
+        FROM users
+        WHERE tenant_id = %s::uuid AND role = 'line_user'
+        """,
+        (tenant_id,),
+    )
+    row = await cur.fetchone()
+    return {
+        "total": int(row[0] or 0),
+        "active_30d": int(row[1] or 0),
+        "high_risk": int(row[2] or 0),
+        "expired_warranty": int(row[3] or 0),
+    }
+
+
+# =============================================================================
 # Customer detail with history aggregation (GET /customers/{id})
 # =============================================================================
 

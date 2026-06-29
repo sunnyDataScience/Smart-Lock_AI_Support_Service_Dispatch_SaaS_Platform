@@ -76,6 +76,30 @@ async def list_customers_v2(
     }
 
 
+# 注意：本路由必須註冊在 GET /customers/{id} 之前，否則 "/customers/stats"
+# 會被 {id} path param 吞掉（FastAPI 依註冊順序匹配）。
+@router.get(
+    "/tenants/{tenantId}/customers/stats",
+    operation_id="customerStatsV2",
+    summary="客戶主檔聚合統計 v2（活躍/高風險/已過保固，統計卡用）",
+    tags=["M04 Customer"],
+)
+async def customer_stats_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    # cross-tenant guard（ADR-0030）
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+
+    stats = await customer_service.customer_stats(tenant_id=tenantId)
+    return {"data": stats}
+
+
 @router.post(
     "/tenants/{tenantId}/customers",
     operation_id="createCustomerV2",
