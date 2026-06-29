@@ -3278,6 +3278,7 @@
         "onboardStatus": {
           "pending_approval": "待核准",
           "active": "在職",
+          "inactive": "停用",
           "suspended": "停權",
           "terminated": "終止",
           "rejected": "已駁回"

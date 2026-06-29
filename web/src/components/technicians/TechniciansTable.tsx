@@ -19,9 +19,13 @@ interface Props {
 }
 
 // onboarding 生命週期狀態徽章顏色（label 由 i18n）
+// 合法值集合對齊 SQL/migrations/020-tech-lifecycle.sql + technician_lifecycle_service
+// （pending_approval / active / inactive / suspended / rejected / terminated）。
+// inactive 為非懲罰性「停用」（可重新啟用回 active，異於懲罰性 suspended 停權）→ 中性灰調。
 const ONBOARD_TONE: Record<string, { textColor: string; bgColor: string }> = {
   pending_approval: { textColor: "#92400E", bgColor: "#FEF3C7" },
   active: { textColor: "#065F46", bgColor: "#D1FAE5" },
+  inactive: { textColor: "#475569", bgColor: "#F1F5F9" },
   suspended: { textColor: "#92400E", bgColor: "#FEF3C7" },
   terminated: { textColor: "#991B1B", bgColor: "#FEE2E2" },
   rejected: { textColor: "#991B1B", bgColor: "#FEE2E2" },

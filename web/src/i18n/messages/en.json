@@ -3278,6 +3278,7 @@
         "onboardStatus": {
           "pending_approval": "Pending approval",
           "active": "Active",
+          "inactive": "Inactive",
           "suspended": "Suspended",
           "terminated": "Terminated",
           "rejected": "Rejected"
