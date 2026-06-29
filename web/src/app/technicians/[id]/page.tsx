@@ -6,8 +6,9 @@ import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import TechnicianDetailSidebar from "@/components/technicians/TechnicianDetailSidebar";
 import CertificationMatrix from "@/components/technicians/CertificationMatrix";
-import { ApiError, api, getCurrentSession } from "@/lib/api";
+import { ApiError, api, getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
 import { cacheInvalidate } from "@/lib/cache";
+import { LOCK_BRANDS_HINT } from "@/lib/constants/brands";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
@@ -217,7 +218,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const session = getCurrentSession();
-  const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+  const tenantId = session?.tenantId ?? FALLBACK_TENANT_ID;
 
   async function loadTechnician() {
     setError(null);
@@ -477,7 +478,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
                 <input
                   value={editForm.skills}
                   onChange={(e) => setEditForm((f) => ({ ...f, skills: e.target.value }))}
-                  placeholder="Dormakaba, Yale, Kaadas"
+                  placeholder={LOCK_BRANDS_HINT}
                   className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
                 />
               </label>

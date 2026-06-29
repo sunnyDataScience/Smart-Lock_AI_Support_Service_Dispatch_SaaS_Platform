@@ -1825,7 +1825,20 @@
           "risk": "風險等級",
           "brand": "設備品牌",
           "warranty": "保固狀態",
-          "preferredTech": "偏好技師"
+          "preferredTech": "偏好技師",
+          "brandOther": "其他",
+          "preferredTechAll": "全部技師",
+          "riskOptions": {
+            "low": "低風險",
+            "medium": "中風險",
+            "high": "高風險",
+            "critical": "緊急"
+          },
+          "warrantyOptions": {
+            "active": "保固中",
+            "expired": "已過期",
+            "none": "無保固"
+          }
         },
         "comingSoon": "即將推出",
         "cols": {

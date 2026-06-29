@@ -115,11 +115,22 @@ function writeToken(key: string, value: string | null) {
   else window.localStorage.setItem(key, value);
 }
 
+/**
+ * 預設租戶 ID — session/JWT 無 tenant 時的退回值（local dev / 未登入情境）。
+ *
+ * 收斂前散落在 11+ 個 page / component 內以 inline 字面量重抄此 UUID
+ * （`session?.tenantId ?? "00000000-…-0001"`），改為唯一常數 + helper。
+ *
+ * TODO(安全, 跨頁行為決策)：正式環境理應在無有效 tenant 時擋下並導回登入，
+ *   而非靜默退回 1 號租戶（多租戶資料外洩風險）。此為跨 12 頁面的行為變更，
+ *   屬業主裁決範圍，本次只做「集中字面量」不改 runtime 行為。
+ */
+export const FALLBACK_TENANT_ID = "00000000-0000-0000-0000-000000000001";
+
 export const auth = {
   getAccessToken: () => readToken(STORAGE_KEYS.access),
   getRefreshToken: () => readToken(STORAGE_KEYS.refresh),
-  getTenantId: () =>
-    readToken(STORAGE_KEYS.tenant) ?? "00000000-0000-0000-0000-000000000001",
+  getTenantId: () => readToken(STORAGE_KEYS.tenant) ?? FALLBACK_TENANT_ID,
   getEmail: () => readToken(STORAGE_KEYS.email),
   setTokens(access: string, refresh: string) {
     writeToken(STORAGE_KEYS.access, access);
@@ -150,6 +161,10 @@ export const auth = {
  *
  *   api.get(tenantPath("/work-orders"))            // → /tenants/{tid}/work-orders
  *   cacheInvalidate(`GET:${tenantPath("/work-orders")}`)
+ *
+ * 注意 tenant 來源差異：本 helper 走 `auth.getTenantId()`（localStorage，與
+ * X-Tenant-ID header 一致）；頁面層的 `resolveTenantId()` 走 JWT claim。多數情境兩者
+ * 相同，但若刻意需要與 header 對齊請用 tenantPath，需與 session 角色一致請用 resolveTenantId。
  */
 export function tenantPath(suffix: string): string {
   const s = suffix.startsWith("/") ? suffix : `/${suffix}`;
@@ -186,6 +201,17 @@ export function getCurrentSession(): CurrentSession | null {
   const tenantId =
     typeof payload.tenant_id === "string" ? payload.tenant_id : null;
   return { userId: sub, role, tenantId, email: auth.getEmail() };
+}
+
+/**
+ * resolveTenantId — 頁面用：取目前 JWT session 的 tenant_id，缺則退回 FALLBACK_TENANT_ID。
+ *
+ * 收斂 11+ 個 page / component 內 inline 重抄的
+ * `getCurrentSession()?.tenantId ?? "00000000-…-0001"`。
+ * 來源語意刻意對齊原 caller（JWT claim，而非 auth.getTenantId() 的 localStorage）。
+ */
+export function resolveTenantId(): string {
+  return getCurrentSession()?.tenantId ?? FALLBACK_TENANT_ID;
 }
 
 let refreshInFlight: Promise<boolean> | null = null;

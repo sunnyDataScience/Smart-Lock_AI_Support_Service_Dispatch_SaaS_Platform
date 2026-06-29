@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronRight, Copy, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { AuditExportModal } from "@/components/admin/AuditExportModal";
-import { ApiError, getCurrentSession } from "@/lib/api";
+import { ApiError, resolveTenantId } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -151,8 +151,7 @@ export default function AuditEventsPage() {
   );
 
   // CR-0002-α：遷至 tenant-scoped v2 端點（GET /tenants/{tenantId}/audit/events）
-  const session = getCurrentSession();
-  const tenantId = session?.tenantId ?? "00000000-0000-0000-0000-000000000001";
+  const tenantId = resolveTenantId();
   const auditEventsPath = `/tenants/${encodeURIComponent(tenantId)}/audit/events`;
 
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<AuditLogEntry>({
