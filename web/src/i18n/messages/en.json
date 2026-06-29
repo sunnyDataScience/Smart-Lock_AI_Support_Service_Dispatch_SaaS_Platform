@@ -2269,7 +2269,7 @@
       "entityInvoice": "Invoice"
     },
     "revenue": {
-      "banner": "KPI / monthly trend / brand share use live getRevenueSummary data; the monthly trend exports to CSV. Service-type breakdown, real Excel (xlsx), day/week granularity and date ranges are pending backend support (granularity is currently always monthly).",
+      "banner": "KPI / monthly trend / brand share use live getRevenueSummary data; the monthly trend exports to CSV. Service-type breakdown is illustrative (pending an invoice category field).",
       "kpiMonthRevenue": "Month revenue",
       "kpiAvgInvoice": "Average invoice amount",
       "kpiPaidRate": "Paid rate",
