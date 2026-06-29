@@ -121,7 +121,10 @@ export default function CustomersPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
+        {/* 捲動容器須為 block（非 flex column）：flex column 的子層預設 flex-shrink:1，
+            內容超高時會被壓縮塞進視窗（表格被壓扁 + overflow-hidden 裁切）導致捲軸失效。
+            改 space-y-5 讓子層自然堆疊、溢出觸發 overflow-auto 捲動（對齊 quotes 頁模式）。*/}
+        <div className="flex-1 space-y-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           {/* Page Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
