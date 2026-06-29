@@ -77,6 +77,8 @@ export default function CustomerDetailPage({
   const tStatus = useTranslations("admin.customers.detail.status");
   const tKpi = useTranslations("admin.customers.detail.kpi");
   const tCols = useTranslations("admin.customers.detail.ordersCols");
+  const tConvStatus = useTranslations("admin.customers.detail.convStatus");
+  const tConvChannel = useTranslations("admin.customers.detail.convChannel");
   const { locale } = useLocale();
   const formatDateTime = (iso?: string | null): string => {
     if (!iso) return "—";
@@ -93,6 +95,23 @@ export default function CustomerDetailPage({
       cancelled: tStatus("cancelled"),
     };
     return known[status] ?? status;
+  };
+  // 對話 status / channel label（i18n；未知值回退原始值）。
+  const convStatusLabel = (s: string): string => {
+    const known: Record<string, string> = {
+      active: tConvStatus("active"),
+      escalated: tConvStatus("escalated"),
+      closed: tConvStatus("closed"),
+    };
+    return known[s] ?? s;
+  };
+  const convChannelLabel = (c: string): string => {
+    const known: Record<string, string> = {
+      line: tConvChannel("line"),
+      web: tConvChannel("web"),
+      phone: tConvChannel("phone"),
+    };
+    return known[c] ?? c;
   };
   const [data, setData] = useState<CustomerDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,7 +168,7 @@ export default function CustomerDetailPage({
           {data && (
             <Link
               href={`/admin/customers/${id}/edit`}
-              className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-white px-3 py-[7px] text-[13px] text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
+              className="flex items-center gap-1 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
             >
               <Pencil className="h-3.5 w-3.5" />
               {t("edit")}
@@ -175,7 +194,7 @@ export default function CustomerDetailPage({
           <main className="flex-1 overflow-auto px-8 py-6">
             <div className="grid grid-cols-3 gap-6">
               {/* 左欄：profile */}
-              <section className="col-span-1 rounded-lg border border-[var(--border)] bg-white p-5 shadow-sm">
+              <section className="col-span-1 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-3">
                   <div
                     className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)]/10 text-[20px] font-bold text-[var(--primary)]"
@@ -240,13 +259,13 @@ export default function CustomerDetailPage({
                     icon={ClipboardList}
                     label={tKpi("totalOrders")}
                     value={data.total_orders}
-                    color="#2563EB"
+                    color="var(--primary)"
                   />
                   <KpiCard
                     icon={MessageSquare}
                     label={tKpi("totalConversations")}
                     value={data.total_conversations}
-                    color="#0E7490"
+                    color="var(--info)"
                   />
                   <KpiCard
                     icon={Star}
@@ -261,14 +280,16 @@ export default function CustomerDetailPage({
                         ? tKpi("rated", { count: String(data.history.rated_count) })
                         : tKpi("noRating")
                     }
-                    color="#D97706"
+                    color="var(--accent-hover)"
                   />
                   <KpiCard
                     icon={CircleAlert}
                     label={tKpi("disputeCount")}
                     value={data.history.dispute_count}
                     color={
-                      data.history.dispute_count > 0 ? "#DC2626" : "#475569"
+                      data.history.dispute_count > 0
+                        ? "var(--error)"
+                        : "var(--text-secondary)"
                     }
                   />
                 </section>
@@ -282,14 +303,16 @@ export default function CustomerDetailPage({
                         ? tKpi("minutes", { min: String(Math.round(data.history.avg_completion_minutes)) })
                         : "—"
                     }
-                    color="#0E7490"
+                    color="var(--info)"
                   />
                   <KpiCard
                     icon={Wallet}
                     label={tKpi("refundCount")}
                     value={data.history.refund_count}
                     color={
-                      data.history.refund_count > 0 ? "#B91C1C" : "#475569"
+                      data.history.refund_count > 0
+                        ? "var(--error)"
+                        : "var(--text-secondary)"
                     }
                   />
                   <KpiCard
@@ -297,7 +320,9 @@ export default function CustomerDetailPage({
                     label={tKpi("refundTotal")}
                     value={formatTwd(data.history.refund_total)}
                     color={
-                      data.history.refund_total > 0 ? "#B91C1C" : "#475569"
+                      data.history.refund_total > 0
+                        ? "var(--error)"
+                        : "var(--text-secondary)"
                     }
                   />
                 </section>
@@ -305,7 +330,7 @@ export default function CustomerDetailPage({
                 {/* 工單狀態分布 */}
                 {Object.keys(data.history.work_order_status_breakdown).length >
                   0 && (
-                  <section className="rounded-lg border border-[var(--border)] bg-white p-4 shadow-sm">
+                  <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
                     <h3 className="mb-3 text-[14px] font-semibold text-[var(--text-primary)]">
                       {t("statusBreakdown")}
                     </h3>
@@ -328,7 +353,7 @@ export default function CustomerDetailPage({
                 )}
 
                 {/* 最近工單 */}
-                <section className="rounded-lg border border-[var(--border)] bg-white p-4 shadow-sm">
+                <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
                   <h3 className="mb-3 text-[14px] font-semibold text-[var(--text-primary)]">
                     {t("recentOrders", { count: String(data.history.recent_orders.length) })}
                   </h3>
@@ -383,7 +408,7 @@ export default function CustomerDetailPage({
                 </section>
 
                 {/* 最近對話 */}
-                <section className="rounded-lg border border-[var(--border)] bg-white p-4 shadow-sm">
+                <section className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
                   <h3 className="mb-3 text-[14px] font-semibold text-[var(--text-primary)]">
                     {t("recentConversations", { count: String(data.history.recent_conversations.length) })}
                   </h3>
@@ -408,11 +433,11 @@ export default function CustomerDetailPage({
                           </div>
                           <div className="mt-1 flex gap-2 text-[11px] text-[var(--text-secondary)]">
                             <span className="rounded bg-[#F1F5F9] px-2 py-[1px]">
-                              {conv.status}
+                              {convStatusLabel(conv.status)}
                             </span>
                             {conv.channel && (
                               <span className="rounded bg-[#F1F5F9] px-2 py-[1px]">
-                                {conv.channel}
+                                {convChannelLabel(conv.channel)}
                               </span>
                             )}
                           </div>
@@ -441,9 +466,9 @@ interface KpiCardProps {
   color?: string;
 }
 
-function KpiCard({ icon: Icon, label, value, sub, color = "#2563EB" }: KpiCardProps) {
+function KpiCard({ icon: Icon, label, value, sub, color = "var(--primary)" }: KpiCardProps) {
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-white p-3 shadow-sm">
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-sm">
       <div className="flex items-center gap-2">
         <Icon className="h-4 w-4" style={{ color }} />
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">

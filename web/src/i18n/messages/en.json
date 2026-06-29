@@ -1901,6 +1901,16 @@
           "completed": "Completed",
           "confirmed": "Confirmed",
           "cancelled": "Cancelled"
+        },
+        "convStatus": {
+          "active": "Active",
+          "escalated": "Escalated",
+          "closed": "Closed"
+        },
+        "convChannel": {
+          "line": "LINE",
+          "web": "Web",
+          "phone": "Phone"
         }
       }
     },
