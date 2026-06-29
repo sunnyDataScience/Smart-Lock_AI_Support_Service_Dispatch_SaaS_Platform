@@ -14,9 +14,11 @@
  *   const cfg = await api.get("/api/v1/config");
  *   await api.patch("/api/v1/config", { rag: { max_results: 5 } });
  *
- *   // mutate 後清相關 GET cache：
+ *   // mutate 後清 GET cache。注意：cache key 是 `GET:${完整URL}:${tenant}`
+ *   // （含 BASE_URL host），path-prefix（如 GET:/tenants/…）對不上 startsWith，
+ *   // 故用廣域 "GET:" 清全部 GET 快取（與各頁慣例一致）：
  *   import { cacheInvalidate } from "@/lib/cache";
- *   cacheInvalidate("GET:/api/v1/work-orders");
+ *   cacheInvalidate("GET:");
  */
 
 import { cacheGet, cacheClear } from "./cache";
@@ -160,7 +162,7 @@ export const auth = {
  * /sops, /vouchers/{id}/void 等）直接寫新 literal 路徑，不經此 helper。
  *
  *   api.get(tenantPath("/work-orders"))            // → /tenants/{tid}/work-orders
- *   cacheInvalidate(`GET:${tenantPath("/work-orders")}`)
+ *   cacheInvalidate("GET:")  // cache key 含完整 URL，用廣域 prefix 清，勿用 path-prefix
  *
  * 注意 tenant 來源差異：本 helper 走 `auth.getTenantId()`（localStorage，與
  * X-Tenant-ID header 一致）；頁面層的 `resolveTenantId()` 走 JWT claim。多數情境兩者
