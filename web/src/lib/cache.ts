@@ -78,9 +78,12 @@ export async function cacheGet<T>(
 /**
  * cacheInvalidate — 清掉指定 key 或 prefix-match
  *
+ * 注意：cache key 是 `GET:${完整URL}:${tenant}`（含 BASE_URL host，見 api.ts），
+ * 所以 path-prefix（如 `GET:/tenants/…`）對不上 startsWith，清不到任何東西。
+ * mutate 後一律用廣域 `"GET:"` 清全部 GET 快取（與各頁慣例一致）：
+ *
  * 用法（mutate 後）：
- *   cacheInvalidate(`GET:${tenantPath("/work-orders")}`);  // prefix 模糊清
- *   cacheInvalidate(`GET:${tenantPath("/work-orders")}?limit=100:tenant1`);  // 精確清
+ *   cacheInvalidate("GET:");  // 廣域清全部 GET 快取（推薦）
  */
 export function cacheInvalidate(prefix: string): void {
   for (const key of cache.keys()) {

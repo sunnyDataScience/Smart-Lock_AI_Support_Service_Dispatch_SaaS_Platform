@@ -5,6 +5,7 @@ import { FileText, Plus, Trash2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { cacheInvalidate } from "@/lib/cache";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface CatalogItem {
@@ -247,6 +248,7 @@ export default function QuotesPage() {
     try {
       const res = await api.post<{ data: Quote }>(tenantPath(`/work-orders/${woId.trim()}/quotes`), { urgent: false });
       setQuote(res.data);
+      cacheInvalidate("GET:"); // 新草稿才會出現在列表（清 GET /quotes 舊快取）
       setQuotes(await fetchQuotes());
     } catch (e) {
       fail(e);
@@ -301,7 +303,14 @@ export default function QuotesPage() {
     try {
       await api.delete(tenantPath(`/quotes/${encodeURIComponent(id)}`));
       if (quote?.id === id) setQuote(null); // 若刪的是目前開啟的報價 → 收起編輯區
-      setQuotes(await fetchQuotes());
+      // 樂觀更新：先即時把該筆從列表移除，免等下方 refetch 的網路往返。
+      setQuotes((prev) => prev.filter((q) => q.id !== id));
+      // GET /quotes 在頁面載入時已被快取（30s staleTime）；不清快取，fetchQuotes
+      // 會讀回「仍含剛刪那筆」的舊列表（業主回報：刪草稿後不馬上刷新）。
+      // cache key 含完整 URL（GET:${host}${path}:${tenant}），path-prefix 對不上，
+      // 故用廣域 "GET:" 清全部 GET 快取（與 cases 頁等各頁慣例一致）。
+      cacheInvalidate("GET:");
+      setQuotes(await fetchQuotes()); // 與後端對帳（cascade 刪除後的真實列表）
     } catch (e) {
       fail(e);
     } finally {
@@ -322,6 +331,7 @@ export default function QuotesPage() {
       setQuote(res.data);
       // 送客戶成功 → 後端回傳客戶端查看連結
       if (res.data.public_path) setLinkPath(res.data.public_path);
+      cacheInvalidate("GET:"); // 狀態變更須反映到列表（清 GET /quotes 舊快取）
       setQuotes(await fetchQuotes()); // 狀態變更後刷新列表
     } catch (e) {
       fail(e);
