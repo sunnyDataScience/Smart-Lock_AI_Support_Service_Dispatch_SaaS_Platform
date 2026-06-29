@@ -202,10 +202,13 @@ export default function InvoicesPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-[38px] rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
           >
+            {/* 值對齊後端 InvoiceStatus 白名單（pending/issued/voided）。
+                原 paid/overdue 非合法 filter 值（送出即 422）：API 無法區分
+                已付款 vs 已開立（issued 含 paid），overdue 也非狀態而是衍生條件。*/}
             <option value="">{tInv("filterAllStatus")}</option>
-            <option value="paid">已付款</option>
-            <option value="pending">未付款</option>
-            <option value="overdue">逾期</option>
+            <option value="pending">草稿（待開立）</option>
+            <option value="issued">已開立</option>
+            <option value="voided">已作廢</option>
           </select>
 
           <select

@@ -2269,7 +2269,7 @@
       "entityInvoice": "Invoice"
     },
     "revenue": {
-      "banner": "KPI / monthly trend / brand share use live getRevenueSummary data. Service-type breakdown, CSV/Excel export, day/week granularity and date ranges land once invoice fields stabilize and export endpoints ship.",
+      "banner": "KPI / monthly trend / brand share use live getRevenueSummary data; the monthly trend exports to CSV. Service-type breakdown, real Excel (xlsx), day/week granularity and date ranges are pending backend support (granularity is currently always monthly).",
       "kpiMonthRevenue": "Month revenue",
       "kpiAvgInvoice": "Average invoice amount",
       "kpiPaidRate": "Paid rate",
@@ -2283,7 +2283,7 @@
       "exportExcel": "Export Excel"
     },
     "invoices": {
-      "banner": "Table is live listInvoices data. Search / status / payment method / date range / overdue-only land once invoice write endpoints and filter fields converge.",
+      "banner": "Table and the search / status / payment method / date range filters are all live listInvoices data; only overdue-only is coming soon (pending a backend overdue condition).",
       "searchPlaceholder": "Search invoice number, customer name...",
       "filterAllStatus": "All statuses",
       "filterPaymentMethod": "Payment method",
