@@ -77,20 +77,14 @@ export default function RevenuePage() {
     [tTabs],
   );
 
-  const segments = useMemo(
-    () => [
-      { label: tR("segDay"), value: "day", enabled: true },
-      { label: tR("segWeek"), value: "week", enabled: true },
-      { label: tR("segMonth"), value: "month", enabled: true },
-    ],
-    [tR],
-  );
   const [data, setData] = useState<RevenueSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const [granularity, setGranularity] = useState<"day" | "week" | "month">("month");
-  const [periodPreset, setPeriodPreset] = useState<"last30" | "last90" | "last180" | "thisYear">("last30");
+  // 後端 /reports/revenue 目前忽略 granularity（恆回月度），且無日期範圍參數。
+  // 原「日/週/月」分段與「日期範圍」下拉皆為死控制（選了資料不變），已移除；
+  // 此處固定月度，待後端支援粒度/日期範圍再恢復控制項。
+  const granularity = "month";
 
   const fetchSummary = async () => {
     setLoading(true);
@@ -280,37 +274,9 @@ export default function RevenuePage() {
             ))}
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center justify-between px-8">
-            <div className="flex items-center gap-4">
-              <div className="flex rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
-                {segments.map((seg) => (
-                  <button
-                    key={seg.label}
-                    onClick={() => setGranularity(seg.value as "day" | "week" | "month")}
-                    className={`rounded-md px-4 py-2 text-[13px] ${
-                      seg.value === granularity
-                        ? "bg-[var(--primary)] font-semibold text-white"
-                        : "font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-                    }`}
-                  >
-                    {seg.label}
-                  </button>
-                ))}
-              </div>
-
-              <select
-                value={periodPreset}
-                onChange={(e) => setPeriodPreset(e.target.value as any)}
-                className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] text-[var(--text-primary)] outline-none"
-              >
-                <option value="last30">最近 30 天</option>
-                <option value="last90">最近 90 天</option>
-                <option value="last180">最近 180 天</option>
-                <option value="thisYear">今年</option>
-              </select>
-            </div>
-          </div>
+          {/* 原「日/週/月粒度」分段與「日期範圍」下拉已移除：後端 /reports/revenue
+              忽略 granularity（恆回月度）、無日期範圍參數，兩者皆為死控制。待後端
+              支援後再恢復。月度趨勢圖直接呈現。*/}
 
           {/* Main Chart */}
           <div className="px-8 pt-4">
@@ -323,24 +289,19 @@ export default function RevenuePage() {
             <ServiceTypeChart />
           </div>
 
+          {/* Excel 按鈕已移除：原本傳 ext="xlsx" 卻仍輸出 CSV 內容只改副檔名
+              （假 xlsx，Excel 開啟會異常）。保留可用的客戶端 CSV 匯出（趨勢資料），
+              待真 xlsx 產生器（後端匯出 endpoint 或前端 xlsx lib）再恢復。*/}
           <div className="flex items-center justify-end gap-3 px-8 py-3">
             <button
               onClick={() => exportTrendCsv(data?.trend ?? [], granularity)}
               disabled={!data}
-              className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-4 py-[10px] hover:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-4 py-[10px] hover:bg-[var(--bg-surface)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Download className="h-4 w-4 text-[var(--text-secondary)]" />
               <span className="text-sm font-medium text-[var(--text-primary)]">
                 {tR("exportCsv")}
               </span>
-            </button>
-            <button
-              onClick={() => exportTrendCsv(data?.trend ?? [], granularity, "xlsx")}
-              disabled={!data}
-              className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-[10px] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="h-4 w-4 text-white" />
-              <span className="text-sm font-medium text-white">{tR("exportExcel")}</span>
             </button>
           </div>
         </div>
