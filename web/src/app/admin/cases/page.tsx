@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Inbox, PhoneCall, Check, AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Inbox, PhoneCall, Check, AlertTriangle, ListFilter } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import { cacheInvalidate } from "@/lib/cache";
@@ -38,6 +38,46 @@ const STATUS_LABEL: Record<string, string> = {
   closed: "已結案",
 };
 
+// 狀態徽章配色（待回應=琥珀提醒 / 處理中=藍進行 / 已結案=灰淡出）
+const STATUS_STYLE: Record<string, string> = {
+  open: "border border-amber-200 bg-amber-50 text-amber-700",
+  in_progress: "border border-blue-200 bg-blue-50 text-blue-700",
+  closed: "border border-gray-200 bg-gray-100 text-gray-500",
+};
+
+const STATUS_FILTERS: { value: string; label: string }[] = [
+  { value: "", label: "全部狀態" },
+  { value: "open", label: "待回應" },
+  { value: "in_progress", label: "處理中" },
+  { value: "closed", label: "已結案" },
+];
+
+const CHANNEL_FILTERS: { value: string; label: string }[] = [
+  { value: "", label: "全部渠道" },
+  { value: "line", label: "LINE" },
+  { value: "phone", label: "電話" },
+  { value: "web", label: "官網表單" },
+  { value: "referral", label: "熟客介紹" },
+];
+
+// 分鐘數 → 「X 天 / X 小時 Y 分 / Y 分」
+function fmtDuration(mins: number): string {
+  if (mins >= 1440) return `${Math.floor(mins / 1440)} 天`;
+  if (mins >= 60) return `${Math.floor(mins / 60)} 小時 ${mins % 60} 分`;
+  return `${mins} 分`;
+}
+
+// 首次回應 SLA 顯示：顏色 + 剩餘/逾時時間（綠=充裕、琥珀=即將到期、紅=逾時）
+function slaInfo(c: IntakeCase): { label: string; cls: string } {
+  if (c.status === "closed") return { label: "—", cls: "text-[var(--text-disabled)]" };
+  if (c.first_responded_at) return { label: "已回應", cls: "text-[#15803D]" };
+  if (!c.first_response_due_at) return { label: "待回應", cls: "text-[#B45309]" };
+  const diffMin = Math.round((new Date(c.first_response_due_at).getTime() - Date.now()) / 60000);
+  if (diffMin < 0) return { label: `逾時 ${fmtDuration(-diffMin)}`, cls: "font-semibold text-red-600" };
+  if (diffMin <= 30) return { label: `剩 ${fmtDuration(diffMin)}`, cls: "font-semibold text-[#B45309]" };
+  return { label: `剩 ${fmtDuration(diffMin)}`, cls: "text-[#15803D]" };
+}
+
 export default function IntakeCasesPage() {
   const [items, setItems] = useState<IntakeCase[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,11 +90,16 @@ export default function IntakeCasesPage() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [summary, setSummary] = useState("");
 
+  // 列表篩選（client 端，即時不需 re-fetch）
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterChannel, setFilterChannel] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<{ data: IntakeCase[] }>(tenantPath("/cases"));
+      const res = await api.get<{ data: IntakeCase[] }>(tenantPath("/cases?limit=200"));
       setItems(res.data ?? []);
     } catch (e) {
       setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
@@ -122,6 +167,17 @@ export default function IntakeCasesPage() {
   }
 
   const overdueCount = items.filter((c) => c.sla_overdue).length;
+  const hasFilter = filterStatus !== "" || filterChannel !== "" || overdueOnly;
+  const visibleItems = useMemo(
+    () =>
+      items.filter(
+        (c) =>
+          (!filterStatus || c.status === filterStatus) &&
+          (!filterChannel || c.source_channel === filterChannel) &&
+          (!overdueOnly || c.sla_overdue),
+      ),
+    [items, filterStatus, filterChannel, overdueOnly],
+  );
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -130,7 +186,9 @@ export default function IntakeCasesPage() {
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <Inbox className="h-7 w-7 text-[var(--primary)]" />
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">進線案件（Case）</h1>
-          <span className="text-[13px] text-[var(--text-secondary)]">共 {items.length} 件</span>
+          <span className="text-[13px] text-[var(--text-secondary)]">
+            共 {items.length} 件{hasFilter && `，篩出 ${visibleItems.length} 件`}
+          </span>
           {overdueCount > 0 && (
             <span className="ml-1 flex items-center gap-1 rounded bg-red-50 px-2 py-[2px] text-[12px] font-semibold text-red-700">
               <AlertTriangle className="h-3.5 w-3.5" /> {overdueCount} 件 SLA 逾時
@@ -194,78 +252,143 @@ export default function IntakeCasesPage() {
             </div>
           </div>
 
-          {/* 案件列表 */}
+          {/* 篩選 + 案件列表 */}
           {loading ? (
             <p className="text-sm text-[var(--text-secondary)]">載入中…</p>
           ) : items.length === 0 ? (
             <p className="text-sm text-[var(--text-disabled)]">目前沒有進線案件</p>
           ) : (
-            <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
-              <table className="w-full text-sm">
-                <thead className="bg-[#F8FAFC] text-xs text-[var(--text-secondary)]">
-                  <tr>
-                    <th className="px-4 py-3 text-left">案號</th>
-                    <th className="px-4 py-3 text-left">渠道</th>
-                    <th className="px-4 py-3 text-left">客戶</th>
-                    <th className="px-4 py-3 text-left">摘要</th>
-                    <th className="px-4 py-3 text-left">狀態</th>
-                    <th className="px-4 py-3 text-left">SLA</th>
-                    <th className="px-4 py-3 text-left">操作</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.map((c) => (
-                    <tr key={c.id} className="border-t border-[var(--border)]">
-                      <td className="px-4 py-3 font-mono text-[13px] font-medium text-[var(--text-primary)]">
-                        {c.case_number}
-                      </td>
-                      <td className="px-4 py-3 text-[var(--text-secondary)]">
-                        {CHANNEL_LABEL[c.source_channel] ?? c.source_channel}
-                      </td>
-                      <td className="px-4 py-3 text-[var(--text-secondary)]">
-                        {c.customer_name || "—"}
-                        {c.customer_phone ? <span className="text-[var(--text-disabled)]"> · {c.customer_phone}</span> : null}
-                      </td>
-                      <td className="px-4 py-3 text-[var(--text-secondary)]">{c.summary || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span className="rounded bg-[#E0E7FF] px-2 py-[2px] text-[12px] text-[#4338CA]">
-                          {STATUS_LABEL[c.status] ?? c.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {c.status === "closed" ? (
-                          <span className="text-[12px] text-[var(--text-disabled)]">—</span>
-                        ) : c.sla_overdue ? (
-                          <span className="text-[12px] font-semibold text-red-600">逾時</span>
-                        ) : c.first_responded_at ? (
-                          <span className="text-[12px] text-[#15803D]">已回應</span>
-                        ) : (
-                          <span className="text-[12px] text-[#B45309]">待回應</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {c.status === "open" && (
-                          <button
-                            onClick={() => updateStatus(c.id, "in_progress")}
-                            className="rounded border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--text-primary)] hover:bg-[#F1F5F9]"
-                          >
-                            標記處理中
-                          </button>
-                        )}
-                        {c.status === "in_progress" && (
-                          <button
-                            onClick={() => updateStatus(c.id, "closed")}
-                            className="rounded border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--text-primary)] hover:bg-[#F1F5F9]"
-                          >
-                            結案
-                          </button>
-                        )}
-                      </td>
-                    </tr>
+            <>
+              {/* 篩選列 */}
+              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
+                <span className="flex items-center gap-1.5 text-[13px] font-medium text-[var(--text-secondary)]">
+                  <ListFilter className="h-4 w-4" /> 篩選
+                </span>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  className={FILTER_INPUT}
+                >
+                  {STATUS_FILTERS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
                   ))}
-                </tbody>
-              </table>
-            </div>
+                </select>
+                <select
+                  value={filterChannel}
+                  onChange={(e) => setFilterChannel(e.target.value)}
+                  className={FILTER_INPUT}
+                >
+                  {CHANNEL_FILTERS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+                <label className="flex cursor-pointer items-center gap-1.5 text-[13px] text-[var(--text-primary)]">
+                  <input
+                    type="checkbox"
+                    checked={overdueOnly}
+                    onChange={(e) => setOverdueOnly(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-red-600"
+                  />
+                  只看 SLA 逾時
+                </label>
+                {hasFilter && (
+                  <button
+                    onClick={() => {
+                      setFilterStatus("");
+                      setFilterChannel("");
+                      setOverdueOnly(false);
+                    }}
+                    className="ml-auto text-[12px] text-[var(--primary)] hover:underline"
+                  >
+                    清除篩選
+                  </button>
+                )}
+              </div>
+
+              {/* 表格 */}
+              <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+                <table className="w-full text-sm">
+                  <thead className="bg-[#F8FAFC] text-xs text-[var(--text-secondary)]">
+                    <tr>
+                      <th className="px-4 py-3 text-left">案號</th>
+                      <th className="px-4 py-3 text-left">渠道</th>
+                      <th className="px-4 py-3 text-left">客戶</th>
+                      <th className="px-4 py-3 text-left">摘要</th>
+                      <th className="px-4 py-3 text-left">狀態</th>
+                      <th className="px-4 py-3 text-left">SLA（首次回應）</th>
+                      <th className="px-4 py-3 text-left">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleItems.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-4 py-8 text-center text-[13px] text-[var(--text-disabled)]"
+                        >
+                          沒有符合篩選條件的案件
+                        </td>
+                      </tr>
+                    ) : (
+                      visibleItems.map((c) => {
+                        const sla = slaInfo(c);
+                        return (
+                          <tr key={c.id} className="border-t border-[var(--border)]">
+                            <td className="px-4 py-3 font-mono text-[13px] font-medium text-[var(--text-primary)]">
+                              {c.case_number}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--text-secondary)]">
+                              {CHANNEL_LABEL[c.source_channel] ?? c.source_channel}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--text-secondary)]">
+                              {c.customer_name || "—"}
+                              {c.customer_phone ? (
+                                <span className="text-[var(--text-disabled)]"> · {c.customer_phone}</span>
+                              ) : null}
+                            </td>
+                            <td className="px-4 py-3 text-[var(--text-secondary)]">{c.summary || "—"}</td>
+                            <td className="px-4 py-3">
+                              <span
+                                className={`rounded px-2 py-[2px] text-[12px] ${
+                                  STATUS_STYLE[c.status] ?? "border border-gray-200 bg-gray-100 text-gray-500"
+                                }`}
+                              >
+                                {STATUS_LABEL[c.status] ?? c.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`text-[12px] ${sla.cls}`}>{sla.label}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {c.status === "open" && (
+                                <button
+                                  onClick={() => updateStatus(c.id, "in_progress")}
+                                  className="rounded border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--text-primary)] hover:bg-[#F1F5F9]"
+                                >
+                                  標記處理中
+                                </button>
+                              )}
+                              {c.status === "in_progress" && (
+                                <button
+                                  onClick={() => updateStatus(c.id, "closed")}
+                                  className="rounded border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--text-primary)] hover:bg-[#F1F5F9]"
+                                >
+                                  結案
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -275,6 +398,9 @@ export default function IntakeCasesPage() {
 
 const INPUT =
   "w-full rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none";
+
+const FILTER_INPUT =
+  "rounded-md border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none";
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
