@@ -1901,6 +1901,16 @@
           "completed": "已完工",
           "confirmed": "已確認",
           "cancelled": "已取消"
+        },
+        "convStatus": {
+          "active": "進行中",
+          "escalated": "已升級",
+          "closed": "已結束"
+        },
+        "convChannel": {
+          "line": "LINE",
+          "web": "網頁",
+          "phone": "電話"
         }
       }
     },
