@@ -259,8 +259,15 @@ export default function TechnicianDetailPage({ params }: PageProps) {
       return;
     }
     const verb = action === "suspend" ? "停權" : "復權";
-    const reason = window.prompt(`請輸入${verb}原因（會記入稽核紀錄）：`, "");
-    if (reason == null || !reason.trim()) return; // 取消或空白 → 不送
+    // 後端 technician_lifecycle_service `_change_status_and_audit` 要求 reason
+    // strip 後 ≥3 字元，否則 VALIDATION_ERROR (422)。前端先擋並在邊界提示，
+    // 避免送出才得語意不明的 422（業主回報只看到「VALIDATION_ERROR (422)」）。
+    const reason = window.prompt(`請輸入${verb}原因（至少 3 個字，會記入稽核紀錄）：`, "");
+    if (reason == null) return; // 取消 → 不送
+    if (reason.trim().length < 3) {
+      setActionMsg(`${verb}原因至少需 3 個字`);
+      return;
+    }
     setActionBusy(true);
     setActionMsg(null);
     try {
@@ -272,8 +279,12 @@ export default function TechnicianDetailPage({ params }: PageProps) {
       cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refetch 取到更新後狀態
       await loadTechnician();
     } catch (e) {
+      // ApiError.message 帶後端友善 detail（如「reason 至少 3 字元」/狀態衝突），
+      // 一併顯示比裸 errorCode 更可行動。
       setActionMsg(
-        e instanceof ApiError ? `${verb}失敗：${e.errorCode} (${e.status})` : `${verb}失敗`,
+        e instanceof ApiError
+          ? `${verb}失敗：${e.message || e.errorCode}（${e.status}）`
+          : `${verb}失敗`,
       );
     } finally {
       setActionBusy(false);
