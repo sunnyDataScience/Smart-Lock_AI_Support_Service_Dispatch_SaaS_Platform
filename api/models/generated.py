@@ -1504,6 +1504,12 @@ class RevenueByBrandPoint(BaseModel):
     share: confloat(ge=0.0, le=1.0) = Field(..., description='占總營收比例')
 
 
+class RevenueByCategoryPoint(BaseModel):
+    category: str
+    revenue: constr(pattern=r'^-?\d+(\.\d{1,2})?$')
+    share: confloat(ge=0.0, le=1.0) = Field(..., description='占總營收比例')
+
+
 class Granularity(StrEnum):
     day = 'day'
     week = 'week'
@@ -1515,6 +1521,10 @@ class RevenueSummary(BaseModel):
     kpis: RevenueKpis
     trend: list[RevenueTrendPoint]
     by_brand: list[RevenueByBrandPoint]
+    # 手動 additive 欄位：問題類別營收佔比。openapi.yaml / web api.generated.ts 待 TS
+    # 產生器修復後回填同步（與 customer-stats 同策略，前端以 inline 型別消費）；
+    # default=[] 保非破壞，舊有建構/序列化不受影響。
+    by_category: list[RevenueByCategoryPoint] = []
 
 
 class KpiFunnel(BaseModel):

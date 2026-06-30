@@ -2269,7 +2269,7 @@
       "entityInvoice": "發票"
     },
     "revenue": {
-      "banner": "KPI／月度趨勢／品牌占比為 getRevenueSummary 即時資料，月度趨勢可匯出 CSV。服務類型分佈為示意（待 invoice category 欄位上線）。",
+      "banner": "KPI／月度趨勢／品牌占比／問題類別占比皆為 getRevenueSummary 即時資料，月度趨勢可匯出 CSV。",
       "kpiMonthRevenue": "本月營收",
       "kpiAvgInvoice": "平均發票金額",
       "kpiPaidRate": "付款成功率",

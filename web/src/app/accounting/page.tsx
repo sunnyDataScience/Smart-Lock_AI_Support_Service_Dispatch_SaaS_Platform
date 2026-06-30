@@ -276,11 +276,11 @@ export default function AccountingPage() {
               <button
                 onClick={refreshAll}
                 disabled={loading || reconsLoading}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
                 title={tCommon("refresh")}
               >
                 <RefreshCw
-                  className={`h-4 w-4 text-[var(--text-secondary)] ${loading || reconsLoading ? "animate-spin" : ""}`}
+                  className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading || reconsLoading ? "animate-spin" : ""}`}
                 />
               </button>
               <button

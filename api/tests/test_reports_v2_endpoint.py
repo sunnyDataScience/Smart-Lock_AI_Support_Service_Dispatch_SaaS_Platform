@@ -96,6 +96,13 @@ async def test_get_report_revenue_200(client, admin_headers):
     if res.status_code == 200:
         body = res.json()
         assert isinstance(body, dict)
+        # by_category（additive）：問題類別營收佔比，結構與 by_brand 對稱。
+        assert "by_category" in body, body
+        assert isinstance(body["by_category"], list)
+        for pt in body["by_category"]:
+            assert set(pt.keys()) >= {"category", "revenue", "share"}, pt
+            assert isinstance(pt["category"], str)
+            assert 0.0 <= pt["share"] <= 1.0
 
 
 @pytest.mark.asyncio

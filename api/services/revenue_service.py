@@ -4,7 +4,8 @@
 不含：日 / 週 granularity（後端目前僅實作 month）；CSV/Excel 匯出端點。
 
 OpenAPI RevenueSummary：
-    granularity, kpis (5 欄位), trend (RevenueTrendPoint[]), by_brand (RevenueByBrandPoint[])
+    granularity, kpis (5 欄位), trend (RevenueTrendPoint[]), by_brand (RevenueByBrandPoint[]),
+    by_category (RevenueByCategoryPoint[] — additive；問題類別營收佔比，同 by_brand JOIN)
 
 DB ↔ API 對齊：
   - invoices.amount (FLOAT) → 所有 revenue 欄位 decimal string with 2 decimals
@@ -234,6 +235,52 @@ async def _query_by_brand(
     return out
 
 
+async def _query_by_category(
+    tenant_id: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> list[dict]:
+    """問題類別營收佔比（與 by_brand 同一條 _TENANT_JOIN，僅 GROUP BY 維度換成 pc.category）。
+
+    pc.category 為自由字串（卡片 / 指紋辨識 / 密碼 / WiFi 連線 / 電池 / 聲音異常 /
+    故障 / 安裝…），NULL/空字串收斂為「未分類」。
+
+    注意：這是「問題類別」而非 work_orders.service_category（install/repair/warranty
+    enum，目前 seed 未填、全 NULL）；前端圖表標題對應為「問題類別營收佔比」，不可標
+    「服務類型」以免語意不符。
+    """
+    extra_clause = ""
+    extra_args: list = []
+    if start_date is not None and end_date is not None:
+        extra_clause = f" AND {_date_range_clause()}"
+        extra_args = [start_date, end_date]
+
+    sql = f"""
+        SELECT
+            COALESCE(NULLIF(pc.category, ''), '未分類') AS category,
+            COALESCE(SUM(i.amount), 0) AS revenue
+        {_TENANT_JOIN}
+        WHERE u.tenant_id = %s::uuid
+          AND i.status IN ('issued','paid'){extra_clause}
+        GROUP BY 1
+        ORDER BY 2 DESC
+    """
+    cur = await db_module._conn.execute(sql, [tenant_id, *extra_args])
+    rows = await cur.fetchall()
+
+    total = sum(Decimal(str(r[1])) for r in rows) if rows else Decimal("0")
+    out: list[dict] = []
+    for r in rows:
+        rev = Decimal(str(r[1]))
+        share = float(rev / total) if total > 0 else 0.0
+        out.append({
+            "category": r[0],
+            "revenue": _coerce_decimal(r[1]),
+            "share": share,
+        })
+    return out
+
+
 async def get_revenue_summary(
     *,
     tenant_id: str,
@@ -255,10 +302,12 @@ async def get_revenue_summary(
     kpis = await _query_kpis(tenant_id, start_date, end_date)
     trend = await _query_trend_monthly(tenant_id, start_date, end_date)
     by_brand = await _query_by_brand(tenant_id, start_date, end_date)
+    by_category = await _query_by_category(tenant_id, start_date, end_date)
 
     return {
         "granularity": effective,
         "kpis": kpis,
         "trend": trend,
         "by_brand": by_brand,
+        "by_category": by_category,
     }
