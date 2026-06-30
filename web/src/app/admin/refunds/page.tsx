@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
+import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
 import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -27,6 +28,22 @@ const REFUND_CLASSES: { value: RefundClass; label: string }[] = [
   { value: "travel", label: "車馬費" },
   { value: "inspection", label: "檢測費" },
 ];
+
+/** 覆核主管下拉用：後台員工選項（取自 GET /api/v1/staff，排除發起人）。 */
+interface StaffOption {
+  id: string;
+  name: string;
+  role: string;
+}
+
+// 角色中文標籤（對齊 /admin/staff 頁 ROLE_LABEL / 後端 _STAFF_ROLES）。
+const STAFF_ROLE_LABEL: Record<string, string> = {
+  operations_manager: "營運主管",
+  dispatcher: "派工員",
+  customer_service: "客服",
+  reviewer: "審核員",
+  admin: "系統管理員",
+};
 
 /**
  * 新 SoD 端點回應 data 形狀（尚未進 openapi 生成型別，先在頁面本地定義）。
@@ -544,6 +561,37 @@ function CreateRefundModal({
   const [refundClass, setRefundClass] = useState<RefundClass>("product");
   const [approver, setApprover] = useState("");
 
+  // 覆核主管下拉：拉真實後台員工清單，排除發起人自己（SoD）+ 只列啟用帳號，
+  // 取代原本手貼主管 UUID。
+  const currentUserId = getCurrentSession()?.userId ?? "";
+  const [staffList, setStaffList] = useState<StaffOption[]>([]);
+  const [staffLoading, setStaffLoading] = useState(true);
+  const [staffError, setStaffError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setStaffLoading(true);
+      try {
+        const res = await api.get<{
+          items: { id: string; name: string; role: string; is_active: boolean }[];
+        }>("/api/v1/staff");
+        if (cancelled) return;
+        const opts = (res.items ?? [])
+          .filter((s) => s.id !== currentUserId && s.is_active)
+          .map((s) => ({ id: s.id, name: s.name, role: s.role }));
+        setStaffList(opts);
+      } catch (e) {
+        if (!cancelled) setStaffError(formatActionError(e));
+      } finally {
+        if (!cancelled) setStaffLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId]);
+
   const valid =
     UUID_RE.test(workOrderId.trim()) &&
     /^\d+(\.\d{1,2})?$/.test(amount.trim()) &&
@@ -570,15 +618,9 @@ function CreateRefundModal({
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-              工單 ID（UUID）
+              工單（搜尋公單號或客戶名，免手貼 UUID）
             </span>
-            <input
-              value={workOrderId}
-              onChange={(e) => setWorkOrderId(e.target.value)}
-              disabled={submitting}
-              placeholder="00000000-0000-0000-0000-000000000000"
-              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-mono focus:border-[var(--primary)] focus:outline-none"
-            />
+            <WorkOrderPicker value={workOrderId} onChange={setWorkOrderId} />
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[12px] font-medium text-[var(--text-secondary)]">
@@ -625,15 +667,30 @@ function CreateRefundModal({
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-              覆核主管 ID（X-Approver）
+              覆核主管（須與發起人不同，SoD）
             </span>
-            <input
+            <select
               value={approver}
               onChange={(e) => setApprover(e.target.value)}
-              disabled={submitting}
-              placeholder="須與發起人不同（SoD）"
-              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-mono focus:border-[var(--primary)] focus:outline-none"
-            />
+              disabled={submitting || staffLoading}
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-60"
+            >
+              <option value="">
+                {staffLoading
+                  ? "載入員工清單中…"
+                  : staffList.length === 0
+                    ? "無可選的覆核主管"
+                    : "請選擇覆核主管"}
+              </option>
+              {staffList.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}（{STAFF_ROLE_LABEL[s.role] ?? s.role}）
+                </option>
+              ))}
+            </select>
+            {staffError && (
+              <span className="text-[11px] text-red-600">{staffError}</span>
+            )}
           </label>
         </div>
 
