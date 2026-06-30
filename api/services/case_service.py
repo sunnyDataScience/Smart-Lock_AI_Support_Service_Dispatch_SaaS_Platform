@@ -66,6 +66,13 @@ async def list_cases(
         where.append("COALESCE(verified, FALSE) = %s")
         args.append(verified)
 
+    # 總筆數（基礎過濾、不含 cursor）：供前端 tab badge 顯示真實總數
+    count_cur = await db_module._conn.execute(
+        f"SELECT COUNT(*) FROM case_entries WHERE {' AND '.join(where)}",
+        list(args),
+    )
+    total_count = (await count_cur.fetchone())[0]
+
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
         where.append("(created_at, id) < (%s, %s::uuid)")
@@ -91,7 +98,7 @@ async def list_cases(
         last = rows[-1]
         next_cursor = encode_cursor({"ts": last[9].isoformat(), "id": str(last[0])})
 
-    return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+    return {"items": items, "next_cursor": next_cursor, "has_more": has_more, "total_count": total_count}
 
 
 async def get_case(*, tenant_id: str, case_id: str) -> dict:

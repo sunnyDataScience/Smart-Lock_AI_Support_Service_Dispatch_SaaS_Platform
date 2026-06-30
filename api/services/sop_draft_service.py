@@ -140,10 +140,17 @@ async def list_drafts(
         db_statuses = _API_STATUS_TO_DB.get(status, [])
         if not db_statuses:
             # 對應不到任何 DB 值 → 直接回空頁，省去查 DB
-            return {"items": [], "next_cursor": None, "has_more": False}
+            return {"items": [], "next_cursor": None, "has_more": False, "total_count": 0}
         placeholders = ",".join(["%s"] * len(db_statuses))
         where.append(f"status IN ({placeholders})")
         args.extend(db_statuses)
+
+    # 總筆數（基礎過濾、不含 cursor）：供前端 tab badge 顯示真實總數
+    count_cur = await db_module._conn.execute(
+        f"SELECT COUNT(*) FROM sop_drafts WHERE {' AND '.join(where)}",
+        list(args),
+    )
+    total_count = (await count_cur.fetchone())[0]
 
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
@@ -170,7 +177,7 @@ async def list_drafts(
         last = rows[-1]
         next_cursor = encode_cursor({"ts": last[8].isoformat(), "id": str(last[0])})
 
-    return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+    return {"items": items, "next_cursor": next_cursor, "has_more": has_more, "total_count": total_count}
 
 
 async def get_draft(*, tenant_id: str, draft_id: str) -> dict:

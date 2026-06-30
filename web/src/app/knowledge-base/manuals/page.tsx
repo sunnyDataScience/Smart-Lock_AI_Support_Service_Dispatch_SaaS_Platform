@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { useKbCounts } from "@/hooks/useKbCounts";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CloudUpload, Trash2, X } from "lucide-react";
@@ -33,13 +34,14 @@ export default function ManualsPage() {
   const tTabs = useTranslations("kb.tabs");
   const tM = useTranslations("kb.manuals");
 
+  const kbCounts = useKbCounts();
   const tabs = useMemo(
     () => [
-      { label: tTabs("cases"), href: "/knowledge-base/cases", count: 128 },
-      { label: tTabs("manuals"), href: "/knowledge-base/manuals", dynamic: true },
-      { label: tTabs("sopDrafts"), href: "/knowledge-base/sop-drafts", count: 7 },
+      { label: tTabs("cases"), href: "/knowledge-base/cases", count: kbCounts.cases },
+      { label: tTabs("manuals"), href: "/knowledge-base/manuals", count: kbCounts.manuals },
+      { label: tTabs("sopDrafts"), href: "/knowledge-base/sop-drafts", count: kbCounts.sopDrafts },
     ],
-    [tTabs],
+    [tTabs, kbCounts],
   );
   const [brand, setBrand] = useState<string>("");
   const [confirmTarget, setConfirmTarget] = useState<Manual | null>(null);
@@ -155,7 +157,6 @@ export default function ManualsPage() {
     setToast(tM("uploadToast", { title: manual.title }));
   };
 
-  const showCount = hasMore ? `${items.length}+` : items.length;
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -175,7 +176,7 @@ export default function ManualsPage() {
           <div className="flex">
             {tabs.map((tab) => {
               const isActive = tab.href === pathname;
-              const count = tab.dynamic ? showCount : tab.count;
+              const count = tab.count ?? "—";
               return (
                 <Link
                   key={tab.href}

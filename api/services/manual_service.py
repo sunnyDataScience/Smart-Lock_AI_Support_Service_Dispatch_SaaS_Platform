@@ -84,6 +84,13 @@ async def list_manuals(
         where.append("brand = %s")
         args.append(brand)
 
+    # 總筆數（基礎過濾、不含 cursor）：供前端 tab badge 顯示真實總數
+    count_cur = await db_module._conn.execute(
+        f"SELECT COUNT(*) FROM manuals WHERE {' AND '.join(where)}",
+        list(args),
+    )
+    total_count = (await count_cur.fetchone())[0]
+
     cur_data = decode_cursor(cursor)
     if cur_data and "ts" in cur_data and "id" in cur_data:
         where.append("(created_at, id) < (%s, %s::uuid)")
@@ -109,7 +116,7 @@ async def list_manuals(
         last = rows[-1]
         next_cursor = encode_cursor({"ts": last[8].isoformat(), "id": str(last[0])})
 
-    return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
+    return {"items": items, "next_cursor": next_cursor, "has_more": has_more, "total_count": total_count}
 
 
 _ALLOWED_CONTENT_TYPES = {

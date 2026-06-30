@@ -243,6 +243,7 @@ async def list_sop_drafts_v2(
         "items": [_sop_to_kb_document(d) for d in page.get("items", [])],
         "next_cursor": page.get("next_cursor"),
         "has_more": page.get("has_more", False),
+        "total_count": page.get("total_count", 0),
     }
 
 

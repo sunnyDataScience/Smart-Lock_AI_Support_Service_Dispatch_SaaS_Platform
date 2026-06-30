@@ -50,6 +50,12 @@ interface NavItem {
   id: string;
   href: string;
   children?: NavChild[];
+  /**
+   * 父項 active 判斷用的路徑前綴（可選）。當父項落地頁（href）只是區段內某一頁、
+   * 但該區段還有其他頁（且不全部列為子項）時，用 matchPrefix 讓父項在整個區段內保持高亮。
+   * 例：知識庫 href=/knowledge-base/cases，但 manuals/sop-drafts 也屬本區 → matchPrefix=/knowledge-base。
+   */
+  matchPrefix?: string;
 }
 
 interface NavSection {
@@ -109,10 +115,10 @@ const navSections: NavSection[] = [
         icon: BookOpen,
         id: "knowledgeBase",
         href: "/knowledge-base/cases",
+        // 案例/手冊/SOP草稿已是知識庫頁內的分頁（tab bar），不在 sidebar 重複；
+        // 僅保留非分頁的「家族覆核」。matchPrefix 讓父項在整個 /knowledge-base 區段保持高亮。
+        matchPrefix: "/knowledge-base",
         children: [
-          { id: "kbCases", href: "/knowledge-base/cases" },
-          { id: "kbManuals", href: "/knowledge-base/manuals" },
-          { id: "kbSopDrafts", href: "/knowledge-base/sop-drafts" },
           { id: "kbFamilyReviews", href: "/knowledge-base/family-reviews" },
         ],
       },
@@ -153,6 +159,9 @@ const navSections: NavSection[] = [
 ];
 
 function isParentActive(item: NavItem, pathname: string): boolean {
+  if (item.matchPrefix && pathname.startsWith(item.matchPrefix)) {
+    return true;
+  }
   if (item.children?.some((child) => pathname.startsWith(child.href))) {
     return true;
   }
