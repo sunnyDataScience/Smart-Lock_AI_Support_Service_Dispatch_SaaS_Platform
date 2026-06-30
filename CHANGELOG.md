@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Changed
+
+- **營收頁 CSV 匯出鈕從底部移到頂部 header（比照 /accounting 結算頁）（branch `chore/accounting-revenue-csv-to-header`，2026-06-30）**：業主要求「匯出 csv 功能比照 `/accounting` 放到上方」。營收頁原 CSV 匯出鈕在捲動內容最底部（`justify-end`），結算頁則置於頂部標題列 refresh 旁。將營收頁匯出鈕搬到 header（順序：標題 → refresh → CSV匯出 → 連線徽章），樣式比照結算頁匯出鈕（`border + bg-surface + Download icon + text-[13px]`）；功能不變（客戶端月度趨勢 CSV 下載、無資料 disabled），移除底部匯出區（含已失效的舊 Excel 移除註解）。純前端屬 CIA 豁免。tsc 0 + docker web 重建 + Playwright 實測（匯出鈕只在頂部 top=16 與 refresh 同列、底部無殘留、點擊下載 `revenue-month-2026-06-30.csv`、內容為真實趨勢 `period,revenue,order_count` + 3 個月資料）。**已部署本機 docker web**。
+
 ### Removed
 
 - **移除帳務 revenue/invoices 兩條揭露警語 + 發票頁孤兒死控制（branch `chore/accounting-remove-disclaimer-banners`，2026-06-30）**：業主要上線、不需使用者看到「即時資料 vs coming soon」這類內部揭露警語。移除 ① revenue 頁警語（`accounting.revenue.banner`）② invoices 頁警語（`accounting.invoices.banner`）兩個琥珀色 banner。**連帶清掉**發票頁「僅顯示逾期」disabled toggle —— 它本就是靠 invoices 警語的「coming soon」說明而存在的死控制，警語一移除就成了沒說明的灰 toggle，上線更難看故一併移除（搜尋／狀態／付款方式／日期範圍四個篩選完整保留）。i18n 同步移除 `accounting.revenue.banner`／`accounting.invoices.banner`／`accounting.invoices.overdueOnly`（zh+en，parity 2695=2695；`accounting.common.comingSoon` 別處仍用故保留）。純前端屬 CIA 豁免。tsc 0 + JSON 合法/parity + docker web 重建 + Playwright 實測（兩頁警語文字與琥珀 banner div 皆消失、死 toggle 消失、三個下拉篩選與搜尋框保留）。**已部署本機 docker web**。

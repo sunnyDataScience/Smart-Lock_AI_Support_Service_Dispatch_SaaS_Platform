@@ -178,6 +178,19 @@ export default function RevenuePage() {
                   className={`h-[14px] w-[14px] text-[var(--text-secondary)] ${loading ? "animate-spin" : ""}`}
                 />
               </button>
+              {/* CSV 匯出移至頂部 header，比照 /accounting 結算頁置於 refresh 旁；
+                  功能不變（客戶端月度趨勢 CSV 下載），無資料時 disabled。*/}
+              <button
+                onClick={() => exportTrendCsv(data?.trend ?? [], granularity)}
+                disabled={!data}
+                title={tR("exportCsv")}
+                className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-2 hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Download className="h-4 w-4 text-[var(--text-secondary)]" />
+                <span className="text-[13px] text-[var(--text-primary)]">
+                  {tR("exportCsv")}
+                </span>
+              </button>
               <span
                 className="flex items-center gap-[6px] rounded-full px-3 py-1 text-xs font-medium"
                 style={{
@@ -295,22 +308,6 @@ export default function RevenuePage() {
           <div className="flex shrink-0 gap-4 px-8 py-4 min-h-[320px]">
             <BrandRevenueChart items={data?.by_brand ?? []} loading={loading} />
             <CategoryRevenueChart items={byCategory} loading={loading} />
-          </div>
-
-          {/* Excel 按鈕已移除：原本傳 ext="xlsx" 卻仍輸出 CSV 內容只改副檔名
-              （假 xlsx，Excel 開啟會異常）。保留可用的客戶端 CSV 匯出（趨勢資料），
-              待真 xlsx 產生器（後端匯出 endpoint 或前端 xlsx lib）再恢復。*/}
-          <div className="flex items-center justify-end gap-3 px-8 py-3">
-            <button
-              onClick={() => exportTrendCsv(data?.trend ?? [], granularity)}
-              disabled={!data}
-              className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-4 py-[10px] hover:bg-[var(--bg-surface)] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="h-4 w-4 text-[var(--text-secondary)]" />
-              <span className="text-sm font-medium text-[var(--text-primary)]">
-                {tR("exportCsv")}
-              </span>
-            </button>
           </div>
         </div>
       </div>
