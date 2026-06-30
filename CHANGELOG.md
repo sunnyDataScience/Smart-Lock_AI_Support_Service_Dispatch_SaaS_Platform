@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Fixed
+
+- **退款／保固／爭議三頁列表捲軸失效（內容被 flex-shrink 壓扁裁切）（branch `fix/admin-list-scroll-flex-shrink`，2026-06-30）**：業主回報 `/admin/refunds` 退款列表捲軸失效、看不到下半部。**Root cause**：與先前 `/admin/customers` 捲軸 bug 同一類——捲動容器寫成 `flex flex-1 flex-col gap-5 overflow-auto`（flex column），flex 子層預設 `flex-shrink:1`，資料撐高（20 筆退款）後子層被壓縮塞進視窗高度（實測 `scrollHeight==clientHeight==773`、`canScroll=false`）而非自然溢出觸發捲動。`/admin/warranty-claims`（line 163）與 `/admin/disputes`（line 232）**共用完全相同的容器字串**、有同一 latent bug，一併修。**修**：三頁捲動容器 `flex flex-1 flex-col gap-5` → `flex-1 space-y-5`（移除 flex column 改 block 堆疊、子層自然溢出，與 customers-scroll 同修法）。純前端屬 CIA 豁免。tsc 0 + docker web 重建 + **Playwright 實測**（修後 refunds `scrollHeight` 773→1376、warranty→1950、disputes→1727，三頁 `canScroll` 皆 true、可捲到底）。**已部署本機 docker web**。
+
 ### Changed
 
 - **保固索賠建立 modal 兩個 raw UUID 欄接真實資料 + 清死搜尋框；爭議仲裁查核確認已全真（branch `feat/warranty-create-modal-pickers`，2026-06-30）**：業主要求一起檢查 `/admin/warranty-claims` 與 `/admin/disputes`。**爭議仲裁**：盤點後**已全真**——列表／表格／詳情／證據面板皆接真實端點、決議表單操作列表選中的 dispute 且 `X-Initiator` 用真實 session、**無 create modal 無 raw UUID 欄**（爭議由後端 payment 事件自動建立，本頁只審查/co-sign），**不需改**（實測 18 筆正常渲染）。**保固索賠**：顯示資料已真（列表走 `usePaginatedFetch /warranty-claims`），但「建立保固申訴」modal 有兩個 raw UUID 手填欄 + 一個 disabled 死搜尋框。**接上**：① 客戶 ID（原手貼 UUID、必填）→ `<select>` 拉真實客戶主檔（`GET /tenants/{tid}/customers?limit=100`，顯示「姓名（電話）」、54 名）；② 工單 ID（原手貼 UUID、可選）→ 重用既有 `WorkOrderPicker`。**清掉** status tabs 右側 disabled「關鍵字搜尋」死控制（coming soon）並移除無用的 `Search` import。建立保固契約（`POST /tenants/{tid}/warranty-claims` 欄位）不變，純前端改輸入方式屬 CIA 豁免。tsc 0 + docker web 重建 + **Playwright 實測**（死搜尋框消失；客戶下拉 54 名真實客戶、選「陳美玲（0921123456）」回真實 UUID `cccc0000-…`；工單 picker 搜尋框在；無殘留 raw UUID 欄；disputes 18 筆正常）。**已部署本機 docker web**。**附帶觀察**：客戶清單含測試資料雜訊（初始／更新後名稱／測試客戶_…，DB 資料潔淨議題、非本次 code 缺陷）。
