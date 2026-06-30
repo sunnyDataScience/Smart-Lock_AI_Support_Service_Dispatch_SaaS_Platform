@@ -19,6 +19,7 @@ import SettlementTable from "@/components/accounting/SettlementTable";
 import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, tenantPath, getCurrentSession } from "@/lib/api";
+import { cacheInvalidate } from "@/lib/cache";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
@@ -174,8 +175,13 @@ export default function AccountingPage() {
       try {
         const query: Record<string, string | number> = { limit: 50 };
         if (statusFilter) query.status = statusFilter;
+        // legacy `/api/v1/accounting/reconciliations`（讀 public.reconciliations）而非
+        // v2 tenantPath（讀 saas.reconciliation，目前為空 → 整個對帳區空白看不到待核准）。
+        // 與下方 handleApprove 仍走 legacy 單簽 approve 端點一致（見 P3.5-KEEP：
+        // v2 dual-sign :review→:co-sign UX 待重做、legacy 單簽暫留）。待 v2 dual-sign
+        // 落地 + saas.reconciliation seed 對齊後再整體遷 v2。
         const res = await api.get<ReconciliationPage>(
-          tenantPath("/accounting/reconciliations"),
+          "/api/v1/accounting/reconciliations",
           { query },
         );
         setRecons(res.items ?? []);
@@ -245,6 +251,9 @@ export default function AccountingPage() {
           payout: recon.technician_payout,
         }),
       );
+      // 清 GET 快取再 refetch：否則核准完那筆仍從 30s 舊快取讀回、續留 pending 列表
+      // （cache key 含完整 URL，用廣域 "GET:" 清）。
+      cacheInvalidate("GET:");
       fetchReconciliations(reconStatus);
       fetchSettlements();
     } catch (e) {
