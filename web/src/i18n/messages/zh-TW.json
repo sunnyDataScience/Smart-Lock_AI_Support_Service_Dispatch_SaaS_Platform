@@ -3048,6 +3048,7 @@
         },
         "status": {
           "pending": "待付款",
+          "confirmed": "已確認",
           "paid": "已付款",
           "failed": "付款失敗"
         },
