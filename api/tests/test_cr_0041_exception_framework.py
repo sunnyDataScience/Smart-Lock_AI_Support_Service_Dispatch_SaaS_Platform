@@ -51,6 +51,40 @@ async def test_open_invalid_type_422():
 
 @pytest.mark.component
 @pytest.mark.asyncio
+async def test_open_invalid_work_order_id_422():
+    # 非 UUID 的 work_order_id（如使用者誤填公單號）應回 422，而非 INSERT 時 500
+    assert await db_module._ensure_conn()
+    with pytest.raises(ApiError) as ei:
+        await es.open_exception(
+            tenant_id=DEFAULT_TENANT_ID, exception_type="material_shortage",
+            work_order_id="WO-20260628-001",
+        )
+    assert ei.value.status_code == 422
+
+
+@pytest.mark.component
+@pytest.mark.asyncio
+async def test_list_includes_work_order_no():
+    # list 應 LEFT JOIN 帶回公單號（前端 WO 欄顯示用）
+    assert await db_module._ensure_conn()
+    wo_id = str(uuid.uuid4())
+    await _seed_wo(wo_id)
+    await db_module._conn.execute(
+        "UPDATE work_orders SET document_number = 'TP-EXC001' WHERE id = %s::uuid", (wo_id,)
+    )
+    try:
+        exc = await es.open_exception(
+            tenant_id=DEFAULT_TENANT_ID, exception_type="no_show", work_order_id=wo_id,
+        )
+        listing = await es.list_exceptions(tenant_id=DEFAULT_TENANT_ID, work_order_id=wo_id)
+        match = next(it for it in listing["items"] if it["id"] == exc["id"])
+        assert match["work_order_no"] == "TP-EXC001"
+    finally:
+        await _cleanup(wo_id)
+
+
+@pytest.mark.component
+@pytest.mark.asyncio
 async def test_open_medium_no_hold():
     assert await db_module._ensure_conn()
     wo_id = str(uuid.uuid4())
