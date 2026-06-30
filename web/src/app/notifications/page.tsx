@@ -600,7 +600,7 @@ export default function NotificationsPage() {
                   </span>
                   <span className="text-[var(--text-disabled)]">·</span>
                   <span className="text-[var(--text-disabled)]">
-                    {t("fromSource", { source: selectedItem.source })}
+                    {t("fromSource", { source: t(`sourceLabel.${selectedItem.source}`) })}
                   </span>
                 </div>
                 <h2 className="mb-2 text-[16px] font-semibold text-[var(--text-primary)]">

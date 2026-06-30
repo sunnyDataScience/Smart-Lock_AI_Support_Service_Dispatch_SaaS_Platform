@@ -120,7 +120,7 @@ export default function CreateInventoryItemModal({
         <ModalHeader>
           <ModalTitle>新增物料</ModalTitle>
           <ModalDescription>
-            建立 tenant 庫存品項（FR-0007）
+            建立庫存品項
           </ModalDescription>
         </ModalHeader>
 
@@ -230,7 +230,7 @@ export default function CreateInventoryItemModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              所有者（ADR-0052）
+              所有者
             </label>
             <select
               value={owner}
@@ -239,8 +239,8 @@ export default function CreateInventoryItemModal({
               disabled={submitting}
             >
               <option value="platform">平台 (platform)</option>
-              <option value="brand">品牌商 (brand)</option>
-              <option value="locksmith">技師自備 (locksmith)</option>
+              <option value="brand">品牌商</option>
+              <option value="locksmith">技師自備</option>
             </select>
           </div>
 
@@ -253,7 +253,7 @@ export default function CreateInventoryItemModal({
               disabled={submitting}
             />
             <label htmlFor="serial-required" className="text-sm text-gray-700">
-              強制序號（ADR-0053：主鎖+高價零件）
+              強制序號（主鎖與高價零件適用）
             </label>
           </div>
 

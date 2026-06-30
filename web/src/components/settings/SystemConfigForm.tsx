@@ -231,13 +231,13 @@ export default function SystemConfigForm() {
             label={tSec("rag.chunkSize")}
             value={config.rag?.chunk_size}
             onChange={(v) => updateSection("rag", { chunk_size: Math.round(v) })}
-            min={100} max={4000} unit="chars"
+            min={100} max={4000} unit="字元"
           />
           <NumberField
             label={tSec("rag.chunkOverlap")}
             value={config.rag?.chunk_overlap}
             onChange={(v) => updateSection("rag", { chunk_overlap: Math.round(v) })}
-            min={0} max={500} unit="chars"
+            min={0} max={500} unit="字元"
           />
         </div>
       </SectionCard>

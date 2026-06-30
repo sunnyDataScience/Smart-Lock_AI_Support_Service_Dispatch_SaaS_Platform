@@ -13,7 +13,7 @@ export default function FmeaDiagnosisCard() {
             FMEA 診斷推理鏈
           </h2>
           <p className="text-[13px] text-[var(--text-secondary)]">
-            Symptom → Failure → Failure Mode → Defect 四層推理過程
+            症狀 → 故障 → 失效模式 → 缺陷 四層推理過程
           </p>
         </div>
         <div className="flex h-24 items-center justify-center rounded-lg border border-dashed border-[var(--border)] bg-[var(--bg-page)]">

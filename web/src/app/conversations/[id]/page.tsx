@@ -112,7 +112,7 @@ export default function ConversationDetailPage({
       const created = res.data;
       if (created) {
         setProblemCards((prev) => [created, ...prev]);
-        setToast(`已建立問題卡 ${created.id.slice(0, 8)}`);
+        setToast("已建立問題卡");
       }
       setShowCreatePc(false);
     } catch (e) {
@@ -202,7 +202,7 @@ export default function ConversationDetailPage({
 
             <span
               className="font-mono text-[13px] font-medium text-[var(--text-secondary)]"
-              title={id}
+              title={conv?.document_number ?? ""}
             >
               {conv?.document_number ?? id.slice(0, 8)}
             </span>
@@ -387,7 +387,7 @@ export default function ConversationDetailPage({
                       className="flex flex-col gap-1 rounded-md border border-[var(--border)] px-3 py-2 hover:bg-[#F8FAFC]"
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-[12px] font-semibold text-[var(--primary)]" title={pc.id}>
+                        <span className="font-mono text-[12px] font-semibold text-[var(--primary)]" title={`${pc.brand} ${pc.model}`}>
                           {pc.id.slice(0, 8)}
                         </span>
                         <span

@@ -31,13 +31,13 @@
     },
     "profile": {
       "title": "Profile",
-      "metaJwt": "Sourced from JWT; full profile (name / phone / preferences) ships with /users/me endpoint",
-      "metaSession": "Current identity is decoded from the access token",
+      "metaJwt": "Only your sign-in identity is shown for now; name / phone / preferences coming soon",
+      "metaSession": "Showing the identity from your current sign-in session",
       "displayName": "Display name",
       "email": "Email",
       "userId": "User ID",
       "role": "Role",
-      "tenantId": "Tenant ID",
+      "tenantId": "Organization code",
       "timezone": "Timezone",
       "timezoneTaipei": "(UTC+8) Taipei",
       "language": "Language",
@@ -48,7 +48,7 @@
     },
     "security": {
       "title": "Security",
-      "metaCurrent": "Password change is live; 2FA / device management coming later",
+      "metaCurrent": "Password change is available; two-factor authentication and device management coming soon",
       "metaSubtitle": "Manage password and sign-in security",
       "currentPassword": "Current password",
       "currentPasswordPlaceholder": "Enter current password",
@@ -995,7 +995,7 @@
         "notFound": "Link is invalid or expired. Please contact support.",
         "expired": "Link has expired. Please contact support for the latest status.",
         "rateLimit": "Too many requests, please retry later.",
-        "fail": "Lookup failed ({status}), please retry later.",
+        "fail": "Lookup failed, please retry later or contact support.",
         "network": "Network error, please retry later."
       },
       "fields": {
@@ -1024,10 +1024,10 @@
         "notFound": "Link is invalid or expired. Please contact support.",
         "expired": "Link has expired. Please contact support for the latest status.",
         "rateLimit": "Too many requests, please retry later.",
-        "fail": "Lookup failed ({status}), please retry later.",
+        "fail": "Lookup failed, please retry later or contact support.",
         "network": "Network error, please retry later.",
         "stateChanged": "Proposal status changed, refreshing…",
-        "submitFail": "Submission failed ({status}), please retry later.",
+        "submitFail": "Submission failed, please retry later or contact support.",
         "networkSubmit": "Network error, please retry later."
       },
       "confirmAccept": "Accept these added items and continue work?",
@@ -1065,7 +1065,7 @@
         "notFound": "Link invalid or expired. Please contact support.",
         "expired": "This link has expired. Please contact support for a new one.",
         "rateLimit": "Too many requests, please try again shortly.",
-        "fail": "Failed to load ({status}), please try again later.",
+        "fail": "Failed to load, please try again later or contact support.",
         "network": "Network error, please try again later."
       },
       "submit": "I have read and agree to all of the above",
@@ -1082,7 +1082,7 @@
         "notFound": "Link invalid or expired. Please contact support.",
         "expired": "This quote link has expired. Please contact support for an updated quote.",
         "rateLimit": "Too many requests, please try again shortly.",
-        "fail": "Request failed ({status}), please try again later.",
+        "fail": "Request failed, please try again later or contact support.",
         "network": "Network error, please try again later."
       },
       "fields": {
@@ -1137,6 +1137,12 @@
       "moreHint": "Showing the most recent {limit}; use filters to narrow down",
       "detail": "Notification detail",
       "fromSource": "Source: {source}",
+      "sourceLabel": {
+        "websocket": "Real-time push",
+        "line_push": "LINE push",
+        "system": "System",
+        "email_fallback": "Email fallback"
+      },
       "openLink": "Go to",
       "openLinkSource": "source page",
       "quickActions": "Quick actions",

@@ -133,7 +133,7 @@ export default function ExceptionsPage() {
   async function resolveException(id: string) {
     const rp = resolvePath[id];
     if (!rp) {
-      setError("請先選擇處理方式（return_path）");
+      setError("請先選擇處理方式");
       return;
     }
     setError(null);

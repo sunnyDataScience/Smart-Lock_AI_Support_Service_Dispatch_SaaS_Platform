@@ -196,9 +196,9 @@ export default function EditInventoryItemModal({
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
               disabled={submitting}
             >
-              <option value="platform">平台 (platform)</option>
-              <option value="brand">品牌商 (brand)</option>
-              <option value="locksmith">技師自備 (locksmith)</option>
+              <option value="platform">平台</option>
+              <option value="brand">品牌商</option>
+              <option value="locksmith">技師自備</option>
             </select>
           </div>
 

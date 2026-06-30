@@ -182,7 +182,7 @@ function displayName(session: CurrentSession | null): string {
     const at = session.email.indexOf("@");
     return at > 0 ? session.email.slice(0, at) : session.email;
   }
-  if (session.userId) return `User ${session.userId.slice(0, 6)}`;
+  if (session.userId) return "使用者";
   return "—";
 }
 

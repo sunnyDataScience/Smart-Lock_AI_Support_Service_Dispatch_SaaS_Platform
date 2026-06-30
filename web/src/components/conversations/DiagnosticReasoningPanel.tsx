@@ -119,7 +119,7 @@ export default function DiagnosticReasoningPanel({
                 {status === "open"
                   ? "等待診斷推理串流…"
                   : status === "disabled"
-                    ? "Realtime 未配置（NEXT_PUBLIC_REALTIME_BASE_URL）"
+                    ? "即時推送服務尚未啟用，請聯絡系統管理員"
                     : "尚未開始或頻道未啟動"}
               </p>
             ) : (

@@ -30,6 +30,8 @@ const REPORT_LABEL: Record<ReportType, string> = {
   technician_ranking: "技師排名",
   settlements: "結算報表",
 };
+const CADENCE_LABEL: Record<string, string> = { weekly: "每週", monthly: "每月", quarterly: "每季" };
+const FORMAT_LABEL: Record<string, string> = { csv: "CSV", xlsx: "Excel", pdf: "PDF" };
 
 export interface ScheduleReportModalProps {
   open: boolean;
@@ -82,7 +84,7 @@ export default function ScheduleReportModal({
       toast({
         variant: "success",
         title: "排程已建立",
-        description: `${REPORT_LABEL[reportType]} (${cadence}, ${format})`,
+        description: `${REPORT_LABEL[reportType]}（${CADENCE_LABEL[cadence] ?? cadence}、${FORMAT_LABEL[format] ?? format}）`,
       });
       reset();
       onOpenChange(false);
@@ -108,7 +110,7 @@ export default function ScheduleReportModal({
         <ModalHeader>
           <ModalTitle>排程 {REPORT_LABEL[reportType]}</ModalTitle>
           <ModalDescription>
-            設定週/月/季定期 email 發送，cron 自動執行（roadmap）
+            設定每週／每月／每季定期將報表寄送至指定信箱
           </ModalDescription>
         </ModalHeader>
 
