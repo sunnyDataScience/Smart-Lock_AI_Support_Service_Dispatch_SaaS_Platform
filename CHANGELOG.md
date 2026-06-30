@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **會計傳票頁空白 → 擴充 demo seed（含 6 月可見資料）並灌入本機 DB（branch `chore/seed-vouchers-demo-data`，2026-06-30）**：業主問 `/accounting/vouchers` 是沒資料還是顯示有問題。**診斷結論：沒資料，非 bug**（端點 200/`count=0`、頁面正確空狀態無錯、查詢 `FROM vouchers WHERE tenant_id=%s` 正常）。`vouchers` 表全表 0 列，對照 invoices 60／settlements 25／reconciliations 25 皆有資料。**兩層成因**：① 傳票功能 app 端為**唯讀** —— `voucher_service` 僅 `list_vouchers`／`get_voucher`／`render_voucher_pdf`，全專案**零個 `INSERT INTO vouchers`**（對帳核准／結算／退款／開票事件不會自動生傳票，唯一資料源是 seed SQL）；② 既有 seed `SQL/seeds/vouchers.sql`（4 筆、本就列於 `quickstart.sh` SEED_ORDER）從未套到此 DB（此 DB 以 `realistic_demo_seed.py` 灌、不含 vouchers）；③ 即使灌入，原 4 筆皆 4 月、頁面預設「近 30 天」範圍會濾掉。**業主裁決：灌 seed + 補 6 月資料**。擴充 `SQL/seeds/vouchers.sql` 新增 6 筆 6 月份傳票（reconciliation／settlement／refund／invoice 四型俱全、含負數退款沖銷、`posting_date` 落 2026-06-05~29 預設範圍內，deterministic UUID + `ON CONFLICT DO NOTHING`），套用至本機 DB（共 10 筆）。Playwright 實測（預設範圍即顯示 6 筆、四型徽章齊全、退款 -NT$2,800 紅字、每列 PDF 匯出鈕）。無 code／schema 變動屬 CIA 豁免。**已套用本機 DB（無需重建容器）**。**治本待辦**：傳票自動產生（對帳核准／結算／退款／開票 → 自動記帳分錄寫入 vouchers）為後端功能缺口，另立 CR。
+
 - **營收頁 CSV 匯出鈕從底部移到頂部 header（比照 /accounting 結算頁）（branch `chore/accounting-revenue-csv-to-header`，2026-06-30）**：業主要求「匯出 csv 功能比照 `/accounting` 放到上方」。營收頁原 CSV 匯出鈕在捲動內容最底部（`justify-end`），結算頁則置於頂部標題列 refresh 旁。將營收頁匯出鈕搬到 header（順序：標題 → refresh → CSV匯出 → 連線徽章），樣式比照結算頁匯出鈕（`border + bg-surface + Download icon + text-[13px]`）；功能不變（客戶端月度趨勢 CSV 下載、無資料 disabled），移除底部匯出區（含已失效的舊 Excel 移除註解）。純前端屬 CIA 豁免。tsc 0 + docker web 重建 + Playwright 實測（匯出鈕只在頂部 top=16 與 refresh 同列、底部無殘留、點擊下載 `revenue-month-2026-06-30.csv`、內容為真實趨勢 `period,revenue,order_count` + 3 個月資料）。**已部署本機 docker web**。
 
 ### Removed
