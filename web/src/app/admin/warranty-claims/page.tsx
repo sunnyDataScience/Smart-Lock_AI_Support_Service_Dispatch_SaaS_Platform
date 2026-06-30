@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Info, Plus, RefreshCw, Search, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, Info, Plus, RefreshCw, ShieldCheck, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WarrantyClaimsTable from "@/components/admin/WarrantyClaimsTable";
+import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
 import { ApiError, api, resolveTenantId, tenantPath } from "@/lib/api";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -231,7 +232,9 @@ export default function WarrantyClaimsPage() {
             </div>
           )}
 
-          <div className="flex items-center justify-between">
+          {/* 狀態分頁（filed/in_progress/approved/rejected/closed）為真實篩選。
+              原右側 disabled「關鍵字搜尋」死控制（coming soon）已移除，上線前收斂。*/}
+          <div className="flex items-center">
             <div className="flex overflow-hidden rounded-lg border border-[var(--border)]">
               {statusTabs.map((tab) => (
                 <button
@@ -246,19 +249,6 @@ export default function WarrantyClaimsPage() {
                   {t(`tabs.${tab.value}`)}
                 </button>
               ))}
-            </div>
-
-            <div
-              className="flex w-[300px] cursor-not-allowed items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 opacity-60"
-              title={tc("comingSoon")}
-            >
-              <Search className="h-4 w-4 text-[var(--text-disabled)]" />
-              <input
-                disabled
-                type="text"
-                placeholder={t("searchPlaceholder")}
-                className="flex-1 cursor-not-allowed bg-transparent text-[13px] outline-none placeholder:text-[var(--text-disabled)]"
-              />
             </div>
           </div>
 
@@ -529,6 +519,13 @@ const CLAIM_TYPES: { value: string; label: string }[] = [
   { value: "other", label: "其他" },
 ];
 
+/** 客戶下拉選項（取自 GET /tenants/{tid}/customers）。 */
+interface CustomerOption {
+  id: string;
+  display_name: string;
+  phone: string | null;
+}
+
 function CreateWarrantyModal({
   onCancel,
   onSubmit,
@@ -541,6 +538,32 @@ function CreateWarrantyModal({
   const [deviceModel, setDeviceModel] = useState("");
   const [claimType, setClaimType] = useState("defective");
   const [disputeReason, setDisputeReason] = useState("");
+
+  // 客戶下拉：拉真實客戶主檔，取代原本手貼客戶 UUID。
+  const [customerList, setCustomerList] = useState<CustomerOption[]>([]);
+  const [custLoading, setCustLoading] = useState(true);
+  const [custError, setCustError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setCustLoading(true);
+      try {
+        const tenantId = resolveTenantId();
+        const res = await api.get<{ items: CustomerOption[] }>(
+          `/tenants/${encodeURIComponent(tenantId)}/customers?limit=100`,
+        );
+        if (!cancelled) setCustomerList(res.items ?? []);
+      } catch (e) {
+        if (!cancelled) setCustError(formatWarrantyError(e));
+      } finally {
+        if (!cancelled) setCustLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const valid =
     /^[0-9a-f-]{36}$/i.test(customerId.trim()) &&
@@ -566,27 +589,37 @@ function CreateWarrantyModal({
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
             <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-              客戶 ID（UUID，必填）
+              客戶（必填，免手貼 UUID）
             </span>
-            <input
+            <select
               value={customerId}
               onChange={(e) => setCustomerId(e.target.value)}
-              disabled={submitting}
-              placeholder="00000000-0000-0000-0000-000000000000"
-              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-mono focus:border-[var(--primary)] focus:outline-none"
-            />
+              disabled={submitting || custLoading}
+              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-60"
+            >
+              <option value="">
+                {custLoading
+                  ? "載入客戶清單中…"
+                  : customerList.length === 0
+                    ? "查無客戶"
+                    : "請選擇客戶"}
+              </option>
+              {customerList.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.display_name}
+                  {c.phone ? `（${c.phone}）` : ""}
+                </option>
+              ))}
+            </select>
+            {custError && (
+              <span className="text-[11px] text-red-600">{custError}</span>
+            )}
           </label>
           <label className="flex flex-col gap-1">
             <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-              工單 ID（UUID，可選）
+              工單（可選，搜尋公單號或客戶名）
             </span>
-            <input
-              value={workOrderId}
-              onChange={(e) => setWorkOrderId(e.target.value)}
-              disabled={submitting}
-              placeholder="（可留空）"
-              className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-mono focus:border-[var(--primary)] focus:outline-none"
-            />
+            <WorkOrderPicker value={workOrderId} onChange={setWorkOrderId} />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
