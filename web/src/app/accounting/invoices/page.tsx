@@ -178,11 +178,6 @@ export default function InvoicesPage() {
           </div>
         )}
 
-        {/* Banner */}
-        <div className="mx-8 mt-4 rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-          {tInv("banner")}
-        </div>
-
         {/* Filter Toolbar */}
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-3">
           {/* Search */}
@@ -235,16 +230,6 @@ export default function InvoicesPage() {
             <option value="90">最近 90 天</option>
           </select>
 
-          <div className="flex-1" />
-
-          <label className="flex cursor-not-allowed items-center gap-2 opacity-60" title={tCommon("comingSoon")}>
-            <div className="flex h-5 w-9 items-center rounded-full bg-[var(--border)] px-[2px]">
-              <div className="h-4 w-4 rounded-full bg-white shadow-sm" />
-            </div>
-            <span className="text-[13px] text-[var(--text-disabled)]">
-              {tInv("overdueOnly")}
-            </span>
-          </label>
         </div>
 
         {/* Invoices Table */}

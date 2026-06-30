@@ -2269,7 +2269,6 @@
       "entityInvoice": "Invoice"
     },
     "revenue": {
-      "banner": "KPI / monthly trend / brand share / problem-category share all use live getRevenueSummary data; the monthly trend exports to CSV.",
       "kpiMonthRevenue": "Month revenue",
       "kpiAvgInvoice": "Average invoice amount",
       "kpiPaidRate": "Paid rate",
@@ -2283,12 +2282,10 @@
       "exportExcel": "Export Excel"
     },
     "invoices": {
-      "banner": "Table and the search / status / payment method / date range filters are all live listInvoices data; only overdue-only is coming soon (pending a backend overdue condition).",
       "searchPlaceholder": "Search invoice number, customer name...",
       "filterAllStatus": "All statuses",
       "filterPaymentMethod": "Payment method",
-      "dateRange": "Date range",
-      "overdueOnly": "Overdue only"
+      "dateRange": "Date range"
     }
   },
   "techPortal": {

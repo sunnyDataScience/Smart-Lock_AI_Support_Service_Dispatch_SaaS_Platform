@@ -2269,7 +2269,6 @@
       "entityInvoice": "發票"
     },
     "revenue": {
-      "banner": "KPI／月度趨勢／品牌占比／問題類別占比皆為 getRevenueSummary 即時資料，月度趨勢可匯出 CSV。",
       "kpiMonthRevenue": "本月營收",
       "kpiAvgInvoice": "平均發票金額",
       "kpiPaidRate": "付款成功率",
@@ -2283,12 +2282,10 @@
       "exportExcel": "Excel匯出"
     },
     "invoices": {
-      "banner": "表格與『搜尋／狀態／付款方式／日期範圍』篩選皆為 listInvoices 即時資料；僅『顯示逾期』為 coming soon（待後端逾期條件接入）。",
       "searchPlaceholder": "搜尋發票編號、客戶名稱...",
       "filterAllStatus": "全部狀態",
       "filterPaymentMethod": "付款方式",
-      "dateRange": "日期範圍",
-      "overdueOnly": "僅顯示逾期"
+      "dateRange": "日期範圍"
     }
   },
   "techPortal": {

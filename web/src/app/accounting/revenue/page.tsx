@@ -244,10 +244,6 @@ export default function RevenuePage() {
           </div>
         )}
 
-        <div className="mx-8 mt-4 rounded-lg border border-[var(--border)] bg-[#FFFBEB] px-4 py-3 text-[13px] leading-relaxed text-[#92400E]">
-          {tR("banner")}
-        </div>
-
         {/* Scrollable Content */}
         <div className="flex flex-1 flex-col overflow-auto">
           {/* KPI Cards */}
