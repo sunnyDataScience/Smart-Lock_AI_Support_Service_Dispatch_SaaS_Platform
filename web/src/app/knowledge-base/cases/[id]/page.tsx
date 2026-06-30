@@ -7,6 +7,7 @@ import { ChevronLeft, Pencil, Trash2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
@@ -57,11 +58,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         setNotFound(true);
       } else {
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       }
     } finally {
@@ -86,11 +83,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       router.replace("/knowledge-base/cases");
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
       setDeleting(false);
     }

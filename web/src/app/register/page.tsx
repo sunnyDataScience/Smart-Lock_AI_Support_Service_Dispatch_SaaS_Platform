@@ -4,6 +4,7 @@ import { UserPlus } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ApiError, api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { LOCK_BRANDS_HINT } from "@/lib/constants/brands";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import BackToHome from "@/components/layout/BackToHome";
@@ -68,7 +69,7 @@ export default function RegisterPage() {
       }
       setDone(true);
     } catch (err) {
-      if (err instanceof ApiError) setError(`${err.errorCode} (${err.status})：${err.message}`);
+      if (err instanceof ApiError) setError(friendlyError(err));
       else if (err instanceof Error) setError(err.message);
       else setError(String(err));
     } finally {

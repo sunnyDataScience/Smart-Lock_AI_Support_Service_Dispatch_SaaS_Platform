@@ -10,7 +10,8 @@ import {
   RefreshCw,
   Wrench,
 } from "lucide-react";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type EventType =
@@ -243,11 +244,7 @@ export default function EventTimeline({ workOrderId }: Props) {
       setItems(res.items ?? []);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);

@@ -19,6 +19,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import StatusBadge, { statusLabel } from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -69,11 +70,7 @@ const REASON_VALUES: AssignReasonCode[] = [
 const LEVELS: TechnicianLevel[] = ["S", "A", "B", "C"];
 
 function formatErr(e: unknown): string {
-  return e instanceof ApiError
-    ? `${e.errorCode} (${e.status})：${e.message}`
-    : e instanceof Error
-      ? e.message
-      : String(e);
+  return friendlyError(e);
 }
 
 export default function DispatchManualPage() {

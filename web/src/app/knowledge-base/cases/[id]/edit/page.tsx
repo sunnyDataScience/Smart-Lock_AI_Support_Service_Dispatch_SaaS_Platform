@@ -7,6 +7,7 @@ import { ChevronLeft } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
 
@@ -62,11 +63,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
         setNotFound(true);
       } else {
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       }
     } finally {
@@ -111,11 +108,7 @@ export default function EditCasePage({ params }: { params: Promise<{ id: string 
       router.replace(`/knowledge-base/cases/${id}`);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
       setSubmitting(false);
     }

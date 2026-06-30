@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { RefreshCw, Package, ExternalLink, CheckCircle2, Loader2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, auth, tenantPath } from "@/lib/api";
+import { api, auth, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
@@ -106,11 +107,7 @@ export default function AdminMaterialRequestsPage() {
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);
@@ -133,11 +130,7 @@ export default function AdminMaterialRequestsPage() {
       setRows((prev) => prev.filter((r) => r.event_id !== row.event_id));
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setSupplyingId(null);

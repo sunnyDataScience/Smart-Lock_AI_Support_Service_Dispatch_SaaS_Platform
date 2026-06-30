@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import PenaltyBonusLog from "@/components/technicians/PenaltyBonusLog";
 import { formatRelative } from "@/lib/format";
 import {
@@ -165,11 +166,7 @@ function ActiveOrdersCard({ technicianId }: { technicianId?: string }) {
       } catch (e) {
         if (cancelled) return;
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -283,7 +280,7 @@ function CommissionSummaryCard({ technicianId }: { technicianId?: string }) {
       } catch (e) {
         if (!cancelled)
           setError(
-            e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e),
+            friendlyError(e),
           );
       } finally {
         if (!cancelled) setLoading(false);

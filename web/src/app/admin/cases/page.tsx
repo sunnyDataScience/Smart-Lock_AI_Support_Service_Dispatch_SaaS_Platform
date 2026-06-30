@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Inbox, PhoneCall, Check, AlertTriangle, ListFilter } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 
 interface IntakeCase {
@@ -102,7 +103,7 @@ export default function IntakeCasesPage() {
       const res = await api.get<{ data: IntakeCase[] }>(tenantPath("/cases?limit=200"));
       setItems(res.data ?? []);
     } catch (e) {
-      setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+      setError(friendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -134,7 +135,7 @@ export default function IntakeCasesPage() {
       setSummary("");
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+      setError(friendlyError(e));
     } finally {
       setBusy(false);
     }
@@ -161,7 +162,7 @@ export default function IntakeCasesPage() {
       await api.patch(tenantPath(`/cases/${id}`), { status });
       cacheInvalidate("GET:"); // cache key 含完整 URL，用廣域 prefix 清 30s GET 快取
     } catch (e) {
-      setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+      setError(friendlyError(e));
       await load(); // 失敗時 reload 回滾樂觀更新
     }
   }

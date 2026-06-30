@@ -5,7 +5,8 @@ import { CheckCircle2, Info, Plus, RefreshCw, ShieldCheck, X } from "lucide-reac
 import Sidebar from "@/components/layout/Sidebar";
 import WarrantyClaimsTable from "@/components/admin/WarrantyClaimsTable";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
-import { ApiError, api, resolveTenantId, tenantPath } from "@/lib/api";
+import { api, resolveTenantId, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -17,9 +18,7 @@ type WarrantyDecision = components["schemas"]["WarrantyDecision"];
 type DecisionValue = WarrantyDecision["decision"];
 
 function formatWarrantyError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 interface StatusTab {
@@ -93,11 +92,7 @@ export default function WarrantyClaimsPage() {
       await fetchClaims();
     } catch (e) {
       setActionError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setActionPending(null);
@@ -144,11 +139,7 @@ export default function WarrantyClaimsPage() {
       setActionToast(tone);
     } catch (e) {
       setActionError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setActionPending(null);

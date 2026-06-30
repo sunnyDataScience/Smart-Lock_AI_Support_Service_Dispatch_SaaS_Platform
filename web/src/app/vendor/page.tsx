@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Store, LogOut } from "lucide-react";
 import { ApiError, api, getCurrentSession, logout } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 
 interface Vendor {
@@ -53,7 +54,7 @@ export default function VendorPortalPage() {
             router.replace("/vendor-login");
             return;
           }
-          setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+          setError(friendlyError(e));
         }
       } finally {
         if (!cancelled) setLoading(false);

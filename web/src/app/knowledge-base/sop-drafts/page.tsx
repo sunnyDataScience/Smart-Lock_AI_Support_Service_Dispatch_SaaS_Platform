@@ -5,7 +5,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import SopDraftsList from "@/components/knowledge-base/SopDraftsList";
-import { ApiError, tenantPath } from "@/lib/api";
+import { tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { kbDocumentToSopDraft, type KBDocumentSop } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
@@ -14,9 +15,7 @@ type SopDraft = components["schemas"]["SopDraft"];
 type SopDraftStatus = components["schemas"]["SopDraftStatus"];
 
 function formatSopDraftError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const PAGE_SIZE = 20;

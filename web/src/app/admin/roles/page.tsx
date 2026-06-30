@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Check, Lock, RefreshCw, Edit3, KeyRound } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { ApiError, ApiErrorResponse, api, getCurrentSession } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { RolePermissionsEditor } from "@/components/admin/RolePermissionsEditor";
@@ -130,11 +131,7 @@ export default function RolesPage() {
       }
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);

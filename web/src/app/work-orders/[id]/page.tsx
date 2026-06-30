@@ -32,6 +32,7 @@ import {
 } from "@/components/work-orders/WorkOrdersTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -346,11 +347,7 @@ function ProblemCardSummary({
       } catch (e) {
         if (cancelled) return;
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -524,11 +521,7 @@ function LineMediaGallery({ conversationId }: { conversationId?: string }) {
       } catch (e) {
         if (cancelled) return;
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -823,11 +816,7 @@ function ConversationThread({ conversationId }: { conversationId?: string }) {
       } catch (e) {
         if (cancelled) return;
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -1246,11 +1235,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
       } catch (e) {
         if (cancelled) return;
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -1262,11 +1247,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   }, [id]);
 
   const formatActionError = (e: unknown): string =>
-    e instanceof ApiError
-      ? `${e.errorCode} (${e.status})：${e.message}`
-      : e instanceof Error
-        ? e.message
-        : String(e);
+    friendlyError(e);
 
   const handleAccept = async () => {
     setActionPending("accept");
@@ -2123,11 +2104,7 @@ function AssignModal({
       } catch (e) {
         if (cancelled) return;
         setTechsError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setTechsLoading(false);

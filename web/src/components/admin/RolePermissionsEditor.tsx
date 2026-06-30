@@ -18,7 +18,8 @@
 
 import { useMemo, useState } from "react";
 import { X, Loader2 } from "lucide-react";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -122,23 +123,7 @@ export function RolePermissionsEditor({
       );
       onSaved();
     } catch (e) {
-      if (e instanceof ApiError) {
-        if (e.status === 403) {
-          setError(t("errors.forbidden", { code: e.errorCode }));
-        } else if (e.status === 422) {
-          setError(t("errors.validation", { message: e.message }));
-        } else {
-          setError(
-            t("errors.generic", {
-              code: e.errorCode,
-              status: e.status,
-              message: e.message,
-            }),
-          );
-        }
-      } else {
-        setError(e instanceof Error ? e.message : String(e));
-      }
+      setError(friendlyError(e));
     } finally {
       setSubmitting(false);
     }

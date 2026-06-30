@@ -13,6 +13,7 @@ import {
   Info,
 } from "lucide-react";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -73,7 +74,7 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
         if (cancelled) return;
         setTechError(
           e instanceof ApiError
-            ? `${e.errorCode} (${e.status})`
+            ? friendlyError(e)
             : e instanceof Error
               ? e.message
               : String(e),
@@ -104,7 +105,7 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
         if (cancelled) return;
         setConvError(
           e instanceof ApiError
-            ? `${e.errorCode} (${e.status})`
+            ? friendlyError(e)
             : e instanceof Error
               ? e.message
               : String(e),
@@ -303,7 +304,7 @@ function CostDetailPanel({ workOrderId }: { workOrderId?: string }) {
         if (!cancelled) setData(res);
       } catch (e) {
         if (cancelled) return;
-        setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+        setError(friendlyError(e));
         setData(null);
       }
     })();

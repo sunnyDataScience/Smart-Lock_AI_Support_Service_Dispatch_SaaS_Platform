@@ -18,7 +18,8 @@ import Sidebar from "@/components/layout/Sidebar";
 import SettlementTable from "@/components/accounting/SettlementTable";
 import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath, getCurrentSession } from "@/lib/api";
+import { api, tenantPath, getCurrentSession } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
@@ -133,11 +134,7 @@ export default function AccountingPage() {
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);
@@ -161,7 +158,7 @@ export default function AccountingPage() {
       fetchSettlements();
     } catch (e) {
       setGenMsg(
-        e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e),
+        friendlyError(e),
       );
     } finally {
       setGenerating(false);
@@ -187,11 +184,7 @@ export default function AccountingPage() {
         setRecons(res.items ?? []);
       } catch (e) {
         setReconsError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         setReconsLoading(false);
@@ -258,11 +251,7 @@ export default function AccountingPage() {
       fetchSettlements();
     } catch (e) {
       setApproveError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setApproving(false);

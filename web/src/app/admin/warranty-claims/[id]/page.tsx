@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, AlertCircle, Image as ImageIcon, ExternalLink, Wrench } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, auth } from "@/lib/api";
+import { api, auth } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type WarrantyClaim = components["schemas"]["WarrantyClaim"];
@@ -106,11 +107,7 @@ export default function WarrantyClaimDetailPage() {
       } catch (e) {
         if (alive) {
           setError(
-            e instanceof ApiError
-              ? `${e.errorCode} (${e.status})：${e.message}`
-              : e instanceof Error
-                ? e.message
-                : String(e),
+            friendlyError(e),
           );
         }
       } finally {

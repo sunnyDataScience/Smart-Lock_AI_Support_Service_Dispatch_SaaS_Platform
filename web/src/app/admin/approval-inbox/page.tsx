@@ -11,7 +11,8 @@
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import {
   type ApprovalInboxResponse,
   type ApprovalInboxItem,
@@ -43,9 +44,7 @@ const SEVERITY_BG: Record<BadgeColor, { bg: string; text: string }> = {
 };
 
 function formatError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 export default function ApprovalInboxPage() {

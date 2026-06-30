@@ -6,6 +6,7 @@ import Sidebar from "@/components/layout/Sidebar";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
 import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -70,9 +71,7 @@ function isOpenForReview(status: RefundRequest["status"]): boolean {
 }
 
 function formatActionError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 export default function RefundReviewPage() {

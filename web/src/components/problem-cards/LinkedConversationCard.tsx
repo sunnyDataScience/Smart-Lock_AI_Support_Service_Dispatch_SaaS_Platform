@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -95,7 +96,7 @@ export default function LinkedConversationCard({ conversationId }: Props) {
         if (cancelled) return;
         setError(
           e instanceof ApiError
-            ? `${e.errorCode} (${e.status})`
+            ? friendlyError(e)
             : e instanceof Error
               ? e.message
               : String(e),

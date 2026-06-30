@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { TrendingUp, TrendingDown, Plus, Trash2, X } from "lucide-react";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 
 /* CR-0107：師傅獎懲明細（真資料）。取代前端寫死 4 筆 mock。
@@ -62,7 +63,7 @@ export default function PenaltyBonusLog({ technicianId }: { technicianId?: strin
       const res = await api.get<{ data: PBEntry[] }>(basePath);
       setEntries(res.data ?? []);
     } catch (e) {
-      setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+      setError(friendlyError(e));
     }
   }, [basePath]);
 
@@ -112,7 +113,7 @@ export default function PenaltyBonusLog({ technicianId }: { technicianId?: strin
       setModalOpen(false);
       await load();
     } catch (e) {
-      setFormMsg(e instanceof ApiError ? `儲存失敗：${e.errorCode} (${e.status})` : "儲存失敗");
+      setFormMsg(`儲存失敗：${friendlyError(e)}`);
     } finally {
       setBusy(false);
     }
@@ -127,7 +128,7 @@ export default function PenaltyBonusLog({ technicianId }: { technicianId?: strin
       cacheInvalidate("GET:");
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? `刪除失敗：${e.errorCode} (${e.status})` : "刪除失敗");
+      setError(`刪除失敗：${friendlyError(e)}`);
     } finally {
       setBusy(false);
     }

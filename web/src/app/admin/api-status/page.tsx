@@ -12,7 +12,8 @@
  */
 
 import { useState } from "react";
-import { api, auth, login, logout, ApiError, tenantPath } from "@/lib/api";
+import { api, auth, login, logout, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import Sidebar from "@/components/layout/Sidebar";
 
 export default function ApiStatusPage() {
@@ -33,11 +34,7 @@ export default function ApiStatusPage() {
       await fn();
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status}): ${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(null);

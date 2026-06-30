@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Save, RefreshCw } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -121,11 +122,7 @@ export default function SystemConfigForm() {
       setOriginal(res);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);
@@ -158,11 +155,7 @@ export default function SystemConfigForm() {
       setSavedAt(new Date());
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setSaving(false);

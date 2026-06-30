@@ -5,7 +5,8 @@ import { Plus, Search, ChevronDown, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import InventoryTable from "@/components/admin/InventoryTable";
 import CreateInventoryItemModal from "@/components/admin/CreateInventoryItemModal";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -47,11 +48,7 @@ export default function InventoryPage() {
       setHasMore(!!res.has_more);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);

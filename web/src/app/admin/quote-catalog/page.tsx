@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Tag } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface Service {
@@ -59,7 +60,7 @@ export default function QuoteCatalogPage() {
         const res = await api.get<Catalog>(tenantPath("/quote-catalog"));
         if (!cancelled) setCat(res);
       } catch (e) {
-        if (!cancelled) setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+        if (!cancelled) setError(friendlyError(e));
       }
     })();
     return () => {

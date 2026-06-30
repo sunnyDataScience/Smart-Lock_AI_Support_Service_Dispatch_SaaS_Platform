@@ -7,7 +7,8 @@ import { FormEvent, useState } from "react";
 import BackToHome from "@/components/layout/BackToHome";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, loginTechnician } from "@/lib/api";
+import { loginTechnician } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 // 2026-06-19：移除 DesktopMobileGuard（原桌面顯示「請使用手機開啟」太不便）+ 藍漸層手機版型，
 // 改為與 vendor-login / login 一致的置中卡片，桌面/手機皆可直接登入。
@@ -29,11 +30,7 @@ export default function TechLoginPage() {
       router.replace("/home");
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
       setLoading(false);
     }

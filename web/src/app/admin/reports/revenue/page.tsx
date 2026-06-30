@@ -19,7 +19,8 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import DateRangePicker from "@/components/ui/DateRangePicker";
 import { getPresetRange, type DateRange } from "@/lib/dateRange";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
@@ -112,11 +113,7 @@ export default function RevenueReportPage() {
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);

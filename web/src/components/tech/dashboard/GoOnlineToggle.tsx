@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { Power, Loader2, Lock } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -39,11 +40,7 @@ export default function GoOnlineToggle({ availability, onChanged }: Props) {
       onChanged(next);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setSubmitting(false);

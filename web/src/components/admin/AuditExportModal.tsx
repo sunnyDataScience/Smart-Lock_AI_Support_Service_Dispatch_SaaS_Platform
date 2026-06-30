@@ -11,7 +11,8 @@ import {
   ModalTitle,
 } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
@@ -100,17 +101,7 @@ export function AuditExportModal({
       });
       onOpenChange(false);
     } catch (e) {
-      const msg =
-        e instanceof ApiError
-          ? t("toast.errorBody", {
-              code: e.errorCode,
-              status: e.status,
-              message: e.message,
-            })
-          : e instanceof Error
-            ? e.message
-            : String(e);
-      toast({ title: t("toast.failTitle"), description: msg, variant: "error" });
+      toast({ title: t("toast.failTitle"), description: friendlyError(e), variant: "error" });
     } finally {
       setSubmitting(false);
     }

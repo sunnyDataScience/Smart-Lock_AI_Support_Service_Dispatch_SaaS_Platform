@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, auth, getCurrentSession } from "@/lib/api";
+import { api, auth, getCurrentSession } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
@@ -22,9 +23,7 @@ type Voucher = components["schemas"]["Voucher"];
 type RelatedEntityType = NonNullable<Voucher["related_entity_type"]>;
 
 function formatVoucherError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const ENTITY_BADGE: Record<RelatedEntityType, { bg: string; text: string }> = {

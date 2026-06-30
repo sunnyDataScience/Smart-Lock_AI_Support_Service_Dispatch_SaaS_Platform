@@ -13,7 +13,8 @@ import Sidebar from "@/components/layout/Sidebar";
 import MapWorkOrderPanel from "@/components/work-orders/MapWorkOrderPanel";
 import MapView from "@/components/work-orders/MapView";
 import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -70,11 +71,7 @@ export default function WorkOrdersMapPage() {
       }
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);

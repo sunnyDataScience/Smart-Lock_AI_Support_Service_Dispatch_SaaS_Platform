@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import ConversationsTable from "@/components/conversations/ConversationsTable";
-import { ApiError, resolveTenantId } from "@/lib/api";
+import { resolveTenantId } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -13,9 +14,7 @@ type ConversationStatus = components["schemas"]["ConversationStatus"];
 type StatusFilter = "" | ConversationStatus;
 
 function formatConversationError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 // Stable tab keys; labels resolved per-render via i18n

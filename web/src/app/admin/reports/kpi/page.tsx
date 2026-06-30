@@ -16,7 +16,8 @@ import {
   mapRangeToDashboardPeriod,
   type DateRange,
 } from "@/lib/dateRange";
-import { ApiError, api, auth } from "@/lib/api";
+import { api, auth } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
@@ -119,11 +120,7 @@ export default function KpiDashboardPage() {
       setReport(res);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);

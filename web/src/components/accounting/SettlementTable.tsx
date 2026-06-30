@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 import { useToast } from "@/components/ui/Toast";
 
@@ -84,11 +85,7 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
       onItemsChanged?.();
     } catch (e) {
       const msg =
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e);
+        friendlyError(e);
       toast({ variant: "error", title: "批次操作失敗", description: msg });
     } finally {
       setBatchSubmitting(false);

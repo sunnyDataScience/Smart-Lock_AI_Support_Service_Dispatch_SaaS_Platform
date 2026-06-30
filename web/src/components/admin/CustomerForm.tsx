@@ -23,7 +23,8 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
-import { ApiError, api, resolveTenantId } from "@/lib/api";
+import { api, resolveTenantId } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -151,17 +152,7 @@ export function CustomerForm({
         router.replace(redirectTo ?? `/admin/customers/${customerId}`);
       }
     } catch (e) {
-      setServerError(
-        e instanceof ApiError
-          ? t("errors.server", {
-              code: e.errorCode,
-              status: e.status,
-              message: e.message,
-            })
-          : e instanceof Error
-            ? e.message
-            : String(e),
-      );
+      setServerError(friendlyError(e));
       setSubmitting(false);
     }
   }

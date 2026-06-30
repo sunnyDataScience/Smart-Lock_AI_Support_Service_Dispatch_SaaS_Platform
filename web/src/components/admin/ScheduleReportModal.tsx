@@ -17,7 +17,8 @@ import {
   ModalTitle,
 } from "@/components/ui/Modal";
 import { useToast } from "@/components/ui/Toast";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 type ReportType = "kpi" | "revenue" | "technician_ranking" | "settlements";
 type Cadence = "weekly" | "monthly" | "quarterly";
@@ -88,11 +89,7 @@ export default function ScheduleReportModal({
       onSuccess?.();
     } catch (e) {
       const msg =
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e);
+        friendlyError(e);
       setError(msg);
     } finally {
       setSubmitting(false);

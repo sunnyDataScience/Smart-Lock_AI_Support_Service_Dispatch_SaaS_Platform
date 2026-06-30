@@ -7,17 +7,14 @@ import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import SignaturePad from "@/components/tech/SignaturePad";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type SignaturePayload = components["schemas"]["SignaturePayload"];
 
 function formatErr(e: unknown): string {
-  return e instanceof ApiError
-    ? `${e.errorCode} (${e.status})：${e.message}`
-    : e instanceof Error
-      ? e.message
-      : String(e);
+  return friendlyError(e);
 }
 
 export default function SignaturePage() {

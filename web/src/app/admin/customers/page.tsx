@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, resolveTenantId } from "@/lib/api";
+import { api, resolveTenantId } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -36,9 +37,7 @@ interface CustomerStats {
 }
 
 function formatCustomerError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const PAGE_LIMIT = 20;

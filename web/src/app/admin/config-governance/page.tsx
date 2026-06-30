@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { SlidersHorizontal, Check } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, tenantPath, getCurrentSession } from "@/lib/api";
+import { api, tenantPath, getCurrentSession } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface ActiveVersion {
   namespace: string;
@@ -262,5 +263,5 @@ export default function ConfigGovernancePage() {
 }
 
 function fmt(e: unknown): string {
-  return e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e);
+  return friendlyError(e);
 }

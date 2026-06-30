@@ -8,6 +8,7 @@ import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
@@ -17,11 +18,7 @@ type WorkOrderPage = components["schemas"]["WorkOrderPage"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
 
 function formatErr(e: unknown): string {
-  return e instanceof ApiError
-    ? `${e.errorCode} (${e.status})：${e.message}`
-    : e instanceof Error
-      ? e.message
-      : String(e);
+  return friendlyError(e);
 }
 
 export default function PoolPage() {

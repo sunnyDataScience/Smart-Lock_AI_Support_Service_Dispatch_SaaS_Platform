@@ -11,7 +11,8 @@ import {
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface UploadedPhoto {
   section: "before" | "after";
@@ -122,11 +123,7 @@ export default function DoorCheckPage() {
       ]);
     } catch (err) {
       setSubmitError(
-        err instanceof ApiError
-          ? `${err.errorCode} (${err.status})：${err.message}`
-          : err instanceof Error
-            ? err.message
-            : String(err),
+        friendlyError(err),
       );
     } finally {
       setUploading(null);
@@ -175,11 +172,7 @@ export default function DoorCheckPage() {
       setTimeout(() => router.push(`/my-orders/${id}/signature`), 1500);
     } catch (e) {
       setSubmitError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setSubmitting(false);

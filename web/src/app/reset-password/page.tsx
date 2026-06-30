@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
 import { ApiError, confirmPasswordReset } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
@@ -39,7 +40,7 @@ function ResetPasswordInner() {
       if (e instanceof ApiError && (e.errorCode === "RESET_TOKEN_INVALID" || e.errorCode === "RESET_TOKEN_EXPIRED")) {
         setError(t("expiredOrUsed"));
       } else if (e instanceof ApiError) {
-        setError(`${e.errorCode} (${e.status})：${e.message}`);
+        setError(friendlyError(e));
       } else {
         setError(e instanceof Error ? e.message : String(e));
       }

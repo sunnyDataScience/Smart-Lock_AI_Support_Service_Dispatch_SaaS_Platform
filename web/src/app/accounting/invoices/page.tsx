@@ -16,16 +16,15 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import InvoicesTable from "@/components/accounting/InvoicesTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, auth, getCurrentSession } from "@/lib/api";
+import { auth, getCurrentSession } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
 type Invoice = components["schemas"]["Invoice"];
 
 function formatInvoiceError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 export default function InvoicesPage() {

@@ -12,7 +12,8 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import {
   BROADCAST_CHANNELS,
   NotificationBroadcastEvent,
@@ -71,11 +72,7 @@ const TYPE_KEY: Record<NotificationType, string> = {
 };
 
 function formatErr(e: unknown): string {
-  return e instanceof ApiError
-    ? `${e.errorCode} (${e.status})：${e.message}`
-    : e instanceof Error
-      ? e.message
-      : String(e);
+  return friendlyError(e);
 }
 
 export default function NotificationDrawer({
