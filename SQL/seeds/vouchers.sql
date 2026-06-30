@@ -82,4 +82,117 @@ INSERT INTO vouchers (
 )
 ON CONFLICT (id) DO NOTHING;
 
+-- ============================================================================
+-- 6 月份傳票：posting_date 落在預設「近 30 天」範圍內，頁面開啟即可見
+-- （上方 4 月份資料需手動把日期範圍拉回 4 月才看得到）。
+-- ============================================================================
+
+-- 5) invoice：服務收入入帳（正數）
+INSERT INTO vouchers (
+    id, tenant_id, voucher_number,
+    related_entity_type, related_entity_id,
+    debit_account, credit_account,
+    amount, currency, posting_date, memo, created_at
+) VALUES (
+    'cccccccc-1111-4111-c111-111111111201'::uuid,
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    'V20260605-0001',
+    'invoice', NULL,
+    '1101', '4001',
+    4200.00, 'TWD', '2026-06-05',
+    '工單服務費入帳：美樂 ML-30 安裝',
+    NOW() - INTERVAL '25 days'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 6) reconciliation：銀行入帳對齊（正數）
+INSERT INTO vouchers (
+    id, tenant_id, voucher_number,
+    related_entity_type, related_entity_id,
+    debit_account, credit_account,
+    amount, currency, posting_date, memo, created_at
+) VALUES (
+    'cccccccc-1111-4111-c111-111111111202'::uuid,
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    'V20260610-0001',
+    'reconciliation', NULL,
+    '1101', '1102',
+    95000.00, 'TWD', '2026-06-10',
+    '6 月份銀行對帳：玉山銀行入帳金額對齊',
+    NOW() - INTERVAL '20 days'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 7) settlement：技師月度結算（正數）
+INSERT INTO vouchers (
+    id, tenant_id, voucher_number,
+    related_entity_type, related_entity_id,
+    debit_account, credit_account,
+    amount, currency, posting_date, memo, created_at
+) VALUES (
+    'cccccccc-1111-4111-c111-111111111203'::uuid,
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    'V20260615-0001',
+    'settlement', NULL,
+    '5101', '2201',
+    72000.00, 'TWD', '2026-06-15',
+    '5 月份技師結算：丁師傅 / 林師傅 / 黃師傅 三人',
+    NOW() - INTERVAL '15 days'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 8) refund：退款（負數沖銷，借貸對調）
+INSERT INTO vouchers (
+    id, tenant_id, voucher_number,
+    related_entity_type, related_entity_id,
+    debit_account, credit_account,
+    amount, currency, posting_date, memo, created_at
+) VALUES (
+    'cccccccc-1111-4111-c111-111111111204'::uuid,
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    'V20260618-0001',
+    'refund', NULL,
+    '4001', '1101',
+    -2800.00, 'TWD', '2026-06-18',
+    '退款沖銷：重複收費更正退費 NT$2,800',
+    NOW() - INTERVAL '12 days'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 9) invoice：服務收入入帳（正數）
+INSERT INTO vouchers (
+    id, tenant_id, voucher_number,
+    related_entity_type, related_entity_id,
+    debit_account, credit_account,
+    amount, currency, posting_date, memo, created_at
+) VALUES (
+    'cccccccc-1111-4111-c111-111111111205'::uuid,
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    'V20260624-0001',
+    'invoice', NULL,
+    '1101', '4001',
+    6800.00, 'TWD', '2026-06-24',
+    '工單服務費入帳：Samsung SHP-DR719 故障維修 + 換料',
+    NOW() - INTERVAL '6 days'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- 10) reconciliation：銀行入帳對齊（正數）
+INSERT INTO vouchers (
+    id, tenant_id, voucher_number,
+    related_entity_type, related_entity_id,
+    debit_account, credit_account,
+    amount, currency, posting_date, memo, created_at
+) VALUES (
+    'cccccccc-1111-4111-c111-111111111206'::uuid,
+    '00000000-0000-0000-0000-000000000001'::uuid,
+    'V20260629-0001',
+    'reconciliation', NULL,
+    '1101', '1102',
+    120000.00, 'TWD', '2026-06-29',
+    '6 月份銀行對帳：國泰世華入帳金額對齊',
+    NOW() - INTERVAL '1 day'
+)
+ON CONFLICT (id) DO NOTHING;
+
 COMMIT;
