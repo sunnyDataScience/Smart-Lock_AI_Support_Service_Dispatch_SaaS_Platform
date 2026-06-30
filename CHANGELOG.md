@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- **移除 sidebar 重複的「會計傳票」導覽項（branch `chore/sidebar-remove-duplicate-vouchers`，2026-06-30）**：業主指出 `/accounting` 的 tab bar（結算管理／發票管理／會計傳票／營收報表）已有「會計傳票」可點過去，sidebar 帳務群組又列一個「會計傳票」是重複——且「發票管理」「營收報表」都只在 tab bar、未進 sidebar，會計傳票進 sidebar 反而是唯一不一致者。移除 `Sidebar.tsx` 帳務群組的 `{ id: "vouchers", href: "/accounting/vouchers" }` 子項；連帶清掉移除後即無人引用的死 key `sidebar.nav.vouchers`（zh+en，維持 parity 2694=2694）。**保留** `accounting.tabs.vouchers`（tab bar 標籤）與傳票頁本身——仍可從 `/accounting` 的 tab 進入。純前端屬 CIA 豁免。tsc 0 + JSON 合法/parity + docker web 重建 + Playwright 實測（sidebar 帳務群組剩 月結算總覽／退款審批／保固索賠／爭議仲裁、無會計傳票；tab bar「會計傳票」tab 仍在、`/accounting/vouchers` 仍可達）。**已部署本機 docker web**。
+
 - **移除帳務 revenue/invoices 兩條揭露警語 + 發票頁孤兒死控制（branch `chore/accounting-remove-disclaimer-banners`，2026-06-30）**：業主要上線、不需使用者看到「即時資料 vs coming soon」這類內部揭露警語。移除 ① revenue 頁警語（`accounting.revenue.banner`）② invoices 頁警語（`accounting.invoices.banner`）兩個琥珀色 banner。**連帶清掉**發票頁「僅顯示逾期」disabled toggle —— 它本就是靠 invoices 警語的「coming soon」說明而存在的死控制，警語一移除就成了沒說明的灰 toggle，上線更難看故一併移除（搜尋／狀態／付款方式／日期範圍四個篩選完整保留）。i18n 同步移除 `accounting.revenue.banner`／`accounting.invoices.banner`／`accounting.invoices.overdueOnly`（zh+en，parity 2695=2695；`accounting.common.comingSoon` 別處仍用故保留）。純前端屬 CIA 豁免。tsc 0 + JSON 合法/parity + docker web 重建 + Playwright 實測（兩頁警語文字與琥珀 banner div 皆消失、死 toggle 消失、三個下拉篩選與搜尋框保留）。**已部署本機 docker web**。
 
 ### Added

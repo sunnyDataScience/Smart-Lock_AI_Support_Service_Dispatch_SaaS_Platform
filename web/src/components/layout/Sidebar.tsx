@@ -88,7 +88,6 @@ const navSections: NavSection[] = [
         href: "/accounting",
         children: [
           { id: "settlements", href: "/accounting" },
-          { id: "vouchers", href: "/accounting/vouchers" },
           { id: "refunds", href: "/admin/refunds" },
           { id: "warranty", href: "/admin/warranty-claims" },
           { id: "disputes", href: "/admin/disputes" },
