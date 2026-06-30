@@ -3034,6 +3034,7 @@
         "batchSelectAll": "Select all",
         "batchConfirm": "Batch confirm",
         "batchMarkPaid": "Batch mark paid",
+        "batchHint": "Select settlement rows to enable batch actions",
         "comingSoon": "Coming soon",
         "loading": "Loading…",
         "empty": "No settlement data",

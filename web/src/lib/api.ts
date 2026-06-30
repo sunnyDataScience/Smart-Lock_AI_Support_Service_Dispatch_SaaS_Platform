@@ -282,8 +282,12 @@ async function rawRequest<T>(
     headers["X-Tenant-ID"] = auth.getTenantId();
   }
 
-  if (options.idempotencyKey && method !== "GET") {
-    headers["Idempotency-Key"] = options.idempotencyKey;
+  // 非 GET 一律帶 Idempotency-Key：caller 給就用其值，否則自動生成（與 upload/
+  // download 一致）。後端部分端點以 idempotency_guard 強制要求此 header（如
+  // monthly-settlements:generate），缺則 400 MISSING_IDEMPOTENCY_KEY；未掛 guard 的
+  // 端點忽略此 header（無害）。修正前 api.post 不帶 key → 這類按鈕按了即 400。
+  if (method !== "GET") {
+    headers["Idempotency-Key"] = options.idempotencyKey ?? newIdempotencyKey();
   }
 
   // 額外 headers（SoD 等）— 最後合併，可覆寫上方預設
