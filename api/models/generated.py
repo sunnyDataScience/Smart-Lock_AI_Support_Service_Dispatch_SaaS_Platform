@@ -1552,6 +1552,12 @@ class KpiTechnicianEfficiency(BaseModel):
         None, description='平均處理時長（分鐘）；無樣本時 null'
     )
     completed_count: conint(ge=0) | None = None
+    ftfr: constr(pattern=r'^-?\d+(\.\d{1,4})?$') | None = Field(
+        None, description='一次修好率 FTFR（完工且未被返工 / 完工原始工單）；無樣本時 null'
+    )
+    ftfr_sample: conint(ge=0) | None = Field(
+        None, description='FTFR 分母：期間內完工的原始（非返工）工單數'
+    )
 
 
 class KpiReport(BaseModel):
@@ -1561,7 +1567,7 @@ class KpiReport(BaseModel):
     dispute_rates: KpiDisputeRates
     technician_efficiency: KpiTechnicianEfficiency
     notes: list[str] | None = Field(
-        None, description='暫不可計算的指標（SLA / NPS / 滿意度 / FTFR / 差評率）說明'
+        None, description='暫不可計算的指標（SLA / NPS / 滿意度 / 差評率）說明'
     )
 
 

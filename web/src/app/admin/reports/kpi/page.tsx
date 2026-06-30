@@ -78,7 +78,6 @@ export default function KpiDashboardPage() {
   // 預設「過去 30 日」，與舊行為一致；DateRangePicker 與 segment 共享同一 range state
   const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [sliceBy, setSliceBy] = useState<"all" | "brand">("all");
   const period = useMemo<Period>(() => mapRangeToDashboardPeriod(range), [range]);
   const [report, setReport] = useState<KpiReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -195,15 +194,6 @@ export default function KpiDashboardPage() {
 
             <DateRangePicker value={range} onChange={setRange} />
 
-            <select
-              value={sliceBy}
-              onChange={(e) => setSliceBy(e.target.value as "all" | "brand")}
-              className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] outline-none"
-            >
-              <option value="all">切片：全部</option>
-              <option value="brand">切片：按品牌</option>
-            </select>
-
             <div className="flex-1" />
 
             <button
@@ -316,19 +306,19 @@ export default function KpiDashboardPage() {
                 label="退款率"
                 rate={report?.dispute_rates?.refund_rate}
                 target={0.05}
-                hint="refund_requests / work_orders"
+                hint="退款申請數 / 工單總數"
               />
               <DisputeRow
                 label="保固索賠率"
                 rate={report?.dispute_rates?.warranty_claim_rate}
                 target={0.05}
-                hint="warranty_claims / work_orders"
+                hint="保固索賠數 / 工單總數"
               />
               <DisputeRow
                 label="爭議升級率"
                 rate={report?.dispute_rates?.dispute_rate}
                 target={0.02}
-                hint="disputes / work_orders"
+                hint="爭議升級數 / 工單總數"
               />
             </div>
           </div>
@@ -354,12 +344,15 @@ export default function KpiDashboardPage() {
                 </span>
               </div>
               <div className="flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
-                <div className="flex items-center text-[13px] text-[var(--text-secondary)]">
+                <span className="text-[13px] text-[var(--text-secondary)]">
                   一次修好率（FTFR）
-                  <PendingTag note="需返工關聯邏輯確認" />
-                </div>
-                <span className="text-2xl font-bold text-[var(--text-disabled)]">—</span>
-                <span className="text-[11px] text-[var(--text-secondary)]">尚未接入</span>
+                </span>
+                <span className="text-2xl font-bold text-[var(--text-primary)]">
+                  {formatPercent(report?.technician_efficiency?.ftfr)}
+                </span>
+                <span className="text-[11px] text-[var(--text-secondary)]">
+                  樣本：{report?.technician_efficiency?.ftfr_sample ?? 0} 筆完工（未被返工 / 完工原始工單）
+                </span>
               </div>
             </div>
           </div>

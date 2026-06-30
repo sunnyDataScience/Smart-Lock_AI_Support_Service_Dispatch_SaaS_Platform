@@ -65,6 +65,16 @@ async def test_get_report_kpi_200(client, admin_headers):
         body = res.json()
         # KpiReport schema — 至少有 funnel 或 generated_at 欄位
         assert isinstance(body, dict)
+        # FTFR 已接入（is_rework / rework_of_id）→ technician_efficiency 應含 ftfr / ftfr_sample
+        te = body.get("technician_efficiency", {})
+        assert "ftfr" in te, "technician_efficiency 應含 ftfr"
+        assert "ftfr_sample" in te
+        assert isinstance(te["ftfr_sample"], int)
+        if te["ftfr"] is not None:
+            # 比率字串、0~1 之間（_ratio 四位小數）
+            assert 0.0 <= float(te["ftfr"]) <= 1.0
+        # FTFR 已不再列為待接入 note
+        assert not any("FTFR" in n for n in (body.get("notes") or []))
 
 
 @pytest.mark.asyncio
