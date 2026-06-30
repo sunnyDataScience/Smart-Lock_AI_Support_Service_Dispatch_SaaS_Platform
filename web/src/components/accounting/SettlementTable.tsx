@@ -138,6 +138,7 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
         <button
           onClick={() => doBatch("confirm")}
           disabled={selectedIds.size === 0 || batchSubmitting}
+          title={selectedIds.size === 0 ? t("batchHint") : undefined}
           className="rounded-md bg-[var(--primary)] px-4 py-[7px] text-[13px] font-semibold text-white hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t("batchConfirm")}
@@ -145,10 +146,17 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
         <button
           onClick={() => doBatch("mark_paid")}
           disabled={selectedIds.size === 0 || batchSubmitting}
+          title={selectedIds.size === 0 ? t("batchHint") : undefined}
           className="rounded-md border border-[var(--border)] px-4 py-[7px] text-[13px] font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t("batchMarkPaid")}
         </button>
+        {/* 0 選取時批次鈕 disabled（按了沒反應），顯示提示說明需先勾選。*/}
+        {selectedIds.size === 0 && (
+          <span className="text-[12px] text-[var(--text-disabled)]">
+            {t("batchHint")}
+          </span>
+        )}
       </div>
 
       {/* Header Row */}

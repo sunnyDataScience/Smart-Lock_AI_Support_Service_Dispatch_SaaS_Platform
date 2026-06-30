@@ -3034,6 +3034,7 @@
         "batchSelectAll": "全選",
         "batchConfirm": "批次確認",
         "batchMarkPaid": "批次標記已付",
+        "batchHint": "請先勾選結算列以啟用批次操作",
         "comingSoon": "即將推出",
         "loading": "載入中…",
         "empty": "尚無結算資料",
