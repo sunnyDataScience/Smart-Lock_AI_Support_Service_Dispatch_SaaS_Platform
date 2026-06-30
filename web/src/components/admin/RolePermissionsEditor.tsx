@@ -213,7 +213,7 @@ export function RolePermissionsEditor({
                         checked={checked}
                         disabled={locked}
                         onChange={() => toggle(code)}
-                        aria-label={`${row.resource}.${action}`}
+                        aria-label={`${RESOURCE_KEY[row.resource] ? t(RESOURCE_KEY[row.resource]) : row.resource} ${t(ACTION_KEY[action])}`}
                         data-testid={`perm-${code}`}
                         className="h-4 w-4 cursor-pointer rounded border-[var(--border)] disabled:cursor-not-allowed disabled:opacity-50"
                       />

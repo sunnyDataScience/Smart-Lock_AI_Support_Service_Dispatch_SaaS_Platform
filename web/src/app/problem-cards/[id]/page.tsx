@@ -413,7 +413,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                     onChange={(e) => setMatchUrgency(e.target.value as AutoMatchUrgency)}
                     disabled={actionPending !== null}
                     className="rounded-l-md bg-transparent px-2 py-[6px] text-[12px] text-[#0369A1] focus:outline-none"
-                    title="自動匹配緊急程度（emergency 會將分數加成 5%）"
+                    title="自動匹配緊急程度（選「緊急」時分數會加成 5%）"
                   >
                     <option value="normal">一般</option>
                     <option value="emergency">緊急</option>
@@ -889,6 +889,11 @@ const FIELD_LABEL: Record<string, string> = {
   symptom: "故障症狀",
   urgency: "急迫度",
   customer_address: "服務地址",
+  problem_type: "問題類型",
+  serial_number: "鎖體序號",
+  door_type: "門型",
+  door_status: "門況",
+  network_status: "網路狀態",
 };
 const TIER_LABEL: Record<string, { label: string; cls: string }> = {
   required: { label: "必填", cls: "bg-[#FEE2E2] text-[#B91C1C]" },
@@ -1000,7 +1005,7 @@ function ConvertModal({
               ) : (
                 error.missing.map((m) => (
                   <span key={m.field} className="inline-flex items-center gap-1 rounded bg-white px-2 py-[2px] text-[12px] text-[var(--text-primary)]">
-                    {FIELD_LABEL[m.field] ?? m.field}
+                    {FIELD_LABEL[m.field] ?? "其他必填欄位"}
                     <span className={`rounded px-1 text-[10px] ${(TIER_LABEL[m.tier] ?? TIER_LABEL.optional).cls}`}>
                       {(TIER_LABEL[m.tier] ?? TIER_LABEL.optional).label}
                     </span>
@@ -1009,7 +1014,7 @@ function ConvertModal({
               )}
             </div>
             <label className="mt-1 flex flex-col gap-1">
-              <span className="text-[11px] text-[var(--text-secondary)]">主管強制開單原因（填寫後可 override 完整度檢查）</span>
+              <span className="text-[11px] text-[var(--text-secondary)]">主管強制開單原因（填寫後可略過完整度檢查）</span>
               <input
                 type="text"
                 value={overrideReason}

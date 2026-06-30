@@ -173,8 +173,8 @@ export const AI_DECISION_TYPE_LABEL: Record<AiDecisionType, string> = {
   reasoning: "推理",
   tool_call: "工具呼叫",
   output: "輸出",
-  guardrail_block: "Guardrail 阻擋",
-  human_handoff: "Hand-off 人工",
+  guardrail_block: "安全防護阻擋",
+  human_handoff: "轉接人工",
 };
 
 export const GUARDRAIL_ACTION_LABEL: Record<GuardrailAction, string> = {

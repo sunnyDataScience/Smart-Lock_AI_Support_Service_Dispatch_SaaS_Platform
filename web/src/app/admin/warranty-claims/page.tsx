@@ -175,7 +175,7 @@ export default function WarrantyClaimsPage() {
               }}
               disabled={actionPending !== null}
               className="inline-flex items-center gap-1 rounded-md bg-[var(--primary)] px-3 py-[6px] text-[13px] font-semibold text-white hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-              title="建立保固申訴（F-015 dual-trigger CS 路徑）"
+              title="建立保固申訴"
             >
               <Plus className="h-4 w-4" />
               建立保固申訴

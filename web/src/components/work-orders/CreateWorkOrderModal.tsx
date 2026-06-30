@@ -156,7 +156,7 @@ export default function CreateWorkOrderModal({
         <ModalHeader>
           <ModalTitle>新增工單</ModalTitle>
           <ModalDescription>
-            從已確認問題卡建立工單（backend createWorkOrderV2）
+            從已確認的問題卡建立工單
           </ModalDescription>
         </ModalHeader>
 
@@ -293,7 +293,7 @@ export default function CreateWorkOrderModal({
                   type="text"
                   value={customerAddress}
                   onChange={(e) => setCustomerAddress(e.target.value)}
-                  placeholder="（選填，缺省用客戶 profile）"
+                  placeholder="（選填，留空則沿用客戶既有資料）"
                   maxLength={300}
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
                   disabled={submitting}

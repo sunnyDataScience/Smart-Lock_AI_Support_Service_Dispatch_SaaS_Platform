@@ -107,7 +107,7 @@ export default function CreateTechnicianModal({
       <ModalContent size="md">
         <ModalHeader>
           <ModalTitle>新增技師</ModalTitle>
-          <ModalDescription>建立 tenant 技師 onboarding（FR-0044）</ModalDescription>
+          <ModalDescription>填寫技師基本資料以建立帳號</ModalDescription>
         </ModalHeader>
 
         <div className="px-6 py-4 space-y-4">
@@ -171,7 +171,7 @@ export default function CreateTechnicianModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              專長品牌（capabilities）
+              專長品牌
             </label>
             <input
               type="text"

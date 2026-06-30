@@ -197,10 +197,9 @@ function PayloadPreview({
       );
     }
     default:
+      // 未特別處理的事件不再直接輸出原始 payload（含 snake_case 內部欄位），改友善提示
       return (
-        <pre className="overflow-auto rounded bg-[#F1F5F9] p-2 text-[11px] text-[var(--text-secondary)]">
-          {JSON.stringify(payload, null, 2)}
-        </pre>
+        <span className="text-[11px] text-[var(--text-secondary)]">此事件無更多明細可顯示。</span>
       );
   }
 }

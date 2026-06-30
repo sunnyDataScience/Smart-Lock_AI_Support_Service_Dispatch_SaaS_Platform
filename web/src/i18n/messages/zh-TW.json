@@ -31,13 +31,13 @@
     },
     "profile": {
       "title": "個人資料",
-      "metaJwt": "來自 JWT；待 /users/me endpoint 上線後補齊姓名 / 電話 / 偏好",
-      "metaSession": "目前登入身分由 access token 解碼",
+      "metaJwt": "目前僅顯示登入身分，姓名 / 電話 / 偏好設定即將開放",
+      "metaSession": "目前顯示的是您本次登入的身分資訊",
       "displayName": "顯示名稱",
       "email": "電子郵件",
       "userId": "使用者 ID",
       "role": "角色",
-      "tenantId": "租戶 ID",
+      "tenantId": "所屬機構代碼",
       "timezone": "時區",
       "timezoneTaipei": "(UTC+8) 台北",
       "language": "語言",
@@ -48,7 +48,7 @@
     },
     "security": {
       "title": "帳戶安全",
-      "metaCurrent": "密碼變更已上線；2FA / 登入裝置管理待後續模組",
+      "metaCurrent": "密碼變更已開放；雙重驗證與登入裝置管理即將推出",
       "metaSubtitle": "管理密碼與登入安全設定",
       "currentPassword": "目前密碼",
       "currentPasswordPlaceholder": "輸入目前密碼",
@@ -995,7 +995,7 @@
         "notFound": "連結無效或已過期，請聯絡客服協助。",
         "expired": "連結已失效，請聯絡客服取得最新狀態。",
         "rateLimit": "查詢過於頻繁，請稍候再試。",
-        "fail": "查詢失敗（{status}），請稍後再試。",
+        "fail": "查詢失敗，請稍後再試或聯絡客服。",
         "network": "網路連線失敗，請稍後再試。"
       },
       "fields": {
@@ -1024,10 +1024,10 @@
         "notFound": "連結無效或已過期，請聯絡客服協助。",
         "expired": "連結已失效，請聯絡客服取得最新狀態。",
         "rateLimit": "查詢過於頻繁，請稍候再試。",
-        "fail": "查詢失敗（{status}），請稍後再試。",
+        "fail": "查詢失敗，請稍後再試或聯絡客服。",
         "network": "網路連線失敗，請稍後再試。",
         "stateChanged": "提案狀態已變動，正在重新整理…",
-        "submitFail": "提交失敗（{status}），請稍後再試。",
+        "submitFail": "提交失敗，請稍後再試或聯絡客服。",
         "networkSubmit": "網路連線失敗，請稍後再試。"
       },
       "confirmAccept": "確認同意此追加項目並繼續施工？",
@@ -1065,7 +1065,7 @@
         "notFound": "連結無效或已過期，請聯絡客服協助。",
         "expired": "連結已失效，請聯絡客服取得最新連結。",
         "rateLimit": "操作過於頻繁，請稍候再試。",
-        "fail": "載入失敗（{status}），請稍後再試。",
+        "fail": "載入失敗，請稍後再試或聯絡客服。",
         "network": "網路連線失敗，請稍後再試。"
       },
       "submit": "我已詳閱並同意以上全部",
@@ -1082,7 +1082,7 @@
         "notFound": "連結無效或已過期，請聯絡客服協助。",
         "expired": "報價連結已失效，請聯絡客服取得最新報價。",
         "rateLimit": "查詢過於頻繁，請稍候再試。",
-        "fail": "查詢失敗（{status}），請稍後再試。",
+        "fail": "查詢失敗，請稍後再試或聯絡客服。",
         "network": "網路連線失敗，請稍後再試。"
       },
       "fields": {
@@ -1137,6 +1137,12 @@
       "moreHint": "僅顯示最近 {limit} 筆，更多通知請使用過濾條件縮小範圍",
       "detail": "通知詳情",
       "fromSource": "來源：{source}",
+      "sourceLabel": {
+        "websocket": "即時推播",
+        "line_push": "LINE 推播",
+        "system": "系統通知",
+        "email_fallback": "Email 補送"
+      },
       "openLink": "前往",
       "openLinkSource": "來源頁面",
       "quickActions": "快速動作",

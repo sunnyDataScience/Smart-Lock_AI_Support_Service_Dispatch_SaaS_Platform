@@ -46,11 +46,6 @@ const REPORT_KEY: Record<ReportType, { titleKey: string; descKey: string }> = {
 
 type ExportFormat = "csv" | "pdf";
 
-const FORMAT_CONTENT_TYPE: Record<ExportFormat, string> = {
-  csv: "text/csv",
-  pdf: "application/pdf",
-};
-
 export type ReportExportFilters = Record<
   string,
   string | number | boolean | undefined | null
@@ -161,10 +156,6 @@ export function ReportExportModal({
                 </label>
               ))}
             </div>
-            <p className="mt-2 text-[12px] text-[var(--text-secondary)]">
-              {t("contentTypeLabel")}
-              <span className="font-['IBM_Plex_Mono']">{FORMAT_CONTENT_TYPE[format]}</span>
-            </p>
           </section>
         </div>
 

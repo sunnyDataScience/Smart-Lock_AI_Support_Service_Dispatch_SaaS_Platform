@@ -487,7 +487,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
                 <input
                   value={editForm.regions}
                   onChange={(e) => setEditForm((f) => ({ ...f, regions: e.target.value }))}
-                  placeholder="TPE, NTC"
+                  placeholder="台北市, 新北市"
                   className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
                 />
               </label>

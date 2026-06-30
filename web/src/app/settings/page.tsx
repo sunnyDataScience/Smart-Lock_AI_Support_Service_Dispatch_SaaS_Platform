@@ -23,7 +23,7 @@ function deriveName(email: string | null, userId: string | null): string {
     const at = email.indexOf("@");
     return at > 0 ? email.slice(0, at) : email;
   }
-  if (userId) return `User ${userId.slice(0, 6)}`;
+  if (userId) return "未命名使用者";
   return "—";
 }
 

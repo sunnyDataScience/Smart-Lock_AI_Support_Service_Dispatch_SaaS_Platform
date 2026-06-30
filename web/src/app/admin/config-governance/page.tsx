@@ -19,7 +19,7 @@ const NS_HINT: Record<string, string> = {
   dispatch_commission: "派工佣金 / 結算費率",
   deposit_policy: "訂金政策",
   monthly_settlement: "月結參數",
-  cancellation_policy: "取消費（S3/S4）",
+  cancellation_policy: "取消費規則",
   tax_policy: "稅率 / 含稅模式",
   company_profile: "公司基本資料（PDF 文案）",
   discount_policy: "折扣政策",
@@ -108,7 +108,7 @@ export default function ConfigGovernancePage() {
     if (!draftVersionId) return;
     const initiator = getCurrentSession()?.userId ?? "operator";
     if (!approverId.trim() || approverId.trim() === initiator) {
-      setError("覆核人（X-Approver）必填，且必須與發起人不同（職責分離 SoD）");
+      setError("請填寫覆核人，且須與發起人為不同人員（職責分離）");
       return;
     }
     setBusy(true);
@@ -137,7 +137,7 @@ export default function ConfigGovernancePage() {
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="flex items-center gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <SlidersHorizontal className="h-7 w-7 text-[var(--primary)]" />
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">設定治理（M18 Config）</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">設定治理</h1>
         </div>
 
         <div className="flex-1 overflow-auto pl-14 pr-4 md:px-8 py-6">
@@ -162,10 +162,13 @@ export default function ConfigGovernancePage() {
                       ns === selected ? "bg-[var(--primary)] text-white" : "text-[var(--text-primary)] hover:bg-[var(--bg-page)]"
                     }`}
                   >
-                    <span className="font-mono text-[12px]">{ns}</span>
+                    {/* 中文說明為主標、原始 namespace 鍵降為小字副標供管理者對照（NS_HINT 缺漏才以鍵為主標）*/}
+                    <span className={`text-[13px] font-medium ${NS_HINT[ns] ? "" : "font-mono text-[12px]"}`}>
+                      {NS_HINT[ns] ?? ns}
+                    </span>
                     {NS_HINT[ns] && (
-                      <span className={ns === selected ? "text-[11px] text-white/80" : "text-[11px] text-[var(--text-secondary)]"}>
-                        {NS_HINT[ns]}
+                      <span className={`font-mono text-[11px] ${ns === selected ? "text-white/70" : "text-[var(--text-disabled)]"}`}>
+                        {ns}
                       </span>
                     )}
                   </button>
@@ -225,11 +228,11 @@ export default function ConfigGovernancePage() {
                   </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     <label className="flex flex-col gap-1">
-                      <span className="text-[12px] font-medium text-[var(--text-secondary)]">覆核人 user_id（X-Approver） <span className="text-red-500">*</span></span>
+                      <span className="text-[12px] font-medium text-[var(--text-secondary)]">覆核人帳號（另一位管理員） <span className="text-red-500">*</span></span>
                       <input
                         value={approverId}
                         onChange={(e) => setApproverId(e.target.value)}
-                        placeholder="另一位管理員的 user_id"
+                        placeholder="輸入另一位管理員的使用者 ID"
                         className="rounded-md border border-[var(--border)] px-3 py-2 font-mono text-[12px] outline-none focus:border-[var(--primary)]"
                       />
                     </label>
@@ -240,7 +243,7 @@ export default function ConfigGovernancePage() {
                         onChange={(e) => setStrategy(e.target.value as "instant" | "canary_5_50_100")}
                         className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] outline-none focus:border-[var(--primary)]"
                       >
-                        <option value="instant">立即上線（instant）</option>
+                        <option value="instant">立即上線</option>
                         <option value="canary_5_50_100">灰度（5%→50%→100%）</option>
                       </select>
                     </label>

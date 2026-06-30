@@ -356,7 +356,7 @@ export default function KpiDashboardPage() {
               <div className="flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
                 <div className="flex items-center text-[13px] text-[var(--text-secondary)]">
                   一次修好率（FTFR）
-                  <PendingTag note="需 rework_of_id 業務邏輯確認" />
+                  <PendingTag note="需返工關聯邏輯確認" />
                 </div>
                 <span className="text-2xl font-bold text-[var(--text-disabled)]">—</span>
                 <span className="text-[11px] text-[var(--text-secondary)]">尚未接入</span>

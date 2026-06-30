@@ -248,6 +248,13 @@ const WARRANTY_STATUS_LABEL: Record<string, string> = {
   out_warranty: "保固外",
   not_applicable: "不適用",
 };
+// 門扇材質對照（與 DispatchOrderView 的 DOOR_TYPE 一致），避免顯示原始 enum 碼
+const DOOR_TYPE_LABEL: Record<string, string> = {
+  iron: "鐵門",
+  wood: "木門",
+  steel: "鋼門",
+  other: "其它",
+};
 const COMPLETION_STATUS_LABEL: Record<string, string> = {
   pending_report: "待完工回報",
   pending_photos: "待照片",
@@ -399,7 +406,7 @@ function WorkOrderFieldsPanel({ workOrder }: { workOrder?: WorkOrder }) {
     ? WARRANTY_STATUS_LABEL[workOrder.warranty_status] ?? workOrder.warranty_status
     : null);
   push("保固到期日", workOrder.warranty_expiry_date);  // CR-0047 自動算
-  push(t("woDoorType"), workOrder.door_type);
+  push(t("woDoorType"), workOrder.door_type ? DOOR_TYPE_LABEL[workOrder.door_type] ?? workOrder.door_type : null);
   // CR-0043：門厚 + 設備/計費新欄位
   push("門厚", workOrder.door_thickness);
   push("購買地點/經銷商", workOrder.dealer);
