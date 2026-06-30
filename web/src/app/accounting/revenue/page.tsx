@@ -20,12 +20,18 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import RevenueTrendChart from "@/components/accounting/RevenueTrendChart";
 import BrandRevenueChart from "@/components/accounting/BrandRevenueChart";
-import ServiceTypeChart from "@/components/accounting/ServiceTypeChart";
+import CategoryRevenueChart from "@/components/accounting/CategoryRevenueChart";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import type { components } from "@/types/api.generated";
 
 type RevenueSummary = components["schemas"]["RevenueSummary"];
+// by_category 為後端 additive 欄位（問題類別營收佔比）。openapi.yaml / api.generated.ts
+// 待 TS 產生器修復後同步，目前以 inline 型別消費（與 customer-stats 同策略）。
+type RevenueByCategoryPoint = { category: string; revenue: string; share: number };
+type RevenueSummaryWithCategory = RevenueSummary & {
+  by_category?: RevenueByCategoryPoint[];
+};
 
 function formatTwd(amount: string | undefined | null): string {
   if (!amount) return "—";
@@ -112,6 +118,9 @@ export default function RevenuePage() {
     fetchSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [granularity]);
+
+  const byCategory =
+    (data as RevenueSummaryWithCategory | null)?.by_category ?? [];
 
   const kpis = data?.kpis;
   const kpiCards = [
@@ -283,10 +292,13 @@ export default function RevenuePage() {
             <RevenueTrendChart items={data?.trend ?? []} loading={loading} />
           </div>
 
-          {/* Bottom Charts Row */}
-          <div className="flex gap-4 px-8 py-4" style={{ minHeight: 320 }}>
+          {/* Bottom Charts Row — shrink-0 防 flex column 捲動容器把本列壓到 floor。
+              注意：原 inline style={{minHeight:320}} 會覆蓋 flex item 預設 min-height:auto、
+              「放行」壓縮（4 列舊圖剛好塞得下、8 列問題類別圖被壓到 320 → 內容溢出跑版）。
+              改 min-h-[320px]（空資料地板）+ shrink-0（高度回到內容自然值）。*/}
+          <div className="flex shrink-0 gap-4 px-8 py-4 min-h-[320px]">
             <BrandRevenueChart items={data?.by_brand ?? []} loading={loading} />
-            <ServiceTypeChart />
+            <CategoryRevenueChart items={byCategory} loading={loading} />
           </div>
 
           {/* Excel 按鈕已移除：原本傳 ext="xlsx" 卻仍輸出 CSV 內容只改副檔名
