@@ -246,7 +246,9 @@ export default function RefundReviewPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col gap-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
+        {/* flex-1 + space-y-5（非 flex flex-col gap-5）：避免子層被 flex-shrink 壓縮、
+            內容超高時自然溢出觸發捲動。同 /admin/customers 捲軸失效修法。*/}
+        <div className="flex-1 space-y-5 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-bold text-[var(--text-primary)]">
               {t("title")}
