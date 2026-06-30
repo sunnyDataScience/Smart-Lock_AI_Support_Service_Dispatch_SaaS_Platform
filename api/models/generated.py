@@ -1903,6 +1903,10 @@ class ReconciliationPage(CursorPage):
 
 class SettlementStatus(StrEnum):
     pending = 'pending'
+    # 'confirmed'：批次確認後的中間態（pending → confirmed → paid）。手動 additive，
+    # 否則 list 回 confirmed settlement 會序列化失敗 422。openapi.yaml / web
+    # api.generated.ts 待 TS 產生器修復後同步（同 RevenueByCategoryPoint 策略）。
+    confirmed = 'confirmed'
     paid = 'paid'
     failed = 'failed'
 

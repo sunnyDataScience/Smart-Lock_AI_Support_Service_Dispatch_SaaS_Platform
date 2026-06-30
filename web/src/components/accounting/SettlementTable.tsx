@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { cacheInvalidate } from "@/lib/cache";
 import { useToast } from "@/components/ui/Toast";
 
 type Settlement = components["schemas"]["Settlement"];
@@ -16,12 +17,12 @@ interface Props {
   onItemsChanged?: () => void;
 }
 
-// Tone（顏色）固定；label 由 i18n 提供
-const STATUS_TONE: Record<
-  SettlementStatus,
-  { textColor: string; bgColor: string }
-> = {
+// Tone（顏色）固定；label 由 i18n 提供。
+// 'confirmed' = 批次確認後中間態（後端 SettlementStatus 已補；前端生成型別待 TS
+// 產生器修復後同步，故用 string key + 下方 lookup fallback 安全處理）。
+const STATUS_TONE: Record<string, { textColor: string; bgColor: string }> = {
   pending: { textColor: "#B45309", bgColor: "#FEF3C7" },
+  confirmed: { textColor: "#1E40AF", bgColor: "#DBEAFE" },
   paid: { textColor: "#10B981", bgColor: "#D1FAE5" },
   failed: { textColor: "#B91C1C", bgColor: "#FEE2E2" },
 };
@@ -77,6 +78,9 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
         description: `更新 ${res.data.updated} 筆 / 略過 ${res.data.skipped} 筆`,
       });
       setSelectedIds(new Set());
+      // 清 GET 快取再 refetch：否則列表從 30s 舊快取讀回、狀態更新看不到
+      // （cache key 含完整 URL，用廣域 "GET:" 清）。
+      cacheInvalidate("GET:");
       onItemsChanged?.();
     } catch (e) {
       const msg =
@@ -103,9 +107,10 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
     [t],
   );
 
-  const statusLabels: Record<SettlementStatus, string> = useMemo(
+  const statusLabels: Record<string, string> = useMemo(
     () => ({
       pending: t("status.pending"),
+      confirmed: t("status.confirmed"),
       paid: t("status.paid"),
       failed: t("status.failed"),
     }),
@@ -187,7 +192,8 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
 
       {/* Data Rows */}
       {items.map((s) => {
-        const tone = STATUS_TONE[s.status];
+        // fallback：後端可能回前端生成型別尚未含的 'confirmed'，避免 tone undefined。
+        const tone = STATUS_TONE[s.status] ?? STATUS_TONE.pending;
         const methodLabel = s.payment_method
           ? paymentMethodLabel[s.payment_method]
           : "—";
@@ -223,7 +229,7 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
                 className="rounded-full px-[10px] py-[3px] text-xs font-medium"
                 style={{ color: tone.textColor, backgroundColor: tone.bgColor }}
               >
-                {statusLabels[s.status]}
+                {statusLabels[s.status] ?? s.status}
               </span>
             </div>
 

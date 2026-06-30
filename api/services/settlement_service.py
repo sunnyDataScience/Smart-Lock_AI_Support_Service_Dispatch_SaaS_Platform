@@ -201,32 +201,38 @@ async def batch_action(
     if not settlement_ids:
         return {"updated": 0, "skipped": 0}
 
-    # 用 ANY (uuid[]) 一次 UPDATE
+    # CR — batch 改寫 public.settlements（與 list_settlements 同表）。原寫
+    # saas.settlement（空表，generate 月結批次的 v2 目標）→ 批次更新 0 筆、前端看似
+    # 「沒反應」。public.settlements 無 tenant_id 欄，沿 list 慣例透過 technicians.
+    # tenant_id 過濾；亦無 manual_paid_at 欄故不設。status 為自由 varchar（無 CHECK），
+    # 'confirmed' 中間態可直接寫入。
+    tech_scope = (
+        "technician_id IN (SELECT id FROM technicians WHERE tenant_id = %s::uuid)"
+    )
     if action == "confirm":
         sql = (
-            "UPDATE saas.settlement "
+            "UPDATE settlements "
             "SET status = 'confirmed' "
-            "WHERE tenant_id = %s::uuid "
-            "  AND id = ANY(%s::uuid[]) "
-            "  AND status = 'pending'"
+            "WHERE id = ANY(%s::uuid[]) "
+            "  AND status = 'pending' "
+            f"  AND {tech_scope}"
         )
         cur = await db_module._conn.execute(
-            sql, (tenant_id, settlement_ids),
+            sql, (settlement_ids, tenant_id),
         )
         updated = cur.rowcount
     else:  # mark_paid
         sql = (
-            "UPDATE saas.settlement "
+            "UPDATE settlements "
             "SET status = 'paid', "
             "    paid_at = NOW(), "
-            "    manual_paid_at = NOW(), "
             "    payment_method = COALESCE(%s, payment_method) "
-            "WHERE tenant_id = %s::uuid "
-            "  AND id = ANY(%s::uuid[]) "
-            "  AND status IN ('confirmed', 'pending')"
+            "WHERE id = ANY(%s::uuid[]) "
+            "  AND status IN ('confirmed', 'pending') "
+            f"  AND {tech_scope}"
         )
         cur = await db_module._conn.execute(
-            sql, (payment_method, tenant_id, settlement_ids),
+            sql, (payment_method, settlement_ids, tenant_id),
         )
         updated = cur.rowcount
 
