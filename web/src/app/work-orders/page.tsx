@@ -13,7 +13,8 @@ import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrdersTable from "@/components/work-orders/WorkOrdersTable";
 import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal";
-import { ApiError, tenantPath } from "@/lib/api";
+import { tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { useMemo, useState } from "react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -25,9 +26,7 @@ const PAGE_SIZE = 20;
 
 /** 保留既有 page error 格式（errorCode (status)：message）— hook 預設只回 message */
 function formatWorkOrderError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 // Filter / view tabs use stable keys; labels resolved per-render via i18n

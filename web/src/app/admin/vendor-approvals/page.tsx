@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Store, Check, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 interface Vendor {
@@ -41,7 +42,7 @@ export default function VendorApprovalsPage() {
       );
       setItems(res.items ?? []);
     } catch (e) {
-      setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+      setError(friendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -62,7 +63,7 @@ export default function VendorApprovalsPage() {
       }
       setItems((prev) => prev.filter((v) => v.id !== vendorId));
     } catch (e) {
-      setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+      setError(friendlyError(e));
     } finally {
       setBusy(null);
     }

@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ShieldCheck, X, Check, XCircle } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -16,9 +17,7 @@ type FamilyReviewPendingResponse =
 type FamilyReviewAction = components["schemas"]["FamilyReviewAction"];
 
 function formatFamilyReviewError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const ACTION_BADGE: Record<FamilyReviewAction, { bg: string; text: string }> = {

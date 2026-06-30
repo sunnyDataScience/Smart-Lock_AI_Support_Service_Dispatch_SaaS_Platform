@@ -16,7 +16,8 @@ import {
 import TechShell from "@/components/tech/TechShell";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, auth, getCurrentSession, logout } from "@/lib/api";
+import { api, auth, getCurrentSession, logout } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
@@ -31,11 +32,7 @@ const AVAILABILITY_COLOR: Record<Technician["availability"], string> = {
 };
 
 function formatErr(e: unknown): string {
-  return e instanceof ApiError
-    ? `${e.errorCode} (${e.status})：${e.message}`
-    : e instanceof Error
-      ? e.message
-      : String(e);
+  return friendlyError(e);
 }
 
 export default function AccountPage() {

@@ -6,7 +6,8 @@ import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import TechnicianDetailSidebar from "@/components/technicians/TechnicianDetailSidebar";
 import CertificationMatrix from "@/components/technicians/CertificationMatrix";
-import { ApiError, api, getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
+import { api, getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 import { LOCK_BRANDS_HINT } from "@/lib/constants/brands";
 import type { components } from "@/types/api.generated";
@@ -229,11 +230,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
       setTechnician(res.data ?? null);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     }
   }
@@ -279,13 +276,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
       cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refetch 取到更新後狀態
       await loadTechnician();
     } catch (e) {
-      // ApiError.message 帶後端友善 detail（如「reason 至少 3 字元」/狀態衝突），
-      // 一併顯示比裸 errorCode 更可行動。
-      setActionMsg(
-        e instanceof ApiError
-          ? `${verb}失敗：${e.message || e.errorCode}（${e.status}）`
-          : `${verb}失敗`,
-      );
+      setActionMsg(`${verb}失敗：${friendlyError(e)}`);
     } finally {
       setActionBusy(false);
     }
@@ -326,9 +317,7 @@ export default function TechnicianDetailPage({ params }: PageProps) {
       setEditOpen(false);
       await loadTechnician();
     } catch (e) {
-      setActionMsg(
-        e instanceof ApiError ? `儲存失敗：${e.errorCode} (${e.status})` : "儲存失敗",
-      );
+      setActionMsg(`儲存失敗：${friendlyError(e)}`);
     } finally {
       setActionBusy(false);
     }

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import {
   STATUS_GROUP_MAP,
@@ -91,11 +92,7 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
       } catch (e) {
         if (cancelled) return;
         setLinkedError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setLinkedLoading(false);

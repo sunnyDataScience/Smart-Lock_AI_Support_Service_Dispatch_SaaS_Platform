@@ -15,7 +15,8 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/components/ui/Modal";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface Transaction {
   id: string;
@@ -74,11 +75,7 @@ export default function InventoryLogModal({
       .catch((e) => {
         if (!cancelled) {
           const msg =
-            e instanceof ApiError
-              ? `${e.errorCode} (${e.status})：${e.message}`
-              : e instanceof Error
-                ? e.message
-                : String(e);
+            friendlyError(e);
           setError(msg);
         }
       })

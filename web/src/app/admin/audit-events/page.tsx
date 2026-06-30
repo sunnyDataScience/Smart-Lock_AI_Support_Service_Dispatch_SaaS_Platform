@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Check, ChevronDown, ChevronRight, Copy, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { AuditExportModal } from "@/components/admin/AuditExportModal";
-import { ApiError, resolveTenantId } from "@/lib/api";
+import { resolveTenantId } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -14,9 +15,7 @@ type AuditLogEntry = components["schemas"]["AuditLogEntry"];
 type AuditLogType = components["schemas"]["AuditLogType"];
 
 function formatAuditError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const LOG_TYPE_BADGE: Record<AuditLogType, { bg: string; text: string }> = {

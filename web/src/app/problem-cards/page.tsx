@@ -3,7 +3,8 @@
 import { Calendar, ChevronDown, Search } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ProblemCardsTable from "@/components/problem-cards/ProblemCardsTable";
-import { ApiError, resolveTenantId } from "@/lib/api";
+import { resolveTenantId } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -12,9 +13,7 @@ import { useMemo, useState } from "react";
 type ProblemCard = components["schemas"]["ProblemCard"];
 
 function formatProblemCardError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const PAGE_SIZE = 20;

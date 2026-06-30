@@ -3,7 +3,8 @@
 import { Send } from "lucide-react";
 import { useState } from "react";
 import type { components } from "@/types/api.generated";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useToast } from "@/components/ui/Toast";
 
 type Message = components["schemas"]["Message"];
@@ -57,11 +58,7 @@ export default function HandoverComposer({
       toast({ title: "已發送", variant: "success" });
     } catch (e) {
       const message =
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e);
+        friendlyError(e);
       toast({ title: "發送失敗", description: message, variant: "error" });
     } finally {
       setSending(false);

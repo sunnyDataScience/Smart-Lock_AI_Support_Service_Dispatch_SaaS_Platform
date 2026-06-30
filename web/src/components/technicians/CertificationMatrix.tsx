@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 
 /* CR-0104：技能認證矩陣（真資料）。取代原本前端寫死的 5 列 mock，
@@ -66,7 +67,7 @@ export default function CertificationMatrix({ tenantId, technicianId }: Props) {
       setCerts(res.data ?? []);
     } catch (e) {
       setError(
-        e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e),
+        friendlyError(e),
       );
     }
   }, [basePath]);
@@ -123,9 +124,7 @@ export default function CertificationMatrix({ tenantId, technicianId }: Props) {
       setEditId(null);
       await load();
     } catch (e) {
-      setFormMsg(
-        e instanceof ApiError ? `儲存失敗：${e.errorCode} (${e.status})` : "儲存失敗",
-      );
+      setFormMsg(`儲存失敗：${friendlyError(e)}`);
     } finally {
       setBusy(false);
     }
@@ -139,9 +138,7 @@ export default function CertificationMatrix({ tenantId, technicianId }: Props) {
       cacheInvalidate("GET:");
       await load();
     } catch (e) {
-      setError(
-        e instanceof ApiError ? `刪除失敗：${e.errorCode} (${e.status})` : "刪除失敗",
-      );
+      setError(`刪除失敗：${friendlyError(e)}`);
     } finally {
       setBusy(false);
     }

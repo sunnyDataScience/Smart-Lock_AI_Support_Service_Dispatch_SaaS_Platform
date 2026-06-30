@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { FileBarChart, RefreshCw, AlertTriangle, TrendingUp, FileText, CheckCircle2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, auth } from "@/lib/api";
+import { api, auth } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 type SopMetrics = {
   tenant_id: string;
@@ -63,11 +64,7 @@ export default function SopPerformancePage() {
       setMetrics(res);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);

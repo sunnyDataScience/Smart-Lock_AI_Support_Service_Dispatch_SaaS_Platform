@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { UserCog, UserPlus, Check } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface Staff {
   id: string;
@@ -47,7 +48,7 @@ export default function StaffPage() {
       const res = await api.get<{ items: Staff[] }>("/api/v1/staff");
       setItems(res.items ?? []);
     } catch (e) {
-      setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+      setError(friendlyError(e));
     } finally {
       setLoading(false);
     }
@@ -80,7 +81,7 @@ export default function StaffPage() {
       setPhone("");
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+      setError(friendlyError(e));
     } finally {
       setBusy(false);
     }

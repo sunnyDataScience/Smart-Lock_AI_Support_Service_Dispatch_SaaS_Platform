@@ -14,6 +14,7 @@
 import { useState } from "react";
 import { X, KeyRound, Copy, Check } from "lucide-react";
 import { ApiError, api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface Props {
   onClose: () => void;
@@ -49,7 +50,7 @@ export default function AdminResetPasswordModal({ onClose }: Props) {
         e instanceof ApiError
           ? e.status === 404
             ? "找不到此 email 的使用者（限本租戶）"
-            : `${e.errorCode} (${e.status})：${e.message}`
+            : friendlyError(e)
           : e instanceof Error
             ? e.message
             : String(e),

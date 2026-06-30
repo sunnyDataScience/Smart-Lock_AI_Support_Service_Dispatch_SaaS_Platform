@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertTriangle, X, TrendingUp } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
@@ -16,9 +17,7 @@ type SentimentAlertStatus = components["schemas"]["SentimentAlertStatus"];
 type SentimentLabel = SentimentAlert["sentiment_label"];
 
 function formatSentimentError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const STATUS_BADGE: Record<SentimentAlertStatus, { bg: string; text: string }> = {

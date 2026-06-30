@@ -10,7 +10,8 @@
 import { use, useEffect, useState } from "react";
 import Sidebar from "@/components/layout/Sidebar";
 import { CustomerForm, type CustomerFormInitial } from "@/components/admin/CustomerForm";
-import { ApiError, api, resolveTenantId } from "@/lib/api";
+import { api, resolveTenantId } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface CustomerDetailLite extends CustomerFormInitial {
   id: string;
@@ -49,11 +50,7 @@ export default function EditCustomerPage({
       } catch (e) {
         if (cancelled) return;
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setLoading(false);

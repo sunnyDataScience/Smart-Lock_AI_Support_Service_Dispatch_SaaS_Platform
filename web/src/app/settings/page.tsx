@@ -15,7 +15,8 @@ import SystemConfigForm from "@/components/settings/SystemConfigForm";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, getCurrentSession, type CurrentSession } from "@/lib/api";
+import { api, getCurrentSession, type CurrentSession } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 function deriveName(email: string | null, userId: string | null): string {
   if (email) {
@@ -226,11 +227,7 @@ function SecurityForm() {
       setConfirmPassword("");
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setSubmitting(false);

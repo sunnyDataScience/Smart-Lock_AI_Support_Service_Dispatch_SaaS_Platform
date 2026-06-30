@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { FileText, Plus, Trash2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
@@ -121,7 +122,7 @@ export default function QuotesPage() {
         setServices(c.services.map((s) => ({ code: s.service_code, name: s.service_name, price: s.suggested_customer_price })));
         setMaterials(c.materials.map((m) => ({ code: m.material_code, name: m.material_name, price: m.suggested_price })));
       } catch (e) {
-        setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+        setError(friendlyError(e));
       }
     })();
     // CR-0095：載入報價列表 + 處理工單頁深連結 ?wo=（免手貼 UUID）
@@ -214,7 +215,7 @@ export default function QuotesPage() {
   }, [woId]);
 
   function fail(e: unknown) {
-    setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+    setError(friendlyError(e));
   }
 
   async function fetchQuotes(): Promise<QuoteListItem[]> {

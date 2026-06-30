@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Image as ImageIcon, RefreshCw, FileText, AlertCircle } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import DisputesTable from "@/components/admin/DisputesTable";
-import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
+import { api, getCurrentSession, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useToast } from "@/components/ui/Toast";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
@@ -98,11 +99,7 @@ export default function DisputesPage() {
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);
@@ -213,11 +210,7 @@ export default function DisputesPage() {
       await fetchDisputes(activeTab, typeFilter);
     } catch (e) {
       const msg =
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e);
+        friendlyError(e);
       setFormError(msg);
     } finally {
       setSubmitting(false);

@@ -8,6 +8,7 @@ import ChatTimeline from "@/components/conversations/ChatTimeline";
 import DiagnosticReasoningPanel from "@/components/conversations/DiagnosticReasoningPanel";
 import HandoverComposer from "@/components/conversations/HandoverComposer";
 import { ApiError, api, tenantPath, resolveTenantId } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -88,11 +89,7 @@ export default function ConversationDetailPage({
       setConv(updated);
       setToast("已結束接管，對話交還 AI");
     } catch (e) {
-      setToast(
-        e instanceof ApiError
-          ? `結束接管失敗：${e.errorCode} (${e.status})`
-          : "結束接管失敗",
-      );
+      setToast(`結束接管失敗：${friendlyError(e)}`);
     } finally {
       setResolvingHandover(false);
     }
@@ -120,11 +117,7 @@ export default function ConversationDetailPage({
       setShowCreatePc(false);
     } catch (e) {
       setCreatePcError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setCreatingPc(false);
@@ -157,7 +150,7 @@ export default function ConversationDetailPage({
               if (cancelled) return null;
               setPcError(
                 e instanceof ApiError
-                  ? `${e.errorCode} (${e.status})`
+                  ? friendlyError(e)
                   : e instanceof Error
                     ? e.message
                     : String(e),
@@ -175,11 +168,7 @@ export default function ConversationDetailPage({
           setNotFound(true);
         } else {
           setError(
-            e instanceof ApiError
-              ? `${e.errorCode} (${e.status})：${e.message}`
-              : e instanceof Error
-                ? e.message
-                : String(e),
+            friendlyError(e),
           );
         }
       } finally {

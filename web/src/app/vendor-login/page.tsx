@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ApiError, loginVendor } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import BackToHome from "@/components/layout/BackToHome";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -26,7 +27,7 @@ export default function VendorLoginPage() {
       // CR-0029：導向廠商專區（原導 /dashboard 會被 rolePolicy 擋住）
       router.replace("/vendor");
     } catch (err) {
-      if (err instanceof ApiError) setError(`${err.errorCode} (${err.status})：${err.message}`);
+      if (err instanceof ApiError) setError(friendlyError(err));
       else if (err instanceof Error) setError(err.message);
       else setError(String(err));
       setLoading(false);

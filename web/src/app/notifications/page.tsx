@@ -18,7 +18,8 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
-import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
+import { api, getCurrentSession, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import {
@@ -75,11 +76,7 @@ const SEVERITY_META: Record<
 };
 
 function formatErr(e: unknown): string {
-  return e instanceof ApiError
-    ? `${e.errorCode} (${e.status})：${e.message}`
-    : e instanceof Error
-      ? e.message
-      : String(e);
+  return friendlyError(e);
 }
 
 export default function NotificationsPage() {

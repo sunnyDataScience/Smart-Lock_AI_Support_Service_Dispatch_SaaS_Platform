@@ -9,7 +9,8 @@ import {
   ShieldCheck,
   PenLine,
 } from "lucide-react";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -166,7 +167,7 @@ export default function DispatchOrderView({ order, onUpdated }: Props) {
       setEditing(false);
     } catch (e) {
       setError(
-        e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e),
+        friendlyError(e),
       );
     } finally {
       setSaving(false);
@@ -374,7 +375,7 @@ function ConsentPanel({ workOrderId }: { workOrderId: string }) {
         );
         if (!cancelled) setItems(res.consents ?? []);
       } catch (e) {
-        if (!cancelled) setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+        if (!cancelled) setError(friendlyError(e));
       }
     })();
     return () => {
@@ -427,7 +428,7 @@ function BillingPanel({ workOrderId, finalAmount }: { workOrderId: string; final
         );
         if (!cancelled) setItems(res.items ?? []);
       } catch (e) {
-        if (!cancelled) setError(e instanceof ApiError ? `${e.errorCode} (${e.status})` : String(e));
+        if (!cancelled) setError(friendlyError(e));
       }
     })();
     return () => {

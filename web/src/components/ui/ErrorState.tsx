@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, RotateCw } from "lucide-react";
+import { friendlyError } from "@/lib/apiError";
 
 /**
  * ErrorState — 統一錯誤狀態元件
@@ -29,7 +30,7 @@ function describeError(e: unknown): string {
   if (typeof e === "object" && e !== null) {
     if ("errorCode" in e && "status" in e && "message" in e) {
       const err = e as { errorCode: string; status: number; message: string };
-      return `${err.errorCode} (${err.status})：${err.message}`;
+      return friendlyError(err);
     }
     if ("message" in e) {
       return String((e as { message: unknown }).message);

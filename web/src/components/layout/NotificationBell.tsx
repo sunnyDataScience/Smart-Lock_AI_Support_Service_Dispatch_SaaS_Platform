@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 import NotificationDrawer from "./NotificationDrawer";
 
@@ -47,11 +48,7 @@ export default function NotificationBell({ variant = "light" }: Props) {
       setError(null);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
       setUnreadCount(null);
     }

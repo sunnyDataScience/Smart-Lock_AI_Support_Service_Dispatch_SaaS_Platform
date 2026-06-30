@@ -4,7 +4,8 @@ import { useMemo, useState } from "react";
 import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
-import { ApiError, api, getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
+import { api, getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 import { useToast } from "@/components/ui/Toast";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -15,9 +16,7 @@ import CreateTechnicianModal from "@/components/admin/CreateTechnicianModal";
 type Technician = components["schemas"]["Technician"];
 
 function formatTechnicianError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const PAGE_SIZE = 20;

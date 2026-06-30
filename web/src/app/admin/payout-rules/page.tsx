@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Banknote } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface PayoutRule {
   rule_id: string;
@@ -48,7 +49,7 @@ export default function PayoutRulesPage() {
         const res = await api.get<Resp>(tenantPath("/payout-rules"));
         if (!cancelled) setResp(res);
       } catch (e) {
-        if (!cancelled) setError(e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e));
+        if (!cancelled) setError(friendlyError(e));
       }
     })();
     return () => {

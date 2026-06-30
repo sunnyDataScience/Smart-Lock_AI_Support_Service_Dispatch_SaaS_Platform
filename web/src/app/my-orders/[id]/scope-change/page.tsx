@@ -6,7 +6,8 @@ import { Plus, Trash2, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface ScopeItem {
   id: string;
@@ -84,11 +85,7 @@ export default function ScopeChangePage() {
       setTimeout(() => router.push(`/my-orders/${id}`), 1500);
     } catch (e) {
       setSubmitError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setSubmitting(false);

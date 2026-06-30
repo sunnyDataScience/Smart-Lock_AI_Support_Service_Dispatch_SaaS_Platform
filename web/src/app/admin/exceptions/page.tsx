@@ -11,7 +11,8 @@ import { useEffect, useState } from "react";
 import { RefreshCw, Plus, AlertTriangle, PauseCircle } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 type ExceptionCase = {
   id: string;
@@ -71,9 +72,7 @@ const SEVERITY_BG: Record<string, { bg: string; text: string }> = {
 };
 
 function formatError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 export default function ExceptionsPage() {

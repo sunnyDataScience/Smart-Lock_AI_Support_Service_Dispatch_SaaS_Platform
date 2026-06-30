@@ -7,7 +7,8 @@ import { Search, Plus, Download } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import CaseCardGrid from "@/components/knowledge-base/CaseCardGrid";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, auth } from "@/lib/api";
+import { api, auth } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
@@ -16,9 +17,7 @@ type CaseEntry = components["schemas"]["CaseEntry"];
 type CaseSearchResponse = components["schemas"]["CaseSearchResponse"];
 
 function formatCasesError(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const PAGE_SIZE = 20;
@@ -164,11 +163,7 @@ export default function CasesPage() {
       } catch (e) {
         if (!cancelled) {
           setSearchError(
-            e instanceof ApiError
-              ? `${e.errorCode} (${e.status})：${e.message}`
-              : e instanceof Error
-                ? e.message
-                : String(e),
+            friendlyError(e),
           );
           setSearchHits([]);
         }
@@ -228,11 +223,7 @@ export default function CasesPage() {
       );
     } catch (e) {
       setExportError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setExportPending(false);

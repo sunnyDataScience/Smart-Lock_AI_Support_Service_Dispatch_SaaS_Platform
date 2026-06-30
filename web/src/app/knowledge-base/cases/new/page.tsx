@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { KBDocument } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
 
@@ -63,11 +64,7 @@ export default function NewCasePage() {
       router.replace(`/knowledge-base/cases/${doc.id}`);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
       setSubmitting(false);
     }

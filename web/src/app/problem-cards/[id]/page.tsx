@@ -20,6 +20,7 @@ import LinkedConversationCard from "@/components/problem-cards/LinkedConversatio
 import ResolutionTimeline from "@/components/problem-cards/ResolutionTimeline";
 import ProblemCardDetailSidebar from "@/components/problem-cards/ProblemCardDetailSidebar";
 import { ApiError, api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
@@ -120,11 +121,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       } catch (e) {
         if (cancelled) return;
         setError(
-          e instanceof ApiError
-            ? `${e.errorCode} (${e.status})：${e.message}`
-            : e instanceof Error
-              ? e.message
-              : String(e),
+          friendlyError(e),
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -142,11 +139,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   }, [actionToast]);
 
   const formatActionError = (e: unknown): string =>
-    e instanceof ApiError
-      ? `${e.errorCode} (${e.status})：${e.message}`
-      : e instanceof Error
-        ? e.message
-        : String(e);
+    friendlyError(e);
 
   const handleConfirm = async () => {
     setActionPending("confirm");

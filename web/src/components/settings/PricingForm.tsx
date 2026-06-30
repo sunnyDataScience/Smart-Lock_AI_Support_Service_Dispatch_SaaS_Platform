@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Calculator, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { ApiError, api, auth, tenantPath, getCurrentSession } from "@/lib/api";
+import { api, auth, tenantPath, getCurrentSession } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -81,11 +82,7 @@ export default function PricingForm() {
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);
@@ -133,11 +130,7 @@ export default function PricingForm() {
       setEditorRule(null);
     } catch (e) {
       setEditorError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setEditorPending(false);
@@ -167,11 +160,7 @@ export default function PricingForm() {
       setEditorRule(null);
     } catch (e) {
       setEditorError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setEditorPending(false);
@@ -769,11 +758,7 @@ function PricingCalculator({
       setResult(res);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setPending(false);

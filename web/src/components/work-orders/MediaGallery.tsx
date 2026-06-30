@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, RefreshCw, X, Lock, LockOpen } from "lucide-react";
-import { ApiError, api, auth, getCurrentSession, tenantPath } from "@/lib/api";
+import { api, auth, getCurrentSession, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 interface MediaItem {
   id: string;
@@ -199,11 +200,7 @@ export default function MediaGallery({
       setItems(res.items ?? []);
     } catch (e) {
       setError(
-        e instanceof ApiError
-          ? `${e.errorCode} (${e.status})：${e.message}`
-          : e instanceof Error
-            ? e.message
-            : String(e),
+        friendlyError(e),
       );
     } finally {
       setLoading(false);
@@ -229,7 +226,7 @@ export default function MediaGallery({
         );
       } catch (e) {
         setError(
-          e instanceof ApiError ? `${e.errorCode} (${e.status})：${e.message}` : String(e),
+          friendlyError(e),
         );
       }
     },

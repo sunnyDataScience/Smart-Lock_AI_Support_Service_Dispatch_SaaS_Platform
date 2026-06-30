@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ApiError, login } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import BackToHome from "@/components/layout/BackToHome";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -26,7 +27,7 @@ export default function LoginPage() {
       router.replace("/dashboard");
     } catch (e) {
       if (e instanceof ApiError) {
-        setError(`${e.errorCode} (${e.status})：${e.message}`);
+        setError(friendlyError(e));
       } else if (e instanceof Error) {
         setError(e.message);
       } else {

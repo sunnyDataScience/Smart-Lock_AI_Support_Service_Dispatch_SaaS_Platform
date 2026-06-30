@@ -8,7 +8,8 @@ import { CloudUpload, Trash2, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ManualsTable from "@/components/knowledge-base/ManualsTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type Manual = components["schemas"]["Manual"];
@@ -19,9 +20,7 @@ const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const ACCEPTED_EXTENSION = ".pdf";
 
 function formatErr(e: unknown): string {
-  if (e instanceof ApiError) return `${e.errorCode} (${e.status})：${e.message}`;
-  if (e instanceof Error) return e.message;
-  return String(e);
+  return friendlyError(e);
 }
 
 const PAGE_SIZE = 20;

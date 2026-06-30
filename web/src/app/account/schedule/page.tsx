@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
+import { friendlyError } from "@/lib/apiError";
 
 type RequestItem = {
   id: string;
@@ -35,11 +36,7 @@ interface ScheduleResponse {
 }
 
 function formatErr(e: unknown): string {
-  return e instanceof ApiError
-    ? `${e.errorCode} (${e.status})：${e.message}`
-    : e instanceof Error
-      ? e.message
-      : String(e);
+  return friendlyError(e);
 }
 
 function toDateKey(d: Date): string {
