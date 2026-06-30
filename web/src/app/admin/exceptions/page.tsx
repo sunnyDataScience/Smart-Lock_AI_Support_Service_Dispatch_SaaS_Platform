@@ -8,13 +8,15 @@
  */
 
 import { useEffect, useState } from "react";
-import { RefreshCw, Plus, AlertTriangle } from "lucide-react";
+import { RefreshCw, Plus, AlertTriangle, PauseCircle } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
 import { ApiError, api, tenantPath } from "@/lib/api";
 
 type ExceptionCase = {
   id: string;
   work_order_id: string | null;
+  work_order_no: string | null; // 後端 LEFT JOIN work_orders 帶的公單號（顯示用，免露 UUID）
   exception_type: string;
   status: string;
   severity: string;
@@ -167,7 +169,7 @@ export default function ExceptionsPage() {
               異常管理
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              M15 control tower — 缺料 / 加價拒絕 / 取消 / 爭議 / 安全風險統一追蹤；high/critical 會暫停工單（high_risk_hold）
+              統一追蹤並處理工單異常：缺料、加價拒絕、取消、爭議、安全風險等。標記為「高 / 緊急」的案件會自動暫停關聯工單，待處理後恢復。
             </p>
           </div>
           <div className="flex gap-2">
@@ -190,7 +192,7 @@ export default function ExceptionsPage() {
         </header>
 
         {showOpen && (
-          <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-5">
+          <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-gray-200 bg-white p-4 md:grid-cols-6">
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-gray-500">類型</span>
               <select value={newType} onChange={(e) => setNewType(e.target.value)} className="rounded border border-gray-300 px-2 py-1.5">
@@ -203,11 +205,12 @@ export default function ExceptionsPage() {
                 {["low", "medium", "high", "critical"].map((s) => <option key={s} value={s}>{SEVERITY_LABEL[s]}</option>)}
               </select>
             </label>
+            <div className="flex flex-col gap-1 text-sm md:col-span-2">
+              <span className="text-gray-500">關聯工單（選填）</span>
+              {/* 用公單號 / 客戶名搜尋，回傳工單 UUID；取代原本手貼 UUID（非 UUID 會讓後端 500） */}
+              <WorkOrderPicker value={newWo} onChange={setNewWo} />
+            </div>
             <label className="flex flex-col gap-1 text-sm">
-              <span className="text-gray-500">工單 ID（選填）</span>
-              <input value={newWo} onChange={(e) => setNewWo(e.target.value)} placeholder="UUID" className="rounded border border-gray-300 px-2 py-1.5" />
-            </label>
-            <label className="flex flex-col gap-1 text-sm md:col-span-1">
               <span className="text-gray-500">說明</span>
               <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="rounded border border-gray-300 px-2 py-1.5" />
             </label>
@@ -257,6 +260,8 @@ export default function ExceptionsPage() {
               {items.map((it) => {
                 const sev = SEVERITY_BG[it.severity] ?? SEVERITY_BG.low;
                 const done = it.status === "resolved" || it.status === "closed";
+                // 高/緊急 + 有關聯工單 + 仍處理中 → 工單已被暫停（high_risk_hold），以徽章顯示
+                const holdActive = !done && (it.severity === "high" || it.severity === "critical") && !!it.work_order_id;
                 return (
                   <tr key={it.id}>
                     <td className="px-4 py-3 font-medium text-gray-900">{TYPE_LABEL[it.exception_type] ?? it.exception_type}</td>
@@ -265,8 +270,25 @@ export default function ExceptionsPage() {
                         {SEVERITY_LABEL[it.severity] ?? it.severity}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{STATUS_LABEL[it.status] ?? it.status}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500">{it.work_order_id ? it.work_order_id.slice(0, 8) : "—"}</td>
+                    <td className="px-4 py-3 text-gray-600">
+                      <div className="flex flex-col gap-1">
+                        <span>{STATUS_LABEL[it.status] ?? it.status}</span>
+                        {holdActive && (
+                          <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[#fef0ef] px-2 py-0.5 text-[11px] font-medium text-[#d70015]">
+                            <PauseCircle size={11} /> 已暫停工單
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {it.work_order_no ? (
+                        <span className="font-mono font-medium text-gray-700">{it.work_order_no}</span>
+                      ) : it.work_order_id ? (
+                        <span className="font-mono text-gray-400">{it.work_order_id.slice(0, 8)}</span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">
                       {done && it.return_path
                         ? <span className="text-green-700">→ {RETURN_PATHS.find((r) => r.value === it.return_path)?.label ?? it.return_path}</span>

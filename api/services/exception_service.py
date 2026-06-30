@@ -8,6 +8,8 @@ control tower：缺料/改期/加價拒絕/取消/退款/爭議/安全風險統�
 
 from __future__ import annotations
 
+import uuid as _uuid
+
 import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
@@ -53,6 +55,8 @@ def _row_to_dict(r: tuple) -> dict:
         "resolution": r[9],
         "resolved_at": r[10].isoformat() if r[10] else None,
         "created_at": r[11].isoformat() if r[11] else None,
+        # list 查詢額外 LEFT JOIN work_orders 帶第 13 欄公單號；其餘端點無 join → None
+        "work_order_no": r[12] if len(r) > 12 else None,
     }
 
 
@@ -74,6 +78,13 @@ async def open_exception(
         )
     if severity not in _SEVERITIES:
         raise ApiError("VALIDATION_ERROR", f"severity must be one of {sorted(_SEVERITIES)}", 422)
+    # work_order_id 為 uuid 欄；非 UUID 字串（如公單號）會讓 INSERT 直接 500，
+    # 在邊界先驗格式回 422（前端已改用 WorkOrderPicker 帶 UUID，此為防禦縱深）。
+    if work_order_id:
+        try:
+            _uuid.UUID(str(work_order_id))
+        except (ValueError, AttributeError, TypeError):
+            raise ApiError("VALIDATION_ERROR", "work_order_id must be a valid UUID", 422)
     conn = await _conn()
     cur = await conn.execute(
         "INSERT INTO saas.exception_case "
@@ -100,18 +111,26 @@ async def list_exceptions(
     limit: int = 100,
 ) -> dict:
     conn = await _conn()
-    sql = f"SELECT {_SELECT} FROM saas.exception_case WHERE tenant_id = %s::uuid "
+    # LEFT JOIN work_orders 帶公單號（前端 WO 欄顯示可讀公單號，不露內部 UUID）。
+    # 欄位前綴 ec. 避免與 work_orders 同名欄歧義；work_order_no 為 _SELECT 之後第 13 欄。
+    ec_select = ", ".join(f"ec.{c}" for c in _SELECT.split(", "))
+    sql = (
+        f"SELECT {ec_select}, wo.document_number "
+        "FROM saas.exception_case ec "
+        "LEFT JOIN work_orders wo ON wo.id = ec.work_order_id "
+        "WHERE ec.tenant_id = %s::uuid "
+    )
     params: list = [tenant_id]
     if status:
-        sql += "AND status = %s "
+        sql += "AND ec.status = %s "
         params.append(status)
     if severity:
-        sql += "AND severity = %s "
+        sql += "AND ec.severity = %s "
         params.append(severity)
     if work_order_id:
-        sql += "AND work_order_id = %s::uuid "
+        sql += "AND ec.work_order_id = %s::uuid "
         params.append(work_order_id)
-    sql += "ORDER BY created_at DESC LIMIT %s"
+    sql += "ORDER BY ec.created_at DESC LIMIT %s"
     params.append(min(max(limit, 1), 500))
     cur = await conn.execute(sql, params)
     rows = await cur.fetchall()
