@@ -10,7 +10,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
-from core.deps import REVIEW_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import (
+    REVIEW_ROLES,
+    CurrentUser,
+    permission_shadow,
+    require_tenant,
+    role_required,
+)
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     RefundDecision,
@@ -63,6 +69,8 @@ async def create_refund_request(
     body: RefundRequestCreateRequest,
     response: Response,
     user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+    # CR-0111 shadow：log-only 稽核（矩陣 refunds.write vs 現行 REVIEW_ROLES 守衛），不擋
+    _shadow: None = Depends(permission_shadow("refunds", "write")),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     reason_code = (
@@ -116,6 +124,8 @@ async def submit_refund_decision(
     body: RefundDecision,
     id: str = Path(),
     user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+    # CR-0111 shadow：log-only 稽核（矩陣 refunds.approve vs 現行 REVIEW_ROLES 守衛），不擋
+    _shadow: None = Depends(permission_shadow("refunds", "approve")),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     decision_str = (

@@ -7,7 +7,7 @@ import logging
 import os
 from dataclasses import dataclass
 
-from fastapi import Header, Request
+from fastapi import Depends, Header, Request
 
 from core.auth import decode_token, is_jti_revoked, load_user_security_state
 from core.errors import ApiError
@@ -196,6 +196,48 @@ def role_required(*roles: str):
                 status_code=403,
             )
         return user
+    return _dep
+
+
+def permission_shadow(resource: str, action: str):
+    """Shadow-mode RBAC 稽核 dependency（CR-0111 後續 · log-only · 永不擋）。
+
+    掛在既有 role_required / require_tenant 守衛**之外**當額外 side-effect：計算「權限
+    矩陣是否允許此 user 的 (resource, action)」，若矩陣會拒但端點放行 → 記一筆
+    RBAC_SHADOW_DENY，蒐集『矩陣 vs 現行寫死 role_required』的落差資料，供未來把授權
+    收斂到矩陣（CIA / CR-0092 rbac-hardening）時安全 rollout。
+
+    **絕不 raise、絕不改變請求結果**（授權仍由既有守衛決定）。接端點真正強制授權
+    是另一步、需先對帳 195 條 role_required（見 role_service.has_permission docstring）。
+    """
+
+    async def _dep(user: CurrentUser = Depends(require_tenant)) -> None:
+        try:
+            from services import role_service  # lazy import：避免 import 期循環
+
+            allowed = await role_service.has_permission(
+                tenant_id=user.tenant_id,
+                role=user.role,
+                resource=resource,
+                action=action,
+            )
+            if not allowed:
+                logger.warning(
+                    "RBAC_SHADOW_DENY resource=%s action=%s role=%s tenant=%s "
+                    "— 矩陣會拒但目前放行（接強制前需對帳）",
+                    resource,
+                    action,
+                    user.role,
+                    user.tenant_id,
+                )
+        except Exception:  # noqa: BLE001 — shadow 稽核絕不影響請求
+            logger.exception(
+                "permission_shadow check failed (resource=%s action=%s)",
+                resource,
+                action,
+            )
+        return None
+
     return _dep
 
 
