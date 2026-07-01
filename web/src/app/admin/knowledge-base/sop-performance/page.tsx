@@ -79,7 +79,9 @@ export default function SopPerformancePage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col gap-6 overflow-auto pl-14 pr-4 py-6 md:px-8">
+        {/* flex-1 space-y-6（非 flex-col gap）：flex-col 子層預設 flex-shrink:1，
+            KPI 卡 + 圖表 + 表格會被壓縮塞進視窗高度而非自然溢出 → overflow-auto 無從捲動。 */}
+        <div className="flex-1 space-y-6 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex items-start justify-between gap-4">
             <div className="flex flex-col gap-2">
               <span className="text-[13px] text-[var(--text-secondary)]">
@@ -130,7 +132,7 @@ export default function SopPerformancePage() {
           )}
 
           {!metrics && !error && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+            <div className="flex min-h-[400px] flex-col items-center justify-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
               <FileBarChart className="h-12 w-12 text-[var(--text-disabled)]" />
               <span className="text-sm text-[var(--text-secondary)]">
                 {loading ? "載入中…" : "尚無資料"}
