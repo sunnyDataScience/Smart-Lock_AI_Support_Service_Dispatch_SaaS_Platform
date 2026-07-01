@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
 
 type Owner = "platform" | "brand" | "locksmith";
 
@@ -98,6 +99,7 @@ export default function CreateInventoryItemModal({
       });
       reset();
       onOpenChange(false);
+      cacheInvalidate("GET:"); // 新項目才會立即出現在列表（清 30s GET 舊快取）
       onSuccess?.();
     } catch (e) {
       const msg =

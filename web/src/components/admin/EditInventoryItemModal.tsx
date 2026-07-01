@@ -19,6 +19,7 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
 import type { components } from "@/types/api.generated";
 
 type InventoryItem = components["schemas"]["InventoryItem"];
@@ -97,6 +98,7 @@ export default function EditInventoryItemModal({
         description: `${name} 已更新`,
       });
       onOpenChange(false);
+      cacheInvalidate("GET:"); // 編輯後變更才會立即反映在列表（清 30s GET 舊快取）
       onSuccess?.();
     } catch (e) {
       const msg =
