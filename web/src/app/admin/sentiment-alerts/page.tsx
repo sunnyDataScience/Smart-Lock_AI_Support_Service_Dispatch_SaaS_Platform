@@ -154,10 +154,6 @@ export default function SentimentAlertsPage() {
             </div>
           </div>
 
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-            {t("flowNotice")}
-          </div>
-
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               <span className="text-[13px] text-[var(--text-secondary)]">{t("filterLabel")}</span>

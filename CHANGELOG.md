@@ -45,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **負面情緒告警頁：移除「狀態流向」說明 banner（branch `fix/sentiment-alerts-remove-flow-notice`，2026-07-01）**：業主要求移除 `/admin/sentiment-alerts` 頂部藍色說明框「狀態流向：未處理 → 已確認 → 已結案。確認/結案後會寫入備註並記錄到後端，已結案無法回退。」移除 banner div + 兩 locale 的 `sentiment.flowNotice` key（parity 2701→2700）。純前端屬 CIA 豁免。next build + **Playwright 實測**（頁面無「狀態流向」/「已結案無法回退」、藍 banner 消失、標題與狀態篩選保留）。**已部署本機 docker web**。
+
 - **角色權限頁：移除洩漏內部識別碼的「F-019」藍色提示 banner + 清 matrixHint 的「BR-M17-01」（branch `fix/roles-remove-f019-notice`，2026-07-01）**：業主指出矩陣上方藍框「F-019：admin/tenant_admin 可動態調整…透過 `/realtime/rbac` 即時推送給所有相關 session…actor 必須嚴格高於目標角色」把內部 flow ID（F-019）、WS 路徑（`/realtime/rbac`）、開發者術語（session/actor）洩漏給使用者（同 `fix/user-facing-jargon-leaks` 類）。移除整個 banner div + 兩 locale 的 `f019Notice` key（parity 2702→2701）；順帶把上一版 CR-0111 在 matrixHint 引入的「BR-M17-01」內部 ID + 「端點強制授權」術語改白話「核准欄目前僅供設定與檢視，尚未套用到實際操作權限」（保留「approve 僅配置、未生效」的誠實訊息）。純前端屬 CIA 豁免。next build + JSON parity 2701 + **Playwright 實測**（頁面已無 F-019／`/realtime/rbac`／actor／session／BR-M17 任一字串、藍 banner 消失、matrixHint 白話版正常）。**已部署本機 docker web**。
 
 - **角色權限頁：權限矩陣 block 放大（`min-h-[620px]`）（branch `style/roles-matrix-enlarge`，CR-0111 後續排版，2026-07-01）**：CR-0111 角色補至 12 個後，角色卡 grid（`grid-cols-5` × 12 = 3 排）吃掉垂直空間，權限矩陣卡（`flex-1`）被壓成 125px、12 個資源列擠在裡面要捲。業主要求把「系統管理員 權限矩陣的 block 放大」。矩陣卡加 `min-h-[620px]`（flex-1 仍保留、有空間時續撐大、但不再被壓縮），**Playwright 量測**：矩陣 block 125px → 620px、12 個資源列（×4 動作 檢視/編輯/核准/刪除）完整顯示、內層無裁切無捲動（`scrollH == clientH == 551`）。純前端排版屬 CIA 豁免。**已部署本機 docker web**。
