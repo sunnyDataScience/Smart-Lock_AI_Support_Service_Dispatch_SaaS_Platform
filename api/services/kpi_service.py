@@ -131,6 +131,42 @@ async def _count_work_orders(
     return int(row[0] or 0)
 
 
+async def _ftfr(
+    tenant_id: str,
+    interval: str,
+    start_date: date | None,
+    end_date: date | None,
+) -> tuple[str | None, int]:
+    """一次修好率 FTFR（first-time fix rate）。
+
+    - 分母 originals：期間內完工（status completed/confirmed）、非返工（is_rework=FALSE）的「原始工單」
+    - 分子 first_time：上述工單中，未被任何工單以 rework_of_id 指回（即沒被重做過）
+    回 (rate_str | None, originals 樣本數)；分母為 0 時 rate=None。
+    依據 work_orders.is_rework / rework_of_id（過往以「尚無 rework 欄」為由列為待接入，欄位現已存在）。
+    """
+    clause, time_args = _build_time_filter("wo", interval, start_date, end_date)
+    sql = (
+        "SELECT "
+        "  COUNT(*) AS originals, "
+        "  COUNT(*) FILTER (WHERE NOT EXISTS ("
+        "    SELECT 1 FROM work_orders r WHERE r.rework_of_id = wo.id"
+        "  )) AS first_time "
+        "FROM work_orders wo "
+        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN conversations c ON pc.conversation_id = c.id "
+        "JOIN users u ON c.user_id = u.id "
+        "WHERE u.tenant_id = %s::uuid "
+        f"AND {clause} "
+        "AND wo.status IN ('completed', 'confirmed') "
+        "AND COALESCE(wo.is_rework, FALSE) = FALSE"
+    )
+    cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
+    row = await cur.fetchone()
+    originals = int(row[0] or 0)
+    first_time = int(row[1] or 0)
+    return _ratio(first_time, originals), originals
+
+
 async def _count_dispute_table(
     tenant_id: str,
     interval: str,
@@ -254,6 +290,8 @@ async def get_kpi_report(
         tenant_id, interval, start_date, end_date
     )
 
+    ftfr_rate, ftfr_sample = await _ftfr(tenant_id, interval, start_date, end_date)
+
     # 使用 date range 時，period 仍回傳呼叫端送的值（schema 限制：DashboardPeriod
     # enum 沒有 "custom"），實際時間區間以 start_date / end_date 為準。
     return {
@@ -274,11 +312,12 @@ async def get_kpi_report(
         "technician_efficiency": {
             "avg_handle_minutes": round(avg_min, 1) if avg_min is not None else None,
             "completed_count": completed_cnt,
+            "ftfr": ftfr_rate,
+            "ftfr_sample": ftfr_sample,
         },
         "notes": [
             "SLA 達成率：尚無 SLA 規則與計算引擎",
             "客戶滿意度（星等 / 差評率）：尚無評價回傳機制",
             "NPS 淨推薦值：尚無 NPS 調查管道",
-            "FTFR 一次修好率：尚無 rework 標記欄位",
         ],
     }

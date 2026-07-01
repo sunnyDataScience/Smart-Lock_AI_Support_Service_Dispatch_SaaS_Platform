@@ -2999,6 +2999,10 @@ export interface components {
             /** @description 平均處理時長（分鐘）；無樣本時 null */
             avg_handle_minutes?: number | null;
             completed_count?: number;
+            /** @description 一次修好率 FTFR（完工且未被返工 / 完工原始工單）；無樣本時 null */
+            ftfr?: string | null;
+            /** @description FTFR 分母：期間內完工的原始（非返工）工單數 */
+            ftfr_sample?: number;
         };
         KpiReport: {
             period: components["schemas"]["DashboardPeriod"];
