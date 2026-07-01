@@ -292,7 +292,7 @@ export default function RolesPage() {
 
           {/* Permission Matrix */}
           {activeRole && (
-            <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
+            <div className="flex min-h-[620px] flex-1 flex-col overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)]">
               <div className="flex items-center justify-between px-5 py-4">
                 <div className="flex items-center gap-3">
                   <span className="text-base font-semibold text-[var(--text-primary)]">
