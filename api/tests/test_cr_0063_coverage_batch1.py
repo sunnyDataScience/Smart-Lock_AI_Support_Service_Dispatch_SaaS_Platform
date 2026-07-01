@@ -110,6 +110,23 @@ async def test_revenue_summary_structure():
         await rev.get_revenue_summary(tenant_id=TID, start_date=date(2026,3,1), end_date=date(2026,1,1))
 
 
+# ── revenue trend 粒度分桶（day/week/month/quarter）──
+@pytest.mark.component
+@pytest.mark.asyncio
+async def test_revenue_summary_granularity_buckets():
+    """trend 依 granularity 以 date_trunc 真實分桶；granularity 原樣回傳、不合法 → 422。"""
+    assert await db_module._ensure_conn()
+    from services import revenue_service as rev
+    for g in ("day", "week", "month", "quarter"):
+        out = await rev.get_revenue_summary(tenant_id=TID, granularity=g)
+        assert out["granularity"] == g, g
+        assert isinstance(out["trend"], list)
+        for pt in out["trend"]:
+            assert set(pt.keys()) >= {"period", "revenue", "order_count"}, pt
+    with pytest.raises(ApiError):
+        await rev.get_revenue_summary(tenant_id=TID, granularity="yearly")
+
+
 # ── TI-BI-04 scheduled create/list/cancel（component）──
 @pytest.mark.component
 @pytest.mark.asyncio

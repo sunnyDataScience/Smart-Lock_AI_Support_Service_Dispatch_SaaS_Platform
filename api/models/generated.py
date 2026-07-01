@@ -1514,6 +1514,7 @@ class Granularity(StrEnum):
     day = 'day'
     week = 'week'
     month = 'month'
+    quarter = 'quarter'
 
 
 class RevenueSummary(BaseModel):
