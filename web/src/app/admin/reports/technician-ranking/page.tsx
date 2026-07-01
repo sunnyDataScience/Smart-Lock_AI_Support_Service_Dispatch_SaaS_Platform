@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Crown, ChevronDown, Download, RefreshCw } from "lucide-react";
+import { Crown, Download, RefreshCw } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import DateRangePicker from "@/components/ui/DateRangePicker";
-import { getPresetRange, type DateRange } from "@/lib/dateRange";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
@@ -12,13 +10,6 @@ import { ReportExportModal } from "@/components/admin/reports/ReportExportModal"
 
 type Technician = components["schemas"]["Technician"];
 type TechnicianPage = components["schemas"]["TechnicianPage"];
-
-const SEGMENTS = [
-  { label: "本週", value: "week" },
-  { label: "本月", value: "month" },
-  { label: "本季", value: "quarter" },
-  { label: "本年", value: "year" },
-] as const;
 
 type SortKey = "composite" | "rating" | "completed";
 
@@ -114,17 +105,18 @@ const podiumDecor: Record<number, PodiumDecor> = {
   3: { scoreColor: "#D97706", borderColor: "#D97706" },
 };
 
+// 排行榜母體上限 — 迴圈以 cursor 抓齊全租戶技師（一般遠低於此）。
+// 後端 /technicians 依 created_at 排序，排名須在前端對「全體」計算，
+// 故不能只抓首批 100 筆（否則 #1 名不保證是全租戶最高分）。
+const RANKING_FETCH_CAP = 500;
+
 export default function TechnicianRankingPage() {
-  // 日期範圍 — 預設「本月」（與 segments 內被選中的「本月」一致）。
-  // TODO[E7x §4.3]: /tenants/{tid}/technicians 尚無 date filter，
-  // range state 暫時只控制 UI；技師排名仍以全 100 筆 sample 計算。
-  const [range, setRange] = useState<DateRange>(() => getPresetRange("thisMonth"));
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [truncated, setTruncated] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
-  const [period, setPeriod] = useState<"week" | "month" | "quarter" | "year">("month");
   const [sortKey, setSortKey] = useState<SortKey>("composite");
   const [regionFilter, setRegionFilter] = useState<string>("");
   const [pageIndex, setPageIndex] = useState(0);
@@ -135,12 +127,25 @@ export default function TechnicianRankingPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<TechnicianPage>(
-        tenantPath("/technicians"),
-        { query: { limit: 100 } },
-      );
-      const items: Technician[] = res.items ?? [];
-      setTechnicians(items);
+      // cursor 迴圈抓齊全租戶技師（排名母體），上限 RANKING_FETCH_CAP 防呆。
+      const all: Technician[] = [];
+      let cursor: string | undefined = undefined;
+      let didTruncate = false;
+      for (let guard = 0; guard < 20; guard++) {
+        const res: TechnicianPage = await api.get<TechnicianPage>(
+          tenantPath("/technicians"),
+          { query: { limit: 100, ...(cursor ? { cursor } : {}) } },
+        );
+        all.push(...(res.items ?? []));
+        if (all.length >= RANKING_FETCH_CAP) {
+          didTruncate = res.has_more ?? false;
+          break;
+        }
+        if (!res.has_more || !res.next_cursor) break;
+        cursor = res.next_cursor;
+      }
+      setTechnicians(all.slice(0, RANKING_FETCH_CAP));
+      setTruncated(didTruncate);
       setUpdatedAt(new Date());
     } catch (e) {
       setError(
@@ -213,24 +218,6 @@ export default function TechnicianRankingPage() {
           )}
 
           <div className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
-            <div className="flex rounded-lg bg-[#F1F5F9] p-[3px]">
-              {SEGMENTS.map((seg) => (
-                <button
-                  key={seg.value}
-                  onClick={() => setPeriod(seg.value)}
-                  className={`rounded-md px-[14px] py-[6px] text-[13px] ${
-                    seg.value === period
-                      ? "bg-[var(--primary)] font-semibold text-white"
-                      : "font-medium text-[var(--text-secondary)] hover:bg-white"
-                  }`}
-                >
-                  {seg.label}
-                </button>
-              ))}
-            </div>
-
-            <DateRangePicker value={range} onChange={setRange} />
-
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
@@ -454,6 +441,7 @@ export default function TechnicianRankingPage() {
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-[13px] text-[var(--text-secondary)]">
                 顯示 {allDisplayed.length} 位技師（第 {safePage + 1}/{totalPages} 頁）
+                {truncated && `　·　僅列前 ${RANKING_FETCH_CAP} 位`}
               </span>
               <div className="flex gap-1">
                 <button
@@ -483,18 +471,8 @@ export default function TechnicianRankingPage() {
         open={exportOpen}
         onOpenChange={setExportOpen}
         reportType="technician_ranking"
-        filters={{
-          from: range.from ? toDateOnly(range.from) : undefined,
-          to: range.to ? toDateOnly(range.to) : undefined,
-        }}
+        filters={{}}
       />
     </div>
   );
-}
-
-function toDateOnly(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }

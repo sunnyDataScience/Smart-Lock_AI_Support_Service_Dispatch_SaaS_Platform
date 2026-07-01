@@ -32,6 +32,7 @@ from services import (
     kpi_service,
     revenue_service,
     settlement_service,
+    technician_service,
 )
 
 logger = logging.getLogger("api.report_export_service")
@@ -42,6 +43,9 @@ VALID_FORMATS = {"csv", "pdf"}
 
 # accounting 單檔匯出上限（OpenAPI 預設 limit=20，但匯出場景需要更大批次）
 _ACCOUNTING_EXPORT_LIMIT = 500
+
+# 技師排行匯出單批上限（超過則 subtitle 標 truncated；一般租戶技師數遠低於此）
+_TECH_EXPORT_LIMIT = 500
 
 
 # =============================================================================
@@ -111,12 +115,39 @@ def _revenue_to_rows(report: dict) -> list[list[str]]:
     return rows
 
 
-def _technician_ranking_to_rows() -> list[list[str]]:
-    """技師排行 placeholder — service 尚未實作，先回最小可用 row。"""
-    return [
-        ["technician_id", "name", "completed_orders", "avg_rating"],
-        ["", "尚未實作技師排行 service，請待後續 endpoint 補上", "", ""],
+def _technician_ranking_to_rows(items: list[dict]) -> list[list[str]]:
+    """技師排行展平：每位技師一列，呼叫端已依綜合排名（rating desc, 完工數 desc）排序。
+
+    欄位對齊前端排行榜（rank / 姓名 / 等級 / 完工工單 / 平均星等 / 服務區域）。
+    綜合評分 = rating × 20（與前端 compositeScore 同公式，避免 CSV 與畫面不一致）。
+    """
+    rows: list[list[str]] = [
+        [
+            "rank",
+            "technician_id",
+            "name",
+            "level",
+            "completed_orders",
+            "avg_rating",
+            "composite_score",
+            "service_areas",
+        ]
     ]
+    for idx, t in enumerate(items, start=1):
+        rating = float(t.get("rating") or 0)
+        rows.append(
+            [
+                str(idx),
+                str(t.get("id", "")),
+                str(t.get("name", "")),
+                str(t.get("level", "")),
+                str(t.get("completed_orders_count", 0)),
+                f"{rating:.1f}",
+                f"{round(rating * 20, 1)}",
+                "、".join(t.get("service_areas") or []),
+            ]
+        )
+    return rows
 
 
 def _accounting_to_rows(items: list[dict]) -> list[list[str]]:
@@ -182,9 +213,26 @@ async def _build_rows(
         }
 
     if report_type == "technician_ranking":
-        return _technician_ranking_to_rows(), {
+        # 接真實資料：取租戶技師清單（單批上限 _TECH_EXPORT_LIMIT），
+        # 依綜合排名（rating desc, 完工數 desc）排序後展平，與前端排行榜口徑一致。
+        page = await technician_service.list_technicians(
+            tenant_id=tenant_id,
+            cursor=None,
+            limit=_TECH_EXPORT_LIMIT,
+        )
+        items = page.get("items") or []
+        items = sorted(
+            items,
+            key=lambda t: (
+                float(t.get("rating") or 0),
+                int(t.get("completed_orders_count") or 0),
+            ),
+            reverse=True,
+        )
+        return _technician_ranking_to_rows(items), {
             "title": "技師排行報表 (Technician Ranking)",
-            "subtitle": "service 尚未實作，待後續 endpoint 補上",
+            "subtitle": f"technicians: {len(items)}"
+            + (" (truncated)" if page.get("has_more") else ""),
         }
 
     if report_type == "accounting":

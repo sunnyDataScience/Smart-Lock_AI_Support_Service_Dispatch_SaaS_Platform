@@ -16,8 +16,7 @@ type SopMetrics = {
   top_recent_published: Array<{
     id: string;
     title: string;
-    version: number;
-    published_at: string | null;
+    reviewed_at: string | null;
   }>;
   retire_candidates_count: number;
 };
@@ -152,13 +151,13 @@ export default function SopPerformancePage() {
                   icon={<CheckCircle2 className="h-5 w-5 text-[#059669]" />}
                   label="核准率"
                   value={formatPct(metrics.rates.approval_rate_pct)}
-                  hint={`${windowDays} 日累計`}
+                  hint="全期累計（不受區間影響）"
                 />
                 <KpiCard
                   icon={<TrendingUp className="h-5 w-5 text-[#7C3AED]" />}
                   label="發布率"
                   value={formatPct(metrics.rates.publish_rate_pct)}
-                  hint={`${windowDays} 日累計`}
+                  hint="全期累計（不受區間影響）"
                 />
                 <KpiCard
                   icon={<AlertTriangle className="h-5 w-5 text-[#EA580C]" />}
@@ -231,7 +230,6 @@ export default function SopPerformancePage() {
                   <div className="overflow-hidden rounded-md border border-[var(--border)]">
                     <div className="flex h-10 items-center border-b border-[var(--border)] bg-[#F8FAFC] px-4 text-[12px] font-semibold text-[var(--text-secondary)]">
                       <span className="flex-1">標題</span>
-                      <span className="w-20">版本</span>
                       <span className="w-32">發布日期</span>
                     </div>
                     {metrics.top_recent_published.map((sop) => (
@@ -242,11 +240,8 @@ export default function SopPerformancePage() {
                         <span className="flex-1 truncate text-[var(--text-primary)]">
                           {sop.title}
                         </span>
-                        <span className="w-20 text-[var(--text-secondary)]">
-                          v{sop.version}
-                        </span>
                         <span className="w-32 text-[var(--text-secondary)]">
-                          {formatDate(sop.published_at)}
+                          {formatDate(sop.reviewed_at)}
                         </span>
                       </div>
                     ))}
