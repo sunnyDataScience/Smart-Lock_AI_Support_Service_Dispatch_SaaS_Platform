@@ -20,6 +20,7 @@ import {
 import { useToast } from "@/components/ui/Toast";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
 
 export interface RestockInventoryModalProps {
   open: boolean;
@@ -74,6 +75,7 @@ export default function RestockInventoryModal({
       });
       reset();
       onOpenChange(false);
+      cacheInvalidate("GET:"); // 補貨後數量才會立即反映在列表（清 30s GET 舊快取）
       onSuccess?.();
     } catch (e) {
       const msg =
