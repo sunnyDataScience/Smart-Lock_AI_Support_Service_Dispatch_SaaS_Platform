@@ -3,7 +3,7 @@
 涵蓋：
   - exportReport KPI CSV → 200 + content-type csv + 包含 funnel / dispute_rates 段落
   - exportReport revenue CSV → 200 + 包含 trend / by_brand 段落
-  - exportReport technician_ranking CSV → 200 stub csv
+  - exportReport technician_ranking CSV → 200 真實資料 csv（取代舊 stub）
   - exportReport PDF → 422（尚未實作）
   - exportReport 不合法 report_type → 422
   - exportReport 無 token → 401
@@ -45,15 +45,21 @@ async def test_export_revenue_csv_success(client, admin_headers):
 
 
 @pytest.mark.asyncio
-async def test_export_technician_ranking_csv_stub(client, admin_headers):
+async def test_export_technician_ranking_csv_real(client, admin_headers):
+    """技師排行匯出已接真實資料（取代舊 stub）：表頭含排名/綜合評分欄，且不再有『尚未實作』佔位列。"""
     res = await client.get(
         "/api/v1/reports/export?report_type=technician_ranking&format=csv",
         headers=admin_headers,
     )
-    assert res.status_code == 200
+    assert res.status_code == 200, res.text
     body = res.text
-    assert "technician_id" in body  # header line
+    # 真實資料表頭（rank / composite_score / service_areas 為接真後新增欄）
+    assert "rank" in body
+    assert "technician_id" in body
     assert "completed_orders" in body
+    assert "composite_score" in body
+    # 舊 stub 佔位列已移除
+    assert "尚未實作技師排行" not in body
 
 
 @pytest.mark.asyncio

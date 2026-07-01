@@ -18,7 +18,13 @@ import {
 } from "recharts";
 import Sidebar from "@/components/layout/Sidebar";
 import DateRangePicker from "@/components/ui/DateRangePicker";
-import { getPresetRange, type DateRange } from "@/lib/dateRange";
+import {
+  addMonths,
+  endOfMonth,
+  formatDateRange,
+  startOfMonth,
+  type DateRange,
+} from "@/lib/dateRange";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
@@ -85,29 +91,39 @@ function buildBrandRows(byBrand: RevenueByBrandPoint[]) {
   }));
 }
 
+// 預設區間 = 近 12 個自然月（含本月），保留「營收趨勢」12 根月柱的視覺。
+function last12MonthsRange(): DateRange {
+  const now = new Date();
+  return { from: startOfMonth(addMonths(now, -11)), to: endOfMonth(now) };
+}
+
 export default function RevenueReportPage() {
-  // 日期範圍 — 預設「過去 30 日」。
-  // TODO[E7x §4.3]: /tenants/{tid}/reports/revenue 目前只支援 granularity=month，
-  // 還沒有 from/to 參數；range state 暫時只控制 UI，實際 API 仍 fetch 近 12 月。
-  const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
+  // 日期範圍 — 預設近 12 個月；已接後端 start_date/end_date
+  //（reports_v2.get_report_revenue → revenue_service.get_revenue_summary，F-021）。
+  // 後端僅月粒度：day/week/quarter 切換為未來功能（下方 segmented control 已 disable）。
+  const [range, setRange] = useState<DateRange>(() => last12MonthsRange());
   const [summary, setSummary] = useState<RevenueSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
-  const [granularity, setGranularity] = useState<"day" | "week" | "month" | "quarter">("month");
 
   const fetchSummary = async () => {
     setLoading(true);
     setError(null);
     try {
-      // v2 tenant-scoped path（FR-0021 / CR-0003 P2-W1）
-      // backend 支援 day/week/month；quarter fallback 至 month
-      const apiGranularity = granularity === "quarter" ? "month" : granularity;
+      // v2 tenant-scoped path（FR-0021 / CR-0003 P2-W1）；後端僅月粒度。
+      // 接後端日期範圍 filter（both-or-neither）：start_date/end_date 由 range 導出，
+      // trend / by_brand / KPI 皆改用 DB-side range filter。
+      const query: Record<string, string> = { granularity: "month" };
+      if (range.from && range.to) {
+        query.start_date = toDateOnly(range.from);
+        query.end_date = toDateOnly(range.to);
+      }
       const res = await api.get<RevenueSummary>(
         tenantPath("/reports/revenue"),
-        { query: { granularity: apiGranularity } },
+        { query },
       );
       setSummary(res);
       setUpdatedAt(new Date());
@@ -123,7 +139,9 @@ export default function RevenueReportPage() {
   useEffect(() => {
     fetchSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [granularity]);
+  }, [range]);
+
+  const rangeLabel = formatDateRange(range);
 
   const trend = summary?.trend ?? [];
   const byBrand = summary?.by_brand ?? [];
@@ -152,7 +170,7 @@ export default function RevenueReportPage() {
                 營收報表
               </h1>
               <span className="text-xs text-[var(--text-secondary)]">
-                {updatedLabel}（granularity = month）
+                {updatedLabel}　·　{rangeLabel}（月粒度）
               </span>
             </div>
             <button
@@ -177,20 +195,25 @@ export default function RevenueReportPage() {
 
           <div className="flex items-center gap-3">
             <div className="flex rounded-lg bg-[#E2E8F0] p-[3px]">
-              {SEGMENTS.map((seg) => (
-                <button
-                  key={seg.value}
-                  onClick={() => setGranularity(seg.value)}
-                  title={seg.value === "quarter" ? "後端 fallback 至月" : undefined}
-                  className={`rounded-md px-[14px] py-[6px] text-[13px] ${
-                    seg.value === granularity
-                      ? "bg-[var(--primary)] font-semibold text-white"
-                      : "text-[var(--text-secondary)] hover:bg-white"
-                  }`}
-                >
-                  {seg.label}
-                </button>
-              ))}
+              {SEGMENTS.map((seg) => {
+                // 後端目前僅實作月粒度（revenue_service effective='month'）；
+                // 日/週/季為未來功能 → disable + 即將推出，避免點了卻回同一份月資料。
+                const isMonth = seg.value === "month";
+                return (
+                  <button
+                    key={seg.value}
+                    disabled={!isMonth}
+                    title={isMonth ? undefined : "即將推出：後端目前僅提供月粒度"}
+                    className={`rounded-md px-[14px] py-[6px] text-[13px] ${
+                      isMonth
+                        ? "bg-[var(--primary)] font-semibold text-white"
+                        : "cursor-not-allowed text-[var(--text-disabled)] opacity-60"
+                    }`}
+                  >
+                    {seg.label}
+                  </button>
+                );
+              })}
             </div>
 
             <DateRangePicker value={range} onChange={setRange} />
@@ -247,13 +270,13 @@ export default function RevenueReportPage() {
 
             <div className="flex gap-6">
               <div className="flex flex-1 flex-col gap-[2px]">
-                <span className="text-xs text-[var(--text-secondary)]">本月營收</span>
+                <span className="text-xs text-[var(--text-secondary)]">區間營收</span>
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {formatNtd(kpis?.month_revenue)}
                 </span>
               </div>
               <div className="flex flex-1 flex-col gap-[2px]">
-                <span className="text-xs text-[var(--text-secondary)]">已開立工單（近 12 月）</span>
+                <span className="text-xs text-[var(--text-secondary)]">已開立工單（區間）</span>
                 <span className="text-xl font-bold text-[var(--text-primary)]">
                   {summary ? sumOrders : "—"}
                 </span>
@@ -294,7 +317,7 @@ export default function RevenueReportPage() {
                 </div>
               ) : chartData.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm text-[var(--text-secondary)]">
-                  近 12 個月尚無已開立 invoice
+                  此區間尚無已開立 invoice
                 </div>
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -366,7 +389,7 @@ export default function RevenueReportPage() {
                 </div>
                 <div className="flex-1 px-3 py-[10px]">
                   <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                    營收（近 12 月已開立）
+                    營收（區間已開立）
                   </span>
                 </div>
                 <div className="flex-1 px-3 py-[10px]">
@@ -452,7 +475,11 @@ export default function RevenueReportPage() {
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
         reportType="revenue"
-        filters={{ granularity }}
+        filters={{
+          granularity: "month",
+          from: range.from ? toDateOnly(range.from) : undefined,
+          to: range.to ? toDateOnly(range.to) : undefined,
+        }}
       />
     </div>
   );
