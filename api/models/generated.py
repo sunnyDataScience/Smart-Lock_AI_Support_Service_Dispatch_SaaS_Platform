@@ -877,6 +877,10 @@ class RolePermission(BaseModel):
     read: bool
     write: bool
     delete: bool
+    approve: bool | None = Field(
+        False,
+        description='can-approve（CR-0111 / BR-M17-01）；目前僅供矩陣配置與呈現，端點強制授權另 CR',
+    )
     locked: bool | None = Field(
         False, description='是否為系統強制鎖定的權限（不可被自訂角色覆寫）'
     )
