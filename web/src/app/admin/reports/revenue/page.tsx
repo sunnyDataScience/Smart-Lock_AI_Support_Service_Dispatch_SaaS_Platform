@@ -35,13 +35,6 @@ type RevenueSummary = components["schemas"]["RevenueSummary"];
 type RevenueTrendPoint = components["schemas"]["RevenueTrendPoint"];
 type RevenueByBrandPoint = components["schemas"]["RevenueByBrandPoint"];
 
-const SEGMENTS = [
-  { label: "日", value: "day" },
-  { label: "週", value: "week" },
-  { label: "月", value: "month" },
-  { label: "季", value: "quarter" },
-] as const;
-
 const formatRevenueAxis = (value: number) => {
   if (value === 0) return "0";
   if (value >= 10000) return `${(value / 10000).toFixed(0)}萬`;
@@ -194,28 +187,9 @@ export default function RevenueReportPage() {
           )}
 
           <div className="flex items-center gap-3">
-            <div className="flex rounded-lg bg-[#E2E8F0] p-[3px]">
-              {SEGMENTS.map((seg) => {
-                // 後端目前僅實作月粒度（revenue_service effective='month'）；
-                // 日/週/季為未來功能 → disable + 即將推出，避免點了卻回同一份月資料。
-                const isMonth = seg.value === "month";
-                return (
-                  <button
-                    key={seg.value}
-                    disabled={!isMonth}
-                    title={isMonth ? undefined : "即將推出：後端目前僅提供月粒度"}
-                    className={`rounded-md px-[14px] py-[6px] text-[13px] ${
-                      isMonth
-                        ? "bg-[var(--primary)] font-semibold text-white"
-                        : "cursor-not-allowed text-[var(--text-disabled)] opacity-60"
-                    }`}
-                  >
-                    {seg.label}
-                  </button>
-                );
-              })}
-            </div>
-
+            {/* 移除 日/週/月/季 粒度分段控制：後端僅月粒度（effective='month'，四鍵回同資料），
+                時間篩選改由下方 DateRangePicker（已接後端 start_date/end_date）統一負責，
+                避免留下點了無反應的假粒度按鈕。趨勢固定月度（subtitle 標「月粒度」）。 */}
             <DateRangePicker value={range} onChange={setRange} />
 
             <button

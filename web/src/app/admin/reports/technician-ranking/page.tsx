@@ -184,7 +184,10 @@ export default function TechnicianRankingPage() {
       <Sidebar />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex flex-1 flex-col gap-6 overflow-auto pl-14 pr-4 py-6 md:px-8">
+        {/* flex-1 space-y-6（非 flex-col gap）：flex-col 子層預設 flex-shrink:1，
+            podium + 25 列表格會被壓縮塞進視窗高度而非自然溢出 → overflow-auto 無從捲動
+            （同 refunds/warranty/disputes 捲軸修法）。 */}
+        <div className="flex-1 space-y-6 overflow-auto pl-14 pr-4 py-6 md:px-8">
           <div className="flex flex-col gap-2">
             <span className="text-[13px] text-[var(--text-secondary)]">
               首頁 &gt; 報表 &gt; 技師排行
