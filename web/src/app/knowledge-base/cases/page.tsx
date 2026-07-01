@@ -11,6 +11,7 @@ import { api, auth } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { useKbCounts } from "@/hooks/useKbCounts";
 import type { components } from "@/types/api.generated";
 
 type CaseEntry = components["schemas"]["CaseEntry"];
@@ -41,13 +42,14 @@ export default function CasesPage() {
   const tTabs = useTranslations("kb.tabs");
   const tC = useTranslations("kb.cases");
 
+  const kbCounts = useKbCounts();
   const tabs = useMemo(
     () => [
-      { label: tTabs("cases"), href: "/knowledge-base/cases", dynamic: true },
-      { label: tTabs("manuals"), href: "/knowledge-base/manuals", count: 23 },
-      { label: tTabs("sopDrafts"), href: "/knowledge-base/sop-drafts", count: 7 },
+      { label: tTabs("cases"), href: "/knowledge-base/cases", count: kbCounts.cases },
+      { label: tTabs("manuals"), href: "/knowledge-base/manuals", count: kbCounts.manuals },
+      { label: tTabs("sopDrafts"), href: "/knowledge-base/sop-drafts", count: kbCounts.sopDrafts },
     ],
-    [tTabs],
+    [tTabs, kbCounts],
   );
 
   const [brand, setBrand] = useState<string>("");
@@ -193,8 +195,10 @@ export default function CasesPage() {
       const tenantId = auth.getTenantId();
       // /kb/documents 為平台級 flat 端點（per api.ts:tenantPath docstring），
       // 不套 tenantPath；tenant 隔離由 X-Tenant-ID header + require_tenant 服務端處理
+      // 用 || 而非 ??：NEXT_PUBLIC_API_BASE_URL 在部分 build 被烤成空字串，
+      // ?? 不會對空字串退回 → 變相對 URL 打到 web origin 而非 API（404）。對齊 api.ts:BASE_URL。
       const apiBase =
-        process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+        process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
       const res = await fetch(
         `${apiBase}/kb/documents:export?${qs.toString()}`,
         {
@@ -209,6 +213,11 @@ export default function CasesPage() {
         throw new Error(tC("exportDownloadFail", { status: res.status }));
       }
       const blob = await res.blob();
+      // 從下載的 CSV 算真實匯出筆數（資料列＝總行數－表頭；後端已把自由文字內換行替成空白）
+      const csvText = await blob.text();
+      const exportedCount = csvText.trim()
+        ? csvText.trim().split(/\r?\n/).length - 1
+        : 0;
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -219,7 +228,7 @@ export default function CasesPage() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
       setExportToast(
-        tC("exportToast", { count: 0, scope: tC("scopeCases") }),
+        tC("exportToast", { count: exportedCount, scope: tC("scopeCases") }),
       );
     } catch (e) {
       setExportError(
@@ -253,7 +262,7 @@ export default function CasesPage() {
           <div className="flex">
             {tabs.map((tab) => {
               const isActive = tab.href === pathname;
-              const count = tab.dynamic ? totalCount ?? items.length : tab.count;
+              const count = tab.count ?? "—";
               return (
                 <Link
                   key={tab.href}

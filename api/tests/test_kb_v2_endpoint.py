@@ -94,6 +94,24 @@ async def test_list_kb_documents_manual_200(client, admin_headers):
 
 
 # ---------------------------------------------------------------------------
+# 2b. total_count：list 回應應含整數 total_count（供前端分頁 badge 真實總數）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("doc_type", ["case", "manual"])
+async def test_list_kb_documents_includes_total_count(client, admin_headers, doc_type):
+    """GET /kb/documents?doc_type=case|manual → 200 時回應含整數 total_count，且 >= 已回列數。"""
+    res = await client.get(f"{_BASE}?doc_type={doc_type}&limit=1", headers=admin_headers)
+    assert res.status_code in (200, 503), res.text
+    if res.status_code == 200:
+        body = res.json()
+        assert "total_count" in body, "list 回應應含 total_count"
+        assert isinstance(body["total_count"], int)
+        assert body["total_count"] >= len(body["items"])
+
+
+# ---------------------------------------------------------------------------
 # 4. GET /kb/documents?doc_type=invalid → 422
 # ---------------------------------------------------------------------------
 

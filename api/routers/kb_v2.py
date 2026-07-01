@@ -150,6 +150,7 @@ async def list_kb_documents(
     items: list[dict] = []
     next_cursor: str | None = None
     has_more = False
+    total_count = 0
 
     if doc_type == "case" or doc_type is None:
         sub_limit = limit if doc_type else max(1, limit // 2)
@@ -162,6 +163,7 @@ async def list_kb_documents(
         )
         for c in case_page["items"]:
             items.append(_case_to_kb_document(c))
+        total_count += case_page.get("total_count", 0)
         if doc_type == "case":
             next_cursor = case_page["next_cursor"]
             has_more = case_page["has_more"]
@@ -176,14 +178,17 @@ async def list_kb_documents(
         )
         for m in manual_page["items"]:
             items.append(_manual_to_kb_document(m))
+        total_count += manual_page.get("total_count", 0)
         if doc_type == "manual":
             next_cursor = manual_page["next_cursor"]
             has_more = manual_page["has_more"]
 
+    # total_count：doc_type 指定時為該類型總數；未指定（合併）時為 case+manual 之和
     return {
         "items": items,
         "next_cursor": next_cursor,
         "has_more": has_more,
+        "total_count": total_count,
     }
 
 

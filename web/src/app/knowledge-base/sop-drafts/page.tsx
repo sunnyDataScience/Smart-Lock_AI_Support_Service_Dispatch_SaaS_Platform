@@ -8,6 +8,7 @@ import SopDraftsList from "@/components/knowledge-base/SopDraftsList";
 import { tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { useKbCounts } from "@/hooks/useKbCounts";
 import { kbDocumentToSopDraft, type KBDocumentSop } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
 
@@ -21,15 +22,16 @@ function formatSopDraftError(e: unknown): string {
 const PAGE_SIZE = 20;
 
 const tabs = [
-  { label: "案例庫", href: "/knowledge-base/cases", count: 128 },
-  { label: "產品手冊", href: "/knowledge-base/manuals", count: 6 },
-  { label: "SOP 草稿", href: "/knowledge-base/sop-drafts", dynamic: true },
+  { label: "案例庫", href: "/knowledge-base/cases", key: "cases" as const },
+  { label: "產品手冊", href: "/knowledge-base/manuals", key: "manuals" as const },
+  { label: "SOP 草稿", href: "/knowledge-base/sop-drafts", key: "sopDrafts" as const },
 ];
 
 export default function SopDraftsPage() {
   const pathname = usePathname();
   const [statusFilter, setStatusFilter] = useState<SopDraftStatus | "">("");
 
+  const kbCounts = useKbCounts();
   const { items, cursor, hasMore, loading, error, loadMore } = usePaginatedFetch<SopDraft>({
     // CR-0006 step 3/3：v2 GET sops/drafts + mapItem adapter（HD-01 meta-wrap → flat）
     path: tenantPath("/sops/drafts"),
@@ -39,8 +41,6 @@ export default function SopDraftsPage() {
     formatError: formatSopDraftError,
     mapItem: (doc) => kbDocumentToSopDraft(doc as KBDocumentSop),
   });
-
-  const showCount = hasMore ? `${items.length}+` : items.length;
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -60,7 +60,7 @@ export default function SopDraftsPage() {
           <div className="flex">
             {tabs.map((tab) => {
               const isActive = tab.href === pathname;
-              const count = tab.dynamic ? showCount : tab.count;
+              const count = kbCounts[tab.key] ?? "—";
               return (
                 <Link
                   key={tab.href}
