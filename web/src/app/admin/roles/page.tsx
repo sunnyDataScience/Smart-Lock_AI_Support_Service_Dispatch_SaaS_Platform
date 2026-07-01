@@ -241,10 +241,6 @@ export default function RolesPage() {
             </div>
           )}
 
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-[13px] leading-relaxed text-blue-800">
-            {t("f019Notice")}
-          </div>
-
           {/* Role Cards */}
           {loading && roles.length === 0 ? (
             <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
