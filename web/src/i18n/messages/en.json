@@ -1430,7 +1430,6 @@
     },
     "sentiment": {
       "title": "Negative sentiment alerts",
-      "flowNotice": "Status flow: Pending → Acknowledged → Resolved. Acknowledge / resolve writes a note to the backend; resolved cases cannot be reopened.",
       "filterLabel": "Status",
       "empty": "No matching alerts",
       "alreadyResolved": "Resolved",
