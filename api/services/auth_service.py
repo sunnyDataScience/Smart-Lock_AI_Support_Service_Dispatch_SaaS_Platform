@@ -308,6 +308,65 @@ async def change_password(*, user_id: str, current_password: str, new_password: 
     )
 
 
+async def get_profile(*, user_id: str) -> dict:
+    """回傳目前登入者的個人資料（自助個人資料頁用）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        "SELECT id, display_name, email, phone, role, tenant_id "
+        "FROM users WHERE id = %s::uuid LIMIT 1",
+        (user_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "User not found", 404)
+    return {
+        "id": str(row[0]),
+        "display_name": row[1],
+        "email": row[2],
+        "phone": row[3],
+        "role": row[4],
+        "tenant_id": str(row[5]) if row[5] else None,
+    }
+
+
+async def update_profile(
+    *, user_id: str, display_name: str | None, phone: str | None
+) -> dict:
+    """更新目前登入者自己的 display_name / phone（僅本人可改；只更新有帶入的欄位）。
+
+    - display_name：去頭尾空白後 1–100 字（None＝不改）。
+    - phone：去頭尾空白（None＝不改；空字串＝清空）。
+    欄位名為固定字面（非使用者輸入），值皆參數化，無注入風險。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    sets: list[str] = []
+    params: list = []
+    if display_name is not None:
+        dn = display_name.strip()
+        if not dn or len(dn) > 100:
+            raise ApiError("VALIDATION_ERROR", "display_name 須為 1–100 字", 422)
+        sets.append("display_name = %s")
+        params.append(dn)
+    if phone is not None:
+        ph = phone.strip()
+        if len(ph) > 50:
+            raise ApiError("VALIDATION_ERROR", "phone 過長（上限 50 字）", 422)
+        sets.append("phone = %s")
+        params.append(ph or None)
+    if not sets:
+        return await get_profile(user_id=user_id)
+
+    params.append(user_id)
+    await db_module._conn.execute(
+        f"UPDATE users SET {', '.join(sets)}, updated_at = NOW() WHERE id = %s::uuid",
+        tuple(params),
+    )
+    return await get_profile(user_id=user_id)
+
+
 async def admin_reset_password(*, email: str, tenant_id: str) -> str:
     """管理員代為重設：把同租戶指定 email 的密碼重設為隨機臨時密碼,回傳明文。
 
