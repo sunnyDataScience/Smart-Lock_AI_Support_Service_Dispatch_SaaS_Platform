@@ -1,7 +1,8 @@
 """Revenue 報表業務邏輯（Phase 1.22 read-only）。
 
-範圍：getRevenueSummary（KPI + 月度 trend + 品牌占比）。
-不含：日 / 週 granularity（後端目前僅實作 month）；CSV/Excel 匯出端點。
+範圍：getRevenueSummary（KPI + trend + 品牌占比）。
+trend 支援 day / week / month / quarter 四種粒度（date_trunc 分桶，_GRANULARITY_SPEC）；
+kpis / by_brand / by_category 為區間彙總、與粒度無關。不含：CSV/Excel 匯出端點。
 
 OpenAPI RevenueSummary：
     granularity, kpis (5 欄位), trend (RevenueTrendPoint[]), by_brand (RevenueByBrandPoint[]),
@@ -34,7 +35,16 @@ from core.errors import ApiError
 logger = logging.getLogger("api.revenue_service")
 
 
-_VALID_GRANULARITY = {"day", "week", "month"}
+_VALID_GRANULARITY = {"day", "week", "month", "quarter"}
+
+# granularity → (date_trunc 單位, to_char 期別格式, 無 date range 時的預設回溯視窗)。
+# date_trunc 第一參數與 to_char 格式皆以 %s 帶入（granularity 已先過 _VALID_GRANULARITY 白名單，無注入風險）。
+_GRANULARITY_SPEC: dict[str, tuple[str, str, str]] = {
+    "day": ("day", "YYYY-MM-DD", "29 days"),        # 近 30 日
+    "week": ("week", "YYYY-MM-DD", "83 days"),       # 近 12 週（週起日）
+    "month": ("month", "YYYY-MM", "11 months"),      # 近 12 月
+    "quarter": ("quarter", 'YYYY"-Q"Q', "21 months"),  # 近 8 季
+}
 
 # DB status 中視為已開立計入營收的值
 _REVENUE_STATUSES = ("issued", "paid")
@@ -159,32 +169,45 @@ async def _query_kpis(
     }
 
 
-async def _query_trend_monthly(
+async def _query_trend(
     tenant_id: str,
+    granularity: str,
     start_date: date | None,
     end_date: date | None,
 ) -> list[dict]:
-    """月度趨勢。預設取最近 12 個月（含本月）；提供 date range 時改取 range 內月份。"""
+    """趨勢分桶。依 granularity 以 date_trunc（日/週/月/季）分組；提供 date range 時取 range 內、
+    否則取該粒度的預設回溯視窗（近 30 日 / 12 週 / 12 月 / 8 季）。
+
+    date_trunc 單位與 to_char 格式以參數帶入（granularity 已過白名單）。
+    """
+    trunc_unit, period_fmt, default_interval = _GRANULARITY_SPEC[granularity]
+
+    # trunc_unit / period_fmt / default_interval 皆源自 _GRANULARITY_SPEC 白名單（無用戶輸入），
+    # 直接內插為字面值——若改用 %s 參數化，SELECT 與 GROUP BY 的 date_trunc 會綁到不同 $n、
+    # Postgres 視為不同運算式而報 GROUPING 錯。tenant_id 與日期值仍走參數化。
+    bucket = f"date_trunc('{trunc_unit}', {_DATE_FALLBACK})"
+
     if start_date is not None and end_date is not None:
         time_clause = _date_range_clause()
         time_args: list = [start_date, end_date]
     else:
         time_clause = (
-            f"{_DATE_FALLBACK} >= date_trunc('month', NOW()) - INTERVAL '11 months'"
+            f"{_DATE_FALLBACK} >= date_trunc('{trunc_unit}', NOW()) "
+            f"- INTERVAL '{default_interval}'"
         )
         time_args = []
 
     sql = f"""
         SELECT
-            to_char(date_trunc('month', {_DATE_FALLBACK}), 'YYYY-MM') AS period,
+            to_char({bucket}, '{period_fmt}') AS period,
             COALESCE(SUM(i.amount), 0) AS revenue,
             COUNT(*) AS order_count
         {_TENANT_JOIN}
         WHERE u.tenant_id = %s::uuid
           AND i.status IN ('issued','paid')
           AND {time_clause}
-        GROUP BY date_trunc('month', {_DATE_FALLBACK})
-        ORDER BY date_trunc('month', {_DATE_FALLBACK}) ASC
+        GROUP BY {bucket}
+        ORDER BY {bucket} ASC
     """
     cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
     rows = await cur.fetchall()
@@ -296,16 +319,15 @@ async def get_revenue_summary(
 
     _validate_date_range(start_date, end_date)
 
-    # 後端目前僅支援 month；day/week 也回傳 month 結果（前端 segmented control disabled）
-    effective = "month"
-
+    # trend 依 granularity 真實分桶（日/週/月/季）；kpis / by_brand / by_category 為
+    # 區間彙總，與粒度無關（分桶只影響 trend 的柱數）。
     kpis = await _query_kpis(tenant_id, start_date, end_date)
-    trend = await _query_trend_monthly(tenant_id, start_date, end_date)
+    trend = await _query_trend(tenant_id, granularity, start_date, end_date)
     by_brand = await _query_by_brand(tenant_id, start_date, end_date)
     by_category = await _query_by_category(tenant_id, start_date, end_date)
 
     return {
-        "granularity": effective,
+        "granularity": granularity,
         "kpis": kpis,
         "trend": trend,
         "by_brand": by_brand,

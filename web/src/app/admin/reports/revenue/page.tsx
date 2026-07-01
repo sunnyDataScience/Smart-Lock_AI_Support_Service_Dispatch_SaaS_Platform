@@ -19,9 +19,11 @@ import {
 import Sidebar from "@/components/layout/Sidebar";
 import DateRangePicker from "@/components/ui/DateRangePicker";
 import {
+  addDays,
   addMonths,
   endOfMonth,
   formatDateRange,
+  startOfDay,
   startOfMonth,
   type DateRange,
 } from "@/lib/dateRange";
@@ -54,9 +56,16 @@ const formatPercent = (rate: number | null | undefined) => {
 };
 
 const periodLabel = (period: string): string => {
-  const m = /^\d{4}-(\d{2})$/.exec(period);
-  if (!m) return period;
-  return `${parseInt(m[1], 10)}月`;
+  // YYYY-MM（月）
+  let m = /^\d{4}-(\d{2})$/.exec(period);
+  if (m) return `${parseInt(m[1], 10)}月`;
+  // YYYY-QN（季）
+  m = /^\d{4}-Q(\d)$/.exec(period);
+  if (m) return `Q${m[1]}`;
+  // YYYY-MM-DD（日 / 週分桶起日）→ M/D
+  m = /^\d{4}-(\d{2})-(\d{2})$/.exec(period);
+  if (m) return `${parseInt(m[1], 10)}/${parseInt(m[2], 10)}`;
+  return period;
 };
 
 function buildChartData(trend: RevenueTrendPoint[]) {
@@ -84,17 +93,46 @@ function buildBrandRows(byBrand: RevenueByBrandPoint[]) {
   }));
 }
 
-// 預設區間 = 近 12 個自然月（含本月），保留「營收趨勢」12 根月柱的視覺。
-function last12MonthsRange(): DateRange {
+type Granularity = "day" | "week" | "month" | "quarter";
+
+const SEGMENTS: { label: string; value: Granularity }[] = [
+  { label: "日", value: "day" },
+  { label: "週", value: "week" },
+  { label: "月", value: "month" },
+  { label: "季", value: "quarter" },
+];
+
+const GRANULARITY_LABEL: Record<Granularity, string> = {
+  day: "日",
+  week: "週",
+  month: "月",
+  quarter: "季",
+};
+
+// 切換粒度時套用對應預設視窗，避免「日」在近 12 月區間下跑出約 365 根柱。
+// 後端 trend 依 date_trunc(granularity) 分桶；此處只決定 range（時間跨度）。
+function defaultRangeForGranularity(g: Granularity): DateRange {
   const now = new Date();
-  return { from: startOfMonth(addMonths(now, -11)), to: endOfMonth(now) };
+  switch (g) {
+    case "day":
+      return { from: startOfDay(addDays(now, -29)), to: now }; // 近 30 日
+    case "week":
+      return { from: startOfDay(addDays(now, -83)), to: now }; // 近 12 週
+    case "quarter":
+      return { from: startOfMonth(addMonths(now, -21)), to: endOfMonth(now) }; // 近 8 季
+    case "month":
+    default:
+      return { from: startOfMonth(addMonths(now, -11)), to: endOfMonth(now) }; // 近 12 月
+  }
 }
 
 export default function RevenueReportPage() {
-  // 日期範圍 — 預設近 12 個月；已接後端 start_date/end_date
-  //（reports_v2.get_report_revenue → revenue_service.get_revenue_summary，F-021）。
-  // 後端僅月粒度：day/week/quarter 切換為未來功能（下方 segmented control 已 disable）。
-  const [range, setRange] = useState<DateRange>(() => last12MonthsRange());
+  // 粒度 + 日期範圍。trend 依 granularity 真實分桶（後端 date_trunc）；
+  // 已接後端 start_date/end_date（reports_v2.get_report_revenue，F-021）。
+  const [granularity, setGranularity] = useState<Granularity>("month");
+  const [range, setRange] = useState<DateRange>(() =>
+    defaultRangeForGranularity("month"),
+  );
   const [summary, setSummary] = useState<RevenueSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -102,14 +140,19 @@ export default function RevenueReportPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
 
+  // 切粒度：同時套用該粒度的預設視窗（batched → 單次 refetch）。
+  const handleGranularity = (g: Granularity) => {
+    setGranularity(g);
+    setRange(defaultRangeForGranularity(g));
+  };
+
   const fetchSummary = async () => {
     setLoading(true);
     setError(null);
     try {
-      // v2 tenant-scoped path（FR-0021 / CR-0003 P2-W1）；後端僅月粒度。
-      // 接後端日期範圍 filter（both-or-neither）：start_date/end_date 由 range 導出，
-      // trend / by_brand / KPI 皆改用 DB-side range filter。
-      const query: Record<string, string> = { granularity: "month" };
+      // v2 tenant-scoped path（FR-0021 / CR-0003 P2-W1）。
+      // trend 依 granularity 分桶；start_date/end_date 由 range 導出（both-or-neither）。
+      const query: Record<string, string> = { granularity };
       if (range.from && range.to) {
         query.start_date = toDateOnly(range.from);
         query.end_date = toDateOnly(range.to);
@@ -132,7 +175,7 @@ export default function RevenueReportPage() {
   useEffect(() => {
     fetchSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range]);
+  }, [granularity, range]);
 
   const rangeLabel = formatDateRange(range);
 
@@ -163,7 +206,7 @@ export default function RevenueReportPage() {
                 營收報表
               </h1>
               <span className="text-xs text-[var(--text-secondary)]">
-                {updatedLabel}　·　{rangeLabel}（月粒度）
+                {updatedLabel}　·　{rangeLabel}（{GRANULARITY_LABEL[granularity]}粒度）
               </span>
             </div>
             <button
@@ -187,9 +230,23 @@ export default function RevenueReportPage() {
           )}
 
           <div className="flex items-center gap-3">
-            {/* 移除 日/週/月/季 粒度分段控制：後端僅月粒度（effective='month'，四鍵回同資料），
-                時間篩選改由下方 DateRangePicker（已接後端 start_date/end_date）統一負責，
-                避免留下點了無反應的假粒度按鈕。趨勢固定月度（subtitle 標「月粒度」）。 */}
+            {/* 粒度分段控制：日/週/月/季 → 後端 date_trunc 真實分桶（切換同時套對應預設視窗）。 */}
+            <div className="flex rounded-lg bg-[#E2E8F0] p-[3px]">
+              {SEGMENTS.map((seg) => (
+                <button
+                  key={seg.value}
+                  onClick={() => handleGranularity(seg.value)}
+                  className={`rounded-md px-[14px] py-[6px] text-[13px] ${
+                    seg.value === granularity
+                      ? "bg-[var(--primary)] font-semibold text-white"
+                      : "text-[var(--text-secondary)] hover:bg-white"
+                  }`}
+                >
+                  {seg.label}
+                </button>
+              ))}
+            </div>
+
             <DateRangePicker value={range} onChange={setRange} />
 
             <button
@@ -439,7 +496,7 @@ export default function RevenueReportPage() {
         onOpenChange={setExportOpen}
         reportType="revenue"
         filters={{
-          granularity: "month",
+          granularity,
           from: range.from ? toDateOnly(range.from) : undefined,
           to: range.to ? toDateOnly(range.to) : undefined,
         }}
@@ -450,7 +507,7 @@ export default function RevenueReportPage() {
         onOpenChange={setScheduleOpen}
         reportType="revenue"
         filters={{
-          granularity: "month",
+          granularity,
           from: range.from ? toDateOnly(range.from) : undefined,
           to: range.to ? toDateOnly(range.to) : undefined,
         }}

@@ -2965,7 +2965,7 @@ export interface components {
         };
         RevenueSummary: {
             /** @enum {string} */
-            granularity: "day" | "week" | "month";
+            granularity: "day" | "week" | "month" | "quarter";
             kpis: components["schemas"]["RevenueKpis"];
             trend: components["schemas"]["RevenueTrendPoint"][];
             by_brand: components["schemas"]["RevenueByBrandPoint"][];
@@ -5835,8 +5835,8 @@ export interface operations {
     getRevenueSummary: {
         parameters: {
             query?: {
-                /** @description 趨勢資料粒度（目前後端僅實作 month） */
-                granularity?: "day" | "week" | "month";
+                /** @description 趨勢資料粒度（day/week/month/quarter，date_trunc 分桶） */
+                granularity?: "day" | "week" | "month" | "quarter";
                 /** @description 統計起日（含），落點以 invoices.issued_at 為準（draft 走 created_at）。 */
                 start_date?: string;
                 /** @description 統計迄日（含），與 start_date 搭配使用。 */
