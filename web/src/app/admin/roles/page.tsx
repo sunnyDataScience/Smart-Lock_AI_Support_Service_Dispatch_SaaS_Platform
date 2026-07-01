@@ -27,14 +27,18 @@ const ROLE_HIERARCHY: Record<string, number> = {
   tenant_admin: 4,
   admin: 4,
   operations_director: 3,
+  supervisor: 3, // 主管（CR-0111）
+  accounting: 3, // 會計（CR-0111）
   operations_manager: 2,
   reviewer: 2,
+  family_reviewer: 2, // 家族覆核員（CR-0111）
   customer_service: 1,
   support_agent: 1,
   dispatcher: 1,
   dispatch_officer: 1,
   technician: 1,
   brand_oem: 0,
+  distributor: 0, // 經銷/門市/建商（CR-0111）
   auditor: 0,
   line_user: 0,
 };
@@ -127,7 +131,14 @@ export default function RolesPage() {
       const items = res.data ?? [];
       setRoles(items);
       if (items.length > 0 && selectedId === null) {
-        setSelectedId(items[0].id);
+        // 預設選「第一個可編輯的角色」（階層低於當前使用者），
+        // 否則編輯鈕一進來就是灰的、看起來像壞掉（CR-0111）。
+        const session = getCurrentSession();
+        const actorTier = ROLE_HIERARCHY[session?.role ?? ""] ?? 0;
+        const firstEditable = items.find(
+          (r) => (ROLE_HIERARCHY[r.id] ?? 0) < actorTier,
+        );
+        setSelectedId((firstEditable ?? items[0]).id);
       }
     } catch (e) {
       setError(
@@ -332,6 +343,11 @@ export default function RolesPage() {
                   </div>
                   <div className="flex flex-1 items-center justify-center">
                     <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                      {t("cols.approve")}
+                    </span>
+                  </div>
+                  <div className="flex flex-1 items-center justify-center">
+                    <span className="text-xs font-semibold text-[var(--text-secondary)]">
                       {t("cols.delete")}
                     </span>
                   </div>
@@ -352,6 +368,9 @@ export default function RolesPage() {
                     </div>
                     <div className="flex flex-1 items-center justify-center">
                       <PermCell granted={row.write} locked={!!row.locked} />
+                    </div>
+                    <div className="flex flex-1 items-center justify-center">
+                      <PermCell granted={!!row.approve} locked={!!row.locked} />
                     </div>
                     <div className="flex flex-1 items-center justify-center">
                       <PermCell granted={row.delete} locked={!!row.locked} />

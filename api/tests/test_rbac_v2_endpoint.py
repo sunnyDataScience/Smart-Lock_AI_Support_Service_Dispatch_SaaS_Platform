@@ -70,10 +70,21 @@ async def test_list_roles_v2_200(client, admin_headers):
     body = res.json()
     assert "data" in body
     assert isinstance(body["data"], list)
-    # 應包含 5 個系統角色
+    # 系統角色（CR-0111 補齊至 12 個，含財務層會計 / 合約家族覆核）
     role_ids = {r["id"] for r in body["data"]}
     assert "admin" in role_ids
     assert "reviewer" in role_ids
+    assert {"accounting", "supervisor", "dispatcher", "auditor",
+            "customer_service", "family_reviewer"} <= role_ids
+    # 權限維度含 approve（CR-0111 / BR-M17-01 can-approve）
+    admin_row = next(r for r in body["data"] if r["id"] == "admin")
+    perm0 = admin_row["permissions"][0]
+    assert "approve" in perm0
+    # 會計可核准退款、但不可改工單狀態（final-spec Q113=No）
+    acct = next(r for r in body["data"] if r["id"] == "accounting")
+    acct_perms = {p["resource"]: p for p in acct["permissions"]}
+    assert acct_perms["refunds"]["approve"] is True
+    assert acct_perms["work_orders"]["write"] is False
 
 
 # ─── 2. GET v2 — 403 cross-tenant guard ──────────────────────────────────────

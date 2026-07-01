@@ -2410,6 +2410,11 @@ export interface components {
             write: boolean;
             delete: boolean;
             /**
+             * @description can-approve（CR-0111 / BR-M17-01）；目前僅供矩陣配置與呈現，端點強制授權另 CR
+             * @default false
+             */
+            approve: boolean;
+            /**
              * @description 是否為系統強制鎖定的權限（不可被自訂角色覆寫）
              * @default false
              */

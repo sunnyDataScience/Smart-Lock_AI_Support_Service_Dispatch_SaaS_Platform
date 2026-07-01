@@ -42,10 +42,16 @@ const RESOURCE_KEY: Record<RoleResource, string> = {
   system_settings: "resources.systemSettings",
 };
 
-const ACTIONS: Array<"read" | "write" | "delete"> = ["read", "write", "delete"];
-const ACTION_KEY: Record<"read" | "write" | "delete", string> = {
+const ACTIONS: Array<"read" | "write" | "approve" | "delete"> = [
+  "read",
+  "write",
+  "approve",
+  "delete",
+];
+const ACTION_KEY: Record<"read" | "write" | "approve" | "delete", string> = {
   read: "actions.read",
   write: "actions.write",
+  approve: "actions.approve",
   delete: "actions.delete",
 };
 

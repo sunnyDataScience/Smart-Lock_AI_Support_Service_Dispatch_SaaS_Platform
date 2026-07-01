@@ -1543,7 +1543,7 @@
       "systemBadge": "System",
       "userCount": "Users {count}",
       "matrixTitle": "{name} permission matrix",
-      "matrixHint": "(Lock icon means system-enforced; can be adjusted by admin once F-019 ships)",
+      "matrixHint": "(Lock icon = system-enforced. The Approve column is added per spec BR-M17-01; it persists for configuration/display, but endpoint enforcement is not yet wired.)",
       "editPermissions": "Edit permissions",
       "editTooltipNoRbac": "Your role tier is not high enough to grant this permission",
       "editTooltipNoTier": "Your role tier is not high enough to grant this role",
@@ -1552,6 +1552,7 @@
         "resource": "Resource",
         "read": "Read",
         "write": "Write",
+        "approve": "Approve",
         "delete": "Delete"
       },
       "resource": {
@@ -2824,6 +2825,7 @@
         "actions": {
           "read": "Read",
           "write": "Write",
+          "approve": "Approve",
           "delete": "Delete"
         },
         "resources": {
