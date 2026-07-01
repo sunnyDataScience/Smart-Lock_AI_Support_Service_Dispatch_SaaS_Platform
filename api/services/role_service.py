@@ -455,6 +455,24 @@ async def get_flat_permissions(
     return _apply_overrides(role_name, overrides)
 
 
+async def has_permission(
+    *, tenant_id: str, role: str, resource: str, action: str
+) -> bool:
+    """矩陣授權判斷（CR-0111 後續）：role 對 (resource, action) 是否有權。
+
+    讀 `_MATRIX` 預設 + `role_permissions` overrides（經 get_flat_permissions）。
+    **純判斷、不擋**——目前僅供 `core.deps.permission_shadow` shadow 稽核用（記錄
+    「矩陣 vs 現行寫死 role_required」的落差），尚未成為端點強制授權來源；把授權收斂
+    到矩陣屬 CR-0092 rbac-hardening / 另 CR（需先對帳 195 條 role_required）。
+
+    未知 resource / action 一律回 False（fail-closed）。
+    """
+    if action not in _ACTIONS or resource not in _RESOURCES:
+        return False
+    granted = await get_flat_permissions(tenant_id=tenant_id, role_name=role)
+    return f"{resource}.{action}" in granted
+
+
 async def count_users_with_role(*, tenant_id: str, role_name: str) -> int:
     if not await _ensure_conn():
         return 0
