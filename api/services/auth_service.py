@@ -195,6 +195,9 @@ async def login_with_identifier(
     if not user:
         raise ApiError("UNAUTHENTICATED", "Invalid credentials", 401)
     if not user["is_active"]:
+        if user.get("role") == "technician":
+            code, msg = await _technician_disabled_reason(user["id"])
+            raise ApiError(code, msg, 403)
         raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
     if _is_locked(user):
         raise ApiError("LOGIN_LOCKED", _LOCKED_MSG, 429)
@@ -208,6 +211,24 @@ async def login_with_identifier(
         role=user["role"],
         tenant_id=user["tenant_id"] or "00000000-0000-0000-0000-000000000001",
     )
+
+
+async def _technician_disabled_reason(user_id: str) -> tuple[str, str]:
+    """被停用技師帳號的精確拒登原因（依 technicians.status 區分訊息）。
+
+    查無 technicians 列 → fail-open 回一般 ACCOUNT_DISABLED（不洩漏內部狀態）。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT status FROM technicians WHERE user_id = %s::uuid",
+        (user_id,),
+    )
+    row = await cur.fetchone()
+    status = row[0] if row else None
+    if status == "pending_approval":
+        return "ACCOUNT_PENDING_APPROVAL", "帳號待核准，請等候平台審核通過後再登入"
+    if status == "suspended":
+        return "ACCOUNT_SUSPENDED", "帳號已停權，請聯繫平台管理員"
+    return "ACCOUNT_DISABLED", "Account is disabled"
 
 
 async def refresh(refresh_token: str) -> dict:
@@ -436,9 +457,11 @@ async def register_technician(req: dict) -> dict:
     tenant_id = "00000000-0000-0000-0000-000000000001"
 
     async with db_module._conn.transaction():
+        # is_active=FALSE：待核准前不可登入（BR-M07-01 上線審核 gate；
+        # onboard-approve 時由 technician_lifecycle_service 同步翻 TRUE）
         await db_module._conn.execute(
             "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active) "
-            "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, %s, 'technician', TRUE)",
+            "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, %s, 'technician', FALSE)",
             (user_id, tenant_id, name, phone, email, pw_hash),
         )
         await db_module._conn.execute(
