@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { auth, getCurrentSession } from "@/lib/api";
-import { canAccessRoute } from "@/lib/rolePolicy";
+import { canAccessRoute, fallbackRouteForRole } from "@/lib/rolePolicy";
 import { SidebarProvider } from "./SidebarContext";
 import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 
@@ -47,15 +47,17 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
     if (token && isPublic) {
-      router.replace("/dashboard");
+      // 已登入者進公開頁 → 依角色導回各自 portal（technician→/home、vendor→/vendor）
+      router.replace(fallbackRouteForRole(getCurrentSession()?.role ?? null));
       return;
     }
-    // CR-0021：認證後的 role-based route gate。無權限 → 導 /dashboard（Q4）。
-    // /dashboard 對所有後台角色開放,不會無限重導。
+    // CR-0021：認證後的 role-based route gate。無權限 → 導該角色安全落點。
+    // 落點必為該角色可存取路由（technician→/home、vendor→/vendor、後台→/dashboard），
+    // 避免導 /dashboard 對 technician/vendor 再被拒 → checked 永不 true → 白畫面死鎖。
     if (token && !isPublic) {
       const role = getCurrentSession()?.role ?? null;
       if (!canAccessRoute(pathname, role)) {
-        router.replace("/dashboard");
+        router.replace(fallbackRouteForRole(role));
         return;
       }
     }
