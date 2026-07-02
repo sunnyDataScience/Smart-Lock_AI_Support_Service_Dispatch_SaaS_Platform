@@ -25,8 +25,8 @@ def test_is_dispatch_eligible(status, eligible):
 def test_score_rows_excludes_ineligible():
     """合成 row：suspended 技師不入候選，active 入。"""
     def _row(status):
-        # 對齊 _TECH_SELECT：status 在 index 9；其餘欄位 best-effort 佔位
-        r = [None] * 12
+        # 對齊 _TECH_SELECT（13 欄，CR-0104 加 level=index 12）：status 在 index 9
+        r = [None] * 13
         r[0] = "00000000-0000-0000-0000-000000000099"  # id
         r[2] = "技師"          # name (位置依 _tech_row_to_dict 容錯)
         r[9] = status

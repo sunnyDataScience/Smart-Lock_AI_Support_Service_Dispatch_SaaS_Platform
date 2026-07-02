@@ -334,7 +334,7 @@ async def create_work_order_v2(
 @router.post(
     "/tenants/{tenantId}/work-orders/{id}:accept",
     operation_id="acceptWorkOrderV2",
-    summary="技師接單 v2（tenant-scoped，assigned → accepted）",
+    summary="技師接單 v2（tenant-scoped，assigned → accepted；技師搶單 created → accepted）",
     response_model=WorkOrderEnvelope,
     tags=["M06 WorkOrder"],
 )
@@ -348,6 +348,7 @@ async def accept_work_order_v2(
 
     order = await work_order_service.accept_order(
         tenant_id=tenantId, wo_id=id,
+        actor_user_id=user.user_id, actor_role=user.role,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:

@@ -245,20 +245,51 @@ async def list_orders(
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
 
 
-async def list_work_order_pool(*, tenant_id: str) -> dict:
+async def _fetch_technician_for_user(user_id: str | None) -> dict | None:
+    """依 users.id 反查 technicians（搶單 claim / 派工資格檢查用）。無對應列回 None。"""
+    if not user_id:
+        return None
+    cur = await db_module._conn.execute(
+        "SELECT id, status FROM technicians WHERE user_id = %s::uuid",
+        (user_id,),
+    )
+    row = await cur.fetchone()
+    return {"id": str(row[0]), "status": row[1]} if row else None
+
+
+async def list_work_order_pool(
+    *,
+    tenant_id: str,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
+) -> dict:
     """技師案件池：尚未進入「執行中／結案」終態的可接工單。
 
     含：created（未派工）、assigned（已派但尚未接受）。
+    技師視角只列「自己可接」的單：created 全列 + assigned 僅限派給自己的
+    （assigned 給他人的單技師接不了 — FR-0005 A9，列出只會產生必 409 的假搶單）。
+    admin/後台視角維持全列。
     優先序：urgency=high > medium > low；同等級依 created_at ASC 列出
     （越早建立越優先）。預設不分頁，上限 100 筆。
     """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
+    tech_filter = ""
+    params: tuple = (tenant_id,)
+    if actor_role == "technician":
+        tech = await _fetch_technician_for_user(actor_user_id)
+        if tech:
+            tech_filter = (
+                "  AND (wo.status = 'created' OR wo.technician_id = %s::uuid) "
+            )
+            params = (tenant_id, tech["id"])
+
     sql = (
         f"SELECT {_WO_SELECT} {_WO_JOIN} "
         f"WHERE u.tenant_id = %s::uuid "
         f"  AND wo.status IN ('created', 'assigned') "
+        f"{tech_filter}"
         f"ORDER BY "
         f"  CASE wo.priority "
         f"    WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 "
@@ -267,7 +298,7 @@ async def list_work_order_pool(*, tenant_id: str) -> dict:
         f"  wo.created_at ASC, wo.id ASC "
         f"LIMIT 100"
     )
-    cur = await db_module._conn.execute(sql, (tenant_id,))
+    cur = await db_module._conn.execute(sql, params)
     rows = await cur.fetchall()
     items = [_wo_row_to_dict(r) for r in rows]
     return {"items": items, "next_cursor": None, "has_more": False}
@@ -752,30 +783,70 @@ async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
     return row[0]
 
 
-async def accept_order(*, tenant_id: str, wo_id: str) -> dict:
-    """assigned → accepted, set accepted_at = NOW."""
+async def accept_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
+) -> dict:
+    """接單：assigned → accepted；技師搶單 created → accepted（claim 寫入 technician_id）。
+
+    行為矩陣（依呼叫者角色 × 工單狀態）：
+      - 技師 × created            → 搶單 claim：technician_id = 自己 + accepted
+      - 技師 × assigned（給自己）  → 正常接單（FR-0005）
+      - 技師 × assigned（給他人）  → 409（FR-0005 A9 已派他人）
+      - 非技師 × assigned          → 代操作接單（後台，維持原行為）
+      - 非技師 × created           → 409（created 需 assign 或由技師搶單）
+    技師 technicians.status != active → 403（BR-M07-01 阻擋派工）。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    tech_ctx: dict | None = None
+    if actor_role == "technician":
+        tech_ctx = await _fetch_technician_for_user(actor_user_id)
+        if not tech_ctx or tech_ctx["status"] != "active":
+            raise ApiError(
+                "TECHNICIAN_NOT_DISPATCHABLE",
+                "技師目前狀態不可接單（需 active — BR-M07-01）",
+                403,
+            )
+
     current = await _fetch_status_for_update(wo_id, tenant_id)
-    if current not in _ACCEPT_FROM:
+    allowed_from = {"created", "assigned"} if tech_ctx else _ACCEPT_FROM
+    if current not in allowed_from:
         raise ApiError(
             "STATE_CONFLICT",
-            f"Cannot accept work order in status '{current}'; expected one of {sorted(_ACCEPT_FROM)}",
+            f"Cannot accept work order in status '{current}'; expected one of {sorted(allowed_from)}",
             409,
         )
-    # 取 technician_id 給 pool publish
+    # 取 technician_id 給 pool publish + claim 判斷
     cur = await db_module._conn.execute(
         "SELECT technician_id FROM work_orders WHERE id = %s::uuid",
         (wo_id,),
     )
     tech_row = await cur.fetchone()
     tech_id = str(tech_row[0]) if tech_row and tech_row[0] else None
+
+    if tech_ctx and tech_id and tech_id != tech_ctx["id"]:
+        # FR-0005 §1.2 A9：已派給其他技師
+        raise ApiError(
+            "STATE_CONFLICT",
+            "該案已指派給其他技師",
+            409,
+        )
+    claim_tech_id = tech_ctx["id"] if tech_ctx and not tech_id else None
+    if claim_tech_id:
+        tech_id = claim_tech_id
+
     await db_module._conn.execute(
         # CR-0043 Tier②：技師接單後完工細狀態進「待完工回報」（M05 Q052 起點）
         "UPDATE work_orders SET status = 'accepted', accepted_at = NOW(), "
+        "  technician_id = COALESCE(%s::uuid, technician_id), "
         "  completion_status = 'pending_report', updated_at = NOW() "
         "WHERE id = %s::uuid",
-        (wo_id,),
+        (claim_tech_id, wo_id),
     )
     # event=taken 從技師個人 pool 列表移除（已進 my-orders）
     if tech_id:
