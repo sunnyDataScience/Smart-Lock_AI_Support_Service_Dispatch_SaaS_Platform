@@ -131,7 +131,11 @@ async def list_work_order_pool_v2(
 ) -> dict:
     _cross_tenant_read(user, tenantId)
 
-    page = await work_order_service.list_work_order_pool(tenant_id=tenantId)
+    page = await work_order_service.list_work_order_pool(
+        tenant_id=tenantId,
+        actor_user_id=user.user_id,
+        actor_role=user.role,
+    )
     return {
         "items": [WorkOrder(**w).model_dump(mode="json") for w in page["items"]],
         "next_cursor": page["next_cursor"],

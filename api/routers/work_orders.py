@@ -118,6 +118,8 @@ async def list_work_order_pool(
     """必須註冊在 /work-orders/{id} 之前，否則 'pool' 會被當成 id。"""
     page = await work_order_service.list_work_order_pool(
         tenant_id=user.tenant_id,
+        actor_user_id=user.user_id,
+        actor_role=user.role,
     )
     return {
         "items": [WorkOrder(**w).model_dump(mode="json") for w in page["items"]],
@@ -155,6 +157,7 @@ async def accept_work_order(
 ) -> dict:
     order = await work_order_service.accept_order(
         tenant_id=user.tenant_id, wo_id=id,
+        actor_user_id=user.user_id, actor_role=user.role,
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
