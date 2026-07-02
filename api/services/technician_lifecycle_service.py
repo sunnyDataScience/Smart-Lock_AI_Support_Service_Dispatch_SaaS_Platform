@@ -105,6 +105,17 @@ async def _change_status_and_audit(
     if not row:
         raise ApiError("STATE_CONFLICT", "concurrent state change", 409)
 
+    # 同步登入資格（2026-07-02 師傅測試修復）：technicians.status 是生命週期
+    # source of truth，users.is_active 是登入/refresh 檢查點（A2 停權即時失效走
+    # refresh 重查）。原本兩者脫鉤 → 停權/待核准技師仍可登入。active → 可登入；
+    # 其他（pending_approval/suspended/terminated/rejected/inactive）→ 不可。
+    await db_module._conn.execute(
+        "UPDATE users SET is_active = %s, updated_at = NOW() "
+        "WHERE id = (SELECT user_id FROM technicians WHERE id = %s::uuid) "
+        "  AND role = 'technician'",
+        (target_status == "active", tech_id),
+    )
+
     # audit row（best-effort：audit 失敗不 rollback status，但 log + warning）
     try:
         await db_module._conn.execute(
