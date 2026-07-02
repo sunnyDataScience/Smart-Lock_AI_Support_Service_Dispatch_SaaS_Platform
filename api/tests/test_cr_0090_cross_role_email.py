@@ -96,8 +96,17 @@ async def test_both_accounts_login_by_role(client):
     assert await db_module._ensure_conn()
     email = f"login-{uuid.uuid4().hex[:8]}@example.com"
     try:
-        await auth_service.register_technician(_tech_req(email))
+        tech = await auth_service.register_technician(_tech_req(email))
         await auth_service.register_vendor(_vendor_req(email))
+        # 2026-07-02 登入狀態閘：技師註冊後 is_active=FALSE（待核准不可登入），
+        # 本測試主題是「同 email 依角色分流」→ 先核准讓技師可登入。
+        from services import technician_lifecycle_service
+
+        await technician_lifecycle_service.approve_onboarding(
+            tenant_id="00000000-0000-0000-0000-000000000001",
+            tech_id=tech["data"]["id"],
+            actor_user_id=None,
+        )
         # 技師端點以 techpass 登入技師帳號
         t = await auth_service.login(
             email=email, password="techpass123", allowed_roles=["technician"]
