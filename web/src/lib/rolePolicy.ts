@@ -23,6 +23,12 @@ const ALL_BACKOFFICE = [
 /** 路由 prefix → 允許角色。longest-prefix-wins。 */
 const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
   { prefix: "/vendor", roles: ["vendor"] }, // CR-0029 廠商專區（/vendor-login 為公開頁，不受此規則影響）
+  // 技師 portal（/tech-login 為公開頁）：後端資料端點皆 technician-only，
+  // 前端對齊（FULL_ACCESS_ROLES 仍全放行，admin 可進去除錯）
+  { prefix: "/home", roles: ["technician"] },
+  { prefix: "/pool", roles: ["technician"] },
+  { prefix: "/my-orders", roles: ["technician"] },
+  { prefix: "/account", roles: ["technician"] },
   { prefix: "/dashboard", roles: ALL_BACKOFFICE },
   { prefix: "/conversations", roles: ALL_BACKOFFICE },
   { prefix: "/problem-cards", roles: ALL_BACKOFFICE },
@@ -66,4 +72,14 @@ export function canAccessRoute(pathname: string, role: string | null): boolean {
   ).sort((a, b) => b.prefix.length - a.prefix.length);
   if (matches.length === 0) return true; // 未列到 → 放行
   return matches[0].roles.includes(role);
+}
+
+/** 各角色被拒後的安全落點（AuthGuard 用）。落點必須是該角色可存取的路由，
+ * 否則 AuthGuard 會重導到自己 → checked 永不為 true → 白畫面死鎖
+ * （2026-07-02 師傅測試發現：technician 誤入 /dashboard 即卡死；原註解
+ * 「/dashboard 對所有後台角色開放」不涵蓋 technician/vendor）。 */
+export function fallbackRouteForRole(role: string | null): string {
+  if (role === "technician") return "/home";
+  if (role === "vendor") return "/vendor";
+  return "/dashboard";
 }
