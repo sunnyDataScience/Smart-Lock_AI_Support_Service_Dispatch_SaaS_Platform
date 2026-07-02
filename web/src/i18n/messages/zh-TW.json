@@ -215,8 +215,7 @@
     "low": "低",
     "medium": "中",
     "high": "高",
-    "mediumBadge": "急件",
-    "highBadge": "Red Code"
+    "highBadge": "急件"
   },
   "tables": {
     "empty": "目前無資料",
@@ -2460,7 +2459,6 @@
       "customer": "客戶資訊",
       "viewProblemCard": "查看問題卡 →",
       "callCustomer": "撥打客戶電話（待補）",
-      "callCustomerTitle": "客戶電話需後端提供 — MVP 待補",
       "completeCta": "完工回報",
       "subflows": {
         "reschedule": "改期",
@@ -2474,8 +2472,6 @@
         "title": "完工報告",
         "summaryLabel": "作業摘要",
         "summaryPlaceholder": "例：更換鎖芯、測試開關正常、與客戶確認完成。",
-        "amountLabel": "實收金額（NT$）",
-        "amountPlaceholder": "例：1500",
         "photosLabel": "完工照片（施工前／中／後，至少 3 張）",
         "photoBefore": "+ 施工前",
         "photoDuring": "+ 施工中",
@@ -2491,7 +2487,13 @@
         "photosCounter": "完工照片 {n}/3",
         "gateHint": "完工需 ≥3 張照片與客戶簽名"
       },
-      "terminalNotice": "此工單已 {status}，無法再操作"
+      "terminalNotice": "此工單已 {status}，無法再操作",
+      "arrivedCta": "已到達現場",
+      "arrivedSubmitting": "回報中...",
+      "arrivedConfirm": "確定已到達現場？系統將記錄到場時間與 GPS 位置。",
+      "arrivedAt": "已到場：{time}",
+      "gpsUnavailable": "此裝置不支援定位，無法回報到場",
+      "gpsDenied": "需要定位權限才能回報到場，請開啟定位後再試"
     },
     "doorCheck": {
       "title": "門面外觀檢核",

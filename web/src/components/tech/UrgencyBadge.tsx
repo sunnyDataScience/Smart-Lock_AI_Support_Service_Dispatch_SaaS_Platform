@@ -5,13 +5,18 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type Urgency = components["schemas"]["Urgency"];
 
+// 對齊設計 spec（11_tech_pool §urgency_badge）：一般單「不顯示」badge，
+// 只有急迫單顯著標示。API urgency 三檔映射 DB priority：low→low、
+// normal→medium、high/urgent→high（_DB_URGENCY_TO_API）。
+// medium 即一般單 → 不顯示（原本誤標「急件」，普通單全部被標急件）。
+// spec 的「Red Code」屬 emergency 檔，DB priority 尚無此值 → 待引入後再接。
 const URGENCY_TONE: Record<
   Urgency,
   { bg: string; color: string; pulse?: boolean; key: string } | null
 > = {
   low: null,
-  medium: { bg: "#F59E0B", color: "#FFFFFF", key: "mediumBadge" },
-  high: { bg: "#EF4444", color: "#FFFFFF", pulse: true, key: "highBadge" },
+  medium: null,
+  high: { bg: "#F59E0B", color: "#FFFFFF", pulse: true, key: "highBadge" },
 };
 
 export default function UrgencyBadge({ urgency }: { urgency: Urgency }) {

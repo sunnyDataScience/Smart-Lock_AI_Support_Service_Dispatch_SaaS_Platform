@@ -160,12 +160,8 @@ export default function PoolPage() {
           </div>
         ) : (
           items.map((wo) => {
-            const urgencyBorder =
-              wo.urgency === "high"
-                ? "#EF4444"
-                : wo.urgency === "medium"
-                  ? "#F59E0B"
-                  : "#10B981";
+            // 對齊設計 spec：一般單（medium=DB normal）綠框，急迫單（high）橘框
+            const urgencyBorder = wo.urgency === "high" ? "#F59E0B" : "#10B981";
             return (
               <article
                 key={wo.id}
