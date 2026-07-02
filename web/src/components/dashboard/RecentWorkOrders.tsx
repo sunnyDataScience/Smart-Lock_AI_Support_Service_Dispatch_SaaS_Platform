@@ -17,6 +17,8 @@ interface Props {
   items: WorkOrder[];
   loading?: boolean;
   error?: string | null;
+  /** technician_id → 姓名（dashboard 已載入技師清單，共用）。缺 id 時退回短碼。 */
+  technicianNames?: Record<string, string>;
 }
 
 // Stable column keys; labels resolved per-render via i18n
@@ -34,7 +36,12 @@ function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
-export default function RecentWorkOrders({ items, loading, error }: Props) {
+export default function RecentWorkOrders({
+  items,
+  loading,
+  error,
+  technicianNames,
+}: Props) {
   const t = useTranslations("pages.dashboard.recentWorkOrders");
   const tCols = useTranslations("pages.dashboard.recentWorkOrders.cols");
   const tGroup = useTranslations("status.workOrderGroup");
@@ -47,6 +54,10 @@ export default function RecentWorkOrders({ items, loading, error }: Props) {
 
   function technicianTag(technicianId: string | null | undefined): string | null {
     if (!technicianId) return null;
+    // 優先顯示技師姓名（原本只顯示 id 前 4 碼，seed 技師 id 全為 7777 開頭
+    // → 每列都顯示「技師 7777」無法辨識）
+    const name = technicianNames?.[technicianId];
+    if (name) return name;
     return t("technicianTag", { id: technicianId.slice(0, 4) });
   }
   return (

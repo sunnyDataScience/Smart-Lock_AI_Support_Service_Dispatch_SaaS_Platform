@@ -370,6 +370,9 @@ export default function DashboardPage() {
             items={recentWorkOrders}
             loading={workOrdersLoading}
             error={workOrdersError}
+            technicianNames={Object.fromEntries(
+              technicians.map((tech) => [tech.id, tech.name]),
+            )}
           />
         </main>
       </div>

@@ -1,17 +1,17 @@
 "use client";
 
 /**
- * FR-0044 Technician Lifecycle — events audit log + 5 lifecycle actions。
+ * FR-0044 Technician Lifecycle — 唯讀 events audit log。
  *
- * 對應 backend (api/routers/technician_lifecycle_v2.py):
+ * 本頁只列 audit 事件；核准/停權/復權等「動作」在 /technicians 列表（核准
+ * pending）與 /technicians/[id] 詳情頁（停權/復權）操作。
+ *
+ * 對應 backend (api/routers/technician_lifecycle_v2.py)：
  *   GET   /tenants/{tid}/technicians/lifecycle-events
- *   POST  /tenants/{tid}/technicians/{tid}/approve
- *   POST  /tenants/{tid}/technicians/{tid}/reject
- *   POST  /tenants/{tid}/technicians/{tid}/suspend
- *   POST  /tenants/{tid}/technicians/{tid}/reactivate
- *   POST  /tenants/{tid}/technicians/{tid}/terminate
+ *   （動作端點為 POST /tenants/{tid}/technicians/{techId}:onboard-approve /
+ *     :onboard-reject / :suspend / :reactivate / :terminate — 冒號動詞式，
+ *     需 X-Initiator header；由上述兩頁呼叫）
  *
- * 對應 Sprint 2 (docs/_ops/phase-ii-web-integration-plan.md §4)
  * 對應 e2e starter: web/tests/e2e/admin/technicians-lifecycle.spec.ts
  */
 
