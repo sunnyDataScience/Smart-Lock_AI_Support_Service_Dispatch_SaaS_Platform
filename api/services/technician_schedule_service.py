@@ -169,6 +169,68 @@ async def get_my_schedule(
     }
 
 
+async def get_schedule_for_technician(
+    *, tenant_id: str, tech_id: str, month_str: str
+) -> dict:
+    """admin 視角：依 technicians.id 取某技師當月排班（2026-07-02 師傅測試修復）。
+
+    後台技師詳情頁「本週排班」原為 hardcoded mock；本函式讓其接真資料。
+    工單數直接以 technician_id 統計（不經 user_id，容忍 user_id 為 NULL 的
+    展示用技師）；休假/備勤走 technician_schedule_requests（user_id 為 NULL
+    時自然為空）。不回 pending_requests（審核在技師自助流程處理）。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    first, last_excl = _parse_month(month_str)
+
+    cur = await db_module._conn.execute(
+        "SELECT user_id FROM technicians "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
+        (tech_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Technician not found", 404)
+    user_id = str(row[0]) if row[0] else None
+
+    cur = await db_module._conn.execute(
+        "SELECT DATE(wo.scheduled_at) AS day, COUNT(*) "
+        "FROM work_orders wo "
+        "WHERE wo.technician_id = %s::uuid "
+        "  AND wo.scheduled_at >= %s AND wo.scheduled_at < %s "
+        "  AND wo.status NOT IN ('cancelled') "
+        "GROUP BY DATE(wo.scheduled_at)",
+        (tech_id, first, last_excl),
+    )
+    rows = await cur.fetchall()
+    work_orders_per_day = {r[0].isoformat(): int(r[1]) for r in rows}
+
+    leave_days: set[str] = set()
+    standby_days: set[str] = set()
+    if user_id:
+        cur = await db_module._conn.execute(
+            "SELECT type, start_date, end_date FROM technician_schedule_requests "
+            "WHERE technician_user_id = %s::uuid AND tenant_id = %s::uuid "
+            "  AND status = 'approved' "
+            "  AND start_date < %s AND end_date >= %s",
+            (user_id, tenant_id, last_excl, first),
+        )
+        approved = await cur.fetchall()
+        for r in approved:
+            type_, s, e = r[0], r[1], r[2]
+            d = max(s, first)
+            while d < last_excl and d <= e:
+                (leave_days if type_ == "leave" else standby_days).add(d.isoformat())
+                d = date.fromordinal(d.toordinal() + 1)
+
+    return {
+        "month": month_str,
+        "work_orders_per_day": work_orders_per_day,
+        "leave_days": sorted(leave_days),
+        "standby_days": sorted(standby_days),
+    }
+
+
 # =============================================================================
 # Create schedule request (leave / standby)
 # =============================================================================

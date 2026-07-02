@@ -128,6 +128,35 @@ async def get_technician_v2(
     return {"data": Technician(**technician).model_dump(mode="json")}
 
 
+@router.get(
+    "/tenants/{tenantId}/technicians/{techId}/schedule",
+    operation_id="getTechnicianScheduleV2",
+    summary="技師月排班 v2（admin 視角：每日工單數 + 休假/備勤；詳情頁本週排班用）",
+    tags=["M05 Technician"],
+)
+async def get_technician_schedule_v2(
+    tenantId: str = Path(...),
+    techId: str = Path(...),
+    month: str = Query(..., description="YYYY-MM"),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """CIA-additive（2026-07-02 師傅測試修復）：後台技師詳情頁「本週排班」原為
+    hardcoded mock（固定 2026/04/20-26 早晚班），本端點供其接真資料。
+    讀取 me/schedule 同源資料（工單數 keyed by technician_id；休假/備勤走
+    technician_schedule_requests），唯讀、不含 pending_requests。"""
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_READ",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    from services import technician_schedule_service
+
+    return await technician_schedule_service.get_schedule_for_technician(
+        tenant_id=tenantId, tech_id=techId, month_str=month
+    )
+
+
 @router.post(
     "/tenants/{tenantId}/technicians",
     operation_id="createTechnician",

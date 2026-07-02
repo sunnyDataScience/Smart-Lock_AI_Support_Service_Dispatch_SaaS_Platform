@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { ChevronRight, Pencil, Ban, RotateCcw, Star, Info, X } from "lucide-react";
+import { ChevronRight, Pencil, Ban, RotateCcw, Star, X } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import TechnicianDetailSidebar from "@/components/technicians/TechnicianDetailSidebar";
@@ -145,58 +145,124 @@ function Field({
   );
 }
 
-/* ─── Mock Sections（本週排班仍為示意；技能認證矩陣已改真資料 CertificationMatrix）─── */
+/* ─── 本週排班（2026-07-02 起接真資料：getTechnicianScheduleV2）─── */
 
-const scheduleDays = [
-  { dayLabel: "週一", date: "20", shift: "早班", shiftTextColor: "#1E40AF", bgColor: "#DBEAFE" },
-  { dayLabel: "週二", date: "21", shift: "早班", shiftTextColor: "#1E40AF", bgColor: "#DBEAFE" },
-  { dayLabel: "週三", date: "22", shift: "晚班", shiftTextColor: "#3730A3", bgColor: "#E0E7FF", isToday: true },
-  { dayLabel: "週四", date: "23", shift: "晚班", shiftTextColor: "#3730A3", bgColor: "#E0E7FF" },
-  { dayLabel: "週五", date: "24", shift: "早班", shiftTextColor: "#1E40AF", bgColor: "#DBEAFE" },
-  { dayLabel: "週六", date: "25", shift: "值班", shiftTextColor: "#92400E", bgColor: "#FEF3C7" },
-  { dayLabel: "週日", date: "26", shift: "休息", shiftTextColor: "var(--text-disabled)", bgColor: "var(--bg-page)", hasBorder: true },
-];
+interface TechScheduleData {
+  month: string;
+  work_orders_per_day: Record<string, number>;
+  leave_days: string[];
+  standby_days: string[];
+}
 
-function WeeklySchedule() {
+const WEEKDAY_LABELS = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"];
+
+function isoDate(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function WeeklySchedule({ techId, tenantId }: { techId: string; tenantId: string }) {
+  const [data, setData] = useState<Record<string, TechScheduleData>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  // 本週（週一起算）：跨月時需抓兩個月份的排班資料
+  const today = new Date();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    return d;
+  });
+  const months = Array.from(
+    new Set(week.map((d) => isoDate(d).slice(0, 7))),
+  ).sort();
+  const monthsKey = months.join(",");
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const results = await Promise.all(
+          monthsKey.split(",").map((m) =>
+            api.get<TechScheduleData>(
+              `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(techId)}/schedule?month=${m}`,
+            ),
+          ),
+        );
+        if (!cancelled) {
+          setData(Object.fromEntries(results.map((r) => [r.month, r])));
+        }
+      } catch (e) {
+        if (!cancelled) setError(friendlyError(e));
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [techId, tenantId, monthsKey]);
+
+  const todayIso = isoDate(today);
+
+  function dayCell(d: Date) {
+    const iso = isoDate(d);
+    const m = data[iso.slice(0, 7)];
+    if (m?.leave_days.includes(iso))
+      return { text: "休假", color: "#92400E", bg: "#FEF3C7" };
+    if (m?.standby_days.includes(iso))
+      return { text: "備勤", color: "#3730A3", bg: "#E0E7FF" };
+    const n = m?.work_orders_per_day[iso] ?? 0;
+    if (n > 0) return { text: `工單 ${n}`, color: "#1E40AF", bg: "#DBEAFE" };
+    return {
+      text: "無排班",
+      color: "var(--text-disabled)",
+      bg: "var(--bg-page)",
+      border: true,
+    };
+  }
+
   return (
     <section className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-6">
       <div className="flex items-center justify-between">
         <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">本週排班</h2>
-        <span className="text-[13px] text-[var(--text-secondary)]">2026/04/20 - 2026/04/26</span>
+        <span className="text-[13px] text-[var(--text-secondary)]">
+          {isoDate(week[0]).replaceAll("-", "/")} - {isoDate(week[6]).replaceAll("-", "/")}
+        </span>
       </div>
-      <div className="flex gap-[6px]">
-        {scheduleDays.map((d) => (
-          <div key={d.dayLabel} className="flex flex-1 flex-col items-center gap-1">
-            <span className="text-[12px] font-semibold text-[var(--text-secondary)]">{d.dayLabel}</span>
-            <span className="text-[11px]" style={{ color: d.isToday ? "var(--primary)" : "var(--text-secondary)" }}>
-              {d.date}
-            </span>
-            <div
-              className="flex h-12 w-full items-center justify-center rounded-md"
-              style={{
-                backgroundColor: d.bgColor,
-                border: d.hasBorder ? "1px solid var(--border)" : undefined,
-              }}
-            >
-              <span className="text-[11px] font-medium" style={{ color: d.shiftTextColor }}>
-                {d.shift}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
+      {error ? (
+        <span className="text-[12px] text-red-600">{error}</span>
+      ) : (
+        <div className="flex gap-[6px]">
+          {week.map((d, i) => {
+            const cell = dayCell(d);
+            const iso = isoDate(d);
+            return (
+              <div key={iso} className="flex flex-1 flex-col items-center gap-1">
+                <span className="text-[12px] font-semibold text-[var(--text-secondary)]">
+                  {WEEKDAY_LABELS[i]}
+                </span>
+                <span
+                  className="text-[11px]"
+                  style={{ color: iso === todayIso ? "var(--primary)" : "var(--text-secondary)" }}
+                >
+                  {d.getDate()}
+                </span>
+                <div
+                  className="flex h-12 w-full items-center justify-center rounded-md"
+                  style={{
+                    backgroundColor: cell.bg,
+                    border: cell.border ? "1px solid var(--border)" : undefined,
+                  }}
+                >
+                  <span className="text-[11px] font-medium" style={{ color: cell.color }}>
+                    {cell.text}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
-  );
-}
-
-function MockBanner() {
-  return (
-    <div className="mx-8 mt-4 flex items-start gap-2 rounded-lg border border-[#CBD5E1] bg-[#F8FAFC] px-4 py-3">
-      <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[var(--text-secondary)]" />
-      <span className="text-[12px] text-[var(--text-secondary)]">
-        以下「本週排班」為示意，待排班模組接入後將顯示真實資料；「技能認證矩陣」、右側「可用狀態」「佣金摘要」「獎懲紀錄」與「進行中工單」已連線真實資料。
-      </span>
-    </div>
   );
 }
 
@@ -413,9 +479,8 @@ export default function TechnicianDetailPage({ params }: PageProps) {
           {technician ? (
             <>
               <ProfileCard technician={technician} />
-              <MockBanner />
               <CertificationMatrix tenantId={tenantId} technicianId={id} />
-              <WeeklySchedule />
+              <WeeklySchedule techId={id} tenantId={tenantId} />
             </>
           ) : (
             !loading && !error && (
