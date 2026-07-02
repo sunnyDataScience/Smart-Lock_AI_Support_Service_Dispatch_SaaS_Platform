@@ -32,7 +32,7 @@
     "profile": {
       "title": "Profile",
       "metaJwt": "Only your sign-in identity is shown for now; name / phone / preferences coming soon",
-      "metaSession": "Showing the identity from your current sign-in session",
+      "metaSession": "Display name and phone are editable and saved; the rest is your sign-in identity (read-only)",
       "displayName": "Display name",
       "email": "Email",
       "userId": "User ID",
@@ -43,8 +43,11 @@
       "language": "Language",
       "theme": "Theme",
       "phone": "Phone",
-      "phonePlaceholder": "Available once /users/me ships",
-      "uploadAvatar": "Upload avatar"
+      "phonePlaceholder": "Enter phone number (optional)",
+      "uploadAvatar": "Upload avatar",
+      "nameRequired": "Display name is required",
+      "savedMsg": "Profile saved",
+      "saving": "Saving…"
     },
     "security": {
       "title": "Security",

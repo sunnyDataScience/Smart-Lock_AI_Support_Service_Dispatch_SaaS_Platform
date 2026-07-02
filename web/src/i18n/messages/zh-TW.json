@@ -32,7 +32,7 @@
     "profile": {
       "title": "個人資料",
       "metaJwt": "目前僅顯示登入身分，姓名 / 電話 / 偏好設定即將開放",
-      "metaSession": "目前顯示的是您本次登入的身分資訊",
+      "metaSession": "顯示名稱與聯絡電話可編輯並儲存；其餘為登入身分（唯讀）",
       "displayName": "顯示名稱",
       "email": "電子郵件",
       "userId": "使用者 ID",
@@ -43,8 +43,11 @@
       "language": "語言",
       "theme": "外觀主題",
       "phone": "聯絡電話",
-      "phonePlaceholder": "待 /users/me 上線",
-      "uploadAvatar": "上傳頭像"
+      "phonePlaceholder": "輸入聯絡電話（選填）",
+      "uploadAvatar": "上傳頭像",
+      "nameRequired": "顯示名稱不可為空",
+      "savedMsg": "個人資料已儲存",
+      "saving": "儲存中…"
     },
     "security": {
       "title": "帳戶安全",

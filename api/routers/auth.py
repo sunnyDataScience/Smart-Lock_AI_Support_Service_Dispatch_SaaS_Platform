@@ -39,6 +39,12 @@ class ChangePasswordBody(BaseModel):
     new_password: str = Field(min_length=8, max_length=72)
 
 
+class UpdateProfileBody(BaseModel):
+    # 皆選填：只更新有帶入的欄位（自助個人資料）
+    display_name: str | None = Field(default=None, min_length=1, max_length=100)
+    phone: str | None = Field(default=None, max_length=50)
+
+
 class AdminResetPasswordBody(BaseModel):
     email: EmailStr
 
@@ -142,6 +148,33 @@ async def change_password(
         new_password=body.new_password,
     )
     return Response(status_code=204)
+
+
+@router.get(
+    "/auth/me",
+    operation_id="getMyProfile",
+    summary="取得目前登入者個人資料（自助）",
+)
+async def get_my_profile(user: CurrentUser = Depends(get_current_user)) -> dict:
+    return {"data": await auth_service.get_profile(user_id=user.user_id)}
+
+
+@router.patch(
+    "/auth/me",
+    operation_id="updateMyProfile",
+    summary="更新目前登入者個人資料（display_name / phone）（自助）",
+)
+async def update_my_profile(
+    body: UpdateProfileBody,
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    return {
+        "data": await auth_service.update_profile(
+            user_id=user.user_id,
+            display_name=body.display_name,
+            phone=body.phone,
+        )
+    }
 
 
 @router.post(

@@ -6,8 +6,6 @@ import {
   Shield,
   Calculator,
   Settings as SettingsIcon,
-  Upload,
-  ChevronDown,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import PricingForm from "@/components/settings/PricingForm";
@@ -16,23 +14,8 @@ import ThemeToggle from "@/components/theme/ThemeToggle";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, getCurrentSession, type CurrentSession } from "@/lib/api";
+import { cacheInvalidate } from "@/lib/cache";
 import { friendlyError } from "@/lib/apiError";
-
-function deriveName(email: string | null, userId: string | null): string {
-  if (email) {
-    const at = email.indexOf("@");
-    return at > 0 ? email.slice(0, at) : email;
-  }
-  if (userId) return "未命名使用者";
-  return "—";
-}
-
-function avatarChar(session: CurrentSession | null): string {
-  if (!session) return "?";
-  if (session.email) return session.email[0].toUpperCase();
-  if (session.userId) return session.userId[0].toUpperCase();
-  return "?";
-}
 
 type TabId = "profile" | "security" | "pricing" | "system";
 
@@ -49,22 +32,114 @@ const tabs: Tab[] = [
   { id: "security", icon: Shield },
 ];
 
+interface MyProfile {
+  display_name: string | null;
+  email: string | null;
+  phone: string | null;
+  role: string | null;
+}
+
+function EditableField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-1 flex-col gap-[6px]">
+      <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+        {label}
+      </span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        disabled={disabled}
+        className="h-10 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--primary)] disabled:cursor-not-allowed disabled:opacity-60 placeholder:text-[var(--text-disabled)]"
+      />
+    </div>
+  );
+}
+
 function ProfileForm() {
   const tCommon = useTranslations("common");
   const tProfile = useTranslations("settings.profile");
   const tRole = useTranslations("role");
   const [session, setSession] = useState<CurrentSession | null>(null);
+  const [displayName, setDisplayName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [original, setOriginal] = useState({ name: "", phone: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     setSession(getCurrentSession());
+    (async () => {
+      try {
+        // 自助個人資料：display_name / phone 由 /auth/me 取真實 DB 值（非只 JWT）
+        const res = await api.get<{ data: MyProfile }>("/api/v1/auth/me");
+        const p = res.data;
+        setDisplayName(p.display_name ?? "");
+        setPhone(p.phone ?? "");
+        setOriginal({ name: p.display_name ?? "", phone: p.phone ?? "" });
+      } catch (e) {
+        setError(friendlyError(e));
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, []);
 
-  const name = deriveName(session?.email ?? null, session?.userId ?? null);
   const dash = tCommon("notAvailable");
   const email = session?.email ?? dash;
   const role = session?.role ? tRole(session.role) : dash;
   const userId = session?.userId ?? dash;
   const tenantId = session?.tenantId ?? dash;
+  const dirty = displayName !== original.name || phone !== original.phone;
+  const avatarText = (displayName || session?.email || "?")[0]?.toUpperCase() ?? "?";
+
+  async function handleSave() {
+    setError(null);
+    setSuccess(null);
+    if (!displayName.trim()) {
+      setError(tProfile("nameRequired"));
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await api.patch<{ data: MyProfile }>("/api/v1/auth/me", {
+        display_name: displayName.trim(),
+        phone: phone.trim(),
+      });
+      const p = res.data;
+      setDisplayName(p.display_name ?? "");
+      setPhone(p.phone ?? "");
+      setOriginal({ name: p.display_name ?? "", phone: p.phone ?? "" });
+      cacheInvalidate("GET:");
+      setSuccess(tProfile("savedMsg"));
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleCancel() {
+    setDisplayName(original.name);
+    setPhone(original.phone);
+    setError(null);
+    setSuccess(null);
+  }
 
   return (
     <div className="flex flex-1 flex-col gap-6 overflow-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
@@ -74,9 +149,6 @@ function ProfileForm() {
           <span className="text-xl font-bold text-[var(--text-primary)]">
             {tProfile("title")}
           </span>
-          <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
-            {tProfile("metaJwt")}
-          </span>
         </div>
         <span className="text-[13px] text-[var(--text-secondary)]">
           {tProfile("metaSession")}
@@ -85,35 +157,42 @@ function ProfileForm() {
 
       <div className="h-px w-full bg-[var(--border)]" />
 
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+          {success}
+        </div>
+      )}
+
       {/* Avatar */}
       <div className="flex items-center gap-5">
         <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[var(--primary)] text-2xl font-semibold text-white">
-          {avatarChar(session)}
+          {avatarText}
         </div>
-        <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
           <span className="text-base font-semibold text-[var(--text-primary)]">
-            {name}
+            {displayName || dash}
           </span>
           <span className="text-[13px] text-[var(--text-secondary)]">
             {role}
           </span>
-          <button
-            disabled
-            title={tCommon("comingSoon")}
-            className="flex cursor-not-allowed items-center gap-[6px] rounded-lg border border-[var(--border)] px-[14px] py-[6px] opacity-60"
-          >
-            <Upload className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
-            <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-              {tProfile("uploadAvatar")}
-            </span>
-          </button>
         </div>
       </div>
 
       {/* Form Fields */}
       <div className="flex flex-col gap-5">
         <div className="flex gap-5">
-          <FormField label={tProfile("displayName")} value={name} />
+          <EditableField
+            label={tProfile("displayName")}
+            value={displayName}
+            onChange={setDisplayName}
+            placeholder={tProfile("displayName")}
+            disabled={loading || saving}
+          />
           <FormField label={tProfile("email")} value={email} />
         </div>
 
@@ -124,10 +203,9 @@ function ProfileForm() {
 
         <div className="flex gap-5">
           <FormField label={tProfile("tenantId")} value={tenantId} mono />
-          <SelectField
+          <FormField
             label={tProfile("timezone")}
             value={tProfile("timezoneTaipei")}
-            disabled
           />
         </div>
 
@@ -137,10 +215,12 @@ function ProfileForm() {
         </div>
 
         <div className="flex gap-5">
-          <FormField
+          <EditableField
             label={tProfile("phone")}
-            value={dash}
+            value={phone}
+            onChange={setPhone}
             placeholder={tProfile("phonePlaceholder")}
+            disabled={loading || saving}
           />
           <div className="flex-1" />
         </div>
@@ -151,21 +231,23 @@ function ProfileForm() {
       {/* Action Buttons */}
       <div className="flex justify-end gap-3">
         <button
-          disabled
-          title={tCommon("comingSoon")}
-          className="cursor-not-allowed rounded-lg border border-[var(--border)] px-5 py-[10px] opacity-60"
+          type="button"
+          onClick={handleCancel}
+          disabled={!dirty || saving}
+          className="rounded-lg border border-[var(--border)] px-5 py-[10px] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="text-sm font-medium text-[var(--text-secondary)]">
             {tCommon("cancel")}
           </span>
         </button>
         <button
-          disabled
-          title={tCommon("comingSoon")}
-          className="cursor-not-allowed rounded-lg bg-[var(--primary)] px-5 py-[10px] opacity-60"
+          type="button"
+          onClick={handleSave}
+          disabled={!dirty || saving}
+          className="rounded-lg bg-[var(--primary)] px-5 py-[10px] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
         >
           <span className="text-sm font-medium text-white">
-            {tCommon("saveChanges")}
+            {saving ? tProfile("saving") : tCommon("saveChanges")}
           </span>
         </button>
       </div>
@@ -294,32 +376,6 @@ function SecurityForm() {
 
       <div className="h-px w-full bg-[var(--border)]" />
 
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-base font-semibold text-[var(--text-primary)]">
-            {tSec("twoFactor")}
-          </span>
-          <span className="rounded-md bg-[#FEF3C7] px-2 py-[2px] text-[10px] font-semibold text-[#92400E]">
-            {tSec("twoFactorPending")}
-          </span>
-        </div>
-        <div className="flex items-center justify-between rounded-lg border border-dashed border-[var(--border)] bg-[#F8FAFC] p-4">
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium text-[var(--text-secondary)]">
-              {tSec("authenticatorApp")}
-            </span>
-            <span className="text-[13px] text-[var(--text-secondary)]">
-              {tSec("authenticatorDesc")}
-            </span>
-          </div>
-          <span className="rounded-md bg-[#F1F5F9] px-2 py-1 text-xs font-semibold text-[var(--text-secondary)]">
-            {tSec("twoFactorDisabled")}
-          </span>
-        </div>
-      </div>
-
-      <div className="h-px w-full bg-[var(--border)]" />
-
       <div className="flex justify-end gap-3">
         <button
           type="button"
@@ -433,33 +489,6 @@ function LanguageField() {
       </span>
       <div className="flex h-10 items-center">
         <LocaleToggle variant="segmented" />
-      </div>
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  disabled,
-}: {
-  label: string;
-  value: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex flex-1 flex-col gap-[6px]">
-      <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-        {label}
-      </span>
-      <div
-        className={`flex h-10 items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 ${
-          disabled ? "cursor-not-allowed opacity-60" : ""
-        }`}
-        title={disabled ? "即將推出" : undefined}
-      >
-        <span className="text-sm text-[var(--text-primary)]">{value}</span>
-        <ChevronDown className="h-4 w-4 text-[var(--text-secondary)]" />
       </div>
     </div>
   );
