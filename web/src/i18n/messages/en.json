@@ -215,8 +215,7 @@
     "low": "Low",
     "medium": "Medium",
     "high": "High",
-    "mediumBadge": "Urgent",
-    "highBadge": "Red Code"
+    "highBadge": "Urgent"
   },
   "tables": {
     "empty": "No data",
@@ -2460,7 +2459,6 @@
       "customer": "Customer info",
       "viewProblemCard": "View problem card →",
       "callCustomer": "Call customer (TBD)",
-      "callCustomerTitle": "Customer phone requires backend support — TBD for MVP",
       "completeCta": "Complete order",
       "subflows": {
         "reschedule": "Reschedule",
@@ -2474,8 +2472,6 @@
         "title": "Completion report",
         "summaryLabel": "Work summary",
         "summaryPlaceholder": "e.g. Replaced lock cylinder, tested open/close, confirmed with customer.",
-        "amountLabel": "Actual amount (NT$)",
-        "amountPlaceholder": "e.g. 1500",
         "photosLabel": "Completion photos (before/during/after, min 3)",
         "photoBefore": "+ Before",
         "photoDuring": "+ During",
@@ -2491,7 +2487,13 @@
         "photosCounter": "Photos {n}/3",
         "gateHint": "Completion requires ≥3 photos and a customer signature"
       },
-      "terminalNotice": "This order is already {status} and cannot be modified"
+      "terminalNotice": "This order is already {status} and cannot be modified",
+      "arrivedCta": "Arrived on site",
+      "arrivedSubmitting": "Reporting...",
+      "arrivedConfirm": "Confirm you have arrived on site? Arrival time and GPS will be recorded.",
+      "arrivedAt": "Arrived: {time}",
+      "gpsUnavailable": "Geolocation is not supported on this device",
+      "gpsDenied": "Location permission is required to report arrival"
     },
     "doorCheck": {
       "title": "Door appearance check",

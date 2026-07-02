@@ -9,6 +9,7 @@ import {
   Navigation,
   CheckCircle2,
   AlertCircle,
+  MapPin,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import StatusBadge from "@/components/tech/StatusBadge";
@@ -72,7 +73,9 @@ export default function MyOrderDetailPage() {
   // Completion form state
   const [showForm, setShowForm] = useState(false);
   const [summary, setSummary] = useState("");
-  const [actualAmount, setActualAmount] = useState("");
+  // 到場回報（FR-0006 / 設計 12_tech_my_orders §accepted arrived_btn）
+  const [arriving, setArriving] = useState(false);
+  const [arriveError, setArriveError] = useState<string | null>(null);
   const [completionPhotos, setCompletionPhotos] = useState<
     { section: "before" | "during" | "after"; id: string; url: string; filename: string }[]
   >([]);
@@ -199,6 +202,40 @@ export default function MyOrderDetailPage() {
     }
   }
 
+  // 到場回報：取瀏覽器 GPS → POST /onsite/arrival（door-check 有 arrival 前置閘
+  // CR-0007 HD-01，未回報到場前門面檢核會 409）。成功後 refetch 帶回 actual_arrival。
+  async function reportArrival() {
+    if (!wo || arriving) return;
+    if (!window.confirm(t("arrivedConfirm"))) return;
+    setArriving(true);
+    setArriveError(null);
+    try {
+      const gps = await new Promise<{ lat: number; lng: number }>(
+        (resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error(t("gpsUnavailable")));
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            (pos) =>
+              resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            () => reject(new Error(t("gpsDenied"))),
+            { timeout: 10_000 },
+          );
+        },
+      );
+      await api.post(
+        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/onsite/arrival`),
+        { arrived_at: new Date().toISOString(), gps },
+      );
+      await fetchOrder();
+    } catch (e) {
+      setArriveError(formatErr(e));
+    } finally {
+      setArriving(false);
+    }
+  }
+
   const isTerminal = wo ? TERMINAL_STATUSES.includes(wo.status) : false;
   const canComplete =
     wo &&
@@ -206,6 +243,12 @@ export default function MyOrderDetailPage() {
     ["accepted", "scheduled", "assigned", "en_route", "arrived", "in_progress"].includes(
       wo.status,
     );
+  // 已接單且尚未回報到場 → 顯示「已到達現場」CTA（設計 spec accepted 狀態核心操作）
+  const canReportArrival =
+    wo &&
+    !isTerminal &&
+    !wo.actual_arrival &&
+    ["assigned", "accepted", "en_route", "in_progress"].includes(wo.status);
 
   return (
     <TechShell>
@@ -349,31 +392,62 @@ export default function MyOrderDetailPage() {
             </div>
           </section>
 
-          {/* customer_section（電話需從 ProblemCard 取，MVP 先省）*/}
+          {/* customer_section */}
           <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
               {t("customer")}
             </span>
+            {wo.customer_name && (
+              <span className="text-[14px] font-medium text-[var(--text-primary)]">
+                {wo.customer_name}
+              </span>
+            )}
             <Link
               href={`/problem-cards/${wo.problem_card_id}`}
               className="text-[13px] text-[var(--primary)] hover:underline"
             >
               {t("viewProblemCard")}
             </Link>
-            <button
-              type="button"
-              disabled
-              className="mt-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--text-tertiary)] text-[14px] font-semibold text-white opacity-60"
-              title={t("callCustomerTitle")}
-            >
-              <Phone className="h-4 w-4" />
-              {t("callCustomer")}
-            </button>
+            {wo.customer_phone && (
+              <a
+                href={`tel:${wo.customer_phone}`}
+                className="mt-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[var(--primary-hover)]"
+              >
+                <Phone className="h-4 w-4" />
+                {t("callCustomer")}（{wo.customer_phone}）
+              </a>
+            )}
           </section>
 
           {/* action_section */}
           {canComplete && !showForm && (
             <div className="flex flex-col gap-2">
+              {canReportArrival && (
+                <>
+                  <button
+                    type="button"
+                    onClick={reportArrival}
+                    disabled={arriving}
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-[#F59E0B] text-[15px] font-semibold text-white hover:bg-[#D97706] disabled:opacity-60"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    {arriving ? t("arrivedSubmitting") : t("arrivedCta")}
+                  </button>
+                  {arriveError && (
+                    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+                      {arriveError}
+                    </div>
+                  )}
+                </>
+              )}
+              {wo.actual_arrival && (
+                <div className="flex items-center gap-1 text-[12px] text-[#15803D]">
+                  <CheckCircle2 className="h-4 w-4" />
+                  {t("arrivedAt", {
+                    time: new Date(wo.actual_arrival).toLocaleString("zh-TW"),
+                  })}
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
@@ -443,19 +517,8 @@ export default function MyOrderDetailPage() {
                 />
               </label>
 
-              <label className="flex flex-col gap-1">
-                <span className="text-[12px] font-medium text-[var(--text-secondary)]">
-                  {tForm("amountLabel")}
-                </span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={actualAmount}
-                  onChange={(e) => setActualAmount(e.target.value)}
-                  placeholder={tForm("amountPlaceholder")}
-                  className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
-                />
-              </label>
+              {/* 實收金額欄已移除：/onsite/completion 後端刻意 actual_amount=None
+                  （完工金額由後續 AR/Payment 模組確認），原輸入框收值後從未送出。 */}
 
               {/* 完工照片上傳（before / after） */}
               <div className="flex flex-col gap-2">
