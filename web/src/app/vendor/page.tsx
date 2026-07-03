@@ -40,7 +40,7 @@ export default function VendorPortalPage() {
   useEffect(() => {
     const session = getCurrentSession();
     if (!session || session.role !== "vendor") {
-      router.replace("/vendor-login");
+      router.replace("/login");
       return;
     }
     let cancelled = false;
@@ -51,7 +51,7 @@ export default function VendorPortalPage() {
       } catch (e) {
         if (!cancelled) {
           if (e instanceof ApiError && e.status === 401) {
-            router.replace("/vendor-login");
+            router.replace("/login");
             return;
           }
           setError(friendlyError(e));
@@ -67,7 +67,7 @@ export default function VendorPortalPage() {
 
   async function onLogout() {
     await logout().catch(() => undefined);
-    router.replace("/vendor-login");
+    router.replace("/login");
   }
 
   const st = vendor ? STATUS[vendor.status] ?? { label: vendor.status, cls: "bg-[#F1F5F9] text-[var(--text-secondary)]", hint: "" } : null;

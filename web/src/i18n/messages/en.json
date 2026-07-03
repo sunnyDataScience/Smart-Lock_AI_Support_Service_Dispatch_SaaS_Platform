@@ -98,17 +98,13 @@
   "landing": {
     "tagline": "Smart Lock AI Support × Dispatch Platform",
     "subtitle": "Choose how you'd like to sign in",
-    "backendTitle": "Operations Console",
-    "backendDesc": "Admin / CS / Dispatch / Accounting",
-    "techTitle": "Technician Sign-in",
-    "techDesc": "Field jobs — view dispatch, on-site reporting",
-    "vendorTitle": "Vendor / Brand Sign-in",
-    "vendorDesc": "Brand / Locksmith shop / Dealer (requestor)",
-    "registerTitle": "Create Account",
-    "registerDesc": "Technician or vendor — pending admin approval",
+    "techTitle": "Locksmith Technician",
+    "techDesc": "Technician entrance: sign in or register for the tech workspace",
     "enterBackend": "Signed in — enter console",
     "backToHome": "Back to home",
-    "footer": "SmartLock — Smart Lock AI Support & Dispatch"
+    "footer": "SmartLock — Smart Lock AI Support & Dispatch",
+    "dispatcherTitle": "Brand / Distributor / Locksmith Shop",
+    "dispatcherDesc": "Dispatcher entrance: sign in or register for the admin console"
   },
   "login": {
     "title": "Sign in to SmartLock Admin",
@@ -120,8 +116,12 @@
     "submit": "Sign in",
     "submitting": "Signing in…",
     "forgotPassword": "Forgot password?",
-    "registerLink": "No account? Register (technician / vendor)",
-    "devHint": "Test account: admin@example.com / changeme123"
+    "devHint": "Test account: admin@example.com / changeme123",
+    "entryTitle": "Brand / Distributor / Locksmith Shop",
+    "entrySubtitle": "Dispatcher entrance — sign in or register for the admin console",
+    "tabLogin": "Sign in",
+    "tabRegister": "Register",
+    "techEntryLink": "I am a locksmith technician →"
   },
   "register": {
     "title": "Create account",
@@ -2415,9 +2415,10 @@
       "submitting": "Signing in…",
       "forgotPassword": "Forgot password?",
       "forgotPasswordTitle": "Go to self-service password reset",
-      "adminLink": "I'm an admin →",
-      "registerLink": "No account? Technician / vendor register",
-      "footerVersion": "v0.1 — Technician PWA"
+      "footerVersion": "v0.1 — Technician PWA",
+      "tabLogin": "Sign in",
+      "tabRegister": "Register",
+      "brandEntryLink": "I am a brand / distributor / shop →"
     },
     "pool": {
       "title": "Order pool",

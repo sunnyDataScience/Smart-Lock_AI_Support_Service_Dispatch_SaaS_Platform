@@ -251,7 +251,8 @@ async function refreshAccessToken(): Promise<boolean> {
 function loginPathForCurrentLocation(): string {
   if (typeof window === "undefined") return "/login";
   const p = window.location.pathname;
-  if (p.startsWith("/vendor")) return "/vendor-login";
+  // 20260702 決議 2:廠商登入已併入品牌/經銷/鎖店入口(/login)
+  if (p.startsWith("/vendor")) return "/login";
   // 技師入口路由（與 TechBottomNav 一致）
   if (/^\/(home|pool|my-orders|account|tech-login)(\/|$)/.test(p)) return "/tech-login";
   return "/login";
