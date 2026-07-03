@@ -2,10 +2,16 @@
 
 流程:
   LINE 平台 --POST /callback--> 本服務(驗 X-Line-Signature)
-    → 取 event.source.user_id(當 user_id)+ 文字
+    → 取 event.source.user_id(當 user_id)+ 文字/照片
     → resolve_identity → (tenant, user_id)
     → AgentLoop._process_message → 回覆文字
     → LINE reply API 回給客人
+
+訊息型別(2026-07-03 VLN 修復):
+  - 文字 → 原有 turn 流程。
+  - 照片 → 以 Blob API 下載到 get_media_dir("line") → InboundMessage(media=[路徑])
+    → context 既有 vision 管線(base64 image_url)交給 LLM 理解。
+  - 其他(貼圖/語音/影片/檔案/位置)→ 回友善話術(原本是靜默丟棄=已讀不回)。
 
 身分:user_id 直接用 LINE 的 userId(per official-account 穩定);tenant 先固定單一店家。
 機密(channel secret / access token)走 .env,不入庫。
@@ -29,6 +35,21 @@ _LINE_TEXT_LIMIT = 4900
 # 這類字串(或空回覆)絕不可原文丟給客人,改回友善話術。
 _ERROR_SENTINEL = "[litellm error]"
 _FALLBACK_REPLY = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
+
+# VLN(2026-07-03):非文字/照片型別的友善回覆(原本靜默丟棄=已讀不回)。
+_UNSUPPORTED_MEDIA_REPLY = (
+    "不好意思,我目前只看得懂文字和照片 🙏\n"
+    "麻煩您用文字描述問題,或直接拍一張門鎖的照片傳給我,我馬上為您服務!"
+)
+_IMAGE_DOWNLOAD_FAIL_REPLY = "照片好像沒有傳送成功,麻煩您再傳一次,謝謝 🙏"
+# 對話管理(後台)持久化用的型別標記。
+_MEDIA_KIND_MARKERS = {
+    "sticker": "[貼圖]",
+    "audio": "[語音訊息]",
+    "video": "[影片]",
+    "file": "[檔案]",
+    "location": "[位置訊息]",
+}
 
 # 方案 A:對話旁路持久化。把每輪「客人訊息 + AI 回覆」POST 給 API,寫進
 # conversations/messages,使工單/對話後台能重新渲染對話歷史。env 未設 → 略過
@@ -396,11 +417,21 @@ def resolve_identity(channel: str, native_id: str, tenant: str) -> tuple[str, st
     return tenant, native_id
 
 
-async def handle_text_turn(loop: Any, tenant: str, user_id: str, text: str) -> str:
-    """跑一輪客服 turn,回傳要回給客人的文字('' = 不回)。"""
-    if not (text or "").strip():
+async def handle_text_turn(
+    loop: Any, tenant: str, user_id: str, text: str, media: list[str] | None = None
+) -> str:
+    """跑一輪客服 turn,回傳要回給客人的文字('' = 不回)。
+
+    media:本輪附帶的本機圖片路徑(VLN 2026-07-03)。loop/context 既有 vision 管線
+    (InboundMessage.media → _build_user_content base64 image_url)自動接手;
+    history 重播只留 [image: path] 文字麵包屑,不重讀檔案。
+    """
+    if not (text or "").strip() and not media:
         return ""
-    msg = InboundMessage(channel="line", sender_id=user_id, chat_id=user_id, content=text)
+    msg = InboundMessage(
+        channel="line", sender_id=user_id, chat_id=user_id,
+        content=text or "", media=list(media) if media else [],
+    )
     out = await loop._process_message(msg, session_key=f"{tenant}:{user_id}")
     content = (getattr(out, "content", None) or "") if out is not None else ""
     if not content.strip():
@@ -409,6 +440,35 @@ async def handle_text_turn(loop: Any, tenant: str, user_id: str, text: str) -> s
         logger.warning("LLM/provider 內部錯誤,改回友善訊息(不外洩):{}", content[:160])
         return _FALLBACK_REPLY
     return content[:_LINE_TEXT_LIMIT]
+
+
+async def download_line_image(blob_api: Any, message_id: str) -> str | None:
+    """以 LINE Blob API 下載圖片內容 → 落地 get_media_dir("line")。回本機路徑;失敗回 None。
+
+    LINE 圖片不在 webhook body 內,須以 message_id 二次拉取(bytes)。副檔名依
+    magic bytes 判定(detect_image_mime),供 context 讀取時再驗一次 mime。
+    fail-soft:任何錯誤只 log,由呼叫端回友善訊息。
+    """
+    try:
+        from lockcore.config.paths import get_media_dir
+        from lockcore.utils.helpers import detect_image_mime
+
+        raw = await blob_api.get_message_content(message_id=message_id)
+        data = bytes(raw or b"")
+        if not data:
+            logger.warning("LINE 圖片下載為空 message_id={}", message_id)
+            return None
+        mime = detect_image_mime(data) or "image/jpeg"
+        ext = {
+            "image/png": ".png", "image/jpeg": ".jpg",
+            "image/gif": ".gif", "image/webp": ".webp",
+        }.get(mime, ".jpg")
+        path = get_media_dir("line") / f"{message_id}{ext}"
+        path.write_bytes(data)
+        return str(path)
+    except Exception:  # noqa: BLE001 — 下載失敗不可炸掉 webhook
+        logger.exception("LINE 圖片下載失敗 message_id={}", message_id)
+        return None
 
 
 def build_webapp(
@@ -428,11 +488,17 @@ def build_webapp(
     from linebot.v3.messaging import (
         AsyncApiClient,
         AsyncMessagingApi,
+        AsyncMessagingApiBlob,
         Configuration,
         ReplyMessageRequest,
         TextMessage,
     )
-    from linebot.v3.webhooks import MessageEvent, PostbackEvent, TextMessageContent
+    from linebot.v3.webhooks import (
+        ImageMessageContent,
+        MessageEvent,
+        PostbackEvent,
+        TextMessageContent,
+    )
 
     parser = WebhookParser(channel_secret)
     config = Configuration(access_token=channel_access_token)
@@ -468,26 +534,63 @@ def build_webapp(
                     continue
                 if not isinstance(event, MessageEvent):
                     continue
-                if not isinstance(event.message, TextMessageContent):
-                    continue
                 native_id = getattr(event.source, "user_id", None)
                 if not native_id:
                     continue
                 _, user_id = resolve_identity("line", native_id, tenant)
-                user_text = event.message.text
+
+                # ── 訊息型別分派(VLN 2026-07-03)──────────────────────
+                # 文字 → 原有流程;照片 → 下載後走 vision 管線;其他型別 → 友善話術
+                # (原本 471-472 對非文字一律 continue = 已讀不回,連對話管理都看不到)。
+                media_paths: list[str] = []
+                if isinstance(event.message, TextMessageContent):
+                    user_text = event.message.text
+                elif isinstance(event.message, ImageMessageContent):
+                    blob_api = AsyncMessagingApiBlob(api_client)
+                    img_path = await download_line_image(blob_api, event.message.id)
+                    if img_path is None:
+                        if event.reply_token:
+                            await line_api.reply_message(
+                                ReplyMessageRequest(
+                                    reply_token=event.reply_token,
+                                    messages=[TextMessage(text=_IMAGE_DOWNLOAD_FAIL_REPLY)],
+                                )
+                            )
+                        continue
+                    user_text = ""  # LINE 圖片訊息無 caption;persist 用 [照片] 標記
+                    media_paths = [img_path]
+                else:
+                    kind = getattr(event.message, "type", "") or "unknown"
+                    marker = _MEDIA_KIND_MARKERS.get(kind, f"[{kind}]")
+                    logger.info("LINE 非支援型別 {} user={},回友善話術", kind, user_id[:8])
+                    if event.reply_token:
+                        await line_api.reply_message(
+                            ReplyMessageRequest(
+                                reply_token=event.reply_token,
+                                messages=[TextMessage(text=_UNSUPPORTED_MEDIA_REPLY)],
+                            )
+                        )
+                    # 讓後台對話管理看得到「客人傳過東西」(fail-soft)
+                    await _persist_turn_safe(
+                        tenant, user_id, marker, _UNSUPPORTED_MEDIA_REPLY
+                    )
+                    continue
 
                 # CR-0024 Phase 1:對話處於人工接管中 → AI 全暫停(不跑 turn、不回覆),
                 # 只把客人這句旁路持久化讓客服在對話管理看得到;由真人回覆。
                 # 交還(對話管理按鈕 / 工單結案)把對話翻回 active 後,AI 自動恢復。
+                persist_text = user_text or ("[照片]" if media_paths else "")
                 if await _handover_active_safe(tenant, user_id):
                     logger.info("對話接管中,AI 暫停回覆 user={}", user_id[:8])
-                    await _persist_turn_safe(tenant, user_id, user_text, "")
+                    await _persist_turn_safe(tenant, user_id, persist_text, "")
                     continue
 
                 # CR-0022:記本輪前的最新 escalation id,turn 後比對是否新增(觸發轉真人)。
                 esc_before = _latest_escalation_id(escalation_store, tenant, user_id)
                 try:
-                    reply = await handle_text_turn(loop, tenant, user_id, user_text)
+                    reply = await handle_text_turn(
+                        loop, tenant, user_id, user_text, media=media_paths or None
+                    )
                 except Exception:
                     logger.exception("LINE turn 失敗")
                     reply = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
@@ -501,12 +604,12 @@ def build_webapp(
                 # 回覆送出後再旁路(不影響客人回覆延遲;皆 fail-soft):
                 # (1) 方案 A 對話持久化 (2) CR-0097 兜底:AI 承諾轉接卻沒呼叫工具 → 補
                 # escalation(須在 forward 前) (3) CR-0022 若本輪轉真人 → 建 AI 草擬問題卡。
-                await _persist_turn_safe(tenant, user_id, user_text, reply)
+                await _persist_turn_safe(tenant, user_id, persist_text, reply)
                 _apply_handoff_fallback_safe(
-                    escalation_store, tenant, user_id, user_text, reply, esc_before
+                    escalation_store, tenant, user_id, persist_text, reply, esc_before
                 )
                 await _forward_escalation_safe(
-                    escalation_store, tenant, user_id, esc_before, user_text
+                    escalation_store, tenant, user_id, esc_before, persist_text
                 )
         return web.Response(text="OK")
 
