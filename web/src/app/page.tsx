@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  ArrowRight,
-  Building2,
-  LayoutDashboard,
-  Lock,
-  UserPlus,
-  Wrench,
-} from "lucide-react";
+import { ArrowRight, Building2, Lock, Wrench } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/api";
@@ -15,22 +8,21 @@ import LocaleToggle from "@/components/i18n/LocaleToggle";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
-// 多角色平台 landing：取代原本 `redirect("/dashboard")`（未登入 → 被 AuthGuard 踢到 admin /login，
-// 一進站就是 admin 登入很奇怪）。改為角色導向入口，後台/師傅/廠商/註冊各有清楚進入點。
-// `/` 已加入 AuthGuard PUBLIC_PATHS（公開頁）；已登入者頂部顯示「進入後台」捷徑。
+// 多角色平台 landing。20260702 會議決議 2:入口從 3-4 個濃縮為兩條 ——
+// 「品牌/經銷/鎖店登錄」(派案方 → 後台管理系統)與「鎖匠師傅登錄」(接案方 →
+// 師傅工作台),登入與註冊在各入口內同框(仿 Google),不再有獨立註冊入口。
+// `/` 已加入 AuthGuard PUBLIC_PATHS(公開頁);已登入者頂部顯示「進入後台」捷徑。
 
 type Entry = {
   href: string;
-  icon: typeof LayoutDashboard;
+  icon: typeof Building2;
   titleKey: string;
   descKey: string;
 };
 
 const ENTRIES: Entry[] = [
-  { href: "/login", icon: LayoutDashboard, titleKey: "backendTitle", descKey: "backendDesc" },
+  { href: "/login", icon: Building2, titleKey: "dispatcherTitle", descKey: "dispatcherDesc" },
   { href: "/tech-login", icon: Wrench, titleKey: "techTitle", descKey: "techDesc" },
-  { href: "/vendor-login", icon: Building2, titleKey: "vendorTitle", descKey: "vendorDesc" },
-  { href: "/register", icon: UserPlus, titleKey: "registerTitle", descKey: "registerDesc" },
 ];
 
 export default function Home() {

@@ -98,17 +98,13 @@
   "landing": {
     "tagline": "智慧鎖 AI 客服 × 工單派工平台",
     "subtitle": "請選擇您的身分進入",
-    "backendTitle": "營運後台登入",
-    "backendDesc": "管理員 / 客服 / 派工 / 會計",
-    "techTitle": "師傅登入",
-    "techDesc": "接案施工 — 查看派工、現場回報",
-    "vendorTitle": "廠商 / 品牌商登入",
-    "vendorDesc": "品牌商 / 鎖店 / 經銷（發案）",
-    "registerTitle": "註冊新帳號",
-    "registerDesc": "師傅或廠商申請，待管理員審核",
+    "techTitle": "鎖匠師傅登錄",
+    "techDesc": "接案方入口:登入或註冊,進入師傅工作台",
     "enterBackend": "已登入，進入後台",
     "backToHome": "返回首頁",
-    "footer": "SmartLock — 智慧鎖 AI 客服與派工系統"
+    "footer": "SmartLock — 智慧鎖 AI 客服與派工系統",
+    "dispatcherTitle": "品牌 / 經銷 / 鎖店登錄",
+    "dispatcherDesc": "派案方入口:登入或註冊,進入後台管理系統"
   },
   "login": {
     "title": "登入 SmartLock Admin",
@@ -120,8 +116,12 @@
     "submit": "登入",
     "submitting": "登入中…",
     "forgotPassword": "忘記密碼？",
-    "registerLink": "還沒有帳號？註冊（師傅 / 廠商）",
-    "devHint": "測試帳號：admin@example.com / changeme123"
+    "devHint": "測試帳號：admin@example.com / changeme123",
+    "entryTitle": "品牌 / 經銷 / 鎖店",
+    "entrySubtitle": "派案方入口 — 登入或註冊後進入後台管理系統",
+    "tabLogin": "登入",
+    "tabRegister": "註冊",
+    "techEntryLink": "我是鎖匠師傅 →"
   },
   "register": {
     "title": "註冊帳號",
@@ -2415,9 +2415,10 @@
       "submitting": "登入中…",
       "forgotPassword": "忘記密碼？",
       "forgotPasswordTitle": "前往自助密碼重設",
-      "adminLink": "我是管理員 →",
-      "registerLink": "還沒有帳號？技師 / 廠商註冊",
-      "footerVersion": "v0.1 — 技師端 PWA"
+      "footerVersion": "v0.1 — 技師端 PWA",
+      "tabLogin": "登入",
+      "tabRegister": "註冊",
+      "brandEntryLink": "我是品牌 / 經銷 / 鎖店 →"
     },
     "pool": {
       "title": "案件池",
