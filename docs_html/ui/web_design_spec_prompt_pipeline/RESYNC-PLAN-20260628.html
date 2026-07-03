@@ -1043,12 +1043,38 @@ auth-extras（vendor-login/register/forgot/reset/home）</p>
 <h2 id="21-跨切面任務cross-cutting獨立追蹤">2.1
 跨切面任務（cross-cutting，獨立追蹤）</h2>
 <ul>
-<li><strong>sidebar nav 全域漂移</strong>：每個 .pen frame 的 sidebar
-都是內嵌（非共用元件），nav 項目凍結於 4 月（缺 ~15
-個新項、群組結構與現行 <code>Sidebar.tsx</code> 不符）。逐 frame
-重做成本高 → 列為 B2~B5 各 frame 順手更新 active 項，完整 nav
-重建排「收尾」評估。本輪 cases frame <code>kjAsn</code> 已將 active
-項改為「進線案件」，其餘 nav 項沿用 clone 來源（已知暫態）。</li>
+<li><strong>sidebar nav 全域漂移 → ✅ 已統一（2026-06-28
+業主指出後優先處理）</strong>：
+<ul>
+<li>現行 <code>Sidebar.tsx</code> 為 <strong>4
+分組（開單流程／審核與例外／知識與報表／設定與主檔）+ 18 項 +
+子選單</strong>；.pen 原為 4 月「12 項平鋪」舊版，<strong>每張 frame
+各自內嵌一份</strong>。</li>
+<li>建立<strong>唯一正典元件 <code>P9Dej</code>「Comp — Admin
+Sidebar」</strong>（對齊現行結構，置於畫布 x=1600,y=23918，screenshot
+驗證完美）。</li>
+<li>⚠️ <strong>Pencil ref/instance 渲染 bug</strong>：把
+<code>P9Dej</code> 以 <code>type:ref</code> 放進 frame 的 flex
+row，instance 整個塌掉不渲染（master 正常）。多種 width/height
+設定皆失敗 → <strong>改用「以 <code>P9Dej</code> 為母版、各 frame 內嵌
+<code>C()</code> copy + <code>descendants</code> 覆寫該頁
+active」</strong>。代價：非 ref 的「改一處全更新」，但
+<code>P9Dej</code> 仍是單一正典，未來改 nav = 改 <code>P9Dej</code> +
+重新 copy propagate。</li>
+<li>已套用 <strong>29 張 admin frame</strong>（cases + 28
+既有），各自正確標當前頁 active。<strong>技師 PWA
+frame</strong>（手機，底部 nav）與 <strong>派工看板
+<code>JedbW</code></strong>（全寬無 sidebar）不適用，略過。</li>
+<li>⚠️ 注意：~900px 高的 frame 完整 nav 幾乎填滿（真機側欄本就
+scroll），少數最底項可能略裁，屬可接受。</li>
+<li><strong>lucide icon 名稱對照</strong>：active 樣式 = item frame
+<code>fill #1E3A5F</code> + 左 3px <code>#2563EB</code> border + padding
+<code>[10,12,10,9]</code>、icon <code>fill #2563EB</code>、text
+<code>#FFFFFF/600</code>。</li>
+<li><strong>踩雷紀錄</strong>：Pencil 對「fill_container 父 →
+fit_content 巢狀分組 frame」算高會 bug（項目重疊）→ nav
+必須<strong>平鋪</strong>進 navSection，不可用中間分組 frame 包。</li>
+</ul></li>
 </ul>
 <h2 id="3-進度">3. 進度</h2>
 <ul>
@@ -1063,9 +1089,15 @@ CR-0108 code 逐行查證，標 ✅ 已實作 / 🚧 規格先行）。</li>
 (進線建案)」<code>kjAsn</code>（clone E3vKS 改造：sidebar
 active=進線案件、代客建案表單卡、案件列表 4 態示例 + SLA
 逾時徽章）。screenshot 驗證通過。</li>
-<li>🔄 <code>pages/07_admin_work_order_detail.md</code> 對
-code（legal_hold🔒 / SLA / 完工 / 客戶資訊）同步中。</li>
-<li>GbKMe（工單詳情 frame）surgery → 併入 B2。</li>
+<li>✅ <code>pages/07_admin_work_order_detail.md</code> 對 code
+同步完成（17 區塊，➕15／🚧30+；含「<code>MediaGallery.tsx</code>
+legal_hold 為孤兒元件、工單詳情頁實用
+<code>LineMediaGallery</code>」之誠實記錄）。</li>
+<li>✅ <strong>sidebar 全域統一</strong>（見 §2.1）：建正典元件
+<code>P9Dej</code> + propagate 至 29 張 admin frame，各標當前頁
+active。業主 2026-06-28 指出 sidebar 漂移後優先完成。</li>
+<li>GbKMe（工單詳情 frame）主內容 surgery（SLA/完工/legal_hold 視覺）→
+併入 B2（本輪已換正確 sidebar）。</li>
 </ul></li>
 </ul>
 </div></div></body></html>

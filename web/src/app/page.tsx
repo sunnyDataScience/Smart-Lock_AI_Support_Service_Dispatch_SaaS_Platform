@@ -2,8 +2,10 @@
 
 import { ArrowRight, Building2, Lock, Wrench } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/api";
+import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -20,20 +22,35 @@ type Entry = {
   descKey: string;
 };
 
+// CR-0112 雙 stack:dispatch build 的師傅入口指向對方 portal(有配 PEER 時);
+// tech build 的 landing 直接導 /tech-login(見下方 useEffect),不渲染雙卡。
+const TECH_ENTRY_HREF =
+  APP_MODE === "dispatch" && PEER_PORTAL_URL
+    ? `${PEER_PORTAL_URL}/tech-login`
+    : "/tech-login";
+
 const ENTRIES: Entry[] = [
   { href: "/login", icon: Building2, titleKey: "dispatcherTitle", descKey: "dispatcherDesc" },
-  { href: "/tech-login", icon: Wrench, titleKey: "techTitle", descKey: "techDesc" },
+  { href: TECH_ENTRY_HREF, icon: Wrench, titleKey: "techTitle", descKey: "techDesc" },
 ];
 
 export default function Home() {
   const t = useTranslations("landing");
+  const router = useRouter();
   const [authed, setAuthed] = useState(false);
+
+  // tech build:師傅 stack 只有一條入口,landing 直接進 /tech-login。
+  useEffect(() => {
+    if (APP_MODE === "tech") router.replace("/tech-login");
+  }, [router]);
 
   // token 只能在 client 讀（localStorage）；已登入者給「進入後台」捷徑，但不自動跳轉，
   // 讓 landing 永遠可見可測。
   useEffect(() => {
     setAuthed(Boolean(auth.getAccessToken()));
   }, []);
+
+  if (APP_MODE === "tech") return null;
 
   return (
     <div className="relative flex min-h-screen flex-col items-center justify-center bg-[var(--bg-page)] px-4 py-12">
