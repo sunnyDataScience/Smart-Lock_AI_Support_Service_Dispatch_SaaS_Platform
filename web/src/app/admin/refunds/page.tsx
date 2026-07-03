@@ -1,8 +1,10 @@
 "use client";
 
+import { notFound } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Plus, RefreshCw, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import RefundReviewTable from "@/components/admin/RefundReviewTable";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
 import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
@@ -75,6 +77,13 @@ function formatActionError(e: unknown): string {
 }
 
 export default function RefundReviewPage() {
+  // UAT 隱藏(20260702 決議 7):退款審批鏈是真狀態機(DB/SoD/稽核)但金流 0 接通,
+  // 核准/執行不會真的退錢 → UAT 期間整頁 404(直接輸入網址也擋),code 保留待金流接通。
+  if (UAT_HIDE_FAKE_FLOWS) notFound();
+  return <RefundReviewPageInner />;
+}
+
+function RefundReviewPageInner() {
   const t = useTranslations("admin.refunds");
   const tc = useTranslations("admin.common");
   const {

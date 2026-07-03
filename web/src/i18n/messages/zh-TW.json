@@ -2250,7 +2250,8 @@
         "approving": "核准中…",
         "confirm": "確認核准"
       },
-      "approveToast": "已核准對帳 {id}（已建立 {payout} 結算）"
+      "approveToast": "已核准對帳 {id}（已建立 {payout} 結算）",
+      "genMonthlyNoPaymentNote": "金流未接:僅建立帳務紀錄,實際撥款由財務手動匯款"
     },
     "vouchers": {
       "filterStartLabel": "起始日期",

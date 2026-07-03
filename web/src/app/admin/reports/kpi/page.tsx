@@ -18,6 +18,7 @@ import {
 } from "@/lib/dateRange";
 import { api, auth } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
@@ -357,20 +358,22 @@ export default function KpiDashboardPage() {
             </div>
           </div>
 
-          {/* SLA placeholder */}
-          <div className="flex flex-col gap-3 rounded-xl border border-dashed border-[var(--border)] bg-[#F8FAFC] p-6">
-            <div className="flex items-center">
-              <span className="text-base font-semibold text-[var(--text-secondary)]">
-                SLA 達成率 / 客戶滿意度 / NPS / 差評率
+          {/* UAT 隱藏(20260702 決議 7):SLA/滿意度/NPS 為待接入佔位塊 */}
+          {!UAT_HIDE_FAKE_FLOWS && (
+            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-[var(--border)] bg-[#F8FAFC] p-6">
+              <div className="flex items-center">
+                <span className="text-base font-semibold text-[var(--text-secondary)]">
+                  SLA 達成率 / 客戶滿意度 / NPS / 差評率
+                </span>
+                <PendingTag note="需 SLA 規則表 + 評價回傳機制" />
+              </div>
+              <span className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
+                {report?.notes?.length
+                  ? report.notes.join("；")
+                  : "需各自獨立模組接入後再上線。"}
               </span>
-              <PendingTag note="需 SLA 規則表 + 評價回傳機制" />
             </div>
-            <span className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
-              {report?.notes?.length
-                ? report.notes.join("；")
-                : "需各自獨立模組接入後再上線。"}
-            </span>
-          </div>
+          )}
         </div>
       </div>
 

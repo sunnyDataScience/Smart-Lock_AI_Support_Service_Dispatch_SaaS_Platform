@@ -15,6 +15,7 @@ import {
 import { ApiError, api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -132,49 +133,58 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
         <span className="text-[20px] font-semibold text-[var(--text-primary)]">
           {brandModel || "—"}
         </span>
-        <span className="text-[12px] text-[var(--text-secondary)]">
-          {workOrder?.serial_number ? `S/N: ${workOrder.serial_number}` : t("deviceSnLabel")}
-        </span>
+        {/* UAT 隱藏(20260702 決議 7):S/N 無真值時不再顯「—(示意)」佔位 */}
+        {(workOrder?.serial_number || !UAT_HIDE_FAKE_FLOWS) && (
+          <span className="text-[12px] text-[var(--text-secondary)]">
+            {workOrder?.serial_number ? `S/N: ${workOrder.serial_number}` : t("deviceSnLabel")}
+          </span>
+        )}
 
-        <div className="flex gap-2 opacity-70">
-          <div className="flex flex-1 flex-col items-center gap-1 rounded-lg bg-[#F8FAFC] p-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-[#CBD5E1]">
-              <span className="text-[10px] font-semibold text-[var(--text-disabled)]">—</span>
+        {/* UAT 隱藏:電量/連線/最近操作為示意佔位(待智慧鎖遙測整合) */}
+        {!UAT_HIDE_FAKE_FLOWS && (
+          <div className="flex gap-2 opacity-70">
+            <div className="flex flex-1 flex-col items-center gap-1 rounded-lg bg-[#F8FAFC] p-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full border-[3px] border-[#CBD5E1]">
+                <span className="text-[10px] font-semibold text-[var(--text-disabled)]">—</span>
+              </div>
+              <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceBattery")}</span>
             </div>
-            <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceBattery")}</span>
-          </div>
-          <div className="flex flex-1 flex-col items-center gap-1 rounded-lg bg-[#F8FAFC] p-2">
-            <div className="flex items-center gap-1">
-              <div className="h-3 w-3 rounded-full bg-[#CBD5E1]" />
+            <div className="flex flex-1 flex-col items-center gap-1 rounded-lg bg-[#F8FAFC] p-2">
+              <div className="flex items-center gap-1">
+                <div className="h-3 w-3 rounded-full bg-[#CBD5E1]" />
+                <span className="text-[12px] text-[var(--text-disabled)]">—</span>
+              </div>
+              <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceConnection")}</span>
+            </div>
+            <div className="flex flex-1 flex-col items-center gap-1 rounded-lg bg-[#F8FAFC] p-2">
+              <Clock3 className="h-5 w-5 text-[#94A3B8]" />
               <span className="text-[12px] text-[var(--text-disabled)]">—</span>
+              <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceLastOp")}</span>
             </div>
-            <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceConnection")}</span>
           </div>
-          <div className="flex flex-1 flex-col items-center gap-1 rounded-lg bg-[#F8FAFC] p-2">
-            <Clock3 className="h-5 w-5 text-[#94A3B8]" />
-            <span className="text-[12px] text-[var(--text-disabled)]">—</span>
-            <span className="text-[11px] text-[var(--text-secondary)]">{t("deviceLastOp")}</span>
-          </div>
-        </div>
+        )}
 
-        <div className="flex flex-col gap-2">
-          <button
-            disabled
-            title={comingSoon}
-            className="flex h-9 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] opacity-60 cursor-not-allowed"
-          >
-            <LockOpen className="h-4 w-4 text-white" />
-            <span className="text-[13px] font-semibold text-white">{t("remoteUnlock")}</span>
-          </button>
-          <button
-            disabled
-            title={comingSoon}
-            className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] opacity-60 cursor-not-allowed"
-          >
-            <Key className="h-4 w-4 text-[var(--text-primary)]" />
-            <span className="text-[13px] font-semibold text-[var(--text-primary)]">{t("resetCode")}</span>
-          </button>
-        </div>
+        {/* UAT 隱藏:遠端開鎖/重置密碼為 IoT 未接的 disabled 死鈕(對鎖業客戶敏感) */}
+        {!UAT_HIDE_FAKE_FLOWS && (
+          <div className="flex flex-col gap-2">
+            <button
+              disabled
+              title={comingSoon}
+              className="flex h-9 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] opacity-60 cursor-not-allowed"
+            >
+              <LockOpen className="h-4 w-4 text-white" />
+              <span className="text-[13px] font-semibold text-white">{t("remoteUnlock")}</span>
+            </button>
+            <button
+              disabled
+              title={comingSoon}
+              className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] opacity-60 cursor-not-allowed"
+            >
+              <Key className="h-4 w-4 text-[var(--text-primary)]" />
+              <span className="text-[13px] font-semibold text-[var(--text-primary)]">{t("resetCode")}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Quotation — estimated_reward 真實 */}
@@ -188,12 +198,15 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
             {formatPrice(workOrder?.estimated_reward)}
           </span>
         </div>
-        <div className="flex items-start gap-2 rounded-md bg-[#F8FAFC] px-3 py-2">
-          <Info className="mt-[2px] h-[14px] w-[14px] flex-shrink-0 text-[var(--text-disabled)]" />
-          <span className="text-[12px] text-[var(--text-secondary)]">
-            {t("quotationInfo")}
-          </span>
-        </div>
+        {/* UAT 隱藏:「明細將於派工計費模組接入後顯示」佔位說明(成本明細已是真資料) */}
+        {!UAT_HIDE_FAKE_FLOWS && (
+          <div className="flex items-start gap-2 rounded-md bg-[#F8FAFC] px-3 py-2">
+            <Info className="mt-[2px] h-[14px] w-[14px] flex-shrink-0 text-[var(--text-disabled)]" />
+            <span className="text-[12px] text-[var(--text-secondary)]">
+              {t("quotationInfo")}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* 成本明細 — CR-0027 後台成本拆項（unit_price 僅後台可見；客戶端不顯示） */}
@@ -218,20 +231,22 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
         error={techError}
       />
 
-      {/* Action Panel (disabled) */}
-      <div className="flex flex-col gap-2 rounded-lg border-t-2 border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
-        <button
-          disabled
-          title={comingSoon}
-          className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] opacity-60 cursor-not-allowed"
-        >
-          <TriangleAlert className="h-4 w-4 text-white" />
-          <span className="text-[14px] font-semibold text-white">{t("markIssue")}</span>
-        </button>
-        <span className="text-center text-[13px] text-[var(--text-secondary)]">
-          {t("modulePending")}
-        </span>
-      </div>
+      {/* UAT 隱藏:標記異常為派工模組未接的 disabled 死鈕 */}
+      {!UAT_HIDE_FAKE_FLOWS && (
+        <div className="flex flex-col gap-2 rounded-lg border-t-2 border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+          <button
+            disabled
+            title={comingSoon}
+            className="flex h-10 items-center justify-center gap-2 rounded-lg bg-[var(--accent)] opacity-60 cursor-not-allowed"
+          >
+            <TriangleAlert className="h-4 w-4 text-white" />
+            <span className="text-[14px] font-semibold text-white">{t("markIssue")}</span>
+          </button>
+          <span className="text-center text-[13px] text-[var(--text-secondary)]">
+            {t("modulePending")}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
