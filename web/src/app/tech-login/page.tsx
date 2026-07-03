@@ -8,6 +8,7 @@ import BackToHome from "@/components/layout/BackToHome";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, loginTechnician } from "@/lib/api";
+import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
 import { friendlyError } from "@/lib/apiError";
 import { LOCK_BRANDS_HINT } from "@/lib/constants/brands";
 
@@ -79,7 +80,11 @@ export default function TechLoginPage() {
 
         <div className="mt-5 border-t border-[var(--border)] pt-4 text-center">
           <Link
-            href="/login"
+            href={
+              APP_MODE === "tech" && PEER_PORTAL_URL
+                ? `${PEER_PORTAL_URL}/login`
+                : "/login"
+            }
             className="text-[13px] font-medium text-[var(--primary)] hover:underline"
           >
             {t("brandEntryLink")}

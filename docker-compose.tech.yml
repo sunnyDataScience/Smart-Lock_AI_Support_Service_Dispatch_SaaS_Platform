@@ -1,0 +1,67 @@
+# docker-compose.tech.yml — 師傅(接案方)stack:tech-api + tech-web
+#
+# CR-0112 雙 stack 拆分(20260702 會議 §三):師傅平台**全品牌共用一套**,
+# 不做每品牌獨立部署。本 stack 不帶自己的資料庫 —— 依業主 2026-07-03 裁決
+# (CIA CR-0112 §8 方案 A),經派工方 stack 的 network 連品牌 DB(UAT 期單品牌);
+# 技師共用庫的物理拆分(跨庫同步層)列 AI-2/AI-3 設計案,定案後再遷移。
+#
+# 先決條件:派工方 stack 必須先起(它擁有 network 與 media volume):
+#   docker compose -f docker-compose.dispatch.yml up -d --build
+#   docker compose -f docker-compose.tech.yml up -d --build
+#
+# 埠位:tech-api 8002 / tech-web 3001(派工方沿用 8001/3000)。
+# 已知取捨:realtime WS 是 in-memory pubsub,事件只在「動作發生的 API 實例」
+# 廣播 → tech-web 的 WS 指向品牌 api(8001,派工指派事件的來源);技師端自身
+# 動作(如他人搶單)不會即時推播,頁面靠重新整理/輪詢補償(前端本有優雅降級)。
+
+name: lock-tech
+
+services:
+  tech-api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "${TECH_API_PORT:-8002}:8080"
+    env_file:
+      - .env                      # API_JWT_SECRET_KEY 必須與品牌 api 相同(token 互通)
+    environment:
+      # 方案 A:連派工方 stack 的品牌 DB(external network 上以 service 名 `db` 解析)
+      POSTGRES_URI: "postgresql://lock:0000@db:5432/lock_AI_data"
+      API_SURFACE: tech           # 技師精簡面:只掛技師 app 路由、停用背景 worker(api/main.py CR-0112)
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3001 http://localhost:3000}"
+      MEDIA_ROOT: /app/api/data/media
+    volumes:
+      # 與品牌 api 共用媒體檔實體(技師上傳的施工照片/簽名,品牌後台要能讀)
+      - media:/app/api/data/media
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  tech-web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        # 技師前端打 tech-api(8002);WS 指品牌 api(8001,派工事件來源,見檔頭)。
+        NEXT_PUBLIC_API_BASE_URL: "${TECH_API_BASE_URL:-http://localhost:8002}"
+        NEXT_PUBLIC_REALTIME_BASE_URL: "${TECH_REALTIME_BASE_URL:-ws://localhost:8001}"
+        NEXT_PUBLIC_APP_MODE: "tech"                                # 師傅 build:只留師傅端路由
+        NEXT_PUBLIC_PEER_PORTAL_URL: "${DISPATCH_PORTAL_URL:-http://localhost:3000}"
+    ports:
+      - "${TECH_WEB_PORT:-3001}:8080"
+    restart: unless-stopped
+
+networks:
+  default:
+    # 加入派工方 stack 的 network(該 stack 先起);TECH_DB_BRAND 指定接哪個品牌的 DB。
+    name: lock-dispatch-${TECH_DB_BRAND:-locksmart}-net
+    external: true
+
+volumes:
+  media:
+    name: lock-dispatch-${TECH_DB_BRAND:-locksmart}-media
+    external: true

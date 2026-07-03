@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError, api, getCurrentSession, login, loginVendor } from "@/lib/api";
+import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
 import { friendlyError } from "@/lib/apiError";
 import { fallbackRouteForRole } from "@/lib/rolePolicy";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
@@ -85,7 +86,11 @@ export default function BrandEntryPage() {
 
         <div className="mt-5 border-t border-[var(--border)] pt-4 text-center">
           <Link
-            href="/tech-login"
+            href={
+              APP_MODE === "dispatch" && PEER_PORTAL_URL
+                ? `${PEER_PORTAL_URL}/tech-login`
+                : "/tech-login"
+            }
             className="text-[13px] font-medium text-[var(--primary)] hover:underline"
           >
             {t("techEntryLink")}

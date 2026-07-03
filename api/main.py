@@ -129,6 +129,16 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 
 cfg = load_config()
 
+# ── API_SURFACE(CR-0112 師傅端/派工方雙 stack 拆分)──────────────────────
+# all(預設)= 完整掛載(既有單體部署與測試,零行為變化);dispatch = 同 all,
+# 供派工方 stack 明示;tech = 師傅端精簡面:只保留技師 app 用到的路由(見檔尾
+# _TECH_SURFACE_PREFIXES 過濾),並停用背景 worker(避免與派工方實例接同一顆
+# DB 時雙跑 → 重複 LINE 推播/重複告警)。
+# 注意:這是部署塑形(deployment shaping),不是安全邊界 —— 權限仍由每個
+# endpoint 的 RBAC(role_required / require_tenant)把關。
+_API_SURFACE = os.environ.get("API_SURFACE", "all").strip().lower() or "all"
+_RUN_BACKGROUND_WORKERS = _API_SURFACE != "tech"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -146,28 +156,32 @@ async def lifespan(app: FastAPI):
     from realtime.sla_monitor import monitor as sla_monitor
     from realtime.statement_auto_approval_cron import worker as statement_auto_approval
 
-    inventory_monitor.start()
-    sla_monitor.start()
-    line_push_worker.start()  # CR-0017 Stage 2 outbox poll → push LINE
-    recon_exc_detector.start()  # CR-0018 Stage 3 cron daily 對帳異常偵測
-    dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
-    canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
-    statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
-    gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
-    media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
-    auto_confirm_cron.start()  # CR-0038 桶4/Q063: 客戶未回 48h 自動結案（排除 hold/異常）
-    logger.info("API service ready (port=%s)", cfg.system["port"])
+    if _RUN_BACKGROUND_WORKERS:
+        inventory_monitor.start()
+        sla_monitor.start()
+        line_push_worker.start()  # CR-0017 Stage 2 outbox poll → push LINE
+        recon_exc_detector.start()  # CR-0018 Stage 3 cron daily 對帳異常偵測
+        dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
+        canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
+        statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
+        gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
+        media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
+        auto_confirm_cron.start()  # CR-0038 桶4/Q063: 客戶未回 48h 自動結案（排除 hold/異常）
+    else:
+        logger.info("API_SURFACE=%s → 背景 worker 全部停用（由派工方 stack 執行）", _API_SURFACE)
+    logger.info("API service ready (port=%s, surface=%s)", cfg.system["port"], _API_SURFACE)
     yield
-    await auto_confirm_cron.stop()
-    await media_retention_cron.stop()
-    await gdpr_hard_delete.stop()
-    await statement_auto_approval.stop()
-    await canary_advance_cron.stop()
-    await dispute_escalation_cron.stop()
-    await recon_exc_detector.stop()
-    await line_push_worker.stop()
-    await sla_monitor.stop()
-    await inventory_monitor.stop()
+    if _RUN_BACKGROUND_WORKERS:
+        await auto_confirm_cron.stop()
+        await media_retention_cron.stop()
+        await gdpr_hard_delete.stop()
+        await statement_auto_approval.stop()
+        await canary_advance_cron.stop()
+        await dispute_escalation_cron.stop()
+        await recon_exc_detector.stop()
+        await line_push_worker.stop()
+        await sla_monitor.stop()
+        await inventory_monitor.stop()
     await close_db()
     logger.info("API service stopped")
 
@@ -520,4 +534,46 @@ async def ws_pool(
         access_token,
         tenant_id,
         path_tech_id=tech_id,
+    )
+
+
+# ── CR-0112:API_SURFACE=tech 路由過濾（必須在所有 include_router / WS 定義之後）──
+# 師傅端 stack 只保留技師 app 實際使用的路由面（依 2026-07-03 盤點:
+# 技師頁面呼叫 = /api/v1/technicians(login/register/me)、/api/v1/auth(登出/
+# refresh/忘記密碼)、/api/v1/work-orders(v1 pool/accept/door-check)、
+# /tenants/{tid}/work-orders(v2 onsite/簽名)、/tenants/{tid}/tech-statements、
+# /tenants/{tid}/media、WS /realtime/pool 與 /realtime/work-orders）。
+# 前綴比對是部署塑形非安全邊界:保留前綴下的派工端點（如 :assign）仍由
+# RBAC 擋 technician。
+_TECH_SURFACE_PREFIXES: tuple[str, ...] = (
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/api/v1/auth",
+    "/api/v1/technicians",
+    "/api/v1/work-orders",
+    "/api/v1/problem-cards",
+    "/api/v1/media",
+    "/tenants/{tenantId}/work-orders",
+    "/tenants/{tenantId}/tech-statements",
+    "/tenants/{tenantId}/media",
+    "/tenants/{tenantId}/me",
+    "/tenants/{tenantId}/problem-cards",
+    "/realtime/pool/",
+    "/realtime/work-orders/",
+)
+
+
+def _tech_surface_keep(path: str) -> bool:
+    """API_SURFACE=tech 時此路由是否保留（依 route.path 字面前綴比對）。"""
+    return any(path.startswith(prefix) for prefix in _TECH_SURFACE_PREFIXES)
+
+
+if _API_SURFACE == "tech":
+    app.router.routes = [
+        r for r in app.router.routes if _tech_surface_keep(getattr(r, "path", ""))
+    ]
+    logger.info(
+        "API_SURFACE=tech → 路由過濾完成，保留 %d 條技師面路由", len(app.router.routes)
     )

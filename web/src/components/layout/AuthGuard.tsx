@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { auth, getCurrentSession } from "@/lib/api";
+import { crossModeRedirect } from "@/lib/appMode";
 import { canAccessRoute, fallbackRouteForRole } from "@/lib/rolePolicy";
 import { SidebarProvider } from "./SidebarContext";
 import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
@@ -40,6 +41,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
+    // CR-0112 雙 stack 拆分:本 build(dispatch/tech)不服務的路由,導向對方
+    // portal(絕對 URL 用 window.location,站內用 router)。all 模式恆為 null。
+    const crossTarget = crossModeRedirect(pathname);
+    if (crossTarget) {
+      if (crossTarget.startsWith("http")) {
+        window.location.assign(crossTarget);
+      } else {
+        router.replace(crossTarget);
+      }
+      return;
+    }
+
     const token = auth.getAccessToken();
 
     if (!token && !isPublic) {
