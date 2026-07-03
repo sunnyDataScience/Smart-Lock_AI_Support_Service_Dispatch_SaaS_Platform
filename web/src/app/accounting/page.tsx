@@ -20,6 +20,7 @@ import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, tenantPath, getCurrentSession } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import { cacheInvalidate } from "@/lib/cache";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
@@ -387,6 +388,13 @@ export default function AccountingPage() {
           >
             {generating ? tS("genMonthlyBusy") : tS("genMonthly")}
           </button>
+          {/* UAT 標註(20260702 決議 7):月結批次只建帳務 ledger,金流未接
+              (HD-3:不走 bank API),實際撥款由財務手動匯款 → 明示避免誤解為自動撥款 */}
+          {UAT_HIDE_FAKE_FLOWS && (
+            <span className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[11px] font-medium text-[#92400E]">
+              {tS("genMonthlyNoPaymentNote")}
+            </span>
+          )}
           {genMsg && (
             <span className="text-[13px] font-medium text-[var(--text-secondary)]">{genMsg}</span>
           )}

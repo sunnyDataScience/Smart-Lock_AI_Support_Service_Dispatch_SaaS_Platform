@@ -2250,7 +2250,8 @@
         "approving": "Approving…",
         "confirm": "Confirm"
       },
-      "approveToast": "Approved reconciliation {id} (created {payout} settlement)"
+      "approveToast": "Approved reconciliation {id} (created {payout} settlement)",
+      "genMonthlyNoPaymentNote": "No payment gateway: creates ledger records only; payouts are wired manually by finance"
     },
     "vouchers": {
       "filterStartLabel": "Start date",

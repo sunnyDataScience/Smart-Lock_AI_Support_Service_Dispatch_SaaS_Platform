@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
+import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import WorkOrderDetailSidebar from "@/components/work-orders/WorkOrderDetailSidebar";
 import DispatchOrderView from "@/components/work-orders/DispatchOrderView";
 import {
@@ -721,14 +722,17 @@ function WorkTimeline({ order }: { order: WorkOrder | null }) {
         <span className="text-[20px] font-semibold text-[var(--text-primary)]">
           {t("title")}
         </span>
-        <button
-          disabled
-          title={tCommon("comingSoon")}
-          className="flex items-center gap-[6px] rounded-md border border-[var(--border)] px-3 py-[6px] opacity-60"
-        >
-          <span className="text-[13px] text-[var(--text-secondary)]">{t("filterAll")}</span>
-          <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
-        </button>
+        {/* UAT 隱藏(20260702 決議 7):時間軸篩選為未實作的 disabled 死鈕 */}
+        {!UAT_HIDE_FAKE_FLOWS && (
+          <button
+            disabled
+            title={tCommon("comingSoon")}
+            className="flex items-center gap-[6px] rounded-md border border-[var(--border)] px-3 py-[6px] opacity-60"
+          >
+            <span className="text-[13px] text-[var(--text-secondary)]">{t("filterAll")}</span>
+            <ChevronDown className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
+          </button>
+        )}
       </div>
 
       {events.length === 0 ? (
@@ -1825,12 +1829,16 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          <div className="mx-8 my-4 flex items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
-            <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[#64748B]" />
-            <span className="text-[13px] leading-[1.6] text-[#475569]">
-              {t("info.banner")}
-            </span>
-          </div>
+          {/* UAT 隱藏(20260702 決議 7):banner 唯一提及的「設備面板示意」已隨面板一併
+              隱藏,頁面所有可見區塊皆為即時資料 → banner 無存在必要,恢復顯示時一起回來 */}
+          {!UAT_HIDE_FAKE_FLOWS && (
+            <div className="mx-8 my-4 flex items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
+              <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[#64748B]" />
+              <span className="text-[13px] leading-[1.6] text-[#475569]">
+                {t("info.banner")}
+              </span>
+            </div>
+          )}
 
           {order && (
             <div className="mx-8 mt-4 flex justify-end">

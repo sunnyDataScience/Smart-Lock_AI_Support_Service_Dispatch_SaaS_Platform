@@ -31,6 +31,7 @@ import {
 } from "@/lib/dateRange";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
@@ -333,22 +334,25 @@ export default function DashboardPage() {
                 icon={Users}
               />
             </div>
-            <div className="mt-4 flex gap-6">
-              <div className="flex-1">
-                <div className="mb-1 flex items-center text-[12px] text-[#71717A]">
-                  <PendingBadge label={t("pendingBadge")} />
+            {/* UAT 隱藏(20260702 決議 7):SLA 達標率 88% 為寫死示意值(待派工模組) */}
+            {!UAT_HIDE_FAKE_FLOWS && (
+              <div className="mt-4 flex gap-6">
+                <div className="flex-1">
+                  <div className="mb-1 flex items-center text-[12px] text-[#71717A]">
+                    <PendingBadge label={t("pendingBadge")} />
+                  </div>
+                  <KpiCard
+                    title={tKpi("slaRate")}
+                    value={tKpi("slaRateValue")}
+                    subtitle={tKpi("slaRateSub")}
+                    accentColor="#2563EB"
+                    iconBgColor="#EFF6FF"
+                    icon={Shield}
+                    progressBar={{ value: 88, color: "#2563EB" }}
+                  />
                 </div>
-                <KpiCard
-                  title={tKpi("slaRate")}
-                  value={tKpi("slaRateValue")}
-                  subtitle={tKpi("slaRateSub")}
-                  accentColor="#2563EB"
-                  iconBgColor="#EFF6FF"
-                  icon={Shield}
-                  progressBar={{ value: 88, color: "#2563EB" }}
-                />
               </div>
-            </div>
+            )}
           </div>
 
           <div className="flex gap-6">

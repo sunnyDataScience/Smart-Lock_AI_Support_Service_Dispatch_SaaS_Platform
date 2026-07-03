@@ -27,6 +27,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getCurrentSession, logout, type CurrentSession } from "@/lib/api";
 import { canAccessRoute } from "@/lib/rolePolicy";
+import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import NotificationBell from "./NotificationBell";
 import Hamburger from "./Hamburger";
 import { useSidebar } from "./SidebarContext";
@@ -94,7 +95,9 @@ const navSections: NavSection[] = [
         href: "/accounting",
         children: [
           { id: "settlements", href: "/accounting" },
-          { id: "refunds", href: "/admin/refunds" },
+          // UAT 隱藏(20260702 決議 7):退款審批為真狀態機但金流 0 接通,
+          // 核准不會真的退錢 → 誤導性最高,UAT 期間整條入口移除。
+          ...(UAT_HIDE_FAKE_FLOWS ? [] : [{ id: "refunds", href: "/admin/refunds" }]),
           { id: "warranty", href: "/admin/warranty-claims" },
           { id: "disputes", href: "/admin/disputes" },
         ],

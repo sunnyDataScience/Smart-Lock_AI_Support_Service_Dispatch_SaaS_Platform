@@ -29,6 +29,7 @@ import {
 } from "@/lib/dateRange";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
@@ -249,28 +250,33 @@ export default function RevenueReportPage() {
 
             <DateRangePicker value={range} onChange={setRange} />
 
-            <button
-              disabled
-              title="即將推出"
-              className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[#CBD5E1] bg-[var(--bg-page)] px-3 py-[7px] opacity-60"
-            >
-              <span className="text-[13px] text-[var(--text-disabled)]">
-                切片：按品牌
-              </span>
-              <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
-            </button>
+            {/* UAT 隱藏(20260702 決議 7):品牌切片/與上期比較為未實作的即將推出控制 */}
+            {!UAT_HIDE_FAKE_FLOWS && (
+              <>
+                <button
+                  disabled
+                  title="即將推出"
+                  className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-[#CBD5E1] bg-[var(--bg-page)] px-3 py-[7px] opacity-60"
+                >
+                  <span className="text-[13px] text-[var(--text-disabled)]">
+                    切片：按品牌
+                  </span>
+                  <ChevronDown className="h-[14px] w-[14px] text-[var(--text-disabled)]" />
+                </button>
 
-            <div
-              className="flex items-center gap-2 opacity-60"
-              title="即將推出"
-            >
-              <div className="relative h-5 w-9 rounded-full bg-[#CBD5E1]">
-                <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white" />
-              </div>
-              <span className="text-[13px] text-[var(--text-disabled)]">
-                與上期比較
-              </span>
-            </div>
+                <div
+                  className="flex items-center gap-2 opacity-60"
+                  title="即將推出"
+                >
+                  <div className="relative h-5 w-9 rounded-full bg-[#CBD5E1]">
+                    <div className="absolute left-[2px] top-[2px] h-4 w-4 rounded-full bg-white" />
+                  </div>
+                  <span className="text-[13px] text-[var(--text-disabled)]">
+                    與上期比較
+                  </span>
+                </div>
+              </>
+            )}
 
             <div className="flex-1" />
 
@@ -406,9 +412,12 @@ export default function RevenueReportPage() {
                 品牌營收占比
               </span>
               <div className="flex-1" />
-              <span className="text-xs text-[var(--text-secondary)]">
-                樞紐切片：時間 × 品牌（待後端 endpoint 擴充後上線）
-              </span>
+              {/* UAT 隱藏(20260702 決議 7):未上線功能的預告文字 */}
+              {!UAT_HIDE_FAKE_FLOWS && (
+                <span className="text-xs text-[var(--text-secondary)]">
+                  樞紐切片：時間 × 品牌（待後端 endpoint 擴充後上線）
+                </span>
+              )}
             </div>
 
             <div className="overflow-hidden rounded-lg border border-[#E2E8F0]">
