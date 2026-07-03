@@ -320,3 +320,97 @@ def test_webhook_valid_signature_invokes_loop_and_replies(monkeypatch):
     assert loop.seen["content"] == "我的鎖是 Kaadas K9"
     assert replied["text"] == "好的,已為您記下 🔐"
     assert replied["token"] == "rt1"
+
+
+# ── VLN(2026-07-03):LINE 圖片訊息接入 vision 管線 ──────────────
+
+
+class _FakeMediaLoop(_FakeLoop):
+    async def _process_message(self, msg, session_key=None):
+        self.seen = {
+            "sender_id": msg.sender_id,
+            "content": msg.content,
+            "media": list(msg.media or []),
+            "session_key": session_key,
+        }
+        return _FakeOut(self._reply)
+
+
+def test_handle_text_turn_carries_media_paths():
+    """帶 media 的 turn:路徑進 InboundMessage.media(vision 管線入口)。"""
+    loop = _FakeMediaLoop("照片裡是 Dormakaba 面板")
+    out = asyncio.run(
+        handle_text_turn(loop, "locksmart", "U1", "", media=["/tmp/img.jpg"])
+    )
+    assert out == "照片裡是 Dormakaba 面板"
+    assert loop.seen["media"] == ["/tmp/img.jpg"]
+    assert loop.seen["content"] == ""
+
+
+def test_handle_text_turn_media_only_not_skipped():
+    """純圖片(無文字)不可被空訊息 guard 擋掉。"""
+    loop = _FakeMediaLoop("ok")
+    out = asyncio.run(handle_text_turn(loop, "locksmart", "U1", "  ", media=["/tmp/a.png"]))
+    assert out == "ok"
+    assert loop.seen["media"] == ["/tmp/a.png"]
+
+
+def test_handle_text_turn_no_text_no_media_skips():
+    loop = _FakeMediaLoop("x")
+    out = asyncio.run(handle_text_turn(loop, "locksmart", "U1", "", media=None))
+    assert out == ""
+    assert loop.seen == {}
+
+
+class _FakeBlobApi:
+    """模擬 AsyncMessagingApiBlob.get_message_content。"""
+
+    def __init__(self, data):
+        self._data = data
+        self.called_with = None
+
+    async def get_message_content(self, message_id):
+        self.called_with = message_id
+        if isinstance(self._data, Exception):
+            raise self._data
+        return self._data
+
+
+# 最小合法 PNG magic bytes(detect_image_mime 用 magic bytes 判 mime)
+_PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"0" * 32
+
+
+def test_download_line_image_writes_file(tmp_path, monkeypatch):
+    from lockcore.channels import line_gateway as lg
+
+    monkeypatch.setattr(
+        "lockcore.config.paths.get_media_dir", lambda channel=None: tmp_path
+    )
+    blob = _FakeBlobApi(bytearray(_PNG_BYTES))
+    path = asyncio.run(lg.download_line_image(blob, "msg-123"))
+    assert path is not None and path.endswith("msg-123.png")
+    from pathlib import Path
+
+    assert Path(path).read_bytes() == _PNG_BYTES
+    assert blob.called_with == "msg-123"
+
+
+def test_download_line_image_empty_returns_none(tmp_path, monkeypatch):
+    from lockcore.channels import line_gateway as lg
+
+    monkeypatch.setattr(
+        "lockcore.config.paths.get_media_dir", lambda channel=None: tmp_path
+    )
+    blob = _FakeBlobApi(b"")
+    assert asyncio.run(lg.download_line_image(blob, "msg-e")) is None
+
+
+def test_download_line_image_error_returns_none(tmp_path, monkeypatch):
+    """Blob API 炸掉 → fail-soft 回 None,不 raise(webhook 不可炸)。"""
+    from lockcore.channels import line_gateway as lg
+
+    monkeypatch.setattr(
+        "lockcore.config.paths.get_media_dir", lambda channel=None: tmp_path
+    )
+    blob = _FakeBlobApi(RuntimeError("boom"))
+    assert asyncio.run(lg.download_line_image(blob, "msg-x")) is None
