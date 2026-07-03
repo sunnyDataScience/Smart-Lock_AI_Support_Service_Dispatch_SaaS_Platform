@@ -97,6 +97,7 @@
 
 | 085 | `085-intake-case.sql` | CR-0108 | 🟢 idempotent ✅ 2026-06-28 套 dev | M01 進線 Case 入口（業主裁決 §8）：新表 saas.intake_case（一次進線事件上游容器，下含多 problem_card/work_order；source_channel CHECK line/phone/web/referral=D1，partner 4 渠道 Phase II；可讀號 C-NNNNNN 走 saas.intake_case_number_seq=D5；first_response_due_at=建案+[intake].first_response_sla_minutes 暫定30=D2）+ problem_cards/work_orders ADD COLUMN case_id（nullable，D3 漸進不硬擋）。CREATE/ALTER IF NOT EXISTS 可重套 |
 | 086 | `086-technician-login-gate-backfill.sql` | 師傅測試修復 | 🟢 idempotent ✅ 2026-07-02 套 dev | 技師登入資格資料校正：users.is_active 對齊 technicians.status（非 active → FALSE、active → TRUE）。配套程式修復：register is_active=FALSE、lifecycle 轉移同步 is_active、login 依 technicians.status 回精確 403（ACCOUNT_PENDING_APPROVAL / ACCOUNT_SUSPENDED）。純 UPDATE 可重套 |
+| 087 | `087-quote-catalog-soft-delete.sql` | CR-0110 | 🟢 idempotent ✅ 2026-07-03 套 dev | 報價主檔三表（service_catalog/material_catalog/surcharge_rule）加 deleted_at 軟刪欄。CR-0110 CRUD 依 20260702 會議「一品牌一 DB」裁決簡化落地（無複合鍵改造）。ADD COLUMN IF NOT EXISTS 可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

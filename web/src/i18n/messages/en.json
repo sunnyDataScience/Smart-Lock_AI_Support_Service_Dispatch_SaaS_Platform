@@ -1922,7 +1922,6 @@
     },
     "quoteCatalog": {
       "title": "Quote Catalog",
-      "mockBadge": "Mock Data",
       "loading": "Loading…",
       "services": "Services ({n})",
       "materials": "Materials ({n})",
@@ -1934,7 +1933,8 @@
       "custPrice": "Suggested Price",
       "ruleType": "Rule Type",
       "value": "Value",
-      "status": "Status"
+      "status": "Status",
+      "actions": "Actions"
     },
     "quotes": {
       "title": "Quotes",

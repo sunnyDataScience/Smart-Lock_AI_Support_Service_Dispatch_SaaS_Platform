@@ -1922,7 +1922,6 @@
     },
     "quoteCatalog": {
       "title": "報價目錄",
-      "mockBadge": "示意資料",
       "loading": "載入中…",
       "services": "服務項目（{n}）",
       "materials": "材料（{n}）",
@@ -1934,7 +1933,8 @@
       "custPrice": "建議售價",
       "ruleType": "規則類型",
       "value": "數值",
-      "status": "狀態"
+      "status": "狀態",
+      "actions": "操作"
     },
     "quotes": {
       "title": "報價單",
