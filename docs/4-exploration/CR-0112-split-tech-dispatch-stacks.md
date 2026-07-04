@@ -112,14 +112,38 @@ db-init 一次性服務套既有 Schema/migrations/seeds(不新增 migration)。
 4. **SoT 衝突**:✅ **接受現實解讀** —— 會議「師傅資料庫已獨立」視為目標規劃
    而非現況;本 CR §3.1 為正式記錄。
 
+### §8-bis 業主 2026-07-03 晚間改裁:方案 A → **方案 B(技師身分庫物理拆分)**
+
+業主看到師傅 stack 無獨立 DB 後改裁 B。落地設計(化解 §3.2 五斷點的關鍵):
+
+- **權威庫 + 投影(mirror)**:tech DB = 技師身分權威庫(users 技師列/technicians/
+  排班/品牌授權/認證/技能/lifecycle 事件);**品牌庫保留技師列作投影** ——
+  盤點發現 **35 張品牌表 FK 指向 users/technicians**(work_orders/dispatch_logs/
+  notifications/revoked_jti…),投影使 FK 與派工/佣金/月結 JOIN **全部不用改**。
+- **同步 = 寫入路徑雙寫**:身分寫入先落權威庫,再以實際值 upsert/刪除投影
+  (`api/core/tech_mirror.py`,非重放 SQL → DB 端生成值不分岔;失敗大聲 raise)。
+- **讀全部不動**:投影同步更新 → 登入/派工資格/佣金等讀繼續走品牌庫。
+- **單一居所表**:technician_schedule_requests、saas.technician_lifecycle_event
+  只在技師庫(讀寫路由 `require_tech_conn`)。
+- **Fallback 安全閥**:`TECH_POSTGRES_URI` 未設 = 單庫,行為與拆分前完全相同
+  (雲端 UAT/CI/pytest 全走此模式);設定後才是真雙庫(本機雙 stack)。
+- 特例:排班 resolver FK 拆除(審核者是後台帳號,不在技師庫);技師帳號
+  在雙庫模式下不可走 RBAC 角色指派變更角色(身分域不變量);GDPR redact/
+  hard-delete 依角色路由 + 鏡射;password reset confirm 跨庫失去原子性,
+  改「先改密、後燒 token」順序(補償邏輯記錄於 code 註解)。
+
 ### 進度
 
-- ✅ S1-S4 done:api `API_SURFACE`(surface 過濾 + worker 閘,預設 all 零影響)、
-  web 兩 build(appMode.ts + AuthGuard + landing/交叉連結 + Dockerfile ARG)、
-  `docker-compose.dispatch.yml`(BRAND 參數化 + db-init profile)、
-  `docker-compose.tech.yml`(external network 連品牌 DB)。api 全套 1544 passed、
-  tsc 0;預設品牌 pgdata 由舊 volume clone 為 `lock-dispatch-locksmart-pgdata`
-  (舊 volume 留備援)。
+- ✅ S1-S4 done(方案 A 服務面拆分):api `API_SURFACE`(surface 過濾 + worker
+  閘,預設 all 零影響)、web 兩 build(appMode.ts + AuthGuard + landing/交叉連結
+  + Dockerfile ARG)、`docker-compose.dispatch.yml`(BRAND 參數化 + db-init
+  profile)、`docker-compose.tech.yml`。api 全套 1544 passed、tsc 0;預設品牌
+  pgdata 由舊 volume clone 為 `lock-dispatch-locksmart-pgdata`(舊 volume 留備援)。
+- ✅ S5 done(方案 B 拆庫):`core/db.py` 雙連線 + fallback、`core/tech_mirror.py`
+  鏡射、5 個 service 寫入路由(auth 註冊/計數/改密/重設、technician CRUD/
+  online_state、lifecycle 全交易、排班單一居所、認證 CRUD、GDPR、role 指派閘)、
+  compose 加 tech-db(5434)、`scripts/db/split-tech-db.sh`(schema 子集 + 全量
+  搬遷 + --verify 漂移比對)。全套 1544 passed(fallback 零回歸)。
 
 ## §9 Suggested Implementation Order(依 §8 裁決後)
 

@@ -19,6 +19,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
+from core.tech_mirror import mirror_rows
 from core.db import _ensure_conn
 from core.errors import ApiError
 
@@ -186,9 +187,16 @@ async def soft_delete(
         days=HARD_DELETE_COOLDOWN_DAYS,
     )
 
-    # 1. clear PII on users
+    # 1. clear PII on users(CR-0112:技師列須改權威庫 + 鏡射,否則權威庫留 PII)
     try:
-        await db_module._conn.execute(
+        _is_tech = False
+        if db_module.tech_db_enabled():  # fallback 模式免探查(不擾動單庫行為/測試)
+            rcur = await db_module._conn.execute(
+                "SELECT role FROM users WHERE id = %s::uuid", (subject_user_id,))
+            rrow = await rcur.fetchone()
+            _is_tech = bool(rrow) and rrow[0] == "technician"
+        _conn = await db_module.require_tech_conn() if _is_tech else db_module._conn
+        await _conn.execute(
             "UPDATE users SET "
             "  display_name = '[REDACTED]', "
             "  email = '[REDACTED-' || id::text || ']', "
@@ -197,6 +205,8 @@ async def soft_delete(
             "WHERE id = %s::uuid",
             (subject_user_id,),
         )
+        if _is_tech:
+            await mirror_rows("users", [subject_user_id])
     except Exception:  # noqa: BLE001
         logger.exception(
             "soft_delete users PII clear failed user=%s", subject_user_id[:8],
@@ -253,11 +263,21 @@ async def hard_delete(
         )
 
     # 1. DELETE users row (CASCADE 由 FK 處理；audit 保留)
+    # CR-0112:技師列先刪權威庫,再以鏡射刪投影(mirror_rows 對權威已無的 id 執行投影 DELETE)
     try:
-        await db_module._conn.execute(
+        _is_tech = False
+        if db_module.tech_db_enabled():
+            rcur = await db_module._conn.execute(
+                "SELECT role FROM users WHERE id = %s::uuid", (req["subject_user_id"],))
+            rrow = await rcur.fetchone()
+            _is_tech = bool(rrow) and rrow[0] == "technician"
+        _conn = await db_module.require_tech_conn() if _is_tech else db_module._conn
+        await _conn.execute(
             "DELETE FROM users WHERE id = %s::uuid",
             (req["subject_user_id"],),
         )
+        if _is_tech:
+            await mirror_rows("users", [req["subject_user_id"]])
     except Exception:  # noqa: BLE001
         logger.exception(
             "hard_delete users row failed user=%s",

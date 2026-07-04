@@ -19,12 +19,21 @@
 - 已知取捨:realtime in-memory pubsub → 技師端只收品牌 api 側事件(優雅降級);
   media 先前存容器內(本就 ephemeral),現起才進 volume。
 
+## 方案 B 追加(2026-07-04,業主 2026-07-03 晚間改裁)
+
+- 技師身分庫已**物理拆分落地**:權威庫(tech-db/lock_tech/5434)+品牌投影雙寫
+  (`core/tech_mirror.py`);35 張品牌表 FK 靠投影全保;讀路徑零改動。
+- 單一居所:technician_schedule_requests、saas.technician_lifecycle_event 只在技師庫。
+- Fallback:`TECH_POSTGRES_URI` 未設=單庫(雲端/CI/pytest);雙庫模式**兩個 api 都要設**,
+  否則身分寫入漂移(`scripts/db/split-tech-db.sh --verify` 可查、`--force` 重建基準)。
+- 雙庫模式技師帳號不可走 RBAC 角色指派(422 不變量閘)。
+
 ## 行動項目
 
-- [ ] AI-2/AI-3 設計案納入:技師共用庫物理拆分需先做跨庫同步層(五斷點清單在 CR-0112 §3.2)
-- [ ] 多品牌時 tech stack 的跨品牌聚合(單一 POSTGRES_URI 只能接一個品牌 DB)為同一設計案
+- [ ] 多品牌時 tech stack 的跨品牌聚合(tech-api 單一 POSTGRES_URI 只能接一個品牌庫)→ AI-2/AI-3 設計案
 - [ ] realtime 跨實例事件(DB LISTEN/NOTIFY 或 Redis pubsub)可一併納入 AI-3
-- [ ] 雲端部署腳本(scripts/deploy/*.sh)尚未跟上雙 stack(仍單體);AI-3 參數化時一併
+- [ ] 雲端部署腳本(scripts/deploy/*.sh)尚未跟上雙 stack 與 TECH_POSTGRES_URI;AI-3 參數化時一併
+- [ ] 投影一致性監控:目前靠同步鏡射+verify 腳本;若要更強保證(outbox/事件溯源)另立 CR
 - [ ] 發現:web 端 `/account/commission-statements` 呼叫的 `GET /tenants/{tid}/me/commission-statements` 在 API 不存在(既有 404,非本輪造成)
 
 ## 影響評估

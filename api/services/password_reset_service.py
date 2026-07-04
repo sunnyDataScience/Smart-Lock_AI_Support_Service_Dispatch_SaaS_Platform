@@ -29,6 +29,7 @@ from core.auth import hash_password
 from core.config import load_config
 from core.db import _ensure_conn
 from core.errors import ApiError
+from core.tech_mirror import mirror_rows
 from services import email_provider
 
 logger = logging.getLogger("api.password_reset_service")
@@ -129,15 +130,29 @@ async def confirm_reset(*, token: str, new_password: str) -> None:
         raise ApiError("RESET_TOKEN_EXPIRED", "Reset token has expired", 400)
 
     new_hash = hash_password(new_password)
-    async with db_module._conn.transaction():
-        # A3：password_changed_at = NOW() → 撤銷該 user 此前所有 access/refresh token。
-        await db_module._conn.execute(
-            "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
-            "WHERE id = %s::uuid",
-            (new_hash, user_id),
+
+    # CR-0112 方案 B:users 若為技師列須寫權威庫 + 鏡射;token 表留品牌庫。
+    # 拆庫後兩句無法同交易 —— 順序「先改密、後燒 token」:改密失敗 token 未燒可
+    # 重試;燒 token 失敗最壞情況是 token 於 TTL 內可再設一次密碼(可接受)。
+    is_tech = False
+    if db_module.tech_db_enabled():  # fallback 模式免探查(單庫行為不變)
+        rcur = await db_module._conn.execute(
+            "SELECT role FROM users WHERE id = %s::uuid LIMIT 1", (user_id,)
         )
-        await db_module._conn.execute(
-            "UPDATE password_reset_tokens SET used_at = NOW() WHERE id = %s::uuid",
-            (token_id,),
-        )
+        rrow = await rcur.fetchone()
+        is_tech = bool(rrow) and rrow[0] == "technician"
+
+    conn = await db_module.require_tech_conn() if is_tech else db_module._conn
+    # A3：password_changed_at = NOW() → 撤銷該 user 此前所有 access/refresh token。
+    await conn.execute(
+        "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (new_hash, user_id),
+    )
+    if is_tech:
+        await mirror_rows("users", [user_id])
+    await db_module._conn.execute(
+        "UPDATE password_reset_tokens SET used_at = NOW() WHERE id = %s::uuid",
+        (token_id,),
+    )
     logger.info("confirm_reset: 密碼已重設 user_id=%s", user_id)

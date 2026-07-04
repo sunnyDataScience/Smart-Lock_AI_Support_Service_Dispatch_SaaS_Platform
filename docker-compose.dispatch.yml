@@ -72,6 +72,12 @@ services:
       - .env                      # API_JWT_SECRET_KEY / GEMINI / OPIK 等
     environment:
       POSTGRES_URI: "postgresql://lock:0000@db:5432/lock_AI_data"
+      # 雙庫模式(CR-0112 方案 B):技師身分權威庫在師傅 stack 的 tech-db。
+      # 預設空 = 單庫 fallback(dispatch stack 可獨立起);跑雙庫時傳:
+      #   TECH_POSTGRES_URI=postgresql://lock:0000@tech-db:5432/lock_tech \
+      #     docker compose -f docker-compose.dispatch.yml up -d api
+      # (tech-db 由師傅 stack 提供並掛在本 stack 的 network 上)
+      TECH_POSTGRES_URI: "${TECH_POSTGRES_URI:-}"
       API_SURFACE: dispatch       # 完整後台面 + 背景 worker(見 api/main.py CR-0112)
       # 兩個前端網域都要放行(派工方 web + 師傅 web 打同一品牌 api 的 WS/媒體)
       CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000 http://localhost:3001}"

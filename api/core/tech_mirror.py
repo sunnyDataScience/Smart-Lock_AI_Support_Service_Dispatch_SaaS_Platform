@@ -1,0 +1,123 @@
+"""技師身分投影鏡射(CR-0112 方案 B)。
+
+架構:tech DB(TECH_POSTGRES_URI)為技師身分**權威庫**;品牌庫保留技師列
+作**投影(mirror)** —— 35 張品牌表(work_orders/dispatch_logs/notifications/
+revoked_jti…)FK 指向 users/technicians,投影使 FK 與派工/佣金 JOIN 全不用改。
+
+用法:身分寫入先落權威庫(core.db.require_tech_conn),完成後呼叫本模組把
+受影響列以**實際值**(含 DB 端生成的 uuid/timestamp)upsert/刪除到品牌庫,
+兩庫不會因各自 DEFAULT 而分岔。
+
+單庫 fallback(TECH_POSTGRES_URI 未設)時全部 no-op —— 權威連線即主連線,
+不需要也不能鏡射(會變成同庫重複寫)。
+
+失敗策略:鏡射失敗**大聲失敗**(log ERROR + raise)而非靜默漂移;修復路徑
+= `scripts/db/split-tech-db.sh --verify` 查漂移、`--force` 以品牌庫重建基準
+或以權威庫覆寫投影(視情況)。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Sequence
+
+from psycopg.types.json import Json
+
+from core import db
+
+logger = logging.getLogger("api.tech_mirror")
+
+
+def _adapt_row(row: tuple) -> list:
+    """SELECT * 取回的 jsonb 欄位是 Python dict/list —— 直接當參數重插會被
+    psycopg 適配成 Postgres array(如 {Yale})而非 jsonb → InvalidTextRepresentation。
+    以 Json() 包回 jsonb。鏡射表(users/technicians/skill/auth/cert)無原生 array 欄位。"""
+    return [Json(v) if isinstance(v, (dict, list)) else v for v in row]
+
+# 允許鏡射的表白名單(避免動態 SQL 被誤用到任意表)
+_MIRRORED_TABLES = {
+    "users",
+    "technicians",
+    "technician_skill",
+    "technician_brand_authorization",
+    "technician_certification",
+}
+
+
+def _check_table(table: str) -> None:
+    if table not in _MIRRORED_TABLES:
+        raise ValueError(f"tech_mirror 不支援表 {table}(白名單:{sorted(_MIRRORED_TABLES)})")
+
+
+async def mirror_rows(table: str, pk_vals: Sequence) -> None:
+    """把權威庫中指定 id 的列 upsert 到品牌庫投影;權威庫已刪的 id 同步刪投影。
+
+    以 SELECT * 實際值鏡射(非重放 SQL),兩庫 DEFAULT 生成值不會分岔。
+    """
+    _check_table(table)
+    if not db.tech_db_enabled() or not pk_vals:
+        return
+    ids = list(pk_vals)
+    try:
+        tech = await db.require_tech_conn()
+        cur = await tech.execute(f"SELECT * FROM {table} WHERE id = ANY(%s)", (ids,))
+        rows = await cur.fetchall()
+        cols = [d.name for d in cur.description]
+        async with db.get_conn() as brand:
+            if rows:
+                collist = ", ".join(cols)
+                placeholders = ", ".join(["%s"] * len(cols))
+                setlist = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c != "id")
+                sql = (
+                    f"INSERT INTO {table} ({collist}) VALUES ({placeholders}) "
+                    f"ON CONFLICT (id) DO UPDATE SET {setlist}"
+                )
+                for row in rows:
+                    await brand.execute(sql, _adapt_row(row))
+            # SELECT 回來的 id 是 UUID 物件、呼叫端傳字串 —— 統一 str 比對,
+            # 否則永遠視為 missing → 把剛 upsert 的投影列又刪掉(實測踩雷)。
+            found = {str(row[cols.index("id")]) for row in rows} if rows else set()
+            missing = [v for v in ids if str(v) not in found]
+            if missing:
+                await brand.execute(f"DELETE FROM {table} WHERE id = ANY(%s)", (missing,))
+        logger.info("[TechMirror] %s 鏡射 %d 列(刪 %d)", table, len(rows), len(ids) - len(rows))
+    except Exception:
+        logger.error(
+            "[TechMirror] %s 鏡射失敗(ids=%s)—— 權威庫已寫入、投影未同步,"
+            "跑 scripts/db/split-tech-db.sh --verify 檢查漂移",
+            table,
+            ids,
+            exc_info=True,
+        )
+        raise
+
+
+async def mirror_children(table: str, fk_col: str, parent_val) -> None:
+    """子表全量刷新鏡射:以權威庫「該父鍵下的全部子列」重建品牌庫投影。
+
+    適用整批替換的子集(如技師技能清單);先刪投影中該父鍵所有列,再逐列插入。
+    """
+    _check_table(table)
+    if fk_col not in ("technician_id", "user_id"):
+        raise ValueError(f"tech_mirror.mirror_children 不支援 fk_col={fk_col}")
+    if not db.tech_db_enabled():
+        return
+    try:
+        tech = await db.require_tech_conn()
+        cur = await tech.execute(f"SELECT * FROM {table} WHERE {fk_col} = %s", (parent_val,))
+        rows = await cur.fetchall()
+        cols = [d.name for d in cur.description]
+        async with db.get_conn() as brand:
+            await brand.execute(f"DELETE FROM {table} WHERE {fk_col} = %s", (parent_val,))
+            if rows:
+                collist = ", ".join(cols)
+                placeholders = ", ".join(["%s"] * len(cols))
+                sql = f"INSERT INTO {table} ({collist}) VALUES ({placeholders})"
+                for row in rows:
+                    await brand.execute(sql, _adapt_row(row))
+        logger.info("[TechMirror] %s(%s=%s)全量刷新 %d 列", table, fk_col, parent_val, len(rows))
+    except Exception:
+        logger.error(
+            "[TechMirror] %s 子表鏡射失敗(%s=%s)", table, fk_col, parent_val, exc_info=True
+        )
+        raise
