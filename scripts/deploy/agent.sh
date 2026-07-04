@@ -10,11 +10,27 @@
 # ============================================================
 set -euo pipefail
 
+# ── 品牌參數化(AI-3 / 20260702 會議 §三「一品牌一 GCP 專案」)──
+# BRAND=<name> 時載入 scripts/deploy/brands/<name>.env 覆蓋下方預設;
+# 未設 BRAND = 現行預設(locksmart 參考值),行為與參數化前完全相同。
+# 用法:BRAND=brandx ./scripts/deploy/api.sh
+_DEPLOY_SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+if [[ -n "${BRAND:-}" ]]; then
+    _BRAND_ENV="${_DEPLOY_SCRIPT_DIR}/brands/${BRAND}.env"
+    if [[ ! -f "${_BRAND_ENV}" ]]; then
+        echo "FAIL: 找不到品牌設定 ${_BRAND_ENV}(參考 brands/locksmart.env 建立)"
+        exit 1
+    fi
+    # shellcheck disable=SC1090
+    source "${_BRAND_ENV}"
+    echo "已載入品牌設定:${BRAND} (${_BRAND_ENV})"
+fi
+
 # ── GCP 設定 ──
-PROJECT_ID="cedar-scope-489604-g3"
-REGION="asia-east1"
-SERVICE_NAME="smart-lock-agent"
-REPO="lock-ai-repo"
+PROJECT_ID="${PROJECT_ID:-cedar-scope-489604-g3}"
+REGION="${REGION:-asia-east1}"
+SERVICE_NAME="${SERVICE_NAME:-smart-lock-agent}"
+REPO="${REPO:-lock-ai-repo}"
 
 # Image tag: git short SHA + timestamp（支援 rollback）
 GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -24,8 +40,8 @@ IMAGE_BASE="asia-east1-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE_NAME}"
 IMAGE="${IMAGE_BASE}:${IMAGE_TAG}"
 
 # ── Cloud Run 設定 ──
-SERVICE_ACCOUNT="lock-ai@${PROJECT_ID}.iam.gserviceaccount.com"
-CLOUDSQL_INSTANCE="${PROJECT_ID}:${REGION}:lock-ai"
+SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-lock-ai@${PROJECT_ID}.iam.gserviceaccount.com}"
+CLOUDSQL_INSTANCE="${CLOUDSQL_INSTANCE:-${PROJECT_ID}:${REGION}:lock-ai}"
 PORT=8080
 MEMORY="2Gi"
 CPU=2
@@ -34,8 +50,8 @@ MAX_INSTANCES=3
 TIMEOUT=300
 
 # ── Cloud SQL 連線元件（用於自動拼接 POSTGRES_URI）──
-DB_USER="lock-ai"
-DB_NAME="lock-ai-db"
+DB_USER="${DB_USER:-lock-ai}"
+DB_NAME="${DB_NAME:-lock-ai-db}"
 DB_SOCKET="/cloudsql/${CLOUDSQL_INSTANCE}"
 
 # ── 環境變數 ──
