@@ -4,7 +4,8 @@ import { Building2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { ApiError, api, getCurrentSession, login, loginVendor } from "@/lib/api";
+import { ApiError, getCurrentSession, login, loginVendor } from "@/lib/api";
+import VendorRegisterForm from "@/components/auth/VendorRegisterForm";
 import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
 import { friendlyError } from "@/lib/apiError";
 import { fallbackRouteForRole } from "@/lib/rolePolicy";
@@ -20,7 +21,6 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 //   - 註冊 tab:廠商自助註冊(原 /register 廠商表單搬入;技師註冊在 /tech-login)。
 // /vendor-login 與 /register 保留 redirect 到新入口,不破壞既有連結。
 
-type VendorType = "brand" | "locksmith" | "distributor";
 type Tab = "login" | "register";
 
 const inputCls =
@@ -81,7 +81,7 @@ export default function BrandEntryPage() {
         {tab === "login" ? (
           <BrandLoginForm t={t} onDone={(dest) => router.replace(dest)} />
         ) : (
-          <VendorRegisterForm tR={tR} onToLogin={() => setTab("login")} />
+          <VendorRegisterForm onDone={() => setTab("login")} doneActionLabel={tR("toLogin")} />
         )}
 
         <div className="mt-5 border-t border-[var(--border)] pt-4 text-center">
@@ -197,161 +197,6 @@ function BrandLoginForm({
       >
         {t("forgotPassword")}
       </Link>
-    </form>
-  );
-}
-
-function VendorRegisterForm({
-  tR,
-  onToLogin,
-}: {
-  tR: (k: string, vars?: Record<string, string | number>) => string;
-  onToLogin: () => void;
-}) {
-  const [vendorType, setVendorType] = useState<VendorType>("brand");
-  const [name, setName] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [taxId, setTaxId] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [address, setAddress] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
-
-  async function onSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      await api.post("/api/v1/vendors/register", {
-        vendor_type: vendorType,
-        name: name.trim(),
-        company_name: companyName.trim(),
-        tax_id: taxId.trim(),
-        phone: phone.trim(),
-        email: email.trim(),
-        password,
-        address: address.trim() || undefined,
-      });
-      setDone(true);
-    } catch (err) {
-      setError(friendlyError(err));
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  if (done) {
-    return (
-      <div className="flex flex-col items-center gap-4">
-        <div className="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center text-sm text-green-700">
-          {tR("successPending")}
-        </div>
-        <button
-          type="button"
-          onClick={onToLogin}
-          className="text-sm font-medium text-[var(--primary)] hover:underline"
-        >
-          {tR("toLogin")}
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-3">
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--text-secondary)]">{tR("vendorType")}</span>
-        <select
-          value={vendorType}
-          onChange={(e) => setVendorType(e.target.value as VendorType)}
-          className={inputCls}
-        >
-          <option value="brand">{tR("vtBrand")}</option>
-          <option value="locksmith">{tR("vtLocksmith")}</option>
-          <option value="distributor">{tR("vtDistributor")}</option>
-        </select>
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--text-secondary)]">{tR("contactName")}</span>
-        <input value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--text-secondary)]">{tR("companyName")}</span>
-        <input
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
-          required
-          className={inputCls}
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--text-secondary)]">{tR("taxId")}</span>
-        <input
-          value={taxId}
-          onChange={(e) => setTaxId(e.target.value)}
-          required
-          pattern="\d{8}"
-          inputMode="numeric"
-          placeholder="12345678"
-          className={inputCls}
-        />
-        <span className="text-xs text-[var(--text-secondary)]">{tR("taxIdHint")}</span>
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--text-secondary)]">{tR("phone")}</span>
-        <input
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          required
-          pattern="09\d{8}"
-          placeholder="09xxxxxxxx"
-          className={inputCls}
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--text-secondary)]">{tR("email")}</span>
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputCls} />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--text-secondary)]">{tR("password")}</span>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-          minLength={8}
-          maxLength={72}
-          className={inputCls}
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--text-secondary)]">{tR("address")}</span>
-        <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputCls} />
-      </label>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="mt-2 h-10 rounded-lg bg-[var(--primary)] text-sm font-semibold text-white disabled:opacity-60"
-      >
-        {loading ? tR("submitting") : tR("submit")}
-      </button>
     </form>
   );
 }
