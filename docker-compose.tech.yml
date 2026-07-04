@@ -1,15 +1,24 @@
-# docker-compose.tech.yml — 師傅(接案方)stack:tech-api + tech-web
+# docker-compose.tech.yml — 師傅(接案方)stack:tech-db + tech-api + tech-web
 #
 # CR-0112 雙 stack 拆分(20260702 會議 §三):師傅平台**全品牌共用一套**,
-# 不做每品牌獨立部署。本 stack 不帶自己的資料庫 —— 依業主 2026-07-03 裁決
-# (CIA CR-0112 §8 方案 A),經派工方 stack 的 network 連品牌 DB(UAT 期單品牌);
-# 技師共用庫的物理拆分(跨庫同步層)列 AI-2/AI-3 設計案,定案後再遷移。
+# 不做每品牌獨立部署。業主 2026-07-03 晚間改裁**方案 B(技師身分庫物理拆分)**:
+#   - tech-db = 技師身分**權威庫**(users 技師列/technicians/排班/品牌授權/
+#     認證/技能/lifecycle 事件)—— 登入閘與技師狀態以這裡為準。
+#   - 品牌庫保留技師列為**投影(mirror)**:35 張品牌表(work_orders/dispatch_logs/
+#     notifications/revoked_jti…)FK 指向 users/technicians,投影讓 FK 與派工/佣金
+#     JOIN 全部不用改;身分寫入走「tech 權威寫 + 同步鏡射到品牌庫」。
+#   - 工單/帳務仍在品牌庫(tech-api 經 external network 連 `db`)。
 #
-# 先決條件:派工方 stack 必須先起(它擁有 network 與 media volume):
-#   docker compose -f docker-compose.dispatch.yml up -d --build
-#   docker compose -f docker-compose.tech.yml up -d --build
+# 先決條件與啟動順序(派工方 stack 擁有 network 與 media volume):
+#   1. docker compose -f docker-compose.dispatch.yml up -d --build      # 先起品牌
+#   2. docker compose -f docker-compose.tech.yml up -d --build          # 起本 stack
+#   3. ./scripts/db/split-tech-db.sh                                    # 首次:建 schema + 搬技師資料
+#   4. TECH_POSTGRES_URI=postgresql://lock:0000@tech-db:5432/lock_tech \
+#        docker compose -f docker-compose.dispatch.yml up -d api        # 品牌 api 也接技師庫(雙庫模式)
+#   ※ 任一 api 未設 TECH_POSTGRES_URI = 單庫 fallback(行為同拆分前);
+#     雙庫模式兩個 api 都要設,否則身分寫入會漂移(verify 腳本可查)。
 #
-# 埠位:tech-api 8002 / tech-web 3001(派工方沿用 8001/3000)。
+# 埠位:tech-db 5434 / tech-api 8002 / tech-web 3001(派工方沿用 5433/8001/8000/3000)。
 # 已知取捨:realtime WS 是 in-memory pubsub,事件只在「動作發生的 API 實例」
 # 廣播 → tech-web 的 WS 指向品牌 api(8001,派工指派事件的來源);技師端自身
 # 動作(如他人搶單)不會即時推播,頁面靠重新整理/輪詢補償(前端本有優雅降級)。
@@ -17,6 +26,24 @@
 name: lock-tech
 
 services:
+  # 技師身分權威庫(全品牌共用;工單/帳務不在這裡)
+  tech-db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: lock
+      POSTGRES_PASSWORD: "0000"
+      POSTGRES_DB: lock_tech
+    ports:
+      - "${TECH_DB_PORT:-5434}:5432"
+    volumes:
+      - tech_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lock -d lock_tech"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
   tech-api:
     build:
       context: .
@@ -26,14 +53,19 @@ services:
     env_file:
       - .env                      # API_JWT_SECRET_KEY 必須與品牌 api 相同(token 互通)
     environment:
-      # 方案 A:連派工方 stack 的品牌 DB(external network 上以 service 名 `db` 解析)
+      # 品牌庫(工單/帳務;external network 上以 service 名 `db` 解析)
       POSTGRES_URI: "postgresql://lock:0000@db:5432/lock_AI_data"
+      # 技師身分權威庫(方案 B;拿掉此行 = 單庫 fallback)
+      TECH_POSTGRES_URI: "postgresql://lock:0000@tech-db:5432/lock_tech"
       API_SURFACE: tech           # 技師精簡面:只掛技師 app 路由、停用背景 worker(api/main.py CR-0112)
       CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3001 http://localhost:3000}"
       MEDIA_ROOT: /app/api/data/media
     volumes:
       # 與品牌 api 共用媒體檔實體(技師上傳的施工照片/簽名,品牌後台要能讀)
       - media:/app/api/data/media
+    depends_on:
+      tech-db:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)\""]
       interval: 10s
@@ -62,6 +94,8 @@ networks:
     external: true
 
 volumes:
+  tech_pgdata:
+    name: lock-tech-pgdata
   media:
     name: lock-dispatch-${TECH_DB_BRAND:-locksmart}-media
     external: true

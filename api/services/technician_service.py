@@ -23,6 +23,7 @@ import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
 from core.pagination import decode_cursor, encode_cursor
+from core.tech_mirror import mirror_rows
 
 logger = logging.getLogger("api.technician_service")
 
@@ -220,11 +221,14 @@ async def update_my_profile(*, tenant_id: str, user_id: str, patch: dict) -> dic
 
     if sets:
         args.extend([str(row[0]), tenant_id])
-        await db_module._conn.execute(
+        # CR-0112 方案 B：技師主檔寫入落權威庫 + 鏡射投影
+        conn = await db_module.require_tech_conn()
+        await conn.execute(
             f"UPDATE technicians SET {', '.join(sets)} "
             f"WHERE id = %s::uuid AND tenant_id = %s::uuid",
             args,
         )
+        await mirror_rows("technicians", [str(row[0])])
 
     refreshed = await _find_by_user_id(tenant_id=tenant_id, user_id=user_id)
     return _tech_row_to_dict(refreshed) if refreshed else _tech_row_to_dict(row)
@@ -264,11 +268,14 @@ async def update_technician(*, tenant_id: str, technician_id: str, patch: dict) 
 
     if sets:
         args.extend([technician_id, tenant_id])
-        await db_module._conn.execute(
+        # CR-0112 方案 B：技師主檔寫入落權威庫 + 鏡射投影
+        conn = await db_module.require_tech_conn()
+        await conn.execute(
             f"UPDATE technicians SET {', '.join(sets)} "
             f"WHERE id = %s::uuid AND tenant_id = %s::uuid",
             args,
         )
+        await mirror_rows("technicians", [technician_id])
 
     return await get_technician(tenant_id=tenant_id, technician_id=technician_id)
 
@@ -387,17 +394,19 @@ async def create_technician(
     # 比照 register_technician 一併建 user(role='technician', is_active)，技師才核准得了、
     # 未來能手機登入（密碼待技師自設/重設，password_hash 暫 NULL）。註冊流程已自建 user 並
     # 傳 user_id → 此處只在 user_id 缺時補建。user + technician 同 transaction（全有或全無）。
-    async with db_module._conn.transaction():
+    # CR-0112 方案 B：技師身分寫入落權威庫 + 鏡射投影
+    tconn = await db_module.require_tech_conn()
+    async with tconn.transaction():
         resolved_user_id = user_id
         if resolved_user_id is None:
             resolved_user_id = str(uuid.uuid4())
-            await db_module._conn.execute(
+            await tconn.execute(
                 "INSERT INTO users "
                 "  (id, tenant_id, tenant_type, display_name, phone, email, role, is_active) "
                 "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, 'technician', TRUE)",
                 (resolved_user_id, tenant_id, display_name, phone_val, email),
             )
-        cur = await db_module._conn.execute(
+        cur = await tconn.execute(
             "INSERT INTO technicians "
             "  (tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
             "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
@@ -407,6 +416,10 @@ async def create_technician(
         )
         row = await cur.fetchone()
         new_id = str(row[0])
+
+    if user_id is None:
+        await mirror_rows("users", [resolved_user_id])
+    await mirror_rows("technicians", [new_id])
 
     # 重新 SELECT 以取得完整 row（含 created_at 等欄位）
     cur = await db_module._conn.execute(

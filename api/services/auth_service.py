@@ -23,6 +23,7 @@ from core.auth import (
 )
 from core.config import load_config
 from core.db import _ensure_conn
+from core.tech_mirror import mirror_rows
 from core.errors import ApiError
 
 logger = logging.getLogger("api.auth_service")
@@ -92,10 +93,24 @@ def _is_locked(user: dict) -> bool:
     return bool(locked_until and locked_until > datetime.now(timezone.utc))
 
 
-async def _register_login_failure(user_id: str) -> None:
+async def _users_write_conn(role: str | None):
+    """users 表寫入路由（CR-0112 方案 B）：技師列權威庫、其餘主庫。
+
+    技師寫入後呼叫端須 `mirror_rows("users", [user_id])` 同步品牌投影。
+    單庫 fallback 時兩者為同一連線、mirror 為 no-op。
+    """
+    if role == "technician":
+        return await db_module.require_tech_conn()
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    return db_module._conn
+
+
+async def _register_login_failure(user_id: str, role: str | None = None) -> None:
     """登入失敗 +1；達上限則設 locked_until 並把計數歸零（CASE 用 UPDATE 前舊值）。"""
     max_attempts, lockout_minutes = _lockout_cfg()
-    await db_module._conn.execute(
+    conn = await _users_write_conn(role)
+    await conn.execute(
         "UPDATE users SET "
         "  failed_login_attempts = CASE WHEN failed_login_attempts + 1 >= %s "
         "                               THEN 0 ELSE failed_login_attempts + 1 END, "
@@ -104,14 +119,19 @@ async def _register_login_failure(user_id: str) -> None:
         "WHERE id = %s::uuid",
         (max_attempts, max_attempts, lockout_minutes, user_id),
     )
+    if role == "technician":
+        await mirror_rows("users", [user_id])
 
 
-async def _reset_login_failures(user_id: str) -> None:
+async def _reset_login_failures(user_id: str, role: str | None = None) -> None:
     """登入成功 → 計數歸零、解鎖。"""
-    await db_module._conn.execute(
+    conn = await _users_write_conn(role)
+    await conn.execute(
         "UPDATE users SET failed_login_attempts = 0, locked_until = NULL WHERE id = %s::uuid",
         (user_id,),
     )
+    if role == "technician":
+        await mirror_rows("users", [user_id])
 
 
 _LOCKED_MSG = "帳號因連續登入失敗已暫時鎖定，請稍後再試或聯絡管理員"
@@ -126,10 +146,10 @@ async def login(email: str, password: str, *, allowed_roles: list[str]) -> dict:
     if _is_locked(user):
         raise ApiError("LOGIN_LOCKED", _LOCKED_MSG, 429)
     if not user["password_hash"] or not verify_password(password, user["password_hash"]):
-        await _register_login_failure(user["id"])
+        await _register_login_failure(user["id"], user["role"])
         raise ApiError("UNAUTHENTICATED", "Invalid email or password", 401)
 
-    await _reset_login_failures(user["id"])
+    await _reset_login_failures(user["id"], user["role"])
     return _build_login_payload(
         user_id=user["id"],
         role=user["role"],
@@ -202,10 +222,10 @@ async def login_with_identifier(
     if _is_locked(user):
         raise ApiError("LOGIN_LOCKED", _LOCKED_MSG, 429)
     if not user["password_hash"] or not verify_password(password, user["password_hash"]):
-        await _register_login_failure(user["id"])
+        await _register_login_failure(user["id"], user["role"])
         raise ApiError("UNAUTHENTICATED", "Invalid credentials", 401)
 
-    await _reset_login_failures(user["id"])
+    await _reset_login_failures(user["id"], user["role"])
     return _build_login_payload(
         user_id=user["id"],
         role=user["role"],
@@ -307,14 +327,14 @@ async def change_password(*, user_id: str, current_password: str, new_password: 
         raise ApiError("VALIDATION_ERROR", "New password must differ from current password", 422)
 
     cur = await db_module._conn.execute(
-        "SELECT password_hash, is_active FROM users WHERE id = %s::uuid LIMIT 1",
+        "SELECT password_hash, is_active, role FROM users WHERE id = %s::uuid LIMIT 1",
         (user_id,),
     )
     row = await cur.fetchone()
     if not row:
         raise ApiError("UNAUTHENTICATED", "User not found", 401)
 
-    pw_hash, is_active = row[0], row[1]
+    pw_hash, is_active, role = row[0], row[1], row[2]
     if not is_active:
         raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
     if not pw_hash or not verify_password(current_password, pw_hash):
@@ -322,11 +342,14 @@ async def change_password(*, user_id: str, current_password: str, new_password: 
 
     new_hash = hash_password(new_password)
     # A3：password_changed_at = NOW() → 此前簽發的 access/refresh token 全部失效（撤既有 session）。
-    await db_module._conn.execute(
+    conn = await _users_write_conn(role)
+    await conn.execute(
         "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
         "WHERE id = %s::uuid",
         (new_hash, user_id),
     )
+    if role == "technician":
+        await mirror_rows("users", [user_id])
 
 
 async def get_profile(*, user_id: str) -> dict:
@@ -381,10 +404,14 @@ async def update_profile(
         return await get_profile(user_id=user_id)
 
     params.append(user_id)
-    await db_module._conn.execute(
+    profile = await get_profile(user_id=user_id)  # 先取 role 供寫入路由（不存在即 404）
+    conn = await _users_write_conn(profile["role"])
+    await conn.execute(
         f"UPDATE users SET {', '.join(sets)}, updated_at = NOW() WHERE id = %s::uuid",
         tuple(params),
     )
+    if profile["role"] == "technician":
+        await mirror_rows("users", [user_id])
     return await get_profile(user_id=user_id)
 
 
@@ -407,7 +434,7 @@ async def admin_reset_password(*, email: str, tenant_id: str) -> str:
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     cur = await db_module._conn.execute(
-        "SELECT id FROM users WHERE email = %s AND tenant_id = %s::uuid LIMIT 1",
+        "SELECT id, role FROM users WHERE email = %s AND tenant_id = %s::uuid LIMIT 1",
         (email, tenant_id),
     )
     row = await cur.fetchone()
@@ -420,11 +447,14 @@ async def admin_reset_password(*, email: str, tenant_id: str) -> str:
     temp_password = secrets.token_urlsafe(9)
     new_hash = hash_password(temp_password)
     # A3：admin 重設亦撤該帳號既有 session（password_changed_at = NOW()）。
-    await db_module._conn.execute(
+    conn = await _users_write_conn(row[1])
+    await conn.execute(
         "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
         "WHERE id = %s::uuid",
         (new_hash, row[0]),
     )
+    if row[1] == "technician":
+        await mirror_rows("users", [str(row[0])])
     return temp_password
 
 
@@ -440,9 +470,12 @@ async def register_technician(req: dict) -> dict:
     capabilities = req.get("capabilities") or []
     regions = req.get("regions") or []
 
+    # CR-0112 方案 B：技師身分寫入落權威庫（fallback 時即主庫），完成後鏡射投影。
+    conn = await db_module.require_tech_conn()
+
     # 重複 email 檢查（CR-0090：依角色限定 — 同 email 可同時為技師與廠商，
     # 但同一角色內仍唯一。登入端點以 role 過濾故不衝突）
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         "SELECT 1 FROM users WHERE email = %s AND role = 'technician' LIMIT 1",
         (email,),
     )
@@ -456,19 +489,23 @@ async def register_technician(req: dict) -> dict:
     pw_hash = hash_password(password)
     tenant_id = "00000000-0000-0000-0000-000000000001"
 
-    async with db_module._conn.transaction():
+    async with conn.transaction():
         # is_active=FALSE：待核准前不可登入（BR-M07-01 上線審核 gate；
         # onboard-approve 時由 technician_lifecycle_service 同步翻 TRUE）
-        await db_module._conn.execute(
+        await conn.execute(
             "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active) "
             "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, %s, 'technician', FALSE)",
             (user_id, tenant_id, name, phone, email, pw_hash),
         )
-        await db_module._conn.execute(
+        await conn.execute(
             "INSERT INTO technicians (id, tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
             "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval')",
             (technician_id, tenant_id, user_id, name, phone, email, json.dumps(capabilities), json.dumps(regions)),
         )
+
+    # 投影鏡射（順序 users → technicians，投影側 FK technicians→users）
+    await mirror_rows("users", [user_id])
+    await mirror_rows("technicians", [technician_id])
 
     return {
         "data": {

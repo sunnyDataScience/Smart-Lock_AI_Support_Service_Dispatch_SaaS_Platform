@@ -26,6 +26,11 @@ import logging
 import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
+from core.tech_mirror import mirror_rows
+
+# CR-0112 方案 B:生命週期屬技師身分域 —— technicians/users 寫入落權威庫
+# (require_tech_conn,單庫 fallback 時即主連線),完成後鏡射投影;
+# saas.technician_lifecycle_event 單一居所在技師庫(讀寫都在那)。
 
 logger = logging.getLogger("api.technician_lifecycle_service")
 
@@ -54,7 +59,8 @@ async def _fetch_status(tech_id: str, tenant_id: str) -> str:
     """取 technician status + tenant 隔離。CR-0103-fix：改用 technicians.tenant_id 直接判，
     不 JOIN users —— 原 JOIN users 在 user_id 為 NULL（admin 新增、舊資料）時撈不出列，
     導致核准/停權誤回 404 'not found in tenant'。technicians.tenant_id 為 NOT NULL 權威來源。"""
-    cur = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         "SELECT status FROM technicians "
         "WHERE id = %s::uuid AND tenant_id = %s::uuid",
         (tech_id, tenant_id),
@@ -95,7 +101,8 @@ async def _change_status_and_audit(
     current = await _fetch_status(tech_id, tenant_id)
     _check_transition(current, target_status)
 
-    upd = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()
+    upd = await conn.execute(
         "UPDATE technicians SET status = %s, updated_at = NOW() "
         "WHERE id = %s::uuid AND status = %s "
         "RETURNING id, status, updated_at",
@@ -109,16 +116,24 @@ async def _change_status_and_audit(
     # source of truth，users.is_active 是登入/refresh 檢查點（A2 停權即時失效走
     # refresh 重查）。原本兩者脫鉤 → 停權/待核准技師仍可登入。active → 可登入；
     # 其他（pending_approval/suspended/terminated/rejected/inactive）→ 不可。
-    await db_module._conn.execute(
+    cur = await conn.execute(
         "UPDATE users SET is_active = %s, updated_at = NOW() "
         "WHERE id = (SELECT user_id FROM technicians WHERE id = %s::uuid) "
-        "  AND role = 'technician'",
+        "  AND role = 'technician' "
+        "RETURNING id",
         (target_status == "active", tech_id),
     )
+    user_row = await cur.fetchone()
+
+    # 投影鏡射(雙庫模式;fallback 為 no-op):停權/核准即時反映到品牌庫,
+    # 供 load_user_security_state 與派工資格檢查續讀投影。
+    await mirror_rows("technicians", [tech_id])
+    if user_row:
+        await mirror_rows("users", [str(user_row[0])])
 
     # audit row（best-effort：audit 失敗不 rollback status，但 log + warning）
     try:
-        await db_module._conn.execute(
+        await conn.execute(
             "INSERT INTO saas.technician_lifecycle_event "
             "  (tenant_id, technician_id, event_type, previous_status, "
             "   new_status, reason, notes, actor_user_id, actor_role) "
@@ -236,7 +251,8 @@ async def list_lifecycle_events(
         args.append(event_type)
     args.append(limit)
 
-    cur = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()  # lifecycle 事件單一居所在技師庫
+    cur = await conn.execute(
         "SELECT id, technician_id, event_type, previous_status, new_status, "
         "       reason, notes, actor_user_id, actor_role, created_at "
         "FROM saas.technician_lifecycle_event "

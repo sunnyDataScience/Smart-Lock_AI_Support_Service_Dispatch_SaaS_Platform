@@ -20,6 +20,7 @@ from datetime import date, timedelta
 
 import core.db as db_module
 from core.db import _ensure_conn
+from core.tech_mirror import mirror_rows
 from core.errors import ApiError
 
 # 「即將到期」門檻天數 —— 業務假設（CR-0104 §6 待業主確認；非財務規則，屬顯示慣例）
@@ -100,7 +101,9 @@ async def create_certification(
     await _assert_technician(tenant_id, technician_id)
 
     cert_id = str(uuid.uuid4())
-    cur = await db_module._conn.execute(
+    # CR-0112 方案 B：認證屬技師身分域 —— 權威庫寫入 + 鏡射投影
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         "INSERT INTO technician_certification "
         "  (id, tenant_id, technician_id, cert_name, brand, obtained_at, expires_at) "
         "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s::date, %s::date) "
@@ -112,6 +115,7 @@ async def create_certification(
         ),
     )
     row = await cur.fetchone()
+    await mirror_rows("technician_certification", [cert_id])
     return _row_to_dict(row, date.today())
 
 
@@ -145,7 +149,8 @@ async def update_certification(
 
     sets.append("updated_at = NOW()")
     args.extend([cert_id, tenant_id, technician_id])
-    cur = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         f"UPDATE technician_certification SET {', '.join(sets)} "
         "WHERE id = %s::uuid AND tenant_id = %s::uuid AND technician_id = %s::uuid "
         f"RETURNING {_CERT_SELECT}",
@@ -154,6 +159,7 @@ async def update_certification(
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "Certification not found", 404)
+    await mirror_rows("technician_certification", [cert_id])
     return _row_to_dict(row, date.today())
 
 
@@ -163,7 +169,8 @@ async def delete_certification(
     """刪除一筆認證。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
-    cur = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         "DELETE FROM technician_certification "
         "WHERE id = %s::uuid AND tenant_id = %s::uuid AND technician_id = %s::uuid "
         "RETURNING id",
@@ -171,3 +178,4 @@ async def delete_certification(
     )
     if not await cur.fetchone():
         raise ApiError("NOT_FOUND", "Certification not found", 404)
+    await mirror_rows("technician_certification", [cert_id])  # 權威已刪 → 投影同步刪

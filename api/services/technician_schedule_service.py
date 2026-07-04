@@ -20,6 +20,7 @@ from typing import Literal
 
 import core.db as db_module
 from core.db import _ensure_conn
+from core.tech_mirror import mirror_rows
 from core.errors import ApiError
 
 logger = logging.getLogger("api.technician_schedule_service")
@@ -52,7 +53,9 @@ async def update_my_online_state(
         )
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
-    cur = await db_module._conn.execute(
+    # CR-0112 方案 B：技師主檔寫入落權威庫 + 鏡射投影
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         "UPDATE technicians SET online_state = %s, updated_at = NOW() "
         "WHERE user_id = %s::uuid AND tenant_id = %s::uuid "
         "RETURNING id, name, online_state",
@@ -61,6 +64,7 @@ async def update_my_online_state(
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "Technician not found", 404)
+    await mirror_rows("technicians", [str(row[0])])
     return {
         "id": str(row[0]),
         "name": row[1],
@@ -116,8 +120,9 @@ async def get_my_schedule(
         r[0].isoformat(): int(r[1]) for r in rows
     }
 
-    # 2) 取得該月份內已核准的休假/備勤
-    cur = await db_module._conn.execute(
+    # 2) 取得該月份內已核准的休假/備勤（排班申請單一居所在技師庫）
+    tconn = await db_module.require_tech_conn()
+    cur = await tconn.execute(
         "SELECT type, start_date, end_date FROM technician_schedule_requests "
         "WHERE technician_user_id = %s::uuid AND tenant_id = %s::uuid "
         "  AND status = 'approved' "
@@ -136,7 +141,7 @@ async def get_my_schedule(
             d = date.fromordinal(d.toordinal() + 1)
 
     # 3) 取得待審核申請
-    cur = await db_module._conn.execute(
+    cur = await tconn.execute(
         "SELECT id, type, start_date, end_date, reason, status, created_at "
         "FROM technician_schedule_requests "
         "WHERE technician_user_id = %s::uuid AND tenant_id = %s::uuid "
@@ -208,7 +213,8 @@ async def get_schedule_for_technician(
     leave_days: set[str] = set()
     standby_days: set[str] = set()
     if user_id:
-        cur = await db_module._conn.execute(
+        tconn = await db_module.require_tech_conn()
+        cur = await tconn.execute(
             "SELECT type, start_date, end_date FROM technician_schedule_requests "
             "WHERE technician_user_id = %s::uuid AND tenant_id = %s::uuid "
             "  AND status = 'approved' "
@@ -275,7 +281,8 @@ async def create_schedule_request(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    cur = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         "INSERT INTO technician_schedule_requests "
         "  (technician_user_id, tenant_id, type, start_date, end_date, reason) "
         "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s) "
@@ -310,7 +317,8 @@ async def cancel_schedule_request(
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
-    cur = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         "SELECT status FROM technician_schedule_requests "
         "WHERE id = %s::uuid AND technician_user_id = %s::uuid AND tenant_id = %s::uuid",
         (request_id, user_id, tenant_id),
@@ -324,7 +332,7 @@ async def cancel_schedule_request(
             f"Cannot cancel request in status '{row[0]}'; only 'pending' allowed",
             409,
         )
-    await db_module._conn.execute(
+    await conn.execute(
         "UPDATE technician_schedule_requests SET "
         "  status = 'cancelled', resolved_at = NOW(), updated_at = NOW() "
         "WHERE id = %s::uuid",
@@ -369,7 +377,8 @@ async def list_schedule_requests(
         f"WHERE {' AND '.join(where)} "
         "ORDER BY sr.created_at DESC LIMIT %s"
     )
-    cur = await db_module._conn.execute(sql, tuple(params))
+    conn = await db_module.require_tech_conn()  # sr×technicians 皆技師庫
+    cur = await conn.execute(sql, tuple(params))
     rows = await cur.fetchall()
     items = [
         {
@@ -411,7 +420,8 @@ async def resolve_schedule_request(
         )
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
-    cur = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         "SELECT status FROM technician_schedule_requests "
         "WHERE id = %s::uuid AND tenant_id = %s::uuid",
         (request_id, tenant_id),
@@ -425,7 +435,7 @@ async def resolve_schedule_request(
             f"Cannot resolve request in status '{row[0]}'; only 'pending' allowed",
             409,
         )
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         "UPDATE technician_schedule_requests SET "
         "  status = %s, "
         "  resolver_user_id = %s::uuid, "

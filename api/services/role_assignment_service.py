@@ -162,6 +162,19 @@ async def apply_role_change(*, tenant_id: str, assignment_id: str) -> dict:
         raise ApiError("NOT_FOUND", "role assignment not found", 404)
     _check_transition(row[0], "applied")
     target_user_id, to_role = str(row[1]), row[2]
+    # CR-0112 方案 B(雙庫模式):技師帳號屬身分權威庫,角色轉換會破壞
+    # 技師域不變量(technician 列須同時存在 technicians 主檔)→ 擋下。
+    # 單庫 fallback 行為不變。
+    if db_module.tech_db_enabled():
+        rcur = await db_module._conn.execute(
+            "SELECT role FROM users WHERE id=%s::uuid", (target_user_id,))
+        rrow = await rcur.fetchone()
+        if (rrow and rrow[0] == "technician") or to_role == "technician":
+            raise ApiError(
+                "VALIDATION_ERROR",
+                "技師帳號的角色不可經角色指派流程變更(技師身分庫拆分後之不變量)",
+                422,
+            )
     await db_module._conn.execute(
         "UPDATE users SET role=%s WHERE id=%s::uuid AND tenant_id=%s::uuid",
         (to_role, target_user_id, tenant_id))
