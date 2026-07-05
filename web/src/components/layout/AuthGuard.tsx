@@ -63,7 +63,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
     if (token && isPublic) {
       // 已登入者進公開頁 → 依角色導回各自 portal（technician→/home、vendor→/vendor）
-      router.replace(fallbackRouteForRole(getCurrentSession()?.role ?? null));
+      const home = fallbackRouteForRole(getCurrentSession()?.role ?? null);
+      // 防呆(2026-07-05):落點若不屬本 stack(crossModeRedirect 會把它導去別的
+      // origin),代表此 token 是別站台殘留 —— 各 port 為獨立 origin,token 各自獨立,
+      // 不可據此把人一路彈到別站台登入頁(師傅站殘留品牌 token → 原本 /dashboard →
+      // 被 crossModeRedirect 導去 PEER 3000 → 3000 無 token → 3000/login)。
+      // 清掉本 origin 殘留 token,留在當前公開頁。
+      // all 模式 crossModeRedirect 恆 null → 此分支永不觸發,單庫部署行為零變化。
+      if (crossModeRedirect(home)) {
+        auth.clear();
+        return;
+      }
+      router.replace(home);
       return;
     }
     // CR-0021：認證後的 role-based route gate。無權限 → 導該角色安全落點。
