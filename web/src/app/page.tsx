@@ -19,7 +19,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/api";
-import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
+import { APP_MODE, dispatchLoginHref, techRegisterHref } from "@/lib/appMode";
 import VendorRegisterForm from "@/components/auth/VendorRegisterForm";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import ThemeToggle from "@/components/theme/ThemeToggle";
@@ -35,10 +35,9 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 // `/` 在 AuthGuard PUBLIC_PATHS(未登入可看);tech build 的 `/` 直接導
 // /tech-login(師傅 stack 不渲染行銷頁)。
 
-// CR-0112 雙 stack:dispatch build 的師傅連結指向對方 portal(有配 PEER 時)。
-const TECH_PORTAL_BASE =
-  APP_MODE === "dispatch" && PEER_PORTAL_URL ? PEER_PORTAL_URL : "";
-const TECH_REGISTER_HREF = `${TECH_PORTAL_BASE}/tech-login?tab=register`;
+// CR-0112 / landing 容器:師傅接單與派工登入入口的絕對/站內 URL(集中於 appMode)。
+const TECH_REGISTER_HREF = techRegisterHref();
+const LOGIN_HREF = dispatchLoginHref();
 
 export default function Home() {
   const t = useTranslations("landing");
@@ -53,8 +52,9 @@ export default function Home() {
   }, [router]);
 
   // token 只能在 client 讀(localStorage);已登入者頂部顯示「進入後台」捷徑。
+  // landing 容器為公開行銷頁、無登入態,一律顯示「登入」(外導派工 portal)。
   useEffect(() => {
-    setAuthed(Boolean(auth.getAccessToken()));
+    if (APP_MODE !== "landing") setAuthed(Boolean(auth.getAccessToken()));
   }, []);
 
   // modal 開啟時鎖背景捲動
@@ -106,7 +106,7 @@ export default function Home() {
               </Link>
             ) : (
               <Link
-                href="/login"
+                href={LOGIN_HREF}
                 className="inline-flex h-9 items-center rounded-lg border border-[var(--border)] px-3 text-[13px] font-medium text-[var(--text-primary)] transition hover:border-[var(--border-focus)]"
               >
                 {t("navLogin")}
@@ -291,7 +291,7 @@ export default function Home() {
             />
             <p className="mt-4 text-center text-xs text-[var(--text-disabled)]">
               {tR("haveAccount")}{" "}
-              <Link href="/login" className="font-medium text-[var(--primary)] hover:underline">
+              <Link href={LOGIN_HREF} className="font-medium text-[var(--primary)] hover:underline">
                 {t("navLogin")}
               </Link>
             </p>
