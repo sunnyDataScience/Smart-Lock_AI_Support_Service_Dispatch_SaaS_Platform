@@ -51,12 +51,21 @@ def _row_to_dict(row) -> dict:
         "review_notes": row[11],
         "reviewed_at": row[12].isoformat() if row[12] else None,
         "created_at": row[13].isoformat() if row[13] else None,
+        # 業界補充欄位(additive)
+        "website": row[14],
+        "coverage_regions": row[15],
+        "store_count": row[16],
+        "expected_monthly_orders": row[17],
+        "main_brands": row[18],
+        "referral_source": row[19],
     }
 
 
 _SELECT_COLS = (
     "id, application_type, company_name, contact_name, tax_id, phone, email, "
-    "address, notes, status, slug, review_notes, reviewed_at, created_at"
+    "address, notes, status, slug, review_notes, reviewed_at, created_at, "
+    "website, coverage_regions, store_count, expected_monthly_orders, "
+    "main_brands, referral_source"
 )
 
 
@@ -70,6 +79,12 @@ async def submit(
     email: str,
     address: str | None,
     notes: str | None,
+    website: str | None = None,
+    coverage_regions: str | None = None,
+    store_count: int | None = None,
+    expected_monthly_orders: str | None = None,
+    main_brands: str | None = None,
+    referral_source: str | None = None,
     request_ip: str | None,
 ) -> dict:
     """公開申請(landing 品牌 CTA)。回 {id, status}。"""
@@ -97,8 +112,10 @@ async def submit(
 
     cur = await conn.execute(
         "INSERT INTO brand_applications "
-        "(application_type, company_name, contact_name, tax_id, phone, email, address, notes, submitted_ip) "
-        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
+        "(application_type, company_name, contact_name, tax_id, phone, email, address, notes, "
+        "website, coverage_regions, store_count, expected_monthly_orders, main_brands, referral_source, "
+        "submitted_ip) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id",
         (
             application_type,
             company_name.strip(),
@@ -108,6 +125,12 @@ async def submit(
             email.strip(),
             (address or "").strip() or None,
             (notes or "").strip() or None,
+            (website or "").strip() or None,
+            (coverage_regions or "").strip() or None,
+            store_count,
+            (expected_monthly_orders or "").strip() or None,
+            (main_brands or "").strip() or None,
+            (referral_source or "").strip() or None,
             request_ip,
         ),
     )

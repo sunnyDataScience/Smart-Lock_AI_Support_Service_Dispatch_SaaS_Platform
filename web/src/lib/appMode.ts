@@ -34,6 +34,12 @@ export const PLATFORM_API_BASE_URL = (
   process.env.NEXT_PUBLIC_PLATFORM_API_BASE_URL || "http://localhost:8003"
 ).replace(/\/+$/, "");
 
+// landing 容器專用:平台 console 絕對 URL(品牌申請導入頁移到 platform 站
+// /platform/apply,landing 品牌 CTA 以絕對 URL 外導;如 http://localhost:3003)。
+export const PLATFORM_PORTAL_URL = (
+  process.env.NEXT_PUBLIC_PLATFORM_PORTAL_URL || "http://localhost:3003"
+).replace(/\/+$/, "");
+
 // 師傅工作台路由(需要 technician 登入態的頁面;/tech-login 為入口頁另計)
 const TECH_APP_PREFIXES = ["/home", "/pool", "/my-orders", "/account"];
 
@@ -103,4 +109,11 @@ export function techRegisterHref(): string {
 export function dispatchLoginHref(): string {
   const base = APP_MODE === "landing" ? DISPATCH_PORTAL_URL : "";
   return `${base}/login`;
+}
+
+// 品牌/經銷/鎖店「申請導入平台」入口:landing → PLATFORM_PORTAL_URL 的
+// /platform/apply(公開頁,平台方管);平台站內本身用相對路徑;其餘部署退回站內。
+export function brandApplyHref(): string {
+  const base = APP_MODE === "landing" ? PLATFORM_PORTAL_URL : "";
+  return `${base}/platform/apply`;
 }

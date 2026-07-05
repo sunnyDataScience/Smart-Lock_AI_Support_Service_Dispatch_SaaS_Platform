@@ -31,6 +31,13 @@ class BrandApplicationBody(BaseModel):
     email: EmailStr
     address: str | None = Field(default=None, max_length=500)
     notes: str | None = Field(default=None, max_length=1000)
+    # 業界補充欄位（申請導入 /platform/apply 表單擴充；全選填、additive）
+    website: str | None = Field(default=None, max_length=255)
+    coverage_regions: str | None = Field(default=None, max_length=500, description="服務涵蓋地區")
+    store_count: int | None = Field(default=None, ge=0, le=100000, description="門市/據點數")
+    expected_monthly_orders: str | None = Field(default=None, max_length=30, description="預估月工單量級距")
+    main_brands: str | None = Field(default=None, max_length=500, description="主營品牌/產品")
+    referral_source: str | None = Field(default=None, max_length=50, description="如何得知平台")
 
 
 class ApproveBody(BaseModel):
@@ -59,6 +66,12 @@ async def submit_brand_application(body: BrandApplicationBody, request: Request)
         email=body.email,
         address=body.address,
         notes=body.notes,
+        website=body.website,
+        coverage_regions=body.coverage_regions,
+        store_count=body.store_count,
+        expected_monthly_orders=body.expected_monthly_orders,
+        main_brands=body.main_brands,
+        referral_source=body.referral_source,
         request_ip=client_ip,
     )
 

@@ -23,8 +23,9 @@ export default function PlatformLayout({
   const pathname = usePathname();
   const router = useRouter();
 
-  // 登入頁不套 console 殼(未登入狀態)
-  if (pathname === "/platform/login") return <>{children}</>;
+  // 登入頁與公開申請導入頁不套 console 殼(未登入 / 對外申請者面)
+  if (pathname === "/platform/login" || pathname === "/platform/apply")
+    return <>{children}</>;
 
   const onLogout = async () => {
     await logoutPlatformAdmin();

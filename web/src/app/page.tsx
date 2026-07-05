@@ -13,14 +13,12 @@ import {
   Route,
   Smartphone,
   Wrench,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/api";
-import { APP_MODE, dispatchLoginHref, techRegisterHref } from "@/lib/appMode";
-import BrandApplyForm from "@/components/landing/BrandApplyForm";
+import { APP_MODE, brandApplyHref, dispatchLoginHref, techRegisterHref } from "@/lib/appMode";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -39,13 +37,13 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 // CR-0112 / landing 容器:師傅接單與派工登入入口的絕對/站內 URL(集中於 appMode)。
 const TECH_REGISTER_HREF = techRegisterHref();
 const LOGIN_HREF = dispatchLoginHref();
+// 品牌/經銷/鎖店「申請導入平台」→ platform 站 /platform/apply(移出 landing modal)
+const BRAND_APPLY_HREF = brandApplyHref();
 
 export default function Home() {
   const t = useTranslations("landing");
-  const tR = useTranslations("register");
   const router = useRouter();
   const [authed, setAuthed] = useState(false);
-  const [applyOpen, setApplyOpen] = useState(false);
 
   // tech build:師傅 stack 只有一條入口,landing 直接進 /tech-login。
   useEffect(() => {
@@ -57,14 +55,6 @@ export default function Home() {
   useEffect(() => {
     if (APP_MODE !== "landing") setAuthed(Boolean(auth.getAccessToken()));
   }, []);
-
-  // modal 開啟時鎖背景捲動
-  useEffect(() => {
-    document.body.style.overflow = applyOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [applyOpen]);
 
   // tech / dispatch build 皆非對外行銷容器,不渲染 landing:
   // tech 由上方 effect 導 /tech-login;dispatch 由 AuthGuard crossModeRedirect 導 /login
@@ -150,10 +140,9 @@ export default function Home() {
               <span className="text-[13px] text-white/85">{t("ctaTechHint")}</span>
             </a>
 
-            {/* 品牌申請 CTA */}
-            <button
-              type="button"
-              onClick={() => setApplyOpen(true)}
+            {/* 品牌申請 CTA → platform 站 /platform/apply */}
+            <a
+              href={BRAND_APPLY_HREF}
               className="group flex flex-col items-start gap-2 rounded-2xl border-2 border-[var(--border)] bg-[var(--bg-surface)] p-5 text-left shadow-sm transition hover:border-[var(--primary)]"
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--bg-page)] text-[var(--primary)] transition group-hover:bg-[var(--primary)] group-hover:text-white">
@@ -166,7 +155,7 @@ export default function Home() {
               <span className="text-[13px] text-[var(--text-secondary)]">
                 {t("ctaBrandHint")}
               </span>
-            </button>
+            </a>
           </div>
         </section>
 
@@ -251,57 +240,19 @@ export default function Home() {
           <p className="max-w-[560px] text-[14px] leading-relaxed text-[var(--text-secondary)]">
             {t("brandSectionDesc")}
           </p>
-          <button
-            type="button"
-            onClick={() => setApplyOpen(true)}
+          <a
+            href={BRAND_APPLY_HREF}
             className="mt-2 inline-flex h-11 items-center gap-2 rounded-xl bg-[var(--primary)] px-6 text-sm font-semibold text-white transition hover:bg-[var(--primary-hover)]"
           >
             <Building2 className="h-4 w-4" />
             {t("ctaBrand")}
-          </button>
+          </a>
         </section>
       </main>
 
       <footer className="border-t border-[var(--border)] py-8 text-center text-xs text-[var(--text-disabled)]">
         {t("footer")}
       </footer>
-
-      {/* ── 品牌申請 modal(品牌基本資料 → platform /brand-applications 待審核) ── */}
-      {applyOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setApplyOpen(false);
-          }}
-        >
-          <div className="max-h-[90vh] w-full max-w-[440px] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-bold">{t("applyTitle")}</h3>
-              <button
-                type="button"
-                onClick={() => setApplyOpen(false)}
-                aria-label={t("applyClose")}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)]"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <p className="mb-4 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-              {t("applyDesc")}
-            </p>
-            <BrandApplyForm
-              onDone={() => setApplyOpen(false)}
-              doneActionLabel={t("applyClose")}
-            />
-            <p className="mt-4 text-center text-xs text-[var(--text-disabled)]">
-              {tR("haveAccount")}{" "}
-              <Link href={LOGIN_HREF} className="font-medium text-[var(--primary)] hover:underline">
-                {t("navLogin")}
-              </Link>
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

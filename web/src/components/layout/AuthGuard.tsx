@@ -31,6 +31,7 @@ const PUBLIC_PATHS = new Set([
   "/forgot-password",
   "/reset-password",
   "/platform/login", // CR-0114 平台 console 登入（漏列 → 平台管理員到不了登入頁）
+  "/platform/apply", // 品牌/經銷/鎖店「申請導入平台」公開頁（未登入必須可達）
 ]);
 const PUBLIC_PREFIXES = ["/track/", "/scope-change/", "/quotes/", "/consent/"];
 

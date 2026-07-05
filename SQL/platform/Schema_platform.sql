@@ -70,6 +70,15 @@ CREATE TABLE IF NOT EXISTS brand_applications (
     created_at        TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 業界補充欄位(申請導入表單移到 platform 站 /platform/apply 時擴充;全選填、additive)
+-- ADD COLUMN IF NOT EXISTS → fresh install（CREATE 已建表則跳過）與既有 DB 皆可重跑。
+ALTER TABLE brand_applications ADD COLUMN IF NOT EXISTS website                  VARCHAR(255); -- 公司網站
+ALTER TABLE brand_applications ADD COLUMN IF NOT EXISTS coverage_regions         TEXT;         -- 服務涵蓋地區(派工媒合用)
+ALTER TABLE brand_applications ADD COLUMN IF NOT EXISTS store_count              INTEGER;      -- 門市/據點數
+ALTER TABLE brand_applications ADD COLUMN IF NOT EXISTS expected_monthly_orders  VARCHAR(30);  -- 預估月工單量級距
+ALTER TABLE brand_applications ADD COLUMN IF NOT EXISTS main_brands              TEXT;         -- 主營品牌/產品
+ALTER TABLE brand_applications ADD COLUMN IF NOT EXISTS referral_source          VARCHAR(50);  -- 如何得知平台(行銷歸因)
+
 -- 同一 email 同時只能有一件待審申請(核准/拒絕後可再申請)
 CREATE UNIQUE INDEX IF NOT EXISTS uq_brand_app_pending_email
     ON brand_applications(email) WHERE status = 'pending';
