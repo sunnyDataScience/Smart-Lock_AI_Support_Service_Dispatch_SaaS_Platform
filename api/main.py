@@ -123,21 +123,35 @@ from routers import brand_b2b_statement_v2 as brand_b2b_v2_router  # FR-0047 MVP
 from routers import deprecation_metrics as deprecation_metrics_router  # P4 Cutover 規劃: v1 hit metrics
 from routers import v1_inventory as v1_inventory_router  # P4 Cutover 規劃: v1 routers inventory
 from routers import lifespan_health as lifespan_health_router  # admin 查 8 monitor 健康
+from routers import platform_auth as platform_auth_router  # CR-0114: platform console 登入/登出/me
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 cfg = load_config()
 
-# ── API_SURFACE(CR-0112 師傅端/派工方雙 stack 拆分)──────────────────────
+# ── API_SURFACE(CR-0112 師傅端/派工方雙 stack 拆分 + CR-0114 platform)──────
 # all(預設)= 完整掛載(既有單體部署與測試,零行為變化);dispatch = 同 all,
 # 供派工方 stack 明示;tech = 師傅端精簡面:只保留技師 app 用到的路由(見檔尾
 # _TECH_SURFACE_PREFIXES 過濾),並停用背景 worker(避免與派工方實例接同一顆
-# DB 時雙跑 → 重複 LINE 推播/重複告警)。
+# DB 時雙跑 → 重複 LINE 推播/重複告警);platform = 平台方 console 精簡面
+# (只留 /api/v1/platform 前綴,亦停用背景 worker)。
 # 注意:這是部署塑形(deployment shaping),不是安全邊界 —— 權限仍由每個
-# endpoint 的 RBAC(role_required / require_tenant)把關。
+# endpoint 的 RBAC(role_required / require_tenant / require_platform_admin)把關。
 _API_SURFACE = os.environ.get("API_SURFACE", "all").strip().lower() or "all"
-_RUN_BACKGROUND_WORKERS = _API_SURFACE != "tech"
+_RUN_BACKGROUND_WORKERS = _API_SURFACE not in ("tech", "platform")
+
+# CR-0114 啟動守衛:platform surface 簽發 platform_admin(跨品牌最高權限)token,
+# 密鑰絕不可為空/過短/開發預設值 —— role 完全來自簽章 payload,已知密鑰即可偽造。
+# 只擋 platform surface:all/dispatch/tech 沿用既有 require_env 行為(pytest 用
+# test-secret 不受影響)。
+if _API_SURFACE == "platform":
+    _platform_secret = os.environ.get("API_JWT_SECRET_KEY", "")
+    if len(_platform_secret) < 16 or "dev-secret" in _platform_secret or "do-not-use" in _platform_secret:
+        raise RuntimeError(
+            "API_SURFACE=platform 拒絕啟動:API_JWT_SECRET_KEY 必須為 ≥16 字元的獨立密鑰"
+            "(不可為空、開發預設值,亦不可與品牌 .env 共用值)"
+        )
 
 
 @asynccontextmanager
@@ -168,7 +182,7 @@ async def lifespan(app: FastAPI):
         media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
         auto_confirm_cron.start()  # CR-0038 桶4/Q063: 客戶未回 48h 自動結案（排除 hold/異常）
     else:
-        logger.info("API_SURFACE=%s → 背景 worker 全部停用（由派工方 stack 執行）", _API_SURFACE)
+        logger.info("API_SURFACE=%s → 背景 worker 全部停用（由派工方 stack 執行）", _API_SURFACE)  # tech/platform 面共用此訊息
     logger.info("API service ready (port=%s, surface=%s)", cfg.system["port"], _API_SURFACE)
     yield
     if _RUN_BACKGROUND_WORKERS:
@@ -224,6 +238,7 @@ register_exception_handlers(app)
 app.add_exception_handler(IdempotencyReplay, handle_idempotency_replay)
 
 app.include_router(auth_router.router, prefix="/api/v1", tags=["auth"])
+app.include_router(platform_auth_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114
 app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtime"])
 app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])
@@ -576,4 +591,30 @@ if _API_SURFACE == "tech":
     ]
     logger.info(
         "API_SURFACE=tech → 路由過濾完成，保留 %d 條技師面路由", len(app.router.routes)
+    )
+
+
+# ── CR-0114:API_SURFACE=platform 路由過濾(平台方 console 精簡面)──────────
+# 平台端點全部收在 /api/v1/platform 前綴下 → 一條前綴即過濾乾淨。
+# 同 tech 面:部署塑形非安全邊界,權限由 require_platform_admin 把關。
+_PLATFORM_SURFACE_PREFIXES: tuple[str, ...] = (
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/api/v1/platform",
+)
+
+
+def _platform_surface_keep(path: str) -> bool:
+    """API_SURFACE=platform 時此路由是否保留（依 route.path 字面前綴比對）。"""
+    return any(path.startswith(prefix) for prefix in _PLATFORM_SURFACE_PREFIXES)
+
+
+if _API_SURFACE == "platform":
+    app.router.routes = [
+        r for r in app.router.routes if _platform_surface_keep(getattr(r, "path", ""))
+    ]
+    logger.info(
+        "API_SURFACE=platform → 路由過濾完成，保留 %d 條平台面路由", len(app.router.routes)
     )
