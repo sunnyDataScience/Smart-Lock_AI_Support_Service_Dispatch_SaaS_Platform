@@ -42,6 +42,8 @@ interface Candidate {
   distance_km?: number;
   skill_match?: number;
   availability_eta_minutes?: number;
+  // CR-0114 R4：鎖品牌授權標示（true=已授權 / false=未授權 / null=無授權資料可判）
+  brand_authorized?: boolean | null;
   score_breakdown?: {
     skill?: ScoreDimension;
     distance?: ScoreDimension;
@@ -581,6 +583,17 @@ export default function DispatchManualPage() {
                               <span className="font-medium text-[var(--text-primary)]">
                                 {tech.name}
                               </span>
+                              {/* CR-0114 R4：鎖品牌授權標示（全部師傅可見,已/未授權標示） */}
+                              {c.brand_authorized === true && (
+                                <span className="rounded bg-green-100 px-2 py-[1px] text-[10px] font-bold text-green-700">
+                                  已授權
+                                </span>
+                              )}
+                              {c.brand_authorized === false && (
+                                <span className="rounded bg-amber-100 px-2 py-[1px] text-[10px] font-bold text-amber-700">
+                                  未授權
+                                </span>
+                              )}
                               {isCircuit && (
                                 <span className="rounded bg-red-100 px-2 py-[1px] text-[10px] font-bold text-red-700">
                                   {t("candidates.circuitBadge")}

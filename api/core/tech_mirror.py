@@ -92,6 +92,27 @@ async def mirror_rows(table: str, pk_vals: Sequence) -> None:
         raise
 
 
+async def ensure_technician_projection(technician_id: str) -> None:
+    """指派/搶單前確保該師傅的 users+technicians 投影存在且最新(CR-0114 R4)。
+
+    共用師傅庫模式下,品牌端讀候選走 authority(可見全部啟用中師傅),但
+    work_orders.technician_id FK 指向品牌庫本地投影 —— 指派「從未投影過的
+    師傅」會 FK 爆。故派工寫入前先 pull 該師傅身分列進品牌庫投影。
+    單庫 fallback（tech_db 未啟用）→ no-op（讀寫同一顆庫,無投影概念）。
+    """
+    if not db.tech_db_enabled():
+        return
+    tech = await db.require_tech_conn()
+    cur = await tech.execute(
+        "SELECT user_id FROM technicians WHERE id = %s::uuid", (technician_id,))
+    row = await cur.fetchone()
+    user_id = row[0] if row else None
+    # 先 users 後 technicians（FK 順序;user_id 可能為 NULL — admin 建的舊資料）
+    if user_id is not None:
+        await mirror_rows("users", [str(user_id)])
+    await mirror_rows("technicians", [technician_id])
+
+
 async def mirror_children(table: str, fk_col: str, parent_val) -> None:
     """子表全量刷新鏡射:以權威庫「該父鍵下的全部子列」重建品牌庫投影。
 

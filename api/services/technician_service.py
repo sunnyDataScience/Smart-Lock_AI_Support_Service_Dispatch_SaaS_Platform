@@ -97,9 +97,10 @@ async def list_technicians(
 
     availability / level 為 OpenAPI 欄位但 DB 沒對應實值；本 phase 不做實際過濾。
     新增 4 個實際 DB-backed filter (status/capability/service_region/rating_min)。
+    CR-0114 R4：師傅身分讀共用師傅庫 authority（require_tech_conn;單庫 fallback
+    同顆連線,SQL 不變）;清單附 authorized_brands（該師傅已授權的鎖品牌 chips）。
     """
-    if not await _ensure_conn():
-        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    conn = await db_module.require_tech_conn()
 
     where = ["t.tenant_id = %s::uuid"]
     args: list = [tenant_id]
@@ -141,12 +142,18 @@ async def list_technicians(
     )
     args.append(limit + 1)
 
-    cur = await db_module._conn.execute(sql, args)
+    cur = await conn.execute(sql, args)
     rows = await cur.fetchall()
 
     has_more = len(rows) > limit
     rows = rows[:limit]
     items = [_tech_row_to_dict(r) for r in rows]
+
+    # authorized_brands：一次聚合本頁師傅的已授權鎖品牌（同一顆 authority 連線）
+    tech_ids = [str(r[0]) for r in rows]
+    brand_map = await _authorized_brands_map(conn, tech_ids)
+    for it in items:
+        it["authorized_brands"] = brand_map.get(it["id"], [])
 
     next_cursor = None
     if has_more and rows:
@@ -156,12 +163,30 @@ async def list_technicians(
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
 
 
-async def get_technician(*, tenant_id: str, technician_id: str) -> dict:
-    """GET /technicians/{id} — 管理員視角單筆查詢。"""
-    if not await _ensure_conn():
-        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+async def _authorized_brands_map(conn, tech_ids: list[str]) -> dict[str, list[str]]:
+    """回 {technician_id: [已授權且未過期的鎖品牌…]}（CR-0114 R4,裁決 6）。"""
+    if not tech_ids:
+        return {}
+    cur = await conn.execute(
+        "SELECT technician_id, brand FROM technician_brand_authorization "
+        "WHERE technician_id = ANY(%s::uuid[]) AND authorized = TRUE "
+        "  AND (cert_expires_at IS NULL OR cert_expires_at >= CURRENT_DATE) "
+        "ORDER BY brand",
+        (tech_ids,),
+    )
+    out: dict[str, list[str]] = {}
+    for tid, brand in await cur.fetchall():
+        out.setdefault(str(tid), []).append(brand)
+    return out
 
-    cur = await db_module._conn.execute(
+
+async def get_technician(*, tenant_id: str, technician_id: str) -> dict:
+    """GET /technicians/{id} — 管理員視角單筆查詢。
+
+    CR-0114 R4：讀共用師傅庫 authority + authorized_brands。
+    """
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         f"SELECT {_TECH_SELECT} FROM technicians t "
         f"WHERE t.id = %s::uuid AND t.tenant_id = %s::uuid",
         (technician_id, tenant_id),
@@ -169,7 +194,10 @@ async def get_technician(*, tenant_id: str, technician_id: str) -> dict:
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "Technician not found", 404)
-    return _tech_row_to_dict(row)
+    tech = _tech_row_to_dict(row)
+    brand_map = await _authorized_brands_map(conn, [tech["id"]])
+    tech["authorized_brands"] = brand_map.get(tech["id"], [])
+    return tech
 
 
 async def _find_by_user_id(*, tenant_id: str, user_id: str) -> tuple | None:
