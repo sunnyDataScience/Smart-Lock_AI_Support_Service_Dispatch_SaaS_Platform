@@ -68,10 +68,14 @@ export function crossModeRedirect(pathname: string): string | null {
     return DISPATCH_PORTAL_URL ? `${DISPATCH_PORTAL_URL}${pathname}` : "/";
   }
   if (APP_MODE === "dispatch") {
-    // /platform 屬平台 console 部署,品牌 build 不服務(deny-by-default 回首頁)。
-    if (matchPrefix(pathname, "/platform")) return "/";
+    // 品牌 stack 首頁不渲染對外導流 landing(導流站 = landing 容器 3002):
+    // 一律進品牌登入;已登入者由 AuthGuard `token && isPublic` 分支依角色送 /dashboard
+    // (2026-07-05 業主裁決:消除 3000 與 3002 landing 重複 + 品牌後台入口誤放師父 CTA)。
+    if (pathname === "/") return "/login";
+    // /platform 屬平台 console 部署,品牌 build 不服務(deny-by-default 回登入)。
+    if (matchPrefix(pathname, "/platform")) return "/login";
     if (TECH_APP_PREFIXES.some((p) => matchPrefix(pathname, p))) {
-      return PEER_PORTAL_URL ? `${PEER_PORTAL_URL}${pathname}` : "/";
+      return PEER_PORTAL_URL ? `${PEER_PORTAL_URL}${pathname}` : "/login";
     }
     return null;
   }

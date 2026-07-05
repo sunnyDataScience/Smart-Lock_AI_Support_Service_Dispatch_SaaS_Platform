@@ -66,7 +66,10 @@ export default function Home() {
     };
   }, [applyOpen]);
 
-  if (APP_MODE === "tech") return null;
+  // tech / dispatch build 皆非對外行銷容器,不渲染 landing:
+  // tech 由上方 effect 導 /tech-login;dispatch 由 AuthGuard crossModeRedirect 導 /login
+  // (避免此處再 replace 造成與 AuthGuard 已登入→/dashboard 的競態)。
+  if (APP_MODE === "tech" || APP_MODE === "dispatch") return null;
 
   const features = [
     { icon: Bot, titleKey: "f1Title", descKey: "f1Desc" },
