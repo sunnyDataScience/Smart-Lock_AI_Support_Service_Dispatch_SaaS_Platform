@@ -139,6 +139,15 @@ mirror-on-demand(assign/reassign/accept-claim/assign_dispatch/auto_match 五寫�
 ### 進度
 
 - 2026-07-05:三路現況盤點 + 設計書 + 業主七項裁決完成,本 CR 立案(status: accepted)。
+- ✅ R0 done(merge `d7618172`):CR 立案 + CR-0113 §8 回寫 + CR-0112 補四 stack 拓撲節 + CHANGELOG Decisions。
+- ✅ R1 done(merge `61bb1686`):platform console 骨架 —— 第四 stack(platform-db 5435 / platform-api 8003 / platform-web 3003)、新角色 `platform_admin`(隔離帳號池 + 獨立 JWT secret,品牌⇄平台 token 雙向 403)、`core/db.py` 第三連線 fallback。全套 1572 passed。
+- ✅ R2 done(merge `883427d5`):品牌申請流 landing → platform console —— 平台庫 `brand_applications` 表 + `BrandApplyForm`(無密碼意向申請)取代 landing modal 的 VendorRegisterForm + console 審核頁(核准回開站指引純文字,裁決 2 純手動)。全套 1584 passed。
+- ✅ R3 done(merge `de7d5f24`):師傅審核搬遷平台方(裁決 1)—— `platform_technicians` 六端點復用 lifecycle 狀態機零改動、品牌端刪 5 寫端點只留唯讀 audit、initiator 取 token sub 廢自報 X-Initiator。全套 1590 passed。
+- ✅ R4 done(merge `6328a698`):品牌讀共用師傅庫(裁決 3/6/7)—— dispatch/technician service 改 `require_tech_conn()`、`list_dispatch_candidates` 授權由過濾改**標示** `brand_authorized`、`auto_match` 維持只選已授權、`ensure_technician_projection` mirror-on-demand 掛 3 寫入點保 FK。全套 1594 passed。
+- ✅ R5 backend done(merge `9f845385`):品牌員工帳號申請後端(裁決 4)—— migration 088 `staff_applications`(不預建 users)、`staff_application_service`(submit 去重/approve transaction 內建 users 驗 role ∈ `_STAFF_ROLES`/reject)、全 tenant-scoped `routers/staff_applications.py`(無 /api/v1 前綴)。`test_staff_applications.py` 10 項,全套 1604 passed。
+- ✅ 導流架構細化(merge `71ed1742`):業主回報「localhost:3000 點師父跳品牌」—— 實測師父 CTA 接線本身正確,真因是 3000 品牌 dispatch stack 的 `/` 誤渲染與 3002 重複的對外 landing。修 `crossModeRedirect` dispatch `/`→`/login` + landing 元件 dispatch build `return null`。Playwright 驗證。
+- ✅ R5 frontend done(merge `e0557e06`):品牌員工帳號申請前端接線(裁決 4)—— `StaffRegisterForm`(無角色選擇,POST 公開 tenant-scoped 端點)取代登入頁註冊 tab、`admin/staff` 待審申請區(5 角色下拉 approve / prompt reason reject)、刪 `VendorRegisterForm`、i18n +staffApply 8 鍵(parity 2751)。tsc 0 + 重建 dispatch web/api + Playwright 端到端(申請→admin 核准指派派工員→新帳號登入 role=dispatcher)。
+- **五輪 R0-R5 全數落地**;剩 5 輪收尾(docs_html regen、雲端部署含 migration 088、push 由業主執行)。
 
 ## §9 Suggested Implementation Order
 
