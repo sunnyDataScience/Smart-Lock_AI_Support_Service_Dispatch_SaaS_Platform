@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/api";
 import { APP_MODE, dispatchLoginHref, techRegisterHref } from "@/lib/appMode";
-import VendorRegisterForm from "@/components/auth/VendorRegisterForm";
+import BrandApplyForm from "@/components/landing/BrandApplyForm";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -29,8 +29,9 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 // 「landing 掛申請窗口、半自動化導入」):
 //   - 師傅 CTA → 跳師傅註冊(/tech-login?tab=register;dispatch build 有配
 //     PEER_PORTAL_URL 時指對方 portal)
-//   - 品牌 CTA → 彈出品牌基本資料表單(共用 VendorRegisterForm →
-//     POST /vendors/register,送出即進後台「廠商審核」待核准流程)
+//   - 品牌 CTA → 彈出品牌基本資料表單(BrandApplyForm →
+//     POST platform API /brand-applications,意向申請進 platform console 審核,
+//     核准後平台人工開站;CR-0114 R2:不建帳號、不收密碼)
 //   - 既有使用者由右上「登入」進 /login(登入註冊同框頁保留)
 // `/` 在 AuthGuard PUBLIC_PATHS(未登入可看);tech build 的 `/` 直接導
 // /tech-login(師傅 stack 不渲染行銷頁)。
@@ -262,7 +263,7 @@ export default function Home() {
         {t("footer")}
       </footer>
 
-      {/* ── 品牌申請 modal(品牌基本資料 → /vendors/register 待核准) ── */}
+      {/* ── 品牌申請 modal(品牌基本資料 → platform /brand-applications 待審核) ── */}
       {applyOpen && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -285,7 +286,7 @@ export default function Home() {
             <p className="mb-4 text-[13px] leading-relaxed text-[var(--text-secondary)]">
               {t("applyDesc")}
             </p>
-            <VendorRegisterForm
+            <BrandApplyForm
               onDone={() => setApplyOpen(false)}
               doneActionLabel={t("applyClose")}
             />
