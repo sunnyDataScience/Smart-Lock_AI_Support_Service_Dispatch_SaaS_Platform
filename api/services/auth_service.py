@@ -25,6 +25,7 @@ from core.config import load_config
 from core.db import _ensure_conn
 from core.tech_mirror import mirror_rows
 from core.errors import ApiError
+from core.pii_crypto import encrypt_pii, last_n
 
 logger = logging.getLogger("api.auth_service")
 
@@ -470,6 +471,28 @@ async def register_technician(req: dict) -> dict:
     capabilities = req.get("capabilities") or []
     regions = req.get("regions") or []
 
+    # CR-0115 Tier 1 非敏感欄位（全選填；最小必填在新表單層強制）
+    years_experience = req.get("years_experience")
+    bio = req.get("bio")
+    vehicle_type = req.get("vehicle_type")
+    availability_note = req.get("availability_note")
+    emergency_contact_name = req.get("emergency_contact_name")
+    emergency_contact_phone = req.get("emergency_contact_phone")
+    certifications = req.get("certifications") or []
+    terms_accepted = bool(req.get("terms_accepted"))
+
+    # CR-0115 Tier 2 敏感 PII（§8-1：加密存獨立 technician_kyc 表、不鏡射品牌庫）
+    national_id = (req.get("national_id") or "").strip() or None
+    birth_date = req.get("birth_date")
+    address = req.get("address")
+    bank_code = req.get("bank_code")
+    bank_account = (req.get("bank_account") or "").strip() or None
+    tax_id = req.get("tax_id")
+    has_kyc = any(
+        v is not None
+        for v in (national_id, birth_date, address, bank_code, bank_account, tax_id)
+    )
+
     # CR-0112 方案 B：技師身分寫入落權威庫（fallback 時即主庫），完成後鏡射投影。
     conn = await db_module.require_tech_conn()
 
@@ -489,6 +512,8 @@ async def register_technician(req: dict) -> dict:
     pw_hash = hash_password(password)
     tenant_id = "00000000-0000-0000-0000-000000000001"
 
+    terms_accepted_at = datetime.now(timezone.utc) if terms_accepted else None
+
     async with conn.transaction():
         # is_active=FALSE：待核准前不可登入（BR-M07-01 上線審核 gate；
         # onboard-approve 時由 technician_lifecycle_service 同步翻 TRUE）
@@ -497,13 +522,48 @@ async def register_technician(req: dict) -> dict:
             "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, %s, 'technician', FALSE)",
             (user_id, tenant_id, name, phone, email, pw_hash),
         )
+        # CR-0115：technicians 加 Tier 1 非敏感欄位（全 nullable）
         await conn.execute(
-            "INSERT INTO technicians (id, tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
-            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval')",
-            (technician_id, tenant_id, user_id, name, phone, email, json.dumps(capabilities), json.dumps(regions)),
+            "INSERT INTO technicians (id, tenant_id, user_id, name, phone, email, "
+            "capabilities, service_regions, status, years_experience, bio, vehicle_type, "
+            "availability_note, emergency_contact_name, emergency_contact_phone, terms_accepted_at) "
+            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, "
+            "'pending_approval', %s, %s, %s, %s, %s, %s, %s)",
+            (
+                technician_id, tenant_id, user_id, name, phone, email,
+                json.dumps(capabilities), json.dumps(regions),
+                years_experience, bio, vehicle_type, availability_note,
+                emergency_contact_name, emergency_contact_phone, terms_accepted_at,
+            ),
         )
+        # CR-0115 Tier 2：敏感 PII 加密後存獨立 technician_kyc 表（§8-1）
+        if has_kyc:
+            await conn.execute(
+                "INSERT INTO technician_kyc (technician_id, tenant_id, national_id_enc, "
+                "national_id_last3, bank_code, bank_account_enc, bank_account_last4, "
+                "birth_date, address, tax_id) "
+                "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    technician_id, tenant_id,
+                    encrypt_pii(national_id), last_n(national_id, 3),
+                    bank_code, encrypt_pii(bank_account), last_n(bank_account, 4),
+                    birth_date or None, address, tax_id,
+                ),
+            )
+        # CR-0115 Tier 1：自填證照落既有 technician_certification 表
+        for cert in certifications:
+            await conn.execute(
+                "INSERT INTO technician_certification (tenant_id, technician_id, cert_name, "
+                "brand, obtained_at, expires_at, is_mock) "
+                "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, FALSE)",
+                (
+                    tenant_id, technician_id, cert["cert_name"], cert.get("brand"),
+                    cert.get("obtained_at") or None, cert.get("expires_at") or None,
+                ),
+            )
 
     # 投影鏡射（順序 users → technicians，投影側 FK technicians→users）
+    # 注意：technician_kyc 敏感 PII **不鏡射**到品牌庫（§8-1 最小揭露）。
     await mirror_rows("users", [user_id])
     await mirror_rows("technicians", [technician_id])
 

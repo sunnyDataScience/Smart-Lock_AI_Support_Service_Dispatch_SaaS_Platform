@@ -58,13 +58,54 @@ class ConfirmPasswordResetBody(BaseModel):
     new_password: str = Field(min_length=8, max_length=72)  # bcrypt 72 byte 上限
 
 
+class TechnicianCertInput(BaseModel):
+    """註冊時自填的專業證照（CR-0115 Tier 1；落 technician_certification 表）。"""
+
+    cert_name: str = Field(min_length=1, max_length=120)
+    brand: str | None = Field(default=None, max_length=100)
+    obtained_at: str | None = Field(default=None, description="YYYY-MM-DD")
+    expires_at: str | None = Field(default=None, description="YYYY-MM-DD")
+
+
 class TechnicianRegisterBody(BaseModel):
+    """師傅自助註冊（CR-0115 擴充為 KYC 等級）。
+
+    既有 6 欄（name/phone/email/password/capabilities/regions）不變；新欄一律
+    **選填**（加性非破壞，§4）—— 「最小必填」由新版 /tech-register 多步驟表單
+    層強制（§8-4），敏感 PII 與文件可於核准前補件。
+    """
+
+    # ── 既有 6 欄 ──
     name: str = Field(min_length=1, max_length=100)
     phone: str = Field(pattern=r"^09\d{8}$")
     email: EmailStr
     password: str = Field(min_length=8, max_length=72)  # bcrypt 72 byte 上限
     capabilities: list[str] | None = None
     regions: list[str] | None = None
+
+    # ── Tier 1 非敏感（CR-0115）──
+    years_experience: int | None = Field(default=None, ge=0, le=80)
+    bio: str | None = Field(default=None, max_length=1000)
+    vehicle_type: str | None = Field(default=None, max_length=20)
+    availability_note: str | None = Field(default=None, max_length=40)
+    emergency_contact_name: str | None = Field(default=None, max_length=100)
+    emergency_contact_phone: str | None = Field(default=None, pattern=r"^09\d{8}$")
+    certifications: list[TechnicianCertInput] | None = None
+    terms_accepted: bool | None = Field(
+        default=None, description="服務條款/隱私權/背景查核授權同意（新表單必勾）"
+    )
+
+    # ── Tier 2 敏感 PII（CR-0115 §8-1；獨立表加密儲存）──
+    national_id: str | None = Field(
+        default=None, pattern=r"^[A-Z][12]\d{8}$", description="身分證字號（加密儲存）"
+    )
+    birth_date: str | None = Field(default=None, description="YYYY-MM-DD")
+    address: str | None = Field(default=None, max_length=300)
+    bank_code: str | None = Field(default=None, pattern=r"^\d{3,4}$")
+    bank_account: str | None = Field(
+        default=None, pattern=r"^\d{6,16}$", description="撥款帳號（加密儲存）"
+    )
+    tax_id: str | None = Field(default=None, pattern=r"^\d{8}$")
 
 
 # admin web 可登入的後台角色（CR-0021 Q2）。technician 走 /technicians/login。
