@@ -156,8 +156,18 @@
     "entryTitle": "品牌 / 經銷 / 鎖店",
     "entrySubtitle": "派案方入口 — 登入或註冊後進入後台管理系統",
     "tabLogin": "登入",
-    "tabRegister": "註冊",
+    "tabRegister": "員工申請",
     "techEntryLink": "我是鎖匠師傅 →"
+  },
+  "staffApply": {
+    "intro": "品牌員工帳號申請:填寫基本資料送出後,待品牌管理員審核並指派角色,核准後即可用此 Email 與密碼登入。",
+    "name": "姓名",
+    "email": "Email",
+    "phone": "電話(選填)",
+    "password": "密碼(至少 8 碼)",
+    "submit": "送出申請",
+    "submitting": "送出中…",
+    "success": "申請已送出,待品牌管理員審核並指派角色後即可登入。"
   },
   "register": {
     "title": "註冊帳號",

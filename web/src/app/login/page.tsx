@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError, getCurrentSession, login, loginVendor } from "@/lib/api";
-import VendorRegisterForm from "@/components/auth/VendorRegisterForm";
+import StaffRegisterForm from "@/components/auth/StaffRegisterForm";
 import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
 import { friendlyError } from "@/lib/apiError";
 import { fallbackRouteForRole } from "@/lib/rolePolicy";
@@ -18,7 +18,9 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 //   - 登入 tab:單一表單同時涵蓋後台管理角色(loginAdmin)與廠商帳號(loginVendor)
 //     —— 先試 admin,401 才退試 vendor(非 401 如鎖定/停用直接顯示,不重試),
 //     成功後依角色導向(fallbackRouteForRole:vendor→/vendor、其他→/dashboard)。
-//   - 註冊 tab:廠商自助註冊(原 /register 廠商表單搬入;技師註冊在 /tech-login)。
+//   - 註冊 tab:品牌員工帳號申請(CR-0114 R5 裁決 4;StaffRegisterForm →
+//     POST /tenants/{tid}/staff-applications,pending 待品牌 Admin 審核並指派角色;
+//     舊 VendorRegisterForm 廠商自助註冊已退場,品牌導入改走 landing → platform)。
 // /vendor-login 與 /register 保留 redirect 到新入口,不破壞既有連結。
 
 type Tab = "login" | "register";
@@ -81,7 +83,7 @@ export default function BrandEntryPage() {
         {tab === "login" ? (
           <BrandLoginForm t={t} onDone={(dest) => router.replace(dest)} />
         ) : (
-          <VendorRegisterForm onDone={() => setTab("login")} doneActionLabel={tR("toLogin")} />
+          <StaffRegisterForm onDone={() => setTab("login")} doneActionLabel={tR("toLogin")} />
         )}
 
         <div className="mt-5 border-t border-[var(--border)] pt-4 text-center">
