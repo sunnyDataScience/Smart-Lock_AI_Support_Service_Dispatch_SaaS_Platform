@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { UserCog, UserPlus, Check } from "lucide-react";
+import { UserCog, UserPlus, Check, ClipboardList, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
-import { api } from "@/lib/api";
+import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 
 interface Staff {
@@ -13,6 +13,16 @@ interface Staff {
   phone: string | null;
   role: string;
   is_active: boolean;
+  created_at: string | null;
+}
+
+// CR-0114 R5:品牌員工自助申請(登入頁 → pending),此頁審核並指派角色。
+interface StaffApplication {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  status: string;
   created_at: string | null;
 }
 
@@ -41,6 +51,11 @@ export default function StaffPage() {
   const [phone, setPhone] = useState("");
   const [role, setRole] = useState("operations_manager");
 
+  // 待審員工申請(CR-0114 R5):列表 + 每列指派角色的暫存選擇
+  const [apps, setApps] = useState<StaffApplication[]>([]);
+  const [appRole, setAppRole] = useState<Record<string, string>>({});
+  const [appBusy, setAppBusy] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -54,9 +69,64 @@ export default function StaffPage() {
     }
   }, []);
 
+  const loadApps = useCallback(async () => {
+    try {
+      // tenant-scoped v2 端點:GET /tenants/{tid}/staff-applications?status=pending
+      const res = await api.get<{ data: StaffApplication[] }>(
+        `${tenantPath("/staff-applications")}?status=pending`,
+      );
+      setApps(res.data ?? []);
+    } catch (e) {
+      // 待審區為次要面板,失敗不阻斷主頁(員工列表),僅記錯誤 banner
+      setError(friendlyError(e));
+    }
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadApps();
+  }, [load, loadApps]);
+
+  async function approveApp(app: StaffApplication) {
+    const assigned = appRole[app.id] ?? "operations_manager";
+    setAppBusy(app.id);
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(tenantPath(`/staff-applications/${app.id}:approve`), {
+        role: assigned,
+      });
+      setOk(`已核准 ${app.name}(${app.email})並指派為「${ROLE_LABEL[assigned] ?? assigned}」`);
+      await Promise.all([loadApps(), load()]);
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setAppBusy(null);
+    }
+  }
+
+  async function rejectApp(app: StaffApplication) {
+    const reason = window.prompt(`拒絕「${app.name}」的申請,請填寫原因(至少 3 個字):`);
+    if (reason == null) return; // 取消
+    if (reason.trim().length < 3) {
+      setError("拒絕原因至少 3 個字");
+      return;
+    }
+    setAppBusy(app.id);
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(tenantPath(`/staff-applications/${app.id}:reject`), {
+        reason: reason.trim(),
+      });
+      setOk(`已拒絕 ${app.name}(${app.email})的申請`);
+      await loadApps();
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setAppBusy(null);
+    }
+  }
 
   async function create() {
     if (!name.trim() || !email.trim() || password.length < 8) {
@@ -106,6 +176,65 @@ export default function StaffPage() {
           {ok && (
             <div className="mb-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
               <Check className="h-4 w-4" /> {ok}
+            </div>
+          )}
+
+          {/* 待審員工申請(CR-0114 R5:登入頁自助申請 → 此處審核並指派角色) */}
+          {apps.length > 0 && (
+            <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4">
+              <div className="mb-3 flex items-center gap-2 text-[15px] font-semibold text-amber-800">
+                <ClipboardList className="h-5 w-5" /> 待審員工申請
+                <span className="rounded-full bg-amber-200 px-2 py-[1px] text-[12px] text-amber-900">
+                  {apps.length}
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {apps.map((app) => (
+                  <div
+                    key={app.id}
+                    className="flex flex-col gap-3 rounded-md border border-amber-200 bg-[var(--bg-surface)] p-3 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <div className="font-medium text-[var(--text-primary)]">{app.name}</div>
+                      <div className="text-[13px] text-[var(--text-secondary)]">
+                        {app.email}
+                        {app.phone ? ` · ${app.phone}` : ""}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={appRole[app.id] ?? "operations_manager"}
+                        onChange={(e) =>
+                          setAppRole((m) => ({ ...m, [app.id]: e.target.value }))
+                        }
+                        disabled={appBusy === app.id}
+                        className="rounded-md border border-[var(--border)] px-2 py-[6px] text-[13px] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50"
+                        aria-label={`為 ${app.name} 指派角色`}
+                      >
+                        {ROLE_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {o.label}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={() => approveApp(app)}
+                        disabled={appBusy === app.id}
+                        className="inline-flex h-[34px] items-center gap-1 rounded-md bg-[var(--primary)] px-3 text-[13px] font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+                      >
+                        <Check className="h-4 w-4" /> 核准並指派
+                      </button>
+                      <button
+                        onClick={() => rejectApp(app)}
+                        disabled={appBusy === app.id}
+                        className="inline-flex h-[34px] items-center gap-1 rounded-md border border-red-300 px-3 text-[13px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+                      >
+                        <X className="h-4 w-4" /> 拒絕
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

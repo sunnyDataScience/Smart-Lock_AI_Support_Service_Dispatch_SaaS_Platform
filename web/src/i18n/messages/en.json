@@ -156,8 +156,18 @@
     "entryTitle": "Brand / Distributor / Locksmith Shop",
     "entrySubtitle": "Dispatcher entrance — sign in or register for the admin console",
     "tabLogin": "Sign in",
-    "tabRegister": "Register",
+    "tabRegister": "Staff apply",
     "techEntryLink": "I am a locksmith technician →"
+  },
+  "staffApply": {
+    "intro": "Brand staff account application: submit your basic details, then a brand admin reviews and assigns your role. Once approved you can sign in with this email and password.",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone (optional)",
+    "password": "Password (min 8)",
+    "submit": "Submit application",
+    "submitting": "Submitting…",
+    "success": "Application submitted. Once a brand admin reviews it and assigns a role, you can sign in."
   },
   "register": {
     "title": "Create account",
