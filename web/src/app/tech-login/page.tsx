@@ -59,23 +59,6 @@ export default function TechLoginPage() {
             {t("applyLink")}
           </Link>
         </div>
-
-        <div className="mt-4 border-t border-[var(--border)] pt-4 text-center">
-          <Link
-            href={
-              APP_MODE === "tech" && PEER_PORTAL_URL
-                ? `${PEER_PORTAL_URL}/login`
-                : "/login"
-            }
-            className="text-[13px] font-medium text-[var(--primary)] hover:underline"
-          >
-            {t("brandEntryLink")}
-          </Link>
-        </div>
-
-        <p className="mt-4 text-center text-xs text-[var(--text-disabled)]">
-          {t("footerVersion")}
-        </p>
       </div>
     </div>
   );
