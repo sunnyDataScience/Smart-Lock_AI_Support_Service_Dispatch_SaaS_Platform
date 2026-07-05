@@ -28,8 +28,10 @@ services:
       dockerfile: web/Dockerfile
       args:
         NEXT_PUBLIC_APP_MODE: "landing"
-        # 品牌申請 modal 打派工 API 的 /vendors/register(瀏覽器端直連)
+        # 派工 API base(保留;landing 其餘站內連結沿用)
         NEXT_PUBLIC_API_BASE_URL: "${LANDING_API_BASE_URL:-http://localhost:8001}"
+        # CR-0114 R2:品牌申請 modal 改打 platform API 的 /brand-applications(瀏覽器端直連)
+        NEXT_PUBLIC_PLATFORM_API_BASE_URL: "${LANDING_PLATFORM_API_BASE_URL:-http://localhost:8003}"
         # CTA 外導目標(build-time 烤入)
         NEXT_PUBLIC_TECH_PORTAL_URL: "${TECH_PORTAL_URL:-http://localhost:3001}"
         NEXT_PUBLIC_DISPATCH_PORTAL_URL: "${DISPATCH_PORTAL_URL:-http://localhost:3000}"

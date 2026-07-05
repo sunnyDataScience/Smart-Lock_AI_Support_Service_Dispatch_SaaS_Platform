@@ -137,7 +137,10 @@
     "brandSectionDesc": "Brands, distributors and locksmith shops can all apply. Submit your basic info; we review, help deploy and train, and you're live once approved.",
     "applyTitle": "Apply to onboard",
     "applyDesc": "Fill in your brand's basic information. We'll review and get in touch shortly.",
-    "applyClose": "Close"
+    "applyClose": "Close",
+    "applyNotes": "Notes (optional)",
+    "applySuccess": "Application submitted! Our team will contact you after review.",
+    "applyError": "Submission failed, please try again later"
   },
   "login": {
     "title": "Sign in to SmartLock Admin",

@@ -137,7 +137,10 @@
     "brandSectionDesc": "品牌商、經銷商、鎖店皆可申請導入。送出基本資料後,平台審核並協助部署與教育訓練,核准即可開始使用。",
     "applyTitle": "申請導入平台",
     "applyDesc": "請填寫品牌基本資料,送出後我們將盡快審核並與您聯繫。",
-    "applyClose": "關閉"
+    "applyClose": "關閉",
+    "applyNotes": "需求說明（選填）",
+    "applySuccess": "申請已送出！平台審核後將主動與您聯絡開通事宜。",
+    "applyError": "送出失敗，請稍後再試"
   },
   "login": {
     "title": "登入 SmartLock Admin",

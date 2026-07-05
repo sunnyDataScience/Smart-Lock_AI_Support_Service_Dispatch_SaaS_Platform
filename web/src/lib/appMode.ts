@@ -28,6 +28,12 @@ export const DISPATCH_PORTAL_URL = (
   process.env.NEXT_PUBLIC_DISPATCH_PORTAL_URL || ""
 ).replace(/\/+$/, "");
 
+// landing 品牌申請表單直打 platform API(CR-0114 R2;瀏覽器端,
+// 與 NEXT_PUBLIC_API_BASE_URL(品牌 api)分開 —— 申請歸平台方管)。
+export const PLATFORM_API_BASE_URL = (
+  process.env.NEXT_PUBLIC_PLATFORM_API_BASE_URL || "http://localhost:8003"
+).replace(/\/+$/, "");
+
 // 師傅工作台路由(需要 technician 登入態的頁面;/tech-login 為入口頁另計)
 const TECH_APP_PREFIXES = ["/home", "/pool", "/my-orders", "/account"];
 
