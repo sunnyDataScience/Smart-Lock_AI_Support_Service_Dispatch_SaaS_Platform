@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 import BackToHome from "@/components/layout/BackToHome";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
-import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 
@@ -55,8 +54,9 @@ const EMPTY: FormState = {
 const splitList = (s: string) =>
   s.split(/[,，、]/).map((v) => v.trim()).filter(Boolean);
 
-const loginHref =
-  APP_MODE === "tech" && PEER_PORTAL_URL ? `${PEER_PORTAL_URL}/tech-login` : "/tech-login";
+// tech-register 與 tech-login 恆同站台（landing 師父 CTA 以絕對 URL 導到本 tech
+// 站的 /tech-register）→ 返回登入用同源相對路徑即可（勿用 PEER，那是對方 portal）。
+const loginHref = "/tech-login";
 
 export default function TechRegisterPage() {
   const [step, setStep] = useState(0);
