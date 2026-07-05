@@ -206,18 +206,9 @@ export default function TechniciansTable({ items, loading, onApprove, approvingI
                 </span>
               </div>
 
-              {/* Actions — pending_approval 顯核准鈕；其他非 active 顯 onboarding 狀態徽章 */}
+              {/* Actions — CR-0114 R3:師傅生命週期審核已搬平台方,品牌端唯讀狀態徽章 */}
               <div className="flex min-w-0 flex-1 items-center gap-2">
-                {tech.status === "pending_approval" ? (
-                  <button
-                    type="button"
-                    onClick={() => onApprove?.(tech)}
-                    disabled={approvingId === tech.id}
-                    className="rounded-md bg-[var(--primary)] px-3 py-[5px] text-[12px] font-medium text-white hover:opacity-90 disabled:opacity-50"
-                  >
-                    {approvingId === tech.id ? t("approving") : t("approve")}
-                  </button>
-                ) : tech.status && tech.status !== "active" ? (
+                {tech.status && tech.status !== "active" ? (
                   <span
                     className="rounded-full px-[10px] py-[3px] text-[12px] font-medium"
                     style={{

@@ -264,20 +264,25 @@ async def test_list_lifecycle_events_with_filters(monkeypatch):
 
 # ----------------------------- router -----------------------------
 
-def test_router_has_6_endpoints():
+def test_brand_router_readonly_only_lifecycle_events():
+    """CR-0114 R3:師傅生命週期寫端點已搬平台方 → 品牌 router 只剩唯讀 audit。"""
     from routers import technician_lifecycle_v2 as mod
-    assert len(mod.router.routes) == 6
+    assert len(mod.router.routes) == 1
+    ids = {getattr(r, "operation_id", None) for r in mod.router.routes}
+    assert ids == {"listTechnicianLifecycleEvents"}
 
 
-def test_router_expected_operation_ids():
-    from routers import technician_lifecycle_v2 as mod
+def test_platform_router_has_lifecycle_write_endpoints():
+    """CR-0114 R3:5 個生命週期寫端點 + 清單 + audit 全在平台 router。"""
+    from routers import platform_technicians as mod
     ids = {getattr(r, "operation_id", None) for r in mod.router.routes}
     expected = {
-        "approveTechnicianOnboarding",
-        "rejectTechnicianOnboarding",
-        "suspendTechnician",
-        "reactivateTechnician",
-        "terminateTechnician",
-        "listTechnicianLifecycleEvents",
+        "listPlatformTechnicians",
+        "platformApproveTechnician",
+        "platformRejectTechnician",
+        "platformSuspendTechnician",
+        "platformReactivateTechnician",
+        "platformTerminateTechnician",
+        "listPlatformTechnicianLifecycleEvents",
     }
     assert ids == expected

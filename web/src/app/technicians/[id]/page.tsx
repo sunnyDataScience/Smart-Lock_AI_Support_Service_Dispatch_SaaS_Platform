@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { ChevronRight, Pencil, Ban, RotateCcw, Star, X } from "lucide-react";
+import { ChevronRight, Pencil, Star, X } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import TechnicianDetailSidebar from "@/components/technicians/TechnicianDetailSidebar";
@@ -314,39 +314,8 @@ export default function TechnicianDetailPage({ params }: PageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, tenantId]);
 
-  // CR-0103：停權/復權 — 接 technician_lifecycle_v2 :suspend/:reactivate（需 X-Initiator + reason）
-  async function handleLifecycle(action: "suspend" | "reactivate") {
-    const initiator = session?.userId ?? "";
-    if (!initiator) {
-      setActionMsg("缺少操作者身分（請重新登入）");
-      return;
-    }
-    const verb = action === "suspend" ? "停權" : "復權";
-    // 後端 technician_lifecycle_service `_change_status_and_audit` 要求 reason
-    // strip 後 ≥3 字元，否則 VALIDATION_ERROR (422)。前端先擋並在邊界提示，
-    // 避免送出才得語意不明的 422（業主回報只看到「VALIDATION_ERROR (422)」）。
-    const reason = window.prompt(`請輸入${verb}原因（至少 3 個字，會記入稽核紀錄）：`, "");
-    if (reason == null) return; // 取消 → 不送
-    if (reason.trim().length < 3) {
-      setActionMsg(`${verb}原因至少需 3 個字`);
-      return;
-    }
-    setActionBusy(true);
-    setActionMsg(null);
-    try {
-      await api.post(
-        `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(id)}:${action}`,
-        { reason: reason.trim() },
-        { headers: { "X-Initiator": initiator } },
-      );
-      cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refetch 取到更新後狀態
-      await loadTechnician();
-    } catch (e) {
-      setActionMsg(`${verb}失敗：${friendlyError(e)}`);
-    } finally {
-      setActionBusy(false);
-    }
-  }
+  // CR-0114 R3:師傅停權/復權/終止已搬到平台方 console,品牌端不再操作
+  //（原 handleLifecycle 已移除;編輯基本資料仍保留於下方）。
 
   // CR-0103：開啟編輯（用目前資料預填姓名/電話/技能/區域）
   function openEdit() {
@@ -438,28 +407,10 @@ export default function TechnicianDetailPage({ params }: PageProps) {
                   <Pencil className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
                   <span className="text-[13px] text-[var(--text-primary)]">編輯</span>
                 </button>
-                {/* 停權/復權依 onboarding 狀態切換（接 lifecycle :suspend/:reactivate）；
-                    pending_approval/terminated 等狀態不顯示（核准在列表頁、終止為不可逆另議）。 */}
-                {technician?.status === "active" && (
-                  <button
-                    onClick={() => handleLifecycle("suspend")}
-                    disabled={actionBusy}
-                    className="flex items-center gap-[6px] rounded-lg border border-[var(--error)] px-4 py-2 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    <Ban className="h-[14px] w-[14px] text-[var(--error)]" />
-                    <span className="text-[13px] text-[var(--error)]">停權</span>
-                  </button>
-                )}
-                {technician?.status === "suspended" && (
-                  <button
-                    onClick={() => handleLifecycle("reactivate")}
-                    disabled={actionBusy}
-                    className="flex items-center gap-[6px] rounded-lg border border-[var(--primary)] px-4 py-2 hover:bg-[var(--primary-light)] disabled:opacity-50"
-                  >
-                    <RotateCcw className="h-[14px] w-[14px] text-[var(--primary)]" />
-                    <span className="text-[13px] text-[var(--primary)]">復權</span>
-                  </button>
-                )}
+                {/* CR-0114 R3:停權/復權/終止已搬平台方 console,品牌端不再操作。 */}
+                <span className="flex items-center text-[12px] text-[var(--text-secondary)]">
+                  生命週期由平台方管理
+                </span>
               </div>
             </div>
           </div>

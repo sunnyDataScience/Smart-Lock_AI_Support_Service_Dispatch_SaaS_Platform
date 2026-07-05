@@ -12,8 +12,7 @@ import { logoutPlatformAdmin } from "@/lib/api";
 const NAV: { href: string; label: string }[] = [
   { href: "/platform", label: "儀表板" },
   { href: "/platform/brand-applications", label: "品牌申請" },
-  // R3 接上後啟用:
-  // { href: "/platform/technician-approvals", label: "師傅申請" },
+  { href: "/platform/technician-approvals", label: "師傅審核" },
 ];
 
 export default function PlatformLayout({

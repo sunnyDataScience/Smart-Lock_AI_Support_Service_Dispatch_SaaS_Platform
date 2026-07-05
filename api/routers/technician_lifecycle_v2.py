@@ -1,18 +1,21 @@
-"""Technician Lifecycle v2 router — FR-0044 MVP 6 endpoints。
+"""Technician Lifecycle v2 router — 品牌端唯讀 audit(CR-0114 R3)。
 
-1-5. POST /tenants/{tid}/technicians/{techId}:onboard-approve / :onboard-reject /
-                                          :suspend / :reactivate / :terminate
-6.   GET  /tenants/{tid}/technicians/lifecycle-events?tech_id&event_type
+**寫端點已搬到平台方 console**(裁決 1):師傅生命週期審核(核准/拒絕/停權/
+復權/終止)不再由品牌後台操作,改由 platform console
+(POST /api/v1/platform/technicians/{id}:onboard-approve 等,
+routers/platform_technicians.py)。師傅身分庫全平台唯一,審核歸平台方統一管。
+
+品牌端只保留這支唯讀 audit(讓品牌看到旗下師傅的生命週期歷史):
+6. GET /tenants/{tid}/technicians/lifecycle-events?tech_id&event_type
 """
 
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Header, Path, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import DISPATCH_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
 from services import technician_lifecycle_service as svc
 
@@ -21,156 +24,14 @@ logger = logging.getLogger("api.technician_lifecycle_v2")
 router = APIRouter()
 
 
-async def _require_initiator(
-    x_initiator: str | None = Header(default=None, alias="X-Initiator"),
-) -> str:
-    if not x_initiator:
-        raise ApiError("VALIDATION_ERROR", "Missing required header X-Initiator", 422)
-    return x_initiator
-
-
 def _guard_tenant(user: CurrentUser, tenant_id: str, *, write: bool = False) -> None:
     if user.tenant_id and user.tenant_id != tenant_id:
         code = "CROSS_TENANT_WRITE" if write else "CROSS_TENANT_READ"
         raise ApiError(code, "Path tenantId does not match authenticated tenant", 403)
 
 
-class ApproveBody(BaseModel):
-    notes: str | None = None
-
-
-class ReasonBody(BaseModel):
-    reason: str
-    notes: str | None = None
-
-
 # ─────────────────────────────────────────────────────────────────────────────
-# 1. :onboard-approve   pending_approval → active
-# ─────────────────────────────────────────────────────────────────────────────
-
-@router.post(
-    "/tenants/{tenantId}/technicians/{technicianId}:onboard-approve",
-    operation_id="approveTechnicianOnboarding",
-    summary="師傅 onboarding 核准（pending_approval → active）",
-    response_model=dict,
-)
-async def approve_onboarding(
-    body: ApproveBody,
-    tenantId: str = Path(...),
-    technicianId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
-    initiator: str = Depends(_require_initiator),
-) -> dict:
-    _guard_tenant(user, tenantId, write=True)
-    result = await svc.approve_onboarding(
-        tenant_id=tenantId, tech_id=technicianId,
-        actor_user_id=initiator, notes=body.notes,
-    )
-    return {"data": result}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 2. :onboard-reject   pending_approval → rejected
-# ─────────────────────────────────────────────────────────────────────────────
-
-@router.post(
-    "/tenants/{tenantId}/technicians/{technicianId}:onboard-reject",
-    operation_id="rejectTechnicianOnboarding",
-    summary="師傅 onboarding 拒絕（pending_approval → rejected）",
-    response_model=dict,
-)
-async def reject_onboarding(
-    body: ReasonBody,
-    tenantId: str = Path(...),
-    technicianId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
-    initiator: str = Depends(_require_initiator),
-) -> dict:
-    _guard_tenant(user, tenantId, write=True)
-    result = await svc.reject_onboarding(
-        tenant_id=tenantId, tech_id=technicianId,
-        actor_user_id=initiator, reason=body.reason, notes=body.notes,
-    )
-    return {"data": result}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. :suspend   active → suspended
-# ─────────────────────────────────────────────────────────────────────────────
-
-@router.post(
-    "/tenants/{tenantId}/technicians/{technicianId}:suspend",
-    operation_id="suspendTechnician",
-    summary="師傅停權（active → suspended）",
-    response_model=dict,
-)
-async def suspend_technician(
-    body: ReasonBody,
-    tenantId: str = Path(...),
-    technicianId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
-    initiator: str = Depends(_require_initiator),
-) -> dict:
-    _guard_tenant(user, tenantId, write=True)
-    result = await svc.suspend(
-        tenant_id=tenantId, tech_id=technicianId,
-        actor_user_id=initiator, reason=body.reason, notes=body.notes,
-    )
-    return {"data": result}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. :reactivate   suspended → active
-# ─────────────────────────────────────────────────────────────────────────────
-
-@router.post(
-    "/tenants/{tenantId}/technicians/{technicianId}:reactivate",
-    operation_id="reactivateTechnician",
-    summary="師傅復權（suspended → active）",
-    response_model=dict,
-)
-async def reactivate_technician(
-    body: ReasonBody,
-    tenantId: str = Path(...),
-    technicianId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
-    initiator: str = Depends(_require_initiator),
-) -> dict:
-    _guard_tenant(user, tenantId, write=True)
-    result = await svc.reactivate(
-        tenant_id=tenantId, tech_id=technicianId,
-        actor_user_id=initiator, reason=body.reason, notes=body.notes,
-    )
-    return {"data": result}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5. :terminate   任何 → terminated 終態
-# ─────────────────────────────────────────────────────────────────────────────
-
-@router.post(
-    "/tenants/{tenantId}/technicians/{technicianId}:terminate",
-    operation_id="terminateTechnician",
-    summary="師傅終止（任何 → terminated 終態）",
-    response_model=dict,
-)
-async def terminate_technician(
-    body: ReasonBody,
-    tenantId: str = Path(...),
-    technicianId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
-    initiator: str = Depends(_require_initiator),
-) -> dict:
-    _guard_tenant(user, tenantId, write=True)
-    result = await svc.terminate(
-        tenant_id=tenantId, tech_id=technicianId,
-        actor_user_id=initiator, reason=body.reason, notes=body.notes,
-    )
-    return {"data": result}
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 6. GET lifecycle events
+# GET lifecycle events（品牌端唯讀;寫端點見 platform_technicians.py）
 # ─────────────────────────────────────────────────────────────────────────────
 
 @router.get(

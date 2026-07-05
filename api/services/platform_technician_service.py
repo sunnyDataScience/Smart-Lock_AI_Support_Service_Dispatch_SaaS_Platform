@@ -1,0 +1,163 @@
+"""平台方師傅審核服務(CR-0114 R3)。
+
+裁決 1:師傅生命週期審核(核准/拒絕/停權/復權/終止)自品牌後台搬到平台
+console。師傅身分庫全平台唯一 → 平台端直查 authority(require_tech_conn),
+天然涵蓋全品牌,不需 tenant scope。
+
+實作策略:**復用 technician_lifecycle_service 狀態機零改動**。該 service 的
+wrapper 需要 tenant_id(用於 _fetch_status 隔離與 audit row)→ 平台端點先查
+該師傅的 tenant_id(authority)再轉呼叫;actor_role 帶 'platform_admin'、
+actor_user_id 取已驗簽 token sub(比品牌端「前端自報 X-Initiator」更強)。
+"""
+
+from __future__ import annotations
+
+import logging
+
+import core.db as db_module
+from core.errors import ApiError
+from services import technician_lifecycle_service as lifecycle_svc
+
+logger = logging.getLogger("api.platform_technician")
+
+_ACTOR_ROLE = "platform_admin"
+
+# 平台審核師傅清單欄位(authority technicians JOIN users 取登入態)
+_LIST_SELECT = (
+    "t.id, t.tenant_id, t.name, t.phone, t.email, t.status, "
+    "t.capabilities, t.service_regions, t.created_at, u.is_active"
+)
+
+
+def _list_row_to_dict(row) -> dict:
+    return {
+        "id": str(row[0]),
+        "tenant_id": str(row[1]) if row[1] else None,
+        "name": row[2] or "",
+        "phone": row[3] or "",
+        "email": row[4] or "",
+        "status": row[5],
+        "capabilities": row[6] if isinstance(row[6], list) else [],
+        "service_regions": row[7] if isinstance(row[7], list) else [],
+        "created_at": row[8].isoformat() if row[8] else None,
+        "is_active": row[9],
+    }
+
+
+async def list_technicians(status: str | None = None, q: str | None = None) -> dict:
+    """跨品牌師傅清單(直查 authority)。status 過濾 + q 模糊(name/phone/email)。"""
+    conn = await db_module.require_tech_conn()
+    where: list[str] = []
+    args: list = []
+    if status:
+        where.append("t.status = %s")
+        args.append(status)
+    if q:
+        where.append("(t.name ILIKE %s OR t.phone ILIKE %s OR t.email ILIKE %s)")
+        like = f"%{q}%"
+        args.extend([like, like, like])
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+    cur = await conn.execute(
+        f"SELECT {_LIST_SELECT} FROM technicians t "
+        "LEFT JOIN users u ON u.id = t.user_id "
+        f"{where_sql} ORDER BY t.created_at DESC LIMIT 200",
+        tuple(args),
+    )
+    rows = await cur.fetchall()
+    return {"data": [_list_row_to_dict(r) for r in rows], "message": None}
+
+
+async def _resolve_tenant_id(tech_id: str) -> str:
+    """查該師傅的 tenant_id(authority);不存在 → 404。"""
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
+        "SELECT tenant_id FROM technicians WHERE id = %s::uuid", (tech_id,))
+    row = await cur.fetchone()
+    if not row or not row[0]:
+        raise ApiError("NOT_FOUND", f"technician {tech_id} not found", 404)
+    return str(row[0])
+
+
+async def approve_onboarding(*, tech_id: str, actor_user_id: str, notes: str | None = None) -> dict:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await lifecycle_svc.approve_onboarding(
+        tenant_id=tenant_id, tech_id=tech_id,
+        actor_user_id=actor_user_id, actor_role=_ACTOR_ROLE, notes=notes,
+    )
+
+
+async def reject_onboarding(
+    *, tech_id: str, actor_user_id: str, reason: str, notes: str | None = None
+) -> dict:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await lifecycle_svc.reject_onboarding(
+        tenant_id=tenant_id, tech_id=tech_id, actor_user_id=actor_user_id,
+        actor_role=_ACTOR_ROLE, reason=reason, notes=notes,
+    )
+
+
+async def suspend(*, tech_id: str, actor_user_id: str, reason: str, notes: str | None = None) -> dict:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await lifecycle_svc.suspend(
+        tenant_id=tenant_id, tech_id=tech_id, actor_user_id=actor_user_id,
+        actor_role=_ACTOR_ROLE, reason=reason, notes=notes,
+    )
+
+
+async def reactivate(*, tech_id: str, actor_user_id: str, reason: str, notes: str | None = None) -> dict:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await lifecycle_svc.reactivate(
+        tenant_id=tenant_id, tech_id=tech_id, actor_user_id=actor_user_id,
+        actor_role=_ACTOR_ROLE, reason=reason, notes=notes,
+    )
+
+
+async def terminate(*, tech_id: str, actor_user_id: str, reason: str, notes: str | None = None) -> dict:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await lifecycle_svc.terminate(
+        tenant_id=tenant_id, tech_id=tech_id, actor_user_id=actor_user_id,
+        actor_role=_ACTOR_ROLE, reason=reason, notes=notes,
+    )
+
+
+async def list_lifecycle_events(
+    *, tech_id: str | None = None, event_type: str | None = None, limit: int = 50
+) -> dict:
+    """跨品牌 lifecycle audit(不強制 tenant filter;平台全域視角)。"""
+    if limit < 1 or limit > 200:
+        raise ApiError("VALIDATION_ERROR", "limit must be 1..200", 422)
+    conn = await db_module.require_tech_conn()  # 事件單一居所在技師庫
+    where: list[str] = []
+    args: list = []
+    if tech_id:
+        where.append("technician_id = %s::uuid")
+        args.append(tech_id)
+    if event_type:
+        where.append("event_type = %s")
+        args.append(event_type)
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+    args.append(limit)
+    cur = await conn.execute(
+        "SELECT id, technician_id, event_type, previous_status, new_status, "
+        "       reason, notes, actor_user_id, actor_role, created_at "
+        "FROM saas.technician_lifecycle_event "
+        f"{where_sql} ORDER BY created_at DESC LIMIT %s",
+        tuple(args),
+    )
+    rows = await cur.fetchall()
+    items = [
+        {
+            "id": str(r[0]),
+            "technician_id": str(r[1]),
+            "event_type": r[2],
+            "previous_status": r[3],
+            "new_status": r[4],
+            "reason": r[5],
+            "notes": r[6],
+            "actor_user_id": str(r[7]) if r[7] else None,
+            "actor_role": r[8],
+            "created_at": r[9].isoformat() if r[9] else None,
+        }
+        for r in rows
+    ]
+    return {"data": items, "message": None}

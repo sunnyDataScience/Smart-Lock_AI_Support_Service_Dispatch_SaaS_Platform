@@ -65,9 +65,10 @@ async def _cleanup(tech_id: str) -> None:
 
 @pytest.mark.component
 @pytest.mark.asyncio
-async def test_full_lifecycle_login_gate(client, admin_headers):
+async def test_full_lifecycle_login_gate(client, platform_admin_headers):
+    # CR-0114 R3:生命週期審核已搬平台方 → 打 /api/v1/platform/technicians（無
+    # tenant scope、無 X-Initiator;initiator 取 token sub）。
     tech_id, email, password = await _register(client)
-    admin_i = {**admin_headers, "X-Initiator": "admin@example.com"}
     try:
         # 1) 待核准 → 403 + 精確錯誤碼
         r = await _login(client, email, password)
@@ -76,9 +77,8 @@ async def test_full_lifecycle_login_gate(client, admin_headers):
 
         # 2) 核准 → 可登入
         r = await client.post(
-            f"/tenants/{TENANT}/technicians/{tech_id}:onboard-approve",
-            json={"reason": "登入閘測試核准"},
-            headers=admin_i,
+            f"/api/v1/platform/technicians/{tech_id}:onboard-approve",
+            json={}, headers=platform_admin_headers,
         )
         assert r.status_code == 200, r.text
         r = await _login(client, email, password)
@@ -87,9 +87,9 @@ async def test_full_lifecycle_login_gate(client, admin_headers):
 
         # 3) 停權 → 403 + 精確錯誤碼
         r = await client.post(
-            f"/tenants/{TENANT}/technicians/{tech_id}:suspend",
+            f"/api/v1/platform/technicians/{tech_id}:suspend",
             json={"reason": "登入閘測試停權"},
-            headers=admin_i,
+            headers=platform_admin_headers,
         )
         assert r.status_code == 200, r.text
         r = await _login(client, email, password)
@@ -98,9 +98,9 @@ async def test_full_lifecycle_login_gate(client, admin_headers):
 
         # 4) 復權 → 恢復登入
         r = await client.post(
-            f"/tenants/{TENANT}/technicians/{tech_id}:reactivate",
+            f"/api/v1/platform/technicians/{tech_id}:reactivate",
             json={"reason": "登入閘測試復權"},
-            headers=admin_i,
+            headers=platform_admin_headers,
         )
         assert r.status_code == 200, r.text
         r = await _login(client, email, password)
@@ -128,20 +128,18 @@ async def test_register_creates_inactive_user(client):
 
 @pytest.mark.component
 @pytest.mark.asyncio
-async def test_terminate_blocks_login(client, admin_headers):
+async def test_terminate_blocks_login(client, platform_admin_headers):
     tech_id, email, password = await _register(client)
-    admin_i = {**admin_headers, "X-Initiator": "admin@example.com"}
     try:
         r = await client.post(
-            f"/tenants/{TENANT}/technicians/{tech_id}:onboard-approve",
-            json={"reason": "登入閘測試核准"},
-            headers=admin_i,
+            f"/api/v1/platform/technicians/{tech_id}:onboard-approve",
+            json={}, headers=platform_admin_headers,
         )
         assert r.status_code == 200
         r = await client.post(
-            f"/tenants/{TENANT}/technicians/{tech_id}:terminate",
+            f"/api/v1/platform/technicians/{tech_id}:terminate",
             json={"reason": "登入閘測試終止"},
-            headers=admin_i,
+            headers=platform_admin_headers,
         )
         assert r.status_code == 200, r.text
         r = await _login(client, email, password)

@@ -159,19 +159,19 @@ async def test_get_technician_v2_cross_tenant_403(client):
 
 
 @pytest.mark.asyncio
-async def test_suspend_technician_v2_requires_initiator(client, admin_headers):
-    """POST /tenants/{tenantId}/technicians/{techId}:suspend 無 X-Initiator → 422。
+async def test_brand_suspend_endpoint_removed(client, admin_headers):
+    """CR-0114 R3:品牌端 :suspend 已搬平台方 → 品牌路徑 405 Method Not Allowed。
 
-    註：suspend 原為 501 stub，FR-0044（technician lifecycle，migration 020）已實作為 dual-sign
-    端點，須帶 X-Initiator header（缺則 422）。完整生命週期覆蓋見 test_technician_lifecycle.py。
+    師傅生命週期審核改由 platform console（/api/v1/platform/technicians/{id}:suspend）
+    負責;品牌端只保留唯讀 lifecycle-events。完整生命週期覆蓋見
+    test_technician_login_status_gate.py（打平台端點）。
     """
     fake_id = str(uuid.uuid4())
     res = await client.post(
         f"/tenants/{DEFAULT_TENANT_ID}/technicians/{fake_id}:suspend",
         headers=admin_headers,
     )
-    assert res.status_code == 422, res.text
-    assert res.json().get("error_code") == "VALIDATION_ERROR"
+    assert res.status_code == 405, res.text
 
 
 # 註：原 test_suspend_technician_v2_cross_tenant_403 已移除。suspend 由 501 stub 改為 FR-0044
