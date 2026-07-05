@@ -79,8 +79,9 @@ services:
       # (tech-db 由師傅 stack 提供並掛在本 stack 的 network 上)
       TECH_POSTGRES_URI: "${TECH_POSTGRES_URI:-}"
       API_SURFACE: dispatch       # 完整後台面 + 背景 worker(見 api/main.py CR-0112)
-      # 兩個前端網域都要放行(派工方 web + 師傅 web 打同一品牌 api 的 WS/媒體)
-      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000 http://localhost:3001}"
+      # 三個前端網域都要放行:派工 web(3000)+ 師傅 web(3001)+ landing(3002)
+      # 打同一品牌 api 的 WS/媒體/vendors註冊。雲端每品牌換成實際網域清單。
+      CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3000 http://localhost:3001 http://localhost:3002}"
       MEDIA_ROOT: /app/api/data/media
       INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-dev-internal-token}"
       AGENT_TENANT_ID: "${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
