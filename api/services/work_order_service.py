@@ -839,6 +839,10 @@ async def accept_order(
     claim_tech_id = tech_ctx["id"] if tech_ctx and not tech_id else None
     if claim_tech_id:
         tech_id = claim_tech_id
+        # CR-0114 R4：搶單寫入 technician_id 前確保投影存在（登入技師通常已投影,
+        # 此為防禦;fallback no-op）
+        from core.tech_mirror import ensure_technician_projection
+        await ensure_technician_projection(claim_tech_id)
 
     await db_module._conn.execute(
         # CR-0043 Tier②：技師接單後完工細狀態進「待完工回報」（M05 Q052 起點）
@@ -1420,6 +1424,11 @@ async def assign_order(
     # CR-0095 D2：報價同意 gate（一律需 accepted 報價；主管可 override）
     await _assert_quote_accepted(wo_id, actor_role, override_reason)
 
+    # CR-0114 R4：共用師傅庫模式下,候選可見全部 authority 師傅,但 wo FK 指向
+    # 品牌庫投影 → 指派前先確保該師傅投影存在（單庫 fallback 為 no-op）。
+    from core.tech_mirror import ensure_technician_projection
+    await ensure_technician_projection(technician_id)
+
     # Verify technician exists, same tenant, active
     cur = await db_module._conn.execute(
         "SELECT id, status FROM technicians "
@@ -1553,6 +1562,10 @@ async def reassign_order(
             "new_technician_id is the same as current technician",
             422,
         )
+
+    # CR-0114 R4：改派前確保新師傅投影存在（共用師傅庫 → 品牌庫投影;fallback no-op）
+    from core.tech_mirror import ensure_technician_projection
+    await ensure_technician_projection(new_technician_id)
 
     # 驗新技師同 tenant + active
     cur = await db_module._conn.execute(

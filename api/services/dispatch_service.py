@@ -192,12 +192,15 @@ async def _enrich_gis_performance(candidates: list[dict], wo_district: str | Non
 async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
     """CR-0060 / BR-M07-01：回授權該品牌（未過期）的技師 id 集合。
 
-    brand 為空、無連線、或該品牌「無任何授權資料」→ None（不過濾，保守避免空候選；mock 階段）。
-    有授權資料 → 只回授權者，未授權技師將被候選過濾掉。
+    CR-0114 R4：technician_brand_authorization 是師傅身分域,改讀共用師傅庫
+    authority（require_tech_conn;單庫 fallback 同顆連線,SQL 不變 → 行為不變）。
+    brand 為空、或該品牌「無任何授權資料」→ None（語意=無授權資料可判,
+    list_dispatch_candidates 標示為 null、auto_match 保守不過濾）。
     """
-    if not brand or not await _ensure_conn():
+    if not brand:
         return None
-    cur = await db_module._conn.execute(
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         "SELECT technician_id FROM technician_brand_authorization "
         "WHERE brand = %s AND authorized = TRUE "
         "  AND (cert_expires_at IS NULL OR cert_expires_at >= CURRENT_DATE)",
@@ -215,7 +218,11 @@ def _is_excluded_by_circuit(status: str | None) -> bool:
 
 
 async def _fetch_tenant_technicians(tenant_id: str) -> list[tuple]:
-    cur = await db_module._conn.execute(
+    # CR-0114 R4：師傅身分讀共用師傅庫 authority（require_tech_conn;單庫
+    # fallback 同顆連線,SQL 不變 → 行為不變）。tenant 過濾保留（各品牌看自己
+    # 租戶名下師傅;「全部啟用中可見」指不再因未授權而過濾,見 list_dispatch_candidates）。
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
         f"SELECT {_TECH_SELECT} FROM technicians t "
         f"WHERE t.tenant_id = %s::uuid",
         (tenant_id,),
@@ -331,12 +338,19 @@ async def list_dispatch_candidates(
         rating_min=rating_min,
         exclude_circuit=exclude_circuit,
     )
-    # CR-0060 / BR-M07-01：品牌授權過濾（該品牌有授權資料時，只留授權技師）
+    # CR-0114 R4（裁決 3）：鎖品牌授權由「過濾」改「標示」——全部啟用中師傅
+    # 皆可見,每人標 brand_authorized（true/false/null）,已授權排前供人工挑選。
+    # null = 該品牌無任何授權資料(無從判定;沿用原保守語意,不標未授權)。
     auth_ids = await _brand_authorized_ids(wo_brand)
-    if auth_ids is not None:
-        candidates = [c for c in candidates if c["technician"].get("id") in auth_ids]
+    for c in candidates:
+        if auth_ids is None:
+            c["brand_authorized"] = None
+        else:
+            c["brand_authorized"] = c["technician"].get("id") in auth_ids
     # CR-0061 審計#10#11：補真實 GIS 距離 + 多維績效並重排
     candidates = await _enrich_gis_performance(candidates, wo_district)
+    # 已授權者優先（分數次之）;null（無授權資料）視同未授權排序權重,不影響可見性
+    candidates.sort(key=lambda c: (c.get("brand_authorized") is True, c.get("score", 0)), reverse=True)
     return {
         "candidates": candidates,
         "total": len(candidates),
@@ -388,7 +402,9 @@ async def auto_match_dispatch(
 
     rows = await _fetch_tenant_technicians(tenant_id)
     scored = _score_rows(rows, brand=pc_brand, district=pc_district)
-    # CR-0060 / BR-M07-01：品牌授權過濾（同 list_dispatch_candidates）
+    # CR-0114 R4（裁決 7）：**自動派工維持只選已授權**——人工派工可挑未授權
+    # (list_dispatch_candidates 標示可見),但自動指派不該自行派給沒修過該鎖品牌
+    # 的師傅。無授權資料(None)時保守不過濾(沿用原語意)。
     _auth_ids = await _brand_authorized_ids(pc_brand)
     if _auth_ids is not None:
         scored = [c for c in scored if c["technician"].get("id") in _auth_ids]
