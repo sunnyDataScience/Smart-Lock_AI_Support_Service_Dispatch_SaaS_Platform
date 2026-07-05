@@ -90,6 +90,39 @@ async def test_submit_application_public_201(client):
 
 
 @pytest.mark.asyncio
+async def test_submit_with_enriched_fields_stored_and_listed(client):
+    """業界補充欄位（website/coverage/scale/brands/referral）送出後入庫、審核 list 可見。"""
+    body = _payload(
+        website="https://test-lock.example.com",
+        coverage_regions="台北市、新北市、桃園市",
+        store_count=5,
+        expected_monthly_orders="200-500",
+        main_brands="Yale、Dormakaba",
+        referral_source="Google 搜尋",
+    )
+    token, admin_id = await _platform_admin_token(client)
+    try:
+        res = await client.post(BASE, json=body)
+        assert res.status_code == 201, res.text
+        # 平台審核 list 應回傳補充欄位
+        lst = await client.get(
+            BASE, params={"status": "pending"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert lst.status_code == 200, lst.text
+        row = next(r for r in lst.json()["data"] if r["email"] == body["email"])
+        assert row["website"] == "https://test-lock.example.com"
+        assert row["coverage_regions"] == "台北市、新北市、桃園市"
+        assert row["store_count"] == 5
+        assert row["expected_monthly_orders"] == "200-500"
+        assert row["main_brands"] == "Yale、Dormakaba"
+        assert row["referral_source"] == "Google 搜尋"
+    finally:
+        await _cleanup_by_email(body["email"])
+        await _cleanup_user(admin_id)
+
+
+@pytest.mark.asyncio
 async def test_submit_duplicate_pending_email_409(client):
     body = _payload()
     try:

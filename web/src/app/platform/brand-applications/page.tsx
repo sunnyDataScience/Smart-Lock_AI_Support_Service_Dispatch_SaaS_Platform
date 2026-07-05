@@ -25,6 +25,13 @@ interface BrandApplication {
   review_notes: string | null;
   reviewed_at: string | null;
   created_at: string | null;
+  // 業界補充欄位(申請導入表單擴充)
+  website: string | null;
+  coverage_regions: string | null;
+  store_count: number | null;
+  expected_monthly_orders: string | null;
+  main_brands: string | null;
+  referral_source: string | null;
 }
 
 const TYPE_LABEL: Record<BrandApplication["application_type"], string> = {
@@ -168,7 +175,25 @@ export default function BrandApplicationsPage() {
                     <span>統編：{app.tax_id}</span>
                     <span>電話：{app.phone}</span>
                     <span>Email：{app.email}</span>
+                    {app.website && (
+                      <span className="sm:col-span-2">
+                        網站：
+                        <a
+                          href={app.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[var(--primary)] hover:underline"
+                        >
+                          {app.website}
+                        </a>
+                      </span>
+                    )}
                     {app.address && <span className="sm:col-span-2">地址：{app.address}</span>}
+                    {app.coverage_regions && <span>涵蓋地區：{app.coverage_regions}</span>}
+                    {app.store_count != null && <span>門市/據點：{app.store_count}</span>}
+                    {app.expected_monthly_orders && <span>預估月工單量：{app.expected_monthly_orders}</span>}
+                    {app.main_brands && <span>主營品牌：{app.main_brands}</span>}
+                    {app.referral_source && <span>得知來源：{app.referral_source}</span>}
                     {app.notes && <span className="sm:col-span-2">需求：{app.notes}</span>}
                     {app.review_notes && (
                       <span className="sm:col-span-2 text-[var(--text-primary)]">
