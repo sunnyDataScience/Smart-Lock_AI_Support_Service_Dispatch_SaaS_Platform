@@ -1,7 +1,7 @@
 ---
 id: CR-0115
 title: "師傅註冊擴充為 KYC 等級（登入/註冊分離 + 敏感 PII + 文件上傳）"
-status: draft
+status: accepted
 tier: 4-exploration
 owner: HYBRID
 created: 2026-07-05
@@ -98,17 +98,17 @@ superseded-by: null
 
 ## 8. Human Decisions Required
 
-🛑 **CIA 在每列都有裁決前，凍結 code 變更。**（業主已定「最大範圍 + 註冊獨立成頁」，以下為其展開的設計決策）
+✅ **§8 全數裁決 2026-07-05（業主）。** code 解凍，依 §9 實作。
 
-| # | Question | Options | Owner | Status | Decision |
-|---|---|---|---|---|---|
-| 1 | 敏感 PII（身分證/銀行帳戶）怎麼存？ | (a) 獨立 `technician_kyc` 表 + 欄位加密（pgcrypto/KMS）＋讀取遮罩（**推薦**）(b) 主 technicians 表明文欄（最省事、風險高）(c) 只存遮罩後末碼 + 完整值不落庫（撥款另走人工） | Architect/業主 | open | — |
-| 2 | 文件上傳時機與授權（註冊是公開前帳號態）？ | (a) 兩階段：先送基本資料建 pending 帳號 → 回一次性 token → 憑 token 上傳文件（**推薦**）(b) 公開上傳端點 + 嚴格 rate limit + 暫存待註冊完成關聯 (c) 先註冊、文件核准前於「我的帳戶」補件 | Architect/業主 | open | — |
-| 3 | 審核頁誰能看敏感 PII 全值 / 文件？ | (a) 平台管理員（platform console，CR-0114 師傅審核已搬平台）看全值＋文件、品牌端唯讀遮罩（**推薦**）(b) 品牌 admin 也可看全值 (c) 全部遮罩、全值僅撥款系統 | 業主 | open | — |
-| 4 | 哪些新欄「必填」、哪些「選填」？（必填會軟破壞既有 API 直連） | (a) 必填=年資/服務地區/緊急聯絡人/同意條款；PII+文件核准前補即可（**推薦，降低放棄率**）(b) 全部必填（把關嚴）(c) 全部選填（僅蒐集） | 業主/UX | open | — |
-| 5 | 是否需要「文件待核實」中間狀態？ | (a) 不加，沿用 pending_approval，審核頁自行判斷文件齊全（**推薦，零狀態機變更**）(b) 加 `documents_pending` 子狀態 | 業主 | open | — |
-| 6 | PII/證件保留與刪除政策？ | (a) 沿用個資法最小保留 + 帳號終止後 N 天刪證件（需定 N）(b) 永久留存 (c) 本 CR 先不定、記 backlog | 業主/法遵 | open | — |
-| 7 | 雲端證件儲存落點？ | (a) GCS private bucket + signed URL（正式）(b) 本機 MEDIA_ROOT（MVP 先本機，雲端另 CR）(**推薦分階段**) | Architect | open | — |
+| # | Question | Owner | Status | Decision（2026-07-05 業主） |
+|---|---|---|---|---|
+| 1 | 敏感 PII（身分證/銀行帳戶）怎麼存？ | Architect/業主 | **decided** | **(a) 獨立 `technician_kyc` 表 + 欄位加密 + 讀取遮罩、不鏡射品牌庫** |
+| 2 | 文件上傳時機與授權（註冊是公開前帳號態）？ | Architect/業主 | **decided** | **(a) 兩階段：先送基本資料建 pending 帳號 → 回一次性 token → 憑 token 上傳** |
+| 3 | 審核頁誰能看敏感 PII 全值 / 文件？ | 業主 | **decided** | **(a) 平台管理員看全值＋文件、品牌端唯讀遮罩** |
+| 4 | 哪些新欄「必填」？ | 業主/UX | **decided** | **(a) 必填=年資/服務地區/緊急聯絡人/同意條款；PII+文件核准前補即可** |
+| 5 | 是否需要「文件待核實」中間狀態？ | 業主 | **decided** | **(a) 不加，沿用 pending_approval（零狀態機變更）** |
+| 6 | PII/證件保留與刪除政策？ | 業主/法遵 | **decided** | **(c) 本 CR 先不定、記 backlog（帳號終止後刪除天數 N 另定）** |
+| 7 | 雲端證件儲存落點？ | Architect | **decided** | **分階段：本機 `MEDIA_ROOT` 先動、GCS private bucket + signed URL 另 CR** |
 
 ## 9. Suggested Implementation Order
 
@@ -147,7 +147,21 @@ superseded-by: null
 
 | Role | Name | Date | Approved? |
 |---|---|---|---|
-| Product（業主） | | | |
+| Product（業主） | sunny | 2026-07-05 | ✅ §8 全數裁決 |
 | Architect | | | |
 | Engineering Lead | | | |
 | QA Lead | | | |
+
+---
+
+## 進度
+
+_依 §9 順序實作，每步一 branch、`--no-ff` 併回 dev_new_arch。_
+
+- ⏳ S1 Decisions/ADR — 待
+- ⏳ S2 Schema（technicians 非敏感欄 + technician_kyc 加密表 + registration_document 表 + media purpose）— 待
+- ⏳ S3 Domain/Service（register 擴充 + PII 加密/遮罩 + 兩階段 token 上傳）— 待
+- ⏳ S4 API（register body + 公開上傳端點 + 審核回傳遮罩）— 待
+- ⏳ S5 Tests — 待
+- ⏳ S6 UI（/tech-login 拆分 + /tech-register 多步驟）— 待
+- ⏳ S7 審核頁（平台 console 顯示新欄+文件）— 待
