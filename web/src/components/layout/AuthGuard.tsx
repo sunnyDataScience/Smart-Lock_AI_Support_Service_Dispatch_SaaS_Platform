@@ -25,6 +25,7 @@ const PUBLIC_PATHS = new Set([
   "/",
   "/login",
   "/tech-login",
+  "/tech-register", // CR-0115 師傅 KYC 註冊獨立頁（未登入必須可達）
   "/vendor-login",
   "/register",
   "/forgot-password",
