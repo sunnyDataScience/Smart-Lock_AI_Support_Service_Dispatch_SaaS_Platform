@@ -110,16 +110,26 @@ GCP 的做法印證:**「群組」本質是自訂角色**(權限碼集合),與�
   (users 非技師列),不碰技師庫;SuperAdmin console 的跨品牌技師視角
   天然由「師傅平台全品牌共用」取得,不需要另做。
 
-## §8 Human Decisions Required(業主)
+## §8 Human Decisions Required(業主 2026-07-05 已裁決,詳見 CR-0114)
 
-1. **方案 A or B?**(A=品牌內兩層+外掛 console,推薦;B=單庫三層照 V3.0 spec)
-2. **「註冊即租戶 Admin」的邊界**:現行 landing 廠商自助註冊(vendor)在獨立
-   專案模式下還存在嗎?會議 §三說 landing 改「聯絡我們幫你部署」——
-   若是,vendor 自助註冊降級為「品牌內的協力廠商帳號」而非租戶 Admin?
-3. **群組 MVP 範圍**:P2 先做「指派預定義 12 角色」就好,還是一步到位自訂群組?
-4. **排程**:P1 放 UAT 後第一輪?(P3 依賴品牌數 >1 才有意義,可後置)
+1. **方案 A or B?** → **方案 A 確認**。且 P3 SuperAdmin console **提前落地**為
+   CR-0114 的 platform console(平台方自用後台:師傅申請審核 + 品牌申請審核);
+   身分採**新角色 `platform_admin`**(不活化 super_admin 死角色),帳號池與
+   JWT secret 皆與品牌隔離。
+2. **「註冊即租戶 Admin」邊界** → vendor 自助註冊**自公開面全退場**:
+   landing 品牌 CTA 改打平台 API `brand_applications`(意向申請,不建帳號、
+   不收密碼,核准後人工開站);品牌站內註冊 tab 改「**品牌員工帳號申請**」
+   (員工申請 → 品牌 Admin 審核並指派角色)。`/vendors/register` 端點保留,
+   降級為「品牌內協力廠商帳號」路徑,admin-gate 屬後續 CR。
+3. **群組 MVP 範圍** → 先做**指派預定義角色**,且正典收斂為 **UAT 版 7 角色**
+   (`docs_html/20260709/角色與功能總覽-PPT素材.html`):子帳號可指派 5 員工角色
+   (admin/operations_manager/dispatcher/customer_service/reviewer);自訂群組後置 P2。
+4. **排程** → 即刻以 CR-0114 R0-R5 六輪執行(platform stack 骨架 → 品牌申請流 →
+   師傅審核搬遷 → 品牌讀共用師傅庫 → 員工帳號申請)。
 
 ### 進度
 
 - 2026-07-04:設計研究完成(本文件),現況 10 項事實查證 + GCP 模式對照 +
   A/B 方案 + 三階段落地路線。🛑 待業主裁決 §8 後排實作輪(各階段自帶 CIA)。
+- 2026-07-05:業主口述目標架構 + 七項裁決(§8 四問全數落定,另含授權標示語意、
+  自動派工範圍、開站純手動),立案 **CR-0114** 承接實作;本文件 §8 記錄裁決結果。

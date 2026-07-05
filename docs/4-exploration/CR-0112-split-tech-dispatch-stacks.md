@@ -144,6 +144,12 @@ db-init 一次性服務套既有 Schema/migrations/seeds(不新增 migration)。
   online_state、lifecycle 全交易、排班單一居所、認證 CRUD、GDPR、role 指派閘)、
   compose 加 tech-db(5434)、`scripts/db/split-tech-db.sh`(schema 子集 + 全量
   搬遷 + --verify 漂移比對)。全套 1544 passed(fallback 零回歸)。
+- 2026-07-05 補:landing 獨立容器(3002,`docker-compose.landing.yml`)已落地;
+  **CR-0114 立案新增第四個 stack:platform console**(platform-db 5435 /
+  platform-api 8003 / platform-web 3003,`API_SURFACE=platform` +
+  `NEXT_PUBLIC_APP_MODE=platform`,沿用本 CR 三件套模式)。四 stack 拓撲自此為:
+  dispatch(每品牌一套)/ tech(全品牌共用)/ landing(導流)/ platform(平台方自用)。
+  技師審核寫入口將自品牌端搬遷至 platform(mirror 機轉不變,詳 CR-0114 §4.3/4.4)。
 
 ## §9 Suggested Implementation Order(依 §8 裁決後)
 

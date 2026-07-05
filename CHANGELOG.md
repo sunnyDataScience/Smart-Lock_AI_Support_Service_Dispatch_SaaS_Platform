@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Decisions
+
+- **CR-0114 立案：平台方管理系統(platform console)與註冊/審核動線重構（branch `docs/cr-0114-platform-console`，2026-07-05）**：業主口述目標架構＋七項裁決——(1) 師傅審核**移到 platform console**、品牌端唯讀;(2) 品牌申請核准後**純手動開站**(console 只記錄狀態＋產開站指引文字);(3) 品牌選師傅**全部啟用中可見＋標示已授權/未授權**(過濾改標示);(4) 品牌登入頁註冊 tab 改「**品牌員工帳號申請**」(品牌 Admin 審核並指派角色);(5) **權限正典＝UAT 版 7 角色**(子帳號指派 5 員工角色);(6) 授權標示語意＝**鎖品牌授權**(沿用 technician_brand_authorization,零 schema 變更);(7) **自動派工仍只選已授權**。新增第四個 stack:platform-db(5435,`lock_platform` 獨立容器)/platform-api(8003,`API_SURFACE=platform`)/platform-web(3003,`APP_MODE=platform`);身分＝新角色 `platform_admin`(不活化 super_admin 死角色,帳號池與 JWT secret 與品牌隔離)。CR-0113 §8 四問全數回寫,CR-0112 補四 stack 拓撲節。實作分 R1-R5 五輪(見 CR-0114 §9)。
+
 ### Added
 
 - **landing 獨立容器：新增 `APP_MODE=landing` + `docker-compose.landing.yml`（branch `feat/landing-container`，2026-07-05）**：業主需求——把一頁式介紹網頁部署成獨立 container(對外門面與登入後系統關注點分離)。**同一份 web image**、以 `NEXT_PUBLIC_APP_MODE=landing` build：`appMode.ts` 加第 4 個模式,`crossModeRedirect` 在 landing 下只放行 `/`、其餘導派工 portal;CTA href 集中為 `techRegisterHref()`/`dispatchLoginHref()` 兩個 helper(landing → 絕對 URL 指師傅/派工 portal via `NEXT_PUBLIC_TECH_PORTAL_URL`/`NEXT_PUBLIC_DISPATCH_PORTAL_URL`;非 landing → 沿用站內/PEER 邏輯,零行為變化)。landing 頁在此模式下一律顯示「登入」(外導派工 portal,無登入態偵測)。**Dockerfile** +2 ARG(tech/dispatch portal URL)。**`docker-compose.landing.yml`**:單一 `landing-web` service(埠 3002)、**無 DB/後端依賴**——純 SSR + 瀏覽器打各服務,可完全獨立起;品牌申請 modal 打派工 API `/vendors/register`。埠位:landing 3002 / 派工 web 3000 / 師傅 web 3001。tsc 0;Playwright 實測(landing 容器 3002 渲染、師傅 CTA 絕對指 :3001、登入指 :3000、品牌 modal 送出 pending)。
