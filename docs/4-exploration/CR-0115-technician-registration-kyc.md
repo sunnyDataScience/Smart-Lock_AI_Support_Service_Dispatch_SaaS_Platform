@@ -158,10 +158,9 @@ superseded-by: null
 
 _依 §9 順序實作，每步一 branch、`--no-ff` 併回 dev_new_arch。_
 
-- ⏳ S1 Decisions/ADR — 待
-- ⏳ S2 Schema（technicians 非敏感欄 + technician_kyc 加密表 + registration_document 表 + media purpose）— 待
-- ⏳ S3 Domain/Service（register 擴充 + PII 加密/遮罩 + 兩階段 token 上傳）— 待
-- ⏳ S4 API（register body + 公開上傳端點 + 審核回傳遮罩）— 待
-- ⏳ S5 Tests — 待
-- ⏳ S6 UI（/tech-login 拆分 + /tech-register 多步驟）— 待
-- ⏳ S7 審核頁（平台 console 顯示新欄+文件）— 待
+- ✅ S2+S3+S4（Tier 1/2 後端）done（merge <待填>）：migration 089（technicians 6 非敏感欄 + terms_accepted_at + `technician_kyc` 加密表）；`core/pii_crypto.py`（Fernet 對稱加密 + 末碼/遮罩 helper，金鑰 env `KYC_ENCRYPTION_KEY`）；`register_technician` 擴充（Tier 1 存 technicians、敏感 PII 加密存 technician_kyc、證照落 technician_certification、不鏡射品牌庫）；`TechnicianRegisterBody` 加選填新欄（加性非破壞）。089 已套本機 5433+5434。
+- ✅ S5 Tests done：`test_cr_0115_technician_kyc_register.py`（5 項：Tier1+加密 KYC 儲存/末碼/解回、身分證不明文入 technicians、只送 6 欄向後相容、身分證+帳號格式 422）；全套 **1609 passed**。
+- ⏳ S6 UI（/tech-login 拆登入 only + 新 /tech-register 多步驟表單）— 待（本輪僅後端，API 新欄選填；「最小必填」於此輪表單層強制）
+- ⏳ S-upload 兩階段 token 文件上傳（migration：registration_document + upload_token 表；公開上傳端點）— 待
+- ⏳ S7 審核頁（平台 console 顯示新欄 + 文件、敏感 PII 遮罩/授權看全值）— 待
+- ⏳ 收尾：api image 重建（deploy 擴充 register）、docs_html regen、雲端 migration 089

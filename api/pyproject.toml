@@ -17,6 +17,9 @@ dependencies = [
     "python-jose[cryptography]>=3.3",
     "passlib[bcrypt]>=1.7",
     "bcrypt<4.1",
+    # === PII 加密（CR-0115 KYC 敏感欄位 app 層 Fernet 加密）===
+    # 原為 python-jose[cryptography] 的傳遞相依，改為顯式宣告（core/pii_crypto.py 直接 import）。
+    "cryptography>=42.0",
     # === PDF generation (vouchers / reports) ===
     "reportlab>=4.0",
     # === LINE 通道（webhook 接收 + 客服接管 push + push outbox worker）===
