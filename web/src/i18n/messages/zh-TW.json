@@ -2464,7 +2464,9 @@
       "footerVersion": "v0.1 — 技師端 PWA",
       "tabLogin": "登入",
       "tabRegister": "註冊",
-      "brandEntryLink": "我是品牌 / 經銷 / 鎖店 →"
+      "brandEntryLink": "我是品牌 / 經銷 / 鎖店 →",
+      "noAccount": "還沒有帳號？",
+      "applyLink": "申請成為師傅 →"
     },
     "pool": {
       "title": "案件池",

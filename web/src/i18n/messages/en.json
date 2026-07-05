@@ -2464,7 +2464,9 @@
       "footerVersion": "v0.1 — Technician PWA",
       "tabLogin": "Sign in",
       "tabRegister": "Register",
-      "brandEntryLink": "I am a brand / distributor / shop →"
+      "brandEntryLink": "I am a brand / distributor / shop →",
+      "noAccount": "No account yet?",
+      "applyLink": "Apply as technician →"
     },
     "pool": {
       "title": "Order pool",

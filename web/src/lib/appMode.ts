@@ -41,6 +41,7 @@ const TECH_APP_PREFIXES = ["/home", "/pool", "/my-orders", "/account"];
 const TECH_BUILD_ALLOWED = [
   "/",
   "/tech-login",
+  "/tech-register", // CR-0115 師傅 KYC 註冊獨立頁
   "/forgot-password",
   "/reset-password",
   ...TECH_APP_PREFIXES,
@@ -94,7 +95,8 @@ export function techRegisterHref(): string {
       : APP_MODE === "dispatch"
         ? PEER_PORTAL_URL
         : "";
-  return `${base}/tech-login?tab=register`;
+  // CR-0115：師傅註冊改獨立多步驟頁 /tech-register（原 /tech-login?tab=register 退場）
+  return `${base}/tech-register`;
 }
 
 // 派工方登入入口:landing → DISPATCH_PORTAL_URL;其餘 → 站內 /login。

@@ -160,7 +160,7 @@ _依 §9 順序實作，每步一 branch、`--no-ff` 併回 dev_new_arch。_
 
 - ✅ S2+S3+S4（Tier 1/2 後端）done（merge <待填>）：migration 089（technicians 6 非敏感欄 + terms_accepted_at + `technician_kyc` 加密表）；`core/pii_crypto.py`（Fernet 對稱加密 + 末碼/遮罩 helper，金鑰 env `KYC_ENCRYPTION_KEY`）；`register_technician` 擴充（Tier 1 存 technicians、敏感 PII 加密存 technician_kyc、證照落 technician_certification、不鏡射品牌庫）；`TechnicianRegisterBody` 加選填新欄（加性非破壞）。089 已套本機 5433+5434。
 - ✅ S5 Tests done：`test_cr_0115_technician_kyc_register.py`（5 項：Tier1+加密 KYC 儲存/末碼/解回、身分證不明文入 technicians、只送 6 欄向後相容、身分證+帳號格式 422）；全套 **1609 passed**。
-- ⏳ S6 UI（/tech-login 拆登入 only + 新 /tech-register 多步驟表單）— 待（本輪僅後端，API 新欄選填；「最小必填」於此輪表單層強制）
+- ✅ S6 UI（文字欄位）done：`/tech-login` 拆為只登入 + 「還沒有帳號？申請成為師傅」連結；新 `/tech-register` 多步驟表單（步驟 1 基本／2 專業／3 撥款與聯絡（含敏感 PII + 同意）／4 確認，進度條 + 逐步驗證 + 確認頁遮罩顯示身分證/帳號末碼）；appMode `TECH_BUILD_ALLOWED` + `techRegisterHref` 指 /tech-register；AuthGuard PUBLIC_PATHS 加 /tech-register；i18n techLogin.noAccount/applyLink（parity 2753）。**修一個送出防呆 bug**：表單原本靠 `<form onSubmit>` 語意，在中間步驟按 Enter/互動會提前送出跳過確認 → 改為 form onSubmit 一律 preventDefault、「送出申請」改 `type=button`+onClick 手動觸發，杜絕隱式送出。tsc 0 + 重建 tech-api（新契約）+ tech-web；**Playwright 端到端**（登入頁只登入+連結 → 多步驟填寫 → 確認頁遮罩（身分證 •••••••789 / 帳號 822 ••••••3210）→ 送出 → tech-db 加密入庫、品牌庫投影無 KYC；重驗中間步驟不提前送出）。**文件上傳步驟（Tier 3）留下一輪**（需兩階段 token 上傳後端）。
 - ⏳ S-upload 兩階段 token 文件上傳（migration：registration_document + upload_token 表；公開上傳端點）— 待
 - ⏳ S7 審核頁（平台 console 顯示新欄 + 文件、敏感 PII 遮罩/授權看全值）— 待
-- ⏳ 收尾：api image 重建（deploy 擴充 register）、docs_html regen、雲端 migration 089
+- ⏳ 收尾：dispatch api image 重建（deploy）、docs_html regen、雲端 migration 089
