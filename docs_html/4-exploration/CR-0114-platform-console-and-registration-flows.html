@@ -269,6 +269,54 @@ net)。</li>
 <ul>
 <li>2026-07-05:三路現況盤點 + 設計書 + 業主七項裁決完成,本 CR
 立案(status: accepted)。</li>
+<li>✅ R0 done(merge <code>d7618172</code>):CR 立案 + CR-0113 §8 回寫 +
+CR-0112 補四 stack 拓撲節 + CHANGELOG Decisions。</li>
+<li>✅ R1 done(merge <code>61bb1686</code>):platform console 骨架 ——
+第四 stack(platform-db 5435 / platform-api 8003 / platform-web
+3003)、新角色 <code>platform_admin</code>(隔離帳號池 + 獨立 JWT
+secret,品牌⇄平台 token 雙向 403)、<code>core/db.py</code> 第三連線
+fallback。全套 1572 passed。</li>
+<li>✅ R2 done(merge <code>883427d5</code>):品牌申請流 landing →
+platform console —— 平台庫 <code>brand_applications</code> 表 +
+<code>BrandApplyForm</code>(無密碼意向申請)取代 landing modal 的
+VendorRegisterForm + console 審核頁(核准回開站指引純文字,裁決 2
+純手動)。全套 1584 passed。</li>
+<li>✅ R3 done(merge <code>de7d5f24</code>):師傅審核搬遷平台方(裁決 1)——
+<code>platform_technicians</code> 六端點復用 lifecycle
+狀態機零改動、品牌端刪 5 寫端點只留唯讀 audit、initiator 取 token sub
+廢自報 X-Initiator。全套 1590 passed。</li>
+<li>✅ R4 done(merge <code>6328a698</code>):品牌讀共用師傅庫(裁決
+3/6/7)—— dispatch/technician service 改
+<code>require_tech_conn()</code>、<code>list_dispatch_candidates</code>
+授權由過濾改<strong>標示</strong>
+<code>brand_authorized</code>、<code>auto_match</code>
+維持只選已授權、<code>ensure_technician_projection</code>
+mirror-on-demand 掛 3 寫入點保 FK。全套 1594 passed。</li>
+<li>✅ R5 backend done(merge
+<code>9f845385</code>):品牌員工帳號申請後端(裁決 4)—— migration 088
+<code>staff_applications</code>(不預建
+users)、<code>staff_application_service</code>(submit 去重/approve
+transaction 內建 users 驗 role ∈ <code>_STAFF_ROLES</code>/reject)、全
+tenant-scoped <code>routers/staff_applications.py</code>(無 /api/v1
+前綴)。<code>test_staff_applications.py</code> 10 項,全套 1604
+passed。</li>
+<li>✅ 導流架構細化(merge
+<code>71ed1742</code>):業主回報「localhost:3000 點師父跳品牌」——
+實測師父 CTA 接線本身正確,真因是 3000 品牌 dispatch stack 的
+<code>/</code> 誤渲染與 3002 重複的對外 landing。修
+<code>crossModeRedirect</code> dispatch
+<code>/</code>→<code>/login</code> + landing 元件 dispatch build
+<code>return null</code>。Playwright 驗證。</li>
+<li>✅ R5 frontend done(merge
+<code>e0557e06</code>):品牌員工帳號申請前端接線(裁決 4)——
+<code>StaffRegisterForm</code>(無角色選擇,POST 公開 tenant-scoped
+端點)取代登入頁註冊 tab、<code>admin/staff</code> 待審申請區(5 角色下拉
+approve / prompt reason reject)、刪
+<code>VendorRegisterForm</code>、i18n +staffApply 8 鍵(parity 2751)。tsc
+0 + 重建 dispatch web/api + Playwright 端到端(申請→admin
+核准指派派工員→新帳號登入 role=dispatcher)。</li>
+<li><strong>五輪 R0-R5 全數落地</strong>;剩 5 輪收尾(docs_html
+regen、雲端部署含 migration 088、push 由業主執行)。</li>
 </ul>
 <h2 id="9-suggested-implementation-order">§9 Suggested Implementation
 Order</h2>
