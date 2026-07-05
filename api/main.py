@@ -49,6 +49,7 @@ from routers import revenue as revenue_router
 from routers import pricing_rules as pricing_rules_router
 from routers import customers as customers_router
 from routers import roles as roles_router
+from routers import staff_applications as staff_applications_router  # CR-0114 R5: 品牌員工帳號申請
 from routers import inventory as inventory_router
 from routers import reports_kpi as reports_kpi_router
 from routers import reports_export as reports_export_router
@@ -274,6 +275,8 @@ app.include_router(revenue_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(pricing_rules_router.router, prefix="/api/v1", tags=["accounting"])
 app.include_router(customers_router.router, prefix="/api/v1", tags=["customer_service"])
 app.include_router(roles_router.router, prefix="/api/v1", tags=["user_management"])
+# CR-0114 R5:全 tenant-scoped(/tenants/{tid}/staff-applications),對齊 v2 慣例無 /api/v1 前綴
+app.include_router(staff_applications_router.router, tags=["user_management"])
 app.include_router(inventory_router.router, prefix="/api/v1", tags=["inventory"])
 app.include_router(reports_kpi_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(reports_export_router.router, prefix="/api/v1", tags=["reports"])
