@@ -1,6 +1,6 @@
 "use client";
 
-import { TrendingUp, CheckCircle2, Timer, Star, MessageSquare } from "lucide-react";
+import { TrendingUp, CheckCircle2, Timer, Star } from "lucide-react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 // 後端 GET /technicians/me/dashboard-summary 回傳（CR-0088）。不含租戶內排名
@@ -36,22 +36,22 @@ interface Props {
   loading: boolean;
 }
 
+// 每格一個語意色（固定 hex + 低透明 tint 底，亮/暗主題皆可讀），
+// 取代舊版四格同灰 icon 無層次的呈現。
+const CELL_TINT: Record<string, { fg: string; bg: string }> = {
+  gross: { fg: "#10B981", bg: "rgba(16,185,129,0.12)" },
+  completion: { fg: "#3B82F6", bg: "rgba(59,130,246,0.12)" },
+  arrival: { fg: "#F59E0B", bg: "rgba(245,158,11,0.14)" },
+  rating: { fg: "#8B5CF6", bg: "rgba(139,92,246,0.12)" },
+};
+
 /**
- * MonthlySnapshot — 月度快照 KPI（CR-0088 P1）：本月毛額（含未結預估）、完成率、
- * 平均到場、客戶評分 + 近期評價。**不顯示租戶內排名**（業主裁決）。
+ * MonthlySnapshot — 首頁「本月表現」統計條（CR-0088 P1）：本月毛額（含未結預估）、
+ * 完成率、平均到場、客戶評分。**不顯示租戶內排名**（業主裁決）。
+ * 近期客戶評價已拆至 RecentFeedback 獨立卡。
  */
 export default function MonthlySnapshot({ summary, loading }: Props) {
   const t = useTranslations("techPortal.home.monthly");
-
-  if (loading && !summary) {
-    return (
-      <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
-        <div className="py-4 text-center text-[13px] text-[var(--text-disabled)]">
-          {t("loading")}
-        </div>
-      </section>
-    );
-  }
 
   const s = summary;
   const cells = [
@@ -81,49 +81,38 @@ export default function MonthlySnapshot({ summary, loading }: Props) {
     },
   ];
 
-  const recent = (s?.recent_feedback ?? []).filter((f) => f.feedback);
-
   return (
-    <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-[var(--primary)]" />
-        <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">{t("title")}</h2>
-      </div>
+    <section aria-label={t("title")}>
+      <h2 className="mb-2 px-0.5 text-[13px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+        {t("title")}
+      </h2>
 
-      <div className="grid grid-cols-2 gap-2">
-        {cells.map(({ key, Icon, value, label }) => (
-          <div key={key} className="rounded-lg border border-[var(--border)] p-3">
-            <Icon className="h-4 w-4 text-[var(--text-secondary)]" />
-            <div className="mt-1 text-[18px] font-bold text-[var(--text-primary)]">{value}</div>
-            <div className="text-[11px] text-[var(--text-disabled)]">{label}</div>
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-2 text-[10px] text-[var(--text-disabled)]">{t("estNote")}</p>
-
-      {recent.length > 0 && (
-        <div className="mt-3 border-t border-[var(--border)] pt-3">
-          <div className="mb-2 flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-secondary)]">
-            <MessageSquare className="h-3.5 w-3.5" />
-            {t("recentFeedback")}
-          </div>
-          <ul className="flex flex-col gap-2">
-            {recent.map((f, i) => (
-              <li key={i} className="rounded-lg bg-[var(--bg-page)] px-3 py-2">
-                <div className="flex items-center gap-1 text-[11px] text-amber-500">
-                  {f.rating != null
-                    ? "★".repeat(f.rating) + "☆".repeat(Math.max(0, 5 - f.rating))
-                    : ""}
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {cells.map(({ key, Icon, value, label }) => {
+          const tint = CELL_TINT[key];
+          return (
+            <div
+              key={key}
+              className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3.5 shadow-sm"
+            >
+              <span
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                style={{ backgroundColor: tint.bg, color: tint.fg }}
+              >
+                <Icon className="h-5 w-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="truncate text-[18px] font-bold leading-tight text-[var(--text-primary)] [font-variant-numeric:tabular-nums]">
+                  {loading && !s ? "…" : value}
                 </div>
-                <p className="mt-0.5 text-[12px] text-[var(--text-primary)] line-clamp-2">
-                  {f.feedback}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                <div className="truncate text-[11px] text-[var(--text-secondary)]">{label}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="mt-1.5 px-0.5 text-[11px] text-[var(--text-disabled)]">{t("estNote")}</p>
     </section>
   );
 }

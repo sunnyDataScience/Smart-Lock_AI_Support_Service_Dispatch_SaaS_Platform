@@ -13,6 +13,8 @@ interface Props {
   availability: Availability;
   /** 切換成功後回傳新狀態給父層更新（膠囊等共用顯示）。 */
   onChanged: (next: Availability) => void;
+  /** hero＝嵌在深色漸層卡內（提示/錯誤文字改白系）；預設 card＝白底卡。 */
+  tone?: "card" | "hero";
 }
 
 /**
@@ -20,7 +22,7 @@ interface Props {
  * 接真實端點 PATCH /api/v1/technicians/me/availability（only available↔offline）。
  * busy / on_leave 顯示唯讀狀態；circuit_breaker_open 鎖定不可手動上線。
  */
-export default function GoOnlineToggle({ availability, onChanged }: Props) {
+export default function GoOnlineToggle({ availability, onChanged, tone = "card" }: Props) {
   const t = useTranslations("techPortal.home.goOnline");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -47,13 +49,19 @@ export default function GoOnlineToggle({ availability, onChanged }: Props) {
     }
   }
 
+  // hero（深色漸層底）時離線態改白底深字：深底上的灰鈕不夠醒目，
+  // 「上線接案」是首頁第一行動，需為視覺最強元素。
+  const heroOffline = tone === "hero" && !locked && !readOnly && !isOnline;
   const bg = locked
     ? "#EF4444"
     : isOnline
       ? "#10B981"
       : readOnly
         ? "#F59E0B"
-        : "#64748B";
+        : heroOffline
+          ? "#FFFFFF"
+          : "#64748B";
+  const fg = heroOffline ? "#0F172A" : "#FFFFFF";
 
   const label = locked
     ? t("locked")
@@ -80,8 +88,8 @@ export default function GoOnlineToggle({ availability, onChanged }: Props) {
         onClick={toggle}
         disabled={submitting || locked || readOnly}
         aria-pressed={isOnline}
-        className="flex min-h-[64px] w-full max-w-[360px] items-center justify-center gap-3 rounded-2xl px-6 text-[17px] font-bold text-white shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-90"
-        style={{ backgroundColor: bg }}
+        className="flex min-h-[64px] w-full max-w-[360px] items-center justify-center gap-3 rounded-2xl px-6 text-[17px] font-bold shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-90"
+        style={{ backgroundColor: bg, color: fg }}
       >
         {submitting ? (
           <Loader2 className="h-6 w-6 animate-spin" />
@@ -92,9 +100,21 @@ export default function GoOnlineToggle({ availability, onChanged }: Props) {
         )}
         {label}
       </button>
-      <p className="text-center text-[12px] text-[var(--text-secondary)]">{hint}</p>
+      <p
+        className={`text-center text-[12px] ${
+          tone === "hero" ? "text-white/60" : "text-[var(--text-secondary)]"
+        }`}
+      >
+        {hint}
+      </p>
       {error && (
-        <p className="text-center text-[12px] text-red-600">{error}</p>
+        <p
+          className={`text-center text-[12px] ${
+            tone === "hero" ? "text-red-300" : "text-red-600"
+          }`}
+        >
+          {error}
+        </p>
       )}
     </div>
   );

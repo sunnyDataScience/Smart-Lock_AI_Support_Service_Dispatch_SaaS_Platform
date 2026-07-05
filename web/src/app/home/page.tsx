@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import StatusEarningsPill from "@/components/tech/dashboard/StatusEarningsPill";
-import GoOnlineToggle from "@/components/tech/dashboard/GoOnlineToggle";
+import TechHomeHero from "@/components/tech/dashboard/TechHomeHero";
 import TodayScheduleSummary from "@/components/tech/dashboard/TodayScheduleSummary";
 import NeedsAttention from "@/components/tech/dashboard/NeedsAttention";
+import RecentFeedback from "@/components/tech/dashboard/RecentFeedback";
 import WorkloadHeatmap, {
   type WorkloadData,
 } from "@/components/tech/dashboard/WorkloadHeatmap";
@@ -116,7 +116,7 @@ export default function TechHomePage() {
   return (
     <TechShell wide>
       <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3 md:px-6">
-        <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{greeting}</h1>
+        <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
         <button
           type="button"
           onClick={load}
@@ -128,21 +128,18 @@ export default function TechHomePage() {
         </button>
       </div>
 
-      <div className="flex flex-col gap-4 p-4 md:p-6">
-        {/* hero：膠囊 + 上線大鈕（桌面並排）*/}
-        <div className="grid gap-4 md:grid-cols-2">
-          <StatusEarningsPill
-            availability={availability}
-            amountLabel={earningsLabel}
-            caption={earningsCaption}
-          />
-          <div className="flex items-center justify-center rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
-            <GoOnlineToggle
-              availability={availability}
-              onChanged={(next) => setAvailability(next)}
-            />
-          </div>
-        </div>
+      <div className="flex flex-col gap-5 p-4 md:p-6">
+        {/* hero：問候 + 狀態 + 收入 + 上線開關收攏為單一視覺錨點 */}
+        <TechHomeHero
+          greeting={greeting}
+          availability={availability}
+          amountLabel={earningsLabel}
+          amountCaption={earningsCaption}
+          onAvailabilityChanged={(next) => setAvailability(next)}
+        />
+
+        {/* 本月表現統計條 */}
+        <MonthlySnapshot summary={summary} loading={loading} />
 
         {/* 主內容：桌面雙欄 */}
         <div className="grid gap-4 md:grid-cols-2">
@@ -152,7 +149,7 @@ export default function TechHomePage() {
           </div>
           <div className="flex flex-col gap-4">
             <NeedsAttention orders={orders} statements={statements} />
-            <MonthlySnapshot summary={summary} loading={loading} />
+            <RecentFeedback summary={summary} />
           </div>
         </div>
       </div>
