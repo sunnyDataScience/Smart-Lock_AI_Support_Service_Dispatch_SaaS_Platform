@@ -240,12 +240,15 @@ async def test_create_technician_v2_missing_coverage_areas_422(client, admin_hea
 
 @pytest.mark.asyncio
 @pytest.mark.component
-async def test_create_technician_creates_user_and_can_approve(client, admin_headers):
+async def test_create_technician_creates_user_and_can_approve(
+    client, admin_headers, platform_admin_headers
+):
     """C-6 (CR-0103 回歸)：admin 新增技師應一併建 user(user_id 非 NULL)，核准才不會 404。
 
     重現業主『核准失敗 NOT_FOUND：technician ... not found in tenant』根因 —— 原 admin
     新增不建 user → technician.user_id=NULL → approve 的 _fetch_status JOIN users 撈不出列
     → 404。修復後：① 建出來的技師有連結 user；② 核准回 200、status 轉 active。
+    CR-0114 R3:核准改打平台端點（品牌端建技師仍在,審核搬平台）。
     """
     import core.db as db_module
 
@@ -266,11 +269,11 @@ async def test_create_technician_creates_user_and_can_approve(client, admin_head
         assert user_id is not None, "admin 新增技師應一併建 user 帳號（CR-0103）"
         assert status == "pending_approval"
 
-        # 修復點②：核准不再 404（送空 body + X-Initiator，比照列表頁核准鈕）
+        # 修復點②：核准不再 404（CR-0114 R3 改打平台端點，initiator 取 token sub）
         approve = await client.post(
-            f"/tenants/{DEFAULT_TENANT_ID}/technicians/{tech_id}:onboard-approve",
+            f"/api/v1/platform/technicians/{tech_id}:onboard-approve",
             json={},
-            headers={**admin_headers, "X-Initiator": str(user_id)},
+            headers=platform_admin_headers,
         )
         assert approve.status_code == 200, approve.text
 

@@ -125,6 +125,7 @@ from routers import v1_inventory as v1_inventory_router  # P4 Cutover 規劃: v1
 from routers import lifespan_health as lifespan_health_router  # admin 查 8 monitor 健康
 from routers import platform_auth as platform_auth_router  # CR-0114: platform console 登入/登出/me
 from routers import platform_brand_applications as platform_brand_apps_router  # CR-0114 R2: 品牌申請
+from routers import platform_technicians as platform_technicians_router  # CR-0114 R3: 師傅審核搬遷
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -241,6 +242,7 @@ app.add_exception_handler(IdempotencyReplay, handle_idempotency_replay)
 app.include_router(auth_router.router, prefix="/api/v1", tags=["auth"])
 app.include_router(platform_auth_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114
 app.include_router(platform_brand_apps_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R2
+app.include_router(platform_technicians_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R3
 app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtime"])
 app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])

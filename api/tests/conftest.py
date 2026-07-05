@@ -158,3 +158,15 @@ def technician_headers() -> dict[str, str]:
         "Authorization": f"Bearer {token}",
         "X-Tenant-ID": DEFAULT_TENANT_ID,
     }
+
+
+#: 平台管理員 user_id（fake — 不需 seed;require_platform_admin 只看 token role，
+#: 安全狀態查無此 user 時 fail-open。CR-0114 R3）
+PLATFORM_ADMIN_USER_ID = "44444444-4444-4444-4444-444444444444"
+
+
+@pytest.fixture
+def platform_admin_headers() -> dict[str, str]:
+    """平台管理員 headers（CR-0114）。非 tenant-scoped，不帶 X-Tenant-ID。"""
+    token = _make_token(user_id=PLATFORM_ADMIN_USER_ID, role="platform_admin")
+    return {"Authorization": f"Bearer {token}"}

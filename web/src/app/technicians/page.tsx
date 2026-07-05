@@ -44,7 +44,6 @@ export default function TechniciansPage() {
   const [ratingMinFilter, setRatingMinFilter] = useState<string>("");
   const [keyword, setKeyword] = useState<string>("");
   const [createOpen, setCreateOpen] = useState(false);
-  const [approvingId, setApprovingId] = useState<string | null>(null);
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
@@ -63,29 +62,8 @@ export default function TechniciansPage() {
     formatError: formatTechnicianError,
   });
 
-  // 核准 pending_approval 技師（onboarding → active）→ 之後才可被派工
-  async function handleApprove(tech: Technician) {
-    const initiator = session?.userId ?? "";
-    if (!initiator) {
-      toast({ variant: "error", title: t("approveFailed"), description: "缺少操作者身分（請重新登入）" });
-      return;
-    }
-    setApprovingId(tech.id);
-    try {
-      await api.post(
-        `/tenants/${encodeURIComponent(tenantId)}/technicians/${tech.id}:onboard-approve`,
-        {},
-        { headers: { "X-Initiator": initiator } },
-      );
-      toast({ variant: "success", title: t("approveSuccess", { name: tech.name }) });
-      cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refresh 取到更新後狀態
-      refresh();
-    } catch (e) {
-      toast({ variant: "error", title: t("approveFailed"), description: formatTechnicianError(e) });
-    } finally {
-      setApprovingId(null);
-    }
-  }
+  // CR-0114 R3:師傅生命週期審核(核准/停權/復權/終止)已搬到平台方 console。
+  // 品牌端此頁改為唯讀 —— 只看旗下師傅名單與狀態,不再操作 onboarding。
 
   // 從 items 抽 distinct capabilities + service areas
   const { capabilityOptions, regionOptions } = useMemo(() => {
@@ -114,6 +92,10 @@ export default function TechniciansPage() {
               <h1 className="text-[22px] font-bold text-[var(--text-primary)]">
                 {t("title")}
               </h1>
+              {/* CR-0114 R3:師傅審核已搬平台方,品牌端唯讀 */}
+              <span className="text-xs text-[var(--text-secondary)]">
+                師傅生命週期（核准／停權）由平台方統一管理
+              </span>
             </div>
             <span className="ml-1 flex items-center rounded-xl bg-[#DBEAFE] px-3 py-1 text-xs font-semibold text-[var(--primary)]">
               {loading && items.length === 0
@@ -201,12 +183,7 @@ export default function TechniciansPage() {
             </div>
           )}
 
-          <TechniciansTable
-            items={items}
-            loading={loading}
-            onApprove={handleApprove}
-            approvingId={approvingId}
-          />
+          <TechniciansTable items={items} loading={loading} />
 
           {hasMore && items.length > 0 && (
             <div className="flex justify-center pb-6">
