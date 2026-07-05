@@ -29,6 +29,7 @@ const PUBLIC_PATHS = new Set([
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/platform/login", // CR-0114 平台 console 登入（漏列 → 平台管理員到不了登入頁）
 ]);
 const PUBLIC_PREFIXES = ["/track/", "/scope-change/", "/quotes/", "/consent/"];
 
@@ -56,7 +57,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     const token = auth.getAccessToken();
 
     if (!token && !isPublic) {
-      router.replace("/login");
+      // CR-0114:/platform 頁群未登入 → console 自己的登入頁（其餘照舊 /login）
+      router.replace(pathname.startsWith("/platform") ? "/platform/login" : "/login");
       return;
     }
     if (token && isPublic) {
@@ -87,7 +89,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         !e.newValue &&
         !pathIsPublic
       ) {
-        router.replace("/login");
+        router.replace(pathname.startsWith("/platform") ? "/platform/login" : "/login");
       }
     };
     window.addEventListener("storage", onStorage);

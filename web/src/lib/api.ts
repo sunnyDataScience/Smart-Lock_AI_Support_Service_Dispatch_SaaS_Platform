@@ -225,11 +225,17 @@ async function refreshAccessToken(): Promise<boolean> {
 
   refreshInFlight = (async () => {
     try {
-      const res = await fetch(buildUrl("/api/v1/auth/refresh"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: token }),
-      });
+      // CR-0114:平台 console 的 refresh 走平台端點（撤銷/狀態查平台庫）;
+      // 依目前 session 的 role 判斷（platform token 只會出現在 console session）。
+      const isPlatform = getCurrentSession()?.role === "platform_admin";
+      const res = await fetch(
+        buildUrl(isPlatform ? "/api/v1/platform/auth/refresh" : "/api/v1/auth/refresh"),
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: token }),
+        },
+      );
       if (!res.ok) return false;
       const data = (await res.json()) as { data?: { access_token: string; refresh_token: string } };
       if (!data.data) return false;
@@ -251,6 +257,8 @@ async function refreshAccessToken(): Promise<boolean> {
 function loginPathForCurrentLocation(): string {
   if (typeof window === "undefined") return "/login";
   const p = window.location.pathname;
+  // CR-0114 平台 console 有自己的登入頁
+  if (p.startsWith("/platform")) return "/platform/login";
   // 20260702 決議 2:廠商登入已併入品牌/經銷/鎖店入口(/login)
   if (p.startsWith("/vendor")) return "/login";
   // 技師入口路由（與 TechBottomNav 一致）
@@ -571,6 +579,36 @@ export async function loginVendor(
   auth.setTokens(res.data.access_token, res.data.refresh_token);
   auth.setEmail(email);
   return res;
+}
+
+// 平台管理員登入（CR-0114;role=platform_admin,與品牌/技師完全隔離,
+// console 專用端點 + 平台庫帳號池）。回傳同 admin/technician 信封。
+export async function loginPlatformAdmin(
+  email: string,
+  password: string,
+): Promise<LoginResponse> {
+  const res = await request<LoginResponse>("POST", "/api/v1/platform/auth/login", {
+    body: { email, password },
+    skipAuth: true,
+  });
+  auth.setTokens(res.data.access_token, res.data.refresh_token);
+  auth.setEmail(email);
+  return res;
+}
+
+// 平台管理員登出（撤銷寫平台庫 revoked_jti）
+export async function logoutPlatformAdmin(): Promise<void> {
+  const refresh = auth.getRefreshToken();
+  try {
+    await request("POST", "/api/v1/platform/auth/logout", {
+      body: refresh ? { refresh_token: refresh } : undefined,
+    });
+  } catch {
+    // ignore — clear local state regardless
+  } finally {
+    auth.clear();
+    cacheClear();
+  }
 }
 
 // 自助忘記密碼（CR-0025 / ADR-0114）。兩端皆 skipAuth（登入前）。

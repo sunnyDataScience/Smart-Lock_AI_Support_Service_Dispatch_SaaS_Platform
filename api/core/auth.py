@@ -88,21 +88,40 @@ def decode_token(token: str) -> dict:
         raise
 
 
-async def load_user_security_state(user_id: str) -> dict | None:
+async def _security_conn(role: str | None):
+    """token 安全狀態/jti 的查詢連線路由（CR-0114）。
+
+    platform_admin 的 users/revoked_jti 住平台庫（require_platform_conn；未配置
+    平台庫時 fallback 主連線 → 行為同舊版）。其餘角色維持主連線。
+    連不上回 None（呼叫端各自維持 fail-open / fail-closed 語意）。
+    """
+    if role == "platform_admin":
+        try:
+            return await db_module.require_platform_conn()
+        except RuntimeError:
+            return None
+    if not await _ensure_conn():
+        return None
+    return db_module._conn
+
+
+async def load_user_security_state(user_id: str, role: str | None = None) -> dict | None:
     """回 {is_active, password_changed_at} 供每請求 token 驗證重查（A2/A3）。
 
     **Fail-open 設計**（對齊 is_jti_revoked）：DB 不可用、user_id 非合法 uuid、或查無此
     使用者 → 回 None（呼叫端維持 claims-only 行為）。這是刻意的：
       - 既有大量元件測試用「未 seed 的假 user_id」（token 驗證只看 claims）→ 查無回 None 不破測試。
       - 真實「停權（is_active=False）」或「改密碼後（password_changed_at）」的既存帳號 → 撈得到 → 失效。
+    role 供 CR-0114 路由：platform_admin 查平台庫，其餘查主連線。
     """
-    if not await _ensure_conn():
+    conn = await _security_conn(role)
+    if conn is None:
         return None
     try:
         uuid.UUID(str(user_id))
     except (ValueError, TypeError, AttributeError):
         return None
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         "SELECT is_active, password_changed_at FROM users WHERE id = %s::uuid LIMIT 1",
         (user_id,),
     )
@@ -112,20 +131,22 @@ async def load_user_security_state(user_id: str) -> dict | None:
     return {"is_active": row[0], "password_changed_at": row[1]}
 
 
-async def is_jti_revoked(jti: str) -> bool:
-    if not await _ensure_conn():
+async def is_jti_revoked(jti: str, role: str | None = None) -> bool:
+    conn = await _security_conn(role)
+    if conn is None:
         return False
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         "SELECT 1 FROM revoked_jti WHERE jti = %s::uuid",
         (jti,),
     )
     return await cur.fetchone() is not None
 
 
-async def revoke_jti(jti: str, user_id: str, expires_at: datetime) -> None:
-    if not await _ensure_conn():
+async def revoke_jti(jti: str, user_id: str, expires_at: datetime, role: str | None = None) -> None:
+    conn = await _security_conn(role)
+    if conn is None:
         raise RuntimeError("DB unavailable")
-    await db_module._conn.execute(
+    await conn.execute(
         "INSERT INTO revoked_jti (jti, user_id, expires_at) VALUES (%s::uuid, %s::uuid, %s) "
         "ON CONFLICT (jti) DO NOTHING",
         (jti, user_id, expires_at),

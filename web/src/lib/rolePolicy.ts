@@ -66,6 +66,13 @@ const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
 
 /** 該角色是否可存取此路由。role 為 null（無 JWT role）時放行（token 檢查另在 AuthGuard）。 */
 export function canAccessRoute(pathname: string, role: string | null): boolean {
+  // CR-0114 平台方 console:必須在 FULL_ACCESS 早退**之前**特例 —— console 只屬
+  // platform_admin,品牌超級角色(admin/tenant_admin/super_admin)亦不放行
+  // (deny-by-default 雙向對稱;放 ROUTE_POLICY 會被下一行早退繞過)。
+  // /platform/login 為公開頁,由 AuthGuard PUBLIC_PATHS 承接,不會走到這裡。
+  if (pathname === "/platform" || pathname.startsWith("/platform/")) {
+    return role === "platform_admin";
+  }
   if (!role || FULL_ACCESS_ROLES.has(role)) return true;
   const matches = ROUTE_POLICY.filter(
     (p) => pathname === p.prefix || pathname.startsWith(p.prefix + "/"),
@@ -81,5 +88,6 @@ export function canAccessRoute(pathname: string, role: string | null): boolean {
 export function fallbackRouteForRole(role: string | null): string {
   if (role === "technician") return "/home";
   if (role === "vendor") return "/vendor";
+  if (role === "platform_admin") return "/platform"; // CR-0114 console 首頁
   return "/dashboard";
 }

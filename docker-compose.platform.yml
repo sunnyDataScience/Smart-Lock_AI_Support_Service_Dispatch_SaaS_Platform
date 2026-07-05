@@ -1,0 +1,100 @@
+# docker-compose.platform.yml — 平台方管理 console stack(CR-0114)
+#
+# 平台方(Lock AI)自用後台:師傅註冊申請審核 + 品牌申請審核。非師傅/品牌用。
+#   - platform-db  = 平台自有資料(platform_admin 帳號/revoked_jti/品牌申請)。
+#     獨立容器(非掛 tech-db 第二 database):備份邊界乾淨、憑證可獨立、
+#     維持「一 instance 一 database」repo 慣例。
+#   - platform-api = 同一份 api image,API_SURFACE=platform 只掛 /api/v1/platform
+#     前綴並停用背景 worker(api/main.py CR-0114)。三連線:
+#       POSTGRES_URI          → 主品牌庫(MVP:技師審核 mirror 落點,R3 起用)
+#       TECH_POSTGRES_URI     → 技師身分權威庫(R3 師傅審核直寫)
+#       PLATFORM_POSTGRES_URI → 平台庫(未設 = fallback 主連線,單庫模式)
+#   - platform-web = 同一份 web image,NEXT_PUBLIC_APP_MODE=platform 只渲染
+#     /platform 頁群(appMode.crossModeRedirect)。
+#
+# ⚠️ JWT 隔離:PLATFORM_JWT_SECRET_KEY **絕不可與品牌 .env 的 API_JWT_SECRET_KEY
+#   共用值** —— 同名 env 不同值即達成「平台 token 與品牌 token 互不通用」。
+#   故本 stack 不 env_file: .env,機密全部顯式列出。
+#
+# 先決條件與啟動順序(network/tech-db 由 dispatch/tech stack 擁有):
+#   1. docker compose -f docker-compose.dispatch.yml up -d --build   # 品牌 stack(network 擁有者)
+#   2. docker compose -f docker-compose.tech.yml up -d --build       # 師傅 stack(tech-db)
+#   3. PLATFORM_JWT_SECRET_KEY=<獨立值> \
+#        docker compose -f docker-compose.platform.yml up -d --build # 本 stack
+#   4. ./scripts/db/init-platform-db.sh --email <email>   # 首次:schema+seed(密碼互動輸入不回顯)
+#
+# 埠位:platform-db 5435 / platform-api 8003 / platform-web 3003
+# (派工 5433/8001/3000;師傅 5434/8002/3001;landing 3002)。
+
+name: lock-platform
+
+services:
+  # 平台自有資料庫(管理員帳號/品牌申請)
+  platform-db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: lock
+      POSTGRES_PASSWORD: "${PLATFORM_DB_PASSWORD:-0000}"
+      POSTGRES_DB: lock_platform
+    ports:
+      - "${PLATFORM_DB_PORT:-5435}:5432"
+    volumes:
+      - platform_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lock -d lock_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  platform-api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    ports:
+      - "${PLATFORM_API_PORT:-8003}:8080"
+    environment:
+      # 主品牌庫(R3 技師審核 mirror 落點;external network 上以 service 名 `db` 解析)
+      POSTGRES_URI: "postgresql://lock:0000@db:5432/lock_AI_data"
+      # 技師身分權威庫(R3 師傅審核直寫;service 名 `tech-db` 由 tech stack 提供)
+      TECH_POSTGRES_URI: "postgresql://lock:0000@tech-db:5432/lock_tech"
+      # 平台庫(拿掉此行 = 單庫 fallback,platform 資料落主連線 —— 僅測試用)
+      PLATFORM_POSTGRES_URI: "postgresql://lock:${PLATFORM_DB_PASSWORD:-0000}@platform-db:5432/lock_platform"
+      API_SURFACE: platform       # 只掛 /api/v1/platform、停用背景 worker(api/main.py CR-0114)
+      # ⚠️ 必填且必須與品牌/師傅 stack 不同值(token 密碼學隔離)。
+      #   未設 → compose 直接拒起(:?);main.py 對 platform surface 另有啟動守衛
+      #   (拒絕過短/含 dev 標記的密鑰)。絕不提供 repo 內預設值 —— 這是簽發
+      #   platform_admin(跨品牌最高權限)token 的密鑰,公開預設值 = 任何人可偽造。
+      API_JWT_SECRET_KEY: "${PLATFORM_JWT_SECRET_KEY:?必須設定 PLATFORM_JWT_SECRET_KEY(平台 token 簽章密鑰,≥16 字元且不可與品牌 .env 共用值)}"
+      # console(3003)+ landing(3002,R2 品牌申請公開表單瀏覽器直打)
+      CORS_ORIGINS: "${PLATFORM_CORS_ORIGINS:-http://localhost:3003 http://localhost:3002}"
+    depends_on:
+      platform-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+
+  platform-web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: "${PLATFORM_API_BASE_URL:-http://localhost:8003}"
+        NEXT_PUBLIC_APP_MODE: "platform"   # 只渲染 /platform 頁群
+    ports:
+      - "${PLATFORM_WEB_PORT:-3003}:8080"
+    restart: unless-stopped
+
+networks:
+  default:
+    # 加入派工方 stack 的 network(該 stack 先起)以解析 `db` 與 `tech-db`。
+    name: lock-dispatch-${PLATFORM_NET_BRAND:-locksmart}-net
+    external: true
+
+volumes:
+  platform_pgdata:
+    name: lock-platform-pgdata

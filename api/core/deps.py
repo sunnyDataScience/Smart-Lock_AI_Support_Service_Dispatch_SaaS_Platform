@@ -55,8 +55,11 @@ async def get_current_user(
             status_code=401,
         )
 
+    # CR-0114：platform_admin 的 revoked_jti/users 住平台庫 → 依 token role 路由查詢
+    # （未配置平台庫時 fallback 主連線，行為同舊版）。
+    token_role = payload.get("role")
     jti = payload.get("jti")
-    if jti and await is_jti_revoked(jti):
+    if jti and await is_jti_revoked(jti, token_role):
         raise ApiError(
             error_code="TOKEN_REVOKED",
             message="Token has been revoked",
@@ -65,7 +68,7 @@ async def get_current_user(
 
     # A2/A3：每請求重查使用者狀態（停權即時失效 + 改密碼後撤既有 session）。
     # fail-open：查無/無 DB → None → 維持 claims-only（見 load_user_security_state）。
-    state = await load_user_security_state(payload["sub"])
+    state = await load_user_security_state(payload["sub"], token_role)
     if state is not None:
         if not state["is_active"]:
             raise ApiError(
@@ -120,6 +123,26 @@ async def require_admin(user: CurrentUser) -> CurrentUser:
         raise ApiError(
             error_code="FORBIDDEN",
             message="Admin role required",
+            status_code=403,
+        )
+    return user
+
+
+async def require_platform_admin(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+) -> CurrentUser:
+    """平台方 console 專用守衛（CR-0114）。
+
+    非 tenant-scoped：不收 X-Tenant-ID（platform console 跨品牌視角）。
+    只放行 role=platform_admin —— 該角色不在任何品牌 gate 集合
+    （FULL_ACCESS/OPS/DISPATCH…），品牌 token 打平台端點、平台 token 打
+    品牌端點皆 deny-by-default。
+    """
+    user = await get_current_user(authorization)
+    if user.role != "platform_admin":
+        raise ApiError(
+            error_code="FORBIDDEN",
+            message="Platform admin role required",
             status_code=403,
         )
     return user
