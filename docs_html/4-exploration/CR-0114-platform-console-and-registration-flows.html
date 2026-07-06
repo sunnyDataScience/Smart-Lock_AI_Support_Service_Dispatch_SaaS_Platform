@@ -350,10 +350,24 @@ fallback「品牌庫幽靈師傅」);RBAC 矩陣 admin/supervisor 對 technician
 <strong>1611 passed</strong> 零回歸;<code>all</code>
 模式(pytest/雲端單體)不過濾零變化。GDPR 師傅 subject 與 platform console
 功能缺口記入 §8 追補待裁決。</p></li>
+<li><p>✅ 品牌申請 + 廠商審核合併為「發案方審核」done(branch
+<code>feat/platform-merge-requestor-review</code>,2026-07-06):業主回饋「品牌跟廠商審核適合一起,都是發案的一方」→
+把 <code>/platform/brand-applications</code> 與
+<code>/platform/vendors</code> 合成單一頁
+<code>/platform/requestors</code>(nav
+兩項併一項「發案方審核」)。<strong>純前端整併,零後端改動</strong>:兩頁
+body 抽為 <code>components/platform/BrandApplicationsPanel.tsx</code> +
+<code>VendorsPanel.tsx</code>(移除各自
+h1,改小字描述),新頁用分頁切換(品牌申請 /
+廠商帳號)——兩者資料模型與審核動作不同(品牌申請核准填代號+出開站指引;廠商核准啟用帳號)故分頁不硬混清單。刪舊兩頁路由;API
+端點不變。tsc 0;Playwright
+驗(發案方審核頁兩分頁切換、各自審核動作正常)。<strong>已部署本機
+docker(platform web)</strong>。</p></li>
 <li><p>✅ 廠商審核移植 platform console done(branch
 <code>feat/platform-vendor-approvals</code>,2026-07-06):業主指示把品牌
 <code>admin/vendor-approvals</code> 移到
-<code>:3003/platform</code>(選項＝獨立「廠商審核」頁)。<code>vendors</code>＝發案方登入帳號(role=vendor,與
+<code>:3003/platform</code>(選項＝獨立「廠商審核」頁;後續 2026-07-06
+併入「發案方審核」)。<code>vendors</code>＝發案方登入帳號(role=vendor,與
 brand_applications
 意向書是不同生命週期階段);審核職權自品牌移到平台統一管。<strong>後端</strong>:新
 <code>platform_vendor_service</code>(cross-tenant list +

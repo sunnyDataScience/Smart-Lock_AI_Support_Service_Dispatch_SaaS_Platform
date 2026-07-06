@@ -1,6 +1,6 @@
 "use client";
 
-// CR-0114 收尾 — 平台 console 廠商審核（自品牌 admin/vendor-approvals 移植）。
+// CR-0114 平台 console — 廠商帳號審核 panel（「發案方審核」頁的分頁之一）。
 // vendors = 發案方登入帳號（role=vendor），品牌/經銷/鎖店註冊後 pending_approval,
 // 核准即啟用可登入發案。審核職權自品牌後台移到平台方統一管。
 // 內部工具 → 文案直接繁中，不入 i18n。
@@ -50,7 +50,7 @@ const FILTERS: { value: string; label: string }[] = [
   { value: "", label: "全部" },
 ];
 
-export default function PlatformVendorsPage() {
+export default function VendorsPanel() {
   const [filter, setFilter] = useState<string>("pending_approval");
   const [items, setItems] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,13 +94,10 @@ export default function PlatformVendorsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">廠商審核</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          發案方（品牌／經銷／鎖店）帳號的註冊審核。核准後即可登入平台發案。由平台方統一負責。
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-[var(--text-secondary)]">
+        發案方（品牌／經銷／鎖店）自助註冊的「登入帳號」。核准後即可登入平台發案（相對於申請意向，此為已建帳號的啟用審核）。
+      </p>
 
       <div className="flex gap-2">
         {FILTERS.map((f) => (

@@ -1,6 +1,6 @@
 "use client";
 
-// CR-0114 R2 平台 console — 品牌申請審核。
+// CR-0114 平台 console — 品牌申請審核 panel（「發案方審核」頁的分頁之一）。
 // 列出 landing 送來的品牌/鎖店/經銷申請;核准(可填品牌代號)後顯示手動開站
 // 指引文字(裁決 2:實際開站全人工);拒絕填原因。內部工具,文案直接繁中。
 
@@ -52,7 +52,7 @@ const STATUS_CLS: Record<Status, string> = {
   rejected: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
-export default function BrandApplicationsPage() {
+export default function BrandApplicationsPanel() {
   const [filter, setFilter] = useState<Status>("pending");
   const [rows, setRows] = useState<BrandApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,13 +108,10 @@ export default function BrandApplicationsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">品牌申請</h1>
-        <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          品牌廠商鎖店的平台使用申請。核准後依開站指引手動部署該品牌 stack。
-        </p>
-      </div>
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-[var(--text-secondary)]">
+        品牌／經銷／鎖店送來的平台導入「申請意向」（不含帳號）。核准後依開站指引手動部署該品牌 stack、聯絡申請人開通。
+      </p>
 
       <div className="flex gap-2">
         {(["pending", "approved", "rejected"] as Status[]).map((s) => (
