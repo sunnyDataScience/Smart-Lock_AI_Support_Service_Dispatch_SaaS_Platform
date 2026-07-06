@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-06（**對話升級真人後補「請稍候」自動安撫（節流）**，branch `fix/line-handover-wait-notice` — 業主 UAT：客人被升級人工接管後再傳訊息,AI 全暫停卻**零回應**,誤以為沒人理。Root cause：CR-0024 接管暫停分支只持久化客人訊息 + continue、reply 空。修正：接管期間客人再傳 → 送純文字「真人處理中,請稍候」(不承諾時間/費用),以 session 為 key **節流 10 分鐘**(fail-open,process 記憶)避免連傳洗版;提示一併持久化讓真人知道客人已被安撫。AI 仍不跑 turn、接管語意不變。既有例外流程加話術 → CIA 豁免。+4 節流單元測試,line_gateway **36 passed**。**需重建 agent image 生效**。）
+**最後更新：** 2026-07-06（**對話管理有新訊息時自動刷新（前端輪詢）**，branch `feat/conversations-auto-refresh` — 業主 UAT:客人在 LINE 傳新訊息後,後台對話管理不自動更新、要手動重整。新增通用 `usePollingEffect(fn,{intervalMs,enabled})` hook（防重疊/分頁隱藏暫停/回前景補跑/卸載 abort）,關鍵是把 signal 交給 `api.get(path,{signal})` **bypass 30s 快取**取新鮮資料。詳情頁 `conversations/[id]` 8s 輪詢 conv+messages（只在長度/最新 id 變時才 setMessages,不亂捲）;列表頁 15s 輪詢（`usePaginatedFetch` 加 opt-in `pollIntervalMs`,靜默重抓第一頁、僅停在第一頁時輪詢、翻頁暫停）。純前端 UX,hook 改動全 additive（其餘 13+ 使用頁零影響）→ CIA 豁免。tsc 0。**需重建 dispatch web image 生效**。）
+
+**前一次更新：** 2026-07-06（**對話升級真人後補「請稍候」自動安撫（節流）**，branch `fix/line-handover-wait-notice` — 業主 UAT：客人被升級人工接管後再傳訊息,AI 全暫停卻**零回應**,誤以為沒人理。Root cause：CR-0024 接管暫停分支只持久化客人訊息 + continue、reply 空。修正：接管期間客人再傳 → 送純文字「真人處理中,請稍候」(不承諾時間/費用),以 session 為 key **節流 10 分鐘**(fail-open,process 記憶)避免連傳洗版;提示一併持久化讓真人知道客人已被安撫。AI 仍不跑 turn、接管語意不變。既有例外流程加話術 → CIA 豁免。+4 節流單元測試,line_gateway **36 passed**。**需重建 agent image 生效**。）
 
 **前一次更新：** 2026-07-06（**LINE AI 客服回覆修掉裸 markdown 星號（純文字 Format Hint）**，branch `fix/line-plaintext-format-hint` — 業主 UAT 見 AI 把電話/型號包成 `**0922371211**`,LINE 不 render markdown → 顯示裸星號。Root cause：`identity.md` 的 `## Format Hint` 對 telegram/whatsapp/sms/email/cli 都有分支,**獨缺 `line`**;gateway 傳 `channel="line"` 命中空白 else → 模型無格式指示、預設吐 markdown。修法**從生成源頭**補 `line` 分支要求純文字（禁 bold/heading/link/table、電話型號純文字含反例示範），**刻意不做事後字串 strip**——業主指出正當內容含 `*`、替換法曾誤傷答錯;查證送出路徑 `re.sub` 全在偵測副本、`reply` 原封返回,無殘留替換需清。新增 `test_line_plaintext_hint.py`（3 測),離線渲染 8 passed（含 context 回歸）。純 prompt 話術層、不動 LINE webhook → CIA 豁免。**需重建 agent image 生效**。）
 

@@ -45,6 +45,8 @@ export default function ConversationsPage() {
     query: statusFilter ? { status: statusFilter } : undefined,
     queryKey: `status=${statusFilter}`,
     formatError: formatConversationError,
+    // 有新對話/新訊息時自動刷新第一頁（15s 輪詢，bypass 快取；翻頁後自動暫停）
+    pollIntervalMs: 15_000,
   });
 
   return (
