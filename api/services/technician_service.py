@@ -72,6 +72,9 @@ def _tech_row_to_dict(row: tuple) -> dict:
         "rating": float(row[7]) if row[7] is not None else 0.0,
         "completed_orders_count": int(row[8] or 0),
         "status": row[9],  # onboarding 生命週期狀態（供前端核准/狀態徽章用）
+        # deprecated（CR-0117 S5）：DB 無此欄、系統無自動熔斷計時機制，恒回 None 僅為
+        # 契約穩定。熔斷判斷請改用 availability === 'circuit_breaker_open'（真訊號）；
+        # 自動熔斷（拒單率觸發+冷卻到期時間）另立 CR 後才會有真值。
         "circuit_breaker_until": None,
         "created_at": row[10].isoformat() if row[10] else None,
     }
@@ -677,9 +680,11 @@ async def get_my_dashboard_summary(*, tenant_id: str, user_id: str) -> dict:
         if month_total and int(month_total) > 0 else None
     )
 
+    # CR-0117 S2：撈「有評分」的近期評價（rating 必填、feedback 選填 —— 先前條件
+    # feedback IS NOT NULL 會把只給星不留言的評價整筆濾掉，首頁近期評價永遠空）。
     cur = await db_module._conn.execute(
         "SELECT rating, feedback, completed_at FROM work_orders "
-        "WHERE technician_id = %s::uuid AND feedback IS NOT NULL "
+        "WHERE technician_id = %s::uuid AND rating IS NOT NULL "
         "ORDER BY completed_at DESC NULLS LAST LIMIT 3",
         (technician_id,),
     )
@@ -710,3 +715,37 @@ async def get_my_dashboard_summary(*, tenant_id: str, user_id: str) -> dict:
         "recent_feedback": recent_feedback,
         "computed_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+async def rollup_technician_stats(*, tenant_id: str, technician_id: str) -> None:
+    """CR-0117 S3：完工/評分事件後，把 work_orders 聚合回寫 technicians.rating /
+    completed_orders（權威庫 + 投影庫皆寫；單庫 fallback 為同顆連線，重複 UPDATE 無害）。
+
+    背景：這兩欄先前只有種子值（4.7/23）、全系統無任何更新路徑 —— 帳戶頁與
+    dispatch 排序讀到的是永遠不變的假統計。改為「事件後全量重算」而非增量，
+    自我修正（reopen/cancel 改變集合也會在下次事件校正），不怕漏事件。
+
+    呼叫端（work_order_service confirm/complete）以 fail-soft 包裹 —— 統計回寫
+    失敗絕不阻斷工單主流程。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT AVG(rating::numeric), "
+        "       COUNT(*) FILTER (WHERE completed_at IS NOT NULL) "
+        "FROM work_orders "
+        "WHERE technician_id = %s::uuid AND tenant_id = %s::uuid",
+        (technician_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    rating = round(float(row[0]), 2) if row and row[0] is not None else None
+    completed = int(row[1] or 0) if row else 0
+
+    sql = (
+        "UPDATE technicians SET rating = %s, completed_orders = %s, updated_at = NOW() "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid"
+    )
+    args = (rating, completed, technician_id, tenant_id)
+    # 權威庫（雙庫部署 = lock_tech；fallback = 主連線同顆）
+    conn = await db_module.require_tech_conn()
+    await conn.execute(sql, args)
+    # 投影庫（主品牌庫；/technicians/me 與 dashboard 讀此）— 同顆時等冪重寫無害
+    await db_module._conn.execute(sql, args)

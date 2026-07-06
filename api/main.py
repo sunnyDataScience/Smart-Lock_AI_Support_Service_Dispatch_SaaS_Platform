@@ -174,6 +174,7 @@ async def lifespan(app: FastAPI):
     from realtime.auto_confirm_cron import worker as auto_confirm_cron
     from realtime.sla_monitor import monitor as sla_monitor
     from realtime.statement_auto_approval_cron import worker as statement_auto_approval
+    from realtime.statement_generate_cron import worker as statement_generate
 
     if _RUN_BACKGROUND_WORKERS:
         inventory_monitor.start()
@@ -183,6 +184,7 @@ async def lifespan(app: FastAPI):
         dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
         canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
         statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
+        statement_generate.start()  # CR-0117 S4: 上月完工技師自動產月結 draft（佣金口徑）
         gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
         media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
         auto_confirm_cron.start()  # CR-0038 桶4/Q063: 客戶未回 48h 自動結案（排除 hold/異常）
@@ -194,6 +196,7 @@ async def lifespan(app: FastAPI):
         await auto_confirm_cron.stop()
         await media_retention_cron.stop()
         await gdpr_hard_delete.stop()
+        await statement_generate.stop()
         await statement_auto_approval.stop()
         await canary_advance_cron.stop()
         await dispute_escalation_cron.stop()

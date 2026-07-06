@@ -544,7 +544,10 @@ export default function DispatchManualPage() {
                       const tech = c.technician;
                       if (!tech) return null;
                       const isSelected = selectedTechId === tech.id;
-                      const isCircuit = !!tech.circuit_breaker_until;
+                      // CR-0117 S5：熔斷判準改真訊號 availability（=technicians.online_state）。
+                      // 舊判準 circuit_breaker_until 後端恒回 null（DB 無此欄）→ 永遠 false，
+                      // 真熔斷中的技師反而不會被鎖定/標記。
+                      const isCircuit = tech.availability === "circuit_breaker_open";
                       const availColor =
                         tech.availability === "available"
                           ? "#10B981"

@@ -44,12 +44,13 @@ class GenerateBody(BaseModel):
     technician_id: str
     period_year: int
     period_month: int
-    gross_amount: float = 0.0
+    # CR-0117 S4：gross / 完工單數省略 = 系統依 CR-0106 佣金口徑自動計算；帶值 = 人工覆寫
+    gross_amount: float | None = None
     travel_fee_deduction: float = 0.0
     cash_collection_deduction: float = 0.0
     dispute_hold_amount: float = 0.0
     other_deductions: float = 0.0
-    total_completed_orders: int = 0
+    total_completed_orders: int | None = None
     notes: str | None = None
 
 

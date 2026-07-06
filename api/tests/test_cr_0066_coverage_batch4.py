@@ -31,8 +31,11 @@ async def _seed_wo(status: str = "assigned", with_tech: bool = True) -> tuple[st
     wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
     tech_id = None
     if with_tech:
+        # CR-0117 順修 flaky：LIMIT 1 無排序會隨 heap 列序撈到 user_id NULL 的
+        # 展示技師（不可簽名）→ signature 測試間歇 422。限定有 user 帳號者 + 穩定排序。
         tcur = await db_module._conn.execute(
-            "SELECT id FROM technicians WHERE tenant_id=%s::uuid AND status='active' LIMIT 1", (TID,))
+            "SELECT id FROM technicians WHERE tenant_id=%s::uuid AND status='active' "
+            "AND user_id IS NOT NULL ORDER BY created_at LIMIT 1", (TID,))
         trow = await tcur.fetchone()
         tech_id = str(trow[0]) if trow else None
     await db_module._conn.execute(
