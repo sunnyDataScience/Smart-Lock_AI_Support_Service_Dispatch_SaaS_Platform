@@ -291,7 +291,7 @@ def emit_problem_cards_and_work_orders(
     pc_ids: list[str] = []
     wo_ids: list[str] = []
 
-    # demo-tech（技師端 demo 帳號,SQL/seeds/technicians.sql 的 demo-tech@example.com）
+    # demo-tech（技師端 demo 帳號,SQL/seeds/technicians.sql 的 test@lock-ai.com）
     # 跨狀態配額：保證 /my-orders 的 active(accepted/assigned/in_progress)、
     # pending(completed)、history(cancelled) 三 tab 都有資料,不會整頁 empty。
     demo_tech_id = "77777777-aaaa-4aaa-aaaa-aaaaaaaaaa01"

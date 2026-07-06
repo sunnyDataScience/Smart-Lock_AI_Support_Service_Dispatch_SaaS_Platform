@@ -2,7 +2,7 @@
 -- Seed: 後台角色示範帳號（CR-0021 — 5 角色 UI 隔離測試 / 會議決議 #9）
 -- ============================================================================
 -- 補齊 admin web 可登入的後台角色,讓 Iron 能以各角色點 UI 給反饋（Action #3）。
--- 既有：admin@example.com / dispatcher@example.com / demo-tech@example.com。
+-- 既有：test@lock-ai.com / dispatcher@example.com / test@lock-ai.com。
 -- 本檔補：operations_manager / customer_service / reviewer。
 --
 -- Password: 全部 changeme123（demo 一致好記）

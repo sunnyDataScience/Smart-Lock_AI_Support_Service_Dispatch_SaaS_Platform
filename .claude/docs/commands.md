@@ -91,7 +91,7 @@ uv run python data/pipeline/silver_to_skill/approve_drafts.py --confirm
 ## API 契約工具 / smoke test
 
 ```bash
-ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh   # API smoke（uvicorn 起好後）
+ADMIN_EMAIL=test@lock-ai.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh   # API smoke（uvicorn 起好後）
 ./scripts/ci/generate-api-types.sh    # 從 OpenAPI 生 TypeScript 型別
 ./scripts/ci/mock-server.sh           # 起 Prism mock server（port 4010）
 npx @stoplight/spectral-cli lint docs/architecture/api/openapi.yaml   # Lint spec

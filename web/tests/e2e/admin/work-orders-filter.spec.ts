@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
 
 test("/work-orders 3 filter select 不再 disabled", async ({ page }) => {
   await page.goto("/login");
-  await page.fill('input[type="email"]', "admin@example.com");
+  await page.fill('input[type="email"]', "test@lock-ai.com");
   await page.fill('input[type="password"]', "changeme123");
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.includes("/login"));

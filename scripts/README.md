@@ -92,7 +92,7 @@ cp .env.local.example .env.local
 curl "http://localhost:8000/chat?q=門打不開"
 
 # API smoke test（必須先用 --with-api 或 --full 起 api）
-ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh
+ADMIN_EMAIL=test@lock-ai.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh
 ```
 
 ---

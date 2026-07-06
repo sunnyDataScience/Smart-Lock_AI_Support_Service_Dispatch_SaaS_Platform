@@ -77,10 +77,13 @@ async def test_reset_technician_account_forbidden(client, admin_headers):
     師傅身分庫全平台唯一,品牌 admin 不可接管師傅登入憑證;師傅走自助
     忘記密碼(request-password-reset),平台方代重設為後續輪。
     """
+    # 用 tech-chen@example.com（email 保持獨立的技師種子）—— 主技師 demo-tech
+    # 的 email 已與 admin 統一為 test@lock-ai.com,而 admin_reset_password 依
+    # (email, tenant) 查詢無 role 過濾,共用 email 會 LIMIT 1 誤中 admin 列而漏測。
     res = await client.post(
         RESET_PATH,
         headers=admin_headers,
-        json={"email": "demo-tech@example.com"},  # SQL/seeds/technicians.sql 種子師傅
+        json={"email": "tech-chen@example.com"},  # SQL/seeds/technicians.sql 種子師傅
     )
     assert res.status_code == 403, res.text
     assert res.json().get("error_code") == "FORBIDDEN_TECHNICIAN_ACCOUNT"

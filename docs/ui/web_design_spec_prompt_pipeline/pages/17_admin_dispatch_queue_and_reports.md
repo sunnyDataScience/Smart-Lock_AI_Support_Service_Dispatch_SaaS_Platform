@@ -887,7 +887,7 @@ Body: {
   frequency: "daily | weekly | monthly",
   cron_expression: "0 9 * * 1",
   format: "pdf | xlsx | csv",
-  recipients: ["admin@example.com"],
+  recipients: ["test@lock-ai.com"],
   filters: { period_from: ISO8601, tenant_id: uuid }
 }
 ```

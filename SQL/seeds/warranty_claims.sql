@@ -1,6 +1,6 @@
 -- Phase 1.24 warranty_claims seed — 5 筆涵蓋 active / grace / expired 三種保固期狀態
 -- + filed / approved / rejected / in_progress / closed 五種 claim 狀態
--- customer_id 全部指向 admin@example.com（c782bcfe...）方便 demo；
+-- customer_id 全部指向 test@lock-ai.com（c782bcfe...）方便 demo；
 -- 實務上應指向 line_user，但 admin 已有 tenant_id 隔離，與表格欄位呈現無關。
 -- 保固起算日以「交屋日期」為準（業務規則）。
 

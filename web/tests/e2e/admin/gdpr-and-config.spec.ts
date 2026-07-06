@@ -28,7 +28,7 @@ import { test, expect, Page } from "@playwright/test";
 // --- admin 登入（真實表單流程，對齊任務說明）---------------------------------
 async function loginAsAdmin(page: Page) {
   await page.goto("/login");
-  await page.fill('input[type="email"]', "admin@example.com");
+  await page.fill('input[type="email"]', "test@lock-ai.com");
   await page.fill('input[type="password"]', "changeme123");
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.includes("/login"), {

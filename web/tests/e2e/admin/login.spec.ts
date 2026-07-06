@@ -45,7 +45,7 @@ test.describe('Login Page Smoke', () => {
     await expect(submitButton).toBeDisabled();
 
     // 填入 email + password 後，submit 應變 enabled。
-    await page.locator('input[type="email"], input[name="email"]').first().fill('admin@example.com');
+    await page.locator('input[type="email"], input[name="email"]').first().fill('test@lock-ai.com');
     await page.locator('input[type="password"], input[name="password"]').first().fill('changeme123');
     await expect(submitButton).toBeEnabled();
   });

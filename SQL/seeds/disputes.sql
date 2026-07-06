@@ -1,5 +1,5 @@
 -- Phase 1.25 disputes seed — 5 筆涵蓋 5 種 dispute_type × 5 種 status 組合
--- filed_by 全部指向 admin@example.com（c782bcfe...）讓 tenant 1 可見；
+-- filed_by 全部指向 test@lock-ai.com（c782bcfe...）讓 tenant 1 可見；
 -- evidence (jsonb) 採 { customer: [...], technician: [...] } 結構，前端不渲染但保留結構真實。
 
 BEGIN;
