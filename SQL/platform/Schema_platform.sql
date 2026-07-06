@@ -88,3 +88,28 @@ CREATE INDEX IF NOT EXISTS idx_brand_app_ip_created
     ON brand_applications(submitted_ip, created_at DESC);
 
 COMMENT ON TABLE brand_applications IS '品牌廠商鎖店平台使用申請(意向書);核准=記錄+產開站指引文字,開站流程純手動(CR-0114 裁決 2)';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- [4] monitor_target — 維運監控目標 registry(CR-0116)
+--     「一品牌一 GCP 專案」部署下,用 GCP Console 一家一家看 container 狀態不可行
+--     (>10 視窗上限)。此表登記各品牌服務的 health URL,platform console「維運監控」
+--     分頁前端輪詢 → 後端並發探測 → 一頁紅綠燈。定位=非技術者一眼看的即時狀態;
+--     深度指標/告警/歷史走 GCP 原生(Metrics Scope + Uptime Check + Alerting),
+--     故此表**不存狀態歷史**(CR-0116 §8-Q3 裁決 a:MVP 即時紅綠燈)。
+--     粒度=一目標一列(§8-Q1 裁決 b:brand+label 分組,agent/api/web 各一列)。
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS monitor_target (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    brand       VARCHAR(80)  NOT NULL,               -- 分組標籤(品牌 key,如 locksmart)
+    label       VARCHAR(80)  NOT NULL,               -- 服務標籤(派工 API / Agent / 師傅 API)
+    url         VARCHAR(500) NOT NULL,               -- 完整 health URL(含 path;§8-Q5 裁決 a)
+    enabled     BOOLEAN      NOT NULL DEFAULT TRUE,
+    sort_order  INTEGER      NOT NULL DEFAULT 0,
+    note        VARCHAR(255),                        -- 選填備註
+    created_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_monitor_target_order
+    ON monitor_target(brand, sort_order, label);
+
+COMMENT ON TABLE monitor_target IS '維運監控目標 registry(CR-0116);一目標一列 health URL,console 即時探測紅綠燈,不存歷史(告警走 GCP)';
