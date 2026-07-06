@@ -242,6 +242,32 @@ app.add_middleware(
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(DeprecationMiddleware)  # CR-0002-α D3：/api/v1/* 回應一律 Deprecation: true（含 error path）
 
+
+# ── CR-0115:公開上傳端點 body 上限守衛(pre-auth DoS 面)────────────────────
+# 公開文件上傳無登入態,而 Starlette 在進 handler 前就會解析整包 multipart
+# (>1MB spool 到 temp 磁碟)—— handler 內的大小檢查擋不住資源消耗,必須在
+# middleware 層以 Content-Length 先拒。無 Content-Length(chunked)的殘餘風險
+# 由 handler 的截讀(MAX_DOC_BYTES+1)+ per-IP 限流吸收。
+_PUBLIC_UPLOAD_PATH = "/api/v1/technicians/registration-documents"
+_PUBLIC_UPLOAD_MAX_BODY = 12 * 1024 * 1024  # 10 MiB 檔案 + multipart 開銷餘裕
+
+
+@app.middleware("http")
+async def _public_upload_body_cap(request, call_next):
+    if request.url.path == _PUBLIC_UPLOAD_PATH:
+        length = request.headers.get("content-length")
+        if length and length.isdigit() and int(length) > _PUBLIC_UPLOAD_MAX_BODY:
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "error_code": "PAYLOAD_TOO_LARGE",
+                    "message": f"上傳內容超過上限({_PUBLIC_UPLOAD_MAX_BODY} bytes)",
+                },
+            )
+    return await call_next(request)
+
 register_exception_handlers(app)
 app.add_exception_handler(IdempotencyReplay, handle_idempotency_replay)
 
@@ -646,6 +672,9 @@ if _API_SURFACE == "platform":
 _DISPATCH_SURFACE_DROP_PREFIXES: tuple[str, ...] = (
     "/api/v1/platform",
     "/api/v1/technicians/register",
+    # CR-0115 孿生公開寫端點(兩階段 token 文件上傳)—— 與 /register 同理,
+    # 公開師傅身分域寫入面不暴露在品牌 8001。
+    "/api/v1/technicians/registration-documents",
 )
 
 

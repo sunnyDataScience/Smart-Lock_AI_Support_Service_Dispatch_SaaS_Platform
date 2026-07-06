@@ -5,9 +5,9 @@
 // 排班/獎懲屬品牌營運（per-brand 工單/財務），不在跨品牌平台視角 —— 故不含。
 // 內部工具 → 文案直接繁中。
 
-import { use, useCallback, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, Eye, FileText, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
@@ -46,6 +46,46 @@ interface LifecycleEvent {
   created_at: string | null;
 }
 
+// ── KYC 審核資料（CR-0115 S7；§8-3 預設遮罩、reveal 取全值寫稽核）──────────
+interface KycReview {
+  profile: {
+    years_experience: number | null;
+    bio: string | null;
+    vehicle_type: string | null;
+    availability_note: string | null;
+    emergency_contact_name: string | null;
+    emergency_contact_phone: string | null;
+    terms_accepted_at: string | null;
+  };
+  kyc: {
+    has_national_id: boolean;
+    national_id_last3: string | null;
+    bank_code: string | null;
+    has_bank_account: boolean;
+    bank_account_last4: string | null;
+    birth_date: string | null;
+    address: string | null;
+    tax_id: string | null;
+  } | null;
+  documents: RegistrationDocument[];
+}
+
+interface RegistrationDocument {
+  id: string;
+  doc_type: string;
+  filename: string | null;
+  content_type: string;
+  size_bytes: number;
+  created_at: string | null;
+}
+
+const DOC_TYPE_LABEL: Record<string, string> = {
+  id_front: "身分證正面",
+  id_back: "身分證反面",
+  license: "證照掃描",
+  insurance: "保險證明／良民證",
+};
+
 const STATUS_LABEL: Record<string, string> = {
   pending_approval: "待審核",
   active: "啟用中",
@@ -76,6 +116,7 @@ export default function PlatformTechnicianDetailPage({
   const [tech, setTech] = useState<Technician | null>(null);
   const [certs, setCerts] = useState<Certification[]>([]);
   const [events, setEvents] = useState<LifecycleEvent[]>([]);
+  const [kyc, setKyc] = useState<KycReview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
@@ -86,6 +127,8 @@ export default function PlatformTechnicianDetailPage({
   const load = useCallback(async () => {
     setError(null);
     try {
+      // 主檔/認證/歷史三者任一失敗即整頁錯誤(核心資料);KYC 另外 allSettled
+      // 取,單獨失敗只讓該區塊消失、不炸掉整頁審核。
       const [t, c, e] = await Promise.all([
         api.get<{ data: Technician }>(base),
         api.get<{ data: Certification[] }>(`${base}/certifications`),
@@ -96,6 +139,12 @@ export default function PlatformTechnicianDetailPage({
       setTech(t.data);
       setCerts(c.data ?? []);
       setEvents(e.data ?? []);
+
+      const kyc = await api
+        .get<{ data: KycReview }>(`${base}/kyc`)
+        .then((k) => k.data ?? null)
+        .catch(() => null);
+      setKyc(kyc);
     } catch (err) {
       setError(friendlyError(err));
     }
@@ -180,6 +229,9 @@ export default function PlatformTechnicianDetailPage({
             </div>
           </section>
 
+          {/* KYC 審核資料（CR-0115 S7）*/}
+          {kyc && <KycSection basePath={base} kyc={kyc} />}
+
           {/* 技能認證矩陣 */}
           <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <div className="mb-4 flex items-center justify-between">
@@ -232,9 +284,14 @@ export default function PlatformTechnicianDetailPage({
                 {events.map((ev) => (
                   <div key={ev.id} className="flex items-start justify-between gap-4 py-3 text-sm">
                     <div>
-                      <span className="font-medium text-[var(--text-primary)]">
-                        {STATUS_LABEL[ev.previous_status ?? ""] ?? ev.previous_status ?? "—"} → {STATUS_LABEL[ev.new_status ?? ""] ?? ev.new_status}
-                      </span>
+                      {ev.event_type === "kyc_reveal" ? (
+                        // CR-0115 S7:非狀態轉移的稽核事件(敏感資料揭露)
+                        <span className="font-medium text-amber-700">檢視敏感資料全值</span>
+                      ) : (
+                        <span className="font-medium text-[var(--text-primary)]">
+                          {STATUS_LABEL[ev.previous_status ?? ""] ?? ev.previous_status ?? "—"} → {STATUS_LABEL[ev.new_status ?? ""] ?? ev.new_status}
+                        </span>
+                      )}
                       {ev.reason && <span className="text-[var(--text-secondary)]">　原因：{ev.reason}</span>}
                     </div>
                     <span className="whitespace-nowrap text-xs text-[var(--text-secondary)]">
@@ -280,6 +337,207 @@ function Info({ label, value, span }: { label: string; value: string; span?: boo
       <span className="text-[var(--text-secondary)]">{label}：</span>
       <span className="text-[var(--text-primary)]">{value}</span>
     </div>
+  );
+}
+
+// ── KYC 審核資料（CR-0115 S7）────────────────────────────────────────────────
+// §8-3 (a)：預設遮罩顯示；「顯示完整資料」打 :reveal（後端寫稽核）。
+// 文件實體走授權 fetch → blob 內嵌預覽（img/iframe），不經公開 URL。
+
+function fmtBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
+  const [revealed, setRevealed] = useState<{ national_id: string | null; bank_account: string | null } | null>(null);
+  const [revealBusy, setRevealBusy] = useState(false);
+  const [revealErr, setRevealErr] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; contentType: string; label: string } | null>(null);
+  const [previewBusy, setPreviewBusy] = useState<string | null>(null);
+  // 目前 blob URL 存 ref,unmount / 換頁時保證 revoke(避免記憶體洩漏)。
+  const previewUrlRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    };
+  }, []);
+
+  const p = kyc.profile;
+  const k = kyc.kyc;
+  const hasSensitive = !!k && (k.has_national_id || k.has_bank_account);
+
+  async function reveal() {
+    if (revealBusy) return;
+    setRevealBusy(true);
+    setRevealErr(null);
+    try {
+      const res = await api.post<{ data: { national_id: string | null; bank_account: string | null } }>(
+        `${basePath}/kyc:reveal`,
+      );
+      setRevealed(res.data);
+    } catch (e) {
+      setRevealErr(friendlyError(e));
+    } finally {
+      setRevealBusy(false);
+    }
+  }
+
+  async function openPreview(doc: RegistrationDocument) {
+    if (previewBusy) return;
+    setPreviewBusy(doc.id);
+    try {
+      // 走 api.fetchBlob:共用 401 → refresh → retry 鏈,不繞過 token 續期。
+      const { blob } = await api.fetchBlob(`${basePath}/documents/${encodeURIComponent(doc.id)}`);
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+      const url = URL.createObjectURL(blob);
+      previewUrlRef.current = url;
+      setPreview({
+        url,
+        contentType: doc.content_type,
+        label: DOC_TYPE_LABEL[doc.doc_type] ?? doc.doc_type,
+      });
+    } catch (e) {
+      window.alert(friendlyError(e));
+    } finally {
+      setPreviewBusy(null);
+    }
+  }
+
+  function closePreview() {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreview(null);
+  }
+
+  const maskedNationalId = k?.has_national_id
+    ? `•••••••${k.national_id_last3 ?? ""}`
+    : null;
+  const maskedBankAccount = k?.has_bank_account
+    ? `${k.bank_code ? `${k.bank_code} ` : ""}••••${k.bank_account_last4 ?? ""}`
+    : null;
+
+  return (
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-[var(--primary)]" aria-hidden />
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">KYC 審核資料</h2>
+        </div>
+        {hasSensitive && !revealed && (
+          <button
+            type="button"
+            onClick={reveal}
+            disabled={revealBusy}
+            className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50"
+          >
+            <Eye className="h-3.5 w-3.5" aria-hidden />
+            {revealBusy ? "解密中…" : "顯示完整資料"}
+          </button>
+        )}
+        {revealed && (
+          <span className="text-xs text-amber-600">已顯示完整資料（本次揭露已寫入稽核）</span>
+        )}
+      </div>
+      {revealErr && <p className="mb-3 text-[13px] text-red-600">{revealErr}</p>}
+
+      <div className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+        <Info label="從業年資" value={p.years_experience != null ? `${p.years_experience} 年` : "—"} />
+        <Info label="交通工具" value={p.vehicle_type || "—"} />
+        <Info label="可服務時段" value={p.availability_note || "—"} />
+        <Info
+          label="緊急聯絡人"
+          value={p.emergency_contact_name ? `${p.emergency_contact_name}（${p.emergency_contact_phone || "—"}）` : "—"}
+        />
+        <Info
+          label="條款同意時間"
+          value={p.terms_accepted_at ? p.terms_accepted_at.slice(0, 16).replace("T", " ") : "未同意"}
+        />
+        {p.bio && <Info label="自我介紹" value={p.bio} span />}
+      </div>
+
+      <h3 className="mb-2 mt-5 text-sm font-semibold text-[var(--text-primary)]">敏感資料（加密保存）</h3>
+      {!k ? (
+        <p className="text-sm text-[var(--text-secondary)]">師傅尚未提供敏感 PII（可於核准前補件）</p>
+      ) : (
+        <div className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+          <Info label="身分證字號" value={revealed?.national_id ?? maskedNationalId ?? "—"} />
+          <Info label="生日" value={k.birth_date ?? "—"} />
+          <Info
+            label="撥款帳戶"
+            value={
+              revealed?.bank_account
+                ? `${k.bank_code ? `${k.bank_code} ` : ""}${revealed.bank_account}`
+                : maskedBankAccount ?? "—"
+            }
+          />
+          <Info label="統一編號" value={k.tax_id ?? "—"} />
+          <Info label="通訊地址" value={k.address ?? "—"} span />
+        </div>
+      )}
+
+      <h3 className="mb-2 mt-5 text-sm font-semibold text-[var(--text-primary)]">證件文件</h3>
+      {kyc.documents.length === 0 ? (
+        <p className="text-sm text-[var(--text-secondary)]">尚未上傳文件（可於核准前補件）</p>
+      ) : (
+        <div className="flex flex-col divide-y divide-[var(--border)]">
+          {kyc.documents.map((d) => (
+            <div key={d.id} className="flex items-center gap-3 py-2.5">
+              <FileText className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden />
+              <div className="min-w-0 flex-1">
+                <span className="text-sm font-medium text-[var(--text-primary)]">
+                  {DOC_TYPE_LABEL[d.doc_type] ?? d.doc_type}
+                </span>
+                <span className="ml-2 text-xs text-[var(--text-secondary)]">
+                  {d.filename}（{fmtBytes(d.size_bytes)}）
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => openPreview(d)}
+                disabled={!!previewBusy}
+                className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--text-primary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50"
+              >
+                <Eye className="h-3.5 w-3.5" aria-hidden />
+                {previewBusy === d.id ? "載入中…" : "預覽"}
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {preview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closePreview();
+          }}
+        >
+          <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-2xl bg-[var(--bg-surface)] p-4 shadow-lg">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-base font-semibold text-[var(--text-primary)]">{preview.label}</h3>
+              <button
+                type="button"
+                onClick={closePreview}
+                className="rounded-lg border border-[var(--border)] px-3 py-1 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))]"
+              >
+                關閉
+              </button>
+            </div>
+            {preview.contentType.startsWith("image/") ? (
+              // eslint-disable-next-line @next/next/no-img-element -- blob object URL 無法用 next/image
+              <img src={preview.url} alt={preview.label} className="max-h-[75vh] w-full object-contain" />
+            ) : (
+              <iframe src={preview.url} title={preview.label} className="h-[75vh] w-full rounded-lg border border-[var(--border)]" />
+            )}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

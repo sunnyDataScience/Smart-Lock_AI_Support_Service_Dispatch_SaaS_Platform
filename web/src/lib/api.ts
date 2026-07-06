@@ -444,6 +444,42 @@ async function downloadBlob(
 }
 
 /**
+ * fetchBlobGet — GET 一個受保護的二進位資源，回傳 Blob（供 inline 預覽等）。
+ *
+ * 與 downloadBlob 不同：不自動觸發下載，把 Blob 交給呼叫端（如平台 KYC 文件
+ * 預覽面板）。共用同一套 401 → refresh → retry 鏈，不繞過 token 續期。
+ */
+async function fetchBlobGet(path: string): Promise<{ blob: Blob; contentType: string }> {
+  const headers: Record<string, string> = {};
+  const token = auth.getAccessToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  headers["X-Tenant-ID"] = auth.getTenantId();
+
+  let res = await fetch(buildUrl(path), { method: "GET", headers });
+
+  if (res.status === 401) {
+    const ok = await refreshAccessToken();
+    if (ok) {
+      const newToken = auth.getAccessToken();
+      if (newToken) headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(buildUrl(path), { method: "GET", headers });
+    }
+    if (res.status === 401) handleSessionExpired();
+  }
+
+  if (!res.ok) {
+    const contentType = res.headers.get("content-type") ?? "";
+    const isJson = contentType.includes("application/json") || contentType.includes("application/problem+json");
+    const payload = isJson
+      ? ((await res.json()) as ApiErrorResponse)
+      : { error_code: "UNKNOWN", message: await res.text() };
+    throw new ApiError(res.status, payload);
+  }
+
+  return { blob: await res.blob(), contentType: res.headers.get("content-type") ?? "" };
+}
+
+/**
  * downloadBlobPost — POST + JSON body that returns a streaming download.
  *
  * For endpoints like /audit-logs/export where the filter payload is too large
@@ -524,6 +560,7 @@ export const api = {
     request<T>("DELETE", path, { ...opts, idempotencyKey: opts?.idempotencyKey ?? newIdempotencyKey() }),
   upload: uploadMultipart,
   download: downloadBlob,
+  fetchBlob: fetchBlobGet,
   downloadPost: downloadBlobPost,
   triggerDownload: triggerBlobDownload,
   raw: request,

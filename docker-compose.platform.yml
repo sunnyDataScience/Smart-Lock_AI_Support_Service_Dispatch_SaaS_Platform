@@ -68,6 +68,14 @@ services:
       API_JWT_SECRET_KEY: "${PLATFORM_JWT_SECRET_KEY:?必須設定 PLATFORM_JWT_SECRET_KEY(平台 token 簽章密鑰,≥16 字元且不可與品牌 .env 共用值)}"
       # console(3003)+ landing(3002,R2 品牌申請公開表單瀏覽器直打)
       CORS_ORIGINS: "${PLATFORM_CORS_ORIGINS:-http://localhost:3003 http://localhost:3002}"
+      # CR-0115 S7:師傅 KYC 註冊文件由 tech-api 寫入共用 media volume 的
+      # kyc-registration/ 子樹;platform 審核檢視需讀同一顆 volume。
+      MEDIA_ROOT: /app/api/data/media
+      # PII 加密金鑰:必須與 tech stack 同值(tech-api 加密、platform-api 解密;
+      # 兩邊不同值 → reveal 靜默回 null)。未設 = 兩邊都用 dev fallback(僅本機)。
+      KYC_ENCRYPTION_KEY: "${KYC_ENCRYPTION_KEY:-}"
+    volumes:
+      - media:/app/api/data/media
     depends_on:
       platform-db:
         condition: service_healthy
@@ -101,3 +109,9 @@ networks:
 volumes:
   platform_pgdata:
     name: lock-platform-pgdata
+  media:
+    # 與派工/tech stack 共用同一顆(dispatch compose 建立並擁有)。
+    # external:必標 —— 否則本 stack `down -v` 會把整顆品牌媒體(工單照片/
+    # 簽名/KYC 文件)一起刪掉。
+    name: lock-dispatch-${PLATFORM_NET_BRAND:-locksmart}-media
+    external: true

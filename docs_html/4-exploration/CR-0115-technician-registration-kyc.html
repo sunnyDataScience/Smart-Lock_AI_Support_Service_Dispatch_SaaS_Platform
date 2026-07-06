@@ -531,11 +531,38 @@ tech-web；<strong>Playwright 端到端</strong>（登入頁只登入+連結 →
 → tech-db 加密入庫、品牌庫投影無
 KYC；重驗中間步驟不提前送出）。<strong>文件上傳步驟（Tier
 3）留下一輪</strong>（需兩階段 token 上傳後端）。</li>
-<li>⏳ S-upload 兩階段 token 文件上傳（migration：registration_document
-+ upload_token 表；公開上傳端點）— 待</li>
-<li>⏳ S7 審核頁（平台 console 顯示新欄 + 文件、敏感 PII
-遮罩/授權看全值）— 待</li>
-<li>⏳ 收尾：dispatch api image 重建（deploy）、docs_html regen、雲端
-migration 089</li>
+<li>✅ S-upload 兩階段 token 文件上傳 done（branch
+<code>feat/cr0115-kyc-doc-upload</code>，merge &lt;待填&gt;）：migration
+<code>090</code>（<code>technician_upload_token</code> 明文不落庫只存
+SHA-256、48h/次數上限、<code>pending_approval</code> 才可用 +
+<code>technician_registration_document</code> 落師傅權威庫不入品牌庫 +
+<code>saas.technician_lifecycle_event</code> CHECK 追加
+<code>kyc_reveal</code>）；<code>technician_kyc_service.py</code>（token
+簽發/驗證/原子扣額度/magic-bytes 驗檔/寫檔+metadata）；公開端點
+<code>POST /api/v1/technicians/registration-documents</code>（token-only、per-IP
+限流、body 上限 middleware）；<code>register_technician</code> 回
+<code>upload_token</code>（idempotency cache
+存清洗副本，明文不落品牌庫）；前端註冊表單送出後接四槽位文件上傳畫面（可略過核准前補件）。</li>
+<li>✅ S7 審核頁 done（同
+branch）：<code>/platform/technicians/[id]</code> 加「KYC
+審核資料」區塊（Tier 1 + 遮罩 PII +
+文件清單）；<code>GET .../kyc</code>（遮罩）+
+<code>POST .../kyc:reveal</code>（解密全值，<strong>每次寫 lifecycle
+audit，fail-closed</strong>）+
+<code>GET .../documents/{id}</code>（授權讀檔、nosniff、inline
+預覽）；品牌 admin 三端點 403；文件預覽走
+<code>api.fetchBlob</code>（共用 401→refresh）+ blob URL cleanup。</li>
+<li>✅ Review 加固 done（4 finder 多維審查 + 對抗式驗證，19
+項確認全修）：idempotency token 清洗、pre-auth DoS body cap、magic-bytes
+驗檔（移 HEIC）、upload_count 原子扣額、dedup 補
+doc_type、寫檔失敗清孤兒、XFF 限流、reveal fail-closed、平台頁
+<code>/kyc</code> allSettled、dispatch 面剔除
+<code>/registration-documents</code>、compose media
+<code>external: true</code> + 兩 stack
+<code>KYC_ENCRYPTION_KEY</code>。全套 <strong>1653 passed</strong>（隔離
+scratch DB）；tsc 0；API + 瀏覽器端到端驗證。<strong>本機
+docker（tech/platform api+web）已重建</strong>。</li>
+<li>⏳ 收尾：docs_html regen、雲端 migration 089+090、正式環境設定
+<code>KYC_ENCRYPTION_KEY</code>（tech + platform 同值）— 待</li>
 </ul>
 </div></div></body></html>

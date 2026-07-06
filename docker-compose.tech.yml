@@ -60,6 +60,9 @@ services:
       API_SURFACE: tech           # 技師精簡面:只掛技師 app 路由、停用背景 worker(api/main.py CR-0112)
       CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3001 http://localhost:3000}"
       MEDIA_ROOT: /app/api/data/media
+      # CR-0115 KYC PII 加密金鑰:tech-api 是註冊加密寫入端,必須與 platform-api
+      # (解密 reveal 端)同值。未設 = 兩邊 dev fallback(僅本機/測試)。
+      KYC_ENCRYPTION_KEY: "${KYC_ENCRYPTION_KEY:-}"
     volumes:
       # 與品牌 api 共用媒體檔實體(技師上傳的施工照片/簽名,品牌後台要能讀)
       - media:/app/api/data/media
