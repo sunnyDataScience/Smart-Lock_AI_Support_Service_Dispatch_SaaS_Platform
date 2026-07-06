@@ -114,12 +114,17 @@ class SLAMonitor:
         new_alerts: list[dict] = []
 
         # ─── quote_expiring ───────────────────────────────────────────
+        # CR-0117：estimated_price 以前無寫入點，本告警實為死邏輯；接上後修正語意 ——
+        # 計時基準改「報價送出」（quote.state='sent' 的 updated_at ≈ 送出時刻），
+        # 而非工單 created_at（單子可能建立多日後才報價 → 一報價即誤告警）；
+        # 且 join quote 天然排除已同意/已拒絕（state 已離開 sent → 不再誤報「待確認」）。
         cur = await db_module._conn.execute(
-            "SELECT id, created_at "
-            "FROM work_orders "
-            "WHERE status = 'created' "
-            "  AND estimated_price IS NOT NULL "
-            "  AND created_at < NOW() - (INTERVAL '1 minute' * %s)",
+            "SELECT wo.id, wo.created_at "
+            "FROM work_orders wo "
+            "JOIN quote q ON q.work_order_id = wo.id AND q.state = 'sent' "
+            "WHERE wo.status = 'created' "
+            "  AND wo.estimated_price IS NOT NULL "
+            "  AND q.updated_at < NOW() - (INTERVAL '1 minute' * %s)",
             (QUOTE_EXPIRING_MINUTES,),
         )
         for r in await cur.fetchall():

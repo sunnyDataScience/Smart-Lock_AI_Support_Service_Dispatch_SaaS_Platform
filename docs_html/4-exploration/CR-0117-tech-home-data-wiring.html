@@ -1,0 +1,192 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>師傅端首頁假資料接線 — estimated_price/評價/統計 roll-up/月結自動產生/熔斷欄位</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0117-tech-home-data-wiring.md</div>
+<div class="doc"><h1 id="cr-0117--師傅端首頁3001home假資料接線">CR-0117 —
+師傅端首頁(:3001/home)假資料接線</h1>
+<h2 id="1-背景">§1 背景</h2>
+<p>業主 UAT 檢視 <code>:3001/home</code>
+要求「盤點有哪些是假資料需接上」。11-agent 稽核(7 面向 +
+逐項逆向驗證)結論:<strong>前端 6
+元件全數真接線,假資料全在後端資料管線斷鏈</strong>。盤點報告:<code>.claude/context/quality/general-purpose-2026-07-06-1830-tech-home-fake-data-audit.md</code>。業主
+2026-07-06 裁決:「一次做完」(全部按建議接法實作)。</p>
+<h2 id="2-確認的斷鏈五項">§2 確認的斷鏈(五項)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>嚴重度</th>
+<th>斷鏈</th>
+<th>根因位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>P0</td>
+<td><code>work_orders.estimated_price</code> 死欄位 →
+首頁今日/本週/本月收入永遠 NT$ 0;sla_monitor quote_expiring
+永不觸發</td>
+<td>全 api/ 無寫入點;報價同意只更
+<code>quote.total_amount</code>(quote_engine_service.py:293)</td>
+</tr>
+<tr>
+<td>2</td>
+<td>P0</td>
+<td>近期評價永遠空(只給星不留言的評價被濾掉)</td>
+<td>後端
+<code>feedback IS NOT NULL</code>(technician_service.py:681-683)+ 前端
+<code>.filter(f =&gt; f.feedback)</code>(RecentFeedback.tsx)</td>
+</tr>
+<tr>
+<td>3</td>
+<td>P1</td>
+<td><code>technicians.rating/completed_orders</code>
+種子凍結(4.7/23),帳戶頁顯示假值、dispatch 排序用假值;與
+dashboard-summary 即時聚合口徑分裂</td>
+<td>全系統無 roll-up;種子 SQL/seeds/technicians.sql:60</td>
+</tr>
+<tr>
+<td>4</td>
+<td>P1</td>
+<td>月結對帳單金額不自動算:generate_statement 金額全為手動參數(預設
+0),docstring 謊稱系統自算;無月底 cron</td>
+<td>technician_statement_service.py:48-110</td>
+</tr>
+<tr>
+<td>5</td>
+<td>P2</td>
+<td><code>circuit_breaker_until</code> 恆 null(DB
+無此欄);dispatch-manual 的熔斷判斷
+<code>!!tech.circuit_breaker_until</code> 永遠
+false,真熔斷(online_state='circuit_breaker_open')反而不顯示</td>
+<td>technician_service.py:75 寫死 None;web
+dispatch-manual/page.tsx:547</td>
+</tr>
+</tbody>
+</table>
+<p>附帶:報價事件訊息「總額 NT$ None」(quote total_amount 為 NULL
+時直接內插,_log_quote_event_to_conversation)。</p>
+<h2 id="3-cia-面向">§3 CIA 面向</h2>
+<ul>
+<li><strong>Domain model</strong>:work_orders.estimated_price
+生命週期(報價同意 = 承諾點寫入);technicians.rating/completed_orders
+語意由「靜態種子」改「work_orders 聚合派生」。</li>
+<li><strong>API
+contract</strong>:<code>POST /tenants/{tid}/tech-statements:generate</code>
+的 <code>gross_amount</code>/<code>total_completed_orders</code>
+由「預設 0」改「省略 =
+自動依佣金口徑計算」(顯式帶值仍為人工覆寫,additive-compatible)。</li>
+<li><strong>Business flow</strong>:月結產生由「純手動」改「月底 cron
+自動產 draft + 人工可補發」。</li>
+<li><strong>External integration</strong>:無(LINE 推播不動)。</li>
+<li><strong>DB schema</strong>:零變更(全部用既有欄位)。</li>
+</ul>
+<h2 id="4-設計決策">§4 設計決策</h2>
+<ol type="1">
+<li><strong>estimated_price 寫入點 =
+客戶同意報價</strong>(<code>transition(action='accept')</code>):<code>UPDATE work_orders SET estimated_price = quote.total_amount</code>(total
+為 NULL 不寫)。內部 approve 不寫(尚未承諾);完工實收另有
+<code>final_price</code>(不動,口徑本就分立)。</li>
+<li><strong>評價查詢改 <code>rating IS NOT NULL</code></strong>,前端
+star-only 評價渲染星等、無文字段落;feedback 仍可空。</li>
+<li><strong>rating/completed_orders roll-up =
+事件後全量重算</strong>(非增量):confirm_order(評分寫入)與
+complete_order(完工)後,從 work_orders 重算
+<code>AVG(rating)</code>/<code>COUNT(completed_at IS NOT NULL)</code>
+回寫 technicians(<strong>權威庫 + 投影庫皆寫</strong>,單庫 fallback
+同顆連線無害;fail-soft
+不阻斷工單流程)。重算自我修正,不怕漏事件。既有列一次性重算(本機兩庫)。種子檔
+4.7/23 不改(pytest 相依),但 roll-up 首次事件即覆蓋。</li>
+<li><strong>月結 gross 口徑 = CR-0106 佣金制</strong>(固定工資
+base_payout × qty,重用
+<code>compute_monthly_commission</code>),非整單金額;扣項維持手動(結構化來源未建,CR-0106
+既有誠實限制)。<code>generate_statement</code> 的 gross/completed 參數改
+<code>None</code> 預設 → None 時自動計算。新 cron
+<code>statement_generate_cron</code>(日掃,對上個月有完工單的技師冪等補產
+draft;隨 <code>_RUN_BACKGROUND_WORKERS</code> 只在 dispatch/all surface
+跑)。</li>
+<li><strong>circuit_breaker_until
+不補欄</strong>(系統沒有任何機制會開熔斷計時,補欄=造更多假資料):前端
+dispatch-manual 改判
+<code>online_state === 'circuit_breaker_open'</code>(真訊號);後端欄位保留回
+None(契約穩定),註解標
+deprecated。真正的自動熔斷機制(拒單率觸發+冷卻時間)另立 CR。</li>
+<li><strong>「NT$ None」</strong>:total 為 NULL
+時訊息顯示「金額未定」。</li>
+</ol>
+<h2 id="5-影響範圍">§5 影響範圍</h2>
+<ul>
+<li>api:quote_engine_service / technician_service / work_order_service /
+technician_statement_service / technician_statement_v2 router /
+realtime/statement_generate_cron(新) / main.py(掛 worker)</li>
+<li>web:RecentFeedback.tsx / admin/dispatch-manual/page.tsx</li>
+<li>DB(本機資料修正,非 schema):technicians
+統計重算(5433+5434)、estimated_price 依已同意報價回填(現況 0
+筆適用)</li>
+</ul>
+<h2 id="8-human-decisions-required">§8 Human Decisions Required</h2>
+<p>業主 2026-07-06「一次做完吧」= 全部按 §4 建議接法實作。技術子決策(§4
+1-6)由實作者依最小誠實原則裁定,列此供追溯;其中 <strong>S 級費率映射
+LV-A、扣項暫 0</strong> 沿用 CR-0106 既有業主核准口徑,未新增假設。</p>
+<h3 id="進度">進度</h3>
+<ul>
+<li>✅ CIA 立案 + §4 設計(2026-07-06)</li>
+<li>✅ S1 estimated_price(send 寫入+accept 冪等重寫,對齊 quote_expiring
+語意)+「NT$ None」→「金額未定」</li>
+<li>✅ S2 評價查詢 <code>rating IS NOT NULL</code> + RecentFeedback
+star-only 渲染</li>
+<li>✅ S3 <code>rollup_technician_stats</code>(權威+投影)+
+confirm/complete fail-soft 掛點 + 本機 5433/5434 既有列重算(丁啟恆
+5.0/1、示範技師 NULL/0)</li>
+<li>✅ S4 generate_statement 自動計算(冪等檢查先行、gross
+省略=佣金口徑、unmapped 記 notes)+ statement_generate_cron(6h,冪等)+
+main.py 掛載</li>
+<li>✅ S5 熔斷判準前後端全鏈:dispatch-manual <code>isCircuit</code> 改
+<code>availability==='circuit_breaker_open'</code>;後端
+<code>_is_excluded_by_circuit</code>/<code>_availability_eta</code> 改判
+online_state(原比對錯域永不命中/全回假 ETA);<code>assign_order</code> 補
+<code>TECHNICIAN_CIRCUIT_BREAKER_OPEN</code> 409 guard(原死錯誤碼,主管
+override_reason 放行);<code>circuit_breaker_until</code> 標
+deprecated</li>
+<li>✅ Review 加固(19-agent adversarial diff review,4
+項確認全修):estimated_price 回寫 tenant 雙重限定(不繼承 transition()
+既有跨租戶缺口至財務欄位)+
+fail-soft(不卡死下游快照/發票);generate_statement INSERT 補 ON CONFLICT
+DO NOTHING(TOCTOU);sla_monitor quote_expiring 計時基準改 join
+quote.state='sent' 以送出時刻起算(原以工單 created_at
+且不排除已同意/拒絕 → 喚醒後會量產誤告警)</li>
+<li>✅ S6 測試:<code>test_cr_0117_data_wiring.py</code> 9 測(含 assign
+熔斷 guard 契約);修 2 個既有測試(cr_0088 fake 路由鍵;cr_0066 順修既有
+flaky——LIMIT 1 無排序撈到 user_id NULL 展示技師);<strong>全套 1643
+passed 於隔離 scratch DB <code>lock_cr0117_test</code></strong>(pg_dump
+複本+seeds 補齊,UAT 5433 零接觸)——同時驗證 pytest
+隔離庫方案可行,可作常規做法</li>
+<li>✅ S6 部署+文件(見 CHANGELOG / completion-status;merge SHA 見 git
+log)</li>
+</ul>
+<p><strong>已知殘留(不在本 CR 範圍,留待後續)</strong>:transition()
+本體的 quote 跨租戶查詢缺口(既有,非本次引入;本次僅確保新寫入面不繼承)—
+建議另立 CR 全面補 tenant
+過濾;自動熔斷機制(拒單率觸發+冷卻計時)未建,circuit_breaker_open
+目前僅能手動設定。</p>
+<h2 id="9-suggested-implementation-order">§9 Suggested Implementation
+Order</h2>
+<p>S1 → S2 → S3 → S4 → S5(各自獨立可並行,依風險由高到低)→ S6
+驗證收尾。單一 branch
+<code>feat/cr0117-tech-home-data-wiring</code>,邏輯分 commit。</p>
+</div></div></body></html>

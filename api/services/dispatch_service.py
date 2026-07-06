@@ -74,10 +74,12 @@ def _rating_factor(rating: float | None) -> float:
     return r / 5.0
 
 
-def _availability_eta(status: str | None) -> int | None:
-    if status == "active":
+def _availability_eta(online_state: str | None) -> int | None:
+    """CR-0117 S5：ETA 粗估判 online_state。原版混域（'active' 是生命週期值、
+    'busy' 是 online_state 值）→ 所有 active 技師一律回 15 分假 ETA。"""
+    if online_state == "available":
         return 15
-    if status == "busy":
+    if online_state == "busy":
         return 60
     return None
 
@@ -212,9 +214,14 @@ async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
     return {str(r[0]) for r in rows}
 
 
-def _is_excluded_by_circuit(status: str | None) -> bool:
-    """暫無 circuit_breaker_until 欄；以 status 排除明顯不可派的狀態。"""
-    return status in {"inactive", "on_leave", "circuit_breaker_open"}
+def _is_excluded_by_circuit(online_state: str | None) -> bool:
+    """CR-0117 S5：操作性不可派判準 —— 判 online_state（可用性域）。
+
+    原版收到「生命週期 status」（pending_approval/active/suspended/…）卻比對
+    online_state 域值 → 永不命中，自動派工的熔斷/請假排除實為死邏輯。
+    「inactive」在兩個域都不存在（死值）→ 移除；生命週期硬排除另由
+    _is_dispatch_eligible 把關（兩者職責分立）。"""
+    return online_state in {"on_leave", "circuit_breaker_open"}
 
 
 async def _fetch_tenant_technicians(tenant_id: str) -> list[tuple]:
@@ -243,11 +250,12 @@ def _score_rows(
     """共用評分邏輯：技師 row → 含 score / distance / skill_match / eta 的 dict 列表。"""
     out: list[dict] = []
     for r in rows:
-        status = r[9]  # 對齊 _TECH_SELECT
+        status = r[9]  # 對齊 _TECH_SELECT（生命週期）
+        online_state = r[11]  # 對齊 _TECH_SELECT（操作可用性,CR-0117 S5 熔斷判此欄）
         # CR-0051 / BR-M06：生命週期不可派工（未核准/停權/終止/退回）一律硬排除，不受 exclude_circuit 影響
         if not _is_dispatch_eligible(status):
             continue
-        if exclude_circuit and _is_excluded_by_circuit(status):
+        if exclude_circuit and _is_excluded_by_circuit(online_state):
             continue
         tech = _tech_row_to_dict(r)
         if skills_filter and not _intersect_lower(tech["skills"], skills_filter):
@@ -501,6 +509,8 @@ async def get_candidate_detail(
     regions = tech.get("regions") or tech.get("areas") or []
     rating = tech.get("rating")
     status = tech.get("status")
+    # CR-0117 S5：熔斷/ETA 判操作可用性（availability=online_state），生命週期另判
+    availability = tech.get("availability")
 
     dispatch_context = {
         "work_order_id": work_order_id,
@@ -509,9 +519,9 @@ async def get_candidate_detail(
         "skill_match": _explain_skill(skills, wo_brand),
         "distance_explain": _explain_distance(None, wo_district, regions),
         "rating_explain": _explain_rating(rating),
-        "excluded_by_circuit": _is_excluded_by_circuit(status),
+        "excluded_by_circuit": _is_excluded_by_circuit(availability),
         "dispatch_eligible": _is_dispatch_eligible(status),  # CR-0051 BR-M06 生命週期資格
-        "eta_minutes": _availability_eta(status),
+        "eta_minutes": _availability_eta(availability),
     }
 
     # 當週負載 (best-effort, 失敗不影響主資料)
