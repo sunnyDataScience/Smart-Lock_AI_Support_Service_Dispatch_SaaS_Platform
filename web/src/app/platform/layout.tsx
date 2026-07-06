@@ -47,9 +47,13 @@ export default function PlatformLayout({
             </div>
             <nav className="flex items-center gap-1" aria-label="平台管理導覽">
               {NAV.map((item) => {
+                // 根路徑 /platform（儀表板）只精確比對 —— 否則 startsWith("/platform/")
+                // 會對所有子頁成立,儀表板永遠亮。其餘項用「精確 or 前綴」(涵蓋 /[id] 詳情頁)。
                 const active =
-                  pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
+                  item.href === "/platform"
+                    ? pathname === "/platform"
+                    : pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`);
                 return (
                   <Link
                     key={item.href}
