@@ -327,7 +327,6 @@
       "dispatchQueue": "Dispatch queue",
       "materialRequests": "Material requests",
       "exceptions": "Exceptions",
-      "vendorApprovals": "Vendor approvals",
       "quoteCatalog": "Price catalog",
       "quotes": "Quotes",
       "customers": "Customers",
@@ -1993,19 +1992,6 @@
       "total": "Total",
       "open": "Open",
       "quoteNo": "Quote No."
-    },
-    "vendorApprovals": {
-      "title": "Vendor Approvals",
-      "pendingCount": "{n} pending",
-      "loading": "Loading…",
-      "empty": "No vendors pending approval",
-      "colName": "Vendor",
-      "colType": "Type",
-      "colContact": "Contact",
-      "colAction": "Action",
-      "approve": "Approve",
-      "reject": "Reject",
-      "rejectReasonPrompt": "Enter rejection reason:"
     }
   },
   "kb": {
