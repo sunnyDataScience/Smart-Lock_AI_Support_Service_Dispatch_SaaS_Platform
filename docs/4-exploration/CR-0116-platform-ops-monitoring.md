@@ -168,6 +168,7 @@ CREATE TABLE IF NOT EXISTS monitor_target (
 - ✅ **S3 done**：前端 `/platform` 儀表板改分頁（概覽｜維運監控）+ `OpsMonitorPanel`（registry 增/修/刪 modal + 依 brand 分組紅綠燈 + 30s 輪詢 + 立即檢查）。
 - ✅ **S4 done**：`test_platform_monitoring.py` 11 項通過（CRUD / RBAC 401·403 / 驗證 422 / `_map_status` 純函式 / probe 只回啟用目標且 `health` 路由不被 `{id}` 吃）。
 - ✅ **S5 done**：驗證 —— tsc 0；重建 platform api+web；curl 佐證（3 目標 up 200；打不通目標 status=down err=ClientConnectorDNSError 快速失敗）；Playwright 端到端（登入→維運監控 3 目標全綠依品牌分組→新增打不通目標顯示「異常」紅燈、摘要 1 異常→30s 自動輪詢延遲更新→清測試目標）。
-- ⏳ **雲端**：待 platform console 上雲部署 + 業主以 UI 登記正式各品牌 Cloud Run health URL（`https://<svc>-<hash>.run.app/health`）。
+- ✅ **S6 done「詳細用量」連結（A 方案，branch `feat/platform-monitor-usage-link`，2026-07-06）**：業主問「用量能不能一起顯示」。**釐清資料源**：用量（請求數/CPU/記憶體/instance）住 GCP Cloud Monitoring，**不在 /health**；要在 console 內顯示真實用量須查 GCP Monitoring API（憑證 + project_id + 本機測不到，屬另一輪）。業主選 **A 方案：連過去**。維運監控頁工具列加「詳細用量 ↗」連結（`target=_blank`），指向業主自建的 GCP 方案 1 Metrics Scope dashboard。URL 走 build-time env `NEXT_PUBLIC_GCP_MONITORING_URL`（`web/Dockerfile` ARG→ENV + `docker-compose.platform.yml` build arg `PLATFORM_GCP_MONITORING_URL`）；**未設 = 不顯示連結**（避免指向空頁）。純前端 + config → CIA 豁免。驗證：tsc 0；帶測試 URL 重建 → Playwright 確認連結 href/target 正確；再回空預設。
+- ⏳ **雲端**：待 platform console 上雲部署 + 業主以 UI 登記正式各品牌 Cloud Run health URL（`https://<svc>-<hash>.run.app/health`）+ 設 `PLATFORM_GCP_MONITORING_URL` 指向 Metrics Scope dashboard。
 
-> **與 GCP 方案分工再述**：本 CR = console 即時紅綠燈（非技術者一眼看）。業主自理 GCP 方案 1（Metrics Scope 跨專案 dashboard）+ 方案 2（Uptime Check + Alerting → LINE/Email，主動告警與歷史）。兩者互補，不重疊。
+> **與 GCP 方案分工再述**：本 CR = console 即時紅綠燈（非技術者一眼看）+ 「詳細用量」連結導出到 GCP。業主自理 GCP 方案 1（Metrics Scope 跨專案用量 dashboard）+ 方案 2（Uptime Check + Alerting → LINE/Email，主動告警與歷史）。console 不重造用量/告警/歷史,只連過去。

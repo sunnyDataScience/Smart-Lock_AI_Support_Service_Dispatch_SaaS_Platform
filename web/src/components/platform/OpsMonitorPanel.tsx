@@ -6,12 +6,16 @@
 // 前端每 30s 輪詢後端 fan-out(§8-Q7);後端單目標逾時 3s。內部工具 → 文案繁中。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, RefreshCw, BarChart3 } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 
 const BASE = "/api/v1/platform/monitor-targets";
 const POLL_MS = 30_000;
+
+// CR-0116 A 方案:用量(請求數/CPU/記憶體…)住 GCP Cloud Monitoring,非 /health。
+// console 只連過去你建的 GCP Metrics Scope dashboard,不重造。未設 = 不顯示連結。
+const GCP_MONITORING_URL = process.env.NEXT_PUBLIC_GCP_MONITORING_URL || "";
 
 type Status = "up" | "degraded" | "down";
 
@@ -137,6 +141,18 @@ export default function OpsMonitorPanel() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          {GCP_MONITORING_URL && (
+            <a
+              href={GCP_MONITORING_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="用量指標（請求數／CPU／記憶體）在 GCP Cloud Monitoring"
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))]"
+            >
+              <BarChart3 className="h-3.5 w-3.5" aria-hidden />
+              詳細用量 ↗
+            </a>
+          )}
           <button
             type="button"
             onClick={probe}
