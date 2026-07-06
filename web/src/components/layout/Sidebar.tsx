@@ -8,7 +8,6 @@ import {
   ClipboardList,
   BookOpen,
   Truck,
-  Users,
   CircleUserRound,
   Store,
   Tag,
@@ -87,7 +86,6 @@ const navSections: NavSection[] = [
         ],
       },
       { icon: FileText, id: "quotes", href: "/admin/quotes" },
-      { icon: Users, id: "technicians", href: "/technicians" },
       { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
       {
         icon: Receipt,

@@ -273,10 +273,11 @@ def test_brand_router_readonly_only_lifecycle_events():
 
 
 def test_platform_router_has_lifecycle_write_endpoints():
-    """CR-0114 R3:5 個生命週期寫端點 + 清單 + audit 全在平台 router。"""
+    """CR-0114 R3:5 個生命週期寫端點 + 清單 + audit 全在平台 router。
+    CR-0114 §8 追補收尾:再補師傅管理端點(建立/詳情/編輯/認證 CRUD)。"""
     from routers import platform_technicians as mod
     ids = {getattr(r, "operation_id", None) for r in mod.router.routes}
-    expected = {
+    lifecycle_expected = {
         "listPlatformTechnicians",
         "platformApproveTechnician",
         "platformRejectTechnician",
@@ -285,4 +286,13 @@ def test_platform_router_has_lifecycle_write_endpoints():
         "platformTerminateTechnician",
         "listPlatformTechnicianLifecycleEvents",
     }
-    assert ids == expected
+    management_expected = {
+        "platformCreateTechnician",
+        "getPlatformTechnician",
+        "updatePlatformTechnician",
+        "listPlatformTechnicianCertifications",
+        "createPlatformTechnicianCertification",
+        "updatePlatformTechnicianCertification",
+        "deletePlatformTechnicianCertification",
+    }
+    assert ids == lifecycle_expected | management_expected

@@ -326,7 +326,6 @@
       "workOrders": "Work orders",
       "dispatchQueue": "Dispatch queue",
       "materialRequests": "Material requests",
-      "technicians": "Technicians",
       "exceptions": "Exceptions",
       "vendorApprovals": "Vendor approvals",
       "quoteCatalog": "Price catalog",
@@ -467,23 +466,6 @@
       "loading": "Loading…",
       "totalCount": "Total {count}",
       "totalCountMore": "Total {count}+",
-      "loadingMore": "Loading…",
-      "loadMore": "Load more"
-    },
-    "technicians": {
-      "title": "Technician management",
-      "loadingBadge": "Loading",
-      "techCount": "{count} technicians",
-      "techCountMore": "{count}+ technicians",
-      "filters": {
-        "status": "Status",
-        "brandSpecialty": "Brand specialty",
-        "serviceArea": "Service area",
-        "rating": "Rating ≥ 4.0"
-      },
-      "comingSoonTitle": "Coming soon",
-      "searchPlaceholder": "Search coming soon",
-      "loadFailed": "Failed to load technicians: {error}",
       "loadingMore": "Loading…",
       "loadMore": "Load more"
     },
@@ -3297,63 +3279,6 @@
         "viewDetail": "View details →",
         "hint": "Click an order on the left to see its details",
         "hintSub": "Interactive map ships with the GIS module"
-      }
-    },
-    "technicians": {
-      "table": {
-        "loading": "Loading…",
-        "empty": "No technicians",
-        "cols": {
-          "technician": "Technician",
-          "brands": "Brands",
-          "region": "Service area",
-          "rating": "Rating",
-          "status": "Status",
-          "completed": "Completed orders",
-          "actions": "Actions"
-        },
-        "availability": {
-          "available": "Available",
-          "busy": "On site",
-          "offline": "Offline",
-          "on_leave": "On leave",
-          "circuit_breaker_open": "Suspended"
-        },
-        "onboardStatus": {
-          "pending_approval": "Pending approval",
-          "active": "Active",
-          "inactive": "Inactive",
-          "suspended": "Suspended",
-          "terminated": "Terminated",
-          "rejected": "Rejected"
-        }
-      },
-      "detailSidebar": {
-        "availabilityTitle": "Availability",
-        "availabilityOnline": "Available",
-        "lastOnline": "Last online: 5 min ago",
-        "autoOffline": "System will auto-set offline after 30 min of inactivity",
-        "mockLabel": "Mock",
-        "mockTooltip": "Mock data — will show real content once the relevant module ships",
-        "activeOrdersTitle": "Active orders",
-        "loadFailed": "Load failed: {error}",
-        "querying": "Loading…",
-        "noActive": "No active orders",
-        "createdAt": "Created {time}",
-        "commissionTitle": "Commission summary",
-        "commissionPeriod": "April 2026",
-        "commissionRow": {
-          "repair": "General repair commission (70%)",
-          "install": "Installation commission (60%)",
-          "customMaterial": "Customer-supplied parts commission (80%)",
-          "bonus": "Bonus",
-          "penalty": "Penalty"
-        },
-        "pending": "Pending",
-        "monthlyBadge": "Monthly (5th)",
-        "nextSettle": "Next settle: 2026/05/05",
-        "logTitle": "Bonus & penalty log",
-        "viewLogAll": "View all →"
       }
     },
     "problemCards": {
