@@ -124,8 +124,8 @@ python3 scripts/seed/realistic_demo_seed.py \
 | 角色 | Email | 密碼 |
 |---|---|---|
 | 系統管理員 | `admin@example.com` | `changeme123` |
-| 示範技師 | `demo-tech@example.com` | `techpass123` |
-| 派工員 | `demo-dispatcher@example.com` | `dispatcherpass123` |
+| 示範技師 | `demo-tech@example.com` | `changeme123` |
+| 派工員 | `dispatcher@example.com` | `changeme123` |
 
 ---
 

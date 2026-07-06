@@ -29,7 +29,7 @@ const API_BASE =
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
 const TECH_EMAIL = "demo-tech@example.com";
-const TECH_PASSWORD = "techpass123";
+const TECH_PASSWORD = "changeme123";
 
 // localStorage keys（對齊 src/lib/api.ts STORAGE_KEYS）
 const STORAGE = {

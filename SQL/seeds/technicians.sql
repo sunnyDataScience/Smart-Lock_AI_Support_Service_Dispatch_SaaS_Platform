@@ -21,7 +21,7 @@
 BEGIN;
 
 -- 1) demo 技師對應的 user 帳號（role='technician'）
--- password = techpass123（bcrypt $2b$12$...）
+-- password = changeme123（bcrypt,與 _admin_user.sql 同一 hash;2026-07-06 測試帳號密碼統一）
 INSERT INTO users (
     id, tenant_id, email, password_hash, display_name, phone, role, is_active
 )
@@ -29,7 +29,7 @@ VALUES (
     '66666666-aaaa-4aaa-aaaa-aaaaaaaaaa01'::uuid,
     '00000000-0000-0000-0000-000000000001'::uuid,
     'demo-tech@example.com',
-    '$2b$12$j8386WAs/k1Tb/tx3PFiq.wR3ba9A3JafXEo3MTaiCpU/f.pfl08q',
+    '$2b$12$Hdfo2ixXxQXkAIYXaDz23.HSP8MD1TrkD3CvpwtdSqvDWSq.BAui6',
     '示範技師-林師傅',
     '0911222333',
     'technician',

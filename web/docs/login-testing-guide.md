@@ -31,7 +31,7 @@ curl http://localhost:8001/health
 
 #### 技師端
 - Email：`demo-tech@example.com`
-- 密碼：`techpass123`
+- 密碼：`changeme123`
 - 來源：`SQL/seeds/technicians.sql`
 - 注意：`tech-chen@example.com`、`tech-huang@example.com` 是 placeholder hash，**無法登入**（用於展示列表，不用於 auth）
 
@@ -138,7 +138,7 @@ psql $POSTGRES_URI < SQL/seeds/technicians.sql
 
 1. 改輸入正確帳密：
    - 帳號：`demo-tech@example.com`
-   - 密碼：`techpass123`
+   - 密碼：`changeme123`
 2. 點「登入」
 3. **預期：**
    - 自動跳轉到 `/pool`（**不是 `/dashboard`**）
@@ -233,7 +233,7 @@ docker logs -f smart-lock-api
   ```bash
   curl -X POST http://localhost:8001/api/v1/technicians/login \
     -H "Content-Type: application/json" \
-    -d '{"email":"demo-tech@example.com","password":"techpass123"}'
+    -d '{"email":"demo-tech@example.com","password":"changeme123"}'
   ```
 
 ---
