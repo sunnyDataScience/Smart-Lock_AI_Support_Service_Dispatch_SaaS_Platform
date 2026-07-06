@@ -109,6 +109,7 @@ def test_tech_surface_simulated_filter_on_real_routes():
         "/api/v1/platform/technicians/{technicianId}:suspend",
         "/api/v1/platform/brand-applications",
         "/api/v1/technicians/register",
+        "/api/v1/technicians/registration-documents",  # CR-0115 孿生公開寫端點
     ],
 )
 def test_dispatch_surface_drops_platform_and_register(path):
@@ -147,11 +148,12 @@ def test_dispatch_surface_simulated_filter_on_real_routes():
     } - kept
     assert not any(p.startswith("/api/v1/platform") for p in kept)
     assert "/api/v1/technicians/register" not in kept
+    assert "/api/v1/technicians/registration-documents" not in kept  # CR-0115 孿生端點
     assert "/api/v1/technicians/login" in kept
     assert any(p.startswith("/api/v1/dispatch") for p in kept)
     assert any(p.startswith("/tenants/{tenantId}/technicians") for p in kept)
-    # 剔除的每一條都屬兩類之一(平台前綴 or 師傅註冊)
+    # 剔除的每一條都屬兩類之一(平台前綴 or 師傅公開寫端點 register/registration-documents)
     assert all(
-        p.startswith("/api/v1/platform") or p.startswith("/api/v1/technicians/register")
+        p.startswith("/api/v1/platform") or p.startswith("/api/v1/technicians/regist")
         for p in dropped
     ), dropped

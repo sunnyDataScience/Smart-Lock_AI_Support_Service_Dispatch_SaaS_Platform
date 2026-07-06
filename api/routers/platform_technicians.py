@@ -13,6 +13,7 @@ X-Initiator header,無偽造面)。
 from __future__ import annotations
 
 import logging
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 from pydantic import BaseModel, Field
@@ -20,6 +21,7 @@ from pydantic import BaseModel, Field
 from core.deps import CurrentUser, require_platform_admin
 from models.generated import Technician, TechnicianLevel
 from services import platform_technician_service as svc
+from services import technician_kyc_service
 
 logger = logging.getLogger("api.routers.platform_technicians")
 router = APIRouter()
@@ -257,6 +259,68 @@ async def update_technician(
     }
     technician = await svc.update_technician(tech_id=technicianId, patch=patch)
     return {"data": Technician(**technician).model_dump(mode="json")}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# KYC 審核資料（CR-0115 S7）：Tier 1 補充欄位 + Tier 2 遮罩 + Tier 3 文件。
+# §8-3 (a)：平台管理員看全值＋文件；預設遮罩，全值走 :reveal 並寫稽核。
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@router.get(
+    "/platform/technicians/{technicianId}/kyc",
+    operation_id="getPlatformTechnicianKyc",
+    summary="師傅 KYC 審核資料（Tier 1 + 遮罩 PII + 文件清單）",
+    status_code=200,
+)
+async def get_kyc(
+    technicianId: str = Path(...),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    return {"data": await technician_kyc_service.get_kyc_review(technician_id=technicianId)}
+
+
+@router.post(
+    "/platform/technicians/{technicianId}/kyc:reveal",
+    operation_id="revealPlatformTechnicianKyc",
+    summary="解密顯示敏感 PII 全值（每次揭露寫稽核）",
+    status_code=200,
+)
+async def reveal_kyc(
+    technicianId: str = Path(...),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    result = await technician_kyc_service.reveal_kyc(
+        technician_id=technicianId, actor_user_id=user.user_id
+    )
+    return {"data": result}
+
+
+@router.get(
+    "/platform/technicians/{technicianId}/documents/{documentId}",
+    operation_id="getPlatformTechnicianDocument",
+    summary="讀取師傅註冊文件實體（審核檢視）",
+    status_code=200,
+)
+async def get_document(
+    technicianId: str = Path(...),
+    documentId: str = Path(...),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> Response:
+    data, content_type, filename = await technician_kyc_service.get_document_file(
+        technician_id=technicianId, document_id=documentId
+    )
+    # filename 可能含中文 → RFC 5987 編碼；inline 供瀏覽器直接預覽。
+    # nosniff:內容型別出自上傳者宣告(已驗 magic bytes),仍禁止瀏覽器二次猜測。
+    disposition = f"inline; filename*=UTF-8''{quote(filename)}"
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={
+            "Content-Disposition": disposition,
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get(
