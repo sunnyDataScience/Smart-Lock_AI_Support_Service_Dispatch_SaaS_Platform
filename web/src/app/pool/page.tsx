@@ -106,29 +106,32 @@ export default function PoolPage() {
   }
 
   return (
-    <TechShell wide>
-      {/* Page Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
-            <RealtimeIndicator status={poolStatus} compact />
+    <TechShell
+      wide
+      // 頁首交由 shell 滿寬渲染（修大螢幕「浮動白條」跑版）
+      header={
+        <div className="flex items-center justify-between px-4 py-3 md:px-6">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
+              <RealtimeIndicator status={poolStatus} compact />
+            </div>
+            <p className="text-[12px] text-[var(--text-secondary)]">
+              {loading ? t("loading") : t("availableCount", { count: items.length })}
+            </p>
           </div>
-          <p className="text-[12px] text-[var(--text-secondary)]">
-            {loading ? t("loading") : t("availableCount", { count: items.length })}
-          </p>
+          <button
+            type="button"
+            onClick={fetchPool}
+            disabled={loading}
+            className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+            title={t("refreshTitle")}
+          >
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={fetchPool}
-          disabled={loading}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
-          title={t("refreshTitle")}
-        >
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-        </button>
-      </div>
-
+      }
+    >
       {error && (
         <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {error}
