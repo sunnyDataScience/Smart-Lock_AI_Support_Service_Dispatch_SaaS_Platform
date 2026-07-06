@@ -1,13 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
 
-/* CR-0104：技能認證矩陣（真資料）。取代原本前端寫死的 5 列 mock，
-   改讀 GET /tenants/{tid}/technicians/{id}/certifications，並提供 admin 後台維護（新增/編輯/刪除）。
+/* CR-0104：技能認證矩陣（真資料）— 讀 GET /tenants/{tid}/technicians/{id}/certifications。
+   CR-0114 收斂：認證屬師傅身分域資質，歸平台方職權 —— 品牌端改為完全唯讀
+   （原新增/編輯/刪除已移除；認證登錄途徑=師傅自助註冊，平台方管理為後續輪）。
    狀態（有效/即將到期/已過期）由後端依到期日 computed。 */
 
 interface Certification {
@@ -31,15 +30,6 @@ const STATUS_STYLE: Record<
   expired: { label: "已過期", textColor: "#991B1B", bgColor: "#FEE2E2" },
 };
 
-interface CertForm {
-  cert_name: string;
-  brand: string;
-  obtained_at: string;
-  expires_at: string;
-}
-
-const EMPTY_FORM: CertForm = { cert_name: "", brand: "", obtained_at: "", expires_at: "" };
-
 function fmtDate(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "—";
 }
@@ -53,10 +43,6 @@ export default function CertificationMatrix({ tenantId, technicianId }: Props) {
   const [certs, setCerts] = useState<Certification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null); // null = 未開；"new" = 新增；其他 = 編輯該 id
-  const [form, setForm] = useState<CertForm>(EMPTY_FORM);
-  const [formMsg, setFormMsg] = useState<string | null>(null);
 
   const basePath = `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(technicianId)}/certifications`;
 
@@ -84,78 +70,11 @@ export default function CertificationMatrix({ tenantId, technicianId }: Props) {
     };
   }, [load]);
 
-  function openNew() {
-    setForm(EMPTY_FORM);
-    setFormMsg(null);
-    setEditId("new");
-  }
-
-  function openEdit(c: Certification) {
-    setForm({
-      cert_name: c.cert_name,
-      brand: c.brand ?? "",
-      obtained_at: c.obtained_at ?? "",
-      expires_at: c.expires_at ?? "",
-    });
-    setFormMsg(null);
-    setEditId(c.id);
-  }
-
-  async function handleSave() {
-    if (!form.cert_name.trim()) {
-      setFormMsg("認證項目為必填");
-      return;
-    }
-    setBusy(true);
-    setFormMsg(null);
-    const payload = {
-      cert_name: form.cert_name.trim(),
-      brand: form.brand.trim() || null,
-      obtained_at: form.obtained_at || null,
-      expires_at: form.expires_at || null,
-    };
-    try {
-      if (editId === "new") {
-        await api.post(basePath, payload);
-      } else {
-        await api.patch(`${basePath}/${encodeURIComponent(editId!)}`, payload);
-      }
-      cacheInvalidate("GET:");
-      setEditId(null);
-      await load();
-    } catch (e) {
-      setFormMsg(`儲存失敗：${friendlyError(e)}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDelete(c: Certification) {
-    if (!window.confirm(`確定刪除認證「${c.cert_name}」？`)) return;
-    setBusy(true);
-    try {
-      await api.delete(`${basePath}/${encodeURIComponent(c.id)}`);
-      cacheInvalidate("GET:");
-      await load();
-    } catch (e) {
-      setError(`刪除失敗：${friendlyError(e)}`);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
     <section className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-6">
       <div className="flex items-center justify-between">
         <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">技能認證矩陣</h2>
-        <button
-          onClick={openNew}
-          disabled={busy}
-          className="flex items-center gap-[6px] rounded-lg border border-[var(--primary)] px-3 py-1.5 text-[13px] text-[var(--primary)] hover:bg-[var(--primary-light)] disabled:opacity-50"
-        >
-          <Plus className="h-[14px] w-[14px]" />
-          新增認證
-        </button>
+        <span className="text-[12px] text-[var(--text-secondary)]">認證資料由平台方管理</span>
       </div>
 
       {error && (
@@ -171,14 +90,13 @@ export default function CertificationMatrix({ tenantId, technicianId }: Props) {
           <div className="flex w-[110px]"><span className="text-[12px] font-semibold text-[var(--text-secondary)]">取得日期</span></div>
           <div className="flex w-[110px]"><span className="text-[12px] font-semibold text-[var(--text-secondary)]">到期日期</span></div>
           <div className="flex w-[90px]"><span className="text-[12px] font-semibold text-[var(--text-secondary)]">狀態</span></div>
-          <div className="flex flex-1 justify-end"><span className="text-[12px] font-semibold text-[var(--text-secondary)]">操作</span></div>
         </div>
 
         {loading ? (
           <div className="flex h-[60px] items-center justify-center text-[13px] text-[var(--text-disabled)]">載入中…</div>
         ) : certs.length === 0 ? (
           <div className="flex h-[60px] items-center justify-center text-[13px] text-[var(--text-disabled)]">
-            尚無認證資料，點「新增認證」登錄。
+            尚無認證資料（師傅註冊時填報，或由平台方登錄）。
           </div>
         ) : (
           certs.map((c, idx) => {
@@ -200,84 +118,11 @@ export default function CertificationMatrix({ tenantId, technicianId }: Props) {
                     {st.label}
                   </span>
                 </div>
-                <div className="flex flex-1 items-center justify-end gap-2">
-                  <button onClick={() => openEdit(c)} disabled={busy} aria-label="編輯" className="text-[var(--text-secondary)] hover:text-[var(--primary)] disabled:opacity-50">
-                    <Pencil className="h-[14px] w-[14px]" />
-                  </button>
-                  <button onClick={() => handleDelete(c)} disabled={busy} aria-label="刪除" className="text-[var(--text-secondary)] hover:text-[var(--error)] disabled:opacity-50">
-                    <Trash2 className="h-[14px] w-[14px]" />
-                  </button>
-                </div>
               </div>
             );
           })
         )}
       </div>
-
-      {/* 新增 / 編輯 認證 modal */}
-      {editId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg bg-[var(--bg-surface)] p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-[16px] font-semibold text-[var(--text-primary)]">
-                {editId === "new" ? "新增認證" : "編輯認證"}
-              </h3>
-              <button onClick={() => setEditId(null)} aria-label="關閉" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--text-secondary)]">認證項目 *</span>
-                <input
-                  value={form.cert_name}
-                  onChange={(e) => setForm((f) => ({ ...f, cert_name: e.target.value }))}
-                  placeholder="電子鎖安裝認證"
-                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--text-secondary)]">品牌</span>
-                <input
-                  value={form.brand}
-                  onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))}
-                  placeholder="Yale"
-                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                />
-              </label>
-              <div className="flex gap-3">
-                <label className="flex flex-1 flex-col gap-1 text-sm">
-                  <span className="text-[var(--text-secondary)]">取得日期</span>
-                  <input
-                    type="date"
-                    value={form.obtained_at}
-                    onChange={(e) => setForm((f) => ({ ...f, obtained_at: e.target.value }))}
-                    className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                  />
-                </label>
-                <label className="flex flex-1 flex-col gap-1 text-sm">
-                  <span className="text-[var(--text-secondary)]">到期日期</span>
-                  <input
-                    type="date"
-                    value={form.expires_at}
-                    onChange={(e) => setForm((f) => ({ ...f, expires_at: e.target.value }))}
-                    className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                  />
-                </label>
-              </div>
-            </div>
-            {formMsg && <p className="mt-3 text-[13px] text-red-600">{formMsg}</p>}
-            <div className="mt-5 flex justify-end gap-2">
-              <button onClick={() => setEditId(null)} disabled={busy} className="rounded border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50">
-                取消
-              </button>
-              <button onClick={handleSave} disabled={busy} className="rounded bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
-                {busy ? "儲存中…" : "儲存"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </section>
   );
 }

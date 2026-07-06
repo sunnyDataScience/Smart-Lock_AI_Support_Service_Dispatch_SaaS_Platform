@@ -136,6 +136,19 @@ mirror-on-demand(assign/reassign/accept-claim/assign_dispatch/auto_match 五寫�
 - 品牌內「協力廠商帳號」的 admin-gate 建立路徑(`/vendors/register` 降級後續 CR)。
 - 多品牌工單聚合(tech-api 現綁單一品牌庫)—— 深水區,不在本 CR。
 
+**§8 追補(2026-07-06 收斂輪盤查後新增,待業主裁決)**:
+- **品牌 GDPR 被遺忘權對師傅身分列的處置權**:品牌端 `gdpr/forget-requests` 對
+  `role=technician` subject 會 REDACT(soft-delete)/實體刪除(hard-delete)師傅
+  權威庫身分列(`gdpr_forget_service.py` 技師分支,CR-0112 為 GDPR 完整性刻意
+  設計,有稽核軌跡 + 30 天 cooldown)。依裁決 1 師傅身分歸平台方,但 platform
+  console 目前**沒有任何 GDPR 端點**可承接 —— 單方收掉會造成師傅被遺忘權無處
+  執行(法遵缺口)。收斂輪**維持現狀**,待裁決:(a) 平台 console 補 GDPR 流程後
+  品牌端擋 technician subject;或 (b) 接受品牌端代執行(現狀)。
+- **platform console 師傅管理功能缺口**(收斂輪把品牌端寫入全收掉後浮現):
+  建立師傅(手動 onboard)/編輯主檔(姓名/技能/區域/等級 S-A-B-C)/認證管理
+  (新增/編輯/刪除)/代重設師傅密碼 —— platform console 皆尚無對應功能,目前
+  唯一入口=3001 /tech-register 自助註冊 + 3003 審核。屬後續輪。
+
 ### 進度
 
 - 2026-07-05:三路現況盤點 + 設計書 + 業主七項裁決完成,本 CR 立案(status: accepted)。
@@ -148,6 +161,7 @@ mirror-on-demand(assign/reassign/accept-claim/assign_dispatch/auto_match 五寫�
 - ✅ 導流架構細化(merge `71ed1742`):業主回報「localhost:3000 點師父跳品牌」—— 實測師父 CTA 接線本身正確,真因是 3000 品牌 dispatch stack 的 `/` 誤渲染與 3002 重複的對外 landing。修 `crossModeRedirect` dispatch `/`→`/login` + landing 元件 dispatch build `return null`。Playwright 驗證。
 - ✅ R5 frontend done(merge `e0557e06`):品牌員工帳號申請前端接線(裁決 4)—— `StaffRegisterForm`(無角色選擇,POST 公開 tenant-scoped 端點)取代登入頁註冊 tab、`admin/staff` 待審申請區(5 角色下拉 approve / prompt reason reject)、刪 `VendorRegisterForm`、i18n +staffApply 8 鍵(parity 2751)。tsc 0 + 重建 dispatch web/api + Playwright 端到端(申請→admin 核准指派派工員→新帳號登入 role=dispatcher)。
 - **五輪 R0-R5 全數落地**;剩 5 輪收尾(docs_html regen、雲端部署含 migration 088、push 由業主執行)。
+- ✅ 裁決 1 收斂輪 done(branch `fix/cr0114-brand-tech-readonly-closure`,2026-07-06):業主發現品牌後台仍可「新增技師」→ 多 agent 盤查(4 維度 29 發現、逆向驗證 22 確認/7 剔除)後把品牌端師傅職權全面收斂為唯讀 —— 刪品牌端 `POST createTechnician`/`PATCH updateTechnicianV2`(可寫技能+等級)/認證 CRUD 三寫端點(留 GET);`admin-reset-password` 對師傅帳號 403;新增 `API_SURFACE=dispatch` 剔除過濾(`/api/v1/platform/*` + `/api/v1/technicians/register` 不掛品牌 8001,杜絕 fallback「品牌庫幽靈師傅」);RBAC 矩陣 admin/supervisor 對 technicians 改唯讀;前端 3000 兩頁全唯讀(移除新增/編輯/認證維護 UI)+ dispatch build `/tech-register` 導 tech portal + 清死鍵死 props。全套 **1611 passed** 零回歸;`all` 模式(pytest/雲端單體)不過濾零變化。GDPR 師傅 subject 與 platform console 功能缺口記入 §8 追補待裁決。
 
 ## §9 Suggested Implementation Order
 

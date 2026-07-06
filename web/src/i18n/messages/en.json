@@ -170,31 +170,6 @@
     "success": "Application submitted. Once a brand admin reviews it and assigns a role, you can sign in."
   },
   "register": {
-    "title": "Create account",
-    "subtitle": "Technicians (take jobs) or vendors (post jobs) may apply; pending admin approval",
-    "tabTechnician": "Technician",
-    "tabVendor": "Vendor / Brand",
-    "vendorType": "Type",
-    "vtBrand": "Brand",
-    "vtLocksmith": "Locksmith shop",
-    "vtDistributor": "Distributor",
-    "name": "Name",
-    "contactName": "Contact name",
-    "companyName": "Company name",
-    "taxId": "Tax ID (統編)",
-    "taxIdHint": "8 digits, for invoicing & reconciliation",
-    "phone": "Mobile",
-    "email": "Email",
-    "password": "Password (min 8)",
-    "serviceRegions": "Service areas",
-    "serviceRegionsHint": "Comma-separated, e.g. Taipei, New Taipei (used for dispatch matching)",
-    "capabilities": "Brands you service (optional)",
-    "capabilitiesHint": "Comma-separated, e.g. Yale, Dormakaba, Kaadas",
-    "address": "Address",
-    "submit": "Register",
-    "submitting": "Submitting…",
-    "successPending": "Registered! Your account is pending admin approval before you can sign in.",
-    "haveAccount": "Already have an account?",
     "toLogin": "Go to login"
   },
   "vendorLogin": {
@@ -500,7 +475,6 @@
       "loadingBadge": "Loading",
       "techCount": "{count} technicians",
       "techCountMore": "{count}+ technicians",
-      "addTechnician": "Add technician",
       "filters": {
         "status": "Status",
         "brandSpecialty": "Brand specialty",
@@ -511,9 +485,7 @@
       "searchPlaceholder": "Search coming soon",
       "loadFailed": "Failed to load technicians: {error}",
       "loadingMore": "Loading…",
-      "loadMore": "Load more",
-      "approveSuccess": "Technician {name} approved and ready for dispatch",
-      "approveFailed": "Approval failed"
+      "loadMore": "Load more"
     },
     "workOrderDetail": {
       "breadcrumb": "Home > Work orders > List > {id}",
@@ -3347,8 +3319,6 @@
           "on_leave": "On leave",
           "circuit_breaker_open": "Suspended"
         },
-        "approve": "Approve",
-        "approving": "Approving…",
         "onboardStatus": {
           "pending_approval": "Pending approval",
           "active": "Active",

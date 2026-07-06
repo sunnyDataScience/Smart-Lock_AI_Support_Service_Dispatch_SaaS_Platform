@@ -3,14 +3,12 @@
 /**
  * FR-0044 Technician Lifecycle — 唯讀 events audit log。
  *
- * 本頁只列 audit 事件；核准/停權/復權等「動作」在 /technicians 列表（核准
- * pending）與 /technicians/[id] 詳情頁（停權/復權）操作。
+ * 本頁只列 audit 事件。CR-0114 裁決 1：核准/停權/復權/終止等「動作」已全數
+ * 搬到平台方 console（platform_technicians.py 的 :onboard-approve 等冒號動詞
+ * 端點），品牌端無任何生命週期寫入 —— 本頁與 /technicians 兩頁皆唯讀。
  *
  * 對應 backend (api/routers/technician_lifecycle_v2.py)：
- *   GET   /tenants/{tid}/technicians/lifecycle-events
- *   （動作端點為 POST /tenants/{tid}/technicians/{techId}:onboard-approve /
- *     :onboard-reject / :suspend / :reactivate / :terminate — 冒號動詞式，
- *     需 X-Initiator header；由上述兩頁呼叫）
+ *   GET /tenants/{tid}/technicians/lifecycle-events（品牌端僅剩此唯讀端點）
  *
  * 對應 e2e starter: web/tests/e2e/admin/technicians-lifecycle.spec.ts
  */

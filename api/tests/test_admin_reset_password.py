@@ -68,3 +68,19 @@ async def test_unknown_email_returns_404(client, admin_headers):
         json={"email": "nobody-xyz@example.com"},
     )
     assert res.status_code == 404, res.text
+
+
+@pytest.mark.asyncio
+async def test_reset_technician_account_forbidden(client, admin_headers):
+    """CR-0114 收斂:師傅帳號憑證歸平台方 → 品牌 admin 重設師傅密碼 403。
+
+    師傅身分庫全平台唯一,品牌 admin 不可接管師傅登入憑證;師傅走自助
+    忘記密碼(request-password-reset),平台方代重設為後續輪。
+    """
+    res = await client.post(
+        RESET_PATH,
+        headers=admin_headers,
+        json={"email": "demo-tech@example.com"},  # SQL/seeds/technicians.sql 種子師傅
+    )
+    assert res.status_code == 403, res.text
+    assert res.json().get("error_code") == "FORBIDDEN_TECHNICIAN_ACCOUNT"

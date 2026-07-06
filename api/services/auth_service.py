@@ -444,18 +444,24 @@ async def admin_reset_password(*, email: str, tenant_id: str) -> str:
             "USER_NOT_FOUND", f"No user with email {email} in this tenant", 404
         )
 
+    # CR-0114 收斂：師傅帳號憑證屬平台方職權（師傅身分庫全平台唯一），品牌 admin
+    # 不可重設/接管師傅登入憑證。師傅走自助 forgot-password；平台方代重設為後續輪。
+    if row[1] == "technician":
+        raise ApiError(
+            "FORBIDDEN_TECHNICIAN_ACCOUNT",
+            "師傅帳號密碼由平台方管理，品牌後台不可重設（師傅可自助走忘記密碼）",
+            403,
+        )
+
     # token_urlsafe(9) → 12 字元 url-safe 臨時密碼（>= 8,滿足 bcrypt 與前端規則）
     temp_password = secrets.token_urlsafe(9)
     new_hash = hash_password(temp_password)
     # A3：admin 重設亦撤該帳號既有 session（password_changed_at = NOW()）。
-    conn = await _users_write_conn(row[1])
-    await conn.execute(
+    await db_module._conn.execute(
         "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
         "WHERE id = %s::uuid",
         (new_hash, row[0]),
     )
-    if row[1] == "technician":
-        await mirror_rows("users", [str(row[0])])
     return temp_password
 
 

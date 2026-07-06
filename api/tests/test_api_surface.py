@@ -95,3 +95,63 @@ def test_tech_surface_simulated_filter_on_real_routes():
     assert not any(p.startswith("/tenants/{tenantId}/dispatch") for p in kept)
     # 過濾是縮減不是清空:保留數量在合理範圍(> 20 條技師面路由)
     assert len(kept) > 20
+
+
+# ── CR-0114 收斂:dispatch 面剔除過濾(品牌 API 不服務平台端點/師傅自助註冊)──
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/api/v1/platform/auth/login",
+        "/api/v1/platform/technicians/{technicianId}:onboard-approve",
+        "/api/v1/platform/technicians/{technicianId}:suspend",
+        "/api/v1/platform/brand-applications",
+        "/api/v1/technicians/register",
+    ],
+)
+def test_dispatch_surface_drops_platform_and_register(path):
+    """品牌面剔除:平台 console 端點(平台 stack 自有 API)+ 師傅自助註冊
+    (師傅註冊動線=tech 站;留在品牌 API 會產生品牌庫幽靈師傅)。"""
+    assert not main._dispatch_surface_keep(path), f"品牌面不應保留 {path}"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/health",
+        "/api/v1/auth/login",
+        "/api/v1/technicians/login",  # 只剔 register,登入照舊(3000/tech-login 沿用)
+        "/api/v1/dispatch/assign",
+        "/tenants/{tenantId}/technicians",
+        "/tenants/{tenantId}/work-orders",
+        "/api/v1/accounting/invoices",
+    ],
+)
+def test_dispatch_surface_keeps_brand_endpoints(path):
+    assert main._dispatch_surface_keep(path), f"品牌面應保留 {path}"
+
+
+@pytest.mark.unit
+def test_dispatch_surface_simulated_filter_on_real_routes():
+    """對真實路由表模擬 dispatch 過濾:平台端點/師傅註冊消失,品牌面全數存活。"""
+    kept = {
+        getattr(r, "path", "")
+        for r in main.app.router.routes
+        if main._dispatch_surface_keep(getattr(r, "path", ""))
+    }
+    dropped = {
+        getattr(r, "path", "") for r in main.app.router.routes
+    } - kept
+    assert not any(p.startswith("/api/v1/platform") for p in kept)
+    assert "/api/v1/technicians/register" not in kept
+    assert "/api/v1/technicians/login" in kept
+    assert any(p.startswith("/api/v1/dispatch") for p in kept)
+    assert any(p.startswith("/tenants/{tenantId}/technicians") for p in kept)
+    # 剔除的每一條都屬兩類之一(平台前綴 or 師傅註冊)
+    assert all(
+        p.startswith("/api/v1/platform") or p.startswith("/api/v1/technicians/register")
+        for p in dropped
+    ), dropped

@@ -265,6 +265,24 @@ net)。</li>
 建立路徑(<code>/vendors/register</code> 降級後續 CR)。</li>
 <li>多品牌工單聚合(tech-api 現綁單一品牌庫)—— 深水區,不在本 CR。</li>
 </ul>
+<p><strong>§8 追補(2026-07-06 收斂輪盤查後新增,待業主裁決)</strong>:</p>
+<ul>
+<li><strong>品牌 GDPR 被遺忘權對師傅身分列的處置權</strong>:品牌端
+<code>gdpr/forget-requests</code> 對 <code>role=technician</code>
+subject 會 REDACT(soft-delete)/實體刪除(hard-delete)師傅
+權威庫身分列(<code>gdpr_forget_service.py</code> 技師分支,CR-0112 為
+GDPR 完整性刻意 設計,有稽核軌跡 + 30 天 cooldown)。依裁決 1
+師傅身分歸平台方,但 platform console 目前<strong>沒有任何 GDPR
+端點</strong>可承接 —— 單方收掉會造成師傅被遺忘權無處
+執行(法遵缺口)。收斂輪<strong>維持現狀</strong>,待裁決:(a) 平台 console
+補 GDPR 流程後 品牌端擋 technician subject;或 (b)
+接受品牌端代執行(現狀)。</li>
+<li><strong>platform console
+師傅管理功能缺口</strong>(收斂輪把品牌端寫入全收掉後浮現): 建立師傅(手動
+onboard)/編輯主檔(姓名/技能/區域/等級 S-A-B-C)/認證管理
+(新增/編輯/刪除)/代重設師傅密碼 —— platform console 皆尚無對應功能,目前
+唯一入口=3001 /tech-register 自助註冊 + 3003 審核。屬後續輪。</li>
+</ul>
 <h3 id="進度">進度</h3>
 <ul>
 <li>2026-07-05:三路現況盤點 + 設計書 + 業主七項裁決完成,本 CR
@@ -317,6 +335,21 @@ approve / prompt reason reject)、刪
 核准指派派工員→新帳號登入 role=dispatcher)。</li>
 <li><strong>五輪 R0-R5 全數落地</strong>;剩 5 輪收尾(docs_html
 regen、雲端部署含 migration 088、push 由業主執行)。</li>
+<li>✅ 裁決 1 收斂輪 done(branch
+<code>fix/cr0114-brand-tech-readonly-closure</code>,2026-07-06):業主發現品牌後台仍可「新增技師」→
+多 agent 盤查(4 維度 29 發現、逆向驗證 22 確認/7
+剔除)後把品牌端師傅職權全面收斂為唯讀 —— 刪品牌端
+<code>POST createTechnician</code>/<code>PATCH updateTechnicianV2</code>(可寫技能+等級)/認證
+CRUD 三寫端點(留 GET);<code>admin-reset-password</code> 對師傅帳號
+403;新增 <code>API_SURFACE=dispatch</code>
+剔除過濾(<code>/api/v1/platform/*</code> +
+<code>/api/v1/technicians/register</code> 不掛品牌 8001,杜絕
+fallback「品牌庫幽靈師傅」);RBAC 矩陣 admin/supervisor 對 technicians
+改唯讀;前端 3000 兩頁全唯讀(移除新增/編輯/認證維護 UI)+ dispatch build
+<code>/tech-register</code> 導 tech portal + 清死鍵死 props。全套
+<strong>1611 passed</strong> 零回歸;<code>all</code>
+模式(pytest/雲端單體)不過濾零變化。GDPR 師傅 subject 與 platform console
+功能缺口記入 §8 追補待裁決。</li>
 </ul>
 <h2 id="9-suggested-implementation-order">§9 Suggested Implementation
 Order</h2>

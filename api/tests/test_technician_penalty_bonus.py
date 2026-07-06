@@ -26,14 +26,17 @@ OTHER_TENANT_ID = "00000000-0000-0000-0000-000000000099"
 
 
 async def _create_technician(client, admin_headers) -> str:
-    idem = str(uuid.uuid4())
-    res = await client.post(
-        f"/tenants/{DEFAULT_TENANT_ID}/technicians",
-        json={"display_name": f"pb-test-{idem[:8]}", "coverage_areas": ["taipei"]},
-        headers={**admin_headers, "Idempotency-Key": idem},
+    """直插一列 technicians 測資（CR-0114 收斂:品牌端 POST createTechnician 已廢止）。"""
+    import core.db as db_module
+
+    assert await db_module._ensure_conn()
+    tech_id = str(uuid.uuid4())
+    await db_module._conn.execute(
+        "INSERT INTO technicians (id, tenant_id, name, phone, capabilities, service_regions, status) "
+        "VALUES (%s::uuid, %s::uuid, %s, '0900000000', '[]'::jsonb, '[\"taipei\"]'::jsonb, 'active')",
+        (tech_id, DEFAULT_TENANT_ID, f"pb-test-{tech_id[:8]}"),
     )
-    assert res.status_code == 201, res.text
-    return res.json()["data"]["id"]
+    return tech_id
 
 
 async def _add_cancellation_penalty(tech_id: str, amount: float) -> tuple[str, str]:

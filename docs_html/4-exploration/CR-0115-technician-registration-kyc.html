@@ -1,0 +1,541 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>師傅註冊擴充為 KYC 等級（登入/註冊分離 + 敏感 PII + 文件上傳）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0115-technician-registration-kyc.md</div>
+<div class="doc"><h1
+id="cr-0115-師傅註冊擴充為-kyc-等級登入註冊分離--敏感-pii--文件上傳">CR-0115:
+師傅註冊擴充為 KYC 等級（登入/註冊分離 + 敏感 PII + 文件上傳）</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → Change Impact
+Analysis（per-change ephemeral；實作後 archive） <strong>Mandated
+by</strong>:
+<code>.claude/rules/change-governance.md</code>（觸發面向：API contract
+/ Domain model / DB schema / External integration / Test plan）</p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：師傅自助註冊（<code>POST /api/v1/technicians/register</code>，tech-login
+頁「註冊」tab）只收 <strong>6 個欄位</strong> —— 姓名 / 手機 / Email /
+密碼 / 服務地區 / 專長品牌（capabilities）。註冊與登入同框 tab 擠在單一
+440px 卡片。核准前
+<code>is_active=FALSE</code>、<code>status=pending_approval</code>。</p>
+<p><strong>To-be</strong>：</p>
+<ol type="1">
+<li><strong>登入與註冊分離</strong> —— <code>/tech-login</code>
+只留登入；新增獨立 <code>/tech-register</code>
+<strong>多步驟表單</strong>（步驟 1 基本 → 步驟 2 專業 → 步驟 3
+敏感/撥款 → 步驟 4 文件 → 確認）。</li>
+<li><strong>註冊欄位擴充為 KYC 等級</strong>（業主 2026-07-05
+裁決：最大範圍）——
+<ul>
+<li><strong>Tier
+1（非敏感）</strong>：年資、自我介紹、交通工具、可服務時段、緊急聯絡人+電話、專業證照（自填）。</li>
+<li><strong>Tier 2（敏感
+PII）</strong>：身分證字號、生日、通訊地址、撥款銀行帳戶（代碼+帳號）、統一編號（選填）。</li>
+<li><strong>Tier
+3（文件上傳）</strong>：身分證正反面、證照掃描、保險證明/良民證。</li>
+<li><strong>同意條款</strong>：服務條款 +
+隱私權同意、背景查核授權（勾選）。</li>
+</ul></li>
+</ol>
+<p><strong>Driver</strong>：業主回報現有註冊「資訊太少」、要求參考業界類似系統擴充。研究（PRO360
+/ ALOA / 各州鎖匠執照 / 水電師傅平台）顯示技師媒合/派工平台普遍收
+<strong>身分核實（身分證）+ 專業資格（證照/年資）+ 撥款帳戶 +
+文件佐證</strong>。本平台為 <strong>B2B 派工 +
+月結拆帳</strong>，撥款帳戶與證照/年資（派工信任度）尤其關鍵。</p>
+<hr />
+<h2 id="2-affected-flow">2. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>師傅自助註冊流（tech self-register，ID 待對 <code>PRIN-0001</code>
+指派）</td>
+<td><strong>Modified</strong></td>
+<td>單步 6 欄 → 多步驟 KYC 表單；新增文件上傳與同意條款環節</td>
+</tr>
+<tr>
+<td>師傅上線審核流（technician
+onboard-approve，<code>technician_lifecycle_service</code>）</td>
+<td><strong>Modified</strong></td>
+<td>核准前<strong>審核頁需能檢視新欄位與上傳文件</strong>（reviewer/admin
+決策依據）</td>
+</tr>
+<tr>
+<td>登入流（<code>/tech-login</code>）</td>
+<td><strong>Modified</strong></td>
+<td>移除註冊 tab，改「還沒有帳號？申請成為師傅」外連
+<code>/tech-register</code></td>
+</tr>
+<tr>
+<td>媒體上傳流（media upload）</td>
+<td><strong>Modified/New</strong></td>
+<td>現行上傳需登入；註冊為<strong>公開前帳號態</strong> →
+需公開前上傳策略（見 §8-2）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-affected-spec-fr--nfr">3. Affected Spec (FR / NFR)</h2>
+<table>
+<thead>
+<tr>
+<th>Spec ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>師傅註冊 FR（ID 待確認，對 <code>FR-0044</code>/<code>FR-0045</code>
+技師 profile 佔位規格）</td>
+<td><strong>Modified</strong></td>
+<td>註冊必填/選填欄位集擴充；驗證規則（身分證格式、銀行帳號、生日）新增</td>
+</tr>
+<tr>
+<td>隱私權 / PII 處理 NFR</td>
+<td><strong>New</strong></td>
+<td>身分證字號、銀行帳戶、證件掃描的<strong>加密/遮罩/存取控管/保留政策</strong>（KYC
+資料最小揭露）</td>
+</tr>
+<tr>
+<td>上傳檔案 NFR</td>
+<td><strong>New</strong></td>
+<td>檔案型別白名單（jpg/png/pdf）、大小上限、公開上傳 rate limit /
+防濫用</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>API ID</th>
+<th>Endpoint</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>registerTechnician</code></td>
+<td><code>POST /api/v1/technicians/register</code></td>
+<td>Schema change</td>
+<td><strong>No（加性）</strong></td>
+<td>request body 新增大量選填/必填欄位；既有 6 欄不變，舊 caller
+不送新欄仍合法（但業務上核准條件可能要求新欄）</td>
+</tr>
+<tr>
+<td>公開文件上傳</td>
+<td><code>POST /api/v1/technicians/registration-documents</code>（暫名）</td>
+<td><strong>New</strong></td>
+<td>No</td>
+<td>公開前帳號態上傳；需 rate limit + 短期 token / 一次性關聯（見
+§8-2）</td>
+</tr>
+<tr>
+<td><code>getTechnician</code> / 審核清單</td>
+<td>平台/品牌審核端點</td>
+<td>Response change</td>
+<td>No（加性）</td>
+<td>回應加新 profile 欄 +
+文件清單供審核頁；敏感欄位<strong>遮罩回傳</strong>（見 §8-3）</td>
+</tr>
+<tr>
+<td><code>uploadMediaV2</code></td>
+<td><code>POST /tenants/{tid}/media</code></td>
+<td>Enum change</td>
+<td>No</td>
+<td><code>purpose</code> enum 加 <code>technician_id_doc</code> /
+<code>technician_cert</code> / <code>technician_insurance</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>破壞性評估</strong>：request
+為加性（不移除既有欄、不改型別）→
+非破壞。但若把部分新欄設<strong>必填</strong>，等同對「透過 API
+直接註冊」的既有整合造成軟破壞 → 屬 §8-4 決策。</p>
+<h2 id="5-affected-data">5. Affected Data</h2>
+<table>
+<thead>
+<tr>
+<th>Entity</th>
+<th>Action</th>
+<th>Migration</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>technicians</code></td>
+<td>新增非敏感欄：<code>years_experience INT</code>、<code>bio TEXT</code>、<code>vehicle_type VARCHAR</code>、<code>availability_note VARCHAR</code>、<code>emergency_contact_name VARCHAR</code>、<code>emergency_contact_phone VARCHAR</code></td>
+<td>一次 online migration；全 nullable，backfill 不需</td>
+</tr>
+<tr>
+<td><code>technicians</code>（或新表 <code>technician_kyc</code>）</td>
+<td>敏感
+PII：<code>national_id</code>、<code>birth_date</code>、<code>address</code>、<code>bank_code</code>、<code>bank_account</code>、<code>tax_id</code></td>
+<td><strong>儲存位置與加密方式待 §8-1</strong>（獨立表 + 欄位加密 vs
+主表明文 vs app 層遮罩）</td>
+</tr>
+<tr>
+<td><code>technician_certification</code></td>
+<td>沿用既有表存自填證照（cert_name/brand/obtained_at/expires_at）</td>
+<td>無 DDL；註冊時 INSERT</td>
+</tr>
+<tr>
+<td><code>media</code> +
+<code>technician_registration_document</code>（暫名關聯表）</td>
+<td>文件上傳落 media（本機 <code>MEDIA_ROOT</code>，可換 GCS，schema
+不變）+ 關聯表綁 technician_id / doc_type / media_id / 審核狀態</td>
+<td>新表 online migration</td>
+</tr>
+<tr>
+<td><code>users</code>/<code>technicians</code> state</td>
+<td><code>status=pending_approval</code>
+語意不變；文件審核可能新增子狀態（見 §8-5）</td>
+<td>app-level</td>
+</tr>
+</tbody>
+</table>
+<p><strong>狀態機影響</strong>：師傅生命週期
+<code>pending_approval → active</code> 不變；是否插入「文件補件中 /
+待核實」中間態屬 §8-5。</p>
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test ID</th>
+<th>Action</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_technician_login_status_gate.py</code></td>
+<td>Update</td>
+<td>註冊 body 擴充後仍 pending / 核准後可登入</td>
+</tr>
+<tr>
+<td>註冊欄位驗證（新）</td>
+<td>New</td>
+<td>身分證格式、銀行帳號、生日、必填/選填邊界、同意未勾拒絕</td>
+</tr>
+<tr>
+<td>公開文件上傳（新）</td>
+<td>New</td>
+<td>型別白名單、大小上限、rate limit、未關聯 technician 拒絕、跨
+technician 存取拒絕</td>
+</tr>
+<tr>
+<td>PII 遮罩（新）</td>
+<td>New</td>
+<td>審核端點回傳 national_id / bank_account <strong>遮罩</strong>（僅末
+N 碼）；非授權角色不得取全值</td>
+</tr>
+<tr>
+<td>審核頁文件檢視（新）</td>
+<td>New</td>
+<td>reviewer/admin 可列文件、非授權角色 403</td>
+</tr>
+</tbody>
+</table>
+<p>覆蓋率：預估 +8~12 TC。</p>
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Module boundary</td>
+<td>Unchanged</td>
+<td>仍在 tech 身分域（權威庫 tech-db + 投影）；註冊寫 tech conn</td>
+</tr>
+<tr>
+<td>PII 儲存</td>
+<td><strong>需 ADR</strong></td>
+<td><code>ADR-NNNN</code>：敏感 PII 儲存策略（獨立
+<code>technician_kyc</code> 表 + 欄位加密 / KMS vs pgcrypto vs app
+層）＋遮罩讀取＋保留與刪除（GDPR/個資法）</td>
+</tr>
+<tr>
+<td>公開上傳</td>
+<td><strong>需 ADR/決策</strong></td>
+<td>公開前帳號態的文件上傳如何防濫用（rate limit、短期 token、先建
+pending 帳號再上傳）</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>檔案儲存</td>
+<td>本機 <code>MEDIA_ROOT</code>（MVP）；雲端須確認 GCS bucket
+與存取權（敏感證件不可公開 URL）</td>
+</tr>
+<tr>
+<td>投影鏡射</td>
+<td>Check</td>
+<td>新增欄位是否需鏡射到品牌庫投影（<code>tech_mirror</code> 白名單）——
+敏感 PII <strong>不應</strong>鏡射到品牌庫（最小揭露）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-human-decisions-required">8. Human Decisions Required</h2>
+<p>✅ <strong>§8 全數裁決 2026-07-05（業主）。</strong> code 解凍，依 §9
+實作。</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Question</th>
+<th>Owner</th>
+<th>Status</th>
+<th>Decision（2026-07-05 業主）</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>敏感 PII（身分證/銀行帳戶）怎麼存？</td>
+<td>Architect/業主</td>
+<td><strong>decided</strong></td>
+<td><strong>(a) 獨立 <code>technician_kyc</code> 表 + 欄位加密 +
+讀取遮罩、不鏡射品牌庫</strong></td>
+</tr>
+<tr>
+<td>2</td>
+<td>文件上傳時機與授權（註冊是公開前帳號態）？</td>
+<td>Architect/業主</td>
+<td><strong>decided</strong></td>
+<td><strong>(a) 兩階段：先送基本資料建 pending 帳號 → 回一次性 token →
+憑 token 上傳</strong></td>
+</tr>
+<tr>
+<td>3</td>
+<td>審核頁誰能看敏感 PII 全值 / 文件？</td>
+<td>業主</td>
+<td><strong>decided</strong></td>
+<td><strong>(a) 平台管理員看全值＋文件、品牌端唯讀遮罩</strong></td>
+</tr>
+<tr>
+<td>4</td>
+<td>哪些新欄「必填」？</td>
+<td>業主/UX</td>
+<td><strong>decided</strong></td>
+<td><strong>(a)
+必填=年資/服務地區/緊急聯絡人/同意條款；PII+文件核准前補即可</strong></td>
+</tr>
+<tr>
+<td>5</td>
+<td>是否需要「文件待核實」中間狀態？</td>
+<td>業主</td>
+<td><strong>decided</strong></td>
+<td><strong>(a) 不加，沿用
+pending_approval（零狀態機變更）</strong></td>
+</tr>
+<tr>
+<td>6</td>
+<td>PII/證件保留與刪除政策？</td>
+<td>業主/法遵</td>
+<td><strong>decided</strong></td>
+<td><strong>(c) 本 CR 先不定、記 backlog（帳號終止後刪除天數 N
+另定）</strong></td>
+</tr>
+<tr>
+<td>7</td>
+<td>雲端證件儲存落點？</td>
+<td>Architect</td>
+<td><strong>decided</strong></td>
+<td><strong>分階段：本機 <code>MEDIA_ROOT</code> 先動、GCS private
+bucket + signed URL 另 CR</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-suggested-implementation-order">9. Suggested Implementation
+Order</h2>
+<p>§8 全數裁決後，依相依順序實作（各步一 branch，<code>--no-ff</code>
+併回 dev_new_arch）：</p>
+<ol type="1">
+<li><strong>Decisions</strong> → 寫 <code>ADR-NNNN</code>（PII 儲存策略
++ 公開上傳策略，記 §8-1/§8-2 結論）</li>
+<li><strong>Schema</strong> → migration：<code>technicians</code>
+非敏感欄 + <code>technician_kyc</code>（或加密欄）+
+<code>technician_registration_document</code> 關聯表 +
+<code>media.purpose</code> enum</li>
+<li><strong>Domain/Service</strong> → <code>register_technician</code>
+擴充（寫非敏感欄 + KYC 表 + 證照 INSERT）；PII 加密/遮罩
+helper；文件上傳 service（依 §8-2 時機）</li>
+<li><strong>API</strong> → <code>registerTechnician</code> body
+擴充（openapi）；公開文件上傳端點（依 §8-2）；審核端點回傳新欄 +
+遮罩（依 §8-3）</li>
+<li><strong>Tests</strong> → §6 全部（先 TDD RED）</li>
+<li><strong>UI（前端）</strong> → <code>/tech-login</code> 拆註冊 tab →
+登入 only + 連結；新 <code>/tech-register</code> 多步驟表單（步驟 1 基本
+/ 2 專業 / 3 敏感撥款 / 4 文件 / 確認）；i18n</li>
+<li><strong>審核頁</strong> → 平台 console 師傅審核頁顯示新欄 +
+文件檢視（依 §8-3）</li>
+<li><strong>Traceability</strong> → 更新 traceability matrix（新
+BF/UF/SF/API/TC）</li>
+<li><strong>Docs sync</strong> → docs_html regen；completion-status +
+CHANGELOG</li>
+</ol>
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>Likelihood</th>
+<th>Impact</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>敏感 PII 外洩（身分證/銀行/證件）</td>
+<td>Medium</td>
+<td><strong>High</strong></td>
+<td>獨立表 + 加密 + 讀取遮罩 + 存取角色最小化 + 私有
+bucket；不鏡射到品牌庫</td>
+</tr>
+<tr>
+<td>公開上傳端點被濫用（塞垃圾檔）</td>
+<td>Medium</td>
+<td>Medium</td>
+<td>兩階段 token（§8-2a）或 rate limit + 型別/大小白名單</td>
+</tr>
+<tr>
+<td>欄位過多 → 註冊放棄率升高</td>
+<td>High</td>
+<td>Medium</td>
+<td>多步驟表單 + PII/文件核准前補件（§8-4a）+ 進度指示</td>
+</tr>
+<tr>
+<td>必填新欄軟破壞 API 直連</td>
+<td>Low</td>
+<td>Low</td>
+<td>新欄預設選填、必填集最小化（§8-4）</td>
+</tr>
+<tr>
+<td>雲端證件公開 URL 誤設</td>
+<td>Low</td>
+<td>High</td>
+<td>private bucket + signed URL；CI 檢查（§8-7）</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback</strong>：schema 加性（新欄 nullable、新表獨立）→
+反向相容；前端 <code>/tech-register</code> 為新頁，回退僅需還原
+<code>/tech-login</code> 註冊 tab。可 feature-flag 新表單、异常時切回舊
+6 欄 tab。</p>
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li>自動背景查核 / 第三方 KYC 供應商串接（本 CR 只蒐集 +
+人工審核；自動核實另 CR）</li>
+<li>證照到期自動提醒 / 重新認證流程（另 CR）</li>
+<li>撥款系統與銀行帳戶的實際請款串接（金流未接，見
+completion-status）</li>
+<li>品牌授權（technician_brand_authorization）自助申請（CR-0114
+已定「標示」語意，不在此）</li>
+</ul>
+<h2 id="12-sign-off">12. Sign-off</h2>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Name</th>
+<th>Date</th>
+<th>Approved?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Product（業主）</td>
+<td>sunny</td>
+<td>2026-07-05</td>
+<td>✅ §8 全數裁決</td>
+</tr>
+<tr>
+<td>Architect</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Engineering Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>QA Lead</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="進度">進度</h2>
+<p><em>依 §9 順序實作，每步一 branch、<code>--no-ff</code> 併回
+dev_new_arch。</em></p>
+<ul>
+<li>✅ S2+S3+S4（Tier 1/2 後端）done（merge &lt;待填&gt;）：migration
+089（technicians 6 非敏感欄 + terms_accepted_at +
+<code>technician_kyc</code>
+加密表）；<code>core/pii_crypto.py</code>（Fernet 對稱加密 + 末碼/遮罩
+helper，金鑰 env
+<code>KYC_ENCRYPTION_KEY</code>）；<code>register_technician</code>
+擴充（Tier 1 存 technicians、敏感 PII 加密存 technician_kyc、證照落
+technician_certification、不鏡射品牌庫）；<code>TechnicianRegisterBody</code>
+加選填新欄（加性非破壞）。089 已套本機 5433+5434。</li>
+<li>✅ S5 Tests
+done：<code>test_cr_0115_technician_kyc_register.py</code>（5
+項：Tier1+加密 KYC 儲存/末碼/解回、身分證不明文入 technicians、只送 6
+欄向後相容、身分證+帳號格式 422）；全套 <strong>1609
+passed</strong>。</li>
+<li>✅ S6 UI（文字欄位）done：<code>/tech-login</code> 拆為只登入 +
+「還沒有帳號？申請成為師傅」連結；新 <code>/tech-register</code>
+多步驟表單（步驟 1 基本／2 專業／3 撥款與聯絡（含敏感 PII + 同意）／4
+確認，進度條 + 逐步驗證 + 確認頁遮罩顯示身分證/帳號末碼）；appMode
+<code>TECH_BUILD_ALLOWED</code> + <code>techRegisterHref</code> 指
+/tech-register；AuthGuard PUBLIC_PATHS 加 /tech-register；i18n
+techLogin.noAccount/applyLink（parity 2753）。<strong>修一個送出防呆
+bug</strong>：表單原本靠 <code>&lt;form onSubmit&gt;</code>
+語意，在中間步驟按 Enter/互動會提前送出跳過確認 → 改為 form onSubmit
+一律 preventDefault、「送出申請」改 <code>type=button</code>+onClick
+手動觸發，杜絕隱式送出。tsc 0 + 重建 tech-api（新契約）+
+tech-web；<strong>Playwright 端到端</strong>（登入頁只登入+連結 →
+多步驟填寫 → 確認頁遮罩（身分證 •••••••789 / 帳號 822 ••••••3210）→ 送出
+→ tech-db 加密入庫、品牌庫投影無
+KYC；重驗中間步驟不提前送出）。<strong>文件上傳步驟（Tier
+3）留下一輪</strong>（需兩階段 token 上傳後端）。</li>
+<li>⏳ S-upload 兩階段 token 文件上傳（migration：registration_document
++ upload_token 表；公開上傳端點）— 待</li>
+<li>⏳ S7 審核頁（平台 console 顯示新欄 + 文件、敏感 PII
+遮罩/授權看全值）— 待</li>
+<li>⏳ 收尾：dispatch api image 重建（deploy）、docs_html regen、雲端
+migration 089</li>
+</ul>
+</div></div></body></html>
