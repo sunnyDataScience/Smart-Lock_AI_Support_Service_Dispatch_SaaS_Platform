@@ -10,6 +10,7 @@ import HandoverComposer from "@/components/conversations/HandoverComposer";
 import { ApiError, api, tenantPath, resolveTenantId } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
+import { usePollingEffect } from "@/hooks/usePollingEffect";
 import type { components } from "@/types/api.generated";
 
 type Conversation = components["schemas"]["Conversation"];
@@ -182,6 +183,27 @@ export default function ConversationDetailPage({
       cancelled = true;
     };
   }, [id, tenantId]);
+
+  // 客人在 LINE 傳新訊息時，真人正看這串就該自動出現（不用手動重整）。
+  // 8s 輪詢 conv + messages，帶 signal → bypass 30s 快取取新鮮資料；分頁隱藏時暫停。
+  // 只在「內容確有變動」時 setMessages，避免閒置輪詢觸發 ChatTimeline 的捲到底副作用。
+  usePollingEffect(
+    async (signal) => {
+      const convPath = tenantPath(`/conversations/${encodeURIComponent(id)}`);
+      const msgsPath = tenantPath(`/conversations/${encodeURIComponent(id)}/messages`);
+      const [envelope, page] = await Promise.all([
+        api.get<ConversationEnvelope>(convPath, { signal }),
+        api.get<MessagePage>(msgsPath, { query: { limit: 100 }, signal }),
+      ]);
+      const fresh = page.items ?? [];
+      // messages 為 DESC（新→舊），fresh[0] 是最新一則。長度與最新 id 皆同 → 無變動、不更新。
+      setMessages((prev) =>
+        prev.length === fresh.length && prev[0]?.id === fresh[0]?.id ? prev : fresh,
+      );
+      if (envelope.data) setConv(envelope.data);
+    },
+    { intervalMs: 8_000, enabled: !loading && !notFound && !error },
+  );
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
