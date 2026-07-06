@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
 
 type Status = "pending" | "approved" | "rejected";
 
@@ -90,6 +91,7 @@ export default function BrandApplicationsPanel() {
         slug.trim() ? { slug: slug.trim() } : {},
       );
       setGuide({ company: app.company_name, text: res.data.onboarding_guide });
+      cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此申請的舊清單
       await load();
     } catch (err) {
       window.alert(friendlyError(err));
@@ -101,6 +103,7 @@ export default function BrandApplicationsPanel() {
     if (reason === null) return;
     try {
       await api.post(`/api/v1/platform/brand-applications/${app.id}:reject`, { reason });
+      cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此申請的舊清單
       await load();
     } catch (err) {
       window.alert(friendlyError(err));

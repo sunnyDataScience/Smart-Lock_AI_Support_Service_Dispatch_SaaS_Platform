@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
 
 type TechStatus =
   | "pending_approval"
@@ -126,6 +127,7 @@ export default function PlatformTechniciansPage() {
     setBusyId(tech.id);
     try {
       await api.post(`/api/v1/platform/technicians/${tech.id}:${action}`, body);
+      cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此師傅的舊清單
       await load();
     } catch (err) {
       window.alert(friendlyError(err));
@@ -304,6 +306,7 @@ function CreateTechnicianModal({
         email: form.email.trim() || undefined,
         capabilities: splitCsv(form.skills),
       });
+      cacheInvalidate("GET:"); // 新師傅才會立即出現在清單（清 30s GET 舊快取）
       onCreated();
     } catch (e) {
       setMsg(friendlyError(e));

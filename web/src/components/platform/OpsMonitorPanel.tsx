@@ -9,6 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, RefreshCw, BarChart3 } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
 
 const BASE = "/api/v1/platform/monitor-targets";
 const POLL_MS = 30_000;
@@ -93,6 +94,7 @@ export default function OpsMonitorPanel() {
     if (!window.confirm(`確定刪除監控目標「${t.brand} / ${t.label}」？`)) return;
     try {
       await api.delete(`${BASE}/${encodeURIComponent(t.id)}`);
+      cacheInvalidate("GET:"); // 清 30s GET 快取,否則 registry 讀到含此目標的舊清單
       await loadRegistry();
       await probe();
     } catch (e) {
@@ -306,6 +308,7 @@ function TargetModal({
       } else {
         await api.post(BASE, payload);
       }
+      cacheInvalidate("GET:"); // 新增/編輯目標後立即反映（清 30s GET 舊快取）
       onSaved();
     } catch (e) {
       setMsg(friendlyError(e));
