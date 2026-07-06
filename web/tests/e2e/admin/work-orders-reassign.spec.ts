@@ -96,7 +96,7 @@ async function injectAdminSession(page: Page) {
       window.localStorage.setItem("smartlock.access_token", token);
       window.localStorage.setItem("smartlock.refresh_token", "fake-refresh");
       window.localStorage.setItem("smartlock.tenant_id", tenantId);
-      window.localStorage.setItem("smartlock.email", "admin@example.com");
+      window.localStorage.setItem("smartlock.email", "test@lock-ai.com");
     },
     { token: fakeToken, tenantId: TENANT_ID },
   );

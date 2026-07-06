@@ -121,8 +121,8 @@ done
 ```bash
 # 1. 登入帳號存在（沒這個前端登入會 401）
 docker exec lock_AI psql -U lock -d lock_AI_data -c \
-  "SELECT email, role, is_active FROM users WHERE email='admin@example.com';"
-# 預期：admin@example.com | admin | t
+  "SELECT email, role, is_active FROM users WHERE email='test@lock-ai.com';"
+# 預期：test@lock-ai.com | admin | t
 
 # 2. 各表都有資料（部分例子，前端直接吃）
 docker exec lock_AI psql -U lock -d lock_AI_data -c "
@@ -302,7 +302,7 @@ npm run dev
 
 | 欄位 | 值 |
 | :--- | :--- |
-| Email | `admin@example.com` |
+| Email | `test@lock-ai.com` |
 | 密碼 | `changeme123` |
 
 登入成功會跳到 `/dashboard`。詳細登入測試流程見 [`login-testing-guide.md`](./login-testing-guide.md)。
@@ -386,7 +386,7 @@ docker stop smart-lock-api lock_AI
 # 後端 smoke test（取 access token、打一個受保護的 endpoint）
 TOKEN=$(curl -s -X POST http://localhost:8001/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@example.com","password":"changeme123"}' \
+  -d '{"email":"test@lock-ai.com","password":"changeme123"}' \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['access_token'])")
 
 curl -s http://localhost:8001/api/v1/dashboard/stats?period=today \

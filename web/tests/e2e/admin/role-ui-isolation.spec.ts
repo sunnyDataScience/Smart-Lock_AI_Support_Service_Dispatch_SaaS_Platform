@@ -64,7 +64,7 @@ test("operations_manager：可進會計/報表，禁區（角色/稽核）被導
 });
 
 test("admin：full access，敏感頁皆可進 + sidebar 有完整 nav", async ({ page }) => {
-  await loginAs(page, "admin@example.com");
+  await loginAs(page, "test@lock-ai.com");
   await expectAllowed(page, "/admin/roles");
   await expectAllowed(page, "/accounting");
   await expectAllowed(page, "/admin/inventory");

@@ -13,7 +13,7 @@ set -euo pipefail
 
 BASE="${API_BASE:-http://localhost:8001}"
 TENANT="${TENANT_ID:-00000000-0000-0000-0000-000000000001}"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-test@lock-ai.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-changeme123}"
 
 pass=0

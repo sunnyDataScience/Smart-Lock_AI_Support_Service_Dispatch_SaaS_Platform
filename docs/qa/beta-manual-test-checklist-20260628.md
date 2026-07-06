@@ -13,7 +13,7 @@ scope: 2026-06-22（CR-0095 prod 部署）之後完工、尚未部署的功能�
 > 這批 AI 已跑 pytest / Playwright（非假綠），由業主在本機環境人工複核。
 >
 > **測試環境（二擇一）**：
-> - 🖥️ **本機**（目前）：http://localhost:3000 ，登入 `admin@example.com` / `changeme123`
+> - 🖥️ **本機**（目前）：http://localhost:3000 ，登入 `test@lock-ai.com` / `changeme123`
 > - ☁️ **Cloud Run**：待業主授權部署後（含 migration 084/085）
 >
 > **狀態判定原則（業主 2026-06-28 裁定）**：

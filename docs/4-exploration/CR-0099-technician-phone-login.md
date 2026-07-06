@@ -66,8 +66,8 @@ log 鐵證（08:18–08:19 連續嘗試）：
 
 `api/tests/test_technician_login_identifier.py`（5 passed）：
 
-- 手機號 `0911222333` + `techpass123` → 200（demo-tech 種子）
-- Email `demo-tech@example.com` → 200（既有路徑不回歸）
+- 手機號 `0911222333` + `changeme123` → 200（demo-tech 種子）
+- Email `test@lock-ai.com` → 200（既有路徑不回歸）
 - 密碼錯 → 401；查無手機 → 401
 - 手機對應多帳號（monkeypatch `_find_users_by_phone` 回 2 筆）→ 409 `AMBIGUOUS_IDENTIFIER`
 

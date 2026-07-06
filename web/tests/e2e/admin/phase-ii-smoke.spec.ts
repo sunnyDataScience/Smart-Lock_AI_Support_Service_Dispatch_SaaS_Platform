@@ -77,7 +77,7 @@ const PAGES: PageSpec[] = [
 
 async function login(page: Page) {
   await page.goto("/login");
-  await page.fill('input[type="email"]', "admin@example.com");
+  await page.fill('input[type="email"]', "test@lock-ai.com");
   await page.fill('input[type="password"]', "changeme123");
   await page.click('button[type="submit"]');
   // 等待 redirect 出 /login

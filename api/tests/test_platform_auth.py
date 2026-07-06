@@ -94,9 +94,9 @@ async def test_platform_login_wrong_password_401(client):
 
 @pytest.mark.asyncio
 async def test_platform_login_rejects_brand_admin_account(client):
-    """品牌 admin 帳號(seed admin@example.com)不能登平台 console(角色限定)。"""
+    """品牌 admin 帳號(seed test@lock-ai.com)不能登平台 console(角色限定)。"""
     res = await client.post(
-        LOGIN, json={"email": "admin@example.com", "password": "changeme123"}
+        LOGIN, json={"email": "test@lock-ai.com", "password": "changeme123"}
     )
     assert res.status_code == 401, res.text
 
@@ -154,7 +154,7 @@ async def test_platform_refresh_rejects_brand_refresh_token(client):
     """品牌帳號的 refresh token 不能換平台 token(role 檢查)。"""
     res = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@example.com", "password": "changeme123"},
+        json={"email": "test@lock-ai.com", "password": "changeme123"},
     )
     assert res.status_code == 200, res.text
     brand_refresh = res.json()["data"]["refresh_token"]

@@ -14,7 +14,7 @@ LOGIN = "/api/v1/auth/login"
 
 # 後台角色種子帳號（password 全 changeme123）
 BACKOFFICE = [
-    "admin@example.com",
+    "test@lock-ai.com",
     "dispatcher@example.com",
     "ops@example.com",
     "cs@example.com",
@@ -32,8 +32,11 @@ async def test_backoffice_roles_can_login_admin_web(client, email):
 
 @pytest.mark.asyncio
 async def test_technician_cannot_login_admin_web(client):
-    # technician 走 /technicians/login;admin web login 應擋（401）
+    # technician 走 /technicians/login;admin web login 應擋（401）。
+    # 用 tech-chen@example.com（email 保持獨立的技師種子）—— 主技師 demo-tech 的
+    # email 已與 admin 統一為 test@lock-ai.com,共用 email 會讓 admin-web 的
+    # role 過濾查詢誤中 admin 列,故負向測試改用不共用 email 的技師。
     res = await client.post(
-        LOGIN, json={"email": "demo-tech@example.com", "password": "changeme123"}
+        LOGIN, json={"email": "tech-chen@example.com", "password": "changeme123"}
     )
     assert res.status_code == 401, res.text

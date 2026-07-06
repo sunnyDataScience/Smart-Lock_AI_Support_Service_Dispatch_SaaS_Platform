@@ -217,7 +217,7 @@ echo "  Backend API:       http://localhost:$API_PORT"
 echo "  API docs:          http://localhost:$API_PORT/docs"
 echo "  PostgreSQL:        localhost:$DB_PORT  (lock / 0000 / lock_AI_data)"
 echo
-echo "  登入 admin 帳號:    admin@example.com / changeme123"
+echo "  登入 admin 帳號:    test@lock-ai.com / changeme123"
 echo
 echo "  常用後台頁面:"
 echo "    /admin/dispatch-queue           派工佇列"
