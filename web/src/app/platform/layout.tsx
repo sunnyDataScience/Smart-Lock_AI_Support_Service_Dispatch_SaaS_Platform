@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
 import { logoutPlatformAdmin } from "@/lib/api";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 const NAV: { href: string; label: string }[] = [
   { href: "/platform", label: "儀表板" },
@@ -73,14 +74,17 @@ export default function PlatformLayout({
               })}
             </nav>
           </div>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] hover:text-[var(--text-primary)]"
-          >
-            <LogOut className="h-4 w-4" aria-hidden />
-            登出
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={onLogout}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] hover:text-[var(--text-primary)]"
+            >
+              <LogOut className="h-4 w-4" aria-hidden />
+              登出
+            </button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
