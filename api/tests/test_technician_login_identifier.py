@@ -5,7 +5,7 @@
   - Email 登入 → 200（既有路徑不回歸）
   - 密碼錯 → 401；查無手機 → 401
   - 手機對應多帳號 → 409 AMBIGUOUS_IDENTIFIER（§8.1，monkeypatch 模擬非唯一）
-依賴 SQL/seeds/technicians.sql 的 demo-tech@example.com / techpass123 / 0911222333。
+依賴 SQL/seeds/technicians.sql 的 demo-tech@example.com / changeme123 / 0911222333。
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ pytestmark = pytest.mark.component
 TECH_LOGIN = "/api/v1/technicians/login"
 DEMO_PHONE = "0911222333"
 DEMO_EMAIL = "demo-tech@example.com"
-DEMO_PASS = "techpass123"
+DEMO_PASS = "changeme123"
 
 
 @pytest.mark.asyncio
