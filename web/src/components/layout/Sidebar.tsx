@@ -9,7 +9,6 @@ import {
   BookOpen,
   Truck,
   CircleUserRound,
-  Store,
   Tag,
   FileText,
   Banknote,
@@ -105,7 +104,6 @@ const navSections: NavSection[] = [
   {
     titleId: "review",
     items: [
-      { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
       { icon: AlertTriangle, id: "exceptions", href: "/admin/exceptions" },
     ],
   },

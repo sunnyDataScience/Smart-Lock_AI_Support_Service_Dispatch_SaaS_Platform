@@ -43,7 +43,7 @@ const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
   // CR-0114 收尾：品牌 /technicians 管理頁移除（師傅管理全歸 platform console），此路由已不存在。
   { prefix: "/admin/cases", roles: ["admin", "operations_manager", "dispatcher", "customer_service"] }, // CR-0108 進線 Case（客服代建）
   { prefix: "/admin/customers", roles: ["admin", "operations_manager", "customer_service"] },
-  { prefix: "/admin/vendor-approvals", roles: ["admin", "operations_manager"] },
+  // CR-0114 收尾：品牌廠商審核頁移除（審核移到 platform console），此路由已不存在。
   { prefix: "/admin/quote-catalog", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/quotes", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/payout-rules", roles: ["admin", "operations_manager", "reviewer"] },
