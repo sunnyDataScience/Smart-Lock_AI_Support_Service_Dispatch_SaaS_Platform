@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -42,6 +43,33 @@ _UNSUPPORTED_MEDIA_REPLY = (
     "麻煩您用文字描述問題,或直接拍一張門鎖的照片傳給我,我馬上為您服務!"
 )
 _IMAGE_DOWNLOAD_FAIL_REPLY = "照片好像沒有傳送成功,麻煩您再傳一次,謝謝 🙏"
+
+# 對話已升級為人工接管、客人又傳訊息時的自動安撫語(AI 暫停期間唯一會送的話)。
+# 純文字(LINE 不 render markdown);不承諾時間、不報價。
+_HANDOVER_WAIT_REPLY = (
+    "您好,目前已由真人專員接手為您服務 🙏\n"
+    "麻煩您稍候,專員看到訊息後會盡快回覆您。"
+)
+# 節流:接管期間客人可能連傳多則,若每則都回「請稍候」會洗版。以 session 為 key、
+# 記上次送出時間(process 內記憶,單實例;fail-open:查不到就送)。冷卻內不重複送,
+# 但客人訊息仍照常持久化讓真人看得到。重啟後至多多送一次(可接受)。
+_HANDOVER_NOTICE_COOLDOWN_SEC = 600.0  # 10 分鐘
+_handover_notice_at: dict[str, float] = {}
+
+
+def _should_notify_handover(session_key: str) -> bool:
+    """接管期間本則是否該送「請稍候」提示(冷卻節流,避免洗版)。fail-open。"""
+    try:
+        now = time.monotonic()
+        last = _handover_notice_at.get(session_key)
+        if last is not None and now - last < _HANDOVER_NOTICE_COOLDOWN_SEC:
+            return False
+        _handover_notice_at[session_key] = now
+        return True
+    except Exception:  # noqa: BLE001 — 節流失敗不可阻斷提示,寧可多送
+        return True
+
+
 # 對話管理(後台)持久化用的型別標記。
 _MEDIA_KIND_MARKERS = {
     "sticker": "[貼圖]",
@@ -576,13 +604,28 @@ def build_webapp(
                     )
                     continue
 
-                # CR-0024 Phase 1:對話處於人工接管中 → AI 全暫停(不跑 turn、不回覆),
+                # CR-0024 Phase 1:對話處於人工接管中 → AI 全暫停(不跑 turn、不用知識回覆),
                 # 只把客人這句旁路持久化讓客服在對話管理看得到;由真人回覆。
                 # 交還(對話管理按鈕 / 工單結案)把對話翻回 active 後,AI 自動恢復。
+                # 但接管期間客人若再傳訊息卻完全靜默,會誤以為沒人理 → 送一句節流的
+                # 「真人處理中,請稍候」自動安撫(冷卻內不重複送,避免洗版)。
                 persist_text = user_text or ("[照片]" if media_paths else "")
                 if await _handover_active_safe(tenant, user_id):
                     logger.info("對話接管中,AI 暫停回覆 user={}", user_id[:8])
-                    await _persist_turn_safe(tenant, user_id, persist_text, "")
+                    notice = ""
+                    if event.reply_token and _should_notify_handover(f"{tenant}:{user_id}"):
+                        notice = _HANDOVER_WAIT_REPLY
+                        try:
+                            await line_api.reply_message(
+                                ReplyMessageRequest(
+                                    reply_token=event.reply_token,
+                                    messages=[TextMessage(text=notice)],
+                                )
+                            )
+                        except Exception:  # noqa: BLE001 — 提示送失敗不可影響持久化
+                            logger.warning("接管中『請稍候』提示送出失敗(已略過)", exc_info=True)
+                    # notice 一併持久化,讓真人在對話管理知道客人已被自動安撫(空字串=本則節流未送)。
+                    await _persist_turn_safe(tenant, user_id, persist_text, notice)
                     continue
 
                 # CR-0022:記本輪前的最新 escalation id,turn 後比對是否新增(觸發轉真人)。

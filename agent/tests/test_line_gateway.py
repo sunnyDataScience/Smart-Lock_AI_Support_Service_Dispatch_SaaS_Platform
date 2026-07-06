@@ -5,15 +5,19 @@ import base64
 import hashlib
 import hmac
 import json
+import time
 
 import pytest
 
 from lockcore.channels.line_gateway import (
+    _HANDOVER_NOTICE_COOLDOWN_SEC,
     _apply_handoff_fallback_safe,
     _clean_symptom,
     _extract_brand_model,
     _extract_phone,
+    _handover_notice_at,
     _promised_handoff,
+    _should_notify_handover,
     handle_text_turn,
     load_dotenv,
     resolve_identity,
@@ -22,6 +26,42 @@ from lockcore.channels.line_gateway import (
 
 def test_resolve_identity_line_uses_userid():
     assert resolve_identity("line", "U1234", "locksmart") == ("locksmart", "U1234")
+
+
+# ── 接管期間「請稍候」提示的節流(避免客人連傳被洗版)──────────────────
+
+
+def test_handover_notice_first_message_notifies():
+    """接管中客人第一則 → 送提示(回 True)。"""
+    _handover_notice_at.clear()
+    assert _should_notify_handover("locksmart:U_first") is True
+
+
+def test_handover_notice_throttled_within_cooldown():
+    """冷卻內連傳 → 只送一次,後續節流(回 False)。"""
+    _handover_notice_at.clear()
+    key = "locksmart:U_spam"
+    assert _should_notify_handover(key) is True
+    assert _should_notify_handover(key) is False
+    assert _should_notify_handover(key) is False
+
+
+def test_handover_notice_resends_after_cooldown():
+    """超過冷卻窗 → 再次送提示(回 True)。以回填過去時戳模擬時間流逝。"""
+    _handover_notice_at.clear()
+    key = "locksmart:U_wait"
+    assert _should_notify_handover(key) is True
+    # 模擬「上次送出」在冷卻窗之前
+    _handover_notice_at[key] = time.monotonic() - (_HANDOVER_NOTICE_COOLDOWN_SEC + 1)
+    assert _should_notify_handover(key) is True
+
+
+def test_handover_notice_isolated_per_session():
+    """不同 session 各自獨立節流,互不影響。"""
+    _handover_notice_at.clear()
+    assert _should_notify_handover("locksmart:U_a") is True
+    assert _should_notify_handover("locksmart:U_b") is True  # 另一 session 不受 A 影響
+    assert _should_notify_handover("locksmart:U_a") is False
 
 
 # ── CR-0097 方案 A 兜底：AI 承諾轉接卻沒呼叫工具 → 程式補 escalation ──────────────
