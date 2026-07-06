@@ -1,17 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search, ChevronDown, Wrench, Plus } from "lucide-react";
+import { Search, Wrench } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import TechniciansTable from "@/components/technicians/TechniciansTable";
-import { api, getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
+import { getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
-import { useToast } from "@/components/ui/Toast";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
-import CreateTechnicianModal from "@/components/admin/CreateTechnicianModal";
 
 type Technician = components["schemas"]["Technician"];
 
@@ -32,7 +29,6 @@ const FILTER_DROPDOWN_KEYS = [
 export default function TechniciansPage() {
   const t = useTranslations("pages.technicians");
   const tFilters = useTranslations("pages.technicians.filters");
-  const { toast } = useToast();
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const session = getCurrentSession();
@@ -43,7 +39,6 @@ export default function TechniciansPage() {
   const [regionFilter, setRegionFilter] = useState<string>("");
   const [ratingMinFilter, setRatingMinFilter] = useState<string>("");
   const [keyword, setKeyword] = useState<string>("");
-  const [createOpen, setCreateOpen] = useState(false);
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
@@ -56,14 +51,14 @@ export default function TechniciansPage() {
     return qs ? `?${qs}` : "";
   }, [statusFilter, capabilityFilter, regionFilter, ratingMinFilter, keyword]);
 
-  const { items, cursor, hasMore, loading, error, loadMore, refresh } = usePaginatedFetch<Technician>({
+  const { items, hasMore, loading, error, loadMore } = usePaginatedFetch<Technician>({
     path: `/tenants/${encodeURIComponent(tenantId)}/technicians${queryString}`,
     pageSize: PAGE_SIZE,
     formatError: formatTechnicianError,
   });
 
-  // CR-0114 R3:師傅生命週期審核(核准/停權/復權/終止)已搬到平台方 console。
-  // 品牌端此頁改為唯讀 —— 只看旗下師傅名單與狀態,不再操作 onboarding。
+  // CR-0114:師傅身分歸平台方 —— 本頁完全唯讀(收斂輪已移除「新增技師」,
+  // 生命週期審核/主檔編輯皆由 platform console 操作;師傅入口=tech 站自助註冊)。
 
   // 從 items 抽 distinct capabilities + service areas
   const { capabilityOptions, regionOptions } = useMemo(() => {
@@ -105,14 +100,6 @@ export default function TechniciansPage() {
                   : t("techCount", { count: items.length })}
             </span>
           </div>
-
-          <button
-            onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-2 rounded-lg bg-[var(--primary)] px-5 py-[10px] hover:opacity-90"
-          >
-            <Plus className="h-4 w-4 text-white" />
-            <span className="text-sm font-semibold text-white">{t("addTechnician")}</span>
-          </button>
         </div>
 
         {/* Filter Toolbar */}
@@ -198,15 +185,6 @@ export default function TechniciansPage() {
           )}
         </main>
       </div>
-
-      <CreateTechnicianModal
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        onSuccess={() => {
-          setCreateOpen(false);
-          refresh();
-        }}
-      />
     </div>
   );
 }

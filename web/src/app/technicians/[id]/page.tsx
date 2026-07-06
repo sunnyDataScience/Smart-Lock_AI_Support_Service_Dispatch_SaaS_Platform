@@ -1,15 +1,13 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
-import { ChevronRight, Pencil, Star, X } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import TechnicianDetailSidebar from "@/components/technicians/TechnicianDetailSidebar";
 import CertificationMatrix from "@/components/technicians/CertificationMatrix";
 import { api, getCurrentSession, FALLBACK_TENANT_ID } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
-import { LOCK_BRANDS_HINT } from "@/lib/constants/brands";
 import type { components } from "@/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
@@ -277,11 +275,6 @@ export default function TechnicianDetailPage({ params }: PageProps) {
   const [technician, setTechnician] = useState<Technician | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  // CR-0103 操作狀態（停權/復權/編輯）
-  const [actionBusy, setActionBusy] = useState(false);
-  const [actionMsg, setActionMsg] = useState<string | null>(null);
-  const [editOpen, setEditOpen] = useState(false);
-  const [editForm, setEditForm] = useState({ name: "", phone: "", skills: "", regions: "", level: "" });
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const session = getCurrentSession();
@@ -314,49 +307,8 @@ export default function TechnicianDetailPage({ params }: PageProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, tenantId]);
 
-  // CR-0114 R3:師傅停權/復權/終止已搬到平台方 console,品牌端不再操作
-  //（原 handleLifecycle 已移除;編輯基本資料仍保留於下方）。
-
-  // CR-0103：開啟編輯（用目前資料預填姓名/電話/技能/區域）
-  function openEdit() {
-    if (!technician) return;
-    setEditForm({
-      name: technician.name ?? "",
-      phone: technician.phone ?? "",
-      skills: (technician.skills ?? []).join(", "),
-      regions: (technician.service_areas ?? []).join(", "),
-      level: technician.level ?? "",
-    });
-    setActionMsg(null);
-    setEditOpen(true);
-  }
-
-  // CR-0103：儲存編輯 — PATCH updateTechnicianV2（部分更新；逗號分隔轉陣列）
-  async function handleSaveEdit() {
-    const splitCsv = (s: string) =>
-      s.split(/[,，]/).map((x) => x.trim()).filter(Boolean);
-    setActionBusy(true);
-    setActionMsg(null);
-    try {
-      await api.patch(
-        `/tenants/${encodeURIComponent(tenantId)}/technicians/${encodeURIComponent(id)}`,
-        {
-          display_name: editForm.name.trim() || undefined,
-          phone: editForm.phone.trim() || undefined,
-          capabilities: splitCsv(editForm.skills),
-          coverage_areas: splitCsv(editForm.regions),
-          level: editForm.level || undefined,
-        },
-      );
-      cacheInvalidate("GET:"); // 清 30s GET 快取，讓 refetch 取到更新後資料
-      setEditOpen(false);
-      await loadTechnician();
-    } catch (e) {
-      setActionMsg(`儲存失敗：${friendlyError(e)}`);
-    } finally {
-      setActionBusy(false);
-    }
-  }
+  // CR-0114:師傅身分歸平台方 —— 生命週期(核准/停權/復權/終止)與主檔編輯
+  // (姓名/技能/區域/等級)、認證管理皆由 platform console 操作;本頁完全唯讀。
 
   const status = technician
     ? AVAILABILITY_STYLE[technician.availability] ?? AVAILABILITY_STYLE.available
@@ -399,17 +351,9 @@ export default function TechnicianDetailPage({ params }: PageProps) {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={openEdit}
-                  disabled={!technician || actionBusy}
-                  className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] px-4 py-2 hover:bg-[var(--bg-page)] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Pencil className="h-[14px] w-[14px] text-[var(--text-secondary)]" />
-                  <span className="text-[13px] text-[var(--text-primary)]">編輯</span>
-                </button>
-                {/* CR-0114 R3:停權/復權/終止已搬平台方 console,品牌端不再操作。 */}
+                {/* CR-0114:編輯/停權/復權/終止皆歸平台方 console,品牌端唯讀。 */}
                 <span className="flex items-center text-[12px] text-[var(--text-secondary)]">
-                  生命週期由平台方管理
+                  師傅資料與生命週期由平台方管理
                 </span>
               </div>
             </div>
@@ -418,12 +362,6 @@ export default function TechnicianDetailPage({ params }: PageProps) {
           {error && (
             <div className="mx-8 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               載入技師失敗：{error}
-            </div>
-          )}
-
-          {actionMsg && !editOpen && (
-            <div className="mx-8 mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              {actionMsg}
             </div>
           )}
 
@@ -444,90 +382,6 @@ export default function TechnicianDetailPage({ params }: PageProps) {
 
         <TechnicianDetailSidebar technicianId={id} availability={technician?.availability} />
       </div>
-
-      {/* CR-0103 編輯技師基本資料 modal（姓名/電話/技能/區域；狀態變更走停權/復權鈕）*/}
-      {editOpen && technician && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-lg bg-[var(--bg-surface)] p-6 shadow-xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-[16px] font-semibold text-[var(--text-primary)]">編輯技師資料</h2>
-              <button
-                onClick={() => setEditOpen(false)}
-                aria-label="關閉"
-                className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <div className="flex flex-col gap-3">
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--text-secondary)]">姓名</span>
-                <input
-                  value={editForm.name}
-                  onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
-                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--text-secondary)]">聯絡電話</span>
-                <input
-                  value={editForm.phone}
-                  onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
-                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--text-secondary)]">等級</span>
-                <select
-                  value={editForm.level}
-                  onChange={(e) => setEditForm((f) => ({ ...f, level: e.target.value }))}
-                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                >
-                  <option value="S">S（頂級）</option>
-                  <option value="A">A（資深）</option>
-                  <option value="B">B（中級）</option>
-                  <option value="C">C（入門）</option>
-                </select>
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--text-secondary)]">技能 / 品牌（逗號分隔）</span>
-                <input
-                  value={editForm.skills}
-                  onChange={(e) => setEditForm((f) => ({ ...f, skills: e.target.value }))}
-                  placeholder={LOCK_BRANDS_HINT}
-                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-[var(--text-secondary)]">服務區域（逗號分隔）</span>
-                <input
-                  value={editForm.regions}
-                  onChange={(e) => setEditForm((f) => ({ ...f, regions: e.target.value }))}
-                  placeholder="台北市, 新北市"
-                  className="rounded border border-[var(--border)] bg-white px-3 py-2 text-sm outline-none"
-                />
-              </label>
-            </div>
-            {actionMsg && <p className="mt-3 text-[13px] text-red-600">{actionMsg}</p>}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                onClick={() => setEditOpen(false)}
-                disabled={actionBusy}
-                className="rounded border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleSaveEdit}
-                disabled={actionBusy}
-                className="rounded bg-[var(--primary)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
-              >
-                {actionBusy ? "儲存中…" : "儲存"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

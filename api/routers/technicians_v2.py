@@ -1,34 +1,31 @@
-"""Technicians v2 router — tenant-scoped 技師管理端點（CR-0002-α / spec-alignment P2-α / P2-W1）。
+"""Technicians v2 router — tenant-scoped 技師「唯讀」端點（CR-0002-α → CR-0114 收斂）。
 
-對齊 frozen spec §2.2 M05 Technician：
-  - GET  /tenants/{tenantId}/technicians          → listTechniciansV2 (cursor 分頁)
-  - GET  /tenants/{tenantId}/technicians/{techId} → getTechnicianV2 (單筆詳情)
-  - POST  /tenants/{tenantId}/technicians          → createTechnician (onboard FR-0044)
-  - PATCH /tenants/{tenantId}/technicians/{techId} → updateTechnicianV2 (CR-0103 admin 編輯基本資料)
+對齊 CR-0114 裁決 1「師傅審核歸平台方;品牌端唯讀」—— 本檔只留讀端點：
+  - GET  /tenants/{tenantId}/technicians               → listTechniciansV2 (cursor 分頁)
+  - GET  /tenants/{tenantId}/technicians/{techId}      → getTechnicianV2 (單筆詳情)
+  - GET  /tenants/{tenantId}/technicians/{techId}/schedule → getTechnicianScheduleV2
 
-舊 flat 路徑 /api/v1/technicians（routers/technicians.py 的 admin 端點）仍保留，
-加掛 Deprecation header（D3）雙掛過渡；前端遷移後於 P3 波次移除。
+**寫端點已於 CR-0114 收斂輪移除**（師傅身分屬平台方職權，品牌端不可寫）：
+  - POST createTechnician（FR-0044 品牌端 onboard）→ 廢止;師傅入口=3001 /tech-register
+    自助註冊 + platform console 審核（routers/platform_technicians.py）。
+  - PATCH updateTechnicianV2（CR-0103 編輯基本資料 + CR-0104 level）→ 廢止;
+    師傅主檔（姓名/技能/區域/等級）異動歸平台方（platform console 編輯功能為後續輪）。
 
-/technicians/me/* 技師自助端點屬 mobile 端範疇，**不遷移**，保留 legacy 路由。
-狀態變更（停權/復權/終止）走 technician_lifecycle_v2 的 :suspend/:reactivate/:terminate
-（須附 reason，有 audit）；CR-0103 已移除本檔重複且未實作的 :suspend 501 stub。
+/technicians/me/* 技師自助端點屬 mobile 端範疇，保留 legacy 路由（routers/technicians.py）。
+狀態變更（核准/停權/復權/終止）走 platform console（platform_technicians.py）。
 
 設計原則：
   - require_tenant + cross-tenant guard（ADR-0030）
-  - idempotency_guard（POST 寫操作）
   - 呼既有 technician_service 函式，不重寫 SQL
   - envelope：{ data } 對齊既有慣例
 """
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, Path, Query
 
-from fastapi import APIRouter, Depends, Path, Query, Response
-
-from core.deps import DISPATCH_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import CurrentUser, require_tenant
 from core.errors import ApiError
-from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     Technician,
     TechnicianAvailability,
@@ -37,20 +34,6 @@ from models.generated import (
     TechnicianPage,
 )
 from services import technician_service
-
-
-class _TechnicianCreateRequest(BaseModel):
-    """Inline schema 對齊 spec TechnicianCreate（display_name + coverage_areas）。
-
-    TechnicianCreate 尚未在 generated.py 中生成，故在 router 內 inline 定義。
-    DB technicians.phone 為 NOT NULL；spec 未要求 phone → 接受可選，補空字串佔位。
-    """
-
-    display_name: str = Field(..., description="技師顯示姓名")
-    coverage_areas: list[str] = Field(..., description="服務覆蓋區域代碼清單")
-    phone: str | None = Field(default=None, description="聯絡電話（選填）")
-    email: str | None = Field(default=None, description="電子郵件（選填）")
-    capabilities: list[str] | None = Field(default=None, description="可服務品牌/技能碼")
 
 router = APIRouter()
 
@@ -156,91 +139,3 @@ async def get_technician_schedule_v2(
         tenant_id=tenantId, tech_id=techId, month_str=month
     )
 
-
-@router.post(
-    "/tenants/{tenantId}/technicians",
-    operation_id="createTechnician",
-    summary="Onboard 新技師 v2（tenant-scoped, FR-0044 / spec-alignment P2-W1）",
-    response_model=TechnicianEnvelope,
-    status_code=201,
-    tags=["M05 Technician"],
-)
-async def create_technician_v2(
-    body: _TechnicianCreateRequest,
-    response: Response,
-    tenantId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
-    idem: IdempotencyContext | None = Depends(idempotency_guard),
-) -> dict:
-    # cross-tenant guard（ADR-0030）
-    if user.tenant_id and user.tenant_id != tenantId:
-        raise ApiError(
-            "CROSS_TENANT_WRITE",
-            "Path tenantId does not match authenticated tenant",
-            403,
-        )
-
-    technician, created = await technician_service.create_technician(
-        tenant_id=tenantId,
-        display_name=body.display_name,
-        coverage_areas=body.coverage_areas,
-        phone=body.phone,
-        email=body.email,
-        capabilities=body.capabilities,
-    )
-
-    response.status_code = 201 if created else 200
-    payload: dict = {"data": Technician(**technician).model_dump(mode="json")}
-    if idem is not None:
-        await idem.save(response.status_code, payload)
-    return payload
-
-
-class _TechnicianUpdateRequest(BaseModel):
-    """CR-0103 admin 編輯技師基本資料（部分更新，欄位皆選填；只更新有帶的欄位）。
-    狀態變更不走這裡 —— active↔suspended 用 lifecycle :suspend/:reactivate（須附 reason）。
-    CR-0104：+level（等級手動指派，值域 S/A/B/C 由 TechnicianLevel enum 守門）。"""
-
-    display_name: str | None = Field(default=None, description="技師顯示姓名")
-    phone: str | None = Field(default=None, description="聯絡電話")
-    email: str | None = Field(default=None, description="電子郵件")
-    coverage_areas: list[str] | None = Field(default=None, description="服務覆蓋區域代碼清單")
-    capabilities: list[str] | None = Field(default=None, description="可服務品牌/技能碼")
-    level: TechnicianLevel | None = Field(default=None, description="技師等級（S/A/B/C，手動指派）")
-
-
-@router.patch(
-    "/tenants/{tenantId}/technicians/{techId}",
-    operation_id="updateTechnicianV2",
-    summary="編輯技師基本資料 v2（tenant-scoped；狀態變更走 lifecycle :suspend/:reactivate）",
-    response_model=TechnicianEnvelope,
-    tags=["M05 Technician"],
-)
-async def update_technician_v2(
-    body: _TechnicianUpdateRequest,
-    tenantId: str = Path(...),
-    techId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
-) -> dict:
-    # cross-tenant guard（ADR-0030）
-    if user.tenant_id and user.tenant_id != tenantId:
-        raise ApiError(
-            "CROSS_TENANT_WRITE",
-            "Path tenantId does not match authenticated tenant",
-            403,
-        )
-
-    # 請求欄位 → service patch key（display_name→name、coverage_areas→regions），
-    # None 欄位不更新（部分更新語意）。
-    patch = {
-        "name": body.display_name,
-        "phone": body.phone,
-        "email": body.email,
-        "capabilities": body.capabilities,
-        "regions": body.coverage_areas,
-        "level": body.level.value if body.level else None,
-    }
-    technician = await technician_service.update_technician(
-        tenant_id=tenantId, technician_id=techId, patch=patch,
-    )
-    return {"data": Technician(**technician).model_dump(mode="json")}

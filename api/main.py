@@ -625,3 +625,35 @@ if _API_SURFACE == "platform":
     logger.info(
         "API_SURFACE=platform → 路由過濾完成，保留 %d 條平台面路由", len(app.router.routes)
     )
+
+
+# ── CR-0114 收斂:API_SURFACE=dispatch 路由「剔除」過濾(品牌面 defense-in-depth)──
+# dispatch 面歷來 = all(全路由)。CR-0114 收斂輪改為剔除兩類不屬品牌面的路由:
+#   1. /api/v1/platform/*      — 平台方 console 端點(platform stack 有自己的 8003;
+#      品牌 API 不該服務平台審核寫端點,即使 RBAC 三重擋下,仍收掉暴露面)。
+#   2. /api/v1/technicians/register — 師傅自助註冊(公開端點,寫師傅身分庫;師傅
+#      註冊動線=3001 tech stack。留在品牌 8001 會讓 fallback 部署產生「品牌庫
+#      幽靈師傅」— 平台 console 讀權威庫看不到、永遠無法核准)。
+# 注意:採「剔除清單」非「保留清單」— 品牌面路由多且雜,保留清單易漏;
+# all 模式(pytest/雲端單體)不過濾,行為零變化。
+_DISPATCH_SURFACE_DROP_PREFIXES: tuple[str, ...] = (
+    "/api/v1/platform",
+    "/api/v1/technicians/register",
+)
+
+
+def _dispatch_surface_keep(path: str) -> bool:
+    """API_SURFACE=dispatch 時此路由是否保留（剔除平台面/師傅註冊路由）。"""
+    return not any(path.startswith(prefix) for prefix in _DISPATCH_SURFACE_DROP_PREFIXES)
+
+
+if _API_SURFACE == "dispatch":
+    _before = len(app.router.routes)
+    app.router.routes = [
+        r for r in app.router.routes if _dispatch_surface_keep(getattr(r, "path", ""))
+    ]
+    logger.info(
+        "API_SURFACE=dispatch → 剔除平台面/師傅註冊路由 %d 條，保留 %d 條",
+        _before - len(app.router.routes),
+        len(app.router.routes),
+    )

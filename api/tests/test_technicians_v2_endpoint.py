@@ -181,74 +181,36 @@ async def test_brand_suspend_endpoint_removed(client, admin_headers):
 
 
 # ---------------------------------------------------------------------------
-# Update technician v2 (CR-0103 admin 編輯基本資料)
+# CR-0114 收斂：品牌端師傅寫端點全數移除（裁決 1「品牌端唯讀」）
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_update_technician_v2_partial(client, admin_headers):
-    """PATCH /tenants/{tenantId}/technicians/{techId} → 部分更新 name/phone/capabilities/regions；
-    未帶的欄位（email）保留不變。"""
-    import core.db as db_module
+async def test_brand_create_technician_endpoint_removed(client, admin_headers):
+    """CR-0114 收斂:品牌端 POST createTechnician（FR-0044 onboard）已廢止 → 405。
 
-    assert await db_module._ensure_conn()
-    techid = str(uuid.uuid4())
-    await db_module._conn.execute(
-        "INSERT INTO technicians (id, tenant_id, name, phone, email, capabilities, service_regions, status) "
-        "VALUES (%s::uuid, %s::uuid, '原名', '0911000000', 'old@x.com', "
-        "'[\"Yale\"]'::jsonb, '[\"TPE\"]'::jsonb, 'active')",
-        (techid, DEFAULT_TENANT_ID))
-    try:
-        res = await client.patch(
-            f"/tenants/{DEFAULT_TENANT_ID}/technicians/{techid}",
-            headers=admin_headers,
-            json={
-                "display_name": "新名字",
-                "phone": "0922371211",
-                "capabilities": ["Dormakaba", "Kaadas"],
-                "coverage_areas": ["TPE", "NTC"],
-            },
-        )
-        assert res.status_code == 200, res.text
-        data = res.json()["data"]
-        assert data["name"] == "新名字"
-        assert data["phone"] == "0922371211"
-        # capabilities/regions/email 經 DB 確認（避免猜 response 欄名）
-        cur = await db_module._conn.execute(
-            "SELECT email, capabilities, service_regions FROM technicians WHERE id=%s::uuid",
-            (techid,))
-        email, caps, regions = await cur.fetchone()
-        assert email == "old@x.com"  # 未帶 → 不變（部分更新）
-        assert set(caps) == {"Dormakaba", "Kaadas"}
-        assert set(regions) == {"TPE", "NTC"}
-    finally:
-        await db_module._conn.execute("DELETE FROM technicians WHERE id=%s::uuid", (techid,))
+    師傅入口 = tech 站 /tech-register 自助註冊（POST /api/v1/technicians/register）
+    + platform console 審核;品牌端不可再建立師傅身分。
+    """
+    res = await client.post(
+        f"/tenants/{DEFAULT_TENANT_ID}/technicians",
+        headers=admin_headers,
+        json={"display_name": "不該建得成", "coverage_areas": ["TPE"]},
+    )
+    assert res.status_code == 405, res.text
 
 
 @pytest.mark.asyncio
-async def test_update_technician_v2_not_found(client, admin_headers):
-    """PATCH 不存在的 technician → 404。"""
+async def test_brand_update_technician_endpoint_removed(client, admin_headers):
+    """CR-0114 收斂:品牌端 PATCH updateTechnicianV2（CR-0103 編輯 + CR-0104 level）
+    已廢止 → 405。師傅主檔（姓名/技能/區域/等級）異動歸平台方。"""
     fake_id = str(uuid.uuid4())
     res = await client.patch(
         f"/tenants/{DEFAULT_TENANT_ID}/technicians/{fake_id}",
         headers=admin_headers,
         json={"display_name": "x"},
     )
-    assert res.status_code == 404, res.text
-
-
-@pytest.mark.asyncio
-async def test_update_technician_v2_cross_tenant_403(client):
-    """cross-tenant PATCH（帶 body 通過驗證後，handler guard 擋）→ 403 CROSS_TENANT_WRITE。"""
-    headers = _make_other_tenant_path_headers()
-    fake_id = str(uuid.uuid4())
-    res = await client.patch(
-        f"/tenants/{OTHER_TENANT_ID}/technicians/{fake_id}",
-        headers=headers,
-        json={"display_name": "x"},
-    )
-    assert res.status_code == 403, res.text
-    assert res.json().get("error_code") == "CROSS_TENANT_WRITE"
+    assert res.status_code == 405, res.text
 
 
 # ---------------------------------------------------------------------------

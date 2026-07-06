@@ -12,10 +12,6 @@ type Availability = Technician["availability"];
 interface Props {
   items: Technician[];
   loading?: boolean;
-  /** 核准 pending_approval 技師（onboarding → active）。 */
-  onApprove?: (tech: Technician) => void;
-  /** 正在核准中的技師 id（按鈕轉 loading + disabled）。 */
-  approvingId?: string | null;
 }
 
 // onboarding 生命週期狀態徽章顏色（label 由 i18n）
@@ -61,7 +57,7 @@ function avatarColor(id: string): string {
   return AVATAR_PALETTE[hash % AVATAR_PALETTE.length];
 }
 
-export default function TechniciansTable({ items, loading, onApprove, approvingId }: Props) {
+export default function TechniciansTable({ items, loading }: Props) {
   const t = useTranslations("components.technicians.table");
 
   // onboarding 狀態 label（i18n；缺則回退原值）

@@ -81,6 +81,12 @@ export function crossModeRedirect(pathname: string): string | null {
     if (pathname === "/") return "/login";
     // /platform 屬平台 console 部署,品牌 build 不服務(deny-by-default 回登入)。
     if (matchPrefix(pathname, "/platform")) return "/login";
+    // CR-0114 收斂:師傅 KYC 註冊頁屬 tech 站(師傅身分歸平台方)。品牌 build
+    // 不服務 —— 否則表單會 POST 品牌 API,在品牌庫產生平台 console 看不到的
+    // 「幽靈師傅」。導對方 tech portal 同路徑。
+    if (matchPrefix(pathname, "/tech-register")) {
+      return PEER_PORTAL_URL ? `${PEER_PORTAL_URL}${pathname}` : "/login";
+    }
     if (TECH_APP_PREFIXES.some((p) => matchPrefix(pathname, p))) {
       return PEER_PORTAL_URL ? `${PEER_PORTAL_URL}${pathname}` : "/login";
     }

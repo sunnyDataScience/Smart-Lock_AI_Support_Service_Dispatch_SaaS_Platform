@@ -3,7 +3,11 @@
 驗證 get_technician 不再回硬補常數，而是讀真實欄位：
   - availability ← technicians.online_state（取代 _DEFAULT_AVAILABILITY）
   - level        ← technicians.level（migration 080，取代 _DEFAULT_LEVEL）
-並驗證 PATCH 可手動指派 level（業主裁決「後台手動指派」）。
+
+CR-0114 收斂：品牌端 PATCH updateTechnicianV2 已廢止（師傅主檔歸平台方,
+契約回歸守衛見 test_technicians_v2_endpoint.test_brand_update_technician_endpoint_removed）
+→ 原「PATCH 指派 level」測試改為直寫 DB 驗證 GET 讀真值;測資建立由原品牌端
+POST createTechnician（同輪廢止）改為直插 technicians 列。
 """
 
 from __future__ import annotations
@@ -22,14 +26,17 @@ from tests.conftest import DEFAULT_TENANT_ID
 
 
 async def _create_technician(client, admin_headers) -> str:
-    idem = str(uuid.uuid4())
-    res = await client.post(
-        f"/tenants/{DEFAULT_TENANT_ID}/technicians",
-        json={"display_name": f"lvl-test-{idem[:8]}", "coverage_areas": ["taipei"]},
-        headers={**admin_headers, "Idempotency-Key": idem},
+    """直插一列最小 technicians（不建 users;本檔測試只做 GET 讀取）。"""
+    import core.db as db_module
+
+    assert await db_module._ensure_conn()
+    tech_id = str(uuid.uuid4())
+    await db_module._conn.execute(
+        "INSERT INTO technicians (id, tenant_id, name, phone, capabilities, service_regions, status) "
+        "VALUES (%s::uuid, %s::uuid, %s, '0900000000', '[]'::jsonb, '[\"taipei\"]'::jsonb, 'active')",
+        (tech_id, DEFAULT_TENANT_ID, f"lvl-test-{tech_id[:8]}"),
     )
-    assert res.status_code == 201, res.text
-    return res.json()["data"]["id"]
+    return tech_id
 
 
 async def _cleanup_technician(tech_id: str) -> None:
@@ -37,15 +44,8 @@ async def _cleanup_technician(tech_id: str) -> None:
 
     if not await db_module._ensure_conn():
         return
-    cur = await db_module._conn.execute(
-        "SELECT user_id FROM technicians WHERE id = %s::uuid", (tech_id,))
-    row = await cur.fetchone()
-    await db_module._conn.execute(
-        "DELETE FROM saas.technician_lifecycle_event WHERE technician_id = %s::uuid", (tech_id,))
     await db_module._conn.execute(
         "DELETE FROM technicians WHERE id = %s::uuid", (tech_id,))
-    if row and row[0]:
-        await db_module._conn.execute("DELETE FROM users WHERE id = %s::uuid", (row[0],))
 
 
 @pytest.mark.asyncio
@@ -83,36 +83,16 @@ async def test_availability_reads_real_online_state(client, admin_headers):
 
 @pytest.mark.asyncio
 @pytest.mark.component
-async def test_patch_assigns_level(client, admin_headers):
-    """PATCH level='A' → GET 回 'A'（手動指派落庫）。"""
+async def test_level_reads_real_column(client, admin_headers):
+    """改 DB level='A' → GET 回 'A'（讀 technicians.level 真值,非硬補常數）。"""
+    import core.db as db_module
+
     tech_id = await _create_technician(client, admin_headers)
     try:
-        patch = await client.patch(
-            f"/tenants/{DEFAULT_TENANT_ID}/technicians/{tech_id}",
-            json={"level": "A"},
-            headers=admin_headers,
-        )
-        assert patch.status_code == 200, patch.text
-        assert patch.json()["data"]["level"] == "A"
-
+        await db_module._conn.execute(
+            "UPDATE technicians SET level='A' WHERE id=%s::uuid", (tech_id,))
         res = await client.get(
             f"/tenants/{DEFAULT_TENANT_ID}/technicians/{tech_id}", headers=admin_headers)
         assert res.json()["data"]["level"] == "A"
-    finally:
-        await _cleanup_technician(tech_id)
-
-
-@pytest.mark.asyncio
-@pytest.mark.component
-async def test_patch_invalid_level_422(client, admin_headers):
-    """PATCH level='Z'（非 S/A/B/C）→ 422（TechnicianLevel enum 守門）。"""
-    tech_id = await _create_technician(client, admin_headers)
-    try:
-        patch = await client.patch(
-            f"/tenants/{DEFAULT_TENANT_ID}/technicians/{tech_id}",
-            json={"level": "Z"},
-            headers=admin_headers,
-        )
-        assert patch.status_code == 422, patch.text
     finally:
         await _cleanup_technician(tech_id)

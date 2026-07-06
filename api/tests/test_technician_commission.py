@@ -27,18 +27,18 @@ OTHER_TENANT_ID = "00000000-0000-0000-0000-000000000099"
 
 
 async def _create_technician(client, admin_headers, level: str = "B") -> str:
-    idem = str(uuid.uuid4())
-    res = await client.post(
-        f"/tenants/{DEFAULT_TENANT_ID}/technicians",
-        json={"display_name": f"comm-test-{idem[:8]}", "coverage_areas": ["taipei"]},
-        headers={**admin_headers, "Idempotency-Key": idem},
-    )
-    assert res.status_code == 201, res.text
-    tech_id = res.json()["data"]["id"]
-    await client.patch(
-        f"/tenants/{DEFAULT_TENANT_ID}/technicians/{tech_id}",
-        json={"level": level},
-        headers=admin_headers,
+    """直插一列 technicians 測資（含 level）。
+
+    CR-0114 收斂:品牌端 POST createTechnician / PATCH level 已廢止（師傅身分
+    歸平台方）→ 測資建立改直插 DB,不再經品牌 API。"""
+    import core.db as db_module
+
+    assert await db_module._ensure_conn()
+    tech_id = str(uuid.uuid4())
+    await db_module._conn.execute(
+        "INSERT INTO technicians (id, tenant_id, name, phone, capabilities, service_regions, status, level) "
+        "VALUES (%s::uuid, %s::uuid, %s, '0900000000', '[]'::jsonb, '[\"taipei\"]'::jsonb, 'active', %s)",
+        (tech_id, DEFAULT_TENANT_ID, f"comm-test-{tech_id[:8]}", level),
     )
     return tech_id
 

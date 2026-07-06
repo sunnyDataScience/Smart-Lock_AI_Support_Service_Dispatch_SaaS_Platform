@@ -170,31 +170,6 @@
     "success": "申請已送出,待品牌管理員審核並指派角色後即可登入。"
   },
   "register": {
-    "title": "註冊帳號",
-    "subtitle": "師傅（接案）或廠商（發案）皆可申請，待管理員審核",
-    "tabTechnician": "師傅（接案）",
-    "tabVendor": "廠商 / 品牌商（發案）",
-    "vendorType": "類型",
-    "vtBrand": "品牌商",
-    "vtLocksmith": "鎖店",
-    "vtDistributor": "經銷商",
-    "name": "姓名",
-    "contactName": "聯絡人姓名",
-    "companyName": "公司名稱",
-    "taxId": "統一編號",
-    "taxIdHint": "8 碼數字，用於開立發票與對帳",
-    "phone": "手機",
-    "email": "Email",
-    "password": "密碼（至少 8 碼）",
-    "serviceRegions": "服務地區",
-    "serviceRegionsHint": "逗號分隔，例：台北市、新北市（用於工單派遣媒合）",
-    "capabilities": "可服務品牌（選填）",
-    "capabilitiesHint": "逗號分隔，例：Yale、Dormakaba、Kaadas",
-    "address": "地址",
-    "submit": "送出註冊",
-    "submitting": "送出中…",
-    "successPending": "註冊成功！您的帳號待管理員審核通過後即可登入。",
-    "haveAccount": "已有帳號？",
     "toLogin": "前往登入"
   },
   "vendorLogin": {
@@ -500,7 +475,6 @@
       "loadingBadge": "載入中",
       "techCount": "{count} 位技師",
       "techCountMore": "{count}+ 位技師",
-      "addTechnician": "新增技師",
       "filters": {
         "status": "狀態",
         "brandSpecialty": "專長品牌",
@@ -511,9 +485,7 @@
       "searchPlaceholder": "搜尋功能即將推出",
       "loadFailed": "載入技師失敗：{error}",
       "loadingMore": "載入中…",
-      "loadMore": "載入更多",
-      "approveSuccess": "已核准技師 {name}，現可派工",
-      "approveFailed": "核准失敗"
+      "loadMore": "載入更多"
     },
     "workOrderDetail": {
       "breadcrumb": "首頁 > 工單管理 > 工單列表 > {id}",
@@ -3347,8 +3319,6 @@
           "on_leave": "休假中",
           "circuit_breaker_open": "暫停派工"
         },
-        "approve": "核准",
-        "approving": "核准中…",
         "onboardStatus": {
           "pending_approval": "待核准",
           "active": "在職",

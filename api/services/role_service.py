@@ -110,7 +110,8 @@ _RESOURCES = [
 _MATRIX: dict[str, dict[str, dict]] = {
     "admin": {
         "work_orders":     _perm(True, True, True, approve=True),
-        "technicians":     _perm(True, True, True, approve=True),
+        # CR-0114 裁決 1:師傅身分/生命週期歸平台方,品牌 admin 對 technicians 唯讀
+        "technicians":     _perm(True, False, False),
         "customers":       _perm(True, True, True, approve=True),
         "accounting":      _perm(True, True, True, approve=True),
         "invoices":        _perm(True, True, True, approve=True),
@@ -188,7 +189,8 @@ _MATRIX: dict[str, dict[str, dict]] = {
     "supervisor": {
         # 主管（治理層）：全域可看 + 業務資源核准；角色/系統設定唯讀（歸中央管理員）
         "work_orders":     _perm(True, True, False, approve=True),
-        "technicians":     _perm(True, True, False, approve=True),
+        # CR-0114 裁決 1:師傅身分/生命週期歸平台方,品牌端唯讀
+        "technicians":     _perm(True, False, False),
         "customers":       _perm(True, True, False),
         "accounting":      _perm(True, True, False, approve=True),
         "invoices":        _perm(True, True, False, approve=True),

@@ -1,15 +1,12 @@
 """CR-0104 技能認證矩陣（technician_certification）端點測試。
 
-涵蓋：
-  C-1  POST 新增認證 → 201 + status computed
-  C-2  GET 列表 → 含新增筆
-  C-3  PATCH 編輯 → 欄位更新
-  C-4  DELETE 刪除 → 列表清空
-  C-5  狀態計算：過期 / 即將到期 / 有效 / 無到期
-  C-6  cross-tenant POST → 403
-  C-7  對不存在技師新增 → 404
+CR-0114 收斂：認證屬師傅身分域資質，歸平台方職權 —— 品牌端寫端點
+（POST/PATCH/DELETE）已廢止,只留 GET 唯讀。涵蓋：
+  C-1  GET 列表 → 含直插測資 + status computed（過期/即將到期/有效/無到期）
+  C-2  品牌端 POST/PATCH/DELETE → 405（契約回歸守衛）
+  C-3  cross-tenant GET → 403
 
-每個 component 測試自建技師 + 清理（避免污染 dev DB；create_technician 會一併建 user）。
+測資由直插 DB 建立（原品牌端 POST 建立路徑已廢止）。
 """
 
 from __future__ import annotations
@@ -30,15 +27,31 @@ from tests.conftest import DEFAULT_TENANT_ID
 OTHER_TENANT_ID = "00000000-0000-0000-0000-000000000099"
 
 
-async def _create_technician(client, admin_headers) -> str:
-    idem = str(uuid.uuid4())
-    res = await client.post(
-        f"/tenants/{DEFAULT_TENANT_ID}/technicians",
-        json={"display_name": f"cert-test-{idem[:8]}", "coverage_areas": ["taipei"]},
-        headers={**admin_headers, "Idempotency-Key": idem},
+async def _create_technician() -> str:
+    """直插一列最小 technicians 測資。"""
+    import core.db as db_module
+
+    assert await db_module._ensure_conn()
+    tech_id = str(uuid.uuid4())
+    await db_module._conn.execute(
+        "INSERT INTO technicians (id, tenant_id, name, phone, capabilities, service_regions, status) "
+        "VALUES (%s::uuid, %s::uuid, %s, '0900000000', '[]'::jsonb, '[\"taipei\"]'::jsonb, 'active')",
+        (tech_id, DEFAULT_TENANT_ID, f"cert-test-{tech_id[:8]}"),
     )
-    assert res.status_code == 201, res.text
-    return res.json()["data"]["id"]
+    return tech_id
+
+
+async def _insert_cert(tech_id: str, cert_name: str, expires_at: str | None) -> str:
+    import core.db as db_module
+
+    cert_id = str(uuid.uuid4())
+    await db_module._conn.execute(
+        "INSERT INTO technician_certification "
+        "  (id, tenant_id, technician_id, cert_name, brand, obtained_at, expires_at) "
+        "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'Yale', '2025-01-01', %s)",
+        (cert_id, DEFAULT_TENANT_ID, tech_id, cert_name, expires_at),
+    )
+    return cert_id
 
 
 async def _cleanup_technician(tech_id: str) -> None:
@@ -46,17 +59,10 @@ async def _cleanup_technician(tech_id: str) -> None:
 
     if not await db_module._ensure_conn():
         return
-    cur = await db_module._conn.execute(
-        "SELECT user_id FROM technicians WHERE id = %s::uuid", (tech_id,))
-    row = await cur.fetchone()
     await db_module._conn.execute(
         "DELETE FROM technician_certification WHERE technician_id = %s::uuid", (tech_id,))
     await db_module._conn.execute(
-        "DELETE FROM saas.technician_lifecycle_event WHERE technician_id = %s::uuid", (tech_id,))
-    await db_module._conn.execute(
         "DELETE FROM technicians WHERE id = %s::uuid", (tech_id,))
-    if row and row[0]:
-        await db_module._conn.execute("DELETE FROM users WHERE id = %s::uuid", (row[0],))
 
 
 def _cert_path(tech_id: str, cert_id: str | None = None) -> str:
@@ -66,69 +72,58 @@ def _cert_path(tech_id: str, cert_id: str | None = None) -> str:
 
 @pytest.mark.asyncio
 @pytest.mark.component
-async def test_certification_crud_lifecycle(client, admin_headers):
-    """C-1~C-4：建立 → 列表 → 編輯 → 刪除 全流程。"""
-    tech_id = await _create_technician(client, admin_headers)
+async def test_certification_list_and_status_computation(client, admin_headers):
+    """C-1：GET 列表含直插測資,status 由 expires_at vs 今日 computed。"""
+    tech_id = await _create_technician()
+    today = date.today()
+    cases = [
+        ((today - timedelta(days=10)).isoformat(), "expired"),        # 過期
+        ((today + timedelta(days=15)).isoformat(), "expiring_soon"),  # 30 天內
+        ((today + timedelta(days=365)).isoformat(), "valid"),         # 遠期
+        (None, "valid"),                                              # 無到期
+    ]
     try:
-        # C-1 建立
-        res = await client.post(
-            _cert_path(tech_id),
-            json={"cert_name": "電子鎖安裝認證", "brand": "Yale", "obtained_at": "2025-01-01"},
-            headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
-        )
-        assert res.status_code == 201, res.text
-        cert = res.json()["data"]
-        cert_id = cert["id"]
-        assert cert["cert_name"] == "電子鎖安裝認證"
-        assert cert["brand"] == "Yale"
-        assert cert["status"] == "valid"  # 無到期日 → valid
+        expected_by_name: dict[str, str] = {}
+        for expires_at, expected in cases:
+            name = f"認證-{expected}-{str(uuid.uuid4())[:6]}"
+            await _insert_cert(tech_id, name, expires_at)
+            expected_by_name[name] = expected
 
-        # C-2 列表
         lst = await client.get(_cert_path(tech_id), headers=admin_headers)
         assert lst.status_code == 200, lst.text
-        items = lst.json()["data"]
-        assert any(c["id"] == cert_id for c in items)
-
-        # C-3 編輯
-        patch = await client.patch(
-            _cert_path(tech_id, cert_id),
-            json={"cert_name": "電子鎖安裝認證（進階）", "brand": "Kaadas"},
-            headers=admin_headers,
-        )
-        assert patch.status_code == 200, patch.text
-        assert patch.json()["data"]["cert_name"] == "電子鎖安裝認證（進階）"
-        assert patch.json()["data"]["brand"] == "Kaadas"
-
-        # C-4 刪除
-        dele = await client.delete(_cert_path(tech_id, cert_id), headers=admin_headers)
-        assert dele.status_code == 200, dele.text
-        lst2 = await client.get(_cert_path(tech_id), headers=admin_headers)
-        assert all(c["id"] != cert_id for c in lst2.json()["data"])
+        items = {c["cert_name"]: c for c in lst.json()["data"]}
+        for name, expected in expected_by_name.items():
+            assert name in items, f"列表缺 {name}"
+            assert items[name]["status"] == expected, (name, expected)
+            assert items[name]["brand"] == "Yale"
     finally:
         await _cleanup_technician(tech_id)
 
 
 @pytest.mark.asyncio
 @pytest.mark.component
-async def test_certification_status_computation(client, admin_headers):
-    """C-5：狀態由 expires_at vs 今日 computed。"""
-    tech_id = await _create_technician(client, admin_headers)
-    today = date.today()
-    cases = [
-        ((today - timedelta(days=10)).isoformat(), "expired"),       # 過期
-        ((today + timedelta(days=15)).isoformat(), "expiring_soon"),  # 30 天內
-        ((today + timedelta(days=365)).isoformat(), "valid"),         # 遠期
-        (None, "valid"),                                              # 無到期
-    ]
+async def test_brand_certification_write_endpoints_removed(client, admin_headers):
+    """C-2：品牌端認證寫端點已廢止（CR-0114 裁決 1「品牌端唯讀」）→ 405。"""
+    tech_id = await _create_technician()
     try:
-        for expires_at, expected in cases:
-            res = await client.post(
-                _cert_path(tech_id),
-                json={"cert_name": f"認證-{expected}", "expires_at": expires_at},
-                headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
-            )
-            assert res.status_code == 201, res.text
-            assert res.json()["data"]["status"] == expected, (expires_at, expected)
+        post = await client.post(
+            _cert_path(tech_id),
+            json={"cert_name": "不該建得成"},
+            headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
+        )
+        assert post.status_code == 405, post.text
+
+        # PATCH/DELETE 的 /{certId} 路徑整條移除（該路徑無任何殘留方法）→ 404
+        cert_id = await _insert_cert(tech_id, "既有認證", None)
+        patch = await client.patch(
+            _cert_path(tech_id, cert_id),
+            json={"cert_name": "不該改得動"},
+            headers=admin_headers,
+        )
+        assert patch.status_code == 404, patch.text
+
+        dele = await client.delete(_cert_path(tech_id, cert_id), headers=admin_headers)
+        assert dele.status_code == 404, dele.text
     finally:
         await _cleanup_technician(tech_id)
 
@@ -136,28 +131,14 @@ async def test_certification_status_computation(client, admin_headers):
 @pytest.mark.asyncio
 @pytest.mark.component
 async def test_certification_cross_tenant_403(client, admin_headers):
-    """C-6：JWT tenant 與 path tenantId 不符 → 403。"""
-    tech_id = await _create_technician(client, admin_headers)
+    """C-3：JWT tenant 與 path tenantId 不符 → GET 403。"""
+    tech_id = await _create_technician()
     try:
-        res = await client.post(
+        res = await client.get(
             f"/tenants/{OTHER_TENANT_ID}/technicians/{tech_id}/certifications",
-            json={"cert_name": "x"},
-            headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
+            headers=admin_headers,
         )
         assert res.status_code == 403, res.text
-        assert res.json().get("error_code") == "CROSS_TENANT_WRITE"
+        assert res.json().get("error_code") == "CROSS_TENANT_READ"
     finally:
         await _cleanup_technician(tech_id)
-
-
-@pytest.mark.asyncio
-@pytest.mark.component
-async def test_certification_missing_technician_404(client, admin_headers):
-    """C-7：對不存在技師新增 → 404。"""
-    ghost = str(uuid.uuid4())
-    res = await client.post(
-        _cert_path(ghost),
-        json={"cert_name": "x"},
-        headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
-    )
-    assert res.status_code == 404, res.text
