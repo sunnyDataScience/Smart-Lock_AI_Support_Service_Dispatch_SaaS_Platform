@@ -326,7 +326,6 @@
       "workOrders": "工單列表",
       "dispatchQueue": "派工佇列監控",
       "materialRequests": "補料管理",
-      "technicians": "技師管理",
       "exceptions": "異常管理",
       "vendorApprovals": "廠商審核",
       "quoteCatalog": "報價主檔",
@@ -467,23 +466,6 @@
       "loading": "載入中…",
       "totalCount": "共 {count} 筆",
       "totalCountMore": "共 {count}+ 筆",
-      "loadingMore": "載入中…",
-      "loadMore": "載入更多"
-    },
-    "technicians": {
-      "title": "技師管理",
-      "loadingBadge": "載入中",
-      "techCount": "{count} 位技師",
-      "techCountMore": "{count}+ 位技師",
-      "filters": {
-        "status": "狀態",
-        "brandSpecialty": "專長品牌",
-        "serviceArea": "服務區域",
-        "rating": "評分 ≥ 4.0"
-      },
-      "comingSoonTitle": "即將推出",
-      "searchPlaceholder": "搜尋功能即將推出",
-      "loadFailed": "載入技師失敗：{error}",
       "loadingMore": "載入中…",
       "loadMore": "載入更多"
     },
@@ -3297,63 +3279,6 @@
         "viewDetail": "查看詳情 →",
         "hint": "點擊左側工單清單檢視詳情",
         "hintSub": "互動式地圖待 GIS 模組接入"
-      }
-    },
-    "technicians": {
-      "table": {
-        "loading": "載入中…",
-        "empty": "目前沒有技師",
-        "cols": {
-          "technician": "技師",
-          "brands": "專長品牌",
-          "region": "服務區域",
-          "rating": "評分",
-          "status": "狀態",
-          "completed": "完成工單",
-          "actions": "操作"
-        },
-        "availability": {
-          "available": "可用",
-          "busy": "外出中",
-          "offline": "離線",
-          "on_leave": "休假中",
-          "circuit_breaker_open": "暫停派工"
-        },
-        "onboardStatus": {
-          "pending_approval": "待核准",
-          "active": "在職",
-          "inactive": "停用",
-          "suspended": "停權",
-          "terminated": "終止",
-          "rejected": "已駁回"
-        }
-      },
-      "detailSidebar": {
-        "availabilityTitle": "可用狀態",
-        "availabilityOnline": "可用",
-        "lastOnline": "最後上線：5 分鐘前",
-        "autoOffline": "系統將在無回應 30 分鐘後自動切為離線",
-        "mockLabel": "示意",
-        "mockTooltip": "示意資料，待相關模組接入後顯示真實內容",
-        "activeOrdersTitle": "進行中工單",
-        "loadFailed": "載入失敗：{error}",
-        "querying": "查詢中…",
-        "noActive": "目前無進行中工單",
-        "createdAt": "建立於 {time}",
-        "commissionTitle": "佣金摘要",
-        "commissionPeriod": "2026年4月",
-        "commissionRow": {
-          "repair": "一般維修佣金 (70%)",
-          "install": "安裝佣金 (60%)",
-          "customMaterial": "客供材料佣金 (80%)",
-          "bonus": "獎金加項",
-          "penalty": "扣款減項"
-        },
-        "pending": "待結算",
-        "monthlyBadge": "月結 (5號)",
-        "nextSettle": "下次結算：2026/05/05",
-        "logTitle": "獎懲紀錄",
-        "viewLogAll": "查看完整紀錄 →"
       }
     },
     "problemCards": {

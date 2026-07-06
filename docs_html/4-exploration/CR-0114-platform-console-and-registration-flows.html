@@ -350,6 +350,34 @@ fallback「品牌庫幽靈師傅」);RBAC 矩陣 admin/supervisor 對 technician
 <strong>1611 passed</strong> 零回歸;<code>all</code>
 模式(pytest/雲端單體)不過濾零變化。GDPR 師傅 subject 與 platform console
 功能缺口記入 §8 追補待裁決。</li>
+<li>✅ 師傅管理移植 platform console done(branch
+<code>feat/platform-technician-management</code>,2026-07-06):§8
+追補「platform console 補師傅建立/編輯/認證管理」收尾,業主指示把品牌
+<code>/technicians</code> 完整移植到 <code>:3003/platform</code>
+並完全移除品牌頁。<strong>後端</strong>:復原
+<code>technician_service.create_technician</code>/<code>update_technician</code>
++ <code>technician_certification_service</code>
+三個寫函式(師傅身分域服務,治理在 route
+層),<code>platform_technician_service</code> 加
+<code>_resolve_tenant_id</code> 包一層跨品牌
+wrapper;<code>platform_technicians.py</code> 加 7
+端點(<code>platformCreateTechnician</code>/<code>getPlatformTechnician</code>/<code>updatePlatformTechnician</code>
++ 認證 GET/POST/PATCH/DELETE),全
+<code>require_platform_admin</code>。<strong>前端</strong>:新
+<code>/platform/technicians</code>(清單+搜尋+新增師傅
+modal+連詳情+保留生命週期動作)+
+<code>/platform/technicians/[id]</code>(個人資料+編輯 modal 含等級+認證
+CRUD+生命週期歷史);排班/獎懲屬品牌營運(per-brand 工單/財務)不搬。layout
+nav「師傅審核」→「師傅管理」;刪舊
+<code>/platform/technician-approvals</code>。<strong>品牌端移除</strong>:刪
+<code>/technicians</code> + <code>/technicians/[id]</code> + 側欄項 + 6
+個孤兒元件(TechniciansTable/CertificationMatrix/ProfileCard/WeeklySchedule/TechnicianDetailSidebar/PenaltyBonusLog)+
+rolePolicy 死條目 + 孤兒 i18n(parity 2666);品牌
+<code>technicians_v2</code> GET 保留(customers 頁仍讀)。測試
+<code>test_platform_technician_management.py</code> 7 項 + 更新 router
+斷言,全套 <strong>1618 passed</strong> 零回歸;tsc 0。<strong>已部署本機
+docker(platform api+web、dispatch web)</strong>。GDPR 師傅 subject
+承接仍待裁決(另案)。</li>
 </ul>
 <h2 id="9-suggested-implementation-order">§9 Suggested Implementation
 Order</h2>

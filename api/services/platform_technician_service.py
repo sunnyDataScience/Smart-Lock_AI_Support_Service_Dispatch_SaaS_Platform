@@ -17,10 +17,17 @@ import logging
 import core.db as db_module
 from core.errors import ApiError
 from services import technician_lifecycle_service as lifecycle_svc
+from services import technician_service
+from services import technician_certification_service as cert_service
 
 logger = logging.getLogger("api.platform_technician")
 
 _ACTOR_ROLE = "platform_admin"
+
+# 平台建立師傅的預設租戶(師傅身分庫全平台共用;對齊 auth_service.register_technician
+# 與舊品牌 create_technician 的 tenant 指派 —— 師傅仍掛預設租戶,派工授權另由
+# technician_brand_authorization 管理)。
+_DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 
 # 平台審核師傅清單欄位(authority technicians JOIN users 取登入態)
 _LIST_SELECT = (
@@ -161,3 +168,77 @@ async def list_lifecycle_events(
         for r in rows
     ]
     return {"data": items, "message": None}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 師傅管理（CR-0114 §8 追補「platform console 補師傅建立/編輯/認證管理」收尾）
+# 復用師傅身分域 service（technician_service / technician_certification_service），
+# 平台端解析 tenant 後轉呼叫（跨品牌）；治理在 route 層（require_platform_admin），
+# 品牌端寫端點仍不存在。
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+async def get_technician_detail(*, tech_id: str) -> dict:
+    """單筆師傅詳情（身分域完整欄位 + authorized_brands）。"""
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await technician_service.get_technician(
+        tenant_id=tenant_id, technician_id=tech_id
+    )
+
+
+async def create_technician(
+    *,
+    display_name: str,
+    coverage_areas: list[str],
+    phone: str | None = None,
+    email: str | None = None,
+    capabilities: list[str] | None = None,
+) -> tuple[dict, bool]:
+    """平台手動 onboard 新師傅（掛預設租戶,status=pending_approval,待核准）。"""
+    return await technician_service.create_technician(
+        tenant_id=_DEFAULT_TENANT_ID,
+        display_name=display_name,
+        coverage_areas=coverage_areas,
+        phone=phone,
+        email=email,
+        capabilities=capabilities,
+    )
+
+
+async def update_technician(*, tech_id: str, patch: dict) -> dict:
+    """編輯師傅主檔（name/phone/email/capabilities/regions/level）。"""
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await technician_service.update_technician(
+        tenant_id=tenant_id, technician_id=tech_id, patch=patch
+    )
+
+
+async def list_certifications(*, tech_id: str) -> list[dict]:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await cert_service.list_certifications(
+        tenant_id=tenant_id, technician_id=tech_id
+    )
+
+
+async def create_certification(
+    *, tech_id: str, cert_name: str, brand: str | None = None,
+    obtained_at: str | None = None, expires_at: str | None = None,
+) -> dict:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await cert_service.create_certification(
+        tenant_id=tenant_id, technician_id=tech_id, cert_name=cert_name,
+        brand=brand, obtained_at=obtained_at, expires_at=expires_at,
+    )
+
+
+async def update_certification(*, tech_id: str, cert_id: str, patch: dict) -> dict:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await cert_service.update_certification(
+        tenant_id=tenant_id, technician_id=tech_id, cert_id=cert_id, patch=patch
+    )
+
+
+async def delete_certification(*, tech_id: str, cert_id: str) -> None:
+    tenant_id = await _resolve_tenant_id(tech_id)
+    await cert_service.delete_certification(
+        tenant_id=tenant_id, technician_id=tech_id, cert_id=cert_id
+    )
