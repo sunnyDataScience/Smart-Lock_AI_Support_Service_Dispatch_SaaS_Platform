@@ -10,6 +10,7 @@ import Link from "next/link";
 import { ChevronLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
 
 interface Technician {
   id: string;
@@ -116,6 +117,7 @@ export default function PlatformTechnicianDetailPage({
     if (!window.confirm(`確定刪除認證「${cert.cert_name}」？`)) return;
     try {
       await api.delete(`${base}/certifications/${encodeURIComponent(cert.id)}`);
+      cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此認證的舊資料
       await load();
     } catch (e) {
       window.alert(friendlyError(e));
@@ -314,6 +316,7 @@ function EditTechnicianModal({
         coverage_areas: splitCsv(form.regions),
         level: form.level || undefined,
       });
+      cacheInvalidate("GET:"); // 編輯後變更立即反映（清 30s GET 舊快取）
       onSaved();
     } catch (e) {
       setMsg(friendlyError(e));
@@ -387,6 +390,7 @@ function CertModal({
       } else {
         await api.post(`${basePath}/certifications`, payload);
       }
+      cacheInvalidate("GET:"); // 認證新增/編輯後立即反映（清 30s GET 舊快取）
       onSaved();
     } catch (e) {
       setMsg(friendlyError(e));

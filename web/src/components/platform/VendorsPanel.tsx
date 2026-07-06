@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
 
 type VendorStatus = "pending_approval" | "active" | "suspended" | "rejected";
 
@@ -85,6 +86,7 @@ export default function VendorsPanel() {
     setBusy(vendor.id);
     try {
       await api.post(`/api/v1/platform/vendors/${vendor.id}:${action}`, body);
+      cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此廠商的舊清單
       await load();
     } catch (e) {
       window.alert(friendlyError(e));
