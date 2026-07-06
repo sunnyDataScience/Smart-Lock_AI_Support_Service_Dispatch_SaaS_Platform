@@ -39,6 +39,7 @@ export default function AccountPage() {
   const router = useRouter();
   const t = useTranslations("pages.account.profile");
   const tAvail = useTranslations("pages.account.profile.availability");
+  const tShell = useTranslations("techPortal.shell");
   const [tech, setTech] = useState<Technician | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +101,17 @@ export default function AccountPage() {
   const availLabel = tAvail(availability);
 
   return (
-    <TechShell wide>
+    <TechShell
+      wide
+      // 頁首交由 shell 滿寬渲染（修大螢幕「浮動白條」跑版;label 複用底欄「帳戶」）
+      header={
+        <div className="flex items-center px-4 py-3 md:px-6">
+          <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">
+            {tShell("bottomNav.account")}
+          </h1>
+        </div>
+      }
+    >
       {/* profile_header — 漸層背景 */}
       <div
         className="px-4 pt-6 pb-8 text-white"
