@@ -1,0 +1,378 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>LINE Webhook 事件分流機制釐清（方案 A：agent 單一入口 fan-out）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0121-line-webhook-routing.md</div>
+<div class="doc"><h1 id="cr-0121line-webhook-事件分流機制釐清">CR-0121：LINE Webhook
+事件分流機制釐清</h1>
+<blockquote>
+<p><strong>Tier</strong>: 4-exploration → Change Impact Analysis
+<strong>Mandated by</strong>:
+<code>.claude/rules/change-governance.md</code>（觸發面向：External
+integration + API contract + Architecture boundary）
+<strong>前身決策</strong>：<code>CR-0017 §HD-5</code>（雙路路由，postback→api）／<code>CR-0095</code>（quote
+postback→agent）／風險登記 <code>00_platform/P2/09 §6 R-06</code>
+<strong>原則依據</strong>：<code>ADR-005</code>（三類整合：本橋接屬「類別
+2 — 確定性接線 → HTTP」）</p>
+</blockquote>
+<hr />
+<h2 id="1-change-statement">1. Change Statement</h2>
+<p><strong>As-is</strong>：平台有兩個 LINE webhook 接收端（agent
+<code>POST /callback</code>、api
+<code>POST /api/v1/line/webhook</code>），掛在<strong>同一個 LINE
+官方帳號、共用同一組 <code>LINE_CHANNEL_SECRET</code></strong>。LINE
+規定一 channel 只能設定一個 webhook URL，實際只有 agent
+<code>/callback</code> 被掛上。api 的 <code>/line/webhook</code>（處理
+<code>r:*</code> 改約、<code>s:*</code>
+範圍變更、binding）是<strong>收不到 LINE 流量的孤兒端點</strong>；這些
+postback 實際落到 agent，被 agent 明確丟棄「走網頁 fallback」。</p>
+<p><strong>To-be（方案 A）</strong>：確立 <strong>agent
+<code>/callback</code> 為 LINE 唯一入站門</strong>，postback 按前綴
+deterministic fan-out——<code>q:*</code> 本地處理 +
+旁路寫回；<code>r:*</code>/<code>s:*</code>/binding → 旁路呼 api
+<code>/internal/*</code>（新增對應端點）。api
+<code>/api/v1/line/webhook</code> 退役（標
+<code>superseded</code>）。</p>
+<p><strong>Driver</strong>：<code>R-06</code>（分流機制未明）＋ code
+review 發現 <code>api/routers/line_webhook.py:221</code> 與
+<code>agent/lockcore/channels/line_gateway.py:360</code>
+對「誰收哪些事件」有<strong>物理上不可能同時成立</strong>的假設。這是架構缺口，非單純文件漂移。</p>
+<h2 id="2-佐證現況勘查grounded">2. 佐證（現況勘查，grounded）</h2>
+<h3 id="21-決定性證據兩端點同-channel只有-agent-被掛上">2.1
+決定性證據：兩端點同 channel、只有 agent 被掛上</h3>
+<table>
+<thead>
+<tr>
+<th>事項</th>
+<th>現況</th>
+<th>佐證</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>兩服務簽章密鑰</td>
+<td>同一組 <code>LINE_CHANNEL_SECRET</code> /
+<code>LINE_CHANNEL_ACCESS_TOKEN</code>，無第二組 channel 密鑰</td>
+<td><code>agent/.env.example:8</code>、<code>api/routers/line_webhook.py:40</code></td>
+</tr>
+<tr>
+<td>實際掛上的 URL</td>
+<td>只有 agent <code>/callback</code>（本機
+<code>ngrok http 8000</code>）</td>
+<td><code>docker-compose.dispatch.yml:23</code>、<code>agent/P2/06 §1</code></td>
+</tr>
+<tr>
+<td>互斥假設</td>
+<td>api：「message/follow 由 agent 處理，本 router 只收
+postback」；agent：「<code>s:*</code>/<code>r:*</code> 本 CR
+未接，走網頁 fallback」</td>
+<td><code>api/routers/line_webhook.py:221</code>、<code>agent/lockcore/channels/line_gateway.py:360</code></td>
+</tr>
+<tr>
+<td>反證</td>
+<td>若 URL 指 api，客戶文字訊息會進 api 卻被忽略（不轉發）→ AI
+永不回話；但 AI 會回話 → URL 必指 agent，<code>/line/webhook</code>
+對入站是孤兒</td>
+<td><code>line_webhook.py:216-223</code>（非 postback 直接略過）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="22-handover--報價流程佐證正確模式已存在且能動強化方案-a">2.2
+handover / 報價流程佐證：正確模式已存在且能動（強化方案 A）</h3>
+<p>業主回憶的「關掉 Agent 轉人工 + 報價確認」流程，經 code
+驗證<strong>全靠 agent 單一入站 + api Push 出站 +
+<code>/internal/*</code> 橋接</strong>，且能動：</p>
+<table>
+<thead>
+<tr>
+<th>流程</th>
+<th>方向</th>
+<th>實際路徑</th>
+<th>用到 api <code>/line/webhook</code>？</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>轉人工 / 交還 AI</td>
+<td>Agent 暫停</td>
+<td>agent 每輪查
+<code>/internal/conversations/handover-state</code>（<code>line_gateway.py:240</code>）；<code>resolve-handover</code>（<code>conversations_v2.py:254</code>）交還</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>人工回覆 push 回聊天室</td>
+<td>出站</td>
+<td>客服後台送訊息（<code>conversations_v2.py:208</code>）→ <strong>LINE
+Push</strong>（<code>conversation_service.py:432</code>）</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>報價卡回傳 LINE</td>
+<td>出站</td>
+<td><code>quote_engine_service.py:345</code>（CR-0095）→ LINE Push</td>
+<td>❌</td>
+</tr>
+<tr>
+<td>客戶按報價「同意 / 拒絕」</td>
+<td><strong>入站 postback</strong></td>
+<td><code>q:a</code>/<code>q:r</code> → <strong>agent
+<code>/callback</code></strong> →
+<code>_route_quote_postback_safe</code>（<code>line_gateway.py:351</code>）→
+<code>/internal/quotes/…</code></td>
+<td>❌ 走 agent，非 api webhook</td>
+</tr>
+</tbody>
+</table>
+<p><strong>洞察</strong>：報價確認（業主印象最深、確實在運作的那條）<strong>刻意繞開</strong>
+api <code>/line/webhook</code>、走 agent
+<code>/callback</code>（CR-0095）。這證明「單一入站 +
+橋接」才是實際可用的模式；改約 / 範圍（CR-0017 的 api
+webhook）是唯一沒照這模式接的，故成孤兒。方案 A
+即把它補成跟報價一樣。</p>
+<h2 id="3-affected-flow">3. Affected Flow</h2>
+<table>
+<thead>
+<tr>
+<th>Flow</th>
+<th>Action</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Flow 3（範圍變更）</td>
+<td>修復</td>
+<td><code>s:*</code> postback 補經 agent →
+<code>/internal/scope-change</code>，LINE 一鍵確認真正生效</td>
+</tr>
+<tr>
+<td>Flow 11（不在場改約）</td>
+<td>修復</td>
+<td><code>r:*</code> postback 同上</td>
+</tr>
+<tr>
+<td>CR-0013（LINE 綁定 / 查進度）</td>
+<td>修復</td>
+<td>binding postback 同上</td>
+</tr>
+<tr>
+<td>報價回覆（CR-0095，quote）</td>
+<td>不變</td>
+<td><code>q:*</code> 現況已通</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-affected-api">4. Affected API</h2>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>服務</th>
+<th>Action</th>
+<th>Breaking?</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /callback</code></td>
+<td>agent</td>
+<td>擴充 postback fan-out</td>
+<td>否（對 LINE 契約不變）</td>
+<td>新增 <code>r:*</code>/<code>s:*</code>/binding 前綴分派 →
+bridge</td>
+</tr>
+<tr>
+<td><code>POST /internal/*</code></td>
+<td>api</td>
+<td>+N</td>
+<td>否</td>
+<td>新增 reschedule / scope_change / binding 對應 internal
+端點（<code>require_internal_token</code>）</td>
+</tr>
+<tr>
+<td><code>POST /api/v1/line/webhook</code></td>
+<td>api</td>
+<td><strong>退役（superseded）</strong></td>
+<td>否（本就無 LINE 流量）</td>
+<td>保留 CAS 冪等 service 邏輯，入口改由 <code>/internal/*</code>
+觸發</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-affected-data">5. Affected Data</h2>
+<p>無 schema 變更。<code>reschedule_proposal</code> /
+<code>scope_changes</code> / line-binding 表已存在（CR-0017 / CR-0028 /
+CR-0013）。本 CR 只改<strong>事件如何抵達
+service</strong>，不改資料形狀。</p>
+<h2 id="6-affected-test">6. Affected Test</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Action</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>test_line_gateway.py</code>（agent）</td>
+<td>擴充</td>
+<td><code>r:*</code>/<code>s:*</code> postback 分派 + bridge mock</td>
+</tr>
+<tr>
+<td><code>test_cr_0017_*</code>（api）</td>
+<td>調整</td>
+<td><code>/line/webhook</code> service 入口改為內部呼叫路徑</td>
+</tr>
+<tr>
+<td>E2E（新）</td>
+<td>新增</td>
+<td>「LINE 按範圍變更同意 → service CAS 冪等生效」端到端（目前 0
+覆蓋，因到不了）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-affected-architecture">7. Affected Architecture</h2>
+<table>
+<thead>
+<tr>
+<th>Concern</th>
+<th>Action</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>模組邊界</td>
+<td>動</td>
+<td>明確定義「agent = LINE 唯一入站門」（記入 ADR-005 §3.2）</td>
+</tr>
+<tr>
+<td>新 ADR？</td>
+<td><strong>是</strong></td>
+<td><code>ADR-005</code>（三類整合原則 + 本方案 A 邊界決策）已立</td>
+</tr>
+<tr>
+<td>External integration</td>
+<td>核心</td>
+<td>LINE 單 channel 單 URL 硬約束——方案 A 在此前提下唯一自洽</td>
+</tr>
+</tbody>
+</table>
+<h2 id="8-human-decisions-requiredwhite_check_mark-已裁決-2026-07-07">8.
+Human Decisions Required（✅ 已裁決 2026-07-07）</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>問題</th>
+<th>裁決</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>採哪個方案？</td>
+<td>✅ <strong>方案 A</strong>（agent 單一入口 fan-out）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>確認全平台只有一個 LINE OA/channel？</td>
+<td>✅ 現況單一 <code>LINE_CHANNEL_SECRET</code>；<strong>實作前請 ops
+再確認生產無第二 OA</strong>（守衛檢查）</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>r:*</code>/<code>s:*</code>/binding 橋接走哪？</td>
+<td>✅ agent → api <strong>新 <code>/internal/*</code>
+端點</strong>（對齊 quote 先例，屬 ADR-005 類別 2）</td>
+</tr>
+<tr>
+<td>4</td>
+<td>quote postback 是否收斂同一路徑？</td>
+<td>✅ 全留 <strong>agent 一處 fan-out</strong>（<code>q:*</code> 現況 +
+<code>r:*</code>/<code>s:*</code>/binding 新增），消除命名空間分裂</td>
+</tr>
+<tr>
+<td>5</td>
+<td>LINE 原生改約 / 範圍按鈕是否必要？</td>
+<td>✅ <strong>必要</strong>——報價經 LINE 一鍵確認既被珍視，改約 /
+範圍同等需求（排除方案 C 退役）</td>
+</tr>
+</tbody>
+</table>
+<h2 id="9-suggested-implementation-order">9. Suggested Implementation
+Order</h2>
+<ol type="1">
+<li><strong>ADR</strong> → ✅ <code>ADR-005</code> 已立（三類整合 + 方案
+A 邊界）</li>
+<li><strong>文件（本步）</strong> → 更新
+<code>agent/P1/05</code>、<code>agent/P2/06</code>、<code>api/P1/05</code>、<code>api/P2/06</code>、<code>00_platform/P2/09</code>（R-06
+收斂）</li>
+<li><strong>api</strong> → 補 reschedule / scope_change / binding 的
+<code>/internal/*</code>
+端點（<code>require_internal_token</code>）</li>
+<li><strong>agent</strong> → <code>line_gateway</code> postback fan-out
+擴充：<code>r:*</code>/<code>s:*</code>/binding →
+bridge；移除誤導性「走網頁 fallback」註解</li>
+<li><strong>api</strong> → <code>/api/v1/line/webhook</code> 改
+internal-only 或退役；修正 <code>line_webhook.py:221</code>
+錯誤註解</li>
+<li><strong>Tests</strong> → agent postback 分派 + bridge
+mock；新增端到端</li>
+<li><strong>Traceability / CHANGELOG</strong> → 更新對應矩陣與
+<code>[Unreleased]</code></li>
+</ol>
+<h2 id="10-risks--rollback">10. Risks &amp; Rollback</h2>
+<table>
+<thead>
+<tr>
+<th>Risk</th>
+<th>可能性</th>
+<th>影響</th>
+<th>緩解</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>agent 成單點：掛掉→所有 LINE（含派工 postback）中斷</td>
+<td>中</td>
+<td>高</td>
+<td>fail-soft（bridge 失敗只 log 不阻斷）；agent 部署
+min-instances=1</td>
+</tr>
+<tr>
+<td>誤判單 channel，生產實有兩個 OA</td>
+<td>低</td>
+<td>高</td>
+<td>§8-#2 ops 確認 + 啟動守衛檢查</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Rollback</strong>：postback fan-out
+以旗標包住，出事關旗即回現況（quote 仍通、其餘回 web fallback）。無
+schema 變更，天然可逆。</p>
+<h2 id="11-out-of-scope">11. Out of Scope</h2>
+<ul>
+<li>LINE Pay 金流 postback（CR-0011）</li>
+<li>rate limiting / webhook debounce（R-02、安全 checklist C-11）</li>
+<li>雙向 NLU 對話語意（lockcore CS skill 範疇）</li>
+</ul>
+<hr />
+<p><em>CR-0121 — 2026-07-07 | 方案 A 已裁決，docs 先行，code 依 §9
+後續實作</em></p>
+</div></div></body></html>
