@@ -257,7 +257,7 @@ export default function MyOrderDetailPage() {
         <button
           type="button"
           onClick={() => router.push("/my-orders")}
-          className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
           aria-label={tCommon("back")}
         >
           <ArrowLeft className="h-5 w-5" />
@@ -279,7 +279,7 @@ export default function MyOrderDetailPage() {
       </div>
 
       {error && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {error}
         </div>
       )}
@@ -309,7 +309,7 @@ export default function MyOrderDetailPage() {
       ) : (
         <div className="flex flex-col gap-4 px-4 py-4 pb-24">
           {/* address_section */}
-          <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+          <section className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
               {t("address")}
             </span>
@@ -331,12 +331,12 @@ export default function MyOrderDetailPage() {
           </section>
 
           {/* device_section */}
-          <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+          <section className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
               {t("device")}
             </span>
             <div className="flex items-center gap-2">
-              <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px] text-[13px] font-medium text-[var(--text-primary)]">
+              <span className="rounded-full bg-[var(--surface-strong)] px-2 py-[2px] text-[13px] font-medium text-[var(--text-primary)]">
                 {wo.brand}
               </span>
               <span className="text-[15px] font-semibold text-[var(--text-primary)]">
@@ -346,7 +346,7 @@ export default function MyOrderDetailPage() {
           </section>
 
           {/* service_info_section */}
-          <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+          <section className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
               {t("service")}
             </span>
@@ -393,7 +393,7 @@ export default function MyOrderDetailPage() {
           </section>
 
           {/* customer_section */}
-          <section className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+          <section className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
               {t("customer")}
             </span>
@@ -411,7 +411,7 @@ export default function MyOrderDetailPage() {
             {wo.customer_phone && (
               <a
                 href={`tel:${wo.customer_phone}`}
-                className="mt-2 inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[var(--primary-hover)]"
+                className="mt-2 inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[var(--primary-hover)]"
               >
                 <Phone className="h-4 w-4" />
                 {t("callCustomer")}（{wo.customer_phone}）
@@ -451,7 +451,7 @@ export default function MyOrderDetailPage() {
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
-                className="h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[var(--primary-hover)]"
+                className="h-12 rounded-full bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[var(--primary-hover)]"
               >
                 {t("completeCta")}
               </button>
@@ -499,7 +499,7 @@ export default function MyOrderDetailPage() {
           )}
 
           {showForm && (
-            <section className="flex flex-col gap-3 rounded-xl border border-[var(--primary)] bg-[var(--bg-surface)] p-4 shadow-sm">
+            <section className="flex flex-col gap-3 rounded-xl border border-[var(--primary)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
               <span className="text-[14px] font-semibold text-[var(--text-primary)]">
                 {tForm("title")}
               </span>
@@ -513,7 +513,7 @@ export default function MyOrderDetailPage() {
                   onChange={(e) => setSummary(e.target.value)}
                   rows={4}
                   placeholder={tForm("summaryPlaceholder")}
-                  className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+                  className="rounded-xl border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
                 />
               </label>
 
@@ -560,7 +560,7 @@ export default function MyOrderDetailPage() {
                     {completionPhotos.map((p) => (
                       <span
                         key={p.id}
-                        className="rounded bg-[var(--surface-strong)] px-2 py-[2px]"
+                        className="rounded-full bg-[var(--surface-strong)] px-2 py-[2px]"
                       >
                         [{p.section}] {p.filename.slice(0, 16)}
                       </span>
@@ -670,7 +670,7 @@ export default function MyOrderDetailPage() {
                     custSig.length <= 100 ||
                     techSig.length <= 100
                   }
-                  className="h-11 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
+                  className="h-11 flex-[2] rounded-full bg-[var(--primary)] text-[14px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
                 >
                   {submitting ? tForm("submitting") : tForm("submit")}
                 </button>

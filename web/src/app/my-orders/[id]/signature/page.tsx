@@ -83,7 +83,7 @@ export default function SignaturePage() {
       )}
 
       {error && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {error}
         </div>
       )}
@@ -92,11 +92,11 @@ export default function SignaturePage() {
         {t("instruction")}
       </p>
 
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <SignaturePad label={t("techLabel")} onChange={setTechSig} />
       </section>
 
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <SignaturePad label={t("customerLabel")} onChange={setCustSig} />
       </section>
 
@@ -116,7 +116,7 @@ export default function SignaturePage() {
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
+          className="h-12 flex-[2] rounded-full bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
           {submitting ? t("submitting") : t("submit")}
         </button>

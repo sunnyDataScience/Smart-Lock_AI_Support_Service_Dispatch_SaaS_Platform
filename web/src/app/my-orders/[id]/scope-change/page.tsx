@@ -103,7 +103,7 @@ export default function ScopeChangePage() {
         </div>
       )}
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("reasonLabel")}
         </span>
@@ -112,14 +112,14 @@ export default function ScopeChangePage() {
           onChange={(e) => setReason(e.target.value)}
           rows={3}
           placeholder={t("reasonPlaceholder")}
-          className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+          className="rounded-xl border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
         />
         <span className="text-[10px] text-[var(--text-disabled)]">
           {t("reasonHint", { count: reason.trim().length })}
         </span>
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("itemsLabel")}
@@ -127,7 +127,7 @@ export default function ScopeChangePage() {
           <button
             type="button"
             onClick={() => setItems((prev) => [...prev, newItem()])}
-            className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--primary)] hover:bg-[var(--primary-light)]"
+            className="flex items-center gap-1 rounded-full border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--primary)] hover:bg-[var(--primary-light)]"
           >
             <Plus className="h-3 w-3" />
             {t("addItem")}
@@ -145,13 +145,13 @@ export default function ScopeChangePage() {
                 value={it.name}
                 onChange={(e) => updateItem(idx, { name: e.target.value })}
                 placeholder={t("itemNamePlaceholder")}
-                className="flex-1 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px]"
+                className="flex-1 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px]"
               />
               {items.length > 1 && (
                 <button
                   type="button"
                   onClick={() => removeItem(idx)}
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-red-600 hover:bg-red-50"
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -168,7 +168,7 @@ export default function ScopeChangePage() {
                     updateItem(idx, { unit_price: e.target.value })
                   }
                   placeholder={t("unitPricePlaceholder")}
-                  className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1"
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1"
                 />
               </label>
               <label className="flex w-24 items-center gap-1">
@@ -180,7 +180,7 @@ export default function ScopeChangePage() {
                   onChange={(e) =>
                     updateItem(idx, { quantity: parseInt(e.target.value) || 0 })
                   }
-                  className="w-full rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1"
+                  className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1"
                 />
               </label>
             </div>
@@ -205,7 +205,7 @@ export default function ScopeChangePage() {
       </section>
 
       {submitError && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {submitError}
         </div>
       )}
@@ -222,7 +222,7 @@ export default function ScopeChangePage() {
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
+          className="h-12 flex-[2] rounded-full bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
           {submitting ? t("submitting") : t("submit")}
         </button>

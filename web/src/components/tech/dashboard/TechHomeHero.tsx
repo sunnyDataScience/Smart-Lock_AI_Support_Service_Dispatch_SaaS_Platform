@@ -55,11 +55,12 @@ export default function TechHomeHero({
   }, [locale]);
 
   return (
-    <section className="relative overflow-hidden rounded-2xl bg-[linear-gradient(135deg,#0F172A_0%,#1E3A8A_78%,#1D4ED8_100%)] p-5 text-white shadow-md md:p-6">
+    // soft UI 改版(2026-07-07):hero 漸層由海軍藍換 teal 系,對齊 .tech-soft 主色
+    <section className="relative overflow-hidden rounded-3xl bg-[linear-gradient(135deg,#134E4A_0%,#0F766E_72%,#14B8A6_100%)] p-5 text-white shadow-[var(--tech-shadow,0_4px_6px_rgba(0,0,0,0.1))] md:p-6">
       {/* 裝飾光暈（單一、低調） */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#3B82F6] opacity-20 blur-3xl"
+        className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#2DD4BF] opacity-20 blur-3xl"
       />
 
       <div className="relative flex flex-col gap-5 md:flex-row md:items-end md:justify-between">

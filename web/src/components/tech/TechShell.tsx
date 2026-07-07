@@ -30,7 +30,7 @@ interface Props {
 export default function TechShell({ title, header, wide = false, children }: Props) {
   const columnWidth = wide ? "md:max-w-[1280px]" : "md:max-w-[680px]";
   return (
-    <div className="flex min-h-screen w-full bg-[var(--bg-page)]">
+    <div className="tech-soft flex min-h-screen w-full bg-[var(--bg-page)]">
       <TechSidebar />
       <div className="flex min-h-screen w-full min-w-0 flex-1 flex-col">
         {header ? (
@@ -46,7 +46,7 @@ export default function TechShell({ title, header, wide = false, children }: Pro
         <main className="flex-1 overflow-y-auto">
           <div
             className={`mx-auto w-full ${
-              wide ? columnWidth : `min-h-full bg-[var(--bg-surface)] shadow-sm ${columnWidth}`
+              wide ? columnWidth : `min-h-full bg-[var(--bg-surface)] shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))] ${columnWidth}`
             }`}
           >
             {children}
