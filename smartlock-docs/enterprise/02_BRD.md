@@ -36,7 +36,7 @@ upstream:
 
 ### 2.1 產業機會
 
-亞洲藍領服務業（智慧鎖售後為首發垂直）的售後客服與派工高度依賴老師傅的隱性知識：LINE 訊息湧入後靠人工逐條詢問品牌、型號、地址，紙本記錄、Excel 對帳、電話催收。新客服要 3 個月才能上手；師傅、客戶、品牌方每月因帳務爭議耗損信任。本平台以「LINE 進線 → AI 診斷 → 結構化問題卡 → 派工 → 存證 → 結算」把整條售後鏈標準化、可稽核、可分潤。
+亞洲藍領服務業（智慧鎖售後為首發垂直）的售後客服與派工高度依賴老師傅的隱性知識：LINE 訊息湧入後靠人工逐條詢問品牌、型號、地址，紙本記錄、Excel 對帳、電話催收。新客服要 3 個月才能上手；師傅、客戶、品牌方每月因帳務爭議耗損信任。本平台以「LINE 進線 → AI 診斷 → 結構化問題卡 → 報價確認 → 派工 → 存證 → 結算」把整條售後鏈標準化、可稽核、可分潤。
 
 本產品導入後的量化價值：
 
@@ -116,7 +116,7 @@ upstream:
 
 ## 5. 業務流程（全鏈路）
 
-全鏈路：**客服（agent 對話 → 問題卡）→ 派工（工單建立 / 指派）→ 維修（到府 / 報價 / 施工 / 存證）→ 結算（收款 / 對帳 / 佣金）**，外加知識精煉閉環回饋客服。
+全鏈路：**客服（agent 對話 → 問題卡）→ 報價（線上估價 → 客戶確認）→ 派工（工單開立 / 指派技師）→ 維修（到府 / 現場報價複核 / 施工 / 存證）→ 結算（收款 / 對帳 / 佣金）**，外加知識精煉閉環回饋客服。
 
 ### 5.1 客服受理（LINE 進線 → AI 診斷 → 問題卡）
 
@@ -126,18 +126,19 @@ upstream:
 4. 需真人 / 需派工 → AI 呼叫 `transfer_to_human`（AI 進入後台系統的**唯一入口**），附 escalation 原因與脈絡快照。
 5. 系統建立 AI 草擬問題卡（`incomplete`）→ 派工小編補齊品牌 / 型號 / 地址等欄位並確認（completeness gate）。
 
-### 5.2 派工（問題卡 → 工單 → 指派技師）
+### 5.2 報價與派工（問題卡 → 線上報價 → 客戶確認 → 工單 → 指派技師）
 
-1. 問題卡確認後，派工小編 1-click 開立工單（公開單號）；**AI 永不直接建立工單**。
-2. 工單狀態機由 Vertical Pack 的 **flow DSL** 定義（狀態值域非寫死 enum）。locksmith pack 的工單生命週期：
-   `created → dispatched → on_site → quoted → approved → in_progress → completed → settled`（任一非終態可 `cancelled`）。
-3. 指派技師：經技師共享池（technician-platform）媒合，僅 `active` 狀態技師可被派工；接單 SLA 一般 10 分 / 急件 5 分，30 分無人接單自動擴大範圍並通知派工小編。
-4. 派工前置硬閘：工單須存在客戶已確認之報價（急件走事後補審例外，§6.4）。
+1. 問題卡確認後，派工小編先建立**線上估價報價**（估價 → 內部核可）→ 送客戶（LINE Flex / LIFF）→ **客戶確認**（報價規則見 §6.3）。
+2. 報價經客戶確認後，派工小編 1-click 開立工單（公開單號）；**AI 永不直接建立工單**；急件 4 類 carve-out 可跳過事前報價直接開單派工，事後補審（§6.4）。
+3. 工單狀態機由 Vertical Pack 的 **flow DSL** 定義（狀態值域非寫死 enum）。locksmith pack 的工單生命週期主路徑：
+   `created → dispatched → on_site → in_progress → completed → settled`（任一非終態可 `cancelled`）；到府後線上報價與現場不符（估價誤差 / 加價 / 改項）時走**現場報價修正輪** `on_site → quoted → approved → in_progress`（quote v+1 客戶再確認，§5.3）。
+4. 派工前置硬閘：工單成立即綁定客戶已確認之報價（BR-WO-01），**未經客戶確認報價之案件不得派工**（急件事後補審例外，§6.4）。
+5. 指派技師：經技師共享池（technician-platform）媒合，僅 `active` 狀態技師可被派工；接單 SLA 一般 10 分 / 急件 5 分，30 分無人接單自動擴大範圍並通知派工小編。
 
-### 5.3 現場維修（到府 → 同意書 → 報價核准 → 施工 → 存證）
+### 5.3 現場維修（到府 → 同意書 → 現場報價複核 → 施工 → 存證）
 
 1. 技師到場（到場事件存證）→ 到府同意書 → 門檢。
-2. 現場發現需加價 / 改項 → 依金額三段式處理（§6.5）；501 元以上**暫停施工**改走報價新版確認。
+2. **現場報價複核**：線上報價與現場不符（估價報錯 / 需加價 / 改項）→ 技師發起報價修正，系統建 quote v+1 → 客戶再確認一輪（LIFF；fallback QR / 紙本，BR-ONSITE-04）；加價金額依三段式治理（§6.5），501 元以上**暫停施工**待客戶確認。無異動則直接施工。
 3. 完工硬閘三件：施工照片 ≥ 3 張 + 客戶簽名 + 安裝序號（主鎖與高價零件強制序號）。
 4. 客戶確認結案並評分。
 
@@ -179,8 +180,7 @@ sequenceDiagram
         SYS->>CS: 建立 AI 草擬問題卡
     end
     CS->>SYS: 補齊欄位並確認（completeness gate）
-    CS->>SYS: 開立工單（公開單號）
-    CS->>QE: 建立報價並送出
+    CS->>QE: 建立線上估價報價並送出
     QE->>SYS: 寫入 LINE 外送佇列（quote_proposal）
     loop 背景輪詢（每 10 秒）
         SYS->>C: 推送報價 Flex
@@ -188,9 +188,16 @@ sequenceDiagram
     C->>SYS: postback 同意（q:a）
     SYS->>QE: 驗擁有權 → 報價轉客戶已確認
     QE->>CS: 同步「客戶已同意」至對話管理
-    CS->>SYS: 派工（檢查已確認報價＋active 技師）
+    CS->>SYS: 1-click 開立工單（綁定已確認報價，公開單號）
+    CS->>SYS: 派工（檢查 active 技師）
     SYS->>T: 通知新工單
-    T->>SYS: 接單 → 到場 → 門檢 → 完工（硬閘）
+    T->>SYS: 接單 → 到場 → 門檢
+    opt 現場與線上報價不符（估價誤差 / 加價 / 改項）
+        T->>QE: 發起現場報價修正（quote v+1）
+        QE->>C: 推送修正報價（LIFF；fallback QR / 紙本）
+        C->>SYS: 確認 v+1 後復工
+    end
+    T->>SYS: 施工 → 完工（硬閘）
     SYS->>C: 通知工單已完工待確認
     C->>SYS: 確認結案並評分
 ```
@@ -204,7 +211,7 @@ sequenceDiagram
 | **Conversation** | active → resolving → closed；resolving → escalated（AI 失敗 / 急件）；48h 無回應 → auto_closed；7 天內客戶再訊 → reopen | auto_closed 前置：resolving 且 48h 無客戶訊息 |
 | **ProblemCard** | incomplete → draft → confirmed → ai_responded → resolved | confirmed 前置：completeness ≥ 0.85 且 device 已識別；resolved（AI 路徑）前置：客戶明確答覆「已釐清」；連續 3 次未釐清 → 升級真人 |
 | **Quote** | draft → internal_approved → customer_sent → customer_confirmed；customer_sent → rejected / expired（48h）→ 可 re-version v+1；急件另有 retrospective_audit_only → customer_confirmed | customer_sent 前置：AI 路徑僅 range、final 需人核；保固 / 建案案件 AI 永禁觸發送出；每筆報價綁不可變定價快照（snapshot_hash）|
-| **WorkOrder**（flow DSL）| created → dispatched → on_site → quoted → approved → in_progress → completed → settled；任一非終態 → cancelled | dispatched guard：role:dispatcher；approved 前置：Quote=customer_confirmed（急件 carve-out 見 §6.4）；completed 硬閘：地址非空 + 報價已確認（或急件事後補審完成）+ 存證三件 |
+| **WorkOrder**（flow DSL）| 主路徑 created → dispatched → on_site → in_progress → completed → settled；現場報價修正輪 on_site → quoted → approved → in_progress；任一非終態 → cancelled | created 前置：Quote=customer_confirmed 或急件類別非空（BR-WO-01「線上報價 → 客人確認 → 才開單派工」）；dispatched guard：role:dispatcher；quoted＝現場複核不符發起 v+1、approved＝客戶確認 v+1；completed 硬閘：地址非空 + 報價已確認（或急件事後補審完成）+ 存證三件 |
 | **Onsite** | arrived → working → completed；working → scope_change（≤500 三件套後回 working）；working → pending_quote_v2（≥501 暫停施工）→ 客戶確認回 working；拒絕 → customer_disagreed_partial（按原報價完工）| pending_quote_v2 期間師傅不可再動料件明細 |
 | **Payment / Refund** | deposit_required → paid → pending（對帳）→ 入帳；失敗 / 客戶退款 → refund_requested → 依責任歸屬 5×3 分層裁決 | 更正一律 reversal entry，帳本 append-only |
 | **Evidence** | fresh → active → pending_purge（retention 到期 T0：銷毀金鑰 + 軟刪）→ purged（T+30 天硬刪）；任何時點可 legal_hold | legal_hold 永久且不可逆，解除須 ADR 變更 |
@@ -254,7 +261,7 @@ sequenceDiagram
 
 ### 6.4 工單規則（BR-WO）
 
-- **BR-WO-01**（報價硬綁定）：AI 永不直接轉換工單；工單成立必經派工小編 1-click 確認，且前置為 **Quote = customer_confirmed 或 急件類別非空**。業務語義：「報價 → 客人確認 → 才立工單」。
+- **BR-WO-01**（報價先行硬綁定）：AI 永不直接轉換工單；工單成立必經派工小編 1-click 確認，且前置為 **Quote = customer_confirmed 或 急件類別非空**。業務語義：「**線上估價報價 → 客人確認 → 才開單派工**」；到府後線上報價與現場不符時走現場報價修正輪（quote v+1 客戶再確認，BR-ONSITE-01）。
 - **BR-WO-02**（結案雙必驗）：結案 422 硬閘 = 地址非空 **且**（報價客戶已確認 **或** 急件事後補審完成）。
 - **BR-WO-03**（取消費）：取消費 5 階段由系統自判，全階段派工小編可覆寫，一律留 audit log。
 - **BR-WO-04**（急件事後補審）：急件 4 類允許跳過報價直接開單施工，但 onsite 結束後 **4 小時內**必須補送 retrospective 報價供客戶 LIFF 事後確認 / 紙本簽名；逾時觸發 audit alert 升級主管；連續 ≥ 3 次逾時觸發 ChangeRequest 進入主管佇列。
@@ -264,7 +271,7 @@ sequenceDiagram
 - **BR-DISP-01**：接單 SLA 一般 10 分鐘 / 急件 5 分鐘，支援 per-brand override；達成率目標 ≥ 95%。
 - **BR-DISP-02**：30 分鐘無人接單 → 自動擴大媒合範圍 + 通知派工小編。
 - **BR-DISP-03**：僅技師平台 `active` 狀態之技師可被派工（跨系統參照 assignee_ref，不跨庫 FK）。
-- **BR-ONSITE-01**（加價三段式）：
+- **BR-ONSITE-01**（現場報價修正 / 加價三段式）：線上報價與現場不符（估價誤差 / 加價 / 改項）→ 建 quote v+1 由客戶再確認一輪；減價或同額修正直接送客戶 LIFF 確認；**加價**依金額三段式：
   - **≤ 500 元**：師傅自確，三件套（客戶簽名 + 照片 + audit log）齊備後續工。
   - **501–2000 元**：**暫停施工** → 系統自動建報價 v+1 → 客戶 LIFF 確認後復工並更新料件明細。
   - **> 2000 元**：同上 + 主管覆核 + 三方協商。
@@ -351,7 +358,7 @@ sequenceDiagram
 ### 9.1 做什麼（in scope）
 
 - LINE Bot AI 客服（文字 + 圖片附件、對話記憶、情緒分流、三層解決：案例庫 → 手冊 RAG → 轉真人）。
-- 問題卡 → 工單 → 報價（LINE / LIFF 客戶確認）→ 派工 → 現場存證 → 收款對帳 → 佣金結算全鏈。
+- 問題卡 → 線上報價（LINE / LIFF 客戶確認）→ 工單 → 派工 → 現場（報價複核 / 存證）→ 收款對帳 → 佣金結算全鏈。
 - 品牌營運後台（知識庫、對話監看、儀表板、RBAC）、平台維運 console、獨立師傅 web。
 - 知識精煉（License 附加）、Agent Configuration Studio 品牌自服務調校。
 - 多品牌架構：License 開通、per-brand bundle、租戶隔離。

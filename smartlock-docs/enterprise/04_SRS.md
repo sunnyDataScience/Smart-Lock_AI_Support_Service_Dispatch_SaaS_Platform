@@ -172,7 +172,7 @@ stateDiagram-v2
     arrived --> working : 開始施工
     arrived --> customer_not_onsite : 客戶不在
     working --> scope_change : 需加價 / 改項（≤500）
-    working --> pending_quote_v2 : 加價 501-2000 / >2000 → 暫停施工 → Quote v+1
+    working --> pending_quote_v2 : 線上估價誤差修正 / 加價 501-2000 / >2000 → 暫停施工 → Quote v+1
     working --> completed : 順利完工
     scope_change --> working : 三件套齊（簽名 + 照片 + audit）
     pending_quote_v2 --> working : Quote v+1 customer_confirmed → material_used update

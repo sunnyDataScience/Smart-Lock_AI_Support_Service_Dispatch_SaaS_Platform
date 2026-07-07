@@ -151,14 +151,18 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
   "transitions": [
     {"from":"created","to":"dispatched","on":"assign","guard":"role:dispatcher","do":["block:dispatch"]},
     {"from":"dispatched","to":"on_site","on":"arrive","guard":"role:technician","do":["block:onsite_consent"]},
-    {"from":"on_site","to":"quoted","on":"quote","do":["block:build_quote"]},
+    {"from":"on_site","to":"in_progress","on":"start","guard":"role:technician"},
+    {"from":"on_site","to":"quoted","on":"requote","guard":"role:technician","do":["block:build_quote"]},
     {"from":"quoted","to":"approved","on":"customer_approve","do":["block:quote_approval"]},
+    {"from":"approved","to":"in_progress","on":"start","guard":"role:technician"},
     {"from":"in_progress","to":"completed","on":"finish","do":["block:capture_evidence"]},
     {"from":"completed","to":"settled","on":"settle","do":["block:collect_payment","block:settle"]}
   ],
   "sla": [ {"state":"dispatched","due":"PT2H","on_breach":["block:notify_supervisor"]} ]
 }
 ```
+
+> 工單 `created` 的前置（**線上報價已客戶確認**，或急件類別非空）由開單 gate 把守（BR-WO-01），不在 FSM 值域內；`on_site → quoted → approved` 為**現場報價修正輪**——線上估價與現場不符（報錯 / 加價 / 改項）時建 quote v+1 由客戶再確認，無異動則 `on_site → in_progress` 直進。
 
 **DSL 四約束**（皆為第一約束，ADR-P010）：AI 可生成 · 人可編輯 · 引擎可執行 · 可驗證（匯入時檢查積木契約 + 商業不變式）。拖拉 FlowEditor 為薄編輯器，只產出/編修 DSL（🔜 規劃中，Phase 2 疊加）。
 
@@ -209,8 +213,9 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
 核心值域由 §3.3 的 flow DSL 定義：
 
 ```
-created → dispatched → on_site → quoted → approved → in_progress → completed → settled
-（任一非終態 → cancelled）
+created → dispatched → on_site → in_progress → completed → settled     ← 主路徑
+on_site → quoted → approved → in_progress                              ← 現場報價修正輪（線上報價與現場不符時）
+（任一非終態 → cancelled；created 前置＝線上報價已客戶確認或急件，BR-WO-01）
 ```
 
 `status` 不是資料庫 enum——引擎依 pack flow DSL 驗證每次轉移的 `on` 事件、`guard` 與 block preconditions；換 pack 即換值域，核心 code 不改。
@@ -221,10 +226,10 @@ created → dispatched → on_site → quoted → approved → in_progress → c
 
 **設計原則（pack flow 的骨架）**：
 
-1. **漸進式資料蒐集**——欄位在「自然產生的那一刻」由「知道它的角色」填：開單（客服）→ 派工（調度）→ 現場（技師）→ 完工回報 → 計費 → 客戶簽收。免責/個資簽名必由客戶本人於 LINE 完成（後台唯讀，代簽無法律效力）；費用明細源自報價（single source of truth）。
+1. **漸進式資料蒐集**——欄位在「自然產生的那一刻」由「知道它的角色」填：線上報價確認（客戶）→ 開單（客服）→ 派工（調度）→ 現場（技師，含現場報價複核）→ 完工回報 → 計費 → 客戶簽收。免責/個資簽名必由客戶本人於 LINE 完成（後台唯讀，代簽無法律效力）；費用明細源自報價（single source of truth）。
 2. **問題卡與工單分離**——問題卡屬診斷/分流（三層解決：L1 AI 直接回 / L2 遠端指導 / L3 才現場派工），只有 L3 才開工單，避免假工單淹沒派工佇列。
 3. **開單最低門檻 3 欄位**：服務地址（必填，AI 草擬卡無地址、客服 HITL 補）+ 聯絡人 + 電話。
-4. **四道硬性閘門（block preconditions/guards）**：問題卡完整度 ≥ 0.8 才開單（缺品牌/型號/症狀/急迫度 → 422，主管填原因可 override）；派工前須有 accepted 報價 + active 技師；完工需照片 ≥ 3 + 簽名 + 序號；過期報價視同未同意。
+4. **四道硬性閘門（block preconditions/guards）**：問題卡完整度 ≥ 0.8 才開單（缺品牌/型號/症狀/急迫度 → 422，主管填原因可 override）；開單前須有客戶已確認之線上報價（急件 carve-out）、派工須 active 技師；完工需照片 ≥ 3 + 簽名 + 序號；過期報價視同未同意。
 
 **Quote 子狀態機**：`draft → internal_approved → customer_sent → customer_confirmed / rejected / expired`；`rejected|expired → draft` 走 re-version v+1（`supersedes_quote_id` 串鏈）。急件（locked_out / trapped_inside / safety_risk）走 `retrospective_audit_only` 路徑：先施工、onsite 結束後 4 小時內補送事後 audit 報價，客戶 LIFF 確認或紙本簽補完 audit 鏈；逾時告警升級主管。每筆 quote 綁 immutable pricing snapshot（content-addressable hash），已送出報價不重算。
 

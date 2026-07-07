@@ -255,8 +255,9 @@ sequenceDiagram
 |---|---|---|---|---|
 | `created` | `dispatched` | assign | role:dispatcher；`location != null` | dispatch |
 | `dispatched` | `on_site` | arrive | role:technician | onsite_consent |
-| `on_site` | `quoted` | quote（現場重報價時） | — | build_quote |
-| `quoted` | `approved` | customer_approve | 客戶簽章確認 | quote_approval |
+| `on_site` | `in_progress` | start（線上報價與現場相符） | role:technician | — |
+| `on_site` | `quoted` | requote（現場複核不符：估價誤差 / 加價 / 改項） | role:technician | build_quote |
+| `quoted` | `approved` | customer_approve | 客戶確認 quote v+1（LIFF；fallback QR / 紙本） | quote_approval |
 | `approved` | `in_progress` | start | role:technician | — |
 | `in_progress` | `completed` | finish | 結案 gate：address + quote 已確認（或急件 retrospective audit）；缺 → 422 | capture_evidence |
 | `completed` | `settled` | settle | — | collect_payment、settle |
@@ -264,7 +265,7 @@ sequenceDiagram
 
 **SLA 範例**：`dispatched` 狀態逾 2 小時未到場 → 觸發 `notify_supervisor` block。
 **冪等與一致性**：事件 seq + idempotency key；side-effect 經 outbox 保證。
-**前置鏈**：工單 initial 進入 `created` 的前置 = 問題卡確認 + 最低開單欄位（服務地址必填 + 聯絡人 / 電話選填）+ 完整度 gate（缺品牌 / 型號 / 症狀 / 急迫度 → 422，需主管填強制開單原因 override）。
+**前置鏈**：工單 initial 進入 `created` 的前置 = 問題卡確認 + 最低開單欄位（服務地址必填 + 聯絡人 / 電話選填）+ 完整度 gate（缺品牌 / 型號 / 症狀 / 急迫度 → 422，需主管填強制開單原因 override）**+ 線上報價已客戶確認（急件類別非空 carve-out，BR-WO-01——報價先、客戶確認後才開單派工）**。
 
 ---
 
@@ -274,8 +275,8 @@ sequenceDiagram
 
 | 階段 | 工單狀態 | 取消費 |
 |---|---|---|
-| S1 報價未確認 | quoted 前 | 0 |
-| S1.5 已確認未派工 | approved、未 assign | 0 |
+| S1 線上報價未確認 | 工單未成立（報價階段） | 0 |
+| S1.5 已確認未派工 | created、未 assign | 0 |
 | S2 派工未出發 | dispatched（未出發） | 定額車馬費起徵（NTD 300 `[待確認]`） |
 | S3 出發後未到場 | en route | 車馬費 |
 | S4 到場後未施工 | on_site | 車馬費 + 檢測費 |

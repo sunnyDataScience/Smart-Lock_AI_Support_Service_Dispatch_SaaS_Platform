@@ -61,7 +61,7 @@ upstream:
 
 ## 4. 工單生命週期案例（TC-WO）
 
-工單狀態機由 flow DSL 宣告（`../00_platform/P1/07_workorder_platform_design.md` §5）：`created → dispatched → on_site → quoted → approved → in_progress → completed → settled`，任一態可依規則轉 `cancelled`。
+工單狀態機由 flow DSL 宣告（`../00_platform/P1/07_workorder_platform_design.md` §5）：主路徑 `created → dispatched → on_site → in_progress → completed → settled`，現場報價修正輪 `on_site → quoted → approved → in_progress`（線上報價與現場不符時 quote v+1 再確認），任一態可依規則轉 `cancelled`；`created` 前置＝線上報價已客戶確認或急件（TC-WO-03）。
 
 | ID | 對應 FR | 前置 | 步驟 | 預期 | 類型 | 優先級 |
 |---|---|---|---|---|---|---|
@@ -109,6 +109,7 @@ upstream:
 | TC-ONSITE-04 | FR-0008 | 加價 > NTD 2000 | 發起 scope change | 強制**主管覆核**；三件套（影音+文字+before/after 照）必齊 | 權限 | P0 |
 | TC-ONSITE-05 | FR-0008 | 客戶 LIFF 授權失敗 | 走 QR → 仍失敗 → 紙本簽名 + 拍照 | fallback 鏈完成；audit 標 `consent_method=paper` + evidence FK | 例外 | P1 |
 | TC-ONSITE-06 | FR-0010 | 客戶不在現場 | 師傅回報客戶未到場 | 工單轉入例外流程（改期/取消分流）；不得直接結案 | 例外 | P1 |
+| TC-ONSITE-07 | FR-0008 | 線上報價與現場不符（估價誤差 / 漏項） | 師傅發起現場報價修正（requote） | 工單 `on_site → quoted`；建 quote v+1（`supersedes_quote_id` 串鏈）→ 客戶 LIFF 確認 → `approved` 續工；拒絕 → 按原報價完工或走取消分流 | happy | P0 |
 
 ## 7. 結算與退款案例（TC-SETTLE）
 

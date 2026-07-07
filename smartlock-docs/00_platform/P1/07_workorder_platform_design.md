@@ -123,14 +123,18 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
   "transitions": [
     {"from":"created","to":"dispatched","on":"assign","guard":"role:dispatcher","do":["block:dispatch"]},
     {"from":"dispatched","to":"on_site","on":"arrive","guard":"role:technician","do":["block:onsite_consent"]},
-    {"from":"on_site","to":"quoted","on":"quote","do":["block:build_quote"]},
+    {"from":"on_site","to":"in_progress","on":"start","guard":"role:technician"},
+    {"from":"on_site","to":"quoted","on":"requote","guard":"role:technician","do":["block:build_quote"]},
     {"from":"quoted","to":"approved","on":"customer_approve","do":["block:quote_approval"]},
+    {"from":"approved","to":"in_progress","on":"start","guard":"role:technician"},
     {"from":"in_progress","to":"completed","on":"finish","do":["block:capture_evidence"]},
     {"from":"completed","to":"settled","on":"settle","do":["block:collect_payment","block:settle"]}
   ],
   "sla": [ {"state":"dispatched","due":"PT2H","on_breach":["block:notify_supervisor"]} ]
 }
 ```
+
+> **業主裁決（2026-07-07）**：`created` 前置（線上報價已客戶確認，或急件類別非空）由開單 gate 把守，不在 FSM 值域內——「估價報價 → 客人確認 → 才開單派工」；`on_site → quoted → approved` 為**現場報價修正輪**（線上估價與現場不符：報錯 / 加價 / 改項 → quote v+1 客戶再確認），無異動則 `on_site → in_progress` 直進。
 
 ### 5.2 引擎執行模型
 1. 載入 pack flow → 建狀態機。
