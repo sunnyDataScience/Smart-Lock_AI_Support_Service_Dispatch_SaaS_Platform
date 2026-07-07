@@ -78,7 +78,7 @@ block-beta
 | 技能與品牌授權 | `technician_skill` / `technician_brand_authorization`；決定可服務哪些品牌 | 🎯 技師平台 api + 🎯 lock_tech | TechnicianContext |
 | 認證（KYC/cert）| `technician_kyc` / `technician_certification`；審核准入閘門 | 🎯 技師平台 api + 🎯 lock_tech | TechnicianContext |
 | 排班與媒合 | `technician_schedule_requests` / 可用性；派工媒合候選排序 | 🎯 技師平台 api（OHS matching）| TechnicianContext ↔ DispatchOperations |
-| 評分與佣金主體 | 評分、佣金 profile / payout rule；**金額計算屬派工平台，主體歸技師平台**（[[待確認]] 邊界切分）| 🎯 技師平台 api + 🎯 lock_tech | TechnicianContext（與 DispatchOperations CS）|
+| 評分與佣金主體 | 評分、佣金 profile / payout rule；**per-job 計費屬派工平台、結算主體歸技師平台**（✅ [[ADR-P014]] Billing/Settlement 分離）| 🎯 技師平台 api + 🎯 lock_tech | TechnicianContext（與 DispatchOperations CS）|
 | 對外整合面 | OHS API（同步供給）+ Kafka 事件（非同步解耦）| 🎯 技師平台 api（OHS + 事件層）| TechnicianContext（OHS/PL）|
 
 **Level 0 檢查清單**：
@@ -134,7 +134,7 @@ flowchart TD
         TAPI["🎯 技師平台 api\nOHS API(媒合/排班/認證) + 技師 self-service\nCasdoor OIDC enforce · 背景 worker(集中)"]
         EVT["🎯 事件層\nKafka producer(技師狀態)\n+ consumer(派工/工單)"]
         WS["🎯 師傅即時推播\nWS + Redis pub/sub [待確認 歸屬]"]
-        RM["🎯 技師工作台工單投影\n(Kafka-fed read-model)\n[待確認 設計]"]
+        RM["🎯 技師工作台工單投影\n(Kafka-fed read-model)\nADR-P014 定案"]
         TDB[("🎯 技師庫 lock_tech\n身分/技能/授權/認證/排班/評分/佣金 profile\npgvector pg17 · 自有單一真相")]
     end
 
@@ -207,13 +207,13 @@ flowchart TD
         SVC_MATCH["🎯 matching_service\n(技能/地區/授權/可用性 排序)"]
         SVC_SCH["schedule_service\n(排班/可用性)"]
         SVC_CERT["certification/kyc_service\n(審核准入 · pii_crypto)"]
-        SVC_RATE["rating_service / commission_profile_service\n(評分/佣金主體 · [待確認 邊界)]"]
+        SVC_RATE["rating_service / commission_settlement_service\n(評分/佣金結算主體 · ADR-P014)"]
     end
 
     subgraph EVTL["Event Layer（🎯 Kafka）"]
         PROD["🎯 producer\ntechnician.registered/certified/\nbrand_authorized/availability_changed/\nassignment_accepted/rating_updated"]
         CONS["🎯 consumer\ndispatch.assigned → 更新排班/工作量\nworkorder.completed → 更新評分/佣金基礎\nsettlement.generated → 更新 statement"]
-        RM["🎯 read-model\n技師工單投影 [待確認]"]
+        RM["🎯 read-model\n技師工單投影 ADR-P014"]
     end
 
     subgraph CORE["Core / Infra"]
