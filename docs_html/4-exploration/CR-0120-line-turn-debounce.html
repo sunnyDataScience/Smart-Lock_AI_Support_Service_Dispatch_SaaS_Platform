@@ -1,0 +1,198 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>CR-0120：LINE 連續訊息合併（trailing debounce）（Change Impact Analysis）</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0120-line-turn-debounce.md</div>
+<div class="doc"><h1
+id="cr-0120line-連續訊息合併trailing-debouncechange-impact-analysis">CR-0120：LINE
+連續訊息合併（trailing debounce）（Change Impact Analysis）</h1>
+<ul>
+<li><strong>日期</strong>：2026-07-07</li>
+<li><strong>提出</strong>：業主（「避免使用者連續傳訊息導致一直回覆；計算最後一則的時間；如果有新訊息再重置計算」）</li>
+<li><strong>狀態</strong>：approved（業主 2026-07-07 口頭裁決，語意即
+trailing debounce）</li>
+<li><strong>範圍</strong>：agent LINE
+gateway（<code>lockcore/channels/line_gateway.py</code>，通道層；lockcore
+核心不動）</li>
+</ul>
+<hr />
+<h2 id="1-問題2026-07-07-查證">1. 問題（2026-07-07 查證）</h2>
+<p>lockcore 核心的 run loop 對「同 session 短時間多則訊息」本有
+per-session 串行鎖 + pending queue 中途注入機制，<strong>但只在 bus
+消費路徑生效</strong>；LINE gateway 直呼
+<code>loop._process_message</code>（<code>line_gateway.py:494</code>）繞過了它。實際後果：</p>
+<ul>
+<li>客人連傳 N 則 → N 個獨立 webhook → N 個<strong>併發</strong> turn →
+客人被連轟 N 則回覆（可能重複/矛盾）</li>
+<li>「分段補充」不被合併理解（每個 turn 只看到自己那句）</li>
+<li>session history / per-user 記憶寫入交錯（race）</li>
+<li>一句話拆多則 = N 倍 LLM 成本</li>
+</ul>
+<h2 id="2-業主裁決語意逐字遵守">2. 業主裁決語意（逐字遵守）</h2>
+<blockquote>
+<p>避免使用者連續傳訊息導致一直回覆；<strong>計算最後一則的時間</strong>；<strong>如果有新訊息再重置計算</strong>。</p>
+</blockquote>
+<p>即 <strong>trailing
+debounce</strong>：收到訊息後開始靜默計時；期間再收到訊息 →
+重置計時並併入 buffer；靜默滿 D 秒 → 把 buffer 合併成<strong>一輪
+turn、一次回覆</strong>。</p>
+<h2 id="3-觸發面向cia-gate">3. 觸發面向（CIA gate）</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>命中</th>
+<th>說明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>User/Business flow</td>
+<td>✅</td>
+<td>LINE
+回覆行為改變：連傳多則由「逐則各回」變「合併一次回」；單則回覆增加 D
+秒延遲</td>
+</tr>
+<tr>
+<td>Architecture boundary</td>
+<td>✅（輕）</td>
+<td>通道層新增 debounce
+元件（<code>_TurnDebouncer</code>）；<strong>lockcore
+核心（runner/loop/context）零改動</strong>，符合架構鎖</td>
+</tr>
+<tr>
+<td>API contract / DB / Domain / External integration / Test plan</td>
+<td>❌</td>
+<td>ingest 介面不變（逐則持久化沿用既有呼叫）；LINE webhook
+介面不變</td>
+</tr>
+</tbody>
+</table>
+<h2 id="4-設計">4. 設計</h2>
+<h3 id="41-_turndebouncer模組級純-asyncio可獨立測試">4.1
+<code>_TurnDebouncer</code>（模組級，純 asyncio，可獨立測試）</h3>
+<ul>
+<li>每 session（<code>tenant:user_id</code>）一個
+buffer（<code>{text, media, reply_token}</code> 列表）+ timer
+task。</li>
+<li><code>push(key, item)</code>：append buffer → 取消舊 timer → 重排新
+timer（<strong>重置計算</strong>）。</li>
+<li>timer 到期：取走整個 buffer → 交給 fire callback；fire 以
+<strong>per-session lock 串行</strong>（若上一輪 turn
+還在跑，下一批等它做完，一併修掉原本的併發 race）。</li>
+<li><strong>防餓死</strong>：buffer 滿
+<code>_DEBOUNCE_MAX_BATCH</code>（10 則）→ 立即強制觸發（客人每 4
+秒傳一則傳不停時，AI 不會永遠沉默）。</li>
+<li>視窗 <code>LINE_DEBOUNCE_SECONDS</code> env 可調（<strong>預設 5
+秒</strong>，clamp 0~30）；<strong>設 0 = 停用</strong>（走直通路徑 =
+原逐則行為，測試/回退用）。</li>
+</ul>
+<h3 id="42-fire合併輪">4.2 Fire（合併輪）</h3>
+<ol type="1">
+<li>接管檢查移到 fire 時點：接管中 → 不跑 turn，逐則持久化 +
+節流「請稍候」安撫（與原行為等價，僅延遲 D 秒）。</li>
+<li>turn：文字以換行合併、照片路徑依序全帶（vision 管線本支援多圖）→
+<strong>一輪</strong> <code>handle_text_turn</code> →
+<strong>一次回覆</strong>。</li>
+<li>回覆用<strong>最後一則</strong>的
+reply_token（最年輕、最可能有效）；reply 失敗改 <strong>push
+API</strong> fallback（debounce + turn 耗時可能超過 reply token ~1
+分鐘效期）。</li>
+<li>旁路照舊（fail-soft）：<strong>逐則</strong>持久化（對話管理維持一則一泡泡、照片各自顯示；AI
+回覆附掛最後一則）→ CR-0097 handoff 兜底 → CR-0022 escalation
+ingest（以合併文字為快照）。</li>
+</ol>
+<h3 id="43-不變的部分">4.3 不變的部分</h3>
+<ul>
+<li>postback（報價同意/拒絕）、圖片下載失敗、非支援型別（貼圖/影片）維持<strong>即時</strong>回覆，不進
+debounce（無 turn 可合併）。</li>
+<li>lockcore 核心、CS_TOOL_ALLOWLIST、ingest API 介面全不動。</li>
+</ul>
+<h2 id="5-風險與取捨">5. 風險與取捨</h2>
+<ol type="1">
+<li><strong>單則訊息回覆延遲 +D 秒</strong>（預設
+5s）：換取連傳合併；視窗可 env 調整。</li>
+<li><strong>reply token 效期</strong>：debounce + turn 可能超過 ~1 分鐘
+→ 已加 push fallback（push 有月配額，僅 fallback 時消耗）。</li>
+<li><strong>程序內狀態</strong>：buffer/timer
+在記憶體，重啟即失（最多丟失視窗內未觸發的合併批）；與既有節流器（handover
+notice cooldown）同等級 fail-soft。</li>
+<li><strong>多 instance</strong>：Cloud Run 多副本時同客人可能落不同
+instance 各自 debounce；現況 agent 單 instance，多副本屬既有議題（與
+rate limit in-memory 同註記）。</li>
+</ol>
+<h2 id="6-豁免確認">6. 豁免確認</h2>
+<p>不適用豁免（命中 User flow + Architecture boundary），故產出本
+CIA。</p>
+<h2 id="7-human-decisions-required">7. Human Decisions Required</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>決策</th>
+<th>裁決</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>是否做連傳合併？機制？</td>
+<td>✅ 業主 2026-07-07：「上吧」，語意=trailing
+debounce（最後一則起算、新訊息重置）</td>
+</tr>
+<tr>
+<td>2</td>
+<td>視窗長度</td>
+<td>預設 <strong>5 秒</strong>（<code>LINE_DEBOUNCE_SECONDS</code> env
+可調、0=停用）——業主未指定，取客服 bot 常規值，可隨 UAT 回饋調整</td>
+</tr>
+<tr>
+<td>3</td>
+<td>持久化粒度</td>
+<td><strong>逐則</strong>（對話管理一則一泡泡、照片各自顯示），AI
+回覆附掛最後一則</td>
+</tr>
+<tr>
+<td>4</td>
+<td>防餓死</td>
+<td>滿 10 則強制觸發</td>
+</tr>
+</tbody>
+</table>
+<h3 id="進度">進度</h3>
+<ul>
+<li>✅ S1 done（本輪 <code>--no-ff</code> 併回
+dev_new_arch）：<code>_TurnDebouncer</code>（重置計時/強制觸發/per-session
+lock 串行）+ <code>_send_text</code>（reply 失敗 push 兜底）+
+<code>_run_merged_turn</code>（接管檢查/合併 turn/逐則持久化/escalation
+全移入）；<code>LINE_DEBOUNCE_SECONDS</code> env 可調（預設
+5s、0=直通）。驗證：gateway 46 測全綠（新增 7：env
+解析/合併/重置語意/session 隔離/強制觸發/串行/webhook 整合合併），agent
+全套 160 passed 零回歸；本機 agent 容器已重建上線。</li>
+</ul>
+<h2 id="8-suggested-implementation-order">8. Suggested Implementation
+Order</h2>
+<ol type="1">
+<li><code>_TurnDebouncer</code> + <code>_debounce_seconds()</code>（env
+讀取、clamp）</li>
+<li>webhook callback 重構：型別分派後改 <code>push</code>；fire
+函式承接接管檢查/turn/回覆(+push fallback)/旁路</li>
+<li>測試：debouncer 語意（合併、重置、強制觸發、串行）+ webhook
+整合（0=直通回歸、小視窗合併）</li>
+<li>驗證：agent pytest 全綠 → 重建 agent 容器</li>
+<li>文件三同步 + docs_html regen</li>
+</ol>
+</div></div></body></html>

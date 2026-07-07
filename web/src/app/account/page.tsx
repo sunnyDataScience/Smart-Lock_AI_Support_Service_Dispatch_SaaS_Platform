@@ -39,6 +39,7 @@ export default function AccountPage() {
   const router = useRouter();
   const t = useTranslations("pages.account.profile");
   const tAvail = useTranslations("pages.account.profile.availability");
+  const tShell = useTranslations("techPortal.shell");
   const [tech, setTech] = useState<Technician | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -100,12 +101,19 @@ export default function AccountPage() {
   const availLabel = tAvail(availability);
 
   return (
-    <TechShell wide>
-      {/* profile_header — 漸層背景 */}
+    <TechShell
+      wide
+      // 頁首走 shell 統一規格(h-14 bar;label 複用底欄「帳戶」)
+      title={tShell("bottomNav.account")}
+    >
+      {/* 統一留白框架(soft UI):頭卡與下方卡片同一個 16px 框、同 gap,
+          不再「頭卡滿版貼邊、卡片縮邊」兩套邏輯(修左右留白對不齊) */}
+      <div className="flex flex-col gap-4 p-4 md:p-6">
+      {/* profile_header — 漸層頭卡(與 home hero 同語言:rounded-3xl teal 漸層卡) */}
       <div
-        className="px-4 pt-6 pb-8 text-white"
+        className="rounded-3xl p-5 text-white shadow-[var(--tech-shadow,0_4px_6px_rgba(0,0,0,0.1))]"
         style={{
-          background: "linear-gradient(180deg, #2563EB 0%, #1E40AF 100%)",
+          background: "linear-gradient(135deg, #134E4A 0%, #0F766E 72%, #14B8A6 100%)",
         }}
       >
         <div className="flex items-center gap-3">
@@ -154,15 +162,15 @@ export default function AccountPage() {
       </div>
 
       {error && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {error}
         </div>
       )}
 
-      {/* 桌面：內容區改 2 欄吃滿寬度（手機維持單欄堆疊）*/}
-      <div className="md:grid md:grid-cols-2 md:items-start md:gap-x-4 md:px-2">
+      {/* 桌面：內容區改 2 欄吃滿寬度（手機維持單欄堆疊）;間距統一交給 gap */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-start">
       {/* income_overview / performance_dashboard — MVP 顯示骨架 */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("monthIncome")}
         </span>
@@ -177,8 +185,8 @@ export default function AccountPage() {
         </p>
       </section>
 
-      <section className="mx-4 mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
+      <section className="grid grid-cols-3 gap-3">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
           <Wrench className="mx-auto h-4 w-4 text-[var(--text-secondary)]" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.completed_orders_count ?? "—"}
@@ -187,7 +195,7 @@ export default function AccountPage() {
             {t("completedOrders")}
           </span>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
           <Star className="mx-auto h-4 w-4 fill-amber-400 text-amber-400" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.rating != null ? tech.rating.toFixed(1) : "—"}
@@ -196,7 +204,7 @@ export default function AccountPage() {
             {t("rating")}
           </span>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
           <ShieldCheck className="mx-auto h-4 w-4 text-[var(--text-secondary)]" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.level ?? "—"}
@@ -206,7 +214,7 @@ export default function AccountPage() {
       </section>
 
       {/* profile_section */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
           {t("personal")}
         </span>
@@ -245,7 +253,7 @@ export default function AccountPage() {
       </section>
 
       {/* appearance_section — 主題切換（技師端深色模式入口）*/}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
           {t("appearance")}
         </span>
@@ -253,7 +261,7 @@ export default function AccountPage() {
       </section>
 
       {/* settings_section */}
-      <section className="mx-4 mt-4 mb-6 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <Link
           href="/account/schedule"
           className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-page)]"
@@ -312,9 +320,10 @@ export default function AccountPage() {
       </section>
       </div>
 
-      <p className="px-4 pb-4 text-center text-[10px] text-[var(--text-disabled)]">
+      <p className="pt-1 text-center text-[10px] text-[var(--text-disabled)]">
         {t("footer")}
       </p>
+      </div>
     </TechShell>
   );
 }

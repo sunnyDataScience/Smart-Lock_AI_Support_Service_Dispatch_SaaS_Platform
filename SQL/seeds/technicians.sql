@@ -12,7 +12,7 @@
 --   - 將 work_orders.sql 的 WO2 (in_progress) 指派給此技師
 --
 -- 期望效果：
---   - GET /technicians/me（需登入 demo-tech@example.com / techpass123）→ 200
+--   - GET /technicians/me（需登入 test@lock-ai.com / changeme123）→ 200
 --   - GET /technicians（admin 視角）→ 5 筆（1 名登入示範 + 4 名展示用）
 --   - dashboard.technicians = { total_count: 5, online_count: 4, dispatchable_count: 4 }
 --     （5 名 active；其中 demo-tech 有 in_progress 工單，故 online_count = 4）
@@ -21,15 +21,15 @@
 BEGIN;
 
 -- 1) demo 技師對應的 user 帳號（role='technician'）
--- password = techpass123（bcrypt $2b$12$...）
+-- password = changeme123（bcrypt,與 _admin_user.sql 同一 hash;2026-07-06 測試帳號密碼統一）
 INSERT INTO users (
     id, tenant_id, email, password_hash, display_name, phone, role, is_active
 )
 VALUES (
     '66666666-aaaa-4aaa-aaaa-aaaaaaaaaa01'::uuid,
     '00000000-0000-0000-0000-000000000001'::uuid,
-    'demo-tech@example.com',
-    '$2b$12$j8386WAs/k1Tb/tx3PFiq.wR3ba9A3JafXEo3MTaiCpU/f.pfl08q',
+    'test@lock-ai.com',
+    '$2b$12$Hdfo2ixXxQXkAIYXaDz23.HSP8MD1TrkD3CvpwtdSqvDWSq.BAui6',
     '示範技師-林師傅',
     '0911222333',
     'technician',
@@ -54,7 +54,7 @@ VALUES (
     '66666666-aaaa-4aaa-aaaa-aaaaaaaaaa01'::uuid,
     '示範技師-林師傅',
     '0911222333',
-    'demo-tech@example.com',
+    'test@lock-ai.com',
     '["Yale", "Chatlock", "美樂"]'::jsonb,
     '["新北市板橋區", "台北市信義區", "桃園市中壢區"]'::jsonb,
     4.7, 23, 'active',

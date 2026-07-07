@@ -51,30 +51,30 @@ async def generate_statement(
     technician_id: str,
     period_year: int,
     period_month: int,
-    gross_amount: float = 0.0,
+    gross_amount: float | None = None,
     travel_fee_deduction: float = 0.0,
     cash_collection_deduction: float = 0.0,
     dispute_hold_amount: float = 0.0,
     other_deductions: float = 0.0,
-    total_completed_orders: int = 0,
+    total_completed_orders: int | None = None,
     notes: str | None = None,
 ) -> dict:
-    """產 statement draft（系統 cron 月底跑或 admin manual 觸發）。
+    """產 statement draft（月底 cron 自動跑或 admin manual 觸發）。
 
     冪等：同 tech + period 已存 → 回 existing。
+
+    CR-0117 S4：gross_amount / total_completed_orders **省略（None）= 系統自動計算**
+    —— 依 CR-0106 佣金口徑（固定工資制：完工單服務明細 × 該技師等級 base_payout，
+    重用 compute_monthly_commission）。顯式帶值仍為人工覆寫（ops 修正用）。
+    先前版本金額全靠手動參數（預設 0）、docstring 卻宣稱系統自算 —— 名實不符。
+    扣項維持手動參數（結構化來源未建，CR-0106 既有誠實限制）。
     """
     if period_month < 1 or period_month > 12:
         raise ApiError("VALIDATION_ERROR", "period_month must be 1..12", 422)
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    net = (
-        float(gross_amount) - float(travel_fee_deduction)
-        - float(cash_collection_deduction) - float(dispute_hold_amount)
-        - float(other_deductions)
-    )
-
-    # 冪等：UNIQUE constraint 阻 INSERT，先 SELECT
+    # 冪等：UNIQUE constraint 阻 INSERT，先 SELECT（先於自動計算 —— 已存在就不必算佣金）
     cur = await db_module._conn.execute(
         "SELECT id FROM saas.technician_statement "
         "WHERE tenant_id = %s::uuid AND technician_id = %s::uuid "
@@ -89,6 +89,35 @@ async def generate_statement(
         )
         return await _get(str(existing[0]))
 
+    # 省略 gross → 依佣金口徑自動計算（顯式帶值 = 人工模式，維持既有語意含 count 預設 0）
+    if gross_amount is None:
+        from services import technician_commission_service
+
+        commission = await technician_commission_service.compute_monthly_commission(
+            tenant_id=tenant_id,
+            technician_id=technician_id,
+            year=period_year,
+            month=period_month,
+        )
+        gross_amount = float(commission["gross_amount"])
+        if total_completed_orders is None:
+            total_completed_orders = int(commission["completed_orders"])
+        if commission.get("unmapped_count"):
+            # 有服務代碼對不到費率 → 記入 notes 供審核者辨識（不擋產生）
+            warn = f"[自動計算] {commission['unmapped_count']} 項服務代碼未對到費率(以 0 計)"
+            notes = f"{notes}；{warn}" if notes else warn
+    if total_completed_orders is None:
+        total_completed_orders = 0
+
+    net = (
+        float(gross_amount) - float(travel_fee_deduction)
+        - float(cash_collection_deduction) - float(dispute_hold_amount)
+        - float(other_deductions)
+    )
+
+    # CR-0117：ON CONFLICT DO NOTHING 補 TOCTOU 縫 —— 上方 SELECT 與此 INSERT 間若有
+    # 並發 generate（cron tick 撞 ops 手動觸發），輸家不再 UNIQUE violation 500，
+    # 改走冪等路徑回 existing。
     cur = await db_module._conn.execute(
         "INSERT INTO saas.technician_statement "
         "  (tenant_id, technician_id, period_year, period_month, "
@@ -96,6 +125,7 @@ async def generate_statement(
         "   cash_collection_deduction, dispute_hold_amount, other_deductions, "
         "   net_amount, notes) "
         "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+        "ON CONFLICT (tenant_id, technician_id, period_year, period_month) DO NOTHING "
         "RETURNING id",
         (
             tenant_id, technician_id, period_year, period_month,
@@ -107,6 +137,18 @@ async def generate_statement(
         ),
     )
     row = await cur.fetchone()
+    if row:
+        return await _get(str(row[0]))
+    # 並發輸家：撈贏家那筆回傳（與冪等 hit 同語意）
+    cur = await db_module._conn.execute(
+        "SELECT id FROM saas.technician_statement "
+        "WHERE tenant_id = %s::uuid AND technician_id = %s::uuid "
+        "  AND period_year = %s AND period_month = %s",
+        (tenant_id, technician_id, period_year, period_month),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("INTERNAL_ERROR", "statement insert race resolution failed", 500)
     return await _get(str(row[0]))
 
 

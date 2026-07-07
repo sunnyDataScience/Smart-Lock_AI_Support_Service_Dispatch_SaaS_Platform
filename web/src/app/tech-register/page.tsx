@@ -1,6 +1,6 @@
 "use client";
 
-import { Wrench, Check, ChevronLeft, ShieldCheck } from "lucide-react";
+import { Wrench, Check, ChevronLeft, ShieldCheck, Upload } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import BackToHome from "@/components/layout/BackToHome";
@@ -9,14 +9,15 @@ import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 
 // CR-0115 §8：師傅註冊擴充為 KYC 等級 + 登入/註冊分離。
-// 本頁 = 獨立多步驟申請表單（步驟 1 基本 / 2 專業 / 3 撥款與聯絡 / 4 確認）。
-// 硬編繁中（對齊 admin/staff 慣例；i18n 列後續輪）。文件上傳步驟待兩階段
-// token 上傳後端就緒後再加（本輪先做文字欄位 Tier 1 + Tier 2）。
+// 本頁 = 獨立多步驟申請表單（步驟 1 基本 / 2 專業 / 3 撥款與聯絡 / 4 確認）
+// + 送出後的文件上傳畫面（Tier 3，§8-2a 兩階段：註冊 response 回一次性
+// upload token → 憑 token 打公開上傳端點；可略過、核准前補件）。
+// 硬編繁中（對齊 admin/staff 慣例；i18n 列後續輪）。
 // 「最小必填」（§8-4）於此表單層強制：姓名/手機/Email/密碼/服務地區/年資/
-// 緊急聯絡人+電話/同意條款；敏感 PII 與撥款帳戶選填（核准前可補件）。
+// 緊急聯絡人+電話/同意條款；敏感 PII 與文件選填（核准前可補件）。
 
 const inputCls =
-  "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
+  "h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
 
 const STEPS = ["基本資料", "專業資格", "撥款與聯絡", "確認送出"] as const;
 
@@ -65,6 +66,9 @@ export default function TechRegisterPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  // §8-2a：註冊成功後的一次性文件上傳 token；null = 後端未簽發（跳過上傳畫面）
+  const [uploadToken, setUploadToken] = useState<string | null>(null);
+  const [docsDone, setDocsDone] = useState(false);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setF((prev) => ({ ...prev, [k]: v }));
@@ -128,7 +132,7 @@ export default function TechRegisterPage() {
     setSubmitError(null);
     try {
       const certs = splitList(f.certifications).map((c) => ({ cert_name: c }));
-      await api.post("/api/v1/technicians/register", {
+      const res = await api.post<{ data?: { upload_token?: string | null } }>("/api/v1/technicians/register", {
         name: f.name.trim(),
         phone: f.phone.trim(),
         email: f.email.trim(),
@@ -150,6 +154,7 @@ export default function TechRegisterPage() {
         bank_account: f.bankAccount.trim() || undefined,
         tax_id: f.taxId.trim() || undefined,
       });
+      setUploadToken(res?.data?.upload_token ?? null);
       setDone(true);
     } catch (err) {
       setSubmitError(friendlyError(err));
@@ -159,13 +164,13 @@ export default function TechRegisterPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-start justify-center bg-[var(--bg-page)] px-4 py-8 md:items-center">
+    <div className="tech-soft relative flex min-h-screen items-start justify-center bg-[var(--bg-page)] px-4 py-8 md:items-center">
       <div className="absolute right-4 top-4">
         <LocaleToggle />
       </div>
       <BackToHome className="absolute left-4 top-4" />
 
-      <div className="w-full max-w-[560px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-sm md:p-8">
+      <div className="w-full max-w-[560px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))] md:p-8">
         <div className="mb-5 flex flex-col items-center gap-2">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)]">
             <Wrench className="h-6 w-6 text-white" />
@@ -174,7 +179,9 @@ export default function TechRegisterPage() {
           <p className="text-sm text-[var(--text-secondary)]">填寫資料，送出後待平台審核</p>
         </div>
 
-        {done ? (
+        {done && uploadToken && !docsDone ? (
+          <DocUploadSection token={uploadToken} onFinish={() => setDocsDone(true)} />
+        ) : done ? (
           <div className="flex flex-col items-center gap-4 py-6">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
               <Check className="h-7 w-7 text-green-600" />
@@ -184,7 +191,7 @@ export default function TechRegisterPage() {
             </p>
             <Link
               href={loginHref}
-              className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
+              className="rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
             >
               前往登入
             </Link>
@@ -202,7 +209,7 @@ export default function TechRegisterPage() {
               {submitError && (
                 <div
                   role="alert"
-                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                  className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
                 >
                   {submitError}
                 </div>
@@ -230,7 +237,7 @@ export default function TechRegisterPage() {
                   <button
                     type="button"
                     onClick={next}
-                    className="rounded-lg bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
+                    className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
                   >
                     下一步
                   </button>
@@ -239,7 +246,7 @@ export default function TechRegisterPage() {
                     type="button"
                     onClick={doSubmit}
                     disabled={loading}
-                    className="rounded-lg bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
+                    className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
                   >
                     {loading ? "送出中…" : "送出申請"}
                   </button>
@@ -472,4 +479,112 @@ function maskTail(v: string, visible: number): string {
   const s = v.trim();
   if (s.length <= visible) return s;
   return "•".repeat(s.length - visible) + s.slice(-visible);
+}
+
+// ── 文件上傳（Tier 3，§8-2a 兩階段）────────────────────────────────────────
+// 註冊成功後憑一次性 token 打公開端點;全部選填,可略過(核准前補件)。
+// 離開此頁 token 即不可再取得 → 畫面明示「離開後如需補傳請聯絡平台」。
+
+const DOC_SLOTS: { type: string; label: string }[] = [
+  { type: "id_front", label: "身分證正面" },
+  { type: "id_back", label: "身分證反面" },
+  { type: "license", label: "證照掃描" },
+  { type: "insurance", label: "保險證明／良民證" },
+];
+
+function DocUploadSection({ token, onFinish }: { token: string; onFinish: () => void }) {
+  const [uploaded, setUploaded] = useState<Record<string, string>>({});
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  async function handleFile(docType: string, file: File | null) {
+    if (!file || uploading) return;
+    // 客戶端預檢:超過 10MB 直接擋,不整包上傳才拿到泛化錯誤。
+    if (file.size > 10 * 1024 * 1024) {
+      setErrors((prev) => ({ ...prev, [docType]: "檔案超過 10MB，請壓縮後再上傳" }));
+      return;
+    }
+    setUploading(docType);
+    setErrors((prev) => ({ ...prev, [docType]: "" }));
+    try {
+      const fd = new FormData();
+      fd.append("token", token);
+      fd.append("doc_type", docType);
+      fd.append("file", file);
+      await api.upload("/api/v1/technicians/registration-documents", fd);
+      setUploaded((prev) => ({ ...prev, [docType]: file.name }));
+    } catch (err) {
+      setErrors((prev) => ({ ...prev, [docType]: friendlyError(err) }));
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  const count = Object.keys(uploaded).length;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col items-center gap-2">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+          <Check className="h-6 w-6 text-green-600" />
+        </div>
+        <p className="text-center text-sm font-semibold text-[var(--text-primary)]">
+          申請已送出！最後一步：上傳證件文件
+        </p>
+        <p className="text-center text-xs text-[var(--text-secondary)]">
+          全部選填，可先略過、於核准前補件；文件加密環境保存、僅供平台審核。
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        {DOC_SLOTS.map(({ type, label }) => (
+          <label
+            key={type}
+            className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition ${
+              uploaded[type]
+                ? "border-green-300 bg-green-50"
+                : "border-[var(--border)] hover:bg-[var(--bg-page)]"
+            }`}
+          >
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[13px] font-medium text-[var(--text-primary)]">{label}</span>
+              {uploaded[type] ? (
+                <span className="truncate text-xs text-green-700">✓ {uploaded[type]}</span>
+              ) : (
+                <span className="text-xs text-[var(--text-disabled)]">JPG / PNG / PDF，10MB 內</span>
+              )}
+              {errors[type] && <span className="text-xs text-red-600">{errors[type]}</span>}
+            </div>
+            <span className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
+              <Upload className="h-3.5 w-3.5" />
+              {uploading === type ? "上傳中…" : uploaded[type] ? "重新上傳" : "選擇檔案"}
+            </span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              className="hidden"
+              disabled={!!uploading}
+              onChange={(e) => {
+                handleFile(type, e.target.files?.[0] ?? null);
+                e.target.value = ""; // 允許同檔重選
+              }}
+            />
+          </label>
+        ))}
+      </div>
+
+      <p className="text-center text-xs text-[var(--text-disabled)]">
+        離開此頁後將無法自行補傳，屆時請聯絡平台協助補件。
+      </p>
+
+      <button
+        type="button"
+        onClick={onFinish}
+        disabled={!!uploading}
+        className="rounded-full bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
+      >
+        {count > 0 ? `完成（已上傳 ${count} 份）` : "略過，稍後補件"}
+      </button>
+    </div>
+  );
 }

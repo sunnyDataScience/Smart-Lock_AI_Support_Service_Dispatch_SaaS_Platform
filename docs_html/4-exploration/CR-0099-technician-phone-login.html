@@ -134,10 +134,9 @@ email），新增 <code>409 AMBIGUOUS_IDENTIFIER</code>。</li>
 <p><code>api/tests/test_technician_login_identifier.py</code>（5
 passed）：</p>
 <ul>
-<li>手機號 <code>0911222333</code> + <code>techpass123</code> →
+<li>手機號 <code>0911222333</code> + <code>changeme123</code> →
 200（demo-tech 種子）</li>
-<li>Email <code>demo-tech@example.com</code> →
-200（既有路徑不回歸）</li>
+<li>Email <code>test@lock-ai.com</code> → 200（既有路徑不回歸）</li>
 <li>密碼錯 → 401；查無手機 → 401</li>
 <li>手機對應多帳號（monkeypatch <code>_find_users_by_phone</code> 回 2
 筆）→ 409 <code>AMBIGUOUS_IDENTIFIER</code></li>

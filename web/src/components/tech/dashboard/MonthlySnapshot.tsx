@@ -93,7 +93,7 @@ export default function MonthlySnapshot({ summary, loading }: Props) {
           return (
             <div
               key={key}
-              className="flex items-center gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3.5 shadow-sm"
+              className="flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3.5 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]"
             >
               <span
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"

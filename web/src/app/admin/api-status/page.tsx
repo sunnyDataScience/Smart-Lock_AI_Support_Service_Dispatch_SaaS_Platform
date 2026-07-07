@@ -17,7 +17,7 @@ import { friendlyError } from "@/lib/apiError";
 import Sidebar from "@/components/layout/Sidebar";
 
 export default function ApiStatusPage() {
-  const [email, setEmail] = useState("admin@example.com");
+  const [email, setEmail] = useState("test@lock-ai.com");
   const [password, setPassword] = useState("");
   const [config, setConfig] = useState<unknown>(null);
   const [notifications, setNotifications] = useState<unknown>(null);

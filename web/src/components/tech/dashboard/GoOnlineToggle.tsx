@@ -88,7 +88,7 @@ export default function GoOnlineToggle({ availability, onChanged, tone = "card" 
         onClick={toggle}
         disabled={submitting || locked || readOnly}
         aria-pressed={isOnline}
-        className="flex min-h-[64px] w-full max-w-[360px] items-center justify-center gap-3 rounded-2xl px-6 text-[17px] font-bold shadow-sm transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-90"
+        className="flex min-h-[64px] w-full max-w-[360px] items-center justify-center gap-3 rounded-2xl px-6 text-[17px] font-bold shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))] transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-90"
         style={{ backgroundColor: bg, color: fg }}
       >
         {submitting ? (

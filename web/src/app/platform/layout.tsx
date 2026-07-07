@@ -8,11 +8,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
 import { logoutPlatformAdmin } from "@/lib/api";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 
 const NAV: { href: string; label: string }[] = [
   { href: "/platform", label: "儀表板" },
-  { href: "/platform/brand-applications", label: "品牌申請" },
-  { href: "/platform/technician-approvals", label: "師傅審核" },
+  { href: "/platform/requestors", label: "發案方審核" },
+  { href: "/platform/technicians", label: "師傅管理" },
+  { href: "/platform/tenants", label: "租戶管理" },
 ];
 
 export default function PlatformLayout({
@@ -47,9 +49,13 @@ export default function PlatformLayout({
             </div>
             <nav className="flex items-center gap-1" aria-label="平台管理導覽">
               {NAV.map((item) => {
+                // 根路徑 /platform（儀表板）只精確比對 —— 否則 startsWith("/platform/")
+                // 會對所有子頁成立,儀表板永遠亮。其餘項用「精確 or 前綴」(涵蓋 /[id] 詳情頁)。
                 const active =
-                  pathname === item.href ||
-                  pathname.startsWith(`${item.href}/`);
+                  item.href === "/platform"
+                    ? pathname === "/platform"
+                    : pathname === item.href ||
+                      pathname.startsWith(`${item.href}/`);
                 return (
                   <Link
                     key={item.href}
@@ -69,14 +75,17 @@ export default function PlatformLayout({
               })}
             </nav>
           </div>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] hover:text-[var(--text-primary)]"
-          >
-            <LogOut className="h-4 w-4" aria-hidden />
-            登出
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle />
+            <button
+              type="button"
+              onClick={onLogout}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] hover:text-[var(--text-primary)]"
+            >
+              <LogOut className="h-4 w-4" aria-hidden />
+              登出
+            </button>
+          </div>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>

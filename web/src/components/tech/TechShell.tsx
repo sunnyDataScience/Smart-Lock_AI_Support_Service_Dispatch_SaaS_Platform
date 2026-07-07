@@ -1,38 +1,102 @@
 "use client";
 
+import { ArrowLeft } from "lucide-react";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import TechBottomNav from "./TechBottomNav";
 import TechSidebar from "./TechSidebar";
 
 interface Props {
+  /** 主標題。無 kicker 時 18px;有 kicker 時 15px(kicker 11px 在上,兩行同塞 56px bar)。 */
   title?: string;
+  /** 標題上方小字(如工單編號 #AB12CD34)。 */
+  kicker?: string;
+  /** 有值 → bar 左側顯示返回鈕,點擊 router.push(backHref)。 */
+  backHref?: string;
+  /** 標題右側 inline 資訊(件數 chip / 狀態 badge / realtime 指示)。 */
+  meta?: ReactNode;
+  /** bar 右側動作區(refresh 等;慣例 h-9 w-9 rounded-full icon 鈕)。 */
+  actions?: ReactNode;
+  /** 頁首第二列(分頁 tab 列),寬度與內容欄對齊。 */
+  tabs?: ReactNode;
   /**
-   * wide=true：內容區放寬到 1280px 給儀表板多欄網格（/home）。
-   * 預設 false：內容置中於 680px 單欄，給既有列表/表單頁（pool / my-orders / account），
-   * 桌面呈現為「側邊欄 + 聚焦內容欄」而非破版的全寬拉伸。
+   * wide=true：內容區放寬到 1280px 給儀表板多欄網格（/home /pool /my-orders /account）。
+   * 預設 false：內容置中於 680px 白卡單欄（工單詳情/表單頁），有底色+陰影的
+   * 卡片外觀屬刻意設計。
    */
   wide?: boolean;
   children: ReactNode;
 }
 
-// 響應式技師工作台外殼（2026-06-21 重構）：
-//   - 手機 (<768px)：單欄全寬 + 底部 TechBottomNav（沿用手機優先版型）
-//   - 桌面 (≥768px)：左側常駐 TechSidebar + 右側內容區（取代舊「固定 480px 置中欄」）
-// 用純 CSS breakpoint（Tailwind md:）切換，不用 UA 偵測，避免 SSR hydration mismatch。
-export default function TechShell({ title, wide = false, children }: Props) {
+// 響應式技師工作台外殼（2026-06-21 重構；2026-07-07 頁首統一）：
+//   - 手機 (<768px)：單欄全寬 + 底部 TechBottomNav
+//   - 桌面 (≥768px)：左側常駐 TechSidebar + 右側內容區
+//
+// 【頁首一致性規格】全師傅端唯一頁首來源 —— 各頁不再自組 header:
+//   - bar 固定 h-14(56px)、sticky top-0、滿寬 border-b + bg-surface
+//     (背景貼齊側欄到視窗右緣,內文對齊內容欄寬;修大螢幕「浮動白條」)
+//   - 結構:[返回鈕?] [kicker?+標題(truncate)] [meta?] ・・・ [actions?]
+//   - 第二列 tabs?(my-orders 分頁列)同寬對齊
+export default function TechShell({
+  title,
+  kicker,
+  backHref,
+  meta,
+  actions,
+  tabs,
+  wide = false,
+  children,
+}: Props) {
+  const router = useRouter();
+  const columnWidth = wide ? "md:max-w-[1280px]" : "md:max-w-[680px]";
+  const hasBar = Boolean(title || backHref || actions);
   return (
-    <div className="flex min-h-screen w-full bg-[var(--bg-page)]">
+    <div className="tech-soft flex min-h-screen w-full bg-[var(--bg-page)]">
       <TechSidebar />
-      <div className="flex min-h-screen w-full flex-1 flex-col">
-        {title && (
-          <header className="sticky top-0 z-20 flex h-14 items-center border-b border-[var(--border)] bg-[var(--bg-surface)] px-4">
-            <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{title}</h1>
+      <div className="flex min-h-screen w-full min-w-0 flex-1 flex-col">
+        {hasBar && (
+          <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg-surface)]">
+            <div
+              className={`mx-auto flex h-14 w-full items-center gap-2 px-4 md:px-6 ${columnWidth}`}
+            >
+              {backHref && (
+                <button
+                  type="button"
+                  onClick={() => router.push(backHref)}
+                  className="-ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+                  aria-label="返回"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </button>
+              )}
+              <div className="flex min-w-0 flex-col justify-center">
+                {kicker && (
+                  <span className="truncate text-[11px] leading-tight text-[var(--text-disabled)]">
+                    {kicker}
+                  </span>
+                )}
+                {title && (
+                  <h1
+                    className={`truncate font-semibold text-[var(--text-primary)] ${
+                      kicker ? "text-[15px] leading-tight" : "text-[18px]"
+                    }`}
+                  >
+                    {title}
+                  </h1>
+                )}
+              </div>
+              {meta && <div className="flex min-w-0 items-center gap-1.5">{meta}</div>}
+              {actions && (
+                <div className="ml-auto flex shrink-0 items-center gap-1.5">{actions}</div>
+              )}
+            </div>
+            {tabs && <div className={`mx-auto w-full ${columnWidth}`}>{tabs}</div>}
           </header>
         )}
         <main className="flex-1 overflow-y-auto">
           <div
             className={`mx-auto w-full ${
-              wide ? "md:max-w-[1280px]" : "min-h-full bg-[var(--bg-surface)] shadow-sm md:max-w-[680px]"
+              wide ? columnWidth : `min-h-full bg-[var(--bg-surface)] shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))] ${columnWidth}`
             }`}
           >
             {children}

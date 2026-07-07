@@ -16,7 +16,7 @@ import { friendlyError } from "@/lib/apiError";
 // 2026-06-19:已移除 DesktopMobileGuard,桌面/手機皆可直接登入。
 
 const inputCls =
-  "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
+  "h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
 
 // 註冊頁位置：tech build 站內 /tech-register；dispatch（配 PEER）指對方 tech portal。
 const registerHref =
@@ -28,13 +28,13 @@ export default function TechLoginPage() {
   const t = useTranslations("techPortal.techLogin");
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center bg-[var(--bg-page)] px-4 py-8">
+    <div className="tech-soft relative flex min-h-screen items-center justify-center bg-[var(--bg-page)] px-4 py-8">
       <div className="absolute right-4 top-4">
         <LocaleToggle />
       </div>
       <BackToHome className="absolute left-4 top-4" />
 
-      <div className="w-full max-w-[440px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-8 shadow-sm">
+      <div className="w-full max-w-[440px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-8 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <div className="mb-6 flex flex-col items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)]">
             <Wrench className="h-6 w-6 text-white" />
@@ -127,7 +127,7 @@ function TechLoginForm({
       {error && (
         <div
           role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+          className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
         >
           {error}
         </div>
@@ -136,7 +136,7 @@ function TechLoginForm({
       <button
         type="submit"
         disabled={loading || !identifier || !password}
-        className="h-10 rounded-lg bg-[var(--primary)] text-sm font-medium text-white transition hover:bg-[var(--primary-hover)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 disabled:opacity-50"
+        className="h-10 rounded-full bg-[var(--primary)] text-sm font-medium text-white transition hover:bg-[var(--primary-hover)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 disabled:opacity-50"
       >
         {loading ? t("submitting") : t("submit")}
       </button>

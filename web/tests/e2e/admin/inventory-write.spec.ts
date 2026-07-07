@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
 test.describe.serial("inventory write flow", () => {
   test("新增物料 modal 開得起來 + 必填驗證", async ({ page }) => {
     await page.goto("/login");
-    await page.fill('input[type="email"]', "admin@example.com");
+    await page.fill('input[type="email"]', "test@lock-ai.com");
     await page.fill('input[type="password"]', "changeme123");
     await page.click('button[type="submit"]');
     await page.waitForURL((u) => !u.pathname.includes("/login"));
@@ -48,7 +48,7 @@ test.describe.serial("inventory write flow", () => {
 
   test("補貨 button 不再 disabled", async ({ page }) => {
     await page.goto("/login");
-    await page.fill('input[type="email"]', "admin@example.com");
+    await page.fill('input[type="email"]', "test@lock-ai.com");
     await page.fill('input[type="password"]', "changeme123");
     await page.click('button[type="submit"]');
     await page.waitForURL((u) => !u.pathname.includes("/login"));

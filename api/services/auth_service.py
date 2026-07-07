@@ -573,6 +573,20 @@ async def register_technician(req: dict) -> dict:
     await mirror_rows("users", [user_id])
     await mirror_rows("technicians", [technician_id])
 
+    # CR-0115 §8-2a：簽發兩階段文件上傳 token（Tier 3；明文僅出現在本 response，
+    # 落庫只存 SHA-256）。fail-soft：migration 090 未套的異質部署註冊仍成功、僅少 token。
+    upload_token: dict | None = None
+    try:
+        from services import technician_kyc_service
+
+        upload_token = await technician_kyc_service.issue_upload_token(
+            conn, technician_id=technician_id
+        )
+    except Exception:
+        logger.warning(
+            "文件上傳 token 簽發失敗（migration 090 未套？）；註冊仍成功", exc_info=True
+        )
+
     return {
         "data": {
             "id": technician_id,
@@ -585,6 +599,10 @@ async def register_technician(req: dict) -> dict:
             "regions": regions,
             "status": "pending_approval",
             "created_at": datetime.now(timezone.utc).isoformat(),
+            "upload_token": upload_token["token"] if upload_token else None,
+            "upload_token_expires_at": (
+                upload_token["expires_at"] if upload_token else None
+            ),
         },
         "message": "Technician registered, pending admin approval",
     }

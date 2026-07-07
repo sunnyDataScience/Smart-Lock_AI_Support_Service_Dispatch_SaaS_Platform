@@ -13,8 +13,9 @@
 
 ## 已知 demo accounts
 
-- `demo-admin@example.com` / `adminpass123`（admin）
-- `demo-tech@example.com` / `techpass123`（technician）
+- `test@lock-ai.com` / `changeme123`（admin）
+- `test@lock-ai.com` / `changeme123`（technician）
+- `dispatcher@example.com`、`ops@example.com`、`cs@example.com`、`reviewer@example.com` / `changeme123`（各後台角色）
 
 ## 對應 docs
 

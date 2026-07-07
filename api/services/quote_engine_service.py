@@ -292,6 +292,32 @@ async def transition(
 
     await conn.execute("UPDATE quote SET state = %s, updated_at = NOW() WHERE id = %s::uuid", (to_state, quote_id))
 
+    # CR-0117 S1：報價總額回寫工單 estimated_price —— 先前此欄全系統無寫入點（死欄位），
+    # 師傅端首頁今日/本週/本月「預估收入」SUM 它永遠 NT$ 0、sla_monitor quote_expiring
+    # （estimated_price 非空 + status=created = 已報價待客戶確認）永不觸發。
+    # 寫入點 = send（送客戶當下價格已凍結快照，quote_expiring 語意正確起算）；
+    # accept 再冪等重寫一次作保險（改單重送情境同步最終承諾額）。total NULL（無明細）不寫。
+    # - tenant 雙重限定：transition() 既有查詢以 quote id 直查不過濾租戶（既有缺口，
+    #   另案處理），本回寫自帶 tenant 條件，不讓新寫入面繼承跨租戶污染財務欄位的風險。
+    # - fail-soft：本回寫夾在「state 已 commit（autocommit）」與下游快照/發票/推播之間，
+    #   若在此拋錯，重試會被狀態機 409 擋死、下游永久跳過 —— estimated_price 屬可回填的
+    #   派生欄位，失敗只 log 不阻斷主流程。
+    if action in ("send", "accept"):
+        try:
+            await conn.execute(
+                "UPDATE work_orders wo SET estimated_price = q.total_amount, updated_at = NOW() "
+                "FROM quote q "
+                "WHERE q.id = %s::uuid AND wo.id = q.work_order_id "
+                "  AND q.total_amount IS NOT NULL "
+                "  AND wo.tenant_id = %s::uuid "
+                "  AND (q.tenant_id = %s::uuid OR q.tenant_id IS NULL)",
+                (quote_id, tenant_id, tenant_id),
+            )
+        except Exception:  # noqa: BLE001 — 派生欄位回寫失敗不可卡死 transition 下游
+            logger.exception(
+                "estimated_price 回寫失敗（可用回填修復，不阻斷 %s）quote=%s", action, quote_id,
+            )
+
     if action in ("approve", "reject"):
         await conn.execute(
             "INSERT INTO quote_approval (quote_id, approver_id, decision, comment) "
@@ -371,10 +397,12 @@ async def _log_quote_event_to_conversation(quote_id: str, action: str, result: d
 
     label = result.get("quote_number") or f"報價 {quote_id[:8]}"
     total = result.get("total_amount")
+    # CR-0117：total 為 NULL（無明細）時不可直接內插 —— 曾產生「總額 NT$ None」外洩給客服畫面
+    total_label = f"總額 NT$ {total}" if total not in (None, "") else "金額未定"
     if action == "send":
-        note = f"🧾 已發送報價單 {label}（總額 NT$ {total}）給客戶，等待客戶於 LINE 回覆。"
+        note = f"🧾 已發送報價單 {label}（{total_label}）給客戶，等待客戶於 LINE 回覆。"
     elif action == "accept":
-        note = f"✅ 客戶已同意報價單 {label}（總額 NT$ {total}），可進行派工。"
+        note = f"✅ 客戶已同意報價單 {label}（{total_label}），可進行派工。"
     else:  # decline
         note = f"❌ 客戶不同意報價單 {label}，請客服調整後重送。"
     await conversation_service.append_event_note(conversation_id=conv_id, content=note)

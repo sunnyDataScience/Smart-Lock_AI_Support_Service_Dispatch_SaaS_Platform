@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CalendarClock, ArrowRight, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
@@ -90,8 +89,12 @@ export default function DelayPage() {
   }
 
   return (
-    <TechShell>
-      <SubflowHeader workOrderId={id} title={t("title")} />
+    <TechShell
+      // 頁首走 shell 統一規格(h-14 bar:返回工單詳情 + 編號 kicker + 標題)
+      backHref={`/my-orders/${id}`}
+      kicker={`#${id.slice(0, 8)}`}
+      title={t("title")}
+    >
 
       {submitOk && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
@@ -101,12 +104,12 @@ export default function DelayPage() {
       )}
 
       {submitError && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {submitError}
         </div>
       )}
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("durationLabel")}
         </span>
@@ -116,7 +119,7 @@ export default function DelayPage() {
               key={opt.value}
               type="button"
               onClick={() => setDelayMinutes(opt.value)}
-              className={`rounded-md border px-3 py-2 text-[13px] font-medium ${
+              className={`rounded-xl border px-3 py-2 text-[13px] font-medium ${
                 delayMinutes === opt.value
                   ? "border-[var(--primary)] bg-[var(--primary)] text-white"
                   : "border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-primary)]"
@@ -134,12 +137,12 @@ export default function DelayPage() {
             max={300}
             value={delayMinutes}
             onChange={(e) => setDelayMinutes(parseInt(e.target.value) || 0)}
-            className="w-24 rounded-md border border-[var(--border)] px-2 py-1"
+            className="w-24 rounded-xl border border-[var(--border)] px-2 py-1"
           />
         </label>
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("reasonLabel")}
         </span>
@@ -147,7 +150,7 @@ export default function DelayPage() {
           {REASON_KEYS.map((r) => (
             <label
               key={r}
-              className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
+              className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-[13px] ${
                 reasonKey === r
                   ? "border-[var(--primary)] bg-[var(--primary-light)]"
                   : "border-[var(--border)] bg-[var(--bg-surface)]"
@@ -169,12 +172,12 @@ export default function DelayPage() {
             onChange={(e) => setReasonText(e.target.value)}
             rows={2}
             placeholder={t("reasonOtherPlaceholder")}
-            className="mt-2 rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
+            className="mt-2 rounded-xl border border-[var(--border)] px-3 py-2 text-[13px]"
           />
         )}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("notifyLabel")}
         </span>
@@ -221,7 +224,7 @@ export default function DelayPage() {
           type="button"
           onClick={submit}
           disabled={submitting}
-          className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
+          className="h-12 flex-[2] rounded-full bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
           {submitting ? t("submitting") : t("submit")}
         </button>

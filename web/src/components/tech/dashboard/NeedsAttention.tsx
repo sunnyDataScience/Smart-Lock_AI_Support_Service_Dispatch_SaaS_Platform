@@ -70,7 +70,7 @@ export default function NeedsAttention({ orders, statements }: Props) {
   }
 
   return (
-    <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
       <div className="mb-3 flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-[#F59E0B]" />
         <h2 className="text-[15px] font-semibold text-[var(--text-primary)]">

@@ -5,15 +5,19 @@ import base64
 import hashlib
 import hmac
 import json
+import time
 
 import pytest
 
 from lockcore.channels.line_gateway import (
+    _HANDOVER_NOTICE_COOLDOWN_SEC,
     _apply_handoff_fallback_safe,
     _clean_symptom,
     _extract_brand_model,
     _extract_phone,
+    _handover_notice_at,
     _promised_handoff,
+    _should_notify_handover,
     handle_text_turn,
     load_dotenv,
     resolve_identity,
@@ -22,6 +26,42 @@ from lockcore.channels.line_gateway import (
 
 def test_resolve_identity_line_uses_userid():
     assert resolve_identity("line", "U1234", "locksmart") == ("locksmart", "U1234")
+
+
+# ── 接管期間「請稍候」提示的節流(避免客人連傳被洗版)──────────────────
+
+
+def test_handover_notice_first_message_notifies():
+    """接管中客人第一則 → 送提示(回 True)。"""
+    _handover_notice_at.clear()
+    assert _should_notify_handover("locksmart:U_first") is True
+
+
+def test_handover_notice_throttled_within_cooldown():
+    """冷卻內連傳 → 只送一次,後續節流(回 False)。"""
+    _handover_notice_at.clear()
+    key = "locksmart:U_spam"
+    assert _should_notify_handover(key) is True
+    assert _should_notify_handover(key) is False
+    assert _should_notify_handover(key) is False
+
+
+def test_handover_notice_resends_after_cooldown():
+    """超過冷卻窗 → 再次送提示(回 True)。以回填過去時戳模擬時間流逝。"""
+    _handover_notice_at.clear()
+    key = "locksmart:U_wait"
+    assert _should_notify_handover(key) is True
+    # 模擬「上次送出」在冷卻窗之前
+    _handover_notice_at[key] = time.monotonic() - (_HANDOVER_NOTICE_COOLDOWN_SEC + 1)
+    assert _should_notify_handover(key) is True
+
+
+def test_handover_notice_isolated_per_session():
+    """不同 session 各自獨立節流,互不影響。"""
+    _handover_notice_at.clear()
+    assert _should_notify_handover("locksmart:U_a") is True
+    assert _should_notify_handover("locksmart:U_b") is True  # 另一 session 不受 A 影響
+    assert _should_notify_handover("locksmart:U_a") is False
 
 
 # ── CR-0097 方案 A 兜底：AI 承諾轉接卻沒呼叫工具 → 程式補 escalation ──────────────
@@ -289,6 +329,8 @@ def test_webhook_valid_signature_invokes_loop_and_replies(monkeypatch):
 
     from lockcore.channels import line_gateway
 
+    # CR-0120:0 = 停用 debounce,走直通路徑(本測試驗證原逐則行為不變)
+    monkeypatch.setenv("LINE_DEBOUNCE_SECONDS", "0")
     secret = "testsecret"
     loop = _FakeLoop("好的,已為您記下 🔐")
 
@@ -414,3 +456,216 @@ def test_download_line_image_error_returns_none(tmp_path, monkeypatch):
     )
     blob = _FakeBlobApi(RuntimeError("boom"))
     assert asyncio.run(lg.download_line_image(blob, "msg-x")) is None
+
+
+# ── CR-0119:持久化照片編碼(_encode_media_for_persist)──────────────────
+
+
+def test_encode_media_for_persist_roundtrip(tmp_path):
+    """照片路徑 → base64 + magic bytes 判 mime;解回原 bytes。"""
+    from lockcore.channels.line_gateway import _encode_media_for_persist
+
+    p = tmp_path / "photo.png"
+    p.write_bytes(_PNG_BYTES)
+    out = _encode_media_for_persist([str(p)])
+    assert out["media_mime"] == "image/png"
+    assert base64.b64decode(out["media_base64"]) == _PNG_BYTES
+
+
+def test_encode_media_for_persist_none_or_empty():
+    """無照片 → 空 dict(payload 不帶 media 欄位,既有行為不變)。"""
+    from lockcore.channels.line_gateway import _encode_media_for_persist
+
+    assert _encode_media_for_persist(None) == {}
+    assert _encode_media_for_persist([]) == {}
+
+
+def test_encode_media_for_persist_missing_file_failsoft():
+    """檔案不存在 → 空 dict 只 log,不 raise(照片問題不可阻斷文字持久化)。"""
+    from lockcore.channels.line_gateway import _encode_media_for_persist
+
+    assert _encode_media_for_persist(["/nonexistent/cr0119.jpg"]) == {}
+
+
+# ── CR-0120:連續訊息合併(trailing debounce)──────────────────────────
+
+
+def test_debounce_seconds_env(monkeypatch):
+    """env 可調、非數值回預設、clamp 上限、空值回預設。"""
+    from lockcore.channels.line_gateway import (
+        _DEBOUNCE_DEFAULT_SECONDS,
+        _DEBOUNCE_MAX_SECONDS,
+        _debounce_seconds,
+    )
+
+    monkeypatch.delenv("LINE_DEBOUNCE_SECONDS", raising=False)
+    assert _debounce_seconds() == _DEBOUNCE_DEFAULT_SECONDS
+    monkeypatch.setenv("LINE_DEBOUNCE_SECONDS", "2.5")
+    assert _debounce_seconds() == 2.5
+    monkeypatch.setenv("LINE_DEBOUNCE_SECONDS", "999")
+    assert _debounce_seconds() == _DEBOUNCE_MAX_SECONDS
+    monkeypatch.setenv("LINE_DEBOUNCE_SECONDS", "abc")
+    assert _debounce_seconds() == _DEBOUNCE_DEFAULT_SECONDS
+
+
+def test_debouncer_merges_burst_into_single_fire():
+    """連傳 3 則 → 靜默到期後只觸發一次,整批依到達序交給 fire。"""
+    from lockcore.channels.line_gateway import _TurnDebouncer
+
+    fired = []
+
+    async def fire(key, items):
+        fired.append((key, items))
+
+    async def run():
+        d = _TurnDebouncer(lambda: 0.05, fire)
+        d.push("t:U1", {"text": "a"})
+        d.push("t:U1", {"text": "b"})
+        d.push("t:U1", {"text": "c"})
+        await asyncio.sleep(0.2)
+
+    asyncio.run(run())
+    assert len(fired) == 1
+    assert fired[0][0] == "t:U1"
+    assert [i["text"] for i in fired[0][1]] == ["a", "b", "c"]
+
+
+def test_debouncer_new_message_resets_timer():
+    """業主語意:計算最後一則的時間,有新訊息就重置計時。
+
+    delay=0.1;t=0 傳 a、t≈0.06 傳 b → 原 timer(0.1 到期)被重置,
+    t≈0.12 檢查必須尚未觸發(若沒重置早就 fire 了),t≈0.16 後才觸發且兩則合併。
+    """
+    from lockcore.channels.line_gateway import _TurnDebouncer
+
+    fired = []
+
+    async def fire(key, items):
+        fired.append(items)
+
+    async def run():
+        d = _TurnDebouncer(lambda: 0.1, fire)
+        d.push("t:U1", {"text": "a"})
+        await asyncio.sleep(0.06)
+        d.push("t:U1", {"text": "b"})
+        await asyncio.sleep(0.06)  # t≈0.12:超過原視窗(0.1)、未達重置後視窗(0.16)
+        assert fired == [], "新訊息應重置計時,不可在原視窗到期時觸發"
+        await asyncio.sleep(0.15)
+
+    asyncio.run(run())
+    assert len(fired) == 1
+    assert [i["text"] for i in fired[0]] == ["a", "b"]
+
+
+def test_debouncer_sessions_independent():
+    """不同 session 各自計時、各自觸發,互不干擾。"""
+    from lockcore.channels.line_gateway import _TurnDebouncer
+
+    fired = []
+
+    async def fire(key, items):
+        fired.append((key, [i["text"] for i in items]))
+
+    async def run():
+        d = _TurnDebouncer(lambda: 0.05, fire)
+        d.push("t:U1", {"text": "a"})
+        d.push("t:U2", {"text": "x"})
+        await asyncio.sleep(0.2)
+
+    asyncio.run(run())
+    assert sorted(fired) == [("t:U1", ["a"]), ("t:U2", ["x"])]
+
+
+def test_debouncer_max_batch_forces_fire():
+    """防餓死:連傳不停時滿 max_batch 立即觸發,不等靜默視窗。"""
+    from lockcore.channels.line_gateway import _TurnDebouncer
+
+    fired = []
+
+    async def fire(key, items):
+        fired.append(items)
+
+    async def run():
+        d = _TurnDebouncer(lambda: 10.0, fire, max_batch=3)  # 視窗長到不可能自然到期
+        d.push("t:U1", {"text": "a"})
+        d.push("t:U1", {"text": "b"})
+        d.push("t:U1", {"text": "c"})
+        await asyncio.sleep(0.1)
+
+    asyncio.run(run())
+    assert len(fired) == 1
+    assert [i["text"] for i in fired[0]] == ["a", "b", "c"]
+
+
+def test_debouncer_serializes_fires_per_session():
+    """上一批 turn 未完成時,下一批排隊等(per-session lock 串行,不併發)。"""
+    from lockcore.channels.line_gateway import _TurnDebouncer
+
+    events = []
+
+    async def fire(key, items):
+        texts = [i["text"] for i in items]
+        events.append(("start", texts))
+        await asyncio.sleep(0.1)  # 模擬慢 turn
+        events.append(("end", texts))
+
+    async def run():
+        d = _TurnDebouncer(lambda: 0.03, fire)
+        d.push("t:U1", {"text": "a"})
+        await asyncio.sleep(0.06)  # 第一批已觸發,turn 進行中
+        d.push("t:U1", {"text": "b"})  # 第二批:0.03 後到期,但須等第一批 turn 完
+        await asyncio.sleep(0.35)
+
+    asyncio.run(run())
+    assert events == [
+        ("start", ["a"]), ("end", ["a"]),
+        ("start", ["b"]), ("end", ["b"]),
+    ], f"合併輪必須串行,實際: {events}"
+
+
+def test_webhook_debounce_merges_two_messages(monkeypatch):
+    """webhook 整合:同客人快速連傳兩則 → 只跑一輪 turn(文字換行合併)、只回一次。"""
+    from aiohttp.test_utils import TestClient, TestServer
+
+    from lockcore.channels import line_gateway
+
+    monkeypatch.setenv("LINE_DEBOUNCE_SECONDS", "0.1")
+    secret = "testsecret"
+
+    class _CountingLoop(_FakeLoop):
+        def __init__(self, reply):
+            super().__init__(reply)
+            self.calls = []
+
+        async def _process_message(self, msg, session_key=None):
+            self.calls.append({"content": msg.content, "session_key": session_key})
+            return _FakeOut(self._reply)
+
+    loop = _CountingLoop("收到,馬上為您查詢 🔍")
+    replies = []
+
+    async def _fake_reply(self, req, **kw):
+        replies.append(req.messages[0].text)
+
+    from linebot.v3.messaging import AsyncMessagingApi
+    monkeypatch.setattr(AsyncMessagingApi, "reply_message", _fake_reply, raising=True)
+
+    app = line_gateway.build_webapp(loop, "locksmart", secret, "dummy-token")
+
+    async def run():
+        async with TestClient(TestServer(app)) as client:
+            for text in ("我的鎖打不開", "型號是 K9"):
+                body = _webhook_body("Udebounce", text)
+                sig = _sign(secret, body)
+                resp = await client.post(
+                    "/callback", data=body, headers={"X-Line-Signature": sig}
+                )
+                assert resp.status == 200
+            # 兩則都在視窗內送達 → 視窗到期後合併成一輪
+            await asyncio.sleep(0.4)
+
+    asyncio.run(run())
+    assert len(loop.calls) == 1, f"應只跑一輪 turn,實際 {len(loop.calls)}"
+    assert loop.calls[0]["content"] == "我的鎖打不開\n型號是 K9"
+    assert loop.calls[0]["session_key"] == "locksmart:Udebounce"
+    assert replies == ["收到,馬上為您查詢 🔍"]

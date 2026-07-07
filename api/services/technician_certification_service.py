@@ -15,10 +15,12 @@ N = _EXPIRING_SOON_DAYS（業務假設，CR-0104 §6 標明待業主確認，預
 
 from __future__ import annotations
 
+import uuid
 from datetime import date, timedelta
 
 import core.db as db_module
 from core.db import _ensure_conn
+from core.tech_mirror import mirror_rows
 from core.errors import ApiError
 
 # 「即將到期」門檻天數 —— 業務假設（CR-0104 §6 待業主確認；非財務規則，屬顯示慣例）
@@ -80,4 +82,101 @@ async def list_certifications(*, tenant_id: str, technician_id: str) -> list[dic
     rows = await cur.fetchall()
     today = date.today()
     return [_row_to_dict(r, today) for r in rows]
+
+
+async def create_certification(
+    *,
+    tenant_id: str,
+    technician_id: str,
+    cert_name: str,
+    brand: str | None = None,
+    obtained_at: str | None = None,
+    expires_at: str | None = None,
+) -> dict:
+    """新增一筆認證（admin 後台登錄）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    if not cert_name or not cert_name.strip():
+        raise ApiError("VALIDATION_ERROR", "cert_name 必填", 422)
+    await _assert_technician(tenant_id, technician_id)
+
+    cert_id = str(uuid.uuid4())
+    # CR-0112 方案 B：認證屬技師身分域 —— 權威庫寫入 + 鏡射投影
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
+        "INSERT INTO technician_certification "
+        "  (id, tenant_id, technician_id, cert_name, brand, obtained_at, expires_at) "
+        "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s::date, %s::date) "
+        f"RETURNING {_CERT_SELECT}",
+        (
+            cert_id, tenant_id, technician_id, cert_name.strip(),
+            brand.strip() if brand else None,
+            obtained_at or None, expires_at or None,
+        ),
+    )
+    row = await cur.fetchone()
+    await mirror_rows("technician_certification", [cert_id])
+    return _row_to_dict(row, date.today())
+
+
+async def update_certification(
+    *, tenant_id: str, technician_id: str, cert_id: str, patch: dict
+) -> dict:
+    """部分更新一筆認證（cert_name/brand/obtained_at/expires_at）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    await _assert_technician(tenant_id, technician_id)
+
+    sets: list[str] = []
+    args: list = []
+    if "cert_name" in patch and patch["cert_name"] is not None:
+        if not str(patch["cert_name"]).strip():
+            raise ApiError("VALIDATION_ERROR", "cert_name 不可為空", 422)
+        sets.append("cert_name = %s")
+        args.append(str(patch["cert_name"]).strip())
+    if "brand" in patch:
+        sets.append("brand = %s")
+        args.append(str(patch["brand"]).strip() if patch["brand"] else None)
+    if "obtained_at" in patch:
+        sets.append("obtained_at = %s::date")
+        args.append(patch["obtained_at"] or None)
+    if "expires_at" in patch:
+        sets.append("expires_at = %s::date")
+        args.append(patch["expires_at"] or None)
+
+    if not sets:
+        raise ApiError("VALIDATION_ERROR", "無可更新欄位", 422)
+
+    sets.append("updated_at = NOW()")
+    args.extend([cert_id, tenant_id, technician_id])
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
+        f"UPDATE technician_certification SET {', '.join(sets)} "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid AND technician_id = %s::uuid "
+        f"RETURNING {_CERT_SELECT}",
+        args,
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Certification not found", 404)
+    await mirror_rows("technician_certification", [cert_id])
+    return _row_to_dict(row, date.today())
+
+
+async def delete_certification(
+    *, tenant_id: str, technician_id: str, cert_id: str
+) -> None:
+    """刪除一筆認證。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
+        "DELETE FROM technician_certification "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid AND technician_id = %s::uuid "
+        "RETURNING id",
+        (cert_id, tenant_id, technician_id),
+    )
+    if not await cur.fetchone():
+        raise ApiError("NOT_FOUND", "Certification not found", 404)
+    await mirror_rows("technician_certification", [cert_id])  # 權威已刪 → 投影同步刪
 

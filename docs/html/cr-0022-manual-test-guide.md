@@ -114,7 +114,7 @@ LINE 快速驗證（用一行指令模擬 agent 轉真人）。趕時間先走 B
     npm run dev
     # 預設打 http://localhost:8001（NEXT_PUBLIC_API_BASE_URL）
     # 瀏覽器開 http://localhost:3000/login
-    # 測試帳號：admin@example.com / changeme123
+    # 測試帳號：test@lock-ai.com / changeme123
 
 ## <span class="n">B</span>快速驗證（免 LINE，1 分鐘）
 

@@ -1024,7 +1024,7 @@ class Message(BaseModel):
     role: MessageRole
     type: MessageType
     content: str
-    media_url: AnyUrl | None = None
+    media_url: str | None = None  # spec format: uri-reference（CR-0119 相對路徑 /api/v1/media/{id}）
     created_at: AwareDatetime
 
 

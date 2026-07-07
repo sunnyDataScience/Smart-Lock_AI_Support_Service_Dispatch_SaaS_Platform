@@ -92,52 +92,53 @@ export default function MyOrdersPage() {
   );
 
   return (
-    <TechShell wide>
-      {/* page_header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
-        <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
+    <TechShell
+      wide
+      // 頁首走 shell 統一規格(h-14 bar + tabs 第二列)
+      title={t("title")}
+      actions={
         <button
           type="button"
           onClick={fetchList}
           disabled={loading}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
           title={t("refreshTitle")}
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>
-      </div>
-
-      {/* tab_bar */}
-      <div className="sticky top-[57px] z-10 grid grid-cols-3 border-b border-[var(--border)] bg-[var(--bg-surface)]">
-        {tabs.map((tabItem) => (
-          <button
-            key={tabItem.value}
-            type="button"
-            onClick={() => setTab(tabItem.value)}
-            className={`relative flex h-12 items-center justify-center gap-1 text-[14px] font-medium ${
-              tab === tabItem.value
-                ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
-                : "text-[var(--text-secondary)]"
-            }`}
-          >
-            {tabItem.label}
-            {counts[tabItem.value] > 0 && (
-              <span
-                className={`min-w-[18px] rounded-full px-[6px] py-[1px] text-[10px] font-bold ${
-                  tab === tabItem.value
-                    ? "bg-[var(--primary)] text-white"
-                    : "bg-[var(--border)] text-[var(--text-secondary)]"
-                }`}
-              >
-                {counts[tabItem.value]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-
+      }
+      tabs={
+        <div className="grid grid-cols-3 border-t border-[var(--border)]">
+          {tabs.map((tabItem) => (
+            <button
+              key={tabItem.value}
+              type="button"
+              onClick={() => setTab(tabItem.value)}
+              className={`relative flex h-12 items-center justify-center gap-1 text-[14px] font-medium ${
+                tab === tabItem.value
+                  ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
+                  : "text-[var(--text-secondary)]"
+              }`}
+            >
+              {tabItem.label}
+              {counts[tabItem.value] > 0 && (
+                <span
+                  className={`min-w-[18px] rounded-full px-[6px] py-[1px] text-[10px] font-bold ${
+                    tab === tabItem.value
+                      ? "bg-[var(--primary)] text-white"
+                      : "bg-[var(--border)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {counts[tabItem.value]}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      }
+    >
       {error && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {error}
         </div>
       )}
@@ -154,7 +155,7 @@ export default function MyOrdersPage() {
             {tab === "active" && (
               <Link
                 href="/pool"
-                className="mt-2 rounded-md bg-[var(--primary)] px-3 py-2 text-[12px] font-semibold text-white"
+                className="mt-2 rounded-full bg-[var(--primary)] px-3 py-2 text-[12px] font-semibold text-white"
               >
                 {t("goToPool")}
               </Link>
@@ -165,7 +166,7 @@ export default function MyOrdersPage() {
             <Link
               key={wo.id}
               href={`/my-orders/${wo.id}`}
-              className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm transition hover:bg-[var(--bg-page)]"
+              className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))] transition hover:bg-[var(--bg-page)]"
             >
               <div className="flex items-start justify-between gap-2">
                 <span className="text-[11px] text-[var(--text-disabled)]">
@@ -180,7 +181,7 @@ export default function MyOrdersPage() {
                 {wo.address}
               </h3>
               <div className="flex items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-                <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px]">
+                <span className="rounded-full bg-[var(--surface-strong)] px-2 py-[2px]">
                   {wo.brand} {wo.model}
                 </span>
                 <span>·</span>

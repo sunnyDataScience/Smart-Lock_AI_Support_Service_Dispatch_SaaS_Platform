@@ -32,7 +32,7 @@ DB_NAME="${DB_NAME:-lock_AI_data}"
 API_BASE="${API_BASE:-http://localhost:8001}"
 WEB_BASE="${WEB_BASE:-http://localhost:3000}"
 TENANT_ID="${TENANT_ID:-00000000-0000-0000-0000-000000000001}"
-ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
+ADMIN_EMAIL="${ADMIN_EMAIL:-test@lock-ai.com}"
 ADMIN_PASS="${ADMIN_PASS:-changeme123}"
 
 DO_BUILD=1; DO_UP=1; DO_MIGRATE=1; SMOKE_ONLY=0

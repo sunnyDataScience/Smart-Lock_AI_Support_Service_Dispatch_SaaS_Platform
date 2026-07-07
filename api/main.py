@@ -127,6 +127,9 @@ from routers import lifespan_health as lifespan_health_router  # admin 查 8 mon
 from routers import platform_auth as platform_auth_router  # CR-0114: platform console 登入/登出/me
 from routers import platform_brand_applications as platform_brand_apps_router  # CR-0114 R2: 品牌申請
 from routers import platform_technicians as platform_technicians_router  # CR-0114 R3: 師傅審核搬遷
+from routers import platform_vendors as platform_vendors_router  # CR-0114 收尾: 廠商審核搬遷
+from routers import platform_monitor as platform_monitor_router  # CR-0116: 維運監控
+from routers import platform_tenants as platform_tenants_router  # CR-0118: 已開站租戶 registry
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -172,6 +175,7 @@ async def lifespan(app: FastAPI):
     from realtime.auto_confirm_cron import worker as auto_confirm_cron
     from realtime.sla_monitor import monitor as sla_monitor
     from realtime.statement_auto_approval_cron import worker as statement_auto_approval
+    from realtime.statement_generate_cron import worker as statement_generate
 
     if _RUN_BACKGROUND_WORKERS:
         inventory_monitor.start()
@@ -181,6 +185,7 @@ async def lifespan(app: FastAPI):
         dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
         canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
         statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
+        statement_generate.start()  # CR-0117 S4: 上月完工技師自動產月結 draft（佣金口徑）
         gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
         media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
         auto_confirm_cron.start()  # CR-0038 桶4/Q063: 客戶未回 48h 自動結案（排除 hold/異常）
@@ -192,6 +197,7 @@ async def lifespan(app: FastAPI):
         await auto_confirm_cron.stop()
         await media_retention_cron.stop()
         await gdpr_hard_delete.stop()
+        await statement_generate.stop()
         await statement_auto_approval.stop()
         await canary_advance_cron.stop()
         await dispute_escalation_cron.stop()
@@ -237,6 +243,32 @@ app.add_middleware(
 app.add_middleware(RequestIdMiddleware)
 app.add_middleware(DeprecationMiddleware)  # CR-0002-α D3：/api/v1/* 回應一律 Deprecation: true（含 error path）
 
+
+# ── CR-0115:公開上傳端點 body 上限守衛(pre-auth DoS 面)────────────────────
+# 公開文件上傳無登入態,而 Starlette 在進 handler 前就會解析整包 multipart
+# (>1MB spool 到 temp 磁碟)—— handler 內的大小檢查擋不住資源消耗,必須在
+# middleware 層以 Content-Length 先拒。無 Content-Length(chunked)的殘餘風險
+# 由 handler 的截讀(MAX_DOC_BYTES+1)+ per-IP 限流吸收。
+_PUBLIC_UPLOAD_PATH = "/api/v1/technicians/registration-documents"
+_PUBLIC_UPLOAD_MAX_BODY = 12 * 1024 * 1024  # 10 MiB 檔案 + multipart 開銷餘裕
+
+
+@app.middleware("http")
+async def _public_upload_body_cap(request, call_next):
+    if request.url.path == _PUBLIC_UPLOAD_PATH:
+        length = request.headers.get("content-length")
+        if length and length.isdigit() and int(length) > _PUBLIC_UPLOAD_MAX_BODY:
+            from fastapi.responses import JSONResponse
+
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "error_code": "PAYLOAD_TOO_LARGE",
+                    "message": f"上傳內容超過上限({_PUBLIC_UPLOAD_MAX_BODY} bytes)",
+                },
+            )
+    return await call_next(request)
+
 register_exception_handlers(app)
 app.add_exception_handler(IdempotencyReplay, handle_idempotency_replay)
 
@@ -244,6 +276,9 @@ app.include_router(auth_router.router, prefix="/api/v1", tags=["auth"])
 app.include_router(platform_auth_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114
 app.include_router(platform_brand_apps_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R2
 app.include_router(platform_technicians_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R3
+app.include_router(platform_vendors_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 收尾: 廠商審核搬遷
+app.include_router(platform_monitor_router.router, prefix="/api/v1", tags=["platform"])  # CR-0116: 維運監控
+app.include_router(platform_tenants_router.router, prefix="/api/v1", tags=["platform"])  # CR-0118: 租戶 registry
 app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtime"])
 app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])
@@ -639,6 +674,9 @@ if _API_SURFACE == "platform":
 _DISPATCH_SURFACE_DROP_PREFIXES: tuple[str, ...] = (
     "/api/v1/platform",
     "/api/v1/technicians/register",
+    # CR-0115 孿生公開寫端點(兩階段 token 文件上傳)—— 與 /register 同理,
+    # 公開師傅身分域寫入面不暴露在品牌 8001。
+    "/api/v1/technicians/registration-documents",
 )
 
 

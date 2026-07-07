@@ -106,36 +106,37 @@ export default function PoolPage() {
   }
 
   return (
-    <TechShell wide>
-      {/* Page Header */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
-            <RealtimeIndicator status={poolStatus} compact />
-          </div>
-          <p className="text-[12px] text-[var(--text-secondary)]">
+    <TechShell
+      wide
+      // 頁首走 shell 統一規格(h-14 bar;原副標「X 件可接工單」改為標題旁 meta chip,單行不撐高)
+      title={t("title")}
+      meta={
+        <>
+          <RealtimeIndicator status={poolStatus} compact />
+          <span className="truncate rounded-full bg-[var(--primary-light)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--primary)]">
             {loading ? t("loading") : t("availableCount", { count: items.length })}
-          </p>
-        </div>
+          </span>
+        </>
+      }
+      actions={
         <button
           type="button"
           onClick={fetchPool}
           disabled={loading}
-          className="flex h-9 w-9 items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
           title={t("refreshTitle")}
         >
           <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
         </button>
-      </div>
-
+      }
+    >
       {error && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {error}
         </div>
       )}
       {conflictMsg && (
-        <div className="m-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
+        <div className="m-4 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
           {conflictMsg}
         </div>
       )}
@@ -153,7 +154,7 @@ export default function PoolPage() {
             <button
               type="button"
               onClick={fetchPool}
-              className="mt-2 rounded-md border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--primary)] hover:bg-[var(--primary-light)]"
+              className="mt-2 rounded-full border border-[var(--border)] px-3 py-1 text-[12px] font-medium text-[var(--primary)] hover:bg-[var(--primary-light)]"
             >
               {t("refreshTitle")}
             </button>
@@ -165,7 +166,7 @@ export default function PoolPage() {
             return (
               <article
                 key={wo.id}
-                className="flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm"
+                className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]"
                 style={{ borderLeftColor: urgencyBorder, borderLeftWidth: 4 }}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -178,10 +179,10 @@ export default function PoolPage() {
                   {wo.address}
                 </h3>
                 <div className="flex flex-wrap items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-                  <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px]">
+                  <span className="rounded-full bg-[var(--surface-strong)] px-2 py-[2px]">
                     {wo.brand} {wo.model}
                   </span>
-                  <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px]">
+                  <span className="rounded-full bg-[var(--surface-strong)] px-2 py-[2px]">
                     {wo.district}
                   </span>
                   {wo.estimated_reward && (
@@ -200,7 +201,7 @@ export default function PoolPage() {
                   type="button"
                   onClick={() => acceptOrder(wo)}
                   disabled={!!accepting}
-                  className="mt-2 h-12 rounded-lg bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
+                  className="mt-2 h-12 rounded-full bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
                 >
                   {accepting === wo.id ? t("accepting") : t("accept")}
                 </button>

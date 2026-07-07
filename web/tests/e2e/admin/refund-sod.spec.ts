@@ -21,7 +21,7 @@ import { test, expect, type Page } from "@playwright/test";
 /** admin 登入（照 all-buttons-audit.spec.ts 的 login pattern）。 */
 async function login(page: Page) {
   await page.goto("/login");
-  await page.fill('input[type="email"]', "admin@example.com");
+  await page.fill('input[type="email"]', "test@lock-ai.com");
   await page.fill('input[type="password"]', "changeme123");
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.includes("/login"), {

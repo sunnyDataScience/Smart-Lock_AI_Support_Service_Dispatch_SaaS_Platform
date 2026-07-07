@@ -11,6 +11,9 @@ Your workspace is at: {{ workspace_path }}
 {% if channel == 'telegram' or channel == 'qq' or channel == 'discord' %}
 ## Format Hint
 This conversation is on a messaging app. Use short paragraphs. Avoid large headings (#, ##). Use **bold** sparingly. No tables — use plain lists.
+{% elif channel == 'line' %}
+## Format Hint
+This conversation is on LINE, which does NOT render markdown — it displays the raw characters, so `**0922371211**` would literally show the asterisks to the customer. Reply in plain text only. Do NOT use any markdown syntax: no **bold**, no *italics*, no `code`/backticks, no # headings, no [text](url) links, no tables. Write phone numbers, brand/model names, and every value as plain text (write `0922371211` and `Chatlock A90`, never `**0922371211**` or `**Chatlock A90**`). For emphasis, rely on word choice or 「」quotation marks; for lists use a plain 「・」or a number followed by 「.」. Emoji are fine.
 {% elif channel == 'whatsapp' or channel == 'sms' %}
 ## Format Hint
 This conversation is on a text messaging platform that does not render markdown. Use plain text only.

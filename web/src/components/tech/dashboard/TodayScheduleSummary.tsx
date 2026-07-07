@@ -50,7 +50,7 @@ export default function TodayScheduleSummary({ orders, loading }: Props) {
   const current = active[0];
 
   return (
-    <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+    <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <CalendarClock className="h-4 w-4 text-[var(--primary)]" />
@@ -73,7 +73,7 @@ export default function TodayScheduleSummary({ orders, loading }: Props) {
           <p className="text-[13px] text-[var(--text-secondary)]">{t("empty")}</p>
           <Link
             href="/pool"
-            className="mt-2 rounded-md bg-[var(--primary)] px-3 py-1.5 text-[12px] font-semibold text-white"
+            className="mt-2 rounded-full bg-[var(--primary)] px-3 py-1.5 text-[12px] font-semibold text-white"
           >
             {t("goPool")}
           </Link>
@@ -94,7 +94,7 @@ export default function TodayScheduleSummary({ orders, loading }: Props) {
               {current.address}
             </h3>
             <div className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-[var(--text-secondary)]">
-              <span className="rounded bg-[var(--surface-strong)] px-2 py-[2px]">
+              <span className="rounded-full bg-[var(--surface-strong)] px-2 py-[2px]">
                 {current.brand} {current.model}
               </span>
               <span>{current.district}</span>
@@ -124,7 +124,7 @@ export default function TodayScheduleSummary({ orders, loading }: Props) {
               href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(current.address)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--primary)] py-2.5 text-[13px] font-semibold text-white"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[var(--primary)] py-2.5 text-[13px] font-semibold text-white"
             >
               <Navigation className="h-4 w-4" />
               {t("navigate")}

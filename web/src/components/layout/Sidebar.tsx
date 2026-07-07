@@ -8,9 +8,7 @@ import {
   ClipboardList,
   BookOpen,
   Truck,
-  Users,
   CircleUserRound,
-  Store,
   Tag,
   FileText,
   Banknote,
@@ -87,7 +85,6 @@ const navSections: NavSection[] = [
         ],
       },
       { icon: FileText, id: "quotes", href: "/admin/quotes" },
-      { icon: Users, id: "technicians", href: "/technicians" },
       { icon: CircleUserRound, id: "customers", href: "/admin/customers" },
       {
         icon: Receipt,
@@ -107,7 +104,6 @@ const navSections: NavSection[] = [
   {
     titleId: "review",
     items: [
-      { icon: Store, id: "vendorApprovals", href: "/admin/vendor-approvals" },
       { icon: AlertTriangle, id: "exceptions", href: "/admin/exceptions" },
     ],
   },

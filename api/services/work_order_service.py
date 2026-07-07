@@ -1125,6 +1125,8 @@ async def complete_order(
          (json.dumps(function_tests) if function_tests else None),
          wo_id),
     )
+    # CR-0117 S3：完工落庫後回寫技師聚合統計（fail-soft）
+    await _rollup_tech_stats_safe(tenant_id, wo_id)
     await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)
     # CR-0027：完工推 LINE 給客戶（電子工單已開立 + 最終金額，只露對外價）。best-effort。
     try:
@@ -1431,7 +1433,7 @@ async def assign_order(
 
     # Verify technician exists, same tenant, active
     cur = await db_module._conn.execute(
-        "SELECT id, status FROM technicians "
+        "SELECT id, status, online_state FROM technicians "
         "WHERE id = %s::uuid AND tenant_id = %s::uuid",
         (technician_id, tenant_id),
     )
@@ -1442,6 +1444,19 @@ async def assign_order(
         raise ApiError(
             "TECHNICIAN_NOT_AVAILABLE",
             f"Technician status is '{tech_row[1]}'; only 'active' technicians can accept assignments",
+            409,
+        )
+    # CR-0117 S5：熔斷中技師擋派工 —— TECHNICIAN_CIRCUIT_BREAKER_OPEN 錯誤碼與前端
+    # dispatch-manual 的 409 處理先前皆為死碼（後端從不 raise，候選過濾又判錯欄位）。
+    # 主管帶 override_reason 可強制派工（急修安全閥，沿用報價 gate 同模式）。
+    if tech_row[2] == "circuit_breaker_open" and not (
+        actor_role in _QUOTE_GATE_OVERRIDE_ROLES
+        and override_reason
+        and override_reason.strip()
+    ):
+        raise ApiError(
+            "TECHNICIAN_CIRCUIT_BREAKER_OPEN",
+            "技師目前熔斷中（circuit_breaker_open），不可派工；主管可帶 override_reason 強制派工",
             409,
         )
 
@@ -1681,6 +1696,28 @@ async def escalate_order(
     )
 
 
+async def _rollup_tech_stats_safe(tenant_id: str, wo_id: str) -> None:
+    """CR-0117 S3：完工/評分後回寫 technicians.rating / completed_orders 聚合。
+
+    fail-soft —— 統計回寫是派生資料，任何失敗只 log，絕不阻斷工單主流程。
+    """
+    try:
+        cur = await db_module._conn.execute(
+            "SELECT technician_id FROM work_orders WHERE id = %s::uuid",
+            (wo_id,),
+        )
+        row = await cur.fetchone()
+        if not row or not row[0]:
+            return  # 無指派技師 → 無統計可回寫
+        from services import technician_service
+
+        await technician_service.rollup_technician_stats(
+            tenant_id=tenant_id, technician_id=str(row[0]),
+        )
+    except Exception:  # noqa: BLE001 — 派生統計失敗不可影響工單流程
+        logger.exception("technician stats rollup failed (non-fatal) wo=%s", wo_id)
+
+
 async def confirm_order(
     *,
     tenant_id: str,
@@ -1723,6 +1760,8 @@ async def confirm_order(
         "WHERE id = %s::uuid",
         (rating, feedback_clean, wo_id),
     )
+    # CR-0117 S3：評分落庫後回寫技師聚合統計（fail-soft）
+    await _rollup_tech_stats_safe(tenant_id, wo_id)
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.confirmed"
     )

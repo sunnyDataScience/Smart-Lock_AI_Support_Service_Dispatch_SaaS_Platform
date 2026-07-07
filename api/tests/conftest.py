@@ -5,7 +5,7 @@
 
 設計：
   - 透過 httpx.AsyncClient + ASGITransport 直接打 FastAPI app（不啟 uvicorn）
-  - 真實 DB（dev 環境的 lock_AI_data）+ 種子資料（admin@example.com / demo-tech）
+  - 真實 DB（dev 環境的 lock_AI_data）+ 種子資料（test@lock-ai.com / demo-tech）
   - 測試前後若需要 fixtures，由各測試自管 setUp / tearDown
 """
 

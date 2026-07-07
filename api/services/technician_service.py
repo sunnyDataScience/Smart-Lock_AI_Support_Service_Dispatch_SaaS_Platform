@@ -72,6 +72,9 @@ def _tech_row_to_dict(row: tuple) -> dict:
         "rating": float(row[7]) if row[7] is not None else 0.0,
         "completed_orders_count": int(row[8] or 0),
         "status": row[9],  # onboarding 生命週期狀態（供前端核准/狀態徽章用）
+        # deprecated（CR-0117 S5）：DB 無此欄、系統無自動熔斷計時機制，恒回 None 僅為
+        # 契約穩定。熔斷判斷請改用 availability === 'circuit_breaker_open'（真訊號）；
+        # 自動熔斷（拒單率觸發+冷卻到期時間）另立 CR 後才會有真值。
         "circuit_breaker_until": None,
         "created_at": row[10].isoformat() if row[10] else None,
     }
@@ -260,6 +263,137 @@ async def update_my_profile(*, tenant_id: str, user_id: str, patch: dict) -> dic
 
     refreshed = await _find_by_user_id(tenant_id=tenant_id, user_id=user_id)
     return _tech_row_to_dict(refreshed) if refreshed else _tech_row_to_dict(row)
+
+
+async def create_technician(
+    *,
+    tenant_id: str,
+    display_name: str,
+    coverage_areas: list[str],
+    phone: str | None = None,
+    email: str | None = None,
+    capabilities: list[str] | None = None,
+    user_id: str | None = None,
+) -> tuple[dict, bool]:
+    """Onboard 新技師（師傅身分域）。
+
+    CR-0114 收斂輪把品牌端寫端點移除;本函式由 **platform console**
+    （routers/platform_technicians.py，require_platform_admin）呼叫,寫入師傅
+    身分權威庫（require_tech_conn）+ 鏡射品牌投影。
+
+    Idempotency（業務唯一鍵）：tenant_id + display_name（name）— 同 tenant 同姓名
+    若已存在（非 suspended/terminated），回 (existing, created=False)（HTTP 200）。
+    created=True → HTTP 201。
+
+    DB constraints:
+      - name NOT NULL
+      - phone NOT NULL → 若呼叫端未提供，填 '0900000000' 佔位（pending 狀態）
+      - status 預設 'pending_approval'
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # Idempotency check：同 tenant + 同 name 且非 suspended/terminated
+    cur = await db_module._conn.execute(
+        f"SELECT {_TECH_SELECT} FROM technicians t "
+        "WHERE t.tenant_id = %s::uuid AND t.name = %s "
+        "  AND t.status NOT IN ('suspended', 'terminated') "
+        "ORDER BY t.created_at ASC LIMIT 1",
+        (tenant_id, display_name),
+    )
+    existing_row = await cur.fetchone()
+    if existing_row:
+        return _tech_row_to_dict(existing_row), False
+
+    # phone NOT NULL；未提供時填 pattern-valid 佔位（Technician 回應 model phone 規則 ^09\d{8}$，
+    # 空字串會驗證失敗並污染 list 端點序列化）。pending 技師之佔位號碼，待 onboard 補實。
+    phone_val = phone if phone else "0900000000"
+    capabilities_json = json.dumps(capabilities or [])
+    service_regions_json = json.dumps(coverage_areas)
+
+    # 一併建 user(role='technician', is_active=TRUE)，技師才核准得了、未來能登入
+    # （密碼待技師自設/重設，password_hash 暫 NULL）。user + technician 同 transaction。
+    # CR-0112 方案 B：技師身分寫入落權威庫 + 鏡射投影。
+    tconn = await db_module.require_tech_conn()
+    async with tconn.transaction():
+        resolved_user_id = user_id
+        if resolved_user_id is None:
+            resolved_user_id = str(uuid.uuid4())
+            await tconn.execute(
+                "INSERT INTO users "
+                "  (id, tenant_id, tenant_type, display_name, phone, email, role, is_active) "
+                "VALUES (%s::uuid, %s::uuid, 'technician', %s, %s, %s, 'technician', TRUE)",
+                (resolved_user_id, tenant_id, display_name, phone_val, email),
+            )
+        cur = await tconn.execute(
+            "INSERT INTO technicians "
+            "  (tenant_id, user_id, name, phone, email, capabilities, service_regions, status) "
+            "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s::jsonb, %s::jsonb, 'pending_approval') "
+            "RETURNING id",
+            (tenant_id, resolved_user_id, display_name, phone_val, email,
+             capabilities_json, service_regions_json),
+        )
+        row = await cur.fetchone()
+        new_id = str(row[0])
+
+    if user_id is None:
+        await mirror_rows("users", [resolved_user_id])
+    await mirror_rows("technicians", [new_id])
+
+    # 重新 SELECT 以取得完整 row（含 created_at 等欄位）
+    cur = await db_module._conn.execute(
+        f"SELECT {_TECH_SELECT} FROM technicians t WHERE t.id = %s::uuid",
+        (new_id,),
+    )
+    new_row = await cur.fetchone()
+    return _tech_row_to_dict(new_row), True
+
+
+async def update_technician(*, tenant_id: str, technician_id: str, patch: dict) -> dict:
+    """編輯技師基本資料（師傅身分域）— name/phone/email/capabilities/regions/level 部分更新。
+
+    CR-0114 收斂輪把品牌端寫端點移除;本函式由 **platform console** 呼叫。
+    狀態變更不走這裡（用 lifecycle :suspend/:reactivate/:terminate）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # 存在性 + 跨租戶守門（get_technician 不存在會 404）
+    await get_technician(tenant_id=tenant_id, technician_id=technician_id)
+
+    sets: list[str] = []
+    args: list = []
+    if "name" in patch and patch["name"] is not None:
+        sets.append("name = %s")
+        args.append(patch["name"])
+    if "phone" in patch and patch["phone"] is not None:
+        sets.append("phone = %s")
+        args.append(patch["phone"])
+    if "email" in patch and patch["email"] is not None:
+        sets.append("email = %s")
+        args.append(patch["email"])
+    if "capabilities" in patch and patch["capabilities"] is not None:
+        sets.append("capabilities = %s::jsonb")
+        args.append(json.dumps(list(patch["capabilities"])))
+    if "regions" in patch and patch["regions"] is not None:
+        sets.append("service_regions = %s::jsonb")
+        args.append(json.dumps(list(patch["regions"])))
+    # CR-0104：等級手動指派（值域 S/A/B/C 由 API enum TechnicianLevel 守門）
+    if "level" in patch and patch["level"] is not None:
+        sets.append("level = %s")
+        args.append(patch["level"])
+
+    if sets:
+        args.extend([technician_id, tenant_id])
+        # CR-0112 方案 B：技師主檔寫入落權威庫 + 鏡射投影
+        conn = await db_module.require_tech_conn()
+        await conn.execute(
+            f"UPDATE technicians SET {', '.join(sets)} "
+            f"WHERE id = %s::uuid AND tenant_id = %s::uuid",
+            args,
+        )
+        await mirror_rows("technicians", [technician_id])
+
+    return await get_technician(tenant_id=tenant_id, technician_id=technician_id)
 
 
 async def get_my_availability(
@@ -546,9 +680,11 @@ async def get_my_dashboard_summary(*, tenant_id: str, user_id: str) -> dict:
         if month_total and int(month_total) > 0 else None
     )
 
+    # CR-0117 S2：撈「有評分」的近期評價（rating 必填、feedback 選填 —— 先前條件
+    # feedback IS NOT NULL 會把只給星不留言的評價整筆濾掉，首頁近期評價永遠空）。
     cur = await db_module._conn.execute(
         "SELECT rating, feedback, completed_at FROM work_orders "
-        "WHERE technician_id = %s::uuid AND feedback IS NOT NULL "
+        "WHERE technician_id = %s::uuid AND rating IS NOT NULL "
         "ORDER BY completed_at DESC NULLS LAST LIMIT 3",
         (technician_id,),
     )
@@ -579,3 +715,37 @@ async def get_my_dashboard_summary(*, tenant_id: str, user_id: str) -> dict:
         "recent_feedback": recent_feedback,
         "computed_at": datetime.now(timezone.utc).isoformat(),
     }
+
+
+async def rollup_technician_stats(*, tenant_id: str, technician_id: str) -> None:
+    """CR-0117 S3：完工/評分事件後，把 work_orders 聚合回寫 technicians.rating /
+    completed_orders（權威庫 + 投影庫皆寫；單庫 fallback 為同顆連線，重複 UPDATE 無害）。
+
+    背景：這兩欄先前只有種子值（4.7/23）、全系統無任何更新路徑 —— 帳戶頁與
+    dispatch 排序讀到的是永遠不變的假統計。改為「事件後全量重算」而非增量，
+    自我修正（reopen/cancel 改變集合也會在下次事件校正），不怕漏事件。
+
+    呼叫端（work_order_service confirm/complete）以 fail-soft 包裹 —— 統計回寫
+    失敗絕不阻斷工單主流程。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT AVG(rating::numeric), "
+        "       COUNT(*) FILTER (WHERE completed_at IS NOT NULL) "
+        "FROM work_orders "
+        "WHERE technician_id = %s::uuid AND tenant_id = %s::uuid",
+        (technician_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    rating = round(float(row[0]), 2) if row and row[0] is not None else None
+    completed = int(row[1] or 0) if row else 0
+
+    sql = (
+        "UPDATE technicians SET rating = %s, completed_orders = %s, updated_at = NOW() "
+        "WHERE id = %s::uuid AND tenant_id = %s::uuid"
+    )
+    args = (rating, completed, technician_id, tenant_id)
+    # 權威庫（雙庫部署 = lock_tech；fallback = 主連線同顆）
+    conn = await db_module.require_tech_conn()
+    await conn.execute(sql, args)
+    # 投影庫（主品牌庫；/technicians/me 與 dashboard 讀此）— 同顆時等冪重寫無害
+    await db_module._conn.execute(sql, args)

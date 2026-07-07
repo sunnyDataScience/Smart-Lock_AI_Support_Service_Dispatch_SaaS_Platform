@@ -36,7 +36,8 @@ def _make_conn(*, tech_id="tech-uuid-1", agg=None, feedback=None):
         async def execute(self, sql, args=None):
             if "FROM technicians" in sql:
                 return _FakeCur(one=(tech_id,) if tech_id else None)
-            if "feedback IS NOT NULL" in sql:
+            # CR-0117 S2：近期評價查詢條件改 rating IS NOT NULL（星等必填、留言選填）
+            if "SELECT rating, feedback" in sql:
                 return _FakeCur(many=feedback or [])
             return _FakeCur(one=agg)
 

@@ -76,6 +76,8 @@ async def ingest_conversation_turn(
         user_text=body.user_text,
         assistant_text=body.assistant_text,
         display_name=body.display_name,
+        media_base64=body.media_base64,
+        media_mime=body.media_mime,
     )
     logger.info(
         "ingest turn: conv=%s appended=%d line=%s",

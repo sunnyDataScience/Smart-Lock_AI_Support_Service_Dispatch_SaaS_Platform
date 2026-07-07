@@ -56,7 +56,8 @@ function MediaThumb({ item, onClick, canManageHold, onToggleHold }: ThumbProps) 
   useEffect(() => {
     let cancelled = false;
     const ac = new AbortController();
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+    // || 而非 ??：docker build 會把未設的 env 烘成空字串，?? 接不住（CR-0119 同修）
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
     const token = auth.getAccessToken();
     const tenantId = auth.getTenantId();
 

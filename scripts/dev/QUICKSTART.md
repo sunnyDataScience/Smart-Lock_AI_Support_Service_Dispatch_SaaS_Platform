@@ -11,7 +11,7 @@
 ./scripts/dev/quickstart.sh
 ```
 
-5 分鐘後打開 <http://localhost:3000> → 用 `admin@example.com` / `changeme123` 登入。
+5 分鐘後打開 <http://localhost:3000> → 用 `test@lock-ai.com` / `changeme123` 登入。
 
 > 第一次跑會稍久（要下載 Docker image + 跑 schema migration）。第二次起只需 30 秒。
 
@@ -81,7 +81,7 @@ cp .env.example .env
   API docs:          http://localhost:8001/docs
   PostgreSQL:        localhost:5433  (lock / 0000 / lock_AI_data)
 
-  登入 admin 帳號:    admin@example.com / changeme123
+  登入 admin 帳號:    test@lock-ai.com / changeme123
 ```
 
 ### B. 停止
@@ -123,9 +123,9 @@ python3 scripts/seed/realistic_demo_seed.py \
 
 | 角色 | Email | 密碼 |
 |---|---|---|
-| 系統管理員 | `admin@example.com` | `changeme123` |
-| 示範技師 | `demo-tech@example.com` | `techpass123` |
-| 派工員 | `demo-dispatcher@example.com` | `dispatcherpass123` |
+| 系統管理員 | `test@lock-ai.com` | `changeme123` |
+| 示範技師 | `test@lock-ai.com` | `changeme123` |
+| 派工員 | `dispatcher@example.com` | `changeme123` |
 
 ---
 

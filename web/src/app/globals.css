@@ -395,3 +395,71 @@ html { color-scheme: light dark; }
     animation: none !important;
   }
 }
+
+/* ═══ Landing 專屬 soft UI tokens(.lp scope,不影響後台)═══
+ * 2026-07-07 landing 改版:柔和 teal 主色 + 暖琥珀點綴 + 粉彩 chip(approachable)。
+ * 深淺色各自定義,跟隨既有 [data-theme] 機制;僅 landing 頁(src/app/page.tsx)使用。
+ * 對比:--lp-primary #0F766E 於白底 5.9:1(AA);dark 用 teal-300 底配深字。 */
+.lp {
+  --lp-bg: #F5F9F8;
+  --lp-card: #FFFFFF;
+  --lp-primary: #0F766E;
+  --lp-primary-hover: #115E59;
+  --lp-primary-contrast: #FFFFFF;
+  --lp-primary-soft: #CCFBF1;
+  --lp-accent: #B45309;
+  --lp-accent-soft: #FEF3C7;
+  --lp-ring: rgba(15, 118, 110, 0.35);
+  --lp-shadow: 0 16px 40px -20px rgba(13, 148, 136, 0.28);
+  --lp-shadow-sm: 0 6px 20px -10px rgba(13, 148, 136, 0.22);
+  --lp-chip-teal: #CCFBF1;   --lp-chip-teal-ink: #0F766E;
+  --lp-chip-sky: #E0F2FE;    --lp-chip-sky-ink: #0369A1;
+  --lp-chip-violet: #EDE9FE; --lp-chip-violet-ink: #6D28D9;
+  --lp-chip-amber: #FEF3C7;  --lp-chip-amber-ink: #B45309;
+  --lp-chip-rose: #FFE4E6;   --lp-chip-rose-ink: #BE123C;
+  --lp-blob-a: rgba(45, 212, 191, 0.16);
+  --lp-blob-b: rgba(251, 191, 36, 0.14);
+}
+[data-theme="dark"] .lp {
+  --lp-bg: #0B1220;
+  --lp-card: #121D31;
+  --lp-primary: #5EEAD4;
+  --lp-primary-hover: #99F6E4;
+  --lp-primary-contrast: #0B1220;
+  --lp-primary-soft: rgba(94, 234, 212, 0.14);
+  --lp-accent: #FBBF24;
+  --lp-accent-soft: rgba(251, 191, 36, 0.14);
+  --lp-ring: rgba(94, 234, 212, 0.4);
+  --lp-shadow: 0 16px 40px -20px rgba(0, 0, 0, 0.6);
+  --lp-shadow-sm: 0 6px 20px -10px rgba(0, 0, 0, 0.5);
+  --lp-chip-teal: rgba(94, 234, 212, 0.14);  --lp-chip-teal-ink: #5EEAD4;
+  --lp-chip-sky: rgba(125, 211, 252, 0.14);  --lp-chip-sky-ink: #7DD3FC;
+  --lp-chip-violet: rgba(196, 181, 253, 0.14); --lp-chip-violet-ink: #C4B5FD;
+  --lp-chip-amber: rgba(251, 191, 36, 0.14); --lp-chip-amber-ink: #FBBF24;
+  --lp-chip-rose: rgba(253, 164, 175, 0.14); --lp-chip-rose-ink: #FDA4AF;
+  --lp-blob-a: rgba(45, 212, 191, 0.08);
+  --lp-blob-b: rgba(251, 191, 36, 0.06);
+}
+
+/* ═══ 師傅端 soft UI scope(.tech-soft)═══
+ * 2026-07-07 師傅端與 landing 同語言改版:在 tech 外殼(TechShell/tech-login/
+ * tech-register)重映射既有 theme 變數 → 全師傅端換 teal 親和配色,零逐頁改色。
+ * 品牌後台不掛此 class,不受影響。
+ * 對比:light --primary #0F766E 白字 5.9:1(AA);dark #0D9488 白字 3.9:1
+ * (與原 dark 藍 #3B82F6 3.7:1 同級,按鈕大字可讀),於深底當文字 5.1:1。 */
+.tech-soft {
+  --primary: #0F766E;
+  --primary-hover: #115E59;
+  --primary-light: #CCFBF1;
+  --bg-page: #F3F8F6;
+  --tech-shadow-sm: 0 4px 16px -8px rgba(13, 148, 136, 0.18);
+  --tech-shadow: 0 10px 28px -14px rgba(13, 148, 136, 0.25);
+}
+[data-theme="dark"] .tech-soft {
+  --primary: #0D9488;
+  --primary-hover: #14B8A6;
+  --primary-light: rgba(20, 184, 166, 0.16);
+  --bg-page: #0B1220;
+  --tech-shadow-sm: 0 4px 16px -8px rgba(0, 0, 0, 0.45);
+  --tech-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.55);
+}

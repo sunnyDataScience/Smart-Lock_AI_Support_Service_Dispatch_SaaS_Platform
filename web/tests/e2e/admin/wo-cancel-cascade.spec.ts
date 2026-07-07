@@ -35,7 +35,7 @@ const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 // 真實 admin 登入（依任務指定流程，走 UI /login）
 async function adminLogin(page: Page) {
   await page.goto("/login");
-  await page.fill('input[type="email"]', "admin@example.com");
+  await page.fill('input[type="email"]', "test@lock-ai.com");
   await page.fill('input[type="password"]', "changeme123");
   await page.click('button[type="submit"]');
   await page.waitForURL((u) => !u.pathname.includes("/login"), {

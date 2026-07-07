@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Request, Response
+from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
 from core.deps import CurrentUser, get_current_user, role_required
 from core.idempotency import idempotency_guard, IdempotencyContext
-from services import auth_service, password_reset_service
+from services import auth_service, password_reset_service, technician_kyc_service
 
 logger = logging.getLogger("api.routers.auth")
 router = APIRouter()
@@ -281,8 +281,54 @@ async def register_technician(
 ) -> dict:
     payload = await auth_service.register_technician(body.model_dump())
     if idem is not None:
-        await idem.save(201, payload)
+        # CR-0115 §8-2a「token 明文不落庫」:idempotency cache 存品牌庫,不可
+        # 收錄 upload_token 明文 → 存清洗副本(重放回應拿不到 token,屬可接受
+        # 邊界;首個回應已送達 token)。
+        sanitized = {
+            **payload,
+            "data": {**payload["data"], "upload_token": None},
+        }
+        await idem.save(201, sanitized)
     return payload
+
+
+@router.post(
+    "/technicians/registration-documents",
+    operation_id="uploadTechnicianRegistrationDocument",
+    summary="師傅註冊文件上傳（兩階段 token，CR-0115 §8-2a）",
+    status_code=201,
+)
+async def upload_registration_document(
+    request: Request,
+    token: str = Form(min_length=16, max_length=128, description="註冊 response 回傳的一次性上傳 token"),
+    doc_type: str = Form(description="id_front / id_back / license / insurance"),
+    file: UploadFile = File(...),
+) -> dict:
+    """公開前帳號態文件上傳（Tier 3：身分證正反面/證照掃描/保險證明或良民證）。
+
+    無登入態 —— 授權完全憑註冊時簽發的短期 token（48h、次數上限、師傅離開
+    pending_approval 即失效）+ per-IP 限流。檔案與 metadata 落師傅身分域，
+    不入品牌庫（§8-1 最小揭露）。
+    """
+    # 代理/Cloud Run 後 request.client 是 LB IP → 取 X-Forwarded-For 最左端，
+    # 否則全部請求共用一個限流桶互相鎖死。
+    forwarded = request.headers.get("x-forwarded-for", "")
+    client_ip = (
+        forwarded.split(",")[0].strip()
+        or (request.client.host if request.client else None)
+    )
+    # 順序:先限流、再上限截讀 —— 不在任何檢查前把無上限 body 整包讀進記憶體。
+    technician_kyc_service.rate_limit_check(client_ip)
+    file_bytes = await file.read(technician_kyc_service.MAX_DOC_BYTES + 1)
+    result = await technician_kyc_service.upload_registration_document(
+        token=token,
+        doc_type=doc_type,
+        file_bytes=file_bytes,
+        filename=file.filename or "",
+        content_type=file.content_type,
+        client_ip=None,  # 已在上方限流,不重複計數
+    )
+    return {"data": result}
 
 
 class VendorRegisterBody(BaseModel):

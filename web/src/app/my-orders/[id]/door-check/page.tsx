@@ -9,7 +9,6 @@ import {
   X,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
@@ -31,7 +30,7 @@ function PhotoThumb({
 }) {
   const tCommon = useTranslations("techPortal.common");
   return (
-    <div className="relative h-20 overflow-hidden rounded-md border border-[var(--border)]">
+    <div className="relative h-20 overflow-hidden rounded-xl border border-[var(--border)]">
       <span className="flex h-full w-full items-center justify-center bg-[var(--surface-strong)] text-[10px] text-[var(--text-secondary)]">
         <ImageIcon className="mr-1 h-3 w-3" />
         {photo.filename.length > 12
@@ -180,8 +179,12 @@ export default function DoorCheckPage() {
   }
 
   return (
-    <TechShell>
-      <SubflowHeader workOrderId={id} title={t("title")} />
+    <TechShell
+      // 頁首走 shell 統一規格(h-14 bar:返回工單詳情 + 編號 kicker + 標題)
+      backHref={`/my-orders/${id}`}
+      kicker={`#${id.slice(0, 8)}`}
+      title={t("title")}
+    >
 
       {submitOk && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
@@ -191,7 +194,7 @@ export default function DoorCheckPage() {
       )}
 
       {submitError && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {submitError}
         </div>
       )}
@@ -212,7 +215,7 @@ export default function DoorCheckPage() {
         onChange={(e) => handleFileChange("after", e)}
       />
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("beforeLabel")}
         </span>
@@ -240,7 +243,7 @@ export default function DoorCheckPage() {
         )}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("afterLabel")}
         </span>
@@ -268,14 +271,14 @@ export default function DoorCheckPage() {
         )}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("checklistLabel", { checked: checked.size, total: CHECKLIST_KEYS.length })}
         </span>
         {checklist.map((item) => (
           <label
             key={item.key}
-            className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-[13px] ${
+            className={`flex cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-[13px] ${
               checked.has(item.key)
                 ? "border-green-500 bg-green-50"
                 : "border-[var(--border)] bg-[var(--bg-surface)]"
@@ -292,7 +295,7 @@ export default function DoorCheckPage() {
         ))}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("notesLabel")}
         </span>
@@ -301,7 +304,7 @@ export default function DoorCheckPage() {
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
           placeholder={t("notesPlaceholder")}
-          className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px]"
+          className="rounded-xl border border-[var(--border)] px-3 py-2 text-[13px]"
         />
       </section>
 
@@ -317,7 +320,7 @@ export default function DoorCheckPage() {
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
+          className="h-12 flex-[2] rounded-full bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
           {submitting ? t("submitting") : t("submit")}
         </button>

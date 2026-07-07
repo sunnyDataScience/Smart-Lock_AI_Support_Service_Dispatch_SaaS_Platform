@@ -35,6 +35,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "@/lib/api";
+import { usePollingEffect } from "./usePollingEffect";
 
 /** 後端標準分頁回應信封（對齊 OpenAPI `CursorPage` schema） */
 export interface PaginatedResponse<T> {
@@ -78,6 +79,14 @@ export interface UsePaginatedFetchOptions {
    *   mapItem: (doc: KBDocumentSop) => kbDocumentToSopDraft(doc),
    */
   mapItem?: (raw: unknown) => unknown;
+  /**
+   * 有值（毫秒）時開啟「有新資料自動刷新」輪詢：週期性 bypass 快取重抓第一頁、
+   * 靜默替換 items（不觸發 skeleton、不動 error）。分頁隱藏時暫停、回前景補跑。
+   *
+   * 僅在「停在第一頁」時輪詢 —— 一旦 loadMore 往下翻，自動暫停（避免把已載入的多頁
+   * 清回第一頁），refresh / queryKey 變動會重置。不指定時完全不輪詢（預設關閉）。
+   */
+  pollIntervalMs?: number;
 }
 
 export interface UsePaginatedFetchResult<T> {
@@ -143,6 +152,7 @@ export function usePaginatedFetch<T>(
     formatError = toUserMessage,
     onSuccess,
     mapItem,
+    pollIntervalMs,
   } = opts;
 
   const [items, setItems] = useState<T[]>([]);
@@ -163,6 +173,10 @@ export function usePaginatedFetch<T>(
   // （Maximum update depth exceeded，例：/notifications）。用 ref 穩定身份。
   const onSuccessRef = useRef(onSuccess);
   onSuccessRef.current = onSuccess;
+
+  // 使用者是否已 loadMore 往下翻頁。輪詢只在「停在第一頁」時進行，翻頁後暫停
+  // （避免把多頁清回第一頁）；refresh / queryKey 變動時重置為 false。
+  const pagedRef = useRef(false);
 
   const fetchPage = useCallback(
     async (afterCursor: string | null, append: boolean) => {
@@ -201,14 +215,42 @@ export function usePaginatedFetch<T>(
 
   const loadMore = useCallback(async () => {
     if (loading || !hasMore || !cursor) return;
+    pagedRef.current = true; // 已往下翻 → 暫停輪詢，避免被清回第一頁
     await fetchPage(cursor, true);
   }, [fetchPage, loading, hasMore, cursor]);
 
   const refresh = useCallback(async () => {
+    pagedRef.current = false; // 回到第一頁 → 恢復輪詢
     setCursor(null);
     setHasMore(true);
     await fetchPage(null, false);
   }, [fetchPage]);
+
+  // 輪詢:bypass 快取重抓第一頁、靜默替換 items(不觸發 skeleton / 不動 error)。
+  // 定義為 render 內普通函式(非 useCallback)—— usePollingEffect 以 ref 穩定身份，
+  // 每 tick 都用最新閉包(queryRef / pagedRef / mapItem),無 stale-closure、無 deps 顧慮。
+  const pollFirstPage = async (signal: AbortSignal): Promise<void> => {
+    if (!enabled || pagedRef.current) return; // 已翻頁時不輪詢
+    const q: Record<string, string | number | boolean | undefined> = {
+      ...queryRef.current,
+      limit: pageSize,
+    };
+    // 帶 signal → api.get bypass 30s 快取，取真正的最新第一頁
+    const res = await api.get<PaginatedResponse<T>>(path, { query: q, signal });
+    const rawItems = res.items ?? [];
+    const newItems = (mapItem ? rawItems.map(mapItem) : rawItems) as T[];
+    setItems(newItems);
+    const nextCursor = res.next_cursor ?? null;
+    setCursor(nextCursor);
+    setHasMore(res.has_more ?? nextCursor !== null);
+    if (typeof res.total_count === "number") setTotalCount(res.total_count);
+    setLastFetchedAt(new Date());
+  };
+
+  usePollingEffect(pollFirstPage, {
+    intervalMs: pollIntervalMs ?? 0,
+    enabled: enabled && !!pollIntervalMs,
+  });
 
   const mutate = useCallback((updater: (items: T[]) => T[]) => {
     setItems(updater);
@@ -217,6 +259,7 @@ export function usePaginatedFetch<T>(
   // 首次 + path / pageSize / enabled / queryKey 變動時觸發（reset to first page）
   useEffect(() => {
     if (enabled) {
+      pagedRef.current = false; // 重置回第一頁 → 恢復輪詢
       fetchPage(null, false);
     }
     // queryKey 是顯式觸發 refetch 的 dependency；query object 本身不放入避免無謂 re-fetch

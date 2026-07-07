@@ -57,7 +57,7 @@ export default function TechSidebar() {
     <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col overflow-y-auto border-r border-[var(--border)] bg-[var(--bg-surface)] md:flex">
       {/* brand */}
       <div className="flex h-16 items-center gap-2 border-b border-[var(--border)] px-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-[var(--primary)]">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--primary)]">
           <KeyRound className="h-5 w-5 text-white" />
         </div>
         <div className="flex flex-col">
@@ -81,7 +81,7 @@ export default function TechSidebar() {
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] font-medium transition ${
+              className={`flex items-center gap-3 rounded-full px-4 py-2.5 text-[14px] font-medium transition ${
                 active
                   ? "bg-[var(--primary-light)] text-[var(--primary)]"
                   : "text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
@@ -99,7 +99,7 @@ export default function TechSidebar() {
         <button
           type="button"
           onClick={handleLogout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] font-medium text-red-600 transition hover:bg-red-50"
+          className="flex w-full items-center gap-3 rounded-full px-4 py-2.5 text-[14px] font-medium text-red-600 transition hover:bg-red-50"
         >
           <LogOut className="h-5 w-5" />
           {t("sidebar.logout")}
