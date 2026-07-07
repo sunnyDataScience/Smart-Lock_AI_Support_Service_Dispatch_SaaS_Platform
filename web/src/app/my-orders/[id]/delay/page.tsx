@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { CalendarClock, ArrowRight, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import SubflowHeader from "@/components/tech/SubflowHeader";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
@@ -90,8 +89,12 @@ export default function DelayPage() {
   }
 
   return (
-    <TechShell>
-      <SubflowHeader workOrderId={id} title={t("title")} />
+    <TechShell
+      // 頁首走 shell 統一規格(h-14 bar:返回工單詳情 + 編號 kicker + 標題)
+      backHref={`/my-orders/${id}`}
+      kicker={`#${id.slice(0, 8)}`}
+      title={t("title")}
+    >
 
       {submitOk && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">

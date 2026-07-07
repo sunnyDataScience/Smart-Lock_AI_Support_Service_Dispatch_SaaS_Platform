@@ -6,7 +6,6 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   AlertCircle,
   AlertTriangle,
-  ArrowLeft,
   CalendarDays,
   CheckCircle2,
   Send,
@@ -292,34 +291,21 @@ export default function ReschedulePage() {
   }
 
   return (
-    <TechShell>
-      {/* wo_summary_header */}
-      <div className="sticky top-0 z-10 flex items-start gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-2 py-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-          aria-label={tCommon("back")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div className="flex flex-1 flex-col">
-          <span className="text-[11px] text-[var(--text-disabled)]">
-            #{id.slice(0, 8)}
+    <TechShell
+      // 頁首走 shell 統一規格(h-14 bar);地址與原排定時段屬內容資訊,移到 body 摘要卡
+      backHref={`/my-orders/${id}`}
+      kicker={`#${id.slice(0, 8)}`}
+      title={t("title")}
+      meta={<RealtimeIndicator status={rtStatus} compact />}
+    >
+      {/* wo_summary — 原 header 內的工單摘要(地址/原排定時段)移到內容區 */}
+      {wo && (
+        <div className="mx-4 mt-4 flex flex-col gap-1.5 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
+          <span className="text-[13px] font-medium text-[var(--text-primary)] line-clamp-1">
+            {wo.address}
           </span>
-          <div className="flex items-center gap-2">
-            <span className="text-[15px] font-semibold text-[var(--text-primary)]">
-              {t("title")}
-            </span>
-            <RealtimeIndicator status={rtStatus} compact />
-          </div>
-          {wo && (
-            <span className="text-[12px] text-[var(--text-secondary)] line-clamp-1">
-              {wo.address}
-            </span>
-          )}
-          {wo?.scheduled_time && (
-            <span className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-[var(--surface-strong)] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
+          {wo.scheduled_time && (
+            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-[var(--surface-strong)] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
               <CalendarDays className="h-3 w-3" />
               {t("originalScheduled")}
               {new Date(wo.scheduled_time).toLocaleString("zh-TW", {
@@ -328,7 +314,7 @@ export default function ReschedulePage() {
             </span>
           )}
         </div>
-      </div>
+      )}
 
       {fromHint && (
         <div className="m-4 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-[12px] text-blue-700">

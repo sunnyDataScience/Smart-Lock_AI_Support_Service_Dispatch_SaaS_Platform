@@ -116,20 +116,18 @@ export default function TechHomePage() {
   return (
     <TechShell
       wide
-      // 頁首交由 shell 滿寬渲染（修大螢幕「浮動白條」跑版）
-      header={
-        <div className="flex items-center justify-between px-4 py-3 md:px-6">
-          <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
-          <button
-            type="button"
-            onClick={load}
-            disabled={loading}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
-            title={t("refresh")}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-        </div>
+      // 頁首走 shell 統一規格(h-14 bar;2026-07-07 頁首一致性)
+      title={t("title")}
+      actions={
+        <button
+          type="button"
+          onClick={load}
+          disabled={loading}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          title={t("refresh")}
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
       }
     >
       <div className="flex flex-col gap-5 p-4 md:p-6">

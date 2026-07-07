@@ -103,14 +103,8 @@ export default function AccountPage() {
   return (
     <TechShell
       wide
-      // 頁首交由 shell 滿寬渲染（修大螢幕「浮動白條」跑版;label 複用底欄「帳戶」）
-      header={
-        <div className="flex items-center px-4 py-3 md:px-6">
-          <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">
-            {tShell("bottomNav.account")}
-          </h1>
-        </div>
-      }
+      // 頁首走 shell 統一規格(h-14 bar;label 複用底欄「帳戶」)
+      title={tShell("bottomNav.account")}
     >
       {/* 統一留白框架(soft UI):頭卡與下方卡片同一個 16px 框、同 gap,
           不再「頭卡滿版貼邊、卡片縮邊」兩套邏輯(修左右留白對不齊) */}

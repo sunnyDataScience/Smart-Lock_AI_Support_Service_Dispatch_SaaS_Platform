@@ -94,49 +94,47 @@ export default function MyOrdersPage() {
   return (
     <TechShell
       wide
-      // 頁首+tab 列交由 shell 滿寬渲染（修大螢幕「浮動白條」跑版）
-      header={
-        <>
-          <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3 md:px-6">
-            <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
+      // 頁首走 shell 統一規格(h-14 bar + tabs 第二列)
+      title={t("title")}
+      actions={
+        <button
+          type="button"
+          onClick={fetchList}
+          disabled={loading}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          title={t("refreshTitle")}
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
+      }
+      tabs={
+        <div className="grid grid-cols-3 border-t border-[var(--border)]">
+          {tabs.map((tabItem) => (
             <button
+              key={tabItem.value}
               type="button"
-              onClick={fetchList}
-              disabled={loading}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
-              title={t("refreshTitle")}
+              onClick={() => setTab(tabItem.value)}
+              className={`relative flex h-12 items-center justify-center gap-1 text-[14px] font-medium ${
+                tab === tabItem.value
+                  ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
+                  : "text-[var(--text-secondary)]"
+              }`}
             >
-              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              {tabItem.label}
+              {counts[tabItem.value] > 0 && (
+                <span
+                  className={`min-w-[18px] rounded-full px-[6px] py-[1px] text-[10px] font-bold ${
+                    tab === tabItem.value
+                      ? "bg-[var(--primary)] text-white"
+                      : "bg-[var(--border)] text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {counts[tabItem.value]}
+                </span>
+              )}
             </button>
-          </div>
-          <div className="grid grid-cols-3">
-            {tabs.map((tabItem) => (
-              <button
-                key={tabItem.value}
-                type="button"
-                onClick={() => setTab(tabItem.value)}
-                className={`relative flex h-12 items-center justify-center gap-1 text-[14px] font-medium ${
-                  tab === tabItem.value
-                    ? "border-b-2 border-[var(--primary)] font-semibold text-[var(--primary)]"
-                    : "text-[var(--text-secondary)]"
-                }`}
-              >
-                {tabItem.label}
-                {counts[tabItem.value] > 0 && (
-                  <span
-                    className={`min-w-[18px] rounded-full px-[6px] py-[1px] text-[10px] font-bold ${
-                      tab === tabItem.value
-                        ? "bg-[var(--primary)] text-white"
-                        : "bg-[var(--border)] text-[var(--text-secondary)]"
-                    }`}
-                  >
-                    {counts[tabItem.value]}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </>
+          ))}
+        </div>
       }
     >
       {error && (
