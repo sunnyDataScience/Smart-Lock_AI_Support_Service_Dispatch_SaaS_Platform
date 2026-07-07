@@ -193,6 +193,25 @@ graph TD
 
 ---
 
+### 路徑 5（🎯 target，[[ADR-P013]]）：品牌自服務配置 agent（Agent Configuration Studio）
+
+> ⚠️ 本節為 **target 態新增**（本文件 §2-4 其餘仍為 as-is 現況；09 整份 target 化屬後續 cascade）。
+
+品牌方經 dispatch web 的 **Agent Studio** 自服務調校其 agent 的診斷系統配置：
+
+**步驟 1 — 品牌編輯配置**（Casdoor 租戶 Admin，[[ADR-P003]]）
+- **Skill**：從 **Agent Config Registry** 的 skill 庫**匯入** + 編輯**客製層**（受保護的 domain-safety / escalation 品牌不可移除）。
+- **RAG 檢索權限**：於 **RAG Source Registry** 設定該 agent 可檢索哪些語料（開 / 關 / 優先序）；**跨租戶隔離平台鎖死**。
+- **system prompt**：編輯**客製層**（受保護層恆前置合成），版本化。
+
+**步驟 2 — 治理閘門**：版本化 + 回滾 + audit；OPIK eval 比對改動前後（[[ADR-P002]]）；高風險改動選配 HITL 審核（複用 refinery，[[ADR-P011]]）。
+
+**步驟 3 — agent 載入**：agent runtime 載入該品牌「受保護層 + 客製層」合成配置；MCP-RAG 查詢時 enforce 語料 ACL（[[ADR-004]]）。
+
+**關鍵風險**：品牌自服務擴大攻擊面 / 品質風險 → 分層保護（受保護層不可 override）+ eval gate + 版本回滾 + audit 緩解（[[ADR-P013]] §3.4，安全護欄待業主確認）。
+
+---
+
 ## 5. 孤立/斷鏈系統整合建議
 
 ### 5.1 data-pipeline 產出鏈修復

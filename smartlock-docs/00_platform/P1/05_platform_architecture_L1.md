@@ -12,7 +12,7 @@
 | 審核狀態 | 理想態藍圖（as-is 現況 baseline 保存於 git `238f6fce`）|
 | 涵蓋系統數 | **6 個內部系統**（agent / api / web / knowledge-refinery / technician-platform + 集中共用基礎設施）+ 外部相依 |
 | 架構層級 | C4 Level 1 — System Context |
-| 依據決策 | 平台級 ADR-P001~P007 + agent ADR-004 |
+| 依據決策 | 平台級 ADR-P001~P013 + agent ADR-004/005 |
 
 **說明：** 本文件描述 Smart Lock 平台的**理想態（target）**最高層架構——由現況 as-is 逐坑演進而來，每項決策皆有對應 ADR。凡標 `🎯` 為 target 新增/演進元件；`(現況)` 標示尚未落地、屬遷移路徑者。
 
@@ -53,6 +53,7 @@ flowchart TB
         REFINERY["🎯 knowledge-refinery【License 附加系統】\n精煉服務 + 🎯獨立 web 操作介面\n診斷+素材 → 事實/行為"]
         KAFKA["🎯 Kafka\n派工/技師/工單 事件骨幹"]
         PLATCON["🎯 平台維運 console\n(Super Admin web，中央部署)"]
+        REGISTRY["🎯 Agent Config Registry\nSkill 庫 + RAG 源目錄 + Prompt 範本"]
     end
 
     %% ─── per-brand 授權部署 bundle ───
@@ -109,6 +110,10 @@ flowchart TB
     REFINERY -->|"事實 chunk+embed 灌入\n唯一語料"| DBB
     REFINERY -->|"行為/精選 → skill\n(git-tracked)"| AGENT
 
+    %% ─── Agent 自服務配置 (Studio) ───
+    WEB -->|"Agent Studio 匯入/編輯\nskill·RAG權限·prompt"| REGISTRY
+    REGISTRY -.->|"per-brand 配置\n受保護層+客製層"| AGENT
+
     %% ─── 監控 ───
     API -.->|"OTel"| SIGNOZ
     AGENT -.->|"OTel"| SIGNOZ
@@ -123,7 +128,7 @@ flowchart TB
     class LINE,VERTEX,OPIK,GCP ext
     class WEB,API,AGENT svc
     classDef addon fill:#ffe0b2,stroke:#e65100,color:#333
-    class CASDOOR,SIGNOZ,TECHP,PLATCON,KAFKA,MCPRAG,REDIS newc
+    class CASDOOR,SIGNOZ,TECHP,PLATCON,REGISTRY,KAFKA,MCPRAG,REDIS newc
     class REFINERY addon
     class DBB db
 ```
@@ -210,6 +215,7 @@ graph LR
 | G-08 | 跨庫一致性靠雙寫 | [[ADR-P004]] | 技師平台為單一真相，派工經 OHS API+事件，汰除 mirror 雙寫 | 🎯 已定案 |
 | G-11 | 前端 client-side auth | [[ADR-P003]] | Casdoor OIDC 授權碼流；token 安全儲存；deny-by-default | 🎯 已定案 |
 | 監控空白 | 無系統可觀測性 | [[ADR-P002]] | SigNoz 系統監控（單一）+ OPIK agent LLM Ops（dev/prod 可切）| 🎯 已定案 |
+| 新增能力 | **品牌自服務調校診斷系統**（skill registry / RAG 檢索權限 / system prompt）| [[ADR-P013]] | Agent Configuration Studio：分層保護（受保護層不可 override）+ 版本化 + RBAC + eval + 選配 HITL | 🎯 已定案（§3.4 安全護欄待確認）|
 | G-06 | 兩個 LINE webhook 分流 | [[ADR-005]] · CR-0121 | **已定案（方案 A）**：LINE 單 channel 單 URL → agent `/callback` 唯一入站門 + postback 前綴 fan-out → `/internal/*`；api `/line/webhook` 退役。⚠️ code 待實作 | 🎯 已定案 |
 | G-09 | v1→v2 cutover 未完成（⚠️ 反向惡化：CR-0114/0116/0118 仍疊 `/api/v1`）| [[ADR-P012]] | 凍結 v1 新增（止血）→ 盤點 ~42 caller 依 P4 5-gate 遷 v2 → 移除 v1 | 🎯 已排程 |
 | G-10 | Migration registry 漂移（⚠️ 已致 `UndefinedTable` 紅測試）| [[ADR-P012]] | `schema_migrations` 為唯一真相 + CI drift-check + 一次性 reconcile | 🎯 已排程 |
@@ -253,6 +259,7 @@ graph LR
 | **唯一事實語料** | pgvector `manual_chunks`/`case_entries`（768 維 HNSW cosine），agent 與後台共用的單一事實來源。⚠️ 語義層現為 greenfield 待建。 |
 | **knowledge-refinery** | **License 開通的附加系統**（非基礎必備）+ **獨立 web 操作介面**：診斷+素材 → 事實(灌 pgvector) + 行為(更新 skill)，human-in-the-loop 審核（[[ADR-P001]]）。 |
 | **License 開通** | 商業模式核心：品牌以 License 授權開通「基礎 bundle + 綁 LINE」及各附加模組（如 knowledge-refinery）。整體架構圍繞「開通哪些模組」而定，經 Casdoor 訂閱管理（[[ADR-P003]]、[[ADR-P005]]）。 |
+| **Agent Configuration Studio** | 品牌 dispatch web 的自服務調校介面 + 集中 **Agent Config Registry**：skill 匯入/編輯、RAG 語料檢索權限、system prompt 版本化。**分層保護**（受保護層不可 override + 客製層可編輯）+ RBAC + eval + 選配 HITL（[[ADR-P013]]）。 |
 | **technician-platform** | 技師共享池獨立系統（跨租戶身分/技能/認證/排班）+ **獨立師傅 web**（註冊/上線/工作台）；師傅端**不放在品牌 bundle**，讓品牌可獨立部署；派工平台經 OHS API + Kafka 串接（[[ADR-P004]]）。 |
 | **SigNoz / OPIK** | 分層可觀測性：SigNoz=系統/服務層（OTel，prod 常開）；OPIK=agent LLM Ops（dev 必開/prod 可關）（[[ADR-P002]]）。 |
 | **Kafka / Redis** | Kafka=派工/技師/工單事件骨幹（持久/可重播/解耦）；Redis=WS pub/sub 即時 fanout + 熱讀 cache（[[ADR-P007]]）。 |
