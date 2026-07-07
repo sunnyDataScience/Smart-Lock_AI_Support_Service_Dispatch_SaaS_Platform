@@ -30,8 +30,19 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at             TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE users IS '平台管理員帳號(platform_admin);與品牌/師傅 user pool 物理分離(CR-0114)';
-COMMENT ON COLUMN users.role IS '固定 platform_admin;平台庫不承載品牌角色';
+-- COMMENT 加防護:單庫 fallback(雲端現況)會把本檔套進品牌主庫,彼處 users 是品牌
+-- 共用表(有 line_user_id 欄),不可覆寫其註解;僅平台專屬庫(無該欄)才寫入。
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = current_schema()
+          AND table_name = 'users' AND column_name = 'line_user_id'
+    ) THEN
+        COMMENT ON TABLE users IS '平台管理員帳號(platform_admin);與品牌/師傅 user pool 物理分離(CR-0114)';
+        COMMENT ON COLUMN users.role IS '固定 platform_admin;平台庫不承載品牌角色';
+    END IF;
+END $$;
 
 -- ─────────────────────────────────────────────────────────────────────────
 -- [2] revoked_jti — 平台 JWT 撤銷清單
@@ -145,3 +156,19 @@ CREATE TABLE IF NOT EXISTS tenant (
 CREATE INDEX IF NOT EXISTS idx_tenant_status_created ON tenant(status, created_at DESC);
 
 COMMENT ON TABLE tenant IS '已開站租戶 registry(CR-0118);平台視角跨品牌名冊,核准品牌申請時自動登錄;status 為平台層標示,實際停站走維運';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- [6] Seed — 創始品牌(平台方自營)補登租戶名冊(CR-0118 補遺)
+--     tenant 名冊唯一自動寫入來源是「品牌申請核准」連動;平台方自營的創始品牌
+--     (locksmart)是 seed 直接開站、未走申請流,故在此冪等補登,使名冊語意完整
+--     (=「所有營運中品牌」,而非「僅走申請流入場的品牌」)。application_id 留空
+--     即溯源標示「非申請來源」。
+-- ─────────────────────────────────────────────────────────────────────────────
+INSERT INTO tenant (slug, company_name, status, deploy_note)
+VALUES (
+    'locksmart',
+    'Lock AI(創始品牌)',
+    'active',
+    '平台方自營創始品牌,手動開站(未走申請流)。本機:dispatch :3000/:8001(DB 5433)+ tech :3001/:8002(DB 5434);雲端:Cloud Run smart-lock-{agent,api,web}(asia-east1)'
+)
+ON CONFLICT (slug) DO NOTHING;
