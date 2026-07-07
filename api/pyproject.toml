@@ -7,7 +7,8 @@ dependencies = [
     # === Web 框架 ===
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
-    "python-multipart>=0.0.9",
+    # 資安全修(2026-07-07,CVE-2026-53538/53539/53540 檔案上傳解析)
+    "python-multipart>=0.0.31",
     # === Schema / Validation ===
     "pydantic>=2.6",
     "pydantic[email]>=2.6",
@@ -19,14 +20,22 @@ dependencies = [
     "bcrypt<4.1",
     # === PII 加密（CR-0115 KYC 敏感欄位 app 層 Fernet 加密）===
     # 原為 python-jose[cryptography] 的傳遞相依，改為顯式宣告（core/pii_crypto.py 直接 import）。
-    "cryptography>=42.0",
+    # 資安全修(2026-07-07,GHSA-537c-gmf6-5ccf)
+    "cryptography>=48.0.1",
     # === PDF generation (vouchers / reports) ===
     "reportlab>=4.0",
     # === LINE 通道（webhook 接收 + 客服接管 push + push outbox worker）===
     # line_webhook.py / line_push_service.py / line_push_outbox_worker.py 皆 import linebot.v3；
     # 為常駐 API 功能（非 optional），缺它 → handover 發訊 fail-soft 靜默不送（誰都回不了 LINE）。
     "line-bot-sdk>=3.0",
-    "aiohttp>=3.9",
+    # 資安全修(2026-07-07,CVE-2026-34993/47265/50269/54273-54280 等 11 洞)
+    "aiohttp>=3.14.1",
+    # === 資安安全下限(2026-07-07):傳遞相依,顯式釘修復版本防回歸 ===
+    #   starlette 5 洞(PYSEC-2026-161/248/249、CVE-2026-48817/48818;fastapi 直接相依)
+    #   urllib3 3 洞(PYSEC-2026-141/142)、idna 1 洞(PYSEC-2026-215)
+    "starlette>=1.3.1",
+    "urllib3>=2.7.0",
+    "idna>=3.15",
     # === 雜項 ===
     "python-dotenv>=1.0",
     "jsonschema>=4.23.0",
