@@ -14,6 +14,7 @@ const NAV: { href: string; label: string }[] = [
   { href: "/platform", label: "儀表板" },
   { href: "/platform/requestors", label: "發案方審核" },
   { href: "/platform/technicians", label: "師傅管理" },
+  { href: "/platform/tenants", label: "租戶管理" },
 ];
 
 export default function PlatformLayout({

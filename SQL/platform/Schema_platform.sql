@@ -113,3 +113,35 @@ CREATE INDEX IF NOT EXISTS idx_monitor_target_order
     ON monitor_target(brand, sort_order, label);
 
 COMMENT ON TABLE monitor_target IS '維運監控目標 registry(CR-0116);一目標一列 health URL,console 即時探測紅綠燈,不存歷史(告警走 GCP)';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- [5] tenant — 已開站租戶 registry(CR-0118)
+--     CR-0114 只到「品牌**申請**審核」(開站前關卡);核准後的品牌並未被登錄成營運
+--     中租戶,SuperAdmin 缺「我有哪幾家在營運、狀態如何、開站資訊」的正典檢視面。
+--     此表 = 平台視角的**跨品牌名冊**(與各品牌庫的 saas.tenant「該品牌自我描述那
+--     1 筆」概念區隔:此處是名冊,那裡是該品牌自身)。核准品牌申請成功時自動登錄一列
+--     (brand_application_service.approve 連動,fail-soft)。
+--     生命週期 status 為**平台層標示**(active/suspended/terminated);實際停站/重啟走
+--     維運(gcloud / 各品牌後台),console 文案須明示(CR-0113 方案 A:外層 console
+--     不進各品牌 DB 改帳號)。
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS tenant (
+    id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    slug               VARCHAR(30)  NOT NULL UNIQUE,          -- 品牌代號(= brand_applications.slug;部署參數 key)
+    company_name       VARCHAR(150) NOT NULL,
+    contact_name       VARCHAR(150),
+    contact_email      VARCHAR(255),
+    contact_phone      VARCHAR(20),
+    status             VARCHAR(20)  NOT NULL DEFAULT 'active'
+                       CHECK (status IN ('active','suspended','terminated')),
+    plan               VARCHAR(50),                           -- 選填(方案/級距;MVP 未用)
+    application_id     UUID REFERENCES brand_applications(id) ON DELETE SET NULL,  -- 溯源(可空)
+    deploy_note        TEXT,                                  -- 開站 metadata 文字(GCP 專案/埠位等)
+    status_changed_at  TIMESTAMP WITH TIME ZONE,
+    status_changed_by  UUID REFERENCES users(id) ON DELETE SET NULL,  -- 平台管理員(刪帳號不擋租戶歷史)
+    created_at         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at         TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_tenant_status_created ON tenant(status, created_at DESC);
+
+COMMENT ON TABLE tenant IS '已開站租戶 registry(CR-0118);平台視角跨品牌名冊,核准品牌申請時自動登錄;status 為平台層標示,實際停站走維運';
