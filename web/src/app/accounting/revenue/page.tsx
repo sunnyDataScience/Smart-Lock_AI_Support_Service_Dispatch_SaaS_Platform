@@ -249,7 +249,7 @@ export default function RevenuePage() {
         </div>
 
         {error && (
-          <div className="mx-8 mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mx-8 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
@@ -261,7 +261,7 @@ export default function RevenuePage() {
             {kpiCards.map((card) => (
               <div
                 key={card.title}
-                className="flex flex-1 items-center gap-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-5"
+                className="flex flex-1 items-center gap-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5"
               >
                 <div
                   className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl"

@@ -108,28 +108,26 @@ export default function PoolPage() {
   return (
     <TechShell
       wide
-      // 頁首交由 shell 滿寬渲染（修大螢幕「浮動白條」跑版）
-      header={
-        <div className="flex items-center justify-between px-4 py-3 md:px-6">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-[18px] font-semibold text-[var(--text-primary)]">{t("title")}</h1>
-              <RealtimeIndicator status={poolStatus} compact />
-            </div>
-            <p className="text-[12px] text-[var(--text-secondary)]">
-              {loading ? t("loading") : t("availableCount", { count: items.length })}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={fetchPool}
-            disabled={loading}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
-            title={t("refreshTitle")}
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          </button>
-        </div>
+      // 頁首走 shell 統一規格(h-14 bar;原副標「X 件可接工單」改為標題旁 meta chip,單行不撐高)
+      title={t("title")}
+      meta={
+        <>
+          <RealtimeIndicator status={poolStatus} compact />
+          <span className="truncate rounded-full bg-[var(--primary-light)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--primary)]">
+            {loading ? t("loading") : t("availableCount", { count: items.length })}
+          </span>
+        </>
+      }
+      actions={
+        <button
+          type="button"
+          onClick={fetchPool}
+          disabled={loading}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          title={t("refreshTitle")}
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
       }
     >
       {error && (

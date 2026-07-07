@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft,
   Phone,
   Navigation,
   CheckCircle2,
@@ -58,7 +57,6 @@ function formatErr(e: unknown): string {
 export default function MyOrderDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
-  const router = useRouter();
   const tStatus = useTranslations("status.workOrder");
   const t = useTranslations("techPortal.detail");
   const tForm = useTranslations("techPortal.detail.form");
@@ -251,33 +249,20 @@ export default function MyOrderDetailPage() {
     ["assigned", "accepted", "en_route", "in_progress"].includes(wo.status);
 
   return (
-    <TechShell>
-      {/* detail_header */}
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-2 py-3">
-        <button
-          type="button"
-          onClick={() => router.push("/my-orders")}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-          aria-label={tCommon("back")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <div className="flex flex-1 flex-col">
-          <span className="text-[11px] text-[var(--text-disabled)]">
-            #{id.slice(0, 8)}
-          </span>
-          <span className="text-[14px] font-semibold text-[var(--text-primary)]">
-            {t("title")}
-          </span>
-        </div>
-        {wo && (
-          <div className="flex items-center gap-1 pr-2">
+    <TechShell
+      // 頁首走 shell 統一規格(h-14 bar:返回 + 工單編號 kicker + 標題;badge 靠右 actions)
+      backHref="/my-orders"
+      kicker={`#${id.slice(0, 8)}`}
+      title={t("title")}
+      actions={
+        wo ? (
+          <>
             <UrgencyBadge urgency={wo.urgency} />
             <StatusBadge status={wo.status} />
-          </div>
-        )}
-      </div>
-
+          </>
+        ) : undefined
+      }
+    >
       {error && (
         <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {error}

@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   CalendarDays,
   ChevronLeft,
   ChevronRight,
@@ -71,7 +69,6 @@ function buildMonthGrid(year: number, month: number): Date[] {
 const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 export default function SchedulePage() {
-  const router = useRouter();
   const t = useTranslations("pages.account.schedule");
   const tWeek = useTranslations("pages.account.schedule.weekdays");
   const tModal = useTranslations("pages.account.schedule.modal");
@@ -214,22 +211,11 @@ export default function SchedulePage() {
   ).length;
 
   return (
-    <TechShell>
-      {/* schedule_month_header — 自訂返回鈕（返回 /account 而非 my-orders） */}
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--bg-surface)] px-2 py-3">
-        <button
-          type="button"
-          onClick={() => router.push("/account")}
-          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-          aria-label={t("back")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-        <span className="text-[15px] font-semibold text-[var(--text-primary)]">
-          {t("title")}
-        </span>
-      </div>
-
+    <TechShell
+      // 頁首走 shell 統一規格(h-14 bar;返回 /account 而非 my-orders)
+      backHref="/account"
+      title={t("title")}
+    >
       {actionMsg && (
         <div className="m-4 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-[13px] text-green-700">
           <CheckCircle2 className="h-4 w-4" />
