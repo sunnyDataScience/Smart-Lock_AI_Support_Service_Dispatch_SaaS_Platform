@@ -1,0 +1,372 @@
+# =============================================================================
+# title: 17_AsyncAPI — 平台非同步介面契約（AsyncAPI 3.0）
+# version: 1.0
+# status: active
+# owner: 平台架構師
+# last-updated: 2026-07-07
+# upstream:
+#   - ../00_platform/P2/04_adr/ADR-P007_即時高併發_Kafka_Redis_讀寫分離.md   # 三層分工
+#   - ../00_platform/P2/04_adr/ADR-P014_技師平台佣金邊界與工單CQRS投影.md    # workorder.* / commission.accrued
+#   - ../00_platform/P2/04_adr/ADR-P004_技師共享池獨立系統.md               # technician.* 事件
+#   - ../00_platform/P2/04_adr/ADR-P005_per-brand授權部署_大單體內部容器.md  # Kafka 集中共用定位
+#   - ../technician-platform/P1/05_architecture_and_design.md              # topic 命名 / producer-consumer 角色
+#   - ../api/P2/06_api_design_specification.md                             # §5 WS 頻道（fanout 對應）
+#   - ../agent/P2/06_api_design_specification.md                           # §5 LINE Push outbox 歸屬
+#   - ../00_platform/P2/09_integration_data_flow.md                        # 跨系統事件路徑 / schema 治理
+# 相關文件：./12_SAD.md ./16_API_Spec.yaml ./25_Monitoring_Spec.md
+# =============================================================================
+asyncapi: 3.0.0
+
+info:
+  title: Smart Lock AI Support & Service Dispatch SaaS — 非同步介面契約
+  version: "1.0"
+  description: |
+    平台非同步介面分兩層（ADR-P007 三層分工，Kafka 事件骨幹為 Phase 2 🔜 規劃中）：
+
+    | 層 | 傳輸 | 角色 |
+    |---|---|---|
+    | **Kafka 事件骨幹** | kafka-backbone（集中共用，ADR-P005）| 派工/技師/工單/佣金 domain 事件：持久、可重播、解耦消費；跨系統整合（api ↔ technician-platform）與 SigNoz 事件 SLI |
+    | **Redis pub/sub** | redis-pubsub（per-brand bundle 內）| WS fanout（多實例低延遲「絲滑」推播）+ 熱讀 cache + cron 分散式鎖去重 |
+
+    **CQRS 邊界（ADR-P014）**：命令端（工單/計費）真相在品牌庫；查詢端（技師視角
+    工單投影 + 跨品牌結算）在 technician-platform，靠同一條 Kafka 事件流餵養。
+
+    **可靠性約定**：
+    - producer 走 outbox 模式（品牌 api 沿用 outbox 發事件，ADR-P014 §4）。
+    - ordering：partition key 以 tenant_id + work_order_id 組合 [待確認 精確 key 組成]。
+    - 消費冪等：以事件信封 event_id 去重；cron 類消費者以 Redis 分散式鎖去重（ADR-P007 §4）。
+    - retry / DLQ：消費失敗重試後入 DLQ 🔜 規劃中 [待確認 重試次數與 DLQ topic 命名]。
+    - schema 治理：schema registry + consumer-driven 契約測試（00_platform/P2/09 §5 R-02），
+      事件 schema 版本走信封 schema_version。
+    - 監控 SLI：事件 lag / LINE push 成功率 / WS 推播延遲（指派事件 → 師傅收到 < 2s），
+      見 ./25_Monitoring_Spec.md。
+
+    不屬本契約：data-pipeline 離線批次（CLI 契約，非事件介面）；agent → Vertex /
+    LiteLLM 出站呼叫（同步，見 ../agent/P2/06 §4）。
+
+defaultContentType: application/json
+
+servers:
+  kafka-backbone:
+    host: kafka.platform.internal:9092   # [待確認] 正式 broker host
+    protocol: kafka
+    description: |
+      集中共用 Kafka 事件骨幹（跨品牌一套，ADR-P005 / ADR-P007 Phase 2 🔜 規劃中）。
+      承載 workorder.* / dispatch.* / technician.* / commission.* domain 事件。
+  redis-pubsub:
+    host: redis:6379
+    protocol: redis
+    description: |
+      per-brand bundle 內 Redis（ADR-P007 Phase 1）。WS fanout：api 實例將即時事件
+      publish 至 realtime.* 頻道，各 api 實例 subscribe 後轉推所屬 WS 連線
+      （WS 頻道 path 與授權契約見 ./16_API_Spec.yaml x-websocket-channels）。
+
+channels:
+  # ── Kafka domain 事件 ──────────────────────────────────────────────────
+  workorderDispatched:
+    address: workorder.dispatched
+    servers: [{ $ref: "#/servers/kafka-backbone" }]
+    description: 工單已派工（含該技師派工資訊；餵 technician-platform 工單投影）
+    messages:
+      workOrderEvent: { $ref: "#/components/messages/WorkOrderEvent" }
+  workorderUpdated:
+    address: workorder.updated
+    servers: [{ $ref: "#/servers/kafka-backbone" }]
+    description: 工單狀態 / 內容變更
+    messages:
+      workOrderEvent: { $ref: "#/components/messages/WorkOrderEvent" }
+  workorderCompleted:
+    address: workorder.completed
+    servers: [{ $ref: "#/servers/kafka-backbone" }]
+    description: 工單完工（觸發品牌側 per-job 佣金計費 → commission.accrued）
+    messages:
+      workOrderEvent: { $ref: "#/components/messages/WorkOrderEvent" }
+  commissionAccrued:
+    address: commission.accrued
+    servers: [{ $ref: "#/servers/kafka-backbone" }]
+    description: |
+      品牌 api per-job 佣金計費完成（Billing）→ technician-platform 訂閱彙總為
+      跨品牌對帳 / statement / payout（Settlement）（ADR-P014 §2.1）。
+      期末對帳閘門 reconcile 品牌計費 vs 技師平台彙總（最終一致性）。
+    messages:
+      commissionAccrued: { $ref: "#/components/messages/CommissionAccrued" }
+  technicianStatusChanged:
+    address: technician.status-changed   # [待確認] 精確 topic 命名（事件族 technician.*）
+    servers: [{ $ref: "#/servers/kafka-backbone" }]
+    description: |
+      技師狀態事件（technician-platform 單一真相對外的最終一致廣播，取代跨庫雙寫）：
+      registered / certified / brand_authorized / certification_revoked /
+      assignment_accepted / assignment_rejected / rating_updated。
+    messages:
+      technicianStatusEvent: { $ref: "#/components/messages/TechnicianStatusEvent" }
+  technicianAvailability:
+    address: technician.availability   # [待確認] 精確 topic 命名
+    servers: [{ $ref: "#/servers/kafka-backbone" }]
+    description: 技師可用性 / 排班變更（影響各品牌派工媒合候選集）
+    messages:
+      technicianStatusEvent: { $ref: "#/components/messages/TechnicianStatusEvent" }
+  dispatchAssigned:
+    address: dispatch.assigned
+    servers: [{ $ref: "#/servers/kafka-backbone" }]
+    description: 品牌 api 選定技師建立指派 → technician-platform 更新排班/工作量/投影並推播師傅
+    messages:
+      dispatchEvent: { $ref: "#/components/messages/DispatchEvent" }
+  dispatchQueued:
+    address: dispatch.queued
+    servers: [{ $ref: "#/servers/kafka-backbone" }]
+    description: 工單進派工佇列
+    messages:
+      dispatchEvent: { $ref: "#/components/messages/DispatchEvent" }
+
+  # ── Redis pub/sub 即時 fanout（對應 WS 頻道，詳見 16_API_Spec x-websocket-channels）──
+  realtimeNotifications:
+    address: realtime.notifications.{userId}
+    servers: [{ $ref: "#/servers/redis-pubsub" }]
+    parameters:
+      userId: { description: 通知對象 user id }
+    description: 個人通知 fanout → WS `/realtime/notifications/{user_id}`
+    messages:
+      realtimeEnvelope: { $ref: "#/components/messages/RealtimeEnvelope" }
+  realtimeWorkOrders:
+    address: realtime.work-orders.{workOrderId}
+    servers: [{ $ref: "#/servers/redis-pubsub" }]
+    parameters:
+      workOrderId: { description: 工單 id }
+    description: 工單事件 fanout → WS `/realtime/work-orders/{wo_id}`
+    messages:
+      realtimeEnvelope: { $ref: "#/components/messages/RealtimeEnvelope" }
+  realtimeDispatchQueue:
+    address: realtime.dispatch-queue
+    servers: [{ $ref: "#/servers/redis-pubsub" }]
+    description: 派工佇列 fanout → WS `/realtime/dispatch-queue`（ADMIN 角色集）
+    messages:
+      realtimeEnvelope: { $ref: "#/components/messages/RealtimeEnvelope" }
+  realtimeAlerts:
+    address: realtime.sla-alerts
+    servers: [{ $ref: "#/servers/redis-pubsub" }]
+    description: SLA 告警 fanout；同型頻道另有 realtime.refunds / realtime.disputes /
+      realtime.inventory.low-stock / realtime.rbac（授權規則見 16_API_Spec）
+    messages:
+      realtimeEnvelope: { $ref: "#/components/messages/RealtimeEnvelope" }
+  realtimePool:
+    address: realtime.pool.{techId}
+    servers: [{ $ref: "#/servers/redis-pubsub" }]
+    parameters:
+      techId: { description: 技師 id }
+    description: 技師工單池推播（派工到手）→ WS `/realtime/pool/{tech_id}`；
+      技師平台側歸屬 [待確認]（ADR-P007 Redis 撐）
+    messages:
+      realtimeEnvelope: { $ref: "#/components/messages/RealtimeEnvelope" }
+
+  # ── 通知出站 ──────────────────────────────────────────────────────────
+  linePushOutbox:
+    address: line.push-outbox
+    servers: [{ $ref: "#/servers/redis-pubsub" }]   # [待確認] outbox 佇列實體（DB outbox 表 vs broker）
+    description: |
+      LINE 主動推播出站佇列：api `line_push_outbox_worker` 消費 outbox → LINE Push API
+      （agent 主走 Reply；Push 屬平台層 api 職責，見 ../agent/P2/06 §5）。
+      worker 以分散式鎖去重（ADR-P007 §4），避免多實例重複推播。
+    messages:
+      linePushMessage: { $ref: "#/components/messages/LinePushMessage" }
+
+operations:
+  # ── Kafka：品牌 api = producer ────────────────────────────────────────
+  publishWorkOrderEvents:
+    action: send
+    channel: { $ref: "#/channels/workorderDispatched" }
+    title: 品牌 api 發布工單生命週期事件（outbox）
+    description: 同族 topic：workorder.dispatched / updated / completed。
+    traits:
+      - $ref: "#/components/operationTraits/kafkaProduce"
+  publishCommissionAccrued:
+    action: send
+    channel: { $ref: "#/channels/commissionAccrued" }
+    title: 品牌 api 發布 per-job 佣金計費事件
+    traits:
+      - $ref: "#/components/operationTraits/kafkaProduce"
+  publishDispatchEvents:
+    action: send
+    channel: { $ref: "#/channels/dispatchAssigned" }
+    title: 品牌 api 發布派工事件（dispatch.assigned / dispatch.queued）
+    traits:
+      - $ref: "#/components/operationTraits/kafkaProduce"
+
+  # ── Kafka：technician-platform = consumer + producer ─────────────────
+  consumeWorkOrderEvents:
+    action: receive
+    channel: { $ref: "#/channels/workorderDispatched" }
+    title: technician-platform 訂閱工單事件 → 維護技師視角工單投影（CQRS read-model）
+    description: 投影欄位最小化（摘要/地址/狀態/時窗/金額/該技師派工），
+      不整包複製品牌敏感資料（ADR-P014 §2.2）；事件可重播補投影。
+    traits:
+      - $ref: "#/components/operationTraits/kafkaConsume"
+  consumeCommissionAccrued:
+    action: receive
+    channel: { $ref: "#/channels/commissionAccrued" }
+    title: technician-platform 訂閱佣金事件 → 跨品牌 statement / payout 結算
+    traits:
+      - $ref: "#/components/operationTraits/kafkaConsume"
+  consumeDispatchAssigned:
+    action: receive
+    channel: { $ref: "#/channels/dispatchAssigned" }
+    title: technician-platform 訂閱派工事件 → 更新排班/工作量 + 推播師傅工作台
+    traits:
+      - $ref: "#/components/operationTraits/kafkaConsume"
+  publishTechnicianStatus:
+    action: send
+    channel: { $ref: "#/channels/technicianStatusChanged" }
+    title: technician-platform 發布技師狀態事件（單一真相最終一致廣播）
+    traits:
+      - $ref: "#/components/operationTraits/kafkaProduce"
+
+  # ── Kafka：品牌 api = 技師事件 consumer ───────────────────────────────
+  consumeTechnicianStatus:
+    action: receive
+    channel: { $ref: "#/channels/technicianStatusChanged" }
+    title: 各品牌 api 訂閱技師狀態 → 更新品牌側可派工技師投影 / 派工可用性
+    description: 各品牌獨立訂閱、解耦；品牌重啟或新接可重播補投影。
+    traits:
+      - $ref: "#/components/operationTraits/kafkaConsume"
+
+  # ── Redis：api 實例間 WS fanout ───────────────────────────────────────
+  fanoutRealtime:
+    action: send
+    channel: { $ref: "#/channels/realtimeNotifications" }
+    title: api（動作發生實例）publish 即時事件至 Redis 頻道
+    description: 同型 send 適用全部 realtime.* 頻道。
+  consumeRealtime:
+    action: receive
+    channel: { $ref: "#/channels/realtimeNotifications" }
+    title: 各 api 實例 subscribe → 轉推所屬 WS 連線（多實例水平擴展）
+    description: 同型 receive 適用全部 realtime.* 頻道；WS 頻道授權在連線建立時檢查
+      （見 16_API_Spec x-websocket-channels），fanout 層不重複授權。
+
+  # ── 通知出站 ──────────────────────────────────────────────────────────
+  consumeLinePushOutbox:
+    action: receive
+    channel: { $ref: "#/channels/linePushOutbox" }
+    title: line_push_outbox_worker 消費出站佇列 → LINE Push API
+    description: 分散式鎖去重；失敗重試 [待確認 重試策略]。
+
+components:
+  messageTraits:
+    eventEnvelope:
+      description: 共通事件信封（欄位命名 [待確認]，以 schema registry 定版為準）
+      headers:
+        type: object
+        required: [event_id, type, tenant_id, occurred_at, schema_version]
+        properties:
+          event_id: { type: string, format: uuid, description: 消費端冪等去重鍵 }
+          type: { type: string, description: 事件型別（= topic 語義名） }
+          tenant_id: { type: string, description: 品牌租戶標記（投影隱私 / 租戶隔離） }
+          occurred_at: { type: string, format: date-time }
+          schema_version: { type: string, examples: ["1.0"] }
+
+  operationTraits:
+    kafkaProduce:
+      description: |
+        producer 約定：outbox 模式（DB 交易內落 outbox，worker 轉發）；
+        partition key = tenant_id + 聚合根 id（工單事件用 work_order_id）
+        [待確認 精確 key 組成]；同聚合根事件保序。
+    kafkaConsume:
+      description: |
+        consumer 約定：以 event_id 冪等去重；重試耗盡入 DLQ 🔜 規劃中
+        [待確認 DLQ topic 命名]；consumer-driven 契約測試防 schema 破壞；
+        lag 由 SigNoz 監控（事件 lag SLI）。
+
+  messages:
+    WorkOrderEvent:
+      name: WorkOrderEvent
+      title: 工單生命週期事件
+      traits: [{ $ref: "#/components/messageTraits/eventEnvelope" }]
+      payload: { $ref: "#/components/schemas/WorkOrderEventPayload" }
+    CommissionAccrued:
+      name: CommissionAccrued
+      title: per-job 佣金計費事件
+      traits: [{ $ref: "#/components/messageTraits/eventEnvelope" }]
+      payload: { $ref: "#/components/schemas/CommissionAccruedPayload" }
+    TechnicianStatusEvent:
+      name: TechnicianStatusEvent
+      title: 技師狀態事件
+      traits: [{ $ref: "#/components/messageTraits/eventEnvelope" }]
+      payload: { $ref: "#/components/schemas/TechnicianStatusPayload" }
+    DispatchEvent:
+      name: DispatchEvent
+      title: 派工事件
+      traits: [{ $ref: "#/components/messageTraits/eventEnvelope" }]
+      payload: { $ref: "#/components/schemas/DispatchEventPayload" }
+    RealtimeEnvelope:
+      name: RealtimeEnvelope
+      title: 即時推播訊息（WS 轉推格式）
+      payload: { $ref: "#/components/schemas/RealtimeEnvelopePayload" }
+    LinePushMessage:
+      name: LinePushMessage
+      title: LINE 出站推播訊息
+      payload: { $ref: "#/components/schemas/LinePushPayload" }
+
+  schemas:
+    WorkOrderEventPayload:
+      type: object
+      description: 投影欄位最小化（ADR-P014 §2.2）——只帶技師工作台所需欄位
+      required: [work_order_id, tenant_id, status]
+      properties:
+        work_order_id: { type: string }
+        tenant_id: { type: string }
+        status: { type: string, description: 狀態機值見 ../00_platform/P1/07 }
+        technician_id: { type: [string, "null"], description: 該技師派工（dispatched/updated 時）}
+        summary: { type: string, description: 工單摘要 }
+        address: { type: string }
+        scheduled_window: { type: string, description: 時窗 }
+        amount: { type: [number, "null"], description: 金額（completed 時）}
+    CommissionAccruedPayload:
+      type: object
+      required: [tenant_id, work_order_id, technician_id, amount, currency]
+      properties:
+        tenant_id: { type: string, description: 計費品牌 }
+        work_order_id: { type: string }
+        technician_id: { type: string }
+        amount: { type: number, description: per-job 佣金金額（品牌側 Billing 計得）}
+        currency: { type: string, examples: [TWD] }
+        billing_period: { type: string, description: "結算歸屬期（如 2026-07）[待確認 欄位名]" }
+        breakdown: { type: object, description: "計費明細 snapshot [待確認 結構]" }
+    TechnicianStatusPayload:
+      type: object
+      required: [technician_id, event_type]
+      properties:
+        technician_id: { type: string }
+        event_type:
+          type: string
+          enum: [registered, certified, certification_revoked, brand_authorized,
+                 availability_changed, assignment_accepted, assignment_rejected,
+                 rating_updated]
+        brand: { type: [string, "null"], description: brand_authorized 時的品牌 }
+        work_order_id: { type: [string, "null"], description: assignment_* 時 }
+        detail: { type: object, description: 事件型別附加資料 }
+    DispatchEventPayload:
+      type: object
+      required: [work_order_id, tenant_id]
+      properties:
+        work_order_id: { type: string }
+        tenant_id: { type: string }
+        technician_id: { type: [string, "null"], description: assigned 時 }
+        queued_at: { type: string, format: date-time }
+    RealtimeEnvelopePayload:
+      type: object
+      description: 與 WS 下行訊息同構——`{type, payload}`，單向 server → client
+      required: [type, payload]
+      properties:
+        type: { type: string, description: 事件名（如 work_order.updated）}
+        payload: { type: object }
+    LinePushPayload:
+      type: object
+      required: [tenant_id, line_user_id, messages]
+      properties:
+        tenant_id: { type: string }
+        line_user_id: { type: string }
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string, examples: [text] }
+              text: { type: string, description: 單則 ≤ 4900 字 }

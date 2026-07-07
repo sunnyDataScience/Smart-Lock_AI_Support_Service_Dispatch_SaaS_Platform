@@ -15,6 +15,7 @@
 
 | 我想… | 去哪裡 |
 | :--- | :--- |
+| **從平台級正典文件集入手（Enterprise 27 份：策略→需求→UX/UI→架構→設計→QA→維運）** | [`enterprise/README.md`](enterprise/README.md) |
 | 了解整個平台架構（有哪些系統） | [`00_platform/P1/05_platform_architecture_L1.md`](00_platform/P1/05_platform_architecture_L1.md) |
 | 看跨系統資料流 DAG | [`00_platform/P2/09_integration_data_flow.md`](00_platform/P2/09_integration_data_flow.md) |
 | 查某系統的架構圖 | `{系統}/P1/05_architecture_and_design.md` |

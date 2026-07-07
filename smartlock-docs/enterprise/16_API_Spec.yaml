@@ -1,0 +1,714 @@
+# =============================================================================
+# title: 16_API_Spec — 平台同步介面契約（OpenAPI 3.1）
+# version: 1.0
+# status: active
+# owner: 平台架構師
+# last-updated: 2026-07-07
+# upstream:
+#   - ../api/P2/06_api_design_specification.md          # 15 領域端點總表 / 錯誤信封 / 守衛鏈 / WS 頻道
+#   - ../agent/P2/06_api_design_specification.md        # LINE /callback 入站 + /internal 消費者側
+#   - ../technician-platform/P1/05_architecture_and_design.md  # OHS API（媒合/排班/認證）
+#   - ../web/P2/06_api_design_specification.md          # 多 surface base URL
+#   - ../00_platform/P2/09_integration_data_flow.md     # 跨系統介面拓撲
+#   - ../00_platform/P2/04_adr/ADR-P003_Casdoor_統一IdP_租戶_License.md
+#   - ../00_platform/P2/04_adr/ADR-P006_四方RBAC模型_enforce.md
+#   - ../00_platform/P2/04_adr/ADR-P014_技師平台佣金邊界與工單CQRS投影.md
+# 相關文件：./12_SAD.md ./13_Security_Architecture.md ./17_AsyncAPI.yaml ./18_DB_Design.md
+# =============================================================================
+openapi: 3.1.0
+
+info:
+  title: Smart Lock AI Support & Service Dispatch SaaS — 同步介面契約
+  version: "1.0"
+  summary: 平台所有同步 HTTP / WebSocket 介面的單一契約入口
+  description: |
+    本檔涵蓋平台 6 子系統的同步介面：
+
+    | 介面 | 提供者 → 消費者 |
+    |---|---|
+    | 品牌營運控制平面（工單/派工/結算/帳務/治理，443 端點）| api → web(dispatch) / 平台 console |
+    | agent 服務間旁路 `/internal/*`（4 端點）| agent → api |
+    | LINE 入站 webhook `POST /callback` | LINE 平台 → agent（見 webhooks 區）|
+    | OHS API（技師查詢/媒合/排班/認證）| technician-platform → 各品牌 api 消費 |
+    | knowledge-refinery 審核佇列 API | refinery web → refinery svc（摘要，見 refinery tag）|
+
+    **組織原則**：443 端點不逐一展開；以 tags + 各領域代表性資源組織，其餘端點見各
+    tag `externalDocs` 指向的系統契約文件（完整端點總表 `../api/P2/06` §3）。
+
+    **通用約定**（`../api/P2/06` §1）：
+    - 版本切分：v1（legacy）掛 `/api/v1` 前綴且所有回應帶 `Deprecation: true` header；
+      v2（tenant-scoped）走 `/tenants/{tenantId}/...` flat path。
+    - 認證：Casdoor OIDC bearer（ADR-P003）；角色由 OIDC role claim 提供，
+      四方 RBAC deny-by-default enforce（ADR-P006）。服務間走 `X-Internal-Token`。
+    - 回應信封：成功 `{data, error: null}`（ApiResponse）/ 游標分頁 `CursorPage`；
+      錯誤統一 RFC7807 superset（`application/problem+json`，見 Problem schema）。
+    - 冪等：寫入類支援 `Idempotency-Key` header，TTL 24h。
+    - SoD：雙簽/三簽端點需 `X-Initiator` / `X-Approver`（+ 選填 `X-Executor`），
+      任二相同 → 403 SOD_VIOLATION。
+    - 即時推播：WS 頻道契約見 `x-websocket-channels`；fanout 傳輸設計見 ./17_AsyncAPI.yaml。
+    - data-pipeline 子系統無 REST surface（離線批次 + pgvector 檢索；RAG-via-MCP 為
+      內部 MCP 協議，非 HTTP，不進本契約）。
+  contact: { name: 平台架構組 }
+  x-audience: 後端 / 前端 / agent 工程師、QA、整合方、平台架構師
+
+servers:
+  - { url: "http://localhost:8001", description: 品牌營運 dispatch surface（web dispatch 對接）}
+  - { url: "http://localhost:8002", description: 技師 tech surface（技師平台 api）}
+  - { url: "http://localhost:8003", description: 平台維運 platform surface（平台 console 對接）}
+  - url: https://{cloudRunHost}
+    description: 雲端（Cloud Run，API_SURFACE=all）
+    variables:
+      cloudRunHost: { default: smart-lock-api.example.run.app, description: 依品牌 bundle provisioning 決定 }
+
+security:
+  - casdoorOIDC: []
+
+tags:
+  - name: auth
+    description: 認證 / 帳號（品牌/廠商/技師登入、平台 console 登入、refresh/logout、改密）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.1" }
+  - name: work-order
+    description: 工單（量級最大領域；CRUD + :assign + 到場/簽名；狀態機見 ../00_platform/P1/07）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.2" }
+  - name: dispatch
+    description: 派工（佇列、派工紀錄、排班管理）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.3" }
+  - name: technician
+    description: 品牌側技師視圖（列表、認證矩陣、佣金月結、獎懲、生命週期）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.4" }
+  - name: ohs
+    description: |
+      OHS API（Open Host Service）— technician-platform 對各品牌 api 的穩定供給面：
+      技師查詢 / 派工媒合 / 排班 / 認證。品牌不直連技師庫（ADR-P004）。
+      服務憑證機制 [待確認]（OIDC client-credentials vs internal token）。
+    externalDocs: { url: ../technician-platform/P1/05_architecture_and_design.md, description: "§4 OHS routers / §7.1 媒合流程" }
+  - name: brand-vendor
+    description: 品牌 / 廠商（廠商核准、品牌 B2B 結算、品牌申請導入）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.5" }
+  - name: quote-pricing
+    description: 報價 / 定價（報價狀態機 + 核准 + snapshot、報價主檔、定價計算）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.8" }
+  - name: accounting
+    description: 帳務 / 金流（發票、退款三維 SoD 5-tier、憑證紅字沖銷、爭議雙簽、保固）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.9" }
+  - name: settlement
+    description: |
+      結算 / 對帳（月結 CSV 撥款、對帳異常雙簽、派工佣金、技師對帳單）。
+      佣金邊界（ADR-P014）：per-job 計費（Billing）留品牌 api；跨品牌 statement /
+      payout（Settlement）歸 technician-platform，經 `commission.accrued` 事件橋接
+      （見 ./17_AsyncAPI.yaml）。
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.10" }
+  - name: customer
+    description: 客戶 / 對話（客戶、消費者匿名 token 端點、問題卡確認建單）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.6" }
+  - name: knowledge
+    description: 知識庫 / SOP（KB 文件、SOP 雙簽審核、手冊 pgvector RAG）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.7" }
+  - name: inventory-exception-reports
+    description: 庫存 / 異常審批 / 報表儀表板（摘要領域，端點見 externalDocs §3.11–3.13）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.11–3.13" }
+  - name: governance
+    description: 治理 / 合規（runtime config canary、稽核 hash chain、GDPR 遺忘權、AI trace）
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.14" }
+  - name: internal
+    description: "`/internal/*` 服務間契約（agent → api，X-Internal-Token，fail-closed）"
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§4" }
+  - name: line-webhook
+    description: LINE 入站 webhook（唯一入站門 = agent `POST /callback`，postback 按前綴 fan-out）
+    externalDocs: { url: ../agent/P2/06_api_design_specification.md, description: "§1" }
+  - name: refinery
+    description: |
+      knowledge-refinery 審核佇列 API（refinery web ↔ refinery svc）：draft 狀態機
+      `draft → pending → approved / rejected / re-refine`、diff 呈現。
+      端點路徑 [待確認]，深度參考 externalDocs。
+    externalDocs: { url: ../knowledge-refinery/P1/05_architecture_and_design.md, description: "§5 審核 UI backend" }
+  - name: ops
+    description: 健康檢查 / 通知 / 平台維運輔助
+    externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.15" }
+
+paths:
+  # ── A. 認證 / 帳號（代表性；廠商/技師/平台 console 登入見 §3.1）──────────
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: 品牌管理員登入（另有 login-vendor / technician / platform 登入、refresh、logout）
+      security: []
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/LoginRequest" } } }
+      responses:
+        "200": { description: 登入成功回 token 組, content: { application/json: { schema: { $ref: "#/components/schemas/TokenPair" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  # ── B. 工單（完整代表性資源）──────────────────────────────────────────
+  /tenants/{tenantId}/work-orders:
+    parameters:
+      - { $ref: "#/components/parameters/tenantId" }
+      - { $ref: "#/components/parameters/xTenantId" }
+    get:
+      tags: [work-order]
+      summary: 工單列表（游標分頁）
+      parameters:
+        - { $ref: "#/components/parameters/limit" }
+        - { $ref: "#/components/parameters/cursor" }
+      responses:
+        "200": { description: 工單分頁, content: { application/json: { schema: { $ref: "#/components/schemas/CursorPage" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [work-order]
+      summary: 建立工單（role_required：DISPATCH 角色集；報價硬綁定 quote_id FK 前置）
+      parameters:
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/WorkOrderCreate" } } }
+      responses:
+        "201": { description: 已建立, content: { application/json: { schema: { $ref: "#/components/schemas/WorkOrderEnvelope" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /tenants/{tenantId}/work-orders/{workOrderId}:
+    parameters:
+      - { $ref: "#/components/parameters/tenantId" }
+      - { $ref: "#/components/parameters/workOrderId" }
+      - { $ref: "#/components/parameters/xTenantId" }
+    get:
+      tags: [work-order]
+      summary: 工單詳情
+      responses:
+        "200": { description: 工單, content: { application/json: { schema: { $ref: "#/components/schemas/WorkOrderEnvelope" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /tenants/{tenantId}/work-orders/{workOrderId}:assign:
+    post:
+      tags: [work-order, dispatch]
+      summary: 指派技師（DISPATCH 角色集；候選來自 OHS 媒合，見 ohs tag）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/workOrderId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/AssignRequest" } } }
+      responses:
+        "200": { description: 已指派；後續發 dispatch.assigned 事件（見 ./17_AsyncAPI.yaml）, content: { application/json: { schema: { $ref: "#/components/schemas/WorkOrderEnvelope" } } } }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /tenants/{tenantId}/work-orders/{workOrderId}/onsite:
+    patch:
+      tags: [work-order]
+      summary: 到場 / 簽名回報（技師端）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/workOrderId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+      responses:
+        "200": { description: 已更新, content: { application/json: { schema: { $ref: "#/components/schemas/WorkOrderEnvelope" } } } }
+
+  # ── C. 派工（代表性）─────────────────────────────────────────────────
+  /tenants/{tenantId}/dispatch/queue:
+    post:
+      tags: [dispatch]
+      summary: 工單進派工佇列（DISPATCH 角色集）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      responses:
+        "202": { description: 已入佇列；佇列變更經 realtime.dispatch-queue 頻道推播, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+
+  # ── D. OHS API（technician-platform 供給面）──────────────────────────
+  /technicians:
+    get:
+      tags: [ohs]
+      summary: 技師查詢（各品牌 api 消費；品牌不直連技師庫）
+      description: 依技能 / 地區 / 品牌授權 / 可用性過濾跨租戶技師池。
+      security: [{ ohsServiceCredential: [] }]
+      parameters:
+        - { name: skill, in: query, schema: { type: string } }
+        - { name: region, in: query, schema: { type: string } }
+        - { name: brand, in: query, schema: { type: string }, description: 品牌授權過濾 }
+        - { $ref: "#/components/parameters/limit" }
+      responses:
+        "200":
+          description: 技師候選清單（OHS 契約 DTO，品牌側以 ACL adapter 轉換）
+          content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/TechnicianCandidate" } } } }
+  /technicians:match:
+    post:
+      tags: [ohs]
+      summary: 派工媒合（技能/地區/品牌授權/可用性 → 排序候選；NFR 目標 p95 < 300ms [待確認]）
+      security: [{ ohsServiceCredential: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/MatchRequest" } } }
+      responses:
+        "200": { description: 排序候選（評分 / 距離 / 工作量）, content: { application/json: { schema: { $ref: "#/components/schemas/MatchResponse" } } } }
+
+  # ── E–H. 品牌 / 報價 / 帳務 / 結算（代表性）────────────────────────────
+  /tenants/{tenantId}/quotes:
+    post:
+      tags: [quote-pricing]
+      summary: 建立報價（狀態機 + 核准 + snapshot；OPS 角色集）
+      description: 客戶同意/拒絕經 LINE postback → `/internal/quotes/{id}:customer-respond`。
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      responses:
+        "201": { description: 已建立, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+  /tenants/{tenantId}/refunds:
+    post:
+      tags: [accounting]
+      summary: 退款申請（三維 SoD + 5-tier 審核；REVIEW 角色集）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+        - { $ref: "#/components/parameters/xInitiator" }
+        - { $ref: "#/components/parameters/xApprover" }
+        - { $ref: "#/components/parameters/xExecutor" }
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      responses:
+        "201": { description: 已受理；退款事件經 realtime.refunds 頻道推播, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /tenants/{tenantId}/monthly-settlements:
+    post:
+      tags: [settlement]
+      summary: 月結撥款批次（Manual CSV；OPS 角色集 + SoD 雙簽）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+        - { $ref: "#/components/parameters/xInitiator" }
+        - { $ref: "#/components/parameters/xApprover" }
+      responses:
+        "201": { description: 批次已建立, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+  /tenants/{tenantId}/technicians/{technicianId}/commission-summary:
+    get:
+      tags: [settlement, technician]
+      summary: 技師佣金月結摘要（品牌側 per-job 計費 Billing 視圖；OPS 角色集）
+      description: |
+        本端點呈現**品牌內** per-job 佣金計費彙總（ADR-P014 §2.1 Billing 邊界）。
+        技師**跨品牌**對帳單 / payout 為 technician-platform 結算主體，
+        資料由 `commission.accrued` 事件彙總（見 ./17_AsyncAPI.yaml）。
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { name: technicianId, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/xTenantId" }
+      responses:
+        "200": { description: 佣金月結摘要, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+  /tenants/{tenantId}/tech-statements:
+    get:
+      tags: [settlement]
+      summary: 技師 AP 對帳單（技師端讀取；跨品牌 statement 主體歸 technician-platform）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+      responses:
+        "200": { description: 對帳單分頁, content: { application/json: { schema: { $ref: "#/components/schemas/CursorPage" } } } }
+
+  # ── I–K. 客戶 / 知識 / 治理（代表性）───────────────────────────────────
+  /tenants/{tenantId}/problem-cards/{cardId}:confirm:
+    post:
+      tags: [customer]
+      summary: 客服確認 AI 草擬問題卡 → 建工單（BACKOFFICE 角色集；AI 永不自轉工單）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { name: cardId, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/xTenantId" }
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      responses:
+        "201": { description: 已建工單, content: { application/json: { schema: { $ref: "#/components/schemas/WorkOrderEnvelope" } } } }
+  /tenants/{tenantId}/sops/{sopId}:review:
+    post:
+      tags: [knowledge]
+      summary: SOP 雙簽審核（REVIEW 角色集 + SoD）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { name: sopId, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/xTenantId" }
+        - { $ref: "#/components/parameters/xInitiator" }
+        - { $ref: "#/components/parameters/xApprover" }
+      responses:
+        "200": { description: 審核結果, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+  /tenants/{tenantId}/gdpr-forget:
+    post:
+      tags: [governance]
+      summary: GDPR 遺忘權請求（T+30 硬刪；FULL_ACCESS 角色集）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+      responses:
+        "202": { description: 已受理, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+
+  # ── L. /internal/* 服務間契約（agent → api，4 端點完整）────────────────
+  /internal/conversations/ingest:
+    post:
+      tags: [internal]
+      summary: 旁路持久化一輪 LINE 對話（回覆後 fire-and-forget；agent 側 timeout 20s）
+      security: [{ internalToken: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/IngestTurnRequest" } } }
+      responses:
+        "200": { description: 已寫入 conversations/messages, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /internal/conversations/handover-state:
+    get:
+      tags: [internal]
+      summary: 查對話是否人工接管中（agent 回覆前判斷；timeout 5s，agent 側 fail-soft 回 false）
+      security: [{ internalToken: [] }]
+      parameters:
+        - { name: tenant_id, in: query, required: true, schema: { type: string } }
+        - { name: session_id, in: query, required: true, schema: { type: string }, description: "`{tenant}:{line_user_id}`" }
+      responses:
+        "200": { description: 接管狀態（查無 session → escalated=false）, content: { application/json: { schema: { $ref: "#/components/schemas/HandoverState" } } } }
+  /internal/escalations/ingest:
+    post:
+      tags: [internal]
+      summary: agent transfer_to_human → 建 AI 草擬問題卡（source='ai_line'）
+      security: [{ internalToken: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/EscalationIngestRequest" } } }
+      responses:
+        "201": { description: 草擬卡已建立（confirm/convert 走客服認證端點）, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+  /internal/quotes/{quoteId}:customer-respond:
+    post:
+      tags: [internal]
+      summary: 客戶經 LINE postback 同意 / 拒絕報價（先驗客戶身分，防跨客戶誤同意）
+      security: [{ internalToken: [] }]
+      parameters:
+        - { name: quoteId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/QuoteCustomerRespond" } } }
+      responses:
+        "200": { description: 已記錄客戶決定, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+
+  # ── N. 維運 ───────────────────────────────────────────────────────────
+  /health:
+    get:
+      tags: [ops]
+      summary: 健康檢查（DB 連線存活 ok/degraded）
+      security: []
+      responses:
+        "200":
+          description: ok / degraded
+          content: { application/json: { schema: { type: object, properties: { status: { type: string, enum: [ok, degraded] } } } } }
+
+# ── M. LINE webhook（OpenAPI 3.1 webhooks 物件）────────────────────────────
+webhooks:
+  lineCallback:
+    post:
+      tags: [line-webhook]
+      summary: LINE 平台 → agent `POST /callback`（平台唯一 LINE 入站門）
+      description: |
+        aiohttp 伺服器（本機 :8000 / 容器 :8080）。驗 `X-Line-Signature`
+        （HMAC-SHA256，LINE_CHANNEL_SECRET），簽章失敗回 400。
+
+        **訊息型別分派**：text → turn 流程；image → Blob 下載 → vision 管線；
+        sticker/audio/video/file/location → 友善話術（非靜默丟棄）。
+
+        **Postback 前綴 fan-out**（LINE 單 channel 單 URL，所有 postback 在此
+        deterministic 分派，旁路 api `/internal/*`）：
+        | 前綴 | 語義 | 目的地 |
+        |---|---|---|
+        | `q:a\|<quote_id>` / `q:r\|<quote_id>` | 報價同意 / 拒絕 | `POST /internal/quotes/{id}:customer-respond` |
+        | `r:c\|…` / `r:r\|…` | 改約 confirm / reject | 🔜 規劃中：`POST /internal/reschedule/*` |
+        | `s:a\|…` / `s:r\|…` | 範圍變更 accept / reject | 🔜 規劃中：`POST /internal/scope-change/*` |
+        | binding | LINE 綁定 / 查進度 | 🔜 規劃中：`/internal/*` |
+
+        **回應**：Reply API（單則 ≤ 4900 字，超過截斷）；LLM 失敗 sentinel →
+        友善話術；人工接管中（escalated=true）AI 暫停不回覆。
+      parameters:
+        - { name: X-Line-Signature, in: header, required: true, schema: { type: string }, description: HMAC-SHA256 簽章 }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/LineWebhookPayload" } } }
+      responses:
+        "200": { description: 已受理 }
+        "400": { description: 簽章驗證失敗 }
+
+# ── WebSocket 頻道契約（path / 授權 / 訊息格式；fanout 傳輸見 17_AsyncAPI）──
+x-websocket-channels:
+  認證: WS 走 query `access_token` + `tenant_id`（瀏覽器 WS 不支援 custom header）；
+    驗 token + tenant 一致 + 頻道授權，失敗 close(1008)。
+  訊息格式: 'JSON `{"type": "<event-name>", "payload": {...}}`，單向 server → client'
+  channels:
+    - { path: "/realtime/notifications/{user_id}", authz: "path_user_id == token.sub", usage: 個人通知 }
+    - { path: "/realtime/work-orders/{wo_id}", authz: "tenant 內任何登入者", usage: 工單事件 }
+    - { path: "/realtime/dispatch-queue", authz: "ADMIN 角色集", usage: 派工佇列 }
+    - { path: "/realtime/sla-alerts", authz: "ADMIN 角色集", usage: "SLA 告警" }
+    - { path: "/realtime/refunds", authz: "ADMIN_OR_FINANCE 角色集", usage: 退款事件 }
+    - { path: "/realtime/disputes", authz: "ADMIN_OR_SUPPORT 角色集", usage: 爭議事件 }
+    - { path: "/realtime/inventory/low-stock", authz: "ADMIN 角色集", usage: 低庫存告警 }
+    - { path: "/realtime/rbac", authz: "任何登入者", usage: "RBAC 變更（前端重拉權限）" }
+    - { path: "/realtime/pool/{tech_id}", authz: "tech_id == token.sub 或 admin/ops", usage: 技師工單池 }
+    - { path: "/realtime/diagnostics/{conv_id}", transport: SSE, usage: "對話診斷（9 WS + 1 SSE = 10 頻道）" }
+
+components:
+  securitySchemes:
+    casdoorOIDC:
+      type: openIdConnect
+      openIdConnectUrl: https://casdoor.platform.internal/.well-known/openid-configuration  # [待確認] 正式 Casdoor URL
+      description: |
+        Casdoor 統一 IdP（ADR-P003）。各服務驗 OIDC bearer token；角色由 role claim
+        提供，四方 RBAC（Super Admin / 租戶 Admin / 派工小編 / 技師跨租戶身分）
+        deny-by-default enforce（ADR-P006）。守衛鏈：require_tenant（X-Tenant-ID 與
+        claim 一致）→ role_required(*roles) → require_platform_admin（跨品牌視角）
+        → require_sod_actors / require_keeper_role（特權操作）。
+        系統角色 12 個：admin / reviewer / technician / brand_oem / line_user /
+        accounting / supervisor / dispatcher / customer_service / auditor /
+        family_reviewer / distributor。
+    internalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+      description: 服務間憑證（agent → api）。fail-closed：env 未設回 503、不符回 401；常數時間比對。
+    ohsServiceCredential:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+      description: "品牌 api → technician-platform OHS 服務憑證。[待確認] OIDC client-credentials vs internal token"
+    wsQueryToken:
+      type: apiKey
+      in: query
+      name: access_token
+      description: WS 頻道認證（+ query tenant_id）；見 x-websocket-channels。
+
+  parameters:
+    tenantId:
+      { name: tenantId, in: path, required: true, schema: { type: string }, description: "品牌租戶 ID（v2 tenant-scoped path）" }
+    workOrderId:
+      { name: workOrderId, in: path, required: true, schema: { type: string } }
+    xTenantId:
+      { name: X-Tenant-ID, in: header, required: true, schema: { type: string }, description: "須與 token tenant claim 一致，否則 403 TENANT_MISMATCH" }
+    idempotencyKey:
+      { name: Idempotency-Key, in: header, required: false, schema: { type: string }, description: "寫入類冪等鍵，TTL 24h；重放回原結果" }
+    xInitiator:
+      { name: X-Initiator, in: header, required: true, schema: { type: string }, description: "SoD 發起人；與 Approver/Executor 任二相同 → 403 SOD_VIOLATION" }
+    xApprover:
+      { name: X-Approver, in: header, required: true, schema: { type: string }, description: SoD 核准人 }
+    xExecutor:
+      { name: X-Executor, in: header, required: false, schema: { type: string }, description: "SoD 執行人（三簽時）" }
+    limit:
+      { name: limit, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+    cursor:
+      { name: cursor, in: query, schema: { type: string }, description: "游標分頁（CursorPage.next_cursor）" }
+
+  headers:
+    Deprecation:
+      { schema: { type: boolean }, description: "所有 /api/v1/* 回應帶 Deprecation:true（legacy 只標記不設 Sunset）" }
+    X-Request-Id:
+      { schema: { type: string }, description: "請求追蹤 ID（CORS expose）" }
+    RateLimit-Limit:
+      { schema: { type: integer }, description: "速率限制 header（限流 enforce 🔜 規劃中）" }
+
+  responses:
+    BadRequest:
+      description: 請求格式錯誤（BAD_REQUEST）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    Unauthorized:
+      description: 缺/無效/過期 token（UNAUTHENTICATED、TOKEN_REVOKED、TOKEN_STALE、INTERNAL_AUTH_FAILED）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    Forbidden:
+      description: 授權失敗（FORBIDDEN、ACCOUNT_DISABLED、TENANT_MISMATCH、SOD_VIOLATION、KEEPER_FORBIDDEN）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    NotFound:
+      description: 資源不存在（NOT_FOUND）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    Conflict:
+      description: 狀態衝突 / 冪等重放（CONFLICT）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    ValidationError:
+      description: Pydantic 驗證失敗（VALIDATION_ERROR，帶 details）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    RateLimited:
+      description: 速率限制（RATE_LIMITED；enforce 🔜 規劃中）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    Internal:
+      description: 未預期錯誤（INTERNAL_ERROR）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+    ServiceUnavailable:
+      description: 內部憑證未配置（INTERNAL_AUTH_NOT_CONFIGURED，fail-closed）
+      content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
+
+  schemas:
+    Problem:
+      type: object
+      description: "RFC7807 superset 錯誤信封；type 為 urn:smartlock:error:{error_code_lowercase}（識別字串非可抓取 URL）；error_code/message/request_id 為 extension members"
+      required: [type, title, status, error_code, request_id]
+      properties:
+        type: { type: string, examples: ["urn:smartlock:error:validation_error"] }
+        title: { type: string, examples: ["Validation Error"] }
+        status: { type: integer, examples: [422] }
+        detail: { type: string }
+        instance: { type: string }
+        error_code: { type: string, examples: [VALIDATION_ERROR] }
+        message: { type: string }
+        request_id: { type: string }
+        timestamp: { type: string, format: date-time }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string, examples: [body.amount] }
+              issue: { type: string }
+              type: { type: string }
+    ApiResponse:
+      type: object
+      description: 成功回應信封
+      properties:
+        data: {}
+        error: { type: "null" }
+    CursorPage:
+      type: object
+      description: 游標分頁信封（limit 預設 20 / 最大 100）
+      properties:
+        data: { type: array, items: {} }
+        next_cursor: { type: [string, "null"] }
+        has_more: { type: boolean }
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+    TokenPair:
+      type: object
+      properties:
+        access_token: { type: string, description: Casdoor OIDC access token }
+        refresh_token: { type: string }
+        token_type: { type: string, const: Bearer }
+        expires_in: { type: integer }
+    WorkOrderCreate:
+      type: object
+      required: [problem_card_id]
+      properties:
+        problem_card_id: { type: string, description: 1:1 對應問題卡 }
+        quote_id: { type: string, description: 報價硬綁定 FK 前置 }
+        address: { type: string }
+        scheduled_window: { type: string, description: 預約時窗 }
+    WorkOrder:
+      type: object
+      properties:
+        id: { type: string }
+        tenant_id: { type: string }
+        status: { type: string, description: 狀態機值見 ../00_platform/P1/07_workorder_platform_design.md }
+        technician_id: { type: [string, "null"] }
+        quote_id: { type: [string, "null"] }
+        problem_card_id: { type: string }
+        address: { type: string }
+        scheduled_window: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    WorkOrderEnvelope:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/WorkOrder" }
+        error: { type: "null" }
+    AssignRequest:
+      type: object
+      required: [technician_id]
+      properties:
+        technician_id: { type: string, description: 來自 OHS 媒合候選 }
+        note: { type: string }
+    TechnicianCandidate:
+      type: object
+      description: OHS 契約 DTO（品牌側以 ACL adapter 轉品牌領域模型）
+      properties:
+        technician_id: { type: string }
+        display_name: { type: string }
+        skills: { type: array, items: { type: string } }
+        brand_authorizations: { type: array, items: { type: string } }
+        certification_valid: { type: boolean }
+        rating: { type: number }
+        region: { type: string }
+        availability: { type: string }
+        workload: { type: integer, description: 目前在途工作量 }
+    MatchRequest:
+      type: object
+      required: [skill, region, brand]
+      properties:
+        skill: { type: string }
+        region: { type: string }
+        brand: { type: string }
+        time_window: { type: string }
+    MatchResponse:
+      type: object
+      properties:
+        candidates:
+          type: array
+          description: 依評分 / 距離 / 工作量排序
+          items: { $ref: "#/components/schemas/TechnicianCandidate" }
+    IngestTurnRequest:
+      type: object
+      required: [tenant_id, line_user_id, session_id, user_text, assistant_text]
+      properties:
+        tenant_id: { type: string, examples: [locksmart] }
+        line_user_id: { type: string }
+        session_id: { type: string, description: "`{tenant}:{line_user_id}`" }
+        user_text: { type: string }
+        assistant_text: { type: string }
+        display_name: { type: string }
+    HandoverState:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            escalated: { type: boolean }
+        error: { type: "null" }
+    EscalationIngestRequest:
+      type: object
+      required: [tenant_id, line_user_id, session_id, reason]
+      properties:
+        tenant_id: { type: string }
+        line_user_id: { type: string }
+        session_id: { type: string }
+        reason: { type: string }
+        is_explicit: { type: boolean, description: 金錢 / 明確要真人關鍵字偵測 }
+        facts_snapshot:
+          type: object
+          properties:
+            facts_block: { type: string }
+            user_input_excerpt: { type: string }
+            brand: { type: string }
+            model: { type: string }
+            symptom: { type: string }
+            phone: { type: string, description: 空白時由本輪原話補抽台灣手機 }
+    QuoteCustomerRespond:
+      type: object
+      required: [tenant_id, line_user_id, decision]
+      properties:
+        tenant_id: { type: string }
+        line_user_id: { type: string }
+        decision: { type: string, enum: [accept, reject] }
+    LineWebhookPayload:
+      type: object
+      description: LINE Messaging API webhook payload（line-bot-sdk v3）
+      properties:
+        destination: { type: string }
+        events:
+          type: array
+          items:
+            type: object
+            properties:
+              type: { type: string, enum: [message, postback, follow, unfollow] }
+              replyToken: { type: string }
+              source:
+                type: object
+                properties:
+                  type: { type: string }
+                  userId: { type: string }
+              timestamp: { type: integer }
+              message:
+                type: object
+                properties:
+                  type: { type: string, enum: [text, image, sticker, audio, video, file, location] }
+                  id: { type: string }
+                  text: { type: string }
+              postback:
+                type: object
+                properties:
+                  data: { type: string, description: "前綴 fan-out：q:* / r:* / s:* / binding" }
