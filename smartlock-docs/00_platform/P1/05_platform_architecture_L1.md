@@ -211,9 +211,9 @@ graph LR
 | G-11 | 前端 client-side auth | [[ADR-P003]] | Casdoor OIDC 授權碼流；token 安全儲存；deny-by-default | 🎯 已定案 |
 | 監控空白 | 無系統可觀測性 | [[ADR-P002]] | SigNoz 系統監控（單一）+ OPIK agent LLM Ops（dev/prod 可切）| 🎯 已定案 |
 | G-06 | 兩個 LINE webhook 分流 | [[ADR-005]] · CR-0121 | **已定案（方案 A）**：LINE 單 channel 單 URL → agent `/callback` 唯一入站門 + postback 前綴 fan-out → `/internal/*`；api `/line/webhook` 退役。⚠️ code 待實作 | 🎯 已定案 |
-| G-09 | v1→v2 cutover 未完成 | — | 待處理：收尾 P4 cutover 5 gate | 🟡 待議 |
-| G-10 | Migration registry 漂移 | — | 待處理：CI schema drift 檢查 | 🟡 待議 |
-| G-12 | 無 CD pipeline | — | 待處理：Cloud Run 自動部署 + per-brand provisioning 自動化 | 🟡 待議 |
+| G-09 | v1→v2 cutover 未完成（⚠️ 反向惡化：CR-0114/0116/0118 仍疊 `/api/v1`）| [[ADR-P012]] | 凍結 v1 新增（止血）→ 盤點 ~42 caller 依 P4 5-gate 遷 v2 → 移除 v1 | 🎯 已排程 |
+| G-10 | Migration registry 漂移（⚠️ 已致 `UndefinedTable` 紅測試）| [[ADR-P012]] | `schema_migrations` 為唯一真相 + CI drift-check + 一次性 reconcile | 🎯 已排程 |
+| G-12 | 無 CD pipeline（⚠️ 卡 [[ADR-P005]] per-brand provisioning）| [[ADR-P012]] | 基礎 CD（3 Cloud Run）→ per-brand provisioning 自動化（隨 [[ADR-P005]]）| 🎯 已排程 |
 
 ---
 
@@ -235,8 +235,8 @@ graph LR
 
 ### Phase 3 — 事件骨幹與治理健壯化（Q3）
 - **Kafka 事件骨幹**（[[ADR-P007]]）：派工/技師/工單事件；解耦消費者（通知/SLA/結算/技師平台）。
-- **per-brand provisioning 自動化**（[[ADR-P005]]）：License→部署→建庫→綁 LINE；CD pipeline（G-12）。
-- **收尾**：v1→v2 cutover（G-09）、migration CI drift（G-10）。LINE webhook 分流（G-06）已定案（[[ADR-005]] · CR-0121 方案 A），待 code 實作。
+- **per-brand provisioning 自動化**（[[ADR-P005]]）：License→部署→建庫→綁 LINE；CD pipeline（G-12，排程見 [[ADR-P012]]）。
+- **執行債清償**（[[ADR-P012]]）：G-10 migration drift（止血最急）→ G-09 v1→v2 cutover（先凍結 v1 新增）→ G-12 基礎 CD。LINE webhook 分流（G-06）已定案（[[ADR-005]] · CR-0121 方案 A），待 code 實作。
 
 ---
 
