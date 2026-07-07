@@ -24,6 +24,57 @@
 掃描腳本:<code>scripts/security/baseline-scan.sh</code>(工具存在才跑、報告落
 <code>reports/</code>)。</p>
 </blockquote>
+<h2 id="更新-2026-07-07三件套收尾業主裁決全修">更新
+2026-07-07:三件套收尾(業主裁決全修)</h2>
+<p>業主 2026-07-07 裁決<strong>現在全修</strong>(覆寫下方 §修補建議的
+UAT 後 defer)。結果:</p>
+<table>
+<thead>
+<tr>
+<th>件</th>
+<th>狀態(2026-07-07)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>壓測</td>
+<td>✅ 既有(Locust,見下)</td>
+</tr>
+<tr>
+<td>弱點掃描 + 修補</td>
+<td>✅ <strong>全修</strong>:Python 10 套件 32 洞 + Node next/postcss
+全部升級到修復版;<code>pip-audit</code> 與 <code>npm audit</code> 皆
+<strong>0 漏洞</strong>。全套回歸 <strong>api 1663 passed + agent 150
+passed + web build 綠</strong>,零回歸(starlette 1.0→1.3.1、cryptography
+46→49、aiohttp 3.13→3.14、litellm 1.83→1.91 等大升級全相容)。詳見
+CHANGELOG / branch <code>fix/dependency-vuln-remediation</code>。</td>
+</tr>
+<tr>
+<td>資安掃描(gitleaks)</td>
+<td>✅ <strong>已裝並掃 git 歷史</strong>:66 筆命中<strong>全為</strong>
+docs API 範例、測試 fixture(如 <code>vendorpass123</code>)、CI mock
+token(<code>ci-smoke-test</code>)、設計檔誤判——<strong>零真實 prod
+憑證外洩</strong>;真密鑰(GEMINI/LINE/DB/credentials.json)正確不入
+git(掃描結果反證)。</td>
+</tr>
+<tr>
+<td>資安掃描(ZAP)</td>
+<td>⏳ 仍待<strong>雲端部署後</strong>對 staging URL 跑(本機無服務
+URL,做不到)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>升級明細</strong>(修復版實得):aiohttp
+3.13.4→3.14.1、cryptography 46.0.7→49.0.0、 idna 3.13→3.18、langsmith
+0.8.1→0.9.8、litellm 1.83.14→1.91.0、pydantic-settings
+2.14.0→2.14.2、python-multipart 0.0.27→0.0.32、starlette
+1.0.0→1.3.1、urllib3 2.6.3→2.7.0、yt-dlp 2026.3.17→2026.7.4;Node:next
+15.5.15→15.5.20 + postcss override <code>^8.5.10</code>(next 內嵌 8.4.31
+dedupe 至 8.5.16)。</p>
+<p><strong>待辦</strong>:① ZAP 待雲端部署(A6 殘);② local docker image
+需重建才反映依賴修補 (source/lock 已改,tests 已對升級後 .venv
+驗證,部署層另做)。</p>
+<hr />
 <h2 id="三件套現況">三件套現況</h2>
 <table>
 <thead>

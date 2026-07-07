@@ -1,0 +1,252 @@
+<!DOCTYPE html><html lang="zh-Hant"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>租戶 registry 與生命週期管理(SuperAdmin 大後台「租戶管理」;CR-0113 方案 A P3 收尾)</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;margin:0;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.wrap{max-width:960px;margin:0 auto;padding:24px 28px 80px}
+.bc{font-size:12.5px;color:#94a3b8;margin-bottom:14px}.bc a{color:#7dd3fc;text-decoration:none}.bc a:hover{text-decoration:underline}
+.doc h1{font-size:24px;border-bottom:1px solid #334155;padding-bottom:8px;margin-top:8px}
+.doc h2{font-size:19px;margin-top:28px;border-left:4px solid #38bdf8;padding-left:10px}
+.doc h3{font-size:16px;margin-top:20px;color:#cbd5e1}.doc h4{font-size:14px;color:#94a3b8}
+.doc a{color:#7dd3fc}.doc code{background:#1e293b;padding:1px 5px;border-radius:4px;font-size:.88em;color:#7dd3fc}
+.doc pre{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:12px 14px;overflow:auto}.doc pre code{background:none;padding:0}
+.doc table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13.5px;background:#1e293b;border-radius:8px;overflow:hidden}
+.doc th,.doc td{border:1px solid #334155;padding:7px 10px;text-align:left;vertical-align:top}.doc th{background:#0b1220}
+.doc blockquote{border-left:4px solid #475569;margin:12px 0;padding:4px 14px;color:#cbd5e1;background:#172033}
+.doc ul,.doc ol{padding-left:22px}.doc img{max-width:100%}
+.meta{font-size:12px;color:#64748b;margin:6px 0 18px}
+</style></head><body><div class="wrap">
+<div class="bc"><a href="../index.html">🏠 文件總目錄</a> ／ 4-exploration ／ CR-0118-tenant-registry-lifecycle.md</div>
+<div class="doc"><h1
+id="cr-0118--平台-console租戶管理已開站租戶-registry--生命週期">CR-0118
+— 平台 console「租戶管理」:已開站租戶 registry + 生命週期</h1>
+<h2 id="1-觸發背景">§1 觸發背景</h2>
+<ul>
+<li><strong>20260702 §二.3(Sunny 口述)</strong>:「SuperAdmin
+可從大後台管理所有租戶 Admin」。</li>
+<li><strong>盤點(2026-07-06)</strong>:CR-0114 platform console
+目前只有「品牌<strong>申請</strong>審核」(開站 <em>前</em>的關卡)+
+師傅審核 + 廠商 + 維運監控。<strong>核准後的品牌並未被登錄成「已開站
+租戶」</strong>——SuperAdmin
+缺一個「我有哪幾家品牌在營運、各自狀態如何、開站資訊為何」
+的正典檢視面。這是 CR-0113 方案 A「P3 SuperAdmin
+console」尚未落地的最後一塊拼圖。</li>
+</ul>
+<h2 id="2-現況事實2026-07-06-查證精準到檔案">§2 現況事實(2026-07-06
+查證,精準到檔案)</h2>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>事實</th>
+<th>證據</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>平台庫(lock_platform)僅 4 表:<code>users</code> /
+<code>revoked_jti</code> / <code>brand_applications</code> /
+<code>monitor_target</code>,<strong>無租戶 registry</strong></td>
+<td><code>SQL/platform/Schema_platform.sql</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>核准品牌申請 = 標 <code>status='approved'</code> + 定
+<code>slug</code> +
+回開站指引文字;<strong>不建租戶列、不追蹤開站後狀態</strong></td>
+<td><code>brand_application_service.approve</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>monitor_target.brand</code> 只是 health URL
+的分組字串(CR-0116),非租戶正典(無狀態/接洽人/部署資訊)</td>
+<td><code>Schema_platform.sql:101-115</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td><code>platform_admin_service</code> 只有
+auth(login/refresh/logout/me),無租戶管理</td>
+<td><code>api/services/platform_admin_service.py</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>架構分叉早已定案:SuperAdmin = 跨專案<strong>外層
+console</strong>,<strong>不進各品牌 DB 改帳號</strong>(品牌 admin
+帳號在各品牌庫,平台不跨庫寫)</td>
+<td>CR-0113 §5 方案 A + §8 裁決</td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-範圍">§3 範圍</h2>
+<p><strong>IN(本 CR):</strong></p>
+<ul>
+<li>平台庫新表 <code>tenant</code>:已開站租戶正典(slug / company /
+status / 接洽人 / 部署 metadata / 溯源 application_id)。</li>
+<li>核准品牌申請成功後,自動登錄/連結一列 <code>tenant</code>(approved →
+進入營運名冊)。</li>
+<li>platform console 新分頁「租戶管理」:列出所有租戶 + 狀態徽章 +
+開站資訊;連到該租戶的監控 health。</li>
+<li>租戶生命週期(<strong>平台層標示</strong>):<code>active</code> /
+<code>suspended</code> / <code>terminated</code> +
+備註(平台側註記,實際品牌庫動作仍手動,符合 CR-0114 裁決
+2「開站純手動」)。</li>
+<li>端點(全 <code>/api/v1/platform</code>
+前綴,<code>require_platform_admin</code>):<code>GET /platform/tenants</code>(?status=)、<code>GET /platform/tenants/{id}</code>、<code>POST .../{id}:suspend</code>、<code>POST .../{id}:reactivate</code>。</li>
+</ul>
+<p><strong>OUT(維持 CR-0113 方案 A 邊界,不在本 CR):</strong></p>
+<ul>
+<li>直連各品牌庫 CRUD 品牌 admin 帳號(重設密碼 / 停用登入)——跨品牌 DB
+深水,方案 A 明言「外層 console 不進各專案 DB 切
+tenant」;短期走各品牌後台的 Lock AI 維運帳號。</li>
+<li>多品牌工單 / 資料聚合(CR-0112 已知殘留)。</li>
+</ul>
+<h2 id="4-影響面cia-七面向">§4 影響面(CIA 七面向)</h2>
+<table>
+<thead>
+<tr>
+<th>面向</th>
+<th>影響</th>
+<th>破壞性</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>User/Business flow</strong></td>
+<td>新增「SuperAdmin
+檢視/管理已開站租戶」流;品牌申請核准流末端自動多一步「登錄為租戶」</td>
+<td>否(additive)</td>
+</tr>
+<tr>
+<td><strong>API contract</strong></td>
+<td>新增 4 端點;<code>approveBrandApplication</code> 回應 additive 加
+<code>tenant_id</code></td>
+<td>否</td>
+</tr>
+<tr>
+<td><strong>Domain model</strong></td>
+<td>新增 <code>Tenant</code>(平台視角的已開站租戶名冊);與品牌庫
+<code>saas.tenant</code>(該品牌自我描述那 1 筆)概念區隔</td>
+<td>否</td>
+</tr>
+<tr>
+<td><strong>DB schema</strong></td>
+<td>平台庫新表 <code>tenant</code>(Schema_platform.sql 追加,IF NOT
+EXISTS);<code>brand_applications</code> 可加 <code>tenant_id</code>
+反向連結(選填)</td>
+<td>否(新表)</td>
+</tr>
+<tr>
+<td><strong>External integration</strong></td>
+<td>無</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Test plan</strong></td>
+<td>新增 <code>test_platform_tenants</code>(registry + 核准連動 +
+gate);<code>test_api_surface</code> / <code>test_platform_surface</code>
+端點集更新</td>
+<td>—</td>
+</tr>
+<tr>
+<td><strong>Architecture boundary</strong></td>
+<td>platform console 能力擴充,<strong>不跨品牌庫寫</strong>(維持方案
+A);registry 為平台單庫本地資料,不引新 infra</td>
+<td>否</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-設計方案">§5 設計方案</h2>
+<p><strong>表 <code>tenant</code>(lock_platform):</strong>
+<code>id</code> / <code>slug</code>(unique) / <code>company_name</code>
+/ <code>contact_name</code> / <code>contact_email</code> /
+<code>contact_phone</code> /
+<code>status</code>(active/suspended/terminated,CHECK)/
+<code>plan</code>(選填)/ <code>application_id</code>(→
+brand_applications,溯源)/ <code>deploy_note</code>(開站 metadata 文字)/
+<code>created_at</code> / <code>updated_at</code> /
+<code>status_changed_at</code> / <code>status_changed_by</code>。</p>
+<p><strong>服務 <code>platform_tenant_service</code>:</strong>
+<code>list</code> / <code>get</code> /
+<code>create_from_application</code>(approve 內呼叫,idempotent by slug)/
+<code>set_status</code>(suspend/reactivate/terminate,寫 status +
+status_changed_by/at)。</p>
+<p><strong>router <code>platform_tenants</code>:</strong> 4
+端點,<code>require_platform_admin</code>。</p>
+<p><strong>前端
+<code>web/src/app/platform/tenants/{page,[id]}.tsx</code>:</strong>
+清單(狀態徽章 + 搜尋)+ 詳情(開站資訊 + 生命週期動作 + 連監控);platform
+layout 導航加「租戶管理」。</p>
+<p><strong>approve 連動:</strong>
+<code>brand_application_service.approve</code> 成功後呼叫
+<code>create_from_application</code>(<strong>fail-soft</strong>:registry
+建立失敗不擋核准,loud log)。</p>
+<h2 id="6-落地規模小可單輪或雙輪比照-cr-0116-節奏">§6
+落地(規模小,可單輪或雙輪;比照 CR-0116 節奏)</h2>
+<table>
+<thead>
+<tr>
+<th>輪</th>
+<th>內容</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1(後端)</td>
+<td>migration + service + router + main 掛載 + approve 連動 + tests</td>
+</tr>
+<tr>
+<td>R2(前端)</td>
+<td>tenants 清單/詳情 + 導航 + i18n</td>
+</tr>
+</tbody>
+</table>
+<h2 id="7-風險--取捨">§7 風險 / 取捨</h2>
+<ol type="1">
+<li><strong>registry 與品牌庫 <code>saas.tenant</code>
+雙記</strong>:平台 <code>tenant</code> 是跨品牌名冊、品牌
+<code>saas.tenant</code>
+是該品牌自身描述,語意不同不衝突;文件需註明避免誤解。</li>
+<li><strong>生命週期 <code>suspended</code>
+平台層僅標示</strong>,不自動停該品牌服務(需手動 gcloud /
+各品牌後台)——與方案 A 一致,console
+文案須明示「平台層標示,實際停站走維運」。</li>
+<li><strong>slug 唯一性</strong>:approve 已定 slug;registry 沿用同 slug
+當 key。</li>
+</ol>
+<h2 id="8-human-decisions-required-stop_sign">§8 Human Decisions
+Required 🛑</h2>
+<ol type="1">
+<li><strong>是否此輪落地租戶
+registry?</strong>（建議:<strong>是</strong>——§二.3
+唯一還沒做的功能面,且只碰 platform 站 :3003,不動 Johnson UAT 面(:3000
+派工 / :3001 師傅),風險低)。</li>
+<li><strong>生命週期動作範圍</strong>：MVP 先「檢視 + 平台層
+suspend/reactivate 標示」（建議）， 或連「terminate +
+開站精靈(brands/*.env 產生器)」一起做?</li>
+<li><strong>稽核粒度</strong>：先最小(<code>status_changed_by/at</code>
+欄位，建議)，或建 <code>tenant_lifecycle_event</code>
+事件表(比照師傅生命週期)?建議先最小、事件表後置。</li>
+</ol>
+<h3 id="進度">進度</h3>
+<ul>
+<li><strong>2026-07-06</strong>:立案(CIA)。現況查證(平台庫 4 表無
+registry)+ CR-0113 方案 A 邊界 確認(不跨品牌庫寫)+ registry 設計 +
+七面向影響。🛑 待業主裁決 §8。</li>
+<li><strong>2026-07-07</strong>:業主裁決 §8——Q1 做 MVP、Q2 檢視+平台層
+suspend/reactivate 標示、 Q3
+稽核先最小欄位(不建事件表)。<strong>單輪落地</strong>(branch
+<code>feat/cr-0118-tenant-registry</code>): <code>tenant</code>
+表(Schema_platform.sql)+ <code>platform_tenant_service</code> +
+<code>platform_tenants</code> router 四端點 + main 掛載 +
+<code>brand_application_service.approve</code> 連動(fail-soft)+ 前端
+<code>/platform/tenants</code>
+<ul>
+<li><code>TenantsPanel</code> +
+導航。驗證:<code>test_platform_tenants.py</code> 10 測、<strong>全套
+1663 passed</strong> (隔離 scratch DB)、tsc
+0、瀏覽器端到端(核准品牌申請→自動登錄→停用→恢復)。 已重建本機 platform
+api+web、5435 套 <code>tenant</code> 表。merge
+<code>012a10e7</code>(--no-ff)。</li>
+</ul></li>
+</ul>
+</div></div></body></html>
