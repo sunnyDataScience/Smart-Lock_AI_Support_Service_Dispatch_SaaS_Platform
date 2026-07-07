@@ -12,7 +12,7 @@
 | 審核狀態 | 理想態藍圖（as-is 現況 baseline 保存於 git `238f6fce`）|
 | 涵蓋系統數 | **6 個內部系統**（agent / api / web / knowledge-refinery / technician-platform + 集中共用基礎設施）+ 外部相依 |
 | 架構層級 | C4 Level 1 — System Context |
-| 依據決策 | 平台級 ADR-P001~P013 + agent ADR-004/005 |
+| 依據決策 | 平台級 ADR-P001~P014 + agent ADR-004/005 |
 
 **說明：** 本文件描述 Smart Lock 平台的**理想態（target）**最高層架構——由現況 as-is 逐坑演進而來，每項決策皆有對應 ADR。凡標 `🎯` 為 target 新增/演進元件；`(現況)` 標示尚未落地、屬遷移路徑者。
 

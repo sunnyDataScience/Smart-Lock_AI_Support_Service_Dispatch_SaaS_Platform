@@ -175,7 +175,7 @@ flowchart TD
 **圖例**：
 - 實線 `-->` = target 已定案整合路徑（依 ADR）；虛線 `-.->` = 監控旁路 / 即時推播 / 進程內相依。
 - **整合三路（[[ADR-P004]] §3）**：① 各品牌 api → 技師平台 **OHS API**（同步查詢/媒合/排班）；② 技師平台 → **Kafka** 發布技師狀態事件（[[ADR-P007]]）；③ 技師平台 ← **Kafka** 訂閱派工/工單事件更新排班/評分/佣金與工單投影。**品牌不直連技師庫。**
-- 🎯 技師工作台工單投影（read-model）為理想態設計提案：per-brand 物理隔離下，技師平台無法直連各品牌庫讀工單，改以 Kafka 事件餵養本地投影供師傅工作台檢視——**設計細節 `[待確認]`，非 ADR 明訂**。
+- 🎯 技師工作台工單投影（read-model）：per-brand 物理隔離下，技師平台無法直連各品牌庫讀工單，改以 Kafka 事件餵養本地投影供師傅工作台檢視——**✅ 已裁決，設計見 [[ADR-P014]] §2.2（CQRS 投影，欄位最小化）**。
 
 ---
 
@@ -266,8 +266,8 @@ flowchart TD
 | **品牌授權（brand authorization）** | 技師可服務哪些品牌的授權關係 | `technician_brand_authorization`；決定媒合候選集 |
 | **認證准入（KYC/certification）** | 技師 KYC + 技能認證審核閘門，通過才可接單 | `technician_kyc` / `technician_certification` |
 | **派工媒合（matching）** | 給定工單條件（技能/地區/品牌），回傳排序技師候選 | `matching_service`；OHS `POST /technicians:match` |
-| **佣金主體** | 技師的佣金 profile / payout rule / statement 身分歸屬技師平台；**金額計算由派工平台工單觸發** | 邊界切分 `[待確認]`（見 §5.3）|
-| **技師工單投影（read-model）** | Kafka 事件餵養的本地工單讀模型，供師傅工作台檢視（per-brand 隔離下不直連品牌庫）| 理想態設計提案 `[待確認]` |
+| **佣金主體** | 技師的佣金 profile / payout rule / statement 身分歸屬技師平台；**金額計算由派工平台工單觸發** | ✅ [[ADR-P014]]：Billing(品牌)/Settlement(技師平台)分離 |
+| **技師工單投影（read-model）** | Kafka 事件餵養的本地工單讀模型，供師傅工作台檢視（per-brand 隔離下不直連品牌庫）| ✅ [[ADR-P014]]：CQRS 投影定案 |
 | **技師跨租戶身分** | Casdoor 管理的技師身分，獨立於品牌租戶 token（有別於現況共用 JWT）| [[ADR-P003]]/[[ADR-P006]] |
 
 ### 5.2 限界上下文定位（Bounded Context）
@@ -321,13 +321,16 @@ flowchart TD
 
 > **對照現況（as-is）**：現況 DispatchOperations ↔ Technician 為 **SK（Shared Kernel）**——同一 codebase、`lock_tech` 為品牌庫子集投影、靠 `tech_mirror` 雙寫維持一致（G-08）。理想態 **SK → OHS+PL 解耦**，消除跨庫雙寫耦合（[[ADR-P004]]）。
 
-### 5.3 邊界待確認：佣金主體 vs 金額計算 `[待確認]`
+### 5.3 佣金主體邊界 + 工單可見性（✅ [[ADR-P014]] 2026-07-07 裁決）
 
-[[ADR-P004]] §3 明訂技師平台職責含「佣金主體」，但佣金**金額**源自派工平台的工單/結算（現況 `saas.technician_statement` / `technician_penalty_bonus_ledger` / `technician_commission` 位於品牌庫）。理想態合理切分（**待業主/架構師裁決**）：
+> **裁決（[[ADR-P014]]）**：technician-platform 為品牌事件的 **CQRS 消費端**——命令端（工單/計費）真相留品牌庫、查詢端（技師視角/結算）在技師平台。兩者共用同一 Kafka 事件骨幹。
 
-- **技師平台擁有**：技師佣金 profile、payout rule 綁定技師身分、對技師的 statement 呈現主體。
-- **派工平台擁有**：工單觸發的佣金金額計算、對帳、B2B 結算；經 `settlement.generated` 事件通知技師平台更新 statement。
-- **未定**：statement 產生的實體歸屬（技師平台 aggregate vs 派工平台 aggregate + 技師平台投影）、`technician_payout_rule` 遷移落點——列入 §10 演進 Phase C 的 contract 設計項。
+- **佣金 Billing / Settlement 分離**：
+  - **品牌庫 = 計費（Billing）**：算 per-job 佣金明細（依賴工單金額/完工，皆品牌側）→ 發 `commission.accrued` 事件。
+  - **技師平台 = 結算主體（Settlement）**：訂閱各品牌 `commission.accrued` → 技師**跨品牌單一對帳 / statement / payout**（`saas.technician_statement` / `technician_payout_rule` 遷入技師平台）。
+  - → [[ADR-P004]]「佣金主體」精確界定為**結算/對帳/payout 主體**（技師平台）；per-job 計費引擎留品牌（貼近資料源，避免跨庫依賴）。
+- **工單可見性 = Kafka-fed read-model（CQRS 投影）**：品牌 api 發 `workorder.{dispatched,updated,completed}` → 技師平台維護「技師視角工單投影」（欄位最小化：摘要/地址/狀態/時窗/該技師派工）→ 師傅工作台讀投影。**不直連品牌庫**（守 [[ADR-P005]] 物理隔離）。
+- 詳見 [[ADR-P014]]（含事件契約、對帳閘門、投影隱私）。
 
 ---
 
@@ -566,8 +569,8 @@ flowchart TD
 |---|---------|--------|-----------|---------|---------|------|
 | R-01 | **技師平台成跨品牌單點**：媒合是所有品牌派工的必經同步路徑，OHS API / lock_tech 不可用 → 全品牌派工受阻 | **高** | 中 | 全平台派工 | HA + read replica（[[ADR-P007]]）；品牌側 ACL 降級策略 `[待確認]` | [[ADR-P004]] §4 |
 | R-02 | **遷移期並存雙寫 + 事件雙路**：抽出獨立系統與汰除 `tech_mirror` 之間，身分一致性同時靠雙寫與事件，易漂移/重複 | **高** | 高（遷移期）| 技師身分一致性 | 明確 cutover gate；先影子並存驗證再切斷雙寫（見 §10 Phase C）| [[ADR-P004]] §4/§5 |
-| R-03 | **佣金主體邊界未定**：技師平台「佣金主體」與派工平台「金額計算」切分未定案，statement 歸屬 + `technician_payout_rule` 落點懸置 | 中 | 中 | 結算/佣金正確性 | §5.3 列裁決項；Phase C contract 設計前先定案 | [[ADR-P004]] §3 · `[待確認]` |
-| R-04 | **技師工單投影設計未定**：per-brand 隔離下師傅工作台如何看工單（Kafka read-model vs OHS 反向呼叫）非 ADR 明訂 | 中 | 中 | 師傅工作台體驗 | 定義 read-model 事件 + CQRS 投影設計 `[待確認]`；contract 測試 | 本文 §3/§5.1 |
+| R-03 | ✅ **已裁決 [[ADR-P014]]**：佣金 Billing(品牌 per-job 計費)/Settlement(技師平台結算主體)分離；statement + `technician_payout_rule` 遷入技師平台，經 `commission.accrued` 事件彙總 | 中 | 低 | 結算/佣金正確性 | 依 [[ADR-P014]] §2.1；殘留=期末對帳閘門（最終一致性）| [[ADR-P014]] |
+| R-04 | ✅ **已裁決 [[ADR-P014]]**：工單可見性採 Kafka-fed read-model（CQRS 投影，欄位最小化），品牌 api 發 `workorder.*` → 技師平台投影；不直連品牌庫 | 中 | 低 | 師傅工作台體驗 | 依 [[ADR-P014]] §2.2；殘留=投影隱私審查 + 事件 schema 治理 | [[ADR-P014]] |
 | R-05 | **現況強耦合解除成本**：tech stack 與 dispatch stack 共享 network / `media` volume、WS 指向品牌 api、同 codebase、共用 JWT——抽出獨立需逐一解耦 | 中 | 高 | 部署/遷移工作量 | 分階段抽出（codebase → 認證 → 庫 → 事件），每步契約測試 | 現況 `docker-compose.tech.yml` / `main.py` |
 | R-06 | **Casdoor 跨租戶技師身分建模**：技師非屬單一品牌 org，Casdoor org/角色如何表達跨租戶技師身分需設計 | 中 | 中 | 身分/授權正確性 | 與 [[ADR-P003]]/[[ADR-P006]] 協調技師 org 模型 `[待確認]` | [[ADR-P006]] §3 |
 | R-07 | **雲端技師庫未接**：現況雲端為單庫 fallback（`TECH_POSTGRES_URI` 未設），技師庫雲端接入屬後續（AI-2/AI-3）| 低-中 | 中 | 雲端上線 | 隨集中共用平台 provisioning（[[ADR-P005]]）補雲端技師庫 | 現況 `brands/locksmart.env` 註 |
