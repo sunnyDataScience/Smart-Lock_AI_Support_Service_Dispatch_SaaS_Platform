@@ -393,7 +393,7 @@ sequenceDiagram
 | **Phase 3** 🔜 | 事件骨幹與多品牌規模化 | Kafka 事件骨幹（佣金 / 工單投影）、License → provisioning 自動化、per-brand bundle 量產 |
 | **Phase 4+** 🔜 | 平台化飛輪 | 第 2 產業 Vertical Pack 驗證、拖拉 FlowEditor、AI Onboarding Compiler |
 
-> **產品階段對映（業主裁決 2026-07-07）**：Phase 1–3 = 產品**階段一「鎖匠垂直深耕」**（現行介面為主）；Phase 4+ = 產品**階段二「平台化橫向展開」**，啟動需過階段閘（商業驗證 + 業主裁決）。里程碑與 WBS 見 [27_Product_Roadmap_WBS](./27_Product_Roadmap_WBS.md)。
+> **產品階段對映（業主裁決 2026-07-07）**：Phase 1–2 = 產品**階段一「鎖匠垂直深耕」**（單品牌、現行介面為主）；Phase 3（多品牌規模化）與 Phase 4+（平台化）= 產品**階段二「規模化與平台化橫向展開」**，啟動需過階段閘（單品牌商業驗證 + 業主裁決）。里程碑與 WBS 見 [27_Product_Roadmap_WBS](./27_Product_Roadmap_WBS.md)。
 
 ---
 

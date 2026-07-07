@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Decisions
 
+- **業主裁決（追加）：M3 多品牌規模化移入產品階段二（branch `docs/enterprise-doc-set`，2026-07-07）**：階段一收斂為**單品牌鎖匠垂直做穩**（M1 上線硬化 + M2 身分知識技師平台，~22 週）；階段二 = M3 多品牌規模化 → M4 平台化地基 → M5 第 2 產業。階段閘同步改版：M2 Release 過關 + 創始品牌穩定營運 ≥1 月（K1/K5/K7 達標）+ ≥1 家外部品牌申請/簽約意向 `[待確認]` + 業主裁決。技術分期對映更新為 Phase 1–2＝階段一、Phase 3+＝階段二（27_Roadmap §2/§4/§5、02_BRD §9.3、06_platformization §8 註記同步）。
+
 - **業主裁決＋產出：平台化列產品第二階段，Roadmap + 瀑布式 WBS 立文（branch `docs/enterprise-doc-set`，2026-07-07）**：業主裁定 `06_platformization_strategy` §8 三大地基（Vertical Pack / 兩層渲染 / field_metadata）與 §9 護城河（積木飛輪 / AI Onboarding Compiler / Flow 本體論）**全數後移至產品階段二**——現行前端為鎖匠垂直設計，階段一以鎖匠介面深耕。新立 `enterprise/27_Product_Roadmap_WBS.md`：產品兩階段 × 五里程碑（M1 上線硬化 / M2 身分知識技師平台 / M3 多品牌規模化 / M4 平台化地基 / M5 第 2 產業），瀑布 Stage-Gate 治理（需求基線=enterprise 00-26 凍結、設計凍結→實作→SIT→UAT→Release、變更走 CIA 不插隊），M1-M3 展開至工作包層級 WBS（負責線/前置/驗收依據對照 FR/TC/SA），含階段一→二啟動閘（M3 過關＋≥2 付費租戶穩定營運＋業主裁決）與 roadmap 級風險登記（ops_manager 矩陣缺行強制先於 enforce 等）。同步：README 導覽、02_BRD §9.3 產品階段對映、06_platformization_strategy §8 裁決註記（設計鎖定不變僅排程後移）。
 
 - **業主裁決：租戶開通角色收斂為 4 值，dispatcher 轉保留角色（branch `docs/enterprise-doc-set`，2026-07-07）**：緊接角色目錄梳理的追加裁決——租戶 Admin 可開通集合由 5 值收斂為 **{admin, operations_manager, customer_service, reviewer}**；`dispatcher` 轉**保留角色暫不開通**（派工職能由 admin / operations_manager 承擔＋自動派工路徑 BR-PC-02，單量成長時經 ChangeRequest 重新啟用）；`reviewer` 定位確立為「**老闆（admin）授權的核准小幫手**」——退款／保固／爭議寫入＋核准、其餘全域唯讀，與發起人分離滿足 SoD（客服發起 → reviewer / admin 核准為最小合規閉環）。同場梳理發現 **`operations_manager` 在 shadow 授權矩陣 `_MATRIX` 無權限行**（僅存在於階層表與端點群組）——轉 enforce 前必補否則該角色全鎖，已併入 SA-06 範圍（另含 `_STAFF_ROLES` 移除 dispatcher）。權威落 13_Security §3.1（含租戶標準人力配置段）；同步 02_BRD §3.1、04_SRS §1.4。
