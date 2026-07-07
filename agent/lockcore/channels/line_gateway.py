@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import re
 import time
@@ -90,6 +91,85 @@ _MEDIA_KIND_MARKERS = {
 #   避免冷啟動拖慢客人首次回覆。
 _PERSIST_TIMEOUT_SEC = 20.0
 _HANDOVER_CHECK_TIMEOUT_SEC = 5.0
+
+
+# ── CR-0120:連續訊息合併(trailing debounce)────────────────────────────
+# 客人短時間連傳多則,原本每則各開一個併發 turn(逐則各回一次、history 寫入
+# 交錯)。改為:以「最後一則」起算靜默視窗,期間有新訊息就重置計時;到期把
+# 整批合併成一輪 turn、一次回覆(業主 2026-07-07 裁決,CR-0120)。
+
+_DEBOUNCE_DEFAULT_SECONDS = 5.0
+_DEBOUNCE_MAX_SECONDS = 30.0
+_DEBOUNCE_MAX_BATCH = 10  # 防餓死:連傳不停時滿 N 則強制觸發,AI 不會永遠沉默
+
+
+def _debounce_seconds() -> float:
+    """讀 LINE_DEBOUNCE_SECONDS(每次重讀,測試可 monkeypatch;0=停用走直通)。"""
+    raw = (os.environ.get("LINE_DEBOUNCE_SECONDS") or "").strip()
+    if not raw:
+        return _DEBOUNCE_DEFAULT_SECONDS
+    try:
+        val = float(raw)
+    except ValueError:
+        logger.warning(
+            "LINE_DEBOUNCE_SECONDS 非數值({}),用預設 {}s", raw, _DEBOUNCE_DEFAULT_SECONDS
+        )
+        return _DEBOUNCE_DEFAULT_SECONDS
+    return max(0.0, min(val, _DEBOUNCE_MAX_SECONDS))
+
+
+class _TurnDebouncer:
+    """per-session 訊息緩衝 + 靜默計時器(CR-0120)。
+
+    - push():訊息進 buffer,重置該 session 計時器(計算最後一則的時間)。
+    - 靜默滿 delay → 取走整批交給 fire;fire 以 per-session lock 串行——
+      上一輪 turn 未完成時下一批排隊等,同時修掉原本併發 turn 的 race。
+    - buffer 滿 max_batch → 立即強制觸發(防餓死)。
+    - 狀態在記憶體(重啟即失),與 handover notice 節流器同等級 fail-soft。
+    """
+
+    def __init__(self, delay_getter, fire, max_batch: int = _DEBOUNCE_MAX_BATCH):
+        self._delay_getter = delay_getter  # () -> float,每批到期時點重讀
+        self._fire = fire  # async (key, items) -> None
+        self._max_batch = max_batch
+        self._buffers: dict[str, list[dict]] = {}
+        self._timers: dict[str, asyncio.Task] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    def push(self, key: str, item: dict) -> None:
+        buf = self._buffers.setdefault(key, [])
+        buf.append(item)
+        old = self._timers.pop(key, None)
+        if old is not None and not old.done():
+            old.cancel()
+        if len(buf) >= self._max_batch:
+            # 強制觸發:不註冊回 _timers,之後的 push 不可取消進行中的合併輪
+            asyncio.create_task(self._flush(key))
+        else:
+            self._timers[key] = asyncio.create_task(self._wait_then_flush(key))
+
+    async def _wait_then_flush(self, key: str) -> None:
+        try:
+            await asyncio.sleep(self._delay_getter())
+        except asyncio.CancelledError:
+            return  # 新訊息重置計時,由新 timer 接手
+        # 到期:讓出 timers 槽位再以獨立 task 執行 flush——此後的 push 屬
+        # 「下一批」,不會取消進行中的合併輪(sleep 返回到此處無 await,
+        # event loop 內原子,push 不可能插入)。
+        if self._timers.get(key) is asyncio.current_task():
+            self._timers.pop(key, None)
+        asyncio.create_task(self._flush(key))
+
+    async def _flush(self, key: str) -> None:
+        items = self._buffers.pop(key, [])
+        if not items:
+            return
+        lock = self._locks.setdefault(key, asyncio.Lock())
+        async with lock:  # 串行:上一輪 turn 未完,下一批等它做完
+            try:
+                await self._fire(key, items)
+            except Exception:  # noqa: BLE001 — 背景任務例外不可無聲蒸發
+                logger.exception("debounce 合併輪處理失敗 key={}", key[:24])
 
 
 def _encode_media_for_persist(media_paths: list[str] | None) -> dict:
@@ -549,6 +629,7 @@ def build_webapp(
         AsyncMessagingApi,
         AsyncMessagingApiBlob,
         Configuration,
+        PushMessageRequest,
         ReplyMessageRequest,
         TextMessage,
     )
@@ -561,6 +642,96 @@ def build_webapp(
 
     parser = WebhookParser(channel_secret)
     config = Configuration(access_token=channel_access_token)
+
+    async def _send_text(user_id: str, reply_token: str | None, text: str) -> None:
+        """優先 reply(免額度;token 一次性、約 1 分鐘失效),失敗改 push 兜底。
+
+        CR-0120:debounce 視窗 + turn 的總耗時可能超過 reply token 效期;
+        fire 發生在 webhook 返回之後,須自建 ApiClient(callback 的已關閉)。
+        """
+        async with AsyncApiClient(config) as api_client:
+            line_api = AsyncMessagingApi(api_client)
+            if reply_token:
+                try:
+                    await line_api.reply_message(
+                        ReplyMessageRequest(
+                            reply_token=reply_token,
+                            messages=[TextMessage(text=text)],
+                        )
+                    )
+                    return
+                except Exception:  # noqa: BLE001 — reply 失敗換 push,不放棄
+                    logger.warning("LINE reply 失敗,改用 push", exc_info=True)
+            await line_api.push_message(
+                PushMessageRequest(to=user_id, messages=[TextMessage(text=text)])
+            )
+
+    async def _run_merged_turn(key: str, items: list[dict]) -> None:
+        """Debounce 到期:把一批訊息合併成一輪 turn、一次回覆(CR-0120)。
+
+        items 依到達序;文字換行合併、照片依序全帶(vision 支援多圖);
+        回覆用最後一則的 reply_token(最年輕)。旁路持久化維持逐則
+        (對話管理一則一泡泡、照片各自顯示),AI 回覆附掛最後一則。
+        """
+        user_id = key.partition(":")[2] or key
+        reply_token = items[-1].get("reply_token")
+        merged_text = "\n".join(
+            t for t in ((i.get("text") or "") for i in items) if t.strip()
+        )
+        all_media = [p for i in items for p in (i.get("media") or [])]
+
+        async def _persist_items(assistant_text: str) -> None:
+            for idx, it in enumerate(items):
+                text_i = (it.get("text") or "").strip() or (
+                    "[照片]" if it.get("media") else ""
+                )
+                await _persist_turn_safe(
+                    tenant, user_id, text_i,
+                    assistant_text if idx == len(items) - 1 else "",
+                    media_paths=it.get("media") or None,
+                )
+
+        # CR-0024:接管中 → 不跑 turn,逐則持久化 + 節流「請稍候」安撫
+        # (與原逐則路徑等價,僅延遲 debounce 視窗秒數)。
+        if await _handover_active_safe(tenant, user_id):
+            logger.info("對話接管中,AI 暫停回覆 user={}", user_id[:8])
+            notice = ""
+            if _should_notify_handover(key):
+                notice = _HANDOVER_WAIT_REPLY
+                try:
+                    await _send_text(user_id, reply_token, notice)
+                except Exception:  # noqa: BLE001 — 提示送失敗不可影響持久化
+                    logger.warning("接管中『請稍候』提示送出失敗(已略過)", exc_info=True)
+            await _persist_items(notice)
+            return
+
+        # CR-0022:記本輪前最新 escalation id,turn 後比對是否新增(觸發轉真人)。
+        esc_before = _latest_escalation_id(escalation_store, tenant, user_id)
+        try:
+            reply = await handle_text_turn(
+                loop, tenant, user_id, merged_text, media=all_media or None
+            )
+        except Exception:
+            logger.exception("LINE turn 失敗")
+            reply = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
+        if reply:
+            try:
+                await _send_text(user_id, reply_token, reply)
+            except Exception:  # noqa: BLE001 — 回覆失敗仍要持久化,客服才看得到斷點
+                logger.exception("LINE 回覆送出失敗(reply+push 皆敗)")
+        # 回覆送出後再旁路(皆 fail-soft):(1) 方案 A 對話持久化 (2) CR-0097
+        # 兜底:AI 承諾轉接卻沒呼叫工具 → 補 escalation (3) CR-0022 轉真人
+        # → 建 AI 草擬問題卡(以合併文字為快照)。
+        await _persist_items(reply)
+        merged_persist = merged_text or ("[照片]" if all_media else "")
+        _apply_handoff_fallback_safe(
+            escalation_store, tenant, user_id, merged_persist, reply, esc_before
+        )
+        await _forward_escalation_safe(
+            escalation_store, tenant, user_id, esc_before, merged_persist
+        )
+
+    debouncer = _TurnDebouncer(_debounce_seconds, _run_merged_turn)
 
     async def callback(request):
         signature = request.headers.get("X-Line-Signature", "")
@@ -635,60 +806,20 @@ def build_webapp(
                     )
                     continue
 
-                # CR-0024 Phase 1:對話處於人工接管中 → AI 全暫停(不跑 turn、不用知識回覆),
-                # 只把客人這句旁路持久化讓客服在對話管理看得到;由真人回覆。
-                # 交還(對話管理按鈕 / 工單結案)把對話翻回 active 後,AI 自動恢復。
-                # 但接管期間客人若再傳訊息卻完全靜默,會誤以為沒人理 → 送一句節流的
-                # 「真人處理中,請稍候」自動安撫(冷卻內不重複送,避免洗版)。
-                persist_text = user_text or ("[照片]" if media_paths else "")
-                if await _handover_active_safe(tenant, user_id):
-                    logger.info("對話接管中,AI 暫停回覆 user={}", user_id[:8])
-                    notice = ""
-                    if event.reply_token and _should_notify_handover(f"{tenant}:{user_id}"):
-                        notice = _HANDOVER_WAIT_REPLY
-                        try:
-                            await line_api.reply_message(
-                                ReplyMessageRequest(
-                                    reply_token=event.reply_token,
-                                    messages=[TextMessage(text=notice)],
-                                )
-                            )
-                        except Exception:  # noqa: BLE001 — 提示送失敗不可影響持久化
-                            logger.warning("接管中『請稍候』提示送出失敗(已略過)", exc_info=True)
-                    # notice 一併持久化,讓真人在對話管理知道客人已被自動安撫(空字串=本則節流未送)。
-                    await _persist_turn_safe(
-                        tenant, user_id, persist_text, notice, media_paths=media_paths
-                    )
-                    continue
-
-                # CR-0022:記本輪前的最新 escalation id,turn 後比對是否新增(觸發轉真人)。
-                esc_before = _latest_escalation_id(escalation_store, tenant, user_id)
-                try:
-                    reply = await handle_text_turn(
-                        loop, tenant, user_id, user_text, media=media_paths or None
-                    )
-                except Exception:
-                    logger.exception("LINE turn 失敗")
-                    reply = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
-                if reply:
-                    await line_api.reply_message(
-                        ReplyMessageRequest(
-                            reply_token=event.reply_token,
-                            messages=[TextMessage(text=reply)],
-                        )
-                    )
-                # 回覆送出後再旁路(不影響客人回覆延遲;皆 fail-soft):
-                # (1) 方案 A 對話持久化 (2) CR-0097 兜底:AI 承諾轉接卻沒呼叫工具 → 補
-                # escalation(須在 forward 前) (3) CR-0022 若本輪轉真人 → 建 AI 草擬問題卡。
-                await _persist_turn_safe(
-                    tenant, user_id, persist_text, reply, media_paths=media_paths
-                )
-                _apply_handoff_fallback_safe(
-                    escalation_store, tenant, user_id, persist_text, reply, esc_before
-                )
-                await _forward_escalation_safe(
-                    escalation_store, tenant, user_id, esc_before, persist_text
-                )
+                # CR-0120:連續訊息合併——訊息進 per-user buffer,以最後一則
+                # 起算靜默視窗(新訊息重置計時),到期才合併成一輪 turn 一次
+                # 回覆。接管檢查/持久化/escalation 全在 _run_merged_turn 內。
+                # 視窗 0 = 停用 → 直通單則(等同原逐則行為,測試/回退用)。
+                item = {
+                    "text": user_text,
+                    "media": media_paths,
+                    "reply_token": event.reply_token,
+                }
+                session_key = f"{tenant}:{user_id}"
+                if _debounce_seconds() <= 0:
+                    await _run_merged_turn(session_key, [item])
+                else:
+                    debouncer.push(session_key, item)
         return web.Response(text="OK")
 
     app = web.Application()
