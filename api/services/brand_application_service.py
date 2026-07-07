@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
 from core.errors import ApiError
+from services import platform_tenant_service
 
 logger = logging.getLogger("api.brand_application")
 
@@ -217,8 +218,16 @@ async def approve(
         await _raise_not_pending(conn, app_id)
     app = _row_to_dict(row)
     logger.info("brand_application 核准 id=%s slug=%s by=%s", app_id, final_slug, reviewer_id)
+
+    # CR-0118:核准後登錄租戶 registry(fail-soft:登錄失敗不擋核准,loud log)。
+    tenant_id: str | None = None
+    try:
+        tenant_id = await platform_tenant_service.create_from_application(app)
+    except Exception:  # noqa: BLE001 — registry 登錄失敗不可回滾已生效的核准
+        logger.exception("brand_application 核准後租戶登錄失敗 app_id=%s slug=%s", app_id, final_slug)
+
     return {
-        "data": {**app, "onboarding_guide": _onboarding_guide(app)},
+        "data": {**app, "tenant_id": tenant_id, "onboarding_guide": _onboarding_guide(app)},
         "message": "已核准;開站流程請依指引手動執行",
     }
 

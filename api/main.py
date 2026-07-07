@@ -129,6 +129,7 @@ from routers import platform_brand_applications as platform_brand_apps_router  #
 from routers import platform_technicians as platform_technicians_router  # CR-0114 R3: 師傅審核搬遷
 from routers import platform_vendors as platform_vendors_router  # CR-0114 收尾: 廠商審核搬遷
 from routers import platform_monitor as platform_monitor_router  # CR-0116: 維運監控
+from routers import platform_tenants as platform_tenants_router  # CR-0118: 已開站租戶 registry
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -277,6 +278,7 @@ app.include_router(platform_brand_apps_router.router, prefix="/api/v1", tags=["p
 app.include_router(platform_technicians_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R3
 app.include_router(platform_vendors_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 收尾: 廠商審核搬遷
 app.include_router(platform_monitor_router.router, prefix="/api/v1", tags=["platform"])  # CR-0116: 維運監控
+app.include_router(platform_tenants_router.router, prefix="/api/v1", tags=["platform"])  # CR-0118: 租戶 registry
 app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtime"])
 app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])
