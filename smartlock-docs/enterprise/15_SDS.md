@@ -227,9 +227,9 @@ on_site → quoted → approved → in_progress                              ←
 **設計原則（pack flow 的骨架）**：
 
 1. **漸進式資料蒐集**——欄位在「自然產生的那一刻」由「知道它的角色」填：線上報價確認（客戶）→ 開單（客服）→ 派工（調度）→ 現場（技師，含現場報價複核）→ 完工回報 → 計費 → 客戶簽收。免責/個資簽名必由客戶本人於 LINE 完成（後台唯讀，代簽無法律效力）；費用明細源自報價（single source of truth）。
-2. **問題卡與工單分離**——問題卡屬診斷/分流（三層解決：L1 AI 直接回 / L2 遠端指導 / L3 才現場派工），只有 L3 才開工單，避免假工單淹沒派工佇列。
+2. **問題卡與工單分離**——問題卡屬診斷/分流（三層解決：L1 AI 直接回 / L2 遠端指導〔文字客服 / 小編公司電話回撥，客人可留手機〕/ L3 才現場派工），只有 L3 才開工單，避免假工單淹沒派工佇列。**問題卡採漸進式、分角色、分時間收集，以雙 gate 管控，詳見 §4.6。**
 3. **開單最低門檻 3 欄位**：服務地址（必填，AI 草擬卡無地址、客服 HITL 補）+ 聯絡人 + 電話。
-4. **四道硬性閘門（block preconditions/guards）**：問題卡完整度 ≥ 0.8 才開單（缺品牌/型號/症狀/急迫度 → 422，主管填原因可 override）；開單前須有客戶已確認之線上報價（急件 carve-out）、派工須 active 技師；完工需照片 ≥ 3 + 簽名 + 序號；過期報價視同未同意。
+4. **四道硬性閘門（block preconditions/guards）**：問題卡完整度 ≥ 0.8 才開單（缺品牌/型號/症狀/急迫度 → 422，主管填原因可 override；此為問題卡 **Gate ① 進料閘**，另有結案時的 **Gate ② 知識閘** 管精煉汲取，見 §4.6）；開單前須有客戶已確認之線上報價（急件 carve-out）、派工須 active 技師；完工需照片 ≥ 3 + 簽名 + 序號；過期報價視同未同意。
 
 **Quote 子狀態機**：`draft → internal_approved → customer_sent → customer_confirmed / rejected / expired`；`rejected|expired → draft` 走 re-version v+1（`supersedes_quote_id` 串鏈）。急件（locked_out / trapped_inside / safety_risk）走 `retrospective_audit_only` 路徑：先施工、onsite 結束後 4 小時內補送事後 audit 報價，客戶 LIFF 確認或紙本簽補完 audit 鏈；逾時告警升級主管。每筆 quote 綁 immutable pricing snapshot（content-addressable hash），已送出報價不重算。
 
@@ -286,6 +286,70 @@ sequenceDiagram
 4. **補審佇列**：派工小編工作台「待補審報價」佇列；補送 `retrospective_audit_only` 報價（急件加價暫定固定額 NTD 1500 `[待確認]`，SQL seed URG-01 待業主定案）→ 客戶 LIFF 事後確認 / 紙本簽 + 拍照。
 5. **逾時升級**：逾 4h → audit alert 升主管 review；同品牌連續 ≥ 3 次逾時 → 自動開 ChangeRequest 進主管佇列（BR-WO-04）。
 6. **結案 gate**：`retrospective_quote_audit_complete` 為急件結案 422 硬閘之一（04_SRS §2.2.4 既有）。
+
+### 4.6 問題卡（診斷卡）漸進式生命週期與雙 gate（🔜 規劃中——本節為補齊設計）
+
+**定位**：問題卡是「一次客訴的結構化診斷紀錄」，屬診斷/分流層（§4.2.2），是**派工**與**知識精煉**（§9）的共同上游。它**不是一步填完**——AI 起手整理對話可能有遺漏、L3 根因要現場維修後才知道——故採**漸進式、分角色、分時間**收集（對齊 §4.2.1），並以**兩道語意不同的 gate** 分管「能不能派工」與「能不能沉澱知識」。
+
+**生命週期狀態機**：
+
+```
+[AI 起草 draft] ──① 進料 gate──▶ [已分流 triaged] ──┬─ L1 ──────────────────▶ [已處理 handled]
+   (AI 抽對話,可能缺)  ⤴ 小編補缺                     ├─ L2 ─(文字客服/電話回撥)─▶ [已處理 handled]
+                                                       └─ L3 ─▶ 開工單→派工→現場完工→(小編/技師補寫)─▶ [已處理]
+[已處理] ──② 知識 gate──▶ [知識完整 knowledge_ready] ──▶ 精煉服務汲取（§9）
+   └─ 未過②：進「待補知識佇列」，事後補 ◀────────────────┘
+```
+
+`status` 業務值域（對齊 §4.1 / 04_SRS）：`draft(=incomplete) → triaged → handled(resolved)`；另加旗標 `knowledge_ready`（②gate 通過）與既有 `converted_at`（轉工單）。**「operational 已處理」與「知識完整」是兩件事**——卡可先結案，知識欄事後補。
+
+**三層分流細化**（refine §4.2.2）：
+
+| 層級 | 處理 | `resolution_channel` | 處置由誰寫 | 開工單 |
+|---|---|---|---|---|
+| L1 | AI 直接回 | `ai_auto` | AI 自動 | ✗ |
+| L2a | 真人文字客服 | `line_text_cs` | 文字客服 | ✗ |
+| L2b | 小編公司電話回撥（客人留手機） | `phone_callback` | 小編（通話後補寫） | ✗ |
+| L3 | 現場派工維修 | `onsite` | 技師完工 → 小編/技師補寫 | ✓（過 §4.2.4 四閘） |
+
+**Gate ① 進料閘（派工/處理前）**——即 §4.2.4 完整度閘，細化必填集，以 `intake_completeness` 計分：
+
+| 必填 | 說明 |
+|---|---|
+| `contact_phone` | 任何真人跟進（L2b 回撥 / L3）皆需 |
+| `brand` + `model` | 產品識別（AI 抽不到 → 小編確認，或標「已確認未知」） |
+| `failure_mode` | 失效模式分類（enum） |
+| `triage_tier` | L1/L2/L3 分流決策 |
+| `service_address` | **條件必填：僅 L3**（既有 HITL 補址） |
+
+未過①：AI 起草缺欄記 `ai_missing_fields` → 小編佇列補齊才放行。
+
+**Gate ② 知識閘（結案/精煉前，可事後補）**——RMA/QA 失效分析 spine，以 `resolution_completeness` 計分：
+
+| 必填 | 說明 |
+|---|---|
+| `root_cause` + `root_cause_category` | 根因（無根因＝軼事非知識） |
+| `corrective_action` | 矯正措施 / 處置步驟（SOP payload） |
+| `verification` | 是否驗證修復（8D D6；未驗證的解法會污染知識庫） |
+| `disposition` | 處置分類 enum：換貨 / 維修 / 軟體更新 / 誤操作教育 / 現場服務 / NTF 無法重現 |
+| `resolution_channel` + `resolved_by` | 哪個管道 / 誰解的 |
+| `firmware_version` / `serial` | **L3 額外**——技師現場採集，RMA 批次瑕疵關聯 |
+
+未過②不阻擋 operational 結案，但**擋「進精煉」**；卡進「待補知識佇列」提示小編/技師補完。精煉服務（§9 汲取層）**只汲取 `knowledge_ready=true`** 的卡。
+
+**兩個下游各取所需**：派工只看 Gate ①（快速放行、防假工單）；精煉只吃 Gate ②（要 spine 完整）——互不綁架，也承接「沒辦法一步到位」的現實時序。
+
+**Schema 調整（🔜 動 `problem_cards`，須走 CIA + migration；18_DB_Design 同步）**：
+- 拆 `completeness_score` → `intake_completeness` / `resolution_completeness`（一個分數不能同時服務兩道 gate）。
+- 新增失效分析 spine：`root_cause`、`root_cause_category`、`corrective_action`、`verification`、`disposition`、`resolution_channel`、`resolved_by`、`firmware_version`、`serial`、`knowledge_ready`。
+- 補 `tenant_id`（現況靠 `conversation_id` 間接推；精煉為跨租戶共享池，隔離需直接租戶欄）。
+- 廢除舊 harness 遺留死欄（LockCore 已不寫、且與 L1/L2/L3 分流概念混淆）：`attempts`（L5 ResolutionAttempt）、`diagnosis_status`（PDCA）、`is_novel`、`card_id`、`domain_attributes`。
+
+**開放決策 [待裁決]**：
+- (a) Gate ② 是否硬擋「最終結案」，還是只擋「精煉汲取」（先結案、知識非同步補）。
+- (b) `firmware_version` / `serial` 由技師 app 現場採集的來源與必填強度。
+- (c)「待補知識佇列」的 SLA 與逾時升級（比照 §4.3 timer）。
+- (d) 跨租戶 / License：未購精煉 License 的租戶其卡是否進共享語料、產出 SOP 歸品牌私有或回饋共享（連 §9 bronze-only 治理與 ADR-018）。
 
 ---
 

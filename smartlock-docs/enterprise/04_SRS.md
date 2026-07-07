@@ -57,7 +57,7 @@ per-brand bundle = 每品牌一套物理隔離、可完整獨立部署的單體�
 
 External actor：**消費者（LINE 用戶）**——不持平台帳號，經 LINE 綁定（`line_user_id`）互動，於 LIFF 完成報價確認與簽名。授權原則：Casdoor 發角色 claim，api 端 resource-level `role_required` enforce，**deny-by-default**。
 
-**系統角色正典（UAT 7 角色）**：`platform_admin` / `admin` / `operations_manager` / `dispatcher` / `customer_service` / `reviewer` / `technician`；租戶 Admin 可開通 `{admin, operations_manager, dispatcher, customer_service, reviewer}`（＝api `_STAFF_ROLES`，含再開 `admin`；`platform_admin` 與 `technician` 不在其開通權內）。通道角色 `line_user` / `vendor` 與 legacy 值（super_admin / tenant_admin / accounting / supervisor / auditor / family_reviewer / distributor / brand_oem）之處置，權威見 [13_Security_Architecture](./13_Security_Architecture.md) §3.1——本文件各 FR 的 `role_required` 一律以 7 角色正典表述。
+**系統角色正典（業主裁決 2026-07-07）**：`platform_admin` / `admin` / `operations_manager` / `customer_service` / `reviewer` / `technician`＋保留角色 `dispatcher`（暫不開放租戶開通，派工由 admin / ops_manager 承擔＋自動派工）；租戶 Admin 可開通 `{admin, operations_manager, customer_service, reviewer}`（含再開 `admin`；code `_STAFF_ROLES` 收斂為 4 值併入 SA-06；`platform_admin` 與 `technician` 不在其開通權內）。reviewer 定位＝admin 授權的核准小幫手（退款／保固／爭議核准），與發起人分離滿足 SoD。通道角色 `line_user` / `vendor` 與 legacy 值（super_admin / tenant_admin / accounting / supervisor / auditor / family_reviewer / distributor / brand_oem）之處置，權威見 [13_Security_Architecture](./13_Security_Architecture.md) §3.1——本文件各 FR 的 `role_required` 一律以角色正典表述。
 
 ## §2 資料需求（Domain Model）
 

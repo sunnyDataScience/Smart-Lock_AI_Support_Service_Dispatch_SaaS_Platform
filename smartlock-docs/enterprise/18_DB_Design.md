@@ -139,7 +139,22 @@ technicians ──< reconciliations ──< settlements
 
 ### 4.3 客服 → 派工橋接（`problem_cards`）
 
-`problem_cards` 與 `conversations` 為 1:1（UNIQUE 約束）：AI 從 LINE 對話擷取問題卡草稿，`completeness_score` 達門檻後由客服經認證端點確認建單（**AI 永不自轉工單**——AI 最多建草擬卡，confirm / convert 走客服端點）。這是 CustomerSupportContext 進入 DispatchOperationsContext 的唯一資料橋。
+`problem_cards` 是 AI 從 LINE 對話擷取的**診斷卡**：AI 起草草稿、完整度達門檻後由客服經認證端點確認建單（**AI 永不自轉工單**——AI 最多建草擬卡，confirm / convert 走客服端點）。它是 CustomerSupportContext 進入 DispatchOperationsContext 的唯一資料橋，同時是 knowledge-refinery（§6.4 / [15_SDS §9](./15_SDS.md)）的診斷素材來源。
+
+**現況 cardinality**：非嚴格 1:1——CR-0096（migration 077）以 partial unique index `uniq_pc_conversation_active`（`WHERE status NOT IN ('resolved','escalated') AND converted_at IS NULL`）改為「**一 conversation 同時至多一張 active 卡**」，歷史卡不限，支援同客人跨時間多議題各自成卡。
+
+**目標欄位設計（🔜 規劃中，對齊 [15_SDS §4.6](./15_SDS.md) 漸進式雙 gate，須走 CIA + migration）**：問題卡採「漸進式、分角色、分時間」收集，兩道 gate 分管「能否派工」與「能否沉澱知識」，schema 需下列調整：
+
+| 類別 | 欄位 | 說明 |
+|---|---|---|
+| **拆完整度** | `intake_completeness` / `resolution_completeness` | 取代單一 `completeness_score`；分別供 Gate ①（進料/派工）與 Gate ②（知識/精煉）|
+| **分流** | `triage_tier`（L1/L2/L3）、`resolution_channel`（`ai_auto`/`line_text_cs`/`phone_callback`/`onsite`）、`resolved_by` | L2 細分文字客服 / 小編電話回撥 |
+| **失效分析 spine（Gate ② / RMA）** | `root_cause`、`root_cause_category`、`corrective_action`、`verification`、`disposition`、`firmware_version`、`serial` | 精煉必填；`disposition` enum：換貨 / 維修 / 軟體更新 / 誤操作教育 / 現場服務 / NTF 無法重現 |
+| **知識就緒旗標** | `knowledge_ready`（bool）| 精煉汲取條件（§6.4 / 15_SDS §9 只吃 `true`）|
+| **租戶隔離** | `tenant_id` | 現況靠 `conversation_id` 間接推；精煉為跨租戶共享池，隔離需直接租戶欄 |
+| **廢除死欄** | `attempts`（L5 ResolutionAttempt）、`diagnosis_status`（PDCA）、`is_novel`、`card_id`、`domain_attributes` | 舊 harness 遺留，LockCore 已不寫，且與 L1/L2/L3 分流概念混淆 |
+
+> Gate ① 必填：`contact_phone` / `brand` / `model` / `failure_mode` / `triage_tier`（+ 僅 L3 `service_address`）；Gate ② 必填 = 失效分析 spine。完整生命週期狀態機見 [15_SDS §4.6](./15_SDS.md)。
 
 ### 4.4 身分與 RBAC
 
@@ -155,7 +170,7 @@ technicians ──< reconciliations ──< settlements
 | 域 | 代表表（括號 = 建立 migration 編號）| schema |
 |---|---|---|
 | **A. 身分 / RBAC** | `users`（統一 5 角色）、`roles`、`permissions`、`role_permissions`(034)、`saas.role_assignment`(070 雙簽 SoD)、`staff_applications`(088)、`password_reset_tokens`(035)、`revoked_jti`、帳號安全欄位(084) | public / saas |
-| **B. 客服對話 / 診斷** | `conversations`（Session）、`messages`（**三方全量存檔**：`sender_role ∈ {customer, ai_agent, human_agent}`，真人接管期間同表寫入，圖片以 evidence 參照——知識精煉閉環第一類輸入，BR-CONV-03）、`chat_messages`、`problem_cards`（1:1 conversation，completeness_score；077/065/085）| public |
+| **B. 客服對話 / 診斷** | `conversations`（Session）、`messages`（**三方全量存檔**：`sender_role ∈ {customer, ai_agent, human_agent}`，真人接管期間同表寫入，圖片以 evidence 參照——知識精煉閉環第一類輸入，BR-CONV-03）、`chat_messages`、`problem_cards`（active-unique per conversation 077；`completeness_score`→雙 gate 拆分規劃中，見 §4.3；065/085）| public |
 | **C. 知識庫（KB / RAG）** | `manuals`（PDF 手冊）、`manual_chunks`（VECTOR(768)）、`case_entries`（案例庫 VECTOR(768)）、`sop_drafts`、`saas.kb_audit_log`(015)、`saas.sop_feedback`(023) | public / saas |
 | **D. 技師 / 派工** | `technicians`(064/080)、`technician_skill`(063)、`technician_brand_authorization`(063)、`technician_certification`(081)、`technician_kyc`(089)、**`work_orders`（派工域中樞）**、`work_order_events`、`work_order_consents`(043)、`dispatch_logs`（match_factors）、`saas.reschedule_proposal`(014)、`saas.exception_case`(049)、`saas.technician_lifecycle_event`(020) | public / saas（技師身分表權威在技師庫，見 §8）|
 | **E. 報價 / 目錄** | `quote`、`quote_approval`、`quote_line_items`(037)、`service_catalog`、`material_catalog`、`surcharge_rule`(087)、`saas.price_rule`(008)、`technician_payout_rule`(045/082)、`pricing_rule_snapshot` | public / saas |

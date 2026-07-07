@@ -78,7 +78,7 @@ upstream:
 
 授權原則：Casdoor 發角色 claim，api 端 resource-level `role_required` 實際阻擋，**deny-by-default**。技師是跨品牌共享身分，一位鎖匠可服務多個品牌，不隸屬任何單一品牌租戶。
 
-**系統角色正典（UAT 7 角色，CR-0114 業主裁決）**：四方為概念模型；系統登入角色為 `platform_admin`（Super Admin）/ `admin`（租戶 Admin）/ `operations_manager`・`dispatcher`・`customer_service`・`reviewer`（概念層「派工小編」細分之 4 員工角色）/ `technician`。**租戶 Admin 可開通集合 = {admin, operations_manager, dispatcher, customer_service, reviewer}**——經員工自申請＋Admin 審核指派，或 Admin 直建；`platform_admin` 與 `technician` 不在其開通權內。完整角色目錄、通道角色（line_user / vendor）與 legacy 收斂清單見 [13_Security_Architecture](./13_Security_Architecture.md) §3.1。
+**系統角色正典（業主裁決 2026-07-07 收斂）**：四方為概念模型；系統登入角色為 `platform_admin`（Super Admin）/ `admin`（租戶 Admin，老闆：治理＋最終核准）/ `operations_manager`（營運日常：派工＋帳務報價）・`customer_service`（進線／建單／發起）・`reviewer`（**老闆授權的核准小幫手**：退款／保固／爭議核准）/ `technician`。**租戶 Admin 可開通集合 = {admin, operations_manager, customer_service, reviewer}**——經員工自申請＋Admin 審核指派，或 Admin 直建。`dispatcher` 為**保留角色暫不開通**（派工由 admin / ops_manager 承擔＋自動派工，單量成長經 ChangeRequest 啟用）；`platform_admin` 與 `technician` 不在開通權內。完整角色目錄、通道角色（line_user / vendor）與 legacy 收斂清單見 [13_Security_Architecture](./13_Security_Architecture.md) §3.1。
 
 ### 3.2 業務鏈外緣角色
 
