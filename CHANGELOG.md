@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **平台師傅管理頁預設篩選改「全部」（branch `fix/platform-technicians-default-all`，2026-07-07）**：業主指示 `:3003/platform/technicians` 預設顯示全部。原預設 `pending_approval`（無待審時整頁空清單，看不出平台上有哪些師傅）→ 預設改空（不帶 `status` 過濾）並把「全部」chip 移到第一位（預設選中者排最前）。純前端預設狀態 → CIA 豁免。驗證：tsc 0、重建 platform web、Playwright（「全部」預設選中、清單直接列出啟用中師傅）。**已部署本機 docker（platform web）**。
+
 - **創始品牌補登租戶名冊 + prod schema 腳本補平台 schema（branch `fix/platform-founding-tenant-seed`，2026-07-07）**：業主指出「我自己本身也算一個租戶」——`tenant` 名冊唯一自動寫入來源是品牌申請核准連動（CR-0118），平台方自營創始品牌（locksmart）是 seed 直接開站、未走申請流，故 `:3003/platform/tenants` 名冊不含本尊（本機實查 0 筆）。**(1)** `Schema_platform.sql` 追加冪等 seed（§[6]）：slug=`locksmart`、company_name=Lock AI(創始品牌)、status=active、`application_id` NULL＝「非申請來源」溯源標示、deploy_note 記本機/雲端拓撲；`ON CONFLICT (slug) DO NOTHING`。**(2) 順修 prod 缺口**：`apply-schema-prod.sh` 原只套 Schema.sql＋Schema_*＋migrations、不含 `SQL/platform/Schema_platform.sql` → 雲端單庫 fallback 下平台表（brand_applications/monitor_target/tenant）從未建表、雲端 `/platform` 各資料頁查表即 500；加步驟 2b 套平台 schema（本尊 seed 一併帶到雲端；屬名冊基準資料而非 demo seed，腳本頭註明）。**(3) 防污染**：Schema_platform 的 users 兩句 COMMENT 加 DO-block 防護——單庫 fallback 套進品牌主庫時 users 是品牌共用表（有 `line_user_id` 欄），不覆寫其註解。資料補登＋ops 腳本，零 schema/契約變更 → CIA 豁免。驗證：本機 5435 套用＋重跑冪等（0 錯誤、仍 1 筆）；API `GET /platform/tenants` 回 locksmart；Playwright `:3003` 租戶管理頁「Lock AI(創始品牌)／營運中」正常渲染（null 聯絡欄位自動隱藏）。**雲端生效待下次跑 `apply-schema-prod.sh`**。
 
 - **20260702 會議工項進度報告補頁（branch `docs/20260709-report-line-cs-addendum`，2026-07-07）**：報告由 14 頁增為 15 頁——新增頁 13「追加：LINE AI 客服體驗兩項補強」（CR-0119 客人照片後台可見含佔位文字收尾與兩項既有 bug 順修、CR-0120 連續傳訊合併回覆含重置計時語意），總覽頁 note 同步標註、全頁碼校正；Playwright 截圖驗證版型。
