@@ -17,7 +17,7 @@ import { friendlyError } from "@/lib/apiError";
 // 緊急聯絡人+電話/同意條款；敏感 PII 與文件選填（核准前可補件）。
 
 const inputCls =
-  "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
+  "h-10 w-full rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
 
 const STEPS = ["基本資料", "專業資格", "撥款與聯絡", "確認送出"] as const;
 
@@ -164,13 +164,13 @@ export default function TechRegisterPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen items-start justify-center bg-[var(--bg-page)] px-4 py-8 md:items-center">
+    <div className="tech-soft relative flex min-h-screen items-start justify-center bg-[var(--bg-page)] px-4 py-8 md:items-center">
       <div className="absolute right-4 top-4">
         <LocaleToggle />
       </div>
       <BackToHome className="absolute left-4 top-4" />
 
-      <div className="w-full max-w-[560px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-sm md:p-8">
+      <div className="w-full max-w-[560px] rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))] md:p-8">
         <div className="mb-5 flex flex-col items-center gap-2">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)]">
             <Wrench className="h-6 w-6 text-white" />
@@ -191,7 +191,7 @@ export default function TechRegisterPage() {
             </p>
             <Link
               href={loginHref}
-              className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
+              className="rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
             >
               前往登入
             </Link>
@@ -209,7 +209,7 @@ export default function TechRegisterPage() {
               {submitError && (
                 <div
                   role="alert"
-                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                  className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
                 >
                   {submitError}
                 </div>
@@ -237,7 +237,7 @@ export default function TechRegisterPage() {
                   <button
                     type="button"
                     onClick={next}
-                    className="rounded-lg bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
+                    className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
                   >
                     下一步
                   </button>
@@ -246,7 +246,7 @@ export default function TechRegisterPage() {
                     type="button"
                     onClick={doSubmit}
                     disabled={loading}
-                    className="rounded-lg bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
+                    className="rounded-full bg-[var(--primary)] px-5 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
                   >
                     {loading ? "送出中…" : "送出申請"}
                   </button>
@@ -581,7 +581,7 @@ function DocUploadSection({ token, onFinish }: { token: string; onFinish: () => 
         type="button"
         onClick={onFinish}
         disabled={!!uploading}
-        className="rounded-lg bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
+        className="rounded-full bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
       >
         {count > 0 ? `完成（已上傳 ${count} 份）` : "略過，稍後補件"}
       </button>

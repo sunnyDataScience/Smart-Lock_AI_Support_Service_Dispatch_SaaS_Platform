@@ -384,7 +384,7 @@ export default function AccountingPage() {
           <button
             onClick={generateMonthly}
             disabled={generating}
-            className="ml-auto rounded-md bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
+            className="ml-auto rounded-full bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-50"
           >
             {generating ? tS("genMonthlyBusy") : tS("genMonthly")}
           </button>
@@ -403,7 +403,7 @@ export default function AccountingPage() {
           <div className="flex-1" />
 
           {/* Total Badge — real count from API */}
-          <div className="rounded-lg bg-[var(--primary)] px-5 py-[10px]">
+          <div className="rounded-full bg-[var(--primary)] px-5 py-[10px]">
             <span className="text-lg font-bold text-white">
               {tS("totalBadge", { count: items.length })}
             </span>
@@ -412,7 +412,7 @@ export default function AccountingPage() {
 
         {/* Error Banner */}
         {error && (
-          <div className="mx-8 mb-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          <div className="mx-8 mb-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </div>
         )}
@@ -451,7 +451,7 @@ export default function AccountingPage() {
             </div>
 
             {reconsError && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                 {reconsError}
               </div>
             )}

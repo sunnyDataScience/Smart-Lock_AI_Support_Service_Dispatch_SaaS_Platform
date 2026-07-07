@@ -220,7 +220,7 @@ export default function SchedulePage() {
         <button
           type="button"
           onClick={() => router.push("/account")}
-          className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+          className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
           aria-label={t("back")}
         >
           <ArrowLeft className="h-5 w-5" />
@@ -238,18 +238,18 @@ export default function SchedulePage() {
       )}
 
       {errorMsg && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {errorMsg}
         </div>
       )}
 
       {/* 月份切換 + 配額摘要 */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => shiftMonth(-1)}
-            className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
             aria-label={t("prevMonth")}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -260,7 +260,7 @@ export default function SchedulePage() {
           <button
             type="button"
             onClick={() => shiftMonth(1)}
-            className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
             aria-label={t("nextMonth")}
           >
             <ChevronRight className="h-5 w-5" />
@@ -295,7 +295,7 @@ export default function SchedulePage() {
       </section>
 
       {/* schedule_calendar_view */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-sm">
+      <section className="mx-4 mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <div className="grid grid-cols-7 gap-1 text-center">
           {WEEKDAY_KEYS.map((w) => (
             <span
@@ -357,7 +357,7 @@ export default function SchedulePage() {
       </section>
 
       {/* close_today_accept_switch */}
-      <section className="mx-4 mt-4 flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <div className="flex flex-col">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("closeToday")}
@@ -387,7 +387,7 @@ export default function SchedulePage() {
         <button
           type="button"
           onClick={() => openModal("leave")}
-          className="flex h-12 items-center justify-center gap-1 rounded-lg border border-amber-200 bg-amber-50 text-[14px] font-medium text-amber-800 hover:bg-amber-100"
+          className="flex h-12 items-center justify-center gap-1 rounded-2xl border border-amber-200 bg-amber-50 text-[14px] font-medium text-amber-800 hover:bg-amber-100"
         >
           <CalendarDays className="h-4 w-4" />
           {t("applyLeave")}
@@ -395,7 +395,7 @@ export default function SchedulePage() {
         <button
           type="button"
           onClick={() => openModal("standby")}
-          className="flex h-12 items-center justify-center gap-1 rounded-lg border border-blue-200 bg-blue-50 text-[14px] font-medium text-blue-800 hover:bg-blue-100"
+          className="flex h-12 items-center justify-center gap-1 rounded-full border border-[var(--border)] bg-[var(--primary-light)] text-[14px] font-medium text-[var(--primary)] hover:opacity-85"
         >
           <Clock className="h-4 w-4" />
           {t("applyStandby")}
@@ -403,7 +403,7 @@ export default function SchedulePage() {
       </section>
 
       {/* pending_requests_list */}
-      <section className="mx-4 mt-4 mb-6 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 mb-6 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("pending")}
@@ -458,7 +458,7 @@ export default function SchedulePage() {
                   <button
                     type="button"
                     onClick={() => cancelRequest(r.id)}
-                    className="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-red-600 hover:bg-red-50"
                     aria-label={t("cancelAria")}
                   >
                     <Trash2 className="h-3 w-3" />
@@ -487,7 +487,7 @@ export default function SchedulePage() {
               <button
                 type="button"
                 onClick={() => setModalType(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -555,7 +555,7 @@ export default function SchedulePage() {
                   !formEnd ||
                   formReason.trim().length < 5
                 }
-                className="h-11 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
+                className="h-11 flex-[2] rounded-full bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
               >
                 {submitting ? tModal("submitting") : tModal("submit")}
               </button>

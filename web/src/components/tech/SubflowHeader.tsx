@@ -20,7 +20,7 @@ export default function SubflowHeader({ workOrderId, title, backTo }: Props) {
       <button
         type="button"
         onClick={() => router.push(target)}
-        className="flex h-9 w-9 items-center justify-center rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+        className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
         aria-label={tCommon("back")}
       >
         <ArrowLeft className="h-5 w-5" />

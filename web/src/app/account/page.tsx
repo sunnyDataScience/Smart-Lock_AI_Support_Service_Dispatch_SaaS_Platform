@@ -112,11 +112,11 @@ export default function AccountPage() {
         </div>
       }
     >
-      {/* profile_header — 漸層背景 */}
+      {/* profile_header — 漸層背景(soft UI 改版:teal 系對齊 .tech-soft 主色) */}
       <div
         className="px-4 pt-6 pb-8 text-white"
         style={{
-          background: "linear-gradient(180deg, #2563EB 0%, #1E40AF 100%)",
+          background: "linear-gradient(180deg, #0F766E 0%, #134E4A 100%)",
         }}
       >
         <div className="flex items-center gap-3">
@@ -165,7 +165,7 @@ export default function AccountPage() {
       </div>
 
       {error && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {error}
         </div>
       )}
@@ -173,7 +173,7 @@ export default function AccountPage() {
       {/* 桌面：內容區改 2 欄吃滿寬度（手機維持單欄堆疊）*/}
       <div className="md:grid md:grid-cols-2 md:items-start md:gap-x-4 md:px-2">
       {/* income_overview / performance_dashboard — MVP 顯示骨架 */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("monthIncome")}
         </span>
@@ -189,7 +189,7 @@ export default function AccountPage() {
       </section>
 
       <section className="mx-4 mt-3 grid grid-cols-3 gap-2">
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
           <Wrench className="mx-auto h-4 w-4 text-[var(--text-secondary)]" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.completed_orders_count ?? "—"}
@@ -198,7 +198,7 @@ export default function AccountPage() {
             {t("completedOrders")}
           </span>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
           <Star className="mx-auto h-4 w-4 fill-amber-400 text-amber-400" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.rating != null ? tech.rating.toFixed(1) : "—"}
@@ -207,7 +207,7 @@ export default function AccountPage() {
             {t("rating")}
           </span>
         </div>
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-sm">
+        <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-3 text-center shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
           <ShieldCheck className="mx-auto h-4 w-4 text-[var(--text-secondary)]" />
           <span className="mt-1 block text-[16px] font-bold text-[var(--text-primary)]">
             {tech?.level ?? "—"}
@@ -217,7 +217,7 @@ export default function AccountPage() {
       </section>
 
       {/* profile_section */}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
           {t("personal")}
         </span>
@@ -256,7 +256,7 @@ export default function AccountPage() {
       </section>
 
       {/* appearance_section — 主題切換（技師端深色模式入口）*/}
-      <section className="mx-4 mt-4 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
           {t("appearance")}
         </span>
@@ -264,7 +264,7 @@ export default function AccountPage() {
       </section>
 
       {/* settings_section */}
-      <section className="mx-4 mt-4 mb-6 overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-sm">
+      <section className="mx-4 mt-4 mb-6 overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <Link
           href="/account/schedule"
           className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-page)]"

@@ -38,7 +38,14 @@ export default function TechBottomNav() {
               active ? "text-[var(--primary)]" : "text-[var(--text-tertiary)]"
             }`}
           >
-            <Icon className="h-5 w-5" />
+            {/* soft UI:當前分頁 icon 加膠囊底,視覺錨定更清楚 */}
+            <span
+              className={`flex h-6 w-12 items-center justify-center rounded-full transition ${
+                active ? "bg-[var(--primary-light)]" : ""
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+            </span>
             {label}
           </Link>
         );

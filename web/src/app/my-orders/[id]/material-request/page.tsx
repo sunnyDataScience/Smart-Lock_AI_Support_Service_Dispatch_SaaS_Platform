@@ -102,12 +102,12 @@ export default function MaterialRequestPage() {
       )}
 
       {submitError && (
-        <div className="m-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
+        <div className="m-4 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
           {submitError}
         </div>
       )}
 
-      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-3 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <div className="flex items-center justify-between">
           <span className="text-[13px] font-semibold text-[var(--text-primary)]">
             {t("listTitle")}
@@ -115,7 +115,7 @@ export default function MaterialRequestPage() {
           <button
             type="button"
             onClick={() => setItems((prev) => [...prev, newItem()])}
-            className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--primary)] hover:bg-[var(--primary-light)]"
+            className="flex items-center gap-1 rounded-full border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--primary)] hover:bg-[var(--primary-light)]"
           >
             <Plus className="h-3 w-3" />
             {t("addItem")}
@@ -137,7 +137,7 @@ export default function MaterialRequestPage() {
                     updateItem(idx, { brand: e.target.value })
                   }
                   placeholder={t("brandPlaceholder")}
-                  className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px]"
+                  className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px]"
                 />
                 <input
                   type="text"
@@ -146,7 +146,7 @@ export default function MaterialRequestPage() {
                     updateItem(idx, { model: e.target.value })
                   }
                   placeholder={t("modelPlaceholder")}
-                  className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px]"
+                  className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px]"
                 />
                 <label className="flex items-center gap-1 text-[12px]">
                   <span className="text-[var(--text-secondary)]">{t("quantityLabel")}</span>
@@ -159,7 +159,7 @@ export default function MaterialRequestPage() {
                         quantity: parseInt(e.target.value) || 0,
                       })
                     }
-                    className="w-20 rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1"
+                    className="w-20 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1"
                   />
                 </label>
               </div>
@@ -169,7 +169,7 @@ export default function MaterialRequestPage() {
                   onClick={() =>
                     setItems((prev) => prev.filter((_, i) => i !== idx))
                   }
-                  className="flex h-8 w-8 items-center justify-center rounded-md text-red-600 hover:bg-red-50"
+                  className="flex h-8 w-8 items-center justify-center rounded-full text-red-600 hover:bg-red-50"
                 >
                   <Trash2 className="h-3 w-3" />
                 </button>
@@ -179,7 +179,7 @@ export default function MaterialRequestPage() {
         ))}
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("urgencyLabel")}
         </span>
@@ -205,7 +205,7 @@ export default function MaterialRequestPage() {
         </div>
       </section>
 
-      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-sm">
+      <section className="mx-4 mt-4 flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
         <span className="text-[11px] font-medium text-[var(--text-secondary)]">
           {t("noteLabel")}
         </span>
@@ -214,7 +214,7 @@ export default function MaterialRequestPage() {
           onChange={(e) => setNote(e.target.value)}
           rows={2}
           placeholder={t("notePlaceholder")}
-          className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+          className="rounded-xl border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
         />
       </section>
 
@@ -230,7 +230,7 @@ export default function MaterialRequestPage() {
           type="button"
           onClick={submit}
           disabled={!canSubmit}
-          className="h-12 flex-[2] rounded-lg bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
+          className="h-12 flex-[2] rounded-full bg-[var(--primary)] text-[14px] font-semibold text-white disabled:opacity-60"
         >
           {submitting ? t("submitting") : t("submit")}
         </button>
