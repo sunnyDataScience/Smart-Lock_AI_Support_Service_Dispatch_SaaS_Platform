@@ -277,8 +277,8 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
 ## 附：相關文件
 
 - 產品策略與商業模式 → [`./00_Product_Strategy.md`](./00_Product_Strategy.md)
-- 平台化策略完整推導（TRIZ／護城河）→ [`../00_platform/P1/06_platformization_strategy.md`](../00_platform/P1/06_platformization_strategy.md)
-- 通用工單平台 SDS（Vertical Pack／DSL／積木裁定）→ [`../00_platform/P1/07_workorder_platform_design.md`](../00_platform/P1/07_workorder_platform_design.md)
-- 平台架構 L1（角色圖／商業結構／詞彙表）→ [`../00_platform/P1/05_platform_architecture_L1.md`](../00_platform/P1/05_platform_architecture_L1.md)
+- 平台化策略完整推導（TRIZ／護城河）→ `../00_platform/P1/06_platformization_strategy.md`（封存於 git 238f6fce）
+- 通用工單平台 SDS（Vertical Pack／DSL／積木裁定）→ `../00_platform/P1/07_workorder_platform_design.md`（封存於 git 238f6fce）
+- 平台架構 L1（角色圖／商業結構／詞彙表）→ `../00_platform/P1/05_platform_architecture_L1.md`（封存於 git 238f6fce）
 
 *— 01_MRD v1.0 / 2026-07-07*

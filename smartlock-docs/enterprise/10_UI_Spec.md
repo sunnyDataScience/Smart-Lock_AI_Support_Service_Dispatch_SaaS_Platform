@@ -100,7 +100,7 @@ Desktop（> 1024px）全功能 → Tablet（768–1024px）Sidebar 收合、表�
 ### 4.5 工單詳情（`/work-orders/[id]`，A12）
 
 - **Sections**：Header（工單號 mono + StatusBadge + SLACountdown lg + 主操作：指派/重新指派、變更狀態、取消 danger）→ **5 Tab（underline）：基本資訊 / 服務紀錄 / 零件 / 照片（PhotoGallery + lightbox）/ 時間軸（WorkTimeline，事件溯源自 `work_order_events`）**→ 右欄客戶卡 + AI 診斷摘要（問題分類 + 信心指數 + AIRecommendationBadge）。
-- 工單狀態機值域由 Flow DSL 宣告（[../00_platform/P1/07_workorder_platform_design.md](../00_platform/P1/07_workorder_platform_design.md)）；產業欄位（brand/model/serial/warranty）由 `field_metadata` 驅動 DynamicForm/Table 渲染 🔜 規劃中，現行為固定欄位表單。
+- 工單狀態機值域由 Flow DSL 宣告（../00_platform/P1/07_workorder_platform_design.md（封存於 git 238f6fce））；產業欄位（brand/model/serial/warranty）由 `field_metadata` 驅動 DynamicForm/Table 渲染 🔜 規劃中，現行為固定欄位表單。
 - **API**：`getWorkOrder`、`assignWorkOrder`、`listDispatchCandidates`；WS `subscribeWorkOrderUpdates`（時間軸新事件 slide-in + 2s 高亮）。Tab 對應 URL hash、lazy load。
 - 客訴升級：ComplaintEscalationIndicator（anger_level 警示 + SLA 倒數）常駐 Header 下方（發生時）。
 
@@ -140,7 +140,7 @@ Desktop（> 1024px）全功能 → Tablet（768–1024px）Sidebar 收合、表�
 
 ### 4.9 知識庫（`/knowledge-base/*`，A6–A10）
 
-3 Tab：**案例庫**（A6/A7，case_entries 列表 + 編輯 Modal）/ **手冊管理**（A8，manual_chunks 來源與版本）/ **SOP 審核佇列**（A9/A10，SOPReviewPanel 雙欄：左草稿右原始對話，核准 / 駁回 / 採納）。KnowledgeSearch 支援全文 / 語意切換。知識精煉 draft→審核→寫入流程遵循 ADR-P001（HITL），上游詳見 [../knowledge-refinery/](../knowledge-refinery/)。
+3 Tab：**案例庫**（A6/A7，case_entries 列表 + 編輯 Modal）/ **手冊管理**（A8，manual_chunks 來源與版本）/ **SOP 審核佇列**（A9/A10，SOPReviewPanel 雙欄：左草稿右原始對話，核准 / 駁回 / 採納）。KnowledgeSearch 支援全文 / 語意切換。知識精煉 draft→審核→寫入流程遵循 ADR-P001（HITL），上游詳見 ../knowledge-refinery/（封存於 git 238f6fce）。
 
 ### 4.10 進階治理（A18 RBAC / A20 稽核 / A19 庫存）
 

@@ -87,7 +87,7 @@ Layout primitives：PWA Shell `min-h-screen flex flex-col pb-bottomnav-safe`；C
 
 #### 13 態工單狀態 → 6 色系對應
 
-工單 `status` 值域由 Flow DSL 宣告（見 [../00_platform/P1/07_workorder_platform_design.md](../00_platform/P1/07_workorder_platform_design.md) §5，非寫死 enum）；UI 層以下列 13 態 → 6 色系映射呈現：
+工單 `status` 值域由 Flow DSL 宣告（見 ../00_platform/P1/07_workorder_platform_design.md（封存於 git 238f6fce） §5，非寫死 enum）；UI 層以下列 13 態 → 6 色系映射呈現：
 
 | status | 中文標籤 | 色系 |
 |---|---|---|
@@ -234,7 +234,7 @@ Base 0 → Elevated 5 → Sticky 10（header / sidebar / table header）→ **Ka
 | `light` | 淺色模式（預設）| **V1 現行** |
 | `dark` | 深色模式（技師夜間作業，`prefers-color-scheme` / 手動 toggle）| 🔜 規劃中（token 對照表已預留，如 `bg.page` #F8FAFC→#0F172A、`brand.primary` #2563EB→#3B82F6）|
 | `high-contrast` | 高對比（`prefers-contrast`）| 🔜 規劃中 |
-| `brand-yale` / `brand-gateman` / `brand-samsung` | 白標品牌皮膚（per-brand 授權部署下的租戶級覆蓋，僅覆蓋 `color.brand.*` 五個 token，其餘繼承；例 Yale primary #003DA5 + accent #FFD700）| 🔜 規劃中（歸屬對齊 [../00_platform/P2/04_adr/ADR-P005_per-brand授權部署_大單體內部容器.md](../00_platform/P2/04_adr/ADR-P005_per-brand授權部署_大單體內部容器.md)）|
+| `brand-yale` / `brand-gateman` / `brand-samsung` | 白標品牌皮膚（per-brand 授權部署下的租戶級覆蓋，僅覆蓋 `color.brand.*` 五個 token，其餘繼承；例 Yale primary #003DA5 + accent #FFD700）| 🔜 規劃中（歸屬對齊 ../00_platform/P2/04_adr/ADR-P005_per-brand授權部署_大單體內部容器.md（封存於 git 238f6fce））|
 
 ## 3. 元件庫（Atomic 分層）
 
@@ -321,7 +321,7 @@ States：Dragging（`shadow.kanban` + 原位 placeholder）/ Drag Over valid（`
 
 ## 5. Token ↔ 工程對接
 
-技術基準（詳見 [./12_SAD.md](./12_SAD.md) 與 [../web/P1/05_architecture_and_design.md](../web/P1/05_architecture_and_design.md) §7）：**Next.js 15（App Router）/ React 19 / TypeScript strict / Tailwind v4 / Radix primitives 自建 `components/ui/` / lucide-react + recharts / @tanstack/react-virtual / 純 React Context（無 redux / zustand / react-query / swr）/ 原生 WebSocket / Playwright E2E**。
+技術基準（詳見 [./12_SAD.md](./12_SAD.md) 與 ../web/P1/05_architecture_and_design.md（封存於 git 238f6fce） §7）：**Next.js 15（App Router）/ React 19 / TypeScript strict / Tailwind v4 / Radix primitives 自建 `components/ui/` / lucide-react + recharts / @tanstack/react-virtual / 純 React Context（無 redux / zustand / react-query / swr）/ 原生 WebSocket / Playwright E2E**。
 
 | 設計端（Figma）| 工程端 | 同步方式 |
 |---|---|---|

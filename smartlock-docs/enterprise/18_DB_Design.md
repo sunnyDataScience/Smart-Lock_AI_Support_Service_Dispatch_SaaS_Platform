@@ -27,7 +27,7 @@ upstream:
 
 **讀者**：後端 / DB 工程師、資料架構師、DevOps（套 schema / 備份 / migration）、平台整合工程師；次要讀者為安全稽核與新進工程師。
 
-**擁有權**：**DB 業務 schema 由 `api` 子系統擁有**，以 **psycopg3 raw SQL** 存取（無 ORM、無 SQLAlchemy）。API 層的資料模型是 Pydantic v2 schema（`models/generated.py`），與 DB schema 分離。詳見 [../api/P2/04_adr/ADR-002_psycopg3_raw_SQL_與純SQL_migration.md](../api/P2/04_adr/ADR-002_psycopg3_raw_SQL_與純SQL_migration.md)。
+**擁有權**：**DB 業務 schema 由 `api` 子系統擁有**，以 **psycopg3 raw SQL** 存取（無 ORM、無 SQLAlchemy）。API 層的資料模型是 Pydantic v2 schema（`models/generated.py`），與 DB schema 分離。詳見 ../api/P2/04_adr/ADR-002_psycopg3_raw_SQL_與純SQL_migration.md（封存於 git 238f6fce）。
 
 **範圍**：三個物理資料庫（合計品牌庫 ~100 表）、pgvector 向量知識、agent 記憶 schema、migration 策略、命名慣例、PII / 保留治理、離線 Medallion 檔案分層（非 DB 但屬持久層設計）、通用工單資料模型 roadmap。
 
@@ -51,7 +51,7 @@ upstream:
 
 ### 2.2 隔離模型：一品牌一 DB（物理隔離）
 
-智慧鎖品牌（Chatlock / Dormakaba / Kaadas…）互為競爭對手，客服、派工、工單、金流資料**必須強隔離**。本平台的租戶隔離策略是**一品牌一 DB 物理隔離**（[../data-pipeline/P2/04_adr/ADR-003_三庫物理隔離取代_RLS租戶隔離.md](../data-pipeline/P2/04_adr/ADR-003_三庫物理隔離取代_RLS租戶隔離.md)）。設計時比較過三個選項：
+智慧鎖品牌（Chatlock / Dormakaba / Kaadas…）互為競爭對手，客服、派工、工單、金流資料**必須強隔離**。本平台的租戶隔離策略是**一品牌一 DB 物理隔離**（../data-pipeline/P2/04_adr/ADR-003_三庫物理隔離取代_RLS租戶隔離.md（封存於 git 238f6fce））。設計時比較過三個選項：
 
 | 選項 | 隔離強度 | fail 模式 | 取捨 |
 |---|---|---|---|
@@ -119,7 +119,7 @@ erDiagram
     case_entries ||--o| sop_drafts : "published_as"
 ```
 
-文字版聚合根關聯（與 api 領域對照，[../api/P2/06_api_design_specification.md](../api/P2/06_api_design_specification.md) §6.1）：
+文字版聚合根關聯（與 api 領域對照，../api/P2/06_api_design_specification.md（封存於 git 238f6fce） §6.1）：
 
 ```
 users (1) ──< conversations ──< messages
@@ -222,11 +222,11 @@ LIMIT :k;
 
 ### 6.4 知識分工與語義 RAG 灌注管線（🔜 規劃中）
 
-知識體系採「**一個事實語料 + 一套行為驅動**」分工（[../agent/P2/04_adr/ADR-004_RAG-via-MCP檢索能力與Skill行為驅動分工.md](../agent/P2/04_adr/ADR-004_RAG-via-MCP檢索能力與Skill行為驅動分工.md)）：
+知識體系採「**一個事實語料 + 一套行為驅動**」分工（../agent/P2/04_adr/ADR-004_RAG-via-MCP檢索能力與Skill行為驅動分工.md（封存於 git 238f6fce））：
 
 - **pgvector = 唯一完整事實語料**（大語料語義檢索的資料源）。
 - **agent filesystem references（`references/{Brand}/{Model}.md`）= 精選層**（Skill 行為驅動：定義 agent 何時、依什麼規範去查什麼）。
-- 🔜 **Phase 2 規劃**：embedding 產生器（`embed()` helper）、cosine 向量查詢路徑、RAG-via-MCP server、bronze/silver 語料自動灌注 pgvector + `embedding_status` 監控。灌注管線由 knowledge-refinery 承載（見 [../knowledge-refinery/P1/](../knowledge-refinery/P1/)）。
+- 🔜 **Phase 2 規劃**：embedding 產生器（`embed()` helper）、cosine 向量查詢路徑、RAG-via-MCP server、bronze/silver 語料自動灌注 pgvector + `embedding_status` 監控。灌注管線由 knowledge-refinery 承載（見 ../knowledge-refinery/P1/（封存於 git 238f6fce））。
 
 ---
 
@@ -276,7 +276,7 @@ LIMIT :k;
 
 ### 8.4 技師工單 CQRS 投影與佣金結算主體（🔜 規劃中，ADR-P014）
 
-技師共享池平台（technician-platform）定位為**品牌事件的 CQRS 消費端**（[../00_platform/P2/04_adr/ADR-P014_技師平台佣金邊界與工單CQRS投影.md](../00_platform/P2/04_adr/ADR-P014_技師平台佣金邊界與工單CQRS投影.md)）：
+技師共享池平台（technician-platform）定位為**品牌事件的 CQRS 消費端**（../00_platform/P2/04_adr/ADR-P014_技師平台佣金邊界與工單CQRS投影.md（封存於 git 238f6fce））：
 
 1. **佣金：Billing（品牌）/ Settlement（技師平台）分離** — 品牌庫負責 per-job 計費（依工單金額 / 料件 / 完工，皆品牌側資料），發 `commission.accrued` 事件（Kafka）；技師平台訂閱各品牌事件，作為**跨品牌單一對帳 / statement / payout 結算主體**（佣金 statement / ledger 遷入技師平台自有庫）。
 2. **技師工單可見性：Kafka-fed read-model** — 品牌 api 發工單生命週期事件（`workorder.dispatched` / `updated` / `completed`）→ 技師平台維護「技師視角工單投影」；**投影欄位最小化**（工單摘要 / 地址 / 狀態 / 時窗 / 金額 / 該技師派工），不整包複製品牌敏感資料。
@@ -290,7 +290,7 @@ LIMIT :k;
 
 ### 9.1 純 SQL、forward-only、idempotent（不用 Alembic）
 
-依 [../data-pipeline/P2/04_adr/ADR-002_純SQL_forward-only_migration_不用Alembic.md](../data-pipeline/P2/04_adr/ADR-002_純SQL_forward-only_migration_不用Alembic.md)：
+依 ../data-pipeline/P2/04_adr/ADR-002_純SQL_forward-only_migration_不用Alembic.md（封存於 git 238f6fce）：
 
 - api 用 psycopg3 raw SQL、無 ORM model，Alembic autogenerate 無用武之地；純 SQL 檔以 `psql -f` 套用，與工具鏈一致。
 - **forward-only**：無 down migration；**idempotent**：`ADD COLUMN IF NOT EXISTS`、`DO $$ 查 pg_constraint $$`、`ON CONFLICT DO NOTHING`，同一檔可對多庫、多環境安全重套。
@@ -382,7 +382,7 @@ SELECT version, applied_at, note FROM schema_migrations ORDER BY version;
 
 ## 12. 離線數據分層（Medallion 檔案系統，非 DB）
 
-知識原料的離線加工採 **Medallion 檔案分層**（`data/storage/`，[../data-pipeline/P2/04_adr/ADR-001_Medallion_分層數據架構.md](../data-pipeline/P2/04_adr/ADR-001_Medallion_分層數據架構.md)）：
+知識原料的離線加工採 **Medallion 檔案分層**（`data/storage/`，../data-pipeline/P2/04_adr/ADR-001_Medallion_分層數據架構.md（封存於 git 238f6fce））：
 
 | 層 | 目錄 | 內容 | 品質承諾 |
 |---|---|---|---|
@@ -398,7 +398,7 @@ SELECT version, applied_at, note FROM schema_migrations ORDER BY version;
 
 ## 13. 通用工單資料模型 Roadmap（Vertical Pack）
 
-平台戰略為「核心通用 + 領域配置」分層（[../00_platform/P2/04_adr/ADR-P009_平台核心_vs_領域配置分層.md](../00_platform/P2/04_adr/ADR-P009_平台核心_vs_領域配置分層.md)）。工單資料模型的目標形態（🔜 規劃中，屬 refactor CR，動 schema 須走 CIA）：
+平台戰略為「核心通用 + 領域配置」分層（../00_platform/P2/04_adr/ADR-P009_平台核心_vs_領域配置分層.md（封存於 git 238f6fce））。工單資料模型的目標形態（🔜 規劃中，屬 refactor CR，動 schema 須走 CIA）：
 
 ### 13.1 通用核心表草圖
 
@@ -429,7 +429,7 @@ field_metadata (pack, pack_version, entity, key, label, type, required,
 
 - Pack 語意版本化（`locksmith@1.2.0`，可 `extends: blue-collar-service@2.x`）；**品牌（租戶）= 裝一個 pack@version + 租戶級覆寫**（價目 / SLA / 品牌參數）。
 - Pack 升級 = 版本遷移，含 `field_metadata` / flow 的向後相容檢查。
-- 導入路徑：現行 `work_orders` 智慧鎖領域欄位逐步下沉到 `attributes` + `field_metadata(pack=locksmith)`，核心欄留下；詳見 [../00_platform/P1/07_workorder_platform_design.md](../00_platform/P1/07_workorder_platform_design.md)。
+- 導入路徑：現行 `work_orders` 智慧鎖領域欄位逐步下沉到 `attributes` + `field_metadata(pack=locksmith)`，核心欄留下；詳見 ../00_platform/P1/07_workorder_platform_design.md（封存於 git 238f6fce）。
 
 ---
 

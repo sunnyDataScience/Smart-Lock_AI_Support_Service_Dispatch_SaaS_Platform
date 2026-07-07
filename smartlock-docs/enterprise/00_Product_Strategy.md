@@ -30,7 +30,7 @@ upstream:
 2. **每一個垂直的診斷知識**，都能被精煉成 AI 客服可用的知識庫（事實語料）與行為規範（skill）。
 3. **累積的積木庫與 flow 定義本身成為護城河**——越晚進場的競爭者，越無法複製這套逐產業沉澱下來的商業邏輯本體論。
 
-定位語出處與完整推導見 [`../00_platform/P1/06_platformization_strategy.md`](../00_platform/P1/06_platformization_strategy.md) §9。
+定位語出處與完整推導見 `../00_platform/P1/06_platformization_strategy.md`（封存於 git 238f6fce） §9。
 
 ---
 
@@ -52,7 +52,7 @@ n8n / Zapier 等通用工作流工具，以及各家 no-code 平台，**沒有�
 
 ### 2.3 商業結構前提
 
-本平台的商業結構有三個特徵（詳見 [`../00_platform/P1/05_platform_architecture_L1.md`](../00_platform/P1/05_platform_architecture_L1.md) §2）：
+本平台的商業結構有三個特徵（詳見 `../00_platform/P1/05_platform_architecture_L1.md`（封存於 git 238f6fce） §2）：
 
 1. **per-brand bundle 可獨立部署**：每個加盟品牌一套物理隔離、可完整獨立部署的單體（web／api／agent／品牌庫／Redis／MCP-RAG），資料主權清楚（ADR-P005）。
 2. **集中共用平台**：Casdoor（身分／租戶／License）、SigNoz（可觀測性）、technician-platform（技師共享池）、Kafka（事件骨幹）、平台維運 console 由平台方集中營運。
@@ -266,9 +266,9 @@ n8n / Zapier 等通用工作流工具，以及各家 no-code 平台，**沒有�
 ## 附：相關文件
 
 - 市場需求細節 → [`./01_MRD.md`](./01_MRD.md)
-- 平台架構總覽 → [`../00_platform/P1/05_platform_architecture_L1.md`](../00_platform/P1/05_platform_architecture_L1.md)
-- 平台化策略完整推導 → [`../00_platform/P1/06_platformization_strategy.md`](../00_platform/P1/06_platformization_strategy.md)
-- 通用工單平台詳細設計 → [`../00_platform/P1/07_workorder_platform_design.md`](../00_platform/P1/07_workorder_platform_design.md)
-- 平台級架構決策 → [`../00_platform/P2/04_adr/`](../00_platform/P2/04_adr/)（ADR-P001~P014）
+- 平台架構總覽 → `../00_platform/P1/05_platform_architecture_L1.md`（封存於 git 238f6fce）
+- 平台化策略完整推導 → `../00_platform/P1/06_platformization_strategy.md`（封存於 git 238f6fce）
+- 通用工單平台詳細設計 → `../00_platform/P1/07_workorder_platform_design.md`（封存於 git 238f6fce）
+- 平台級架構決策 → `../00_platform/P2/04_adr/`（封存於 git 238f6fce）（ADR-P001~P014）
 
 *— 00_Product_Strategy v1.0 / 2026-07-07*

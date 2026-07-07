@@ -19,7 +19,7 @@ upstream:
 
 > 讀者：DevOps / 平台維運 / FDE（品牌上線工程）。
 > 本文件回答：平台怎麼部署？本機開發拓撲長怎樣？雲端 per-brand bundle 如何開通？env / secrets 放哪、怎麼注入？migration 怎麼套用、怎麼回滾？部署後怎麼 smoke test？
-> 深度架構參考：[12_SAD.md](./12_SAD.md)、平台 L1（[../00_platform/P1/05_platform_architecture_L1.md](../00_platform/P1/05_platform_architecture_L1.md)）。
+> 深度架構參考：[12_SAD.md](./12_SAD.md)、平台 L1（../00_platform/P1/05_platform_architecture_L1.md（封存於 git 238f6fce））。
 
 ---
 

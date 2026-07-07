@@ -396,6 +396,14 @@ stateDiagram-v2
 
 **Escalation 轉真人（含兜底）**：cs-sop 紅線（金錢/要真人/急件/派工）→ LLM 呼叫 `transfer_to_human(reason, brand, model, symptom)` → 拉 per-user facts + 偵測 `is_explicit` → 寫 EscalationStore → 回核對表單（原封不動回覆客戶）。**兜底路徑**：LLM 生成「已為您安排師傅」話術卻未呼叫工具時，gateway 偵測承諾話術 + 本輪 escalation 未新增 → deterministic 補抽品牌/型號/症狀/手機 → 程式補一筆 escalation。兩路皆 `POST /internal/escalations/ingest` → api 建 AI 草擬問題卡（→ 客服 → 工單 → 派工）。
 
+**LINE postback 微格式契約**（客戶點 Flex 按鈕 → agent `/callback` 依前綴 deterministic fan-out 旁路呼 api，見 [CR-0121](../../docs/4-exploration/CR-0121-line-webhook-routing.md) 方案 A / ADR-011 類別 2）：
+
+| postback 前綴 | 語義 | 旁路端點 |
+|---|---|---|
+| `q:a\|<quote_id>` / `q:r\|<quote_id>` | 報價同意 / 拒絕（CR-0095）| `POST /internal/quotes/{id}:customer-respond` |
+| `r:c\|…` / `r:r\|…` | 改約 confirm / reject | 🔜 `POST /internal/reschedule/*` |
+| `s:a\|…` / `s:r\|…` | 範圍變更 accept / reject | 🔜 `POST /internal/scope-change/*` |
+
 ### 5.4 錯誤處理與重試
 
 | 機制 | 設計 |
@@ -727,7 +735,7 @@ draft → pending → approved（Publisher 落地）
 | knowledge-refinery | 精煉服務 / 審核 UI / Publisher | 獨立服務 codebase [待確認：P4 結構指南待建] |
 | technician-platform | OHS API / 事件層 / 投影 | 獨立服務 codebase [待確認：P4 結構指南待建] |
 
-深度參考：各系統完整設計見 [../agent/P1/05_architecture_and_design.md](../agent/P1/05_architecture_and_design.md)、[../api/P1/05_architecture_and_design.md](../api/P1/05_architecture_and_design.md)、[../technician-platform/P1/05_architecture_and_design.md](../technician-platform/P1/05_architecture_and_design.md)、[../web/P1/05_architecture_and_design.md](../web/P1/05_architecture_and_design.md)、[../knowledge-refinery/P1/05_architecture_and_design.md](../knowledge-refinery/P1/05_architecture_and_design.md)、[../00_platform/P1/07_workorder_platform_design.md](../00_platform/P1/07_workorder_platform_design.md)。
+深度參考：各系統 as-is 逐系統設計（P1/05、P2/06、P3/13、P4/08）已整併進本 enterprise 組合，原文封存於 git baseline `238f6fce`（`git show 238f6fce:smartlock-docs/{system}/P1/05_architecture_and_design.md`）。grounded 技術債座標見 [12_SAD](./12_SAD.md) §12 附錄，安全發現見 [13_Security_Architecture](./13_Security_Architecture.md) §8.6。
 
 ---
 

@@ -230,7 +230,7 @@ stateDiagram-v2
 - **執行模型**：收到 action → 檢查 guard → 執行 block → 持久化 + 寫 `work_order_events` + 發 Kafka 事件 + 掛 SLA timer（Redis）；冪等（event seq + idempotency key）；side-effect 經 outbox。
 - **逃生艙**：plugin SDK（型別安全、過審、版本化）+ webhook 外呼；**拒絕 inline code 節點**。
 - **CQRS 投影**（ADR-P014）：命令端真相在品牌庫；技師視角工單投影由 Kafka 事件餵養至技師平台（欄位最小化）。
-- 🔜 規劃中：DSL-first 引擎（Phase 1）→ 通用核心表重構（Phase 2）→ locksmith Vertical Pack（Phase 3）→ 拖拉 FlowEditor + AI Compiler（Phase 5）。深度參考 [../00_platform/P1/07_workorder_platform_design.md](../00_platform/P1/07_workorder_platform_design.md)。
+- 🔜 規劃中：DSL-first 引擎（Phase 1）→ 通用核心表重構（Phase 2）→ locksmith Vertical Pack（Phase 3）→ 拖拉 FlowEditor + AI Compiler（Phase 5）。深度參考 ../00_platform/P1/07_workorder_platform_design.md（封存於 git 238f6fce）。
 
 ### 2.4 領域事件目錄
 

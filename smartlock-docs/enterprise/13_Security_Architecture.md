@@ -247,6 +247,20 @@ Legacy 6 角色自授權矩陣移除或凍結的收尾方式 `[待確認]`（隨
 | 資料 | KYC/PII Fernet 欄位加密（既有，`core/pii_crypto.py`）；工單投影欄位最小化 + 租戶標記（ADR-P014）|
 | 可用性 | 集中單點需 HA + read replica；品牌側 ACL 降級策略 `[待確認]` |
 
+### 8.6 as-is grounded 稽核發現（保留自 subsystem P3/13，2026-07-07 整併；原文封存 git `238f6fce`）
+
+> 本節保留 4 份 subsystem 安全檢查表中「code-grounded、上述各節未涵蓋」的具體發現。
+
+**⚠️ 修正 §8.4（data-pipeline 現況）**：§8.4 表列為**設計態控制**；**現況自動產出鏈已斷**——`silver_to_skill` 寫入不存在的死目錄（`agent/skills/data/`），知識自動刷新鏈非功能性（「安全失敗」但不運作），`data/` README/架構書描述已 superseded 舊架構。現行知識來源為手工整編 references（此前本文誤呈為 active）。
+
+**api**：dispatch 與 tech surface **共用 `API_JWT_SECRET_KEY`** → 技師 token 可打品牌派工 API（僅 platform 用獨立金鑰）；`work_orders.tenant_id` + 7 RLS policy tables 為**半成品死碼**（保留欄、單租戶、無 enforce，誤導）；surface port 直接對外、無統一 API Gateway。
+
+**web**：OWASP top-2 —— **A01 Broken Access Control**（client-only gate + `rolePolicy` fail-open）、**A07 Auth failures**（JWT 存 localStorage、`atob` 不驗簽）；JWT 走 **WS/SSE query param**（`realtime.ts`/`sse.ts`）可能入 proxy log；`UAT_HIDE_FAKE_FLOWS` 隱藏的假流程含「退款核可**實際不退錢**」。
+
+**data-pipeline**（除上方修正外）：pgvector embedding **可能反推原文**（未評估敏感度）；raw layer 近空 → 原始素材未留則 **bronze 無法從零重建**；爬取內容**未 sanitize 進 LLM**（pipeline prompt-injection）；硬編 demo 憑證 `demo-admin/adminpass123`（`SQL/seeds/README.md`）。
+
+**agent**（多數已被 §8.2/§10 涵蓋，殘留 3 項）：一般對話 turn **無結構化 audit**（僅 escalation 有）；無 vendor-outage/memory-loss runbook；postgres 記憶後端需**先手動跑 `SQL/migrations/033`**（CR-0023）。
+
 ---
 
 ## 9. 應用層防護（平台通用標準）

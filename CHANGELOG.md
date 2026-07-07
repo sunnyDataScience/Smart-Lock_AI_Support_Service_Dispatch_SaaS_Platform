@@ -35,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **CR-0114 立案：平台方管理系統(platform console)與註冊/審核動線重構（branch `docs/cr-0114-platform-console`，2026-07-05）**：業主口述目標架構＋七項裁決——(1) 師傅審核**移到 platform console**、品牌端唯讀;(2) 品牌申請核准後**純手動開站**(console 只記錄狀態＋產開站指引文字);(3) 品牌選師傅**全部啟用中可見＋標示已授權/未授權**(過濾改標示);(4) 品牌登入頁註冊 tab 改「**品牌員工帳號申請**」(品牌 Admin 審核並指派角色);(5) **權限正典＝UAT 版 7 角色**(子帳號指派 5 員工角色);(6) 授權標示語意＝**鎖品牌授權**(沿用 technician_brand_authorization,零 schema 變更);(7) **自動派工仍只選已授權**。新增第四個 stack:platform-db(5435,`lock_platform` 獨立容器)/platform-api(8003,`API_SURFACE=platform`)/platform-web(3003,`APP_MODE=platform`);身分＝新角色 `platform_admin`(不活化 super_admin 死角色,帳號池與 JWT secret 與品牌隔離)。CR-0113 §8 四問全數回寫,CR-0112 補四 stack 拓撲節。實作分 R1-R5 五輪(見 CR-0114 §9)。
 
+### Removed
+
+- **舊文件樹大掃除（branch `docs/enterprise-doc-set`，2026-07-08，業主確認）**：刪除 `docs/`（612 檔，開發歷史/CIA/審計/舊規格）、`docs_html/`（588 檔，pandoc 產出鏡像）、`VibeCoding_Workflow_Templates/`（62 檔，模板集）——正典已由 `smartlock-docs/enterprise/` 00–27 取代，舊文件僅 git 歷史可查。**後續影響**：CLAUDE.md 的 docs_html 雙版本規則與 CIA 產出路徑（docs/4-exploration）、`.claude/rules/` 對模板的引用需要另行改版對齊 `[待處理]`。
+
+- **smartlock-docs as-is 逐系統文件整併清理（2026-07-08）**：`00_platform/agent/api/web/data-pipeline/knowledge-refinery/technician-platform` 的 P1–P4（50 檔）整併進 enterprise 後移除；決策/設計完整吸收（30 份 ADR → enterprise/14_ADR/），code-grounded 稽核殘留內聯至 12_SAD §12 / 13_Security §8.6；原文封存於 git baseline `238f6fce`，enterprise `upstream:` frontmatter 轉為歷史 git 參照。
+
 ### Added
 
 - **drawio/ 架構圖工程全面改造為本專案（branch `docs/enterprise-doc-set`，2026-07-08）**：原 drawio/ 為他案（ACME One Platform）的圖生成工程；依業主指示以 `smartlock-docs/enterprise/` 為內容源全部重做——保留方法論（`_build_drawio.py` 程式化產圖、每資料夾 `prompt.md` 規格、全域視覺規範、`_analyze_layout.py` 版面量測），內容 100% 換為 Smart Lock 平台。產出 **14 張圖**（11 主 deck + 3 附錄）：00-1 商業模式心智 / 00-2 C4 L1 / 01-1 部署三分層 / 03-1 C4 L2 容器主錨 / 03-2 agent(LockCore) 元件 / 03-3 api 元件（守衛鏈+Quote BC）/ 04-3 工單全程 Sequence（報價先行+現場修正 opt+急件註記）/ 03-4 三具狀態機（工單/報價/問題卡雙 gate）/ 04-2 跨系統資料流 DAG（含 requote command 與結算軌）/ 04-4 知識精煉閉環（BR-CONV-03 前提）/ 05-1 共用核心 Kernel + 附錄 A(核心 vs Pack，階段二)/B(知識能力分層)/C(AI 邊界紅線)。單檔 `smartlock-platform-architecture.drawio` 14 分頁；XML/ID/懸空連線全數驗證通過，版面交叉分數 42（原 ACME deck ≈57）。色彩語意 remap，README 核心心法換為六條 Smart Lock 鐵律（報價先行/AI 永不自轉工單/邊界三分/三庫隔離/對話全量存檔/兩階段）。舊 ACME 產物（acme master + 10 張單張）已刪除。

@@ -448,7 +448,7 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 | R-05 | flow DSL 為皇冠寶石，設計錯全鏈歪 | DSL-first（ADR-P010）：先穩引擎再疊 UI/AI |
 | R-06 | 技師平台為派工關鍵依賴（可用性/延遲）| OHS API SLA + Kafka 事件降級；契約測試 |
 
-**系統級關鍵風險（摘錄，完整見各系統 P1/05 §9）**
+**系統級關鍵風險（摘錄；grounded file:line 座標見下方附錄，原文封存 git `238f6fce`）**
 
 | 系統 | 風險 | 嚴重性 | 緩解 |
 |---|---|---|---|
@@ -459,6 +459,13 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 | technician-platform | 遷移期「雙寫 + 事件」雙路並存易漂移 | 高（遷移期）| 明確 cutover gate；影子並存驗證後切斷雙寫 |
 | data-pipeline | migration 為 forward-only 無回滾；多庫套用一致性 | 中 | drift CI + 備份/還原 SOP 🔜 規劃中（ADR-P012）|
 | web | 完成度落差（示意 UI 12 頁 / 待接入 25 頁）| 中 | `UAT_HIDE_FAKE_FLOWS` 隱藏假流程；逐項接後端 |
+
+**as-is grounded 技術債座標**（保留自 subsystem P1/05 + P4 稽核；原文封存 git `238f6fce`，各系統 P1–P4 已整併進本組合）：
+
+- **api**（P1/05 R-01–R-07）：RBAC shadow-mode 80+ 寫端點只檢租戶（`deps.py:189-192,225-264`）；in-memory `ws_hub` + 11 cron（`ws_hub.py:1-6`、`main.py:139-141`）；單一共享 `AsyncConnection` 非池（`db.py:27,53`）；auth fail-open（`deps.py:69-73`、`auth.py:108-131`）；`API_SURFACE` 非安全邊界（`main.py:136-143`）。
+- **web**：role 由 `atob` 讀**未驗簽** JWT（`api.ts:196-206`）；fallback-tenant 資料外洩 TODO（`api.ts:130`）；`rolePolicy` 未列路由 fail-open（`rolePolicy.ts:24-82`）；94 個 `page.tsx` 全 `"use client"`。
+- **data-pipeline**：唯一產出鏈**已斷**（`silver→skill` 死目標 `agent/skills/data/` 不存在）；87 migrations / bronze ~115 檔；死目錄/superseded 盤點見（原）P4/08 §4。
+- **knowledge-refinery**：pgvector 語義層 greenfield——`case_service.py:285` 僅關鍵字 stub、`<=>`/`vector_cosine` 零 query、`manual_chunks` 從未被查、無 `embed()`、MCP server 待建（「灌了也查不到」）。
 
 ---
 
