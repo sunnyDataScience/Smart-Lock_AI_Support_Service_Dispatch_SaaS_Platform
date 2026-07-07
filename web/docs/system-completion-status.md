@@ -3,7 +3,7 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-07（**維運監控重構：儀表板不追蹤自己改追蹤導流站、租戶服務健康燈移到租戶管理頁**，branch `feat/platform-monitor-tenant-split` — 業主裁決「追蹤自己沒啥意義;改追蹤 :3002;租戶相關的監控放到 /platform/tenants」。切分規則:monitor_target.brand=租戶 slug → 健康燈顯示於租戶管理頁對應卡片(30s 輪詢,fail-soft);非租戶 brand=平台級留儀表板(摘要計數只計平台級)。CRUD 仍集中儀表板(租戶目標降為精簡管理列+提示)。本機資料:刪平台 Console API 自我探測、加導流站(host.docker.internal:3002,實測 200)、師傅 API 改組「平台共用服務」。零 API/schema 變更、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright 兩頁全過。**已部署本機 docker(platform web)**。）
+**最後更新：** 2026-07-07（**維運監控重構：儀表板不追蹤自己改追蹤導流站、租戶服務健康燈移到租戶管理頁**，branch `feat/platform-monitor-tenant-split` — 業主裁決「追蹤自己沒啥意義;改追蹤 :3002;租戶相關的監控放到 /platform/tenants」。切分規則:monitor_target.brand=租戶 slug → 健康燈顯示於租戶管理頁對應卡片(30s 輪詢,fail-soft);非租戶 brand=平台級留儀表板(摘要計數只計平台級)。新增仍走儀表板(brand=租戶 slug 即歸戶);同日追加裁決(branch `fix/platform-monitor-hide-tenant-rows`):租戶目標連精簡管理列也不顯示,儀表板完全只列平台級。本機資料:刪平台 Console API 自我探測、加導流站(host.docker.internal:3002,實測 200)、師傅 API 改組「平台共用服務」。零 API/schema 變更、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright 兩頁全過。**已部署本機 docker(platform web)**。）
 
 **前一次更新：** 2026-07-07（**平台師傅管理頁預設篩選改「全部」**，branch `fix/platform-technicians-default-all` — 業主指示 `:3003/platform/technicians` 預設顯示全部。原預設 `pending_approval`(無待審=空清單,看不出平台上有哪些師傅)→ 預設不帶 status 過濾,「全部」chip 移到第一位。純前端、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright(「全部」預設選中、清單直接列出啟用中師傅)。**已部署本機 docker(platform web)**。）
 
