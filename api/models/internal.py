@@ -34,6 +34,10 @@ class IngestTurnRequest(BaseModel):
     user_text: str = Field(default="", max_length=5000)
     assistant_text: str = Field(default="", max_length=5000)
     display_name: str | None = Field(default=None, max_length=255)
+    # CR-0119：客人照片（LINE 一則照片訊息恰一張）。選填 additive —— 未帶時行為不變。
+    # base64 原檔（解碼後上限沿用 media_service 20 MiB）；mime 由 gateway magic bytes 判定。
+    media_base64: str | None = Field(default=None)
+    media_mime: str | None = Field(default=None, max_length=100)
 
 
 class EscalationIngestRequest(BaseModel):
