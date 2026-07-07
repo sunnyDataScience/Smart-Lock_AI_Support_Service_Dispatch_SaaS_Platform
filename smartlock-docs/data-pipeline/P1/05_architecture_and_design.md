@@ -49,7 +49,7 @@ block-beta
 | Medallion 萃取 | `raw → bronze → silver → skill`，config-driven，全走 Vertex Gemini | ⚠️ raw→bronze→silver 運作；**silver→skill 產出鏈斷開** |
 | 關聯式資料庫層 | `SQL/` 主 schema + 87 migration + 平台庫 + 三庫分裂 | ✅ 運作（api 擁有，本文件詳述 schema 現況）|
 | Vertex AI / Gemini | pipeline 各階段 LLM（`gemini-2.5-flash`）| ✅ 運作（`data/config.toml`）|
-| api 控制平面 | 擁有全業務 schema，讀 pgvector KB（`manual_chunks`/`case_entries`）| ✅ 運作（但服務後台，非 LINE agent）|
+| api 控制平面 | 擁有全業務 schema，讀 pgvector KB（`manual_chunks`/`case_entries`）| ⚠️ **僅 keyword 評分運作；向量檢索未建**（`case_service.py:285` 註 Phase 2、`manual_chunks` 從未被查、無 `embed()`）——語義 RAG 對後台亦 greenfield（2026-07-07 勘查，ADR-004）|
 | agent (LockCore) | 讀 filesystem `references/{Brand}/{Model}.md` | ⚠️ **獨立手工整編，不經本管線** |
 
 > **Level 0 檢查**：本層只呈現能力域，不含 runtime protocol（細節見 §3 C4）。⚠️ 標記處即為 §9 落差專節的來源。
@@ -306,7 +306,7 @@ graph TB
 | 產出方式 | ⚠️ **手工整編**，非 pipeline 自動產出（目標目錄已不存在）| `[待確認]` 無明確自動 embedding 管線文件 |
 | 維護 | 人工維護 `{Brand}/{Model}.md` | async 向量化（`case_entries.embedding_status`，`Schema_api_phase1.sql:55`）|
 
-> **結論**：現行 LINE agent **不查 pgvector**；pgvector RAG 服務的是後台 API。兩套來源不同、須雙維護、無收斂機制。`[待確認]` 兩者是否有整併規劃。此為平台級缺口（見 `00_platform/P1/05 §5 G-05`）。
+> **結論（2026-07-07 由 ADR-004 更新）**：原記「兩套並存無收斂」為範疇錯誤——references 是 **Skill 行為驅動的精選層**，pgvector 是**唯一完整事實語料**，兩者從屬非競品。ADR-004 定案：agent 經 **RAG-via-MCP** 查 pgvector（語義），references 只留精選 + 檢索程序。⚠️ 但勘查證實 pgvector 語義層目前僅 keyword stub、`manual_chunks` 未被查、無 `embed()`——**語義 RAG 為 greenfield**，須依 ADR-004 分階段建（embed + cosine query + MCP server + 灌注語料）。詳見 `agent/P2/04_adr/ADR-004`；G-04 產出鏈修復與本案 Phase 2 對齊。
 
 ---
 

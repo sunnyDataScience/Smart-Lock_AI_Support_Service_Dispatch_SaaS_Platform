@@ -178,7 +178,7 @@ graph LR
 | G-02 | **RBAC 授權矩陣 shadow-mode** — 80+ 敏感寫入端點僅 `require_tenant` 不檢角色；12×12×4 矩陣 log-only 永不擋 | api | 🔴 高 | 逐端點補 `role_required`；矩陣由 shadow 轉 enforce；補齊 fail-open 情境 |
 | G-03 | **即時通道 in-memory 單機** — WS pub-sub hub 與 11 個 cron worker 皆進程內（非 Redis），Cloud Run 多實例會跨實例事件遺失、cron 重複跑（重複 LINE 推播/告警）| api | 🔴 高 | 導入 Redis pub-sub + 分散式排程；min-instances=1 為暫時緩解 |
 | G-04 | **data-pipeline 產出鏈斷開** — `silver_to_skill` 目標 `../agent/skills/data` 與 `storage/skill_drafts/` 皆不存在；文件描述已被 LockCore superseded 的 26-skill ReAct 舊架構 | data-pipeline、agent | 🔴 高 | 修復產出目標對齊 lockcore `references/`，或正式標記管線退役、文件標 superseded |
-| G-05 | **兩套知識系統無收斂** — pgvector RAG（後台 KB 檢索）vs filesystem references（agent 知識）來源不同、須雙維護、無同步機制 | agent、data-pipeline、api | 🟡 中 | 定義單一知識真相源；建立 references ↔ pgvector 同步或擇一 |
+| G-05 | **知識系統角色分工**（原記「兩套無收斂」，2026-07-07 由 **ADR-004** 重定義為「pgvector 唯一事實語料 + Skill 行為驅動」，非收斂而是從屬）。⚠️ 勘查修正：pgvector「RAG」目前僅 keyword stub（`case_service.py:285` Phase 2 未建、`manual_chunks` 從未被查、無 `embed()`），**語義層對所有消費者皆 greenfield** | agent、data-pipeline、api | 🟢 分工已定 | 依 ADR-004 分階段建 RAG-via-MCP 語義層；見 `agent/P2/04_adr/ADR-004` |
 | G-06 | **兩個 LINE webhook 分流不明** — agent `/callback`（主客服）與 api `/line/webhook`（只 postback）並存，infra 層分流機制未明 | agent、api | 🟡 中 | 文件化 LINE channel → webhook 路由分流；確認是否同一 channel |
 | G-07 | **無統一 Auth / API Gateway** — 認證分散各 api，三/四埠直接對外；JWT 密鑰隔離靠部署紀律（dispatch/tech 共用、platform 必不同），無集中密鑰治理 | 全平台 | 🟡 中 | 評估集中式 identity / API Gateway；密鑰治理集中化 |
 | G-08 | **跨庫一致性靠應用層雙寫** — 技師權威庫 `lock_tech` ↔ 品牌庫 mirror，無跨庫交易；漏設 `TECH_POSTGRES_URI` 會靜默漂移退回單庫 | api、DB | 🟡 中 | 明確化雙寫協議 + 對帳；啟動守衛檢查 URI 完整性 |

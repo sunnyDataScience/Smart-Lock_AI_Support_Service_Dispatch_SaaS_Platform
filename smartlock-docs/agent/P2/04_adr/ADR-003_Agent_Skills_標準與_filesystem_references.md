@@ -1,6 +1,7 @@
 # ADR-003: Agent Skills 標準與 filesystem references
 
-**狀態：** 已接受 | **日期：** 2026-06-05（ADR-0107 落地）/ 本文件 2026-07-07 補記
+**狀態：** 已接受（§3 部分 superseded）| **日期：** 2026-06-05（ADR-0107 落地）/ 本文件 2026-07-07 補記
+**superseded_by：** ADR-004（僅 §3「選項 B：查 pgvector」之否決被推翻——改採 RAG-via-MCP；本 ADR 其餘決策——兩 skill 分層、純核心 frontmatter、bronze-only sourcing、domain safety——仍全數有效）
 
 ---
 

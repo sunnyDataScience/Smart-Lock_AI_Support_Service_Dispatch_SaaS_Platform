@@ -307,7 +307,7 @@ agent 子系統整體實作 **CustomerSupportContext**（客服上下文），�
 知識來源：KnowledgeContext 的 filesystem 分支（references，與 pgvector RAG 為兩套並存無收斂系統，見平台 L1 §3）
 ```
 
-> **KnowledgeContext 分裂註記**（與平台 L1 一致）：本平台存在兩套並存、無自動收斂機制的產品知識系統 —— (1) pgvector 向量 KB（服務後台 web/api）；(2) agent 的 filesystem `references/{Brand}/{Model}.md`（SKILL.md 明寫「no database needed」，服務 LINE agent）。agent 只用後者。
+> **KnowledgeContext 分工註記**（2026-07-07 由 **ADR-004** 重定義）：原記「兩套並存無收斂」為範疇錯誤。正確分工：**Skill = 行為驅動 + 精選層**（references 只留 SKILL.md + `_common` + `_brand` + domain-safety + 檢索程序）；**pgvector = 唯一完整事實語料**，長尾逐型號事實由 agent 經 **RAG-via-MCP** 語義查詢。兩者從屬非競品。⚠️ 語義 RAG 層當前為 greenfield（pgvector 僅 keyword stub、無 `embed()`），依 ADR-004 分階段建。**cutover 前 filesystem references 保留為 fallback。** 詳見 `agent/P2/04_adr/ADR-004`。
 
 ---
 
