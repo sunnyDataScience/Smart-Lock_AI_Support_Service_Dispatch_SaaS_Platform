@@ -6,9 +6,11 @@ requires-python = ">=3.11"
 # LockCore(fork 自 nanobot)核心所需的 runtime deps(僅核心用到的子集;不含 channels)。
 # 供應商層改用 litellm 統一多家(取代 anthropic SDK 等各家 client)。
 dependencies = [
-    "litellm>=1.70",
+    # 資安全修(2026-07-07,PYSEC-2026-388)
+    "litellm>=1.84.0",
     "pydantic>=2.12",
-    "pydantic-settings>=2.12",
+    # 資安全修(2026-07-07,GHSA-4xgf-cpjx-pc3j)
+    "pydantic-settings>=2.14.2",
     "httpx>=0.28",
     "jinja2>=3.1",
     "pyyaml>=6.0",
@@ -22,7 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 vertex = ["google-cloud-aiplatform>=1.60", "google-genai>=1.0"]  # Vertex AI(Gemini/Claude on Vertex)
-line = ["line-bot-sdk>=3.0", "aiohttp>=3.9"]  # LINE 通道接入(webhook + reply)
+line = ["line-bot-sdk>=3.0", "aiohttp>=3.14.1"]  # LINE 通道接入(webhook + reply);aiohttp 資安全修
 eval = ["openpyxl>=3.1"]  # 跑 scripts/eval_reply_quality.py(讀 987 題訓練集 xlsx)
 postgres = ["psycopg[binary]>=3.1"]  # memory.backend="postgres"(agent schema / pg_trgm,見 CR-0023)
 

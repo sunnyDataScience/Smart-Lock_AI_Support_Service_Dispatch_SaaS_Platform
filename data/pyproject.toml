@@ -5,10 +5,11 @@ description = "Smart Lock data ETL pipeline (Medallion: source → raw → bronz
 requires-python = ">=3.11,<3.12"
 dependencies = [
     # === LLM ===
-    "litellm",
+    "litellm>=1.84.0",           # 資安全修(2026-07-07,PYSEC-2026-388)
     "langchain-core>=0.3.0",
+    "langsmith>=0.8.18",         # 資安全修(2026-07-07,GHSA-f4xh-w4cj-qxq8;langchain 傳遞相依顯式釘)
     # === 內容下載與處理 ===
-    "yt-dlp",
+    "yt-dlp>=2026.6.9",          # 資安全修(2026-07-07,CVE-2026-50019/50023/50574、GHSA-69qj-pvh9-c5wg)
     "playwright",
     "beautifulsoup4",
     "markdownify",
