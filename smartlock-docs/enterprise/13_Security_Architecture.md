@@ -69,19 +69,44 @@ upstream:
 
 ## 3. 授權架構 — 四方 RBAC
 
-### 3.1 角色模型（ADR-P006 §3）
+### 3.1 角色目錄（正典）——概念四方 × 系統 7 角色
 
-| 角色 | 對象 | 範圍 | 帳號來源 |
-|---|---|---|---|
-| **Super Admin** | 我方平台維運方 | **跨租戶**（平台 console）| 平台建立 |
-| **租戶 Admin** | 品牌方 | 單一品牌租戶內 | Casdoor org admin，**自助開通帳號給自己人** |
-| **派工小編** | 品牌自己的人 | 租戶內操作（派工/工單/客服）| 租戶 Admin 開通 |
-| **技師（鎖匠）** | 現場師傅 | **跨租戶身分**（由技師平台管，ADR-P004）| Casdoor + 技師平台 |
+概念層維持**四方模型**（ADR-P006：Super Admin / 租戶 Admin / 派工小編 / 技師）；落到系統的**登入角色正典為 UAT 7 角色**（CR-0114 業主裁決），「派工小編」在系統層細分為 4 個員工角色：
+
+| # | 系統角色 | 概念層歸屬 | 範圍 | 開通者 / 來源 | 職能 |
+|---|---|---|---|---|---|
+| 1 | `platform_admin` | Super Admin | **跨租戶**（平台 console :3003）| 平台方內部建立（平台庫獨立帳號池 + 獨立 JWT 密鑰，與品牌隔離）| 品牌申請審核、師傅審核、租戶名冊、平台監控 |
+| 2 | `admin` | 租戶 Admin | 租戶內全權 | 品牌開站時平台方建首帳；既有 `admin` 可再開通 `admin` | 租戶帳號 / 角色 / 配置治理、員工申請審核 |
+| 3 | `operations_manager` | 派工小編（員工）| 租戶內營運管理 | **租戶 Admin 開通** | 報價目錄 / 帳務 / 報表 / 庫存 / 知識庫 |
+| 4 | `dispatcher` | 派工小編（員工）| 租戶內派工 | **租戶 Admin 開通** | 派工佇列 / 手動派工 / 物料申請 / 異常 |
+| 5 | `customer_service` | 派工小編（員工）| 租戶內客服 | **租戶 Admin 開通** | 對話接管 / 問題卡 / 進線 case / 客戶管理 |
+| 6 | `reviewer` | 派工小編（員工）| 租戶內審核 | **租戶 Admin 開通** | 退款 / 保固 / 爭議審核 + 全域唯讀 |
+| 7 | `technician` | 技師 | **跨租戶**（師傅 web）| 技師平台註冊 → platform console 審核 → `active`；**品牌只做品牌授權（technician_brand_authorization），不開帳號** | 接單 / 到府 / 現場修正發起 / 對帳 |
+
+**租戶 Admin 可開通集合**＝`{admin, operations_manager, dispatcher, customer_service, reviewer}`（單一真相源：api `auth_service._STAFF_ROLES`）。開通兩路：(a) 員工於品牌站「員工帳號申請」tab 自申請 → Admin 審核並指派角色；(b) Admin 於 `/admin/staff` 直建。角色指派走 SoD 雙簽（`saas.role_assignment`）。**租戶 Admin 不可開通**：`platform_admin`（平台內部）、`technician`（技師平台管道）、任何 legacy 角色。
+
+**通道 / 非登入角色**（不在 7 角色正典，不可被指派）：
+
+| 角色 | 定位 | 來源 |
+|---|---|---|
+| `line_user` | LINE 消費者（無後台登入）| 首次 LINE 互動自動建檔 |
+| `vendor` | 品牌協力廠商（`/vendor` 專區）| admin-gate 建立；定位待後續 CR `[待確認]`（CR-0114 殘留議題）|
+
+**廢止 / 收斂（legacy——新開帳號禁用，`role` 欄位歷史值仍可能存在）：**
+
+| Legacy 值 | 處置 |
+|---|---|
+| `super_admin`、`tenant_admin` | 死角色（CR-0114 裁決不活化）；語義由 `platform_admin` / `admin` 取代。⚠️ 前端 `rolePolicy` FULL_ACCESS 仍放行此二值 → 清理項 **SA-06** |
+| `accounting`、`supervisor` | 職能由 `operations_manager` / `reviewer` 承接（`/accounting` 路由現由 admin / ops / reviewer 存取）|
+| `auditor`、`distributor`、`brand_oem` | 未落地；需要時走 ChangeRequest 擴充，不預留矩陣行 |
+| `family_reviewer` | **非登入角色**——家族覆核以事後 event log + 7 日 dispute window 履約（BR-AUDIT-01），不入帳號體系 |
+
+Legacy 6 角色自授權矩陣移除或凍結的收尾方式 `[待確認]`（隨 SA-01 矩陣對帳一併裁決）。
 
 ### 3.2 Enforce 機制
 
 - **角色來源**：Casdoor 發角色 claim（🔜 規劃中 Phase 2；過渡期 claim 由 JWT 自簽發）。
-- **執行點**：api 端資源級 `role_required` 依賴鏈（`get_current_user → require_tenant → role_required`），**deny-by-default**。授權矩陣為 12 角色 × 12 資源 × 4 動作；矩陣決策全量記錄供對帳。
+- **執行點**：api 端資源級 `role_required` 依賴鏈（`get_current_user → require_tenant → role_required`），**deny-by-default**。授權矩陣以 **§3.1 的 7 角色正典** × 12 資源 × 4 動作為基準（現行矩陣含 legacy 角色行，隨 SA-01 對帳瘦身）；矩陣決策全量記錄供對帳。
 - **逐端點角色守衛落地為 Phase 1 roadmap**：以矩陣對帳 195 條 `role_required` 宣告，灰度順序先高風險金流 / 派工端點，驗收條件 = 未授權角色（technician / vendor）寫金流 / 派工 / 設定回 403（SA-01）。
 - **前端 gate = UX 非邊界**：web 的 `rolePolicy` 路由 gate 僅影響頁面載入；`/platform/*` 已為對稱 deny-by-default（僅 platform_admin 可進）；全表 catch-all deny-by-default 🔜 規劃中（ACT-02）。
 - **API_SURFACE 是部署塑形非安全邊界**：tech/platform 面靠前綴過濾塑形，真正隔離押在每端點 RBAC（api C-11 設計原則，文件化 + 剔除清單測試覆蓋 🔜 規劃中 SA-03）。
@@ -278,6 +303,7 @@ AI 客服的安全邊界採「**物理限制優先於行為約束**」：
 | 記憶持久化 | FA-02：生產 `backend="postgres"` | 實例重啟記憶不流失；PII 落 Cloud SQL 加密層 |
 | token 安全儲存 | ACT-01：httpOnly cookie + server 端驗簽（隨 Casdoor 授權碼流）| localStorage 不再存 token |
 | 前端 deny-by-default | ACT-02：rolePolicy catch-all 拒絕 + CI 漏登記檢查 | 未登記敏感頁預設拒絕 |
+| 死角色清理 | SA-06：`rolePolicy` FULL_ACCESS 移除 `tenant_admin` / `super_admin` 放行；`users.role` 欄位註解與 seed 同步 7 角色正典（§3.1）| 死角色 token 不再全放行；DB 註解與正典一致 |
 | 租戶 fallback | ACT-03：無有效 tenant 導登入 | 不再退回預設租戶 |
 | 三庫守衛 | SA-04 / DA-04：URI 啟動斷言 | 缺 URI 啟動失敗非靜默退化 |
 | 備份還原 | DA-02：三庫備份 SOP + RTO/RPO + 還原演練 | 至少一次還原演練記錄 |

@@ -143,7 +143,7 @@ technicians ──< reconciliations ──< settlements
 
 ### 4.4 身分與 RBAC
 
-- **`users` = 統一身分表**，基底 5 角色：`line_user` / `admin` / `reviewer` / `technician` / `dispatcher`；系統角色全集 12 個（另含 `brand_oem` / `accounting` / `supervisor` / `customer_service` / `auditor` / `family_reviewer` / `distributor`）。
+- **`users` = 統一身分表**，`role` 欄位值域正典 = **UAT 7 角色**（`platform_admin` / `admin` / `operations_manager` / `dispatcher` / `customer_service` / `reviewer` / `technician`）+ 通道角色 `line_user`、`vendor`。歷史資料可能存在 legacy 值（`super_admin` / `tenant_admin` / `accounting` / `supervisor` / `auditor` / `family_reviewer` / `distributor` / `brand_oem`）——**新開帳號禁用**，收斂處置與租戶 Admin 開通權矩陣見 [13_Security_Architecture](./13_Security_Architecture.md) §3.1（Schema comment 與 seed 同步為清理項 SA-06）。
 - RBAC 動態層：`roles` / `permissions` / `role_permissions`（034）+ `saas.role_assignment`（070，**雙簽 SoD**：指派需 initiator / approver 分離）。
 - Token 治理：`revoked_jti`（登出撤銷）、`password_reset_tokens`（035）、帳號安全欄位（084：lockout / password_changed_at）。
 - RBAC enforce 全貌與權限矩陣見 [./13_Security_Architecture.md](./13_Security_Architecture.md)。
