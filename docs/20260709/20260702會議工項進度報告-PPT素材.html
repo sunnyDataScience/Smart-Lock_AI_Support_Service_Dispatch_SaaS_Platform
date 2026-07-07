@@ -72,8 +72,8 @@
     <li><b>唯一未完成的實體動作 = 雲端部署</b>(#3 #7 與 ZAP 同卡此點):架構與本機驗證全就緒,待 GCP 授權後執行「一品牌一專案」部署。</li>
   </ul>
 
-  <div class="note green"><b>會後衍生落地(超出原工項範圍)</b>:平台方管理 console(:3003)、師傅註冊擴充為 KYC 等級(敏感資料加密 + 文件上傳 + 平台審核)、品牌端師傅職權收斂唯讀 —— 皆為 #1 #2 落地過程中業主追加裁決的成果。</div>
-  <div class="pageno">1 / 14</div>
+  <div class="note green"><b>會後衍生落地(超出原工項範圍)</b>:平台方管理 console(:3003)、師傅註冊擴充為 KYC 等級(敏感資料加密 + 文件上傳 + 平台審核)、品牌端師傅職權收斂唯讀 —— 皆為 #1 #2 落地過程中業主追加裁決的成果。<b>7/7 再追加兩項 LINE 客服體驗補強</b>(客人照片後台可見、連續傳訊合併回覆),詳頁 13。</div>
+  <div class="pageno">1 / 15</div>
 </div>
 
 <!-- ── 頁 2:#1 UI 入口濃縮 ───────────────────────────── -->
@@ -95,7 +95,7 @@
   </ul>
 
   <div class="evidence">佐證::3002 landing 兩 CTA|:3000/login 登入+員工申請雙 tab|:3001/tech-login、/tech-register|治理紀錄 CR-0114(裁決 4)、CR-0115(登入註冊分離)</div>
-  <div class="pageno">2 / 14</div>
+  <div class="pageno">2 / 15</div>
 </div>
 
 <!-- ── 頁 3:#2 三層帳號 ─────────────────────────────── -->
@@ -118,7 +118,7 @@
   </ul>
 
   <div class="evidence">佐證:設計研究 CR-0113|落地 CR-0114(R1–R5)+ CR-0118|:3003 平台管理五分頁</div>
-  <div class="pageno">3 / 14</div>
+  <div class="pageno">3 / 15</div>
 </div>
 
 <!-- ── 頁 4:#3 一品牌一 GCP 專案 ─────────────────────── -->
@@ -141,7 +141,7 @@
   </ul>
 
   <div class="evidence">佐證:docker-compose BRAND 參數化(本機同時跑 4 站台驗證)|brands/locksmart.env 模板|平台 console 核准回開站指引|CR-0112(雙站拆分)、CR-0114</div>
-  <div class="pageno">4 / 14</div>
+  <div class="pageno">4 / 15</div>
 </div>
 
 <!-- ── 頁 5:#4 報價 CRUD ────────────────────────────── -->
@@ -163,7 +163,7 @@
   </ul>
 
   <div class="evidence">佐證:CR-0110(per-tenant 報價主檔 CRUD)|migration 087|後台「報價主檔維護」頁</div>
-  <div class="pageno">5 / 14</div>
+  <div class="pageno">5 / 15</div>
 </div>
 
 <!-- ── 頁 6:#5 資安工具請教 ─────────────────────────── -->
@@ -189,7 +189,7 @@
   </ul>
 
   <div class="evidence">佐證:scripts/security/baseline-scan.sh|docs/_ops/security-baseline-20260704.md(7/7 已更新收尾章)</div>
-  <div class="pageno">6 / 14</div>
+  <div class="pageno">6 / 15</div>
 </div>
 
 <!-- ── 頁 7:#6 三件套 ───────────────────────────────── -->
@@ -212,7 +212,7 @@
 
   <div class="note">分工依會議:以上為「啟恆先做的一半」;Luca 進場後以 baseline-scan.sh 為基礎做自動化(排程掃描 + CI 整合)與完善。</div>
   <div class="evidence">佐證:loadtest/(Locust 場景 + SLA gate)|docs/_ops/security-baseline-20260704.md|依賴修補紀錄(CHANGELOG 2026-07-07)</div>
-  <div class="pageno">7 / 14</div>
+  <div class="pageno">7 / 15</div>
 </div>
 
 <!-- ── 頁 8:#7 舊版收尾上線 UAT ─────────────────────── -->
@@ -234,7 +234,7 @@
   </ul>
 
   <div class="evidence">佐證:web/docs/system-completion-status.md(每輪收尾紀錄)|CHANGELOG [Unreleased]|四站台本機容器運行中</div>
-  <div class="pageno">8 / 14</div>
+  <div class="pageno">8 / 15</div>
 </div>
 
 <!-- ── 頁 9:#8 角色 PPT ─────────────────────────────── -->
@@ -255,7 +255,7 @@
   </ul>
 
   <div class="evidence">佐證:docs_html/20260709/角色與功能總覽-PPT素材.html(2 頁)</div>
-  <div class="pageno">9 / 14</div>
+  <div class="pageno">9 / 15</div>
 </div>
 
 <!-- ── 頁 10:#9 假流程隱藏 ──────────────────────────── -->
@@ -277,7 +277,7 @@
   </ul>
 
   <div class="evidence">佐證:web uatFlags(UAT_HIDE_FAKE_FLOWS 開關)|隱藏清單詳 #10 報告</div>
-  <div class="pageno">10 / 14</div>
+  <div class="pageno">10 / 15</div>
 </div>
 
 <!-- ── 頁 11:#10 隱藏功能報告 ───────────────────────── -->
@@ -300,7 +300,7 @@
   </ul>
 
   <div class="evidence">佐證:docs_html/20260709/UAT-隱藏功能清單與可用功能報告.html</div>
-  <div class="pageno">11 / 14</div>
+  <div class="pageno">11 / 15</div>
 </div>
 
 <!-- ── 頁 12:#11 VLN 照片理解 ───────────────────────── -->
@@ -322,10 +322,39 @@
   </ul>
 
   <div class="evidence">佐證:agent LINE 通道圖片分支(2026-07-03 修復)|#8 PPT 已把「傳照片給 AI 看」列為本週新增能力</div>
-  <div class="pageno">12 / 14</div>
+  <div class="pageno">12 / 15</div>
 </div>
 
-<!-- ── 頁 13:#12 GCP 多店統一監控 ───────────────────── -->
+<!-- ── 頁 13:追加 LINE AI 客服體驗補強(7/7)─────────── -->
+<div class="slide">
+  <h1>追加:LINE AI 客服體驗兩項補強 <span class="tag done">完成(7/7)</span></h1>
+  <div class="sub">非 20260702 原工項|業主 UAT 走查追加裁決:客人傳的照片後台要看得到、連續傳訊不要被連轟回覆 —— 皆為 #11 照片能力的體驗延伸</div>
+
+  <h2>① 客人傳的照片,後台對話管理看得到</h2>
+  <ul class="how">
+    <li><b>先前狀態</b>:#11 修完後 AI 看得懂照片,但品牌後台「對話管理」只顯示一行「[照片]」文字 —— 客服/真人接管時看不到客人實際拍了什麼。</li>
+    <li><b>如何完成</b>:AI 收到照片時同步把圖檔轉存後台媒體庫(與工單施工照片同一套儲存,含品牌隔離、權限控管與保存期),對話頁的客人訊息泡泡直接顯示照片本體;照片顯示後不再出現「[照片]」佔位文字。任一環節失敗都只退回文字標記,絕不弄丟對話。</li>
+    <li><b>雲端效益</b>:照片改存後台端 —— 原本只在 AI 主機的暫存空間,雲端重啟即遺失;現在永久可回看。</li>
+    <li><b>順手修掉兩個既有隱患</b>:工單照片牆在正式容器可能載不出圖的設定漏洞、訊息媒體網址格式驗證過嚴 —— 一併修復。</li>
+  </ul>
+
+  <h2>② 連續傳訊合併回覆(等客人講完再回)</h2>
+  <ul class="how">
+    <li><b>先前狀態</b>:客人短時間連傳三句(想到什麼補一句),AI 逐句各回一次 —— 客人被連轟三則回覆、內容可能重複矛盾,AI 成本也 ×3。</li>
+    <li><b>如何完成</b>:以<b>最後一則訊息</b>起算 5 秒靜默視窗,期間再傳就<b>重新計時</b>;等客人講完才把整串(含照片)合併理解、<b>一次回覆</b>。連傳不停時滿 10 則保底觸發,AI 不會永遠沉默;秒數可調、可一鍵關閉回復原行為。</li>
+    <li><b>附帶修正</b>:原本同客人多則同時處理造成對話紀錄交錯的隱患,一併以「同客人排隊、不同客人並行」修掉。</li>
+  </ul>
+
+  <h2>驗證方式</h2>
+  <ul class="how">
+    <li>照片:實圖端到端 —— 送測試照片 → 後台對話頁確認照片完整顯示於泡泡(截圖佐證)。連傳:自動化測試新增 7 項(含「新訊息重置計時」語意專測),AI 客服全套 160 項零回歸;更新已上線本機環境。</li>
+  </ul>
+
+  <div class="evidence">佐證:治理紀錄 CR-0119(照片顯示)、CR-0120(連傳合併)|:3000 對話管理頁照片泡泡|CHANGELOG 2026-07-07</div>
+  <div class="pageno">13 / 15</div>
+</div>
+
+<!-- ── 頁 14:#12 GCP 多店統一監控 ───────────────────── -->
 <div class="slide">
   <h1>#12 GCP 多店統一監控 <span class="tag done">完成</span></h1>
   <div class="sub">會議原文:GCP Console 開視窗超過 10 個有限制,管多家分店要開多個視窗不合理;找/研究統一監控方案</div>
@@ -344,10 +373,10 @@
   </ul>
 
   <div class="evidence">佐證:CR-0116(平台維運監控)|:3003「維運監控」分頁|「詳細用量」→ GCP dashboard 連結</div>
-  <div class="pageno">13 / 14</div>
+  <div class="pageno">14 / 15</div>
 </div>
 
-<!-- ── 頁 14:業主項 + 下一步 ────────────────────────── -->
+<!-- ── 頁 15:業主項 + 下一步 ────────────────────────── -->
 <div class="slide">
   <h1>業主工項(#13–#17)與整體下一步</h1>
   <div class="sub">此五項為 Sunny 自理項,非開發範圍;狀態由業主自行更新</div>
@@ -369,7 +398,7 @@
   </ul>
 
   <div class="note green"><b>一句話總結</b>:12 項開發工項 —— 8 項完成、3 項只剩「按下雲端部署」這一個實體動作、1 項為線下人工請教;功能面已 UAT 就緒。</div>
-  <div class="pageno">14 / 14</div>
+  <div class="pageno">15 / 15</div>
 </div>
 
 </body>

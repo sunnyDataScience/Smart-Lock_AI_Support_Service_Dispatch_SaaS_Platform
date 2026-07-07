@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **20260702 會議工項進度報告補頁（branch `docs/20260709-report-line-cs-addendum`，2026-07-07）**：報告由 14 頁增為 15 頁——新增頁 13「追加：LINE AI 客服體驗兩項補強」（CR-0119 客人照片後台可見含佔位文字收尾與兩項既有 bug 順修、CR-0120 連續傳訊合併回覆含重置計時語意），總覽頁 note 同步標註、全頁碼校正；Playwright 截圖驗證版型。
+
 - **CR-0120 LINE 連續訊息合併——trailing debounce（branch `feat/cr0120-line-turn-debounce`，2026-07-07）**：業主裁決「避免使用者連續傳訊息導致一直回覆；計算最後一則的時間；有新訊息再重置計算」。**問題**：lockcore run loop 本有 per-session 串行鎖 + pending queue 中途注入，但只在 bus 消費路徑生效；LINE gateway 直呼 `loop._process_message` 繞過 → 客人連傳 N 則 = N 個併發 turn（逐則各回、history race、N 倍 LLM 成本）。**做法（通道層，lockcore 核心零改動）**：新 `_TurnDebouncer`——訊息進 per-session buffer，以最後一則起算靜默視窗（新訊息取消舊 timer 重排 = 重置計算），到期整批交 `_run_merged_turn`：文字換行合併、照片依序全帶（vision 支援多圖）→ **一輪 turn、一次回覆**（用最後一則 reply_token，失敗改 push API 兜底——debounce+turn 可能超過 token ~1 分鐘效期）；fire 以 per-session lock **串行**（上一輪未完下一批排隊，一併修掉原併發 race）；buffer 滿 10 則**強制觸發**（防連傳不停 AI 永遠沉默）。接管檢查/節流安撫/CR-0097 兜底/CR-0022 escalation 全移入 fire（行為等價，僅延遲視窗秒數）；旁路持久化維持**逐則**（對話管理一則一泡泡、照片各自顯示，AI 回覆附掛最後一則）。視窗 `LINE_DEBOUNCE_SECONDS` env 可調（**預設 5 秒**、clamp 0~30、**0=停用走直通**=原逐則行為，回退閥）。postback/圖片下載失敗/非支援型別維持即時回覆不進 debounce。驗證：gateway 46 測全綠（新增 7：env 解析/連傳合併單次觸發/**重置語意**（原視窗到期時斷言未觸發）/session 隔離/強制觸發/串行不併發/webhook 整合兩則合併一輪一回）、agent 全套 **160 passed** 零回歸。**已重建本機 docker（dispatch agent）**；雲端生效需部署 agent。CIA `docs/4-exploration/CR-0120-line-turn-debounce.md`。
 
 - **對話照片泡泡隱藏「[照片]」佔位文字（branch `fix/conversations-photo-placeholder`，CR-0119 收尾，2026-07-07）**：業主回饋照片已顯示時佔位文字冗餘。ChatTimeline CustomerMessage：`media_url` 存在且 content 恰為「[照片]」→ 只顯示照片（含 mb-2 間距一併收掉）；無 media_url 的歷史訊息、有實際文字的訊息照常顯示。純前端 → CIA 豁免。驗證：tsc 0、重建 dispatch web、Playwright 端到端（ingest 實圖 → 泡泡內僅照片無文字，測試資料已清）。
