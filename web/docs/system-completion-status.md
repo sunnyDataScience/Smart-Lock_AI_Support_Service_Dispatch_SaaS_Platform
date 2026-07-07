@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-07（**平台師傅管理頁預設篩選改「全部」**，branch `fix/platform-technicians-default-all` — 業主指示 `:3003/platform/technicians` 預設顯示全部。原預設 `pending_approval`(無待審=空清單,看不出平台上有哪些師傅)→ 預設不帶 status 過濾,「全部」chip 移到第一位。純前端、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright(「全部」預設選中、清單直接列出啟用中師傅)。**已部署本機 docker(platform web)**。）
+**最後更新：** 2026-07-07（**維運監控重構：儀表板不追蹤自己改追蹤導流站、租戶服務健康燈移到租戶管理頁**，branch `feat/platform-monitor-tenant-split` — 業主裁決「追蹤自己沒啥意義;改追蹤 :3002;租戶相關的監控放到 /platform/tenants」。切分規則:monitor_target.brand=租戶 slug → 健康燈顯示於租戶管理頁對應卡片(30s 輪詢,fail-soft);非租戶 brand=平台級留儀表板(摘要計數只計平台級)。CRUD 仍集中儀表板(租戶目標降為精簡管理列+提示)。本機資料:刪平台 Console API 自我探測、加導流站(host.docker.internal:3002,實測 200)、師傅 API 改組「平台共用服務」。零 API/schema 變更、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright 兩頁全過。**已部署本機 docker(platform web)**。）
+
+**前一次更新：** 2026-07-07（**平台師傅管理頁預設篩選改「全部」**，branch `fix/platform-technicians-default-all` — 業主指示 `:3003/platform/technicians` 預設顯示全部。原預設 `pending_approval`(無待審=空清單,看不出平台上有哪些師傅)→ 預設不帶 status 過濾,「全部」chip 移到第一位。純前端、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright(「全部」預設選中、清單直接列出啟用中師傅)。**已部署本機 docker(platform web)**。）
 
 **前一次更新：** 2026-07-07（**創始品牌補登租戶名冊 + prod schema 腳本補平台 schema**，branch `fix/platform-founding-tenant-seed` — 業主指出「我自己本身也算一個租戶」。`tenant` 名冊唯一自動寫入來源是品牌申請核准連動(CR-0118),創始品牌 locksmart 是 seed 直接開站未走申請流 → `:3003/platform/tenants` 名冊 0 筆。`Schema_platform.sql` 追加冪等 seed(slug=locksmart、Lock AI(創始品牌)、active、application_id NULL=非申請來源);順修 prod 缺口:`apply-schema-prod.sh` 加步驟 2b 套 `SQL/platform/Schema_platform.sql`(雲端單庫 fallback 下平台表 brand_applications/monitor_target/tenant 從未建表,雲端 /platform 資料頁查表即 500);users COMMENT 加 DO-block 防護(fallback 套進品牌主庫不污染共用 users 表註解)。CIA 豁免(資料補登+ops 腳本)。驗證:本機 5435 套用+重跑冪等 0 錯誤、API 回 locksmart、Playwright 頁面渲染正常。**雲端生效待下次跑 apply-schema-prod.sh**。）
 

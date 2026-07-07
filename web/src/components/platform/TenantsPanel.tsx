@@ -3,14 +3,35 @@
 // CR-0118 平台 console — 租戶管理 panel(「租戶管理」頁)。
 // 列出已開站租戶 registry(核准品牌申請時自動登錄);生命週期為**平台層標示**:
 // 停用/恢復只翻 registry 狀態,實際停站/重啟走維運(gcloud / 各品牌後台)。
+// 業主裁決(2026-07-07):租戶相關的服務監控(monitor_target.brand=租戶 slug)
+// 健康燈顯示在此頁對應卡片(30s 輪詢);目標登記/維護仍在儀表板→維運監控。
 // 內部工具,文案直接繁中(不入 i18n 兩 locale)。
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 
 type Status = "active" | "suspended" | "terminated";
+
+type ProbeStatus = "up" | "degraded" | "down";
+
+interface HealthResult {
+  id: string;
+  brand: string;
+  label: string;
+  status: ProbeStatus;
+  http_code: number | null;
+  latency_ms: number;
+}
+
+const PROBE_META: Record<ProbeStatus, { label: string; dot: string; cls: string }> = {
+  up: { label: "正常", dot: "bg-green-500", cls: "text-green-700 bg-green-50 border-green-200" },
+  degraded: { label: "降級", dot: "bg-amber-500", cls: "text-amber-700 bg-amber-50 border-amber-200" },
+  down: { label: "異常", dot: "bg-red-500", cls: "text-red-700 bg-red-50 border-red-200" },
+};
+
+const HEALTH_POLL_MS = 30_000;
 
 interface Tenant {
   id: string;
@@ -61,6 +82,8 @@ export default function TenantsPanel() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [healthByBrand, setHealthByBrand] = useState<Record<string, HealthResult[]>>({});
+  const healthPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -76,9 +99,34 @@ export default function TenantsPanel() {
     }
   }, [filter]);
 
+  // 租戶服務健康燈:同一 fan-out 端點,依 brand(=租戶 slug)歸戶到卡片。
+  // fail-soft:探測失敗不影響名冊主功能(卡片只是不顯示健康列)。
+  const probeHealth = useCallback(async () => {
+    try {
+      const res = await api.get<{ data: HealthResult[] }>(
+        "/api/v1/platform/monitor-targets/health",
+      );
+      const map: Record<string, HealthResult[]> = {};
+      (res.data ?? []).forEach((r) => {
+        (map[r.brand] = map[r.brand] ?? []).push(r);
+      });
+      setHealthByBrand(map);
+    } catch {
+      /* fail-soft */
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    probeHealth();
+    healthPollRef.current = setInterval(probeHealth, HEALTH_POLL_MS);
+    return () => {
+      if (healthPollRef.current) clearInterval(healthPollRef.current);
+    };
+  }, [probeHealth]);
 
   async function transition(t: Tenant, action: "suspend" | "reactivate") {
     const verb = action === "suspend" ? "停用" : "恢復";
@@ -167,6 +215,24 @@ export default function TenantsPanel() {
                       </span>
                     )}
                   </div>
+                  {(healthByBrand[t.slug] ?? []).length > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-[var(--text-secondary)]">服務狀態：</span>
+                      {(healthByBrand[t.slug] ?? []).map((h) => {
+                        const meta = PROBE_META[h.status];
+                        return (
+                          <span
+                            key={h.id}
+                            title={`HTTP ${h.http_code ?? "—"} · ${h.latency_ms}ms`}
+                            className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium ${meta.cls}`}
+                          >
+                            <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+                            {h.label}　{meta.label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
                   {t.deploy_note && (
                     <pre className="mt-3 overflow-x-auto whitespace-pre-wrap rounded-lg bg-[var(--bg-page)] p-3 font-mono text-xs leading-relaxed text-[var(--text-secondary)]">
                       {t.deploy_note}
