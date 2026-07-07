@@ -81,21 +81,26 @@ function AuthChatImage({ url, alt }: { url: string; alt: string }) {
 }
 
 function CustomerMessage({ msg, idx }: { msg: Message; idx: number }) {
+  // 照片已顯示時，「[照片]」佔位文字是冗餘（無 media_url 的歷史訊息仍顯示文字）
+  const showText =
+    !!msg.content && !(msg.media_url && msg.content.trim() === "[照片]");
   return (
     <div className="flex w-full justify-end">
       <div className="flex flex-col items-end gap-1">
         <div className="max-w-[522px] rounded-[16px_4px_16px_16px] bg-[var(--primary)] px-4 py-3 text-white">
           {msg.media_url && (
-            <div className="mb-2">
+            <div className={showText ? "mb-2" : ""}>
               <AuthChatImage
                 url={msg.media_url}
                 alt={`客人上傳的照片 #${idx + 1}`}
               />
             </div>
           )}
-          <p className="whitespace-pre-line text-[15px] leading-[1.5]">
-            {msg.content}
-          </p>
+          {showText && (
+            <p className="whitespace-pre-line text-[15px] leading-[1.5]">
+              {msg.content}
+            </p>
+          )}
         </div>
         <span className="text-[12px] text-[var(--text-disabled)]">
           {formatRelative(msg.created_at)}
