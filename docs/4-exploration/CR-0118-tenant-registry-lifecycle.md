@@ -103,4 +103,4 @@ related: [CR-0113, CR-0114, CR-0116, 20260702 會議記錄 §二.3]
   四端點 + main 掛載 + `brand_application_service.approve` 連動(fail-soft)+ 前端 `/platform/tenants`
   + `TenantsPanel` + 導航。驗證:`test_platform_tenants.py` 10 測、**全套 1663 passed**
   (隔離 scratch DB)、tsc 0、瀏覽器端到端(核准品牌申請→自動登錄→停用→恢復)。
-  已重建本機 platform api+web、5435 套 `tenant` 表。merge SHA 於五輪收尾補。
+  已重建本機 platform api+web、5435 套 `tenant` 表。merge `012a10e7`(--no-ff)。
