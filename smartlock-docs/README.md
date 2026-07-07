@@ -1,6 +1,8 @@
 # Smart Lock 平台文件庫
 
-> **版本:** v1.0 | **建立:** 2026-07-07 | **涵蓋系統:** 4 個 + 平台整合視圖 | **來源:** 由實際 code / docker-compose / SQL migration 多 agent 排查回推
+> **版本:** v2.0 | **建立:** 2026-07-07 | **涵蓋系統:** 6 個（4 as-is + 2 target 新系統）+ 平台整合視圖 | **來源:** 多 agent 排查現況 → 業主逐坑裁決演進為理想態 target
+>
+> **兩層並存**：平台層（`00_platform/`）已就地演進為 **理想態 target v2**（L1 v2 + 策略 + 工單 SDS + ADR-P001~P013）；各系統 P1–P4 仍以 **as-is 現況**為主體，並於 SAD 頂部加「🎯 target 態演進」段。as-is baseline 完整保存於 git `238f6fce`。
 >
 > **涵蓋範圍:** Smart Lock **AI 客服 + 派工 SaaS 平台**全系列子系統。
 > 本文件庫的文件架構鏡像自 `acme-docs/`（VibeCoding_Workflow_Templates v3.x 分階模板：P1 架構 / P2 介面·部署 / P3 需求·安全 / P4 結構·BDD），但**內容 100% 為本專案現況**，非套用他案。
@@ -25,18 +27,29 @@
 | 規劃重構 | `{系統}/P4/08_project_structure_guide.md` |
 | 補測試場景 | `{系統}/P4/03_bdd_guide.md` |
 
+### 🎯 理想態（target v2）導覽
+
+| 我想… | 去哪裡 |
+| :--- | :--- |
+| 看 target 平台架構 + 6 系統 + DDD | [`00_platform/P1/05_platform_architecture_L1.md`](00_platform/P1/05_platform_architecture_L1.md)（v2）|
+| 平台化策略 + 護城河（TRIZ／積木飛輪／AI 編譯器）| [`00_platform/P1/06_platformization_strategy.md`](00_platform/P1/06_platformization_strategy.md) |
+| 通用工單維運平台詳細設計（SDS）| [`00_platform/P1/07_workorder_platform_design.md`](00_platform/P1/07_workorder_platform_design.md) |
+| target 架構決策（ADR-P001~P013）| [`00_platform/P2/04_adr/`](00_platform/P2/04_adr/) |
+
 ---
 
 ## 系統清單
 
-平台為 **monorepo**，含 4 個可部署子系統。子系統的「多面性」是本平台最重要的架構特徵：**web / api 各只有一份 codebase，靠 build-time / runtime 旗標塑形成多個部署面**。
+平台為 **monorepo**。**as-is 現況 4 系統** + **target 理想態新增 2 系統**（knowledge-refinery／technician-platform）。子系統「多面性」是重要特徵：web/api 各一份 codebase 靠旗標塑多部署面。target 態結構（per-brand bundle vs 集中共用 vs License 附加）見 `00_platform/P1/05` L1 v2。
 
-| 系統 | 角色 | 技術 | 部署面 | 文件夾 |
-| :--- | :--- | :--- | :--- | :--- |
-| **agent** | LINE Bot 智慧鎖 AI 客服 | LockCore (fork nanobot) · LiteLLM · Vertex Gemini · line-bot-sdk v3 | 單一服務（Cloud Run `smart-lock-agent`）| [`agent/`](agent/) |
-| **api** | 派工營運控制平面（工單/帳務/結算/知識庫）| FastAPI · psycopg3 raw SQL · JWT · pgvector | 1 codebase → `API_SURFACE` 塑 3 面：dispatch:8001 / tech:8002 / platform:8003 | [`api/`](api/) |
-| **web** | 多站營運前端 | Next.js 15 · React 19 · App Router · Tailwind v4 · Radix | 1 codebase → `NEXT_PUBLIC_APP_MODE` build 4 portal：dispatch:3000 / tech:3001 / platform:3003 / landing:3002 | [`web/`](web/) |
-| **data-pipeline** | 離線 Medallion 數據中台（產品知識產出）| Python · Vertex Gemini · config-driven | 離線批次（⚠️ 產出鏈現已斷開，見系統文件）| [`data-pipeline/`](data-pipeline/) |
+| 系統 | 角色 | 定位 | 文件夾 |
+| :--- | :--- | :--- | :--- |
+| **agent** | LINE Bot AI 客服（LockCore）| as-is + 🎯 target 段（RAG-MCP／OPIK／Model Orchestration／Agent Studio）| [`agent/`](agent/) |
+| **api** | 派工營運控制平面（工單/帳務/結算）| as-is + 🎯 target 段（RBAC enforce／Casdoor／Redis-Kafka／通用工單引擎）| [`api/`](api/) |
+| **web** | 多站營運前端 | as-is + 🎯 target 段（Casdoor OIDC／師傅端移出／元件庫組裝／Agent Studio）| [`web/`](web/) |
+| **knowledge-refinery** 🎯 | 知識精煉服務 + 審核 UI（License 附加）| target 新系統（由 data-pipeline 升格，ADR-P001）| [`knowledge-refinery/`](knowledge-refinery/) |
+| **technician-platform** 🎯 | 技師共享池獨立系統（跨租戶 + 師傅 web）| target 新系統（由 tech-db/tech-api 升格，ADR-P004）| [`technician-platform/`](technician-platform/) |
+| ~~data-pipeline~~ | 離線 Medallion（as-is）| ⚠️ target 已升格為 knowledge-refinery | [`data-pipeline/`](data-pipeline/) |
 
 > **資料層（DB）** 不獨立成系統，依 acme-docs 慣例歸屬其擁有者：`api` 擁有全業務 schema（~100 表，pgvector），`agent` 擁有 `agent.*` 記憶 schema。DB 的三向分裂（品牌庫/技師庫/平台庫）屬跨系統議題，於 `00_platform/` 詳述。
 

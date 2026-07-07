@@ -2,7 +2,7 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 狀態 | Accepted（target-state 理想態 v2）· §3.4 安全護欄待業主確認 |
+| 狀態 | Accepted（target-state 理想態 v2）· §3.4 安全護欄 ✅ 業主認可 2026-07-07 |
 | 日期 | 2026-07-07 |
 | 決策者 | 業主 + 架構師 |
 | 層級 | 平台級（Platform）|
@@ -41,7 +41,7 @@
 - **per-brand system prompt 版本化**（屬 Model Orchestration 編排配方，[[ADR-P008]]）。
 - 品牌前端編輯**客製層**；版本化 + **回滾** + OPIK eval（改動前後比對，[[ADR-P002]]）。
 
-### 3.4 🛑 安全護欄（分層保護，待業主確認）
+### 3.4 安全護欄（分層保護，✅ 業主 2026-07-07 認可）
 > **prompt 與 skill 採「受保護層 + 客製層」兩層合成：**
 > - **受保護層（平台鎖死，品牌不可移除/override）**：escalation 規則、domain-safety（不編造/轉真人）、合規語氣、租戶/資料邊界。
 > - **客製層（品牌可編輯）**：品牌語氣、產品重點、FAQ、開場白。
@@ -71,6 +71,6 @@
 ## 6. 選用影響區段
 
 - **架構**：新增 Agent Config Registry + Studio；配置層自服務化。
-- **安全**：分層保護（受保護層不可 override）+ RAG 語料 ACL + eval gate + audit；**§3.4 待確認**。
+- **安全**：分層保護（受保護層不可 override）+ RAG 語料 ACL + eval gate + audit（§3.4 ✅ 業主認可）。
 - **配置**：skill/RAG 權限/prompt 皆版本化 per-brand 資產。
 - **前端**：品牌 web 新增 Agent Studio surface。

@@ -44,6 +44,24 @@
 
 ---
 
+## 🎯 0. target 態演進摘要（理想態 v2）
+
+> **本節定位**：本文件主體（§1 起）為 agent 子系統的**現況實作（as-is / current）**；本節先給出與平台 L1 理想態（`00_platform/P1/05_platform_architecture_L1.md` v2.0，target）對齊的**演進方向**，讓讀者一眼看清「現況 → target 差距」。每項演進皆有對應 ADR，**本節不改動下方 as-is 本體**。
+>
+> 對齊平台 L1 的三大 target 結構：**CustomerSupportContext**（agent = Skill 行為驅動）、**KnowledgeContext**（pgvector 唯一事實語料 + RAG-via-MCP）、**Agent Config Registry**（品牌自服務配置，受保護層 + 客製層）。
+
+| 維度 | 現況（as-is，本文件主體描述）| 🎯 target 態演進（理想態 v2）| 依據 |
+|---|---|---|---|
+| **知識檢索** | filesystem references（`SKILL.md` + `references/{Brand}/{Model}.md`）當事實庫 | **RAG-via-MCP 查 pgvector 唯一事實語料**（`manual_chunks`/`case_entries`）；skill 只留**行為 + 精選事實**（從屬非收斂）。⚠️ 語義層現為 **greenfield 待建**（無 `embed()`、`manual_chunks` 從未被查、MCP server 待建）| [[ADR-004]] |
+| **LLM Ops** | OPIK/Comet secret 已注入但 **code 未消費（空掛）** | **正確接上** OPIK（送 LLM trace / prompt / eval）；**dev 必開 / prod 可關 + 環境旗標** | [[ADR-P002]] |
+| **模型調用** | LiteLLM 視為 **agent 內部細節**、無多供應商 failover | 抬升為 **Model Orchestration Layer**：供應商 = 配置、編排配方 = 配置、**多供應商 failover**（`FallbackProvider`）、調用效率（快取/批次/平行工具/重試）集中最佳化 | [[ADR-P008]] |
+| **配置自服務** | 診斷配置（skill / RAG 檢索權限 / system prompt）**FDE 專屬** | **Agent Config Studio**：agent runtime 載入品牌配置——「**受保護層**（escalation / domain-safety 不可 override）+ **客製層**（品牌語氣 / FAQ）」合成的 skill / prompt / RAG 檢索權限 | [[ADR-P013]] |
+| **記憶** | per-user 記憶走 **sqlite + tempfile**，有**流失風險** | **Postgres 持久化**（`agent.*`，落於 per-brand 品牌庫）| 現況缺口，target 修 |
+
+> **讀法**：以下 **§1 起為 as-is 現況實作（current）**；上表為對照的 **target 差距**（理想態 v2，對齊平台 L1）。各項演進依對應 ADR §5 執行計畫分階段落地，本文件不預先改寫現況描述。
+
+---
+
 ## Solution Landscape（Level 0 — 能力域地圖）
 
 > **C4 之前的一層**：先用一張「能力域」總覽對齊業務與管理層，再 zoom 進 C4 L2。

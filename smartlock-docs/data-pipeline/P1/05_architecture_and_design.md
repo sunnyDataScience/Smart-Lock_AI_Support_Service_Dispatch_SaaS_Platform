@@ -1,5 +1,7 @@
 # 架構與設計文件 — data-pipeline（離線 Medallion 數據中台 + DB Schema）
 
+> ⚠️ **target 態升格**：本系統於理想態升格為 **knowledge-refinery**（[[ADR-P001]]），target 見 `../knowledge-refinery/P1/05_architecture_and_design.md`；DB schema 部分移交 api 資料層。本文件為 as-is 現況記錄。
+
 | 欄位 | 內容 |
 |---|---|
 | 文件版本 | v1.0 |

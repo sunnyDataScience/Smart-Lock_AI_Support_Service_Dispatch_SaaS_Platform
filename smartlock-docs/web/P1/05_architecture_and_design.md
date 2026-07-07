@@ -19,6 +19,21 @@
 
 ---
 
+## 🎯 0. target 態演進摘要（理想態 v2）
+
+> 本節為 **target 態（理想態 v2）** 演進摘要，與平台 C4 L1 target（`smartlock-docs/00_platform/P1/05_platform_architecture_L1.md`）一致。**as-is 本體不刪**——以下 §1 起完整保留現況實作描述；本表只標示「現況 → target」的差距與對應決策 ADR，作為演進路標。
+
+| 面向 | as-is 現況（本體 §1 起） | 🎯 target 態（理想態 v2） | 依據 ADR |
+|---|---|---|---|
+| **認證** | localStorage JWT **不驗簽** + client-side gate（`AuthGuard` 全在瀏覽器端解 token） | **Casdoor OIDC 授權碼流** + token 安全儲存（httpOnly cookie / 安全儲存）+ **deny-by-default** | [[ADR-P003]] |
+| **portal 拆分** | 單一 codebase 依 `APP_MODE` build 出 dispatch / tech / platform / landing 四 portal（**含師傅端 tech**） | 師傅端(tech) web **移出品牌 bundle → 併入 technician-platform**（獨立師傅 web，跨租戶）；**品牌 bundle web 只留 dispatch**；平台 console **中央部署** | [[ADR-P005]] |
+| **通用化呈現** | 各 portal 畫面 / 欄位 / 表單為 locksmith 專用，直接寫在各 `page.tsx` | **共用元件庫 + 每產業組裝**：欄位層 metadata 驅動 `DynamicForm` / `DynamicTable`、畫面層元件組裝 + 自訂 panel（FDE **第 4 配置面**） | [[ADR-P009]]（詳見平台 SDS `07`）|
+| **Agent Studio** | 診斷系統配置（skill / RAG / prompt）為 FDE 專屬、品牌無前端介面 | 品牌 web 新增**自服務調校介面**：skill 匯入 / 編輯、RAG 檢索權限、system prompt（**分層保護**：受保護層不可 override + 客製層可編輯） | [[ADR-P013]] |
+
+**以下 §1 起為 as-is 現況實作（current），上表為 target 差距。**
+
+---
+
 ## 2. Solution Landscape（Level 0 — 能力域地圖）
 
 > **C4 之前的一層**：先用「能力域 / portal 分群」對齊業務與管理層，再 zoom 進 C4。

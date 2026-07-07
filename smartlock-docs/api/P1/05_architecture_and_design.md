@@ -40,6 +40,24 @@
 
 ---
 
+## 🎯 0. target 態演進摘要（理想態 v2）
+
+> 本節為 target-state（理想態 v2）演進摘要，與平台 L1 target（`smartlock-docs/00_platform/P1/05_platform_architecture_L1.md`）對齊。**以下 §1 起為 as-is 現況實作（current）**，本表列出現況到 target 的差距與依據 ADR；每項演進皆有對應平台級決策。
+
+| 面向 | as-is 現況（current，見下方 §1 起）| 🎯 target（理想態 v2）| 依據 |
+|---|---|---|---|
+| **RBAC 授權** | shadow-mode（12×12×4 矩陣 log-only 永不擋；80 個敏感寫端點僅 `require_tenant` 不檢角色，`deps.py`）| **enforce**：逐端點補 `role_required`、`permission_shadow` 由 log 轉阻擋、**deny-by-default** | [[ADR-P006]] |
+| **認證** | 各 api 面自管 JWT 密鑰（HS256；platform 獨立密鑰靠部署紀律隔離）| **Casdoor OIDC** 統一驗證（集中 IdP + 租戶 org + License 開通）| [[ADR-P003]] |
+| **即時 / 擴展** | in-memory `ws_hub` 單例（10 WS 頻道）+ 11 個進程內 cron，單進程綁定 | **Redis pub/sub + 分散式鎖 + Kafka 事件骨幹 + 讀寫分離 + 連線池** | [[ADR-P007]] |
+| **工單核心通用化** | 鎖專用 `work_orders`（brand/model/serial/warranty/teaching_note…），~10 表 FK 掛它 | **通用核心欄 + JSONB + `field_metadata` + flow DSL 引擎**（產業無關核心 + Vertical Pack）| [[ADR-P009]] / [[ADR-P010]]（詳見平台 SDS `07_workorder_platform_design`）|
+| **模型調用** | api 不含 AI 推論（見 §定位）；模型調用由 agent 子系統直連供應商 | **Model Orchestration Layer 供應商無關** | [[ADR-P008]] |
+| **可觀測性** | 應用日誌為主，無統一追蹤骨幹 | **SigNoz OTel 單一可觀測性平台** | [[ADR-P002]] |
+| **v1 → v2 / CD** | 手動遷移、無執行債清償排程 | 依 **cutover / migration / CD 排程**逐坑演進 | [[ADR-P012]] |
+
+**以下 §1 起為 as-is 現況實作（current），上表為對照 target 的差距。** 現況 baseline 均以 `api/` 實際 code 佐證，target 演進依對應 ADR 落地。
+
+---
+
 ## Solution Landscape（Level 0 — 能力域地圖）
 
 > **C4 之前的一層**：先用「能力域 / 業務分群」對齊業務與管理層，再 zoom 進 C4 L2。受眾為業務 + 管理層，**不**回答 runtime / protocol（那在 §3 L2 與 §4 L3）。本能力域與 §5.2 DDD 三個限界上下文對齊。

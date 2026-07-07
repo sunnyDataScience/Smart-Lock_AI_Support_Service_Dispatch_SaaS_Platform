@@ -215,7 +215,7 @@ graph LR
 | G-08 | 跨庫一致性靠雙寫 | [[ADR-P004]] | 技師平台為單一真相，派工經 OHS API+事件，汰除 mirror 雙寫 | 🎯 已定案 |
 | G-11 | 前端 client-side auth | [[ADR-P003]] | Casdoor OIDC 授權碼流；token 安全儲存；deny-by-default | 🎯 已定案 |
 | 監控空白 | 無系統可觀測性 | [[ADR-P002]] | SigNoz 系統監控（單一）+ OPIK agent LLM Ops（dev/prod 可切）| 🎯 已定案 |
-| 新增能力 | **品牌自服務調校診斷系統**（skill registry / RAG 檢索權限 / system prompt）| [[ADR-P013]] | Agent Configuration Studio：分層保護（受保護層不可 override）+ 版本化 + RBAC + eval + 選配 HITL | 🎯 已定案（§3.4 安全護欄待確認）|
+| 新增能力 | **品牌自服務調校診斷系統**（skill registry / RAG 檢索權限 / system prompt）| [[ADR-P013]] | Agent Configuration Studio：分層保護（受保護層不可 override）+ 版本化 + RBAC + eval + 選配 HITL | 🎯 已定案 |
 | G-06 | 兩個 LINE webhook 分流 | [[ADR-005]] · CR-0121 | **已定案（方案 A）**：LINE 單 channel 單 URL → agent `/callback` 唯一入站門 + postback 前綴 fan-out → `/internal/*`；api `/line/webhook` 退役。⚠️ code 待實作 | 🎯 已定案 |
 | G-09 | v1→v2 cutover 未完成（⚠️ 反向惡化：CR-0114/0116/0118 仍疊 `/api/v1`）| [[ADR-P012]] | 凍結 v1 新增（止血）→ 盤點 ~42 caller 依 P4 5-gate 遷 v2 → 移除 v1 | 🎯 已排程 |
 | G-10 | Migration registry 漂移（⚠️ 已致 `UndefinedTable` 紅測試）| [[ADR-P012]] | `schema_migrations` 為唯一真相 + CI drift-check + 一次性 reconcile | 🎯 已排程 |
