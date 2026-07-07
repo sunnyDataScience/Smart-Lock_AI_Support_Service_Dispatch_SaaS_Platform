@@ -75,14 +75,14 @@ const ACTIONS: Record<TechStatus, { action: Action; label: string; danger?: bool
 };
 
 const FILTERS: { value: string; label: string }[] = [
+  { value: "", label: "全部" },
   { value: "pending_approval", label: "待審核" },
   { value: "active", label: "啟用中" },
   { value: "suspended", label: "已停權" },
-  { value: "", label: "全部" },
 ];
 
 export default function PlatformTechniciansPage() {
-  const [filter, setFilter] = useState<string>("pending_approval");
+  const [filter, setFilter] = useState<string>("");
   const [keyword, setKeyword] = useState<string>("");
   const [rows, setRows] = useState<PlatformTechnician[]>([]);
   const [loading, setLoading] = useState(true);
