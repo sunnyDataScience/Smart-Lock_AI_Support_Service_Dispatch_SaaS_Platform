@@ -159,6 +159,8 @@ knowledge-refinery（License 附加模組，ADR-P001）：
 4. **落地**：事實 chunk + embedding 灌入品牌庫 pgvector 唯一事實語料；行為更新 agent skill（git-tracked 可回溯）。
 5. 客服 agent 經 RAG-via-MCP 檢索同一份語料（🔜 規劃中：pgvector 語義層，Phase 2）——隱性知識顯性系統化，回饋下一輪客服品質。
 
+**閉環資料前提（BR-CONV-03）**：LINE 上的完整對話必須**全量持久化**——客戶訊息、AI 回覆、**真人接管期間小編的每一則訊息**皆入庫（`sender_role` 三值標記：customer / ai_agent / human_agent；圖片以附件參照存證）。任一方訊息缺漏，精煉樣本即失真，閉環不成立。
+
 ### 5.6 跨角色泳道時序（單次工單全程）
 
 ```mermaid
@@ -226,6 +228,7 @@ sequenceDiagram
 
 - **BR-CONV-01**：對話 48 小時無客戶回應自動結案（auto_closed）；7 天內客戶再訊自動 reopen。
 - **BR-CONV-02**：負面情緒識別準確率 ≥ 90%（合約承諾值）；觸發即進入情緒分流。
+- **BR-CONV-03**（對話全量存檔）：LINE 對話三方訊息——客戶（customer）/ AI（ai_agent）/ 真人小編（human_agent）——一律持久化於 `conversations` / `messages`（帶 `sender_role` 與時間戳；圖片以附件參照入 evidence）；**真人接管期間的對話同表同規格存檔，不得中斷**。此為知識精煉閉環（§5.5）的第一類輸入與資料前提；保留與清除依 BR-PII-03。
 - **BR-AI-01**：AI 職責僅限「對話判斷與知識回覆」；工具白名單僅 6 項（`read_file / list_dir / find_files / grep / web_search / transfer_to_human`）。
 - **BR-AI-02**：AI 進入後台系統的唯一入口為 `transfer_to_human`；AI 對客戶承諾「將為您安排」必須實際呼叫此工具。
 - **BR-AI-03**：AI 轉真人走 7 條硬規則，`rule_triggered_by` 必由確定性規則引擎寫入，**不得由 LLM 自報**（防 KPI gaming）。

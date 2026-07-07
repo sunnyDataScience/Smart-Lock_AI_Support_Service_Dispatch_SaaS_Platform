@@ -69,6 +69,7 @@ External actor：**消費者（LINE 用戶）**——不持平台帳號，經 LI
 | Site | entity | `id` / `site_group_id`（建案）/ `address(crypto)` / `geo_district` / `tenant_id` |
 | Device | entity | `serial` / `brand` / `model` / `purchase_date` / `warranty_start_date` / `warranty_mode`（5 模式）/ `tenant_id` |
 | Conversation | entity | `id` / `channel_type` / `summary` / `state` / `started_at` / `auto_closed_at` / `tenant_id` |
+| Message | entity | `id` / `conversation_id` / `sender_role` enum {customer, ai_agent, human_agent} / `content` / `media_refs[]` / `created_at` / `tenant_id`——三方訊息**含真人接管期間**一律持久化（知識精煉閉環資料前提，BR-Conv-004）|
 | ProblemCard | entity | `id` / `conversation_id` / `device_id` / `brand` / `model` / `symptom[]` / `urgency`（急件 4 類）/ `urgency_detected_at` / `completeness_score` / `media_refs[]` / `state` / `clarification_confirmed_at` / `clarification_attempts` / `tenant_id` |
 | Quote | entity | `id` / `pc_id` / `version` / `effective_date` / `range_only`（AI 不可 final）/ `snapshot_hash`（→ `pricing_rule_snapshot`）/ `supersedes_quote_id` / `tenant_id` |
 | WorkOrder | entity | `id` / `pc_id` / `state` / `state_history[]`（事件溯源 `work_order_events`）/ `address`（結案 gate）/ `idempotency_key` / `create_trigger` enum {ai_path_customer_triggered, cs_path_csagent_triggered} / `created_by` / `tenant_id` |
@@ -278,7 +279,7 @@ stateDiagram-v2
 | FR-AGT-06 | per-user 記憶 BUILD/SAVE | tenant + user_id 齊備 | BUILD 注入 `<memory>` 客戶事實；SAVE 以 LLMExtractor 抽第三人稱事實寫回 | 讀寫必帶 tenant+user_id 否則 raise（default deny）；跨 user/tenant 零洩漏 | NFR-Priv-006 |
 | FR-AGT-07 | 知識取用（Skill 行為驅動 + RAG 檢索） | skill 載入成功 | cs-sop（行為/紅線決策樹）+ product-knowledge 精選事實；長尾事實經 RAG-via-MCP 語義查 pgvector 唯一語料（🔜 規劃中：`embed()` + MCP server）| references 保留為 RAG 品質 gate 通過前之 fallback | agent ADR-003/004；ADR-P001 |
 | FR-AGT-08 | 工具白名單治理 | — | 客服僅開 6 工具：`read_file / list_dir / find_files / grep / web_search / transfer_to_human`（`CS_TOOL_ALLOWLIST` 單點控管）| 白名單外工具不可註冊；變更屬 architecture change 走 CIA | agent ADR-001 |
-| FR-AGT-09 | 人工接管（CS takeover）| escalated=true | 每 turn 前查 `/internal/conversations/handover-state`（5s timeout, fail-soft）；接管中 AI 暫停不回覆 | 接管旗標查詢失敗不阻斷客人回覆 | FR-API-13 |
+| FR-AGT-09 | 人工接管（CS takeover）| escalated=true | 每 turn 前查 `/internal/conversations/handover-state`（5s timeout, fail-soft）；接管中 AI 暫停不回覆，**小編與客戶訊息持續全量入庫（sender_role 標記）** | 接管旗標查詢失敗不阻斷客人回覆；接管期間對話零缺漏（BR-Conv-004）| FR-API-13 |
 | FR-AGT-10 | 進線 debounce / dedup | — | 1.5s 訊息合併 + 24h event dedup（🔜 規劃中接入 live callback）| 連發訊息合併為單 turn；重送不重覆處理 | NFR-Perf |
 | FR-AGT-11 | AI 邊界（金額/影像）| — | AI 只給價格 range 永不 final；對話不複誦個案 quote 金額；**AI 影像辨識禁用**（image 僅存證，webhook + runtime double-gate）| Guardrail 三規則 + forbidden eval 通過；violation = 0 | BR-Quote-001/002、BR-AI-004；SOW 2.1(4) |
 
@@ -411,6 +412,7 @@ REST 契約（信封 `ApiResponseGeneric{data, error}` / CursorPage / RFC7807 �
 | BR-Conv-001 | 對話 48h 無回應 → auto_closed | §2.2.1 |
 | BR-Conv-002 | 7d 內客戶有訊息可 reopen | §2.2.1 |
 | 🔴 BR-Conv-003 | 負面情緒識別 ≥ 90%（連續 2 週 < 88% block / 4 週 < 85% incident）| 合約 4.4(a)；NFR-Comp-001 |
+| BR-Conv-004 | 對話全量存檔：客戶 / AI / 真人小編三方訊息（含接管期間）一律持久化並帶 `sender_role`；知識精煉閉環資料前提，寫入失敗須告警不得靜默遺失 | §2.1 Message；BRD §5.5 |
 | BR-PC-001 | 同一 active issue 僅一張 PC；unique `(conv_id, device_id, active_status)` | §2.2.2 |
 | BR-PC-002 | completeness_score ≥ 0.85 才自動派工 | §2.2.2 |
 | BR-PC-003 | completeness gate 觸發 photo guide | 合約 9.3 |

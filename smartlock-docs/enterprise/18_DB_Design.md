@@ -155,7 +155,7 @@ technicians ──< reconciliations ──< settlements
 | 域 | 代表表（括號 = 建立 migration 編號）| schema |
 |---|---|---|
 | **A. 身分 / RBAC** | `users`（統一 5 角色）、`roles`、`permissions`、`role_permissions`(034)、`saas.role_assignment`(070 雙簽 SoD)、`staff_applications`(088)、`password_reset_tokens`(035)、`revoked_jti`、帳號安全欄位(084) | public / saas |
-| **B. 客服對話 / 診斷** | `conversations`（Session）、`messages`、`chat_messages`、`problem_cards`（1:1 conversation，completeness_score；077/065/085）| public |
+| **B. 客服對話 / 診斷** | `conversations`（Session）、`messages`（**三方全量存檔**：`sender_role ∈ {customer, ai_agent, human_agent}`，真人接管期間同表寫入，圖片以 evidence 參照——知識精煉閉環第一類輸入，BR-CONV-03）、`chat_messages`、`problem_cards`（1:1 conversation，completeness_score；077/065/085）| public |
 | **C. 知識庫（KB / RAG）** | `manuals`（PDF 手冊）、`manual_chunks`（VECTOR(768)）、`case_entries`（案例庫 VECTOR(768)）、`sop_drafts`、`saas.kb_audit_log`(015)、`saas.sop_feedback`(023) | public / saas |
 | **D. 技師 / 派工** | `technicians`(064/080)、`technician_skill`(063)、`technician_brand_authorization`(063)、`technician_certification`(081)、`technician_kyc`(089)、**`work_orders`（派工域中樞）**、`work_order_events`、`work_order_consents`(043)、`dispatch_logs`（match_factors）、`saas.reschedule_proposal`(014)、`saas.exception_case`(049)、`saas.technician_lifecycle_event`(020) | public / saas（技師身分表權威在技師庫，見 §8）|
 | **E. 報價 / 目錄** | `quote`、`quote_approval`、`quote_line_items`(037)、`service_catalog`、`material_catalog`、`surcharge_rule`(087)、`saas.price_rule`(008)、`technician_payout_rule`(045/082)、`pricing_rule_snapshot` | public / saas |

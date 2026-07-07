@@ -86,7 +86,7 @@ block-beta
 
 | 能力域 / 分群 | 說明 | 現況 → target |
 |---|---|---|
-| 🎯 輸入汲取層 | 兩類輸入：**診斷對話**（`line_chat` + `problem_cards`）+ **產品素材**（5 素材源）| 現況只汲取素材源；target **新增診斷對話**為第一類輸入（[[ADR-P001]] §3.1）|
+| 🎯 輸入汲取層 | 兩類輸入：**診斷對話**（`line_chat` + `problem_cards`）+ **產品素材**（5 素材源）| 現況只汲取素材源；target **新增診斷對話**為第一類輸入（[[ADR-P001]] §3.1）。**業主裁決 2026-07-07**：對話存檔須含客戶 / AI / 真人接管三方**全量**訊息（`sender_role` 標記），任一方缺漏閉環不成立（enterprise BR-CONV-03）|
 | Medallion 萃取 | `raw → bronze → silver`，config-driven，走 Vertex Gemini | ✅ 前三層現況已運作（bronze 約 115 檔）；target 沿用不變 |
 | 🎯 提煉分流 | LLM 把 silver 語料分流為 **事實** vs **行為/精選**（[[ADR-004]] 分工）| 現況 `silver_to_skill` 走**舊 26-skill ReAct** 且落點死目錄；target 改分兩類、對齊 lockcore |
 | 🎯 審核層（HITL） | draft → 人工 review diff → 核可/拒絕/退回；獨立 web UI | 現況無 UI、無 HITL；target 為核心新增（與 [[ADR-P011]] 共用骨架）|

@@ -114,13 +114,14 @@ LINE 發訊 →「門鎖沒電打不開」→ AI 意圖分類 → 判定急件�
 | FR-A01 | LINE webhook 接收（文字 / 圖片 / 位置 / Quick Reply），驗 X-Line-Signature；訊息 debounce 800ms ± 100ms | P0 |
 | FR-A02 | 意圖分類 + 紅線決策樹（依 SOP 行為層 skill）；急件 4 類（被鎖門外 / 門內受困 / 安全風險 / 高風險怒客）繞過自助層強制轉真人 | P0 |
 | FR-A03 | 三層解決機制：案例庫 → 手冊 RAG → 轉真人；知識回覆引用產品知識事實層；RAG 檢索經 MCP server 查 pgvector 唯一事實語料（🔜 語義層 Phase 2）| P0 |
-| FR-A04 | `transfer_to_human` 為 AI 進後台唯一入口，附 escalation 原因 + 脈絡快照；真人接管中 AI 暫停回覆僅持久化訊息 | P0 |
+| FR-A04 | `transfer_to_human` 為 AI 進後台唯一入口，附 escalation 原因 + 脈絡快照；真人接管中 AI 暫停回覆，訊息持續全量持久化 | P0 |
 | FR-A05 | per-user 對話記憶（租戶 + 使用者複合鍵），每輪結束抽取寫入 | P0 |
 | FR-A06 | 工具白名單僅 6 項：`read_file / list_dir / find_files / grep / web_search / transfer_to_human`；白名單集中單點控管，新增工具屬架構變更 | P0 |
 | FR-A07 | Guardrail：報價金額 / 折扣 / 免費保固攔截重生成；prompt injection 攔截 ≥ 95%；輸出限定產業話題；`rule_triggered_by` 由確定性引擎寫入 | P0 |
 | FR-A08 | 多模態：圖片僅作附件與品質檢查（模糊 / 格式不符 → 引導重拍），禁 image-to-text；completeness 不足觸發 Flex 照片引導 | P0 |
 | FR-A09 | 模型呼叫失敗回哨兵值 → 閘道以友善文字回覆，不外洩錯誤；模型調用經 Model Orchestration Layer（供應商 = 配置字串，多供應商 failover 🔜）| P0 |
 | FR-A10 | AI 禁區 200 題 Eval pipeline：每次 deploy 自動跑，pass < 95% 阻擋部署 | P0 |
+| FR-A11 | 對話全量存檔：客戶 / AI / 真人小編三方訊息（含真人接管期間、附件參照）皆持久化並帶 `sender_role`，供知識精煉閉環汲取（BR-CONV-03）；任一方寫入失敗須告警，不得靜默遺失 | P0 |
 
 ### 7.2 問題卡與派工
 
