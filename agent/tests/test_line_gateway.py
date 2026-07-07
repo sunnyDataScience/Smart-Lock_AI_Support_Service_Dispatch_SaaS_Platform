@@ -454,3 +454,32 @@ def test_download_line_image_error_returns_none(tmp_path, monkeypatch):
     )
     blob = _FakeBlobApi(RuntimeError("boom"))
     assert asyncio.run(lg.download_line_image(blob, "msg-x")) is None
+
+
+# ── CR-0119:持久化照片編碼(_encode_media_for_persist)──────────────────
+
+
+def test_encode_media_for_persist_roundtrip(tmp_path):
+    """照片路徑 → base64 + magic bytes 判 mime;解回原 bytes。"""
+    from lockcore.channels.line_gateway import _encode_media_for_persist
+
+    p = tmp_path / "photo.png"
+    p.write_bytes(_PNG_BYTES)
+    out = _encode_media_for_persist([str(p)])
+    assert out["media_mime"] == "image/png"
+    assert base64.b64decode(out["media_base64"]) == _PNG_BYTES
+
+
+def test_encode_media_for_persist_none_or_empty():
+    """無照片 → 空 dict(payload 不帶 media 欄位,既有行為不變)。"""
+    from lockcore.channels.line_gateway import _encode_media_for_persist
+
+    assert _encode_media_for_persist(None) == {}
+    assert _encode_media_for_persist([]) == {}
+
+
+def test_encode_media_for_persist_missing_file_failsoft():
+    """檔案不存在 → 空 dict 只 log,不 raise(照片問題不可阻斷文字持久化)。"""
+    from lockcore.channels.line_gateway import _encode_media_for_persist
+
+    assert _encode_media_for_persist(["/nonexistent/cr0119.jpg"]) == {}

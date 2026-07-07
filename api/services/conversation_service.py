@@ -249,17 +249,52 @@ async def append_event_note(*, conversation_id: str, content: str) -> None:
 
 
 async def _append_message(
-    *, conv_id: str, role: str, content: str, sender_role: str
+    *, conv_id: str, role: str, content: str, sender_role: str,
+    extra_metadata: dict | None = None,
 ) -> None:
-    """內部 helper：寫一則 message（content_type=text）。空字串不寫。"""
+    """內部 helper：寫一則 message（content_type=text）。空字串不寫。
+
+    extra_metadata：附加欄位併入 metadata（CR-0119 照片訊息帶 image_url）。
+    """
     if not (content or "").strip():
         return
-    metadata = {"sender_role": sender_role}
+    metadata = {"sender_role": sender_role, **(extra_metadata or {})}
     await db_module._conn.execute(
         "INSERT INTO messages (conversation_id, role, content_type, content, metadata) "
         "VALUES (%s::uuid, %s, 'text', %s, %s::jsonb)",
         (conv_id, role, content, json.dumps(metadata)),
     )
+
+
+async def _store_ingest_media(
+    *, tenant_id: str, media_base64: str, media_mime: str | None
+) -> str | None:
+    """CR-0119：把 ingest 帶來的照片 base64 落地 media_service，回 `/api/v1/media/{id}` URL。
+
+    fail-soft：解碼失敗、驗證不過（過大 / mime 不支援）、儲存失敗 → 回 None 只 log，
+    絕不讓照片問題弄丟整輪對話文字。
+    """
+    try:
+        import base64
+
+        file_bytes = base64.b64decode(media_base64, validate=True)
+        from services import media_service
+
+        ext = {"image/png": ".png", "image/jpeg": ".jpg", "image/webp": ".webp"}.get(
+            (media_mime or "").lower(), ".jpg"
+        )
+        result = await media_service.upload_media(
+            tenant_id=tenant_id,
+            uploader_user_id=None,  # LINE 客人非 users 帳號（欄位 nullable）
+            file_bytes=file_bytes,
+            filename=f"line-photo{ext}",
+            content_type=media_mime or "image/jpeg",
+            purpose="other",  # CR-0119 §8 決策 3：沿用既有白名單，免 migration
+        )
+        return result.get("url")
+    except Exception:  # noqa: BLE001 — 照片失敗不可阻斷文字持久化
+        logger.warning("ingest 照片儲存失敗（略過，僅寫文字）", exc_info=True)
+        return None
 
 
 async def ingest_turn(
@@ -270,12 +305,15 @@ async def ingest_turn(
     user_text: str = "",
     assistant_text: str = "",
     display_name: str | None = None,
+    media_base64: str | None = None,
+    media_mime: str | None = None,
 ) -> dict:
     """旁路持久化一輪 LINE 對話（方案 A，由 agent gateway 經 internal token 呼叫）。
 
     流程：
       1. ensure conversation（復用 create_conversation 的 session_id 冪等 upsert）
-      2. append 客人訊息（role='user'，metadata.sender_role='line_user'）
+      2. append 客人訊息（role='user'，metadata.sender_role='line_user'；
+         CR-0119 帶照片時先落地 media_service，metadata.image_url 指向媒體 URL）
       3. append AI 回覆（role='assistant'，metadata.sender_role='ai'）
       4. message_count += 實際寫入則數（空字串不計）
       5. 回 {conversation_id, messages_appended}
@@ -295,10 +333,21 @@ async def ingest_turn(
     )
     conv_id = conv["id"]
 
+    # CR-0119：照片先落地（fail-soft）；有照片但沒文字時補「[照片]」佔位，
+    # 確保訊息一定寫得出來（_append_message 空字串不寫）。
+    media_url: str | None = None
+    if media_base64:
+        media_url = await _store_ingest_media(
+            tenant_id=tenant_id, media_base64=media_base64, media_mime=media_mime
+        )
+        if not (user_text or "").strip():
+            user_text = "[照片]"
+
     appended = 0
     if (user_text or "").strip():
         await _append_message(
-            conv_id=conv_id, role="user", content=user_text, sender_role="line_user"
+            conv_id=conv_id, role="user", content=user_text, sender_role="line_user",
+            extra_metadata={"image_url": media_url} if media_url else None,
         )
         appended += 1
     if (assistant_text or "").strip():

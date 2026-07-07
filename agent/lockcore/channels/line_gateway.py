@@ -92,10 +92,40 @@ _PERSIST_TIMEOUT_SEC = 20.0
 _HANDOVER_CHECK_TIMEOUT_SEC = 5.0
 
 
+def _encode_media_for_persist(media_paths: list[str] | None) -> dict:
+    """CR-0119:把本輪照片(單張)編成 ingest payload 欄位。失敗回空 dict(fail-soft)。
+
+    LINE 一則照片訊息恰一張圖 → 取 media_paths[0]。base64 原檔,mime 以 magic bytes
+    重判(與下載時同一函式,不信副檔名)。
+    """
+    if not media_paths:
+        return {}
+    try:
+        import base64
+
+        from lockcore.utils.helpers import detect_image_mime
+
+        data = Path(media_paths[0]).read_bytes()
+        if not data:
+            return {}
+        return {
+            "media_base64": base64.b64encode(data).decode("ascii"),
+            "media_mime": detect_image_mime(data) or "image/jpeg",
+        }
+    except Exception:  # noqa: BLE001 — 照片編碼失敗不可阻斷文字持久化
+        logger.warning("持久化照片編碼失敗(略過,僅送文字)", exc_info=True)
+        return {}
+
+
 async def _persist_turn_safe(
-    tenant: str, user_id: str, user_text: str, assistant_text: str
+    tenant: str, user_id: str, user_text: str, assistant_text: str,
+    media_paths: list[str] | None = None,
 ) -> None:
-    """Fire-and-forget 旁路持久化一輪對話到 API。任何失敗只 log,不 raise。"""
+    """Fire-and-forget 旁路持久化一輪對話到 API。任何失敗只 log,不 raise。
+
+    media_paths(CR-0119):本輪客人照片的本機路徑 → base64 隨 payload 送 API 落地
+    media_service,讓對話管理頁能顯示照片(agent 本機檔案雲端重啟即失,不能只留路徑)。
+    """
     base_url = os.environ.get("LOCK_API_BASE_URL")
     # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 會留 \n），
     # 含換行的 token 放進 HTTP header 會被 httpx 拒（Illegal header value）。
@@ -108,6 +138,7 @@ async def _persist_turn_safe(
         "session_id": f"{tenant}:{user_id}",
         "user_text": user_text or "",
         "assistant_text": assistant_text or "",
+        **_encode_media_for_persist(media_paths),
     }
     try:
         import httpx
@@ -625,7 +656,9 @@ def build_webapp(
                         except Exception:  # noqa: BLE001 — 提示送失敗不可影響持久化
                             logger.warning("接管中『請稍候』提示送出失敗(已略過)", exc_info=True)
                     # notice 一併持久化,讓真人在對話管理知道客人已被自動安撫(空字串=本則節流未送)。
-                    await _persist_turn_safe(tenant, user_id, persist_text, notice)
+                    await _persist_turn_safe(
+                        tenant, user_id, persist_text, notice, media_paths=media_paths
+                    )
                     continue
 
                 # CR-0022:記本輪前的最新 escalation id,turn 後比對是否新增(觸發轉真人)。
@@ -647,7 +680,9 @@ def build_webapp(
                 # 回覆送出後再旁路(不影響客人回覆延遲;皆 fail-soft):
                 # (1) 方案 A 對話持久化 (2) CR-0097 兜底:AI 承諾轉接卻沒呼叫工具 → 補
                 # escalation(須在 forward 前) (3) CR-0022 若本輪轉真人 → 建 AI 草擬問題卡。
-                await _persist_turn_safe(tenant, user_id, persist_text, reply)
+                await _persist_turn_safe(
+                    tenant, user_id, persist_text, reply, media_paths=media_paths
+                )
                 _apply_handoff_fallback_safe(
                     escalation_store, tenant, user_id, persist_text, reply, esc_before
                 )
