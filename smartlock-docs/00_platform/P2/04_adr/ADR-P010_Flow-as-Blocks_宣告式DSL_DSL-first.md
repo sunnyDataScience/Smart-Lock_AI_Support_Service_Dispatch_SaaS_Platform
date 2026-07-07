@@ -20,11 +20,11 @@
 
 ## 3. 決策
 
-採 **選項 C（DSL 自建 vs 採現成引擎於 SDS 定案，但確立宣告式 Flow-as-Blocks 模型）**：
+採 **選項 C**。執行後端於 SDS §9 定案（業主 2026-07-07）：**flow DSL 自建 + executor 初期自建、保留 Temporal 為可替換後端**（DSL 與 executor 解耦，未來出現長流程/複雜補償再換後端、DSL 不動）。確立宣告式 Flow-as-Blocks 模型：
 
 1. **Flow DSL（宣告式狀態機）**：`states / transitions / guards / actions / SLA`，作為工單生命週期 + 金流步驟的**資料**。
 2. **通用工單引擎**把 DSL 當**資料解釋執行**（核心不認識產業，行為隨 DSL 變 = TRIZ 條件分離）。
-3. **積木 = 有契約的型別節點**（input / output / precondition / effect / guard）：派工、技師媒合、到府同意、施工照/簽名、報價核准、金流收款、對帳結算、通知、escalation、**自訂節點（逃生艙）**。
+3. **積木 = 有契約的型別節點**（input / output / precondition / effect / guard）。**雙層顆粒度**（SDS §9-B 定案）：對外（拖拉/AI 編譯）暴露**粗顆粒 domain block**（派工/技師媒合/到府同意/報價核准/金流收款/對帳結算/通知/escalation），其內部由**細顆粒 primitives**（發通知/查技師/狀態轉移/寫欄位/外呼）組成——後者是積木飛輪的實作機制。**逃生艙**（SDS §9-C 定案）：緊耦合走 **plugin SDK**（型別安全 + 審查 + 進 Block Ontology 版本化）、鬆耦合走 **webhook 外呼**，**拒 inline code 節點**（任意執行的安全風險 + AI 難靜態驗證，違反可驗證約束）。
 4. **拖拉 UI = 薄編輯器**，產出/編修 DSL（不含執行邏輯）。
 5. **DSL 四約束**（皆為第一約束）：**AI 可生成** · **人可編輯** · **引擎可執行** · **可驗證**（匯入檢查積木契約 + 商業不變式）。
 

@@ -6,7 +6,7 @@
 
 | 欄位 | 內容 |
 |---|---|
-| 文件版本 | v0.1（詳細設計 / §9 待業主拍板）|
+| 文件版本 | v0.2（詳細設計 / §9 已裁定 2026-07-07）|
 | 建立日期 | 2026-07-07 |
 | 層級 | 平台級（Platform）· 詳細設計（SDS）|
 | 上位決策 | [[ADR-P009]]（核心 vs 配置分層）· [[ADR-P010]]（Flow-as-Blocks）· [[ADR-P011]]（AI 編譯器）· `06_platformization_strategy` |
@@ -187,7 +187,7 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
 
 ---
 
-## 9. 🛑 待業主拍板的 3 個子決策（附推薦）
+## 9. 子決策裁定（業主 2026-07-07：照推薦拍板）
 
 ### 決策 A — Flow DSL 執行引擎：自建 vs 採現成
 
@@ -197,7 +197,7 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
 | A2 採 **Temporal** 為執行後端 | durable、long-running、retry/saga 成熟 | 重、學習曲線、初期 overkill |
 | A3 採 **BPMN/Camunda(Zeebe)** | 標準、有現成編輯器 | 語義通用、藍領弱、AI-gen 難、掌控低 |
 
-> **✅ 推薦：DSL 一定自建（A1 的 DSL）+ 執行後端初期自建、保留 Temporal 為可替換後端。**
+> **✅ 裁定（業主照推薦）：DSL 一定自建（A1 的 DSL）+ 執行後端初期自建、保留 Temporal 為可替換後端。**
 > 理由：DSL 是皇冠寶石（要 AI-可生成 + 拖拉 target + 藍領語義），**不能外包給 BPMN**；工單狀態機多是人驅動的狀態轉移 + SLA + 經 Kafka 的 side-effect，**初期不需 Temporal 的 durable/saga 重武器**；把 DSL 與 executor 解耦，未來若出現長流程/複雜補償再把後端換 Temporal，DSL 不動。
 
 ### 決策 B — 積木顆粒度
@@ -208,7 +208,7 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
 | B2 細顆粒 | 一積木=一原子動作（發通知/查技師/寫欄位）|
 | B3 **雙層** | 對外暴露粗顆粒 domain block；其內部由細顆粒 primitives 組成 |
 
-> **✅ 推薦：B3 雙層。**
+> **✅ 裁定（業主照推薦）：B3 雙層。**
 > 對外（拖拉 / AI 編譯）給**粗顆粒 domain block**（老闆看得懂「派工」，看不懂「emit event」）→ 避免拖拉爆炸；內部**細顆粒 primitives**（發通知/查技師/狀態轉移/寫欄位/外呼）讓平台團隊組合出新 domain block——**這正是積木飛輪的實作機制**（[[ADR-P011]]）。
 
 ### 決策 C — 逃生艙形式
@@ -219,7 +219,7 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
 | C2 plugin SDK | 註冊型別安全的自訂 block（過審、版本化）|
 | C3 webhook 外呼 | flow 呼外部 HTTP，邏輯在客戶側 |
 
-> **✅ 推薦：C2 + C3 分風險，拒 C1。**
+> **✅ 裁定（業主照推薦）：C2 + C3 分風險，拒 C1。**
 > 需與核心資料/交易緊耦合的自訂邏輯 → **plugin SDK**（型別安全 + 審查 + 進 Block Ontology 版本化）；只需呼叫品牌自有系統/展示邏輯 → **webhook 外呼**（最鬆耦合、核心不擔責）；**拒絕 inline code 節點**（任意執行的安全/維運噩夢，且 AI 生成更難靜態驗證，違背 [[ADR-P010]] 可驗證約束）。
 
 ---
@@ -237,4 +237,4 @@ blocks: [ dispatch, quote_approval, onsite_consent, collect_payment, settle, ...
 
 ---
 
-*文件結尾 — 通用工單維運平台 SDS v0.1（§9 待拍板）/ 2026-07-07*
+*文件結尾 — 通用工單維運平台 SDS v0.2（§9 已裁定）/ 2026-07-07*
