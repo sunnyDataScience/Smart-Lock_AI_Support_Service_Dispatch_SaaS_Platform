@@ -4,6 +4,10 @@
 // registry(monitor_target)管理 + 對所有啟用目標並發探測 /health → 紅綠燈。
 // 定位:給非技術者一眼看的「即時」狀態(不存歷史);深度指標/告警走 GCP。
 // 前端每 30s 輪詢後端 fan-out(§8-Q7);後端單目標逾時 3s。內部工具 → 文案繁中。
+//
+// 業主裁決(2026-07-07):儀表板不追蹤平台自己(console 打得開=活著),狀態區只顯示
+// **平台級服務**(導流站/師傅 API 等 brand 不屬任何租戶 slug 者);brand=租戶 slug
+// 的目標其健康燈移到「租戶管理」頁對應卡片,此處僅留精簡管理列(單一 CRUD 面)。
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, RefreshCw, BarChart3 } from "lucide-react";
@@ -45,6 +49,7 @@ const STATUS_META: Record<Status, { label: string; dot: string; cls: string }> =
 
 export default function OpsMonitorPanel() {
   const [targets, setTargets] = useState<Target[]>([]);
+  const [tenantSlugs, setTenantSlugs] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<Record<string, HealthResult>>({});
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -61,6 +66,17 @@ export default function OpsMonitorPanel() {
       setError(friendlyError(e));
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // 租戶 slug 名冊:brand=slug 的目標其狀態顯示於租戶管理頁,此處只留管理列。
+  // 取不到名冊時 fail-soft 為空集合(全部目標照舊顯示狀態,不擋監控主功能)。
+  const loadTenantSlugs = useCallback(async () => {
+    try {
+      const res = await api.get<{ data: { slug: string }[] }>("/api/v1/platform/tenants");
+      setTenantSlugs(new Set((res.data ?? []).map((t) => t.slug)));
+    } catch {
+      setTenantSlugs(new Set());
     }
   }, []);
 
@@ -83,12 +99,13 @@ export default function OpsMonitorPanel() {
 
   useEffect(() => {
     loadRegistry();
+    loadTenantSlugs();
     probe();
     pollRef.current = setInterval(probe, POLL_MS);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [loadRegistry, probe]);
+  }, [loadRegistry, loadTenantSlugs, probe]);
 
   async function removeTarget(t: Target) {
     if (!window.confirm(`確定刪除監控目標「${t.brand} / ${t.label}」？`)) return;
@@ -102,25 +119,31 @@ export default function OpsMonitorPanel() {
     }
   }
 
-  // 依 brand 分組
-  const grouped = useMemo(() => {
+  // 依 brand 分組,再切平台級(顯示狀態)/租戶級(僅管理列,狀態在租戶管理頁)
+  const { platformGroups, tenantGroups } = useMemo(() => {
     const g = new Map<string, Target[]>();
     targets.forEach((t) => {
       const arr = g.get(t.brand) ?? [];
       arr.push(t);
       g.set(t.brand, arr);
     });
-    return Array.from(g.entries());
-  }, [targets]);
+    const all = Array.from(g.entries());
+    return {
+      platformGroups: all.filter(([brand]) => !tenantSlugs.has(brand)),
+      tenantGroups: all.filter(([brand]) => tenantSlugs.has(brand)),
+    };
+  }, [targets, tenantSlugs]);
 
+  // 摘要只計此頁顯示狀態的平台級目標(租戶級健康燈在租戶管理頁,不重複計)
   const summary = useMemo(() => {
-    const vals = Object.values(health);
+    const platformIds = new Set(platformGroups.flatMap(([, items]) => items.map((t) => t.id)));
+    const vals = Object.values(health).filter((v) => platformIds.has(v.id));
     return {
       up: vals.filter((v) => v.status === "up").length,
       degraded: vals.filter((v) => v.status === "degraded").length,
       down: vals.filter((v) => v.status === "down").length,
     };
-  }, [health]);
+  }, [health, platformGroups]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -189,7 +212,7 @@ export default function OpsMonitorPanel() {
         </div>
       ) : (
         <div className="flex flex-col gap-5">
-          {grouped.map(([brand, items]) => (
+          {platformGroups.map(([brand, items]) => (
             <section
               key={brand}
               className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5"
@@ -251,6 +274,49 @@ export default function OpsMonitorPanel() {
               </div>
             </section>
           ))}
+
+          {tenantGroups.length > 0 && (
+            <section className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-surface)] p-5">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">租戶品牌監控目標</h3>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">
+                健康狀態顯示於「租戶管理」頁對應租戶卡片;此處僅供登記與維護(品牌代號=租戶 slug)。
+              </p>
+              <div className="mt-2 flex flex-col divide-y divide-[var(--border)]">
+                {tenantGroups.flatMap(([brand, items]) =>
+                  items.map((t) => (
+                    <div key={t.id} className="flex items-center gap-3 py-2.5">
+                      <span className="rounded-md bg-[var(--bg-page)] px-2 py-0.5 font-mono text-xs text-[var(--text-secondary)]">
+                        {brand}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-medium text-[var(--text-primary)]">{t.label}</span>
+                        <span className="ml-2 truncate text-xs text-[var(--text-secondary)]">
+                          {t.url}
+                          {!t.enabled ? "　·　已停用" : ""}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setEdit(t)}
+                        aria-label="編輯"
+                        className="text-[var(--text-secondary)] hover:text-[var(--primary)]"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeTarget(t)}
+                        aria-label="刪除"
+                        className="text-[var(--text-secondary)] hover:text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )),
+                )}
+              </div>
+            </section>
+          )}
         </div>
       )}
 
