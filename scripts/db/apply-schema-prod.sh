@@ -8,6 +8,9 @@
 #   順序對齊 scripts/dev/quickstart.sh：
 #     1) SQL/Schema.sql
 #     2) SQL/Schema_*.sql（字母序；Schema.sql 不含底線故不重複）
+#     2b) SQL/platform/Schema_platform.sql（單庫 fallback：PLATFORM_POSTGRES_URI
+#         未設時平台表住主庫，platform console 端點才有表可查。內含創始品牌
+#         locksmart 的租戶名冊冪等補登 —— 屬名冊基準資料而非 demo seed）
 #     3) SQL/migrations/*.sql（編號序）
 #
 # 用法（prod 經 cloud-sql-proxy）：
@@ -49,6 +52,9 @@ apply "SQL/Schema.sql"
 
 echo "== 2) Schema_*.sql =="
 for f in SQL/Schema_*.sql; do apply "$f"; done
+
+echo "== 2b) platform/Schema_platform.sql（單庫 fallback：平台表住主庫）=="
+apply "SQL/platform/Schema_platform.sql"
 
 echo "== 3) migrations/*.sql =="
 for f in SQL/migrations/*.sql; do
