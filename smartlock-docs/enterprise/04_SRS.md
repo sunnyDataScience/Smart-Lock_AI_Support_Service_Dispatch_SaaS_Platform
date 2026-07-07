@@ -305,6 +305,7 @@ stateDiagram-v2
 | FR-API-16 | GDPR forget 流程 | data subject 請求 | 受理 → legal-hold 檢查（衝突則拒絕 + 7d 內通知客戶）→ T0 銷毀 DEK + soft delete → T+30d cron 硬刪 → audit ledger | ≤ 7d 執行 OR customer notice；全程 append-only audit | BR-PII-001b/004；GDPR Art.17 |
 | FR-API-17 | 保固判定 | Device.warranty_mode | 5 模式保固判定進報價/結案/退款分流 | 保固案 quote 禁 AI send（FR-API-02）| BR-Quote-003 |
 | FR-API-18 | 例外審批收件匣 + SoD | 例外事件 | 例外案件（reschedule / exception_case / dispute）集中收件匣；敏感操作 `X-Initiator/X-Approver/X-Executor` 任二相同 → 403 | SoD 違反 100% 阻擋 | BR-CR-*；NFR-Aud |
+| FR-API-19 🔜 | 急件事後補審引擎 | WO 帶 `emergency_class` + onsite 結束 | 建 `retrospective_audit` 任務（due=onsite_end+PT4H，掛 SLA timer）→ 小編補審佇列 → 補送 `retrospective_audit_only` quote → 客戶 LIFF 事後確認 / 紙本 | 逾 4h audit alert 升主管；同品牌連 ≥3 次逾時自動開 ChangeRequest；結案 gate 檢 `retrospective_quote_audit_complete` | BR-WO-004；15_SDS §4.5 |
 
 ### 3.3 web（多站前端）
 
@@ -349,6 +350,7 @@ stateDiagram-v2
 | FR-TEC-04 | 接單 / 拒單 + 即時推播 | dispatch.assigned 消費 | 更新排班/工作量/投影 → WS + Redis 推播「新派工到手」→ 技師接/拒 → `technician.assignment_accepted/rejected` 回品牌 | 推播延遲見 NFR-Perf；事件可重播補投影 | ADR-P007/P014 |
 | FR-TEC-05 | 技師視角工單投影（CQRS）| Kafka `workorder.*` | 訂閱各品牌工單生命週期事件 → 本地投影（摘要/地址/狀態/時窗/金額，欄位最小化）→ 師傅工作台讀投影 | 不整包複製品牌敏感資料；投影隱私審查 | ADR-P014 §2.2 |
 | FR-TEC-06 | 佣金結算主體（Settlement）| `commission.accrued` 消費 | 品牌 per-job 計費（Billing 留品牌）發事件 → 技師平台彙總跨品牌 statement / 對帳 / payout | 期末 reconcile 閘門（品牌計費 vs 平台彙總）| ADR-P014 §2.1；FR-API-12 |
+| FR-TEC-07 🔜 | 現場報價修正發起（requote command）| 技師＝工單 assignee 且工單 on_site / in_progress | 師傅 web 發起（事由分類 + 項目 diff，不含金額）→ tech-api 驗身分狀態 → OHS 同步呼叫品牌 api `/internal/requote-requests`（tenant 路由 + request_id 冪等）→ 品牌引擎建 quote v+1 | 非 assignee / 狀態不符 → 403；技師端零定價權；狀態經工單投影回工作台 | ADR-027；15_SDS §4.4 |
 | FR-TEC-07 | 排班與生命週期管理 | 技師有效 | 排班/可用性設定；停權/認證撤銷即時廣播 `technician.certification_revoked` | 各品牌訂閱後更新派工可用性 | ADR-P004 §5 |
 
 ### 3.7 00_platform（平台整合層）

@@ -14,7 +14,7 @@ upstream:
 
 # 14_ADR 索引 — 架構決策紀錄總覽
 
-本目錄收錄平台全部 26 篇架構決策紀錄（ADR-001 ~ ADR-026），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
+本目錄收錄平台全部 27 篇架構決策紀錄（ADR-001 ~ ADR-027），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
 
 **與鄰近文件邊界**：[12_SAD](../12_SAD.md) 是決策的「結果態」（結構與元件視圖），引 ADR 不重述取捨；[13_Security_Architecture](../13_Security_Architecture.md) 承載安全機制細節，ADR 只記安全決策點；[15_SDS](../15_SDS.md) 承載細部設計（DSL schema、狀態機欄位），ADR 只記「採哪條路」；純業務參數（費率階梯、SLA 時數、保固模式）屬 [03_PRD](../03_PRD.md) / [04_SRS](../04_SRS.md)，不進 ADR。
 
@@ -59,6 +59,8 @@ upstream:
 | **群 I — 領域安全紅線** |||||
 | [ADR-025](./ADR-025_AI話術邊界與永不自轉工單憲章.md) | AI 話術邊界與「永不自轉工單」紅線憲章 | 平台 | Accepted | 011 · 015 · 012 |
 | [ADR-026](./ADR-026_報價快照hash-chain不可否認性.md) | 報價快照 hash-chain 不可否認性 | 系統(api) | Accepted | 015 · 021 |
+| **群 J — 跨系統流程邊界** |||||
+| [ADR-027](./ADR-027_現場報價修正發起邊界_技師平台command_品牌api權威.md) | 現場報價修正發起邊界——技師平台只發 command、品牌 api 為報價唯一權威 | 平台 | Accepted | 016 · 017 · 026 |
 
 ## 依賴關係圖
 
@@ -136,6 +138,7 @@ graph TD
 | ADR-024 | web ADR-002 + web ADR-003 | 0011 / 0111 |
 | ADR-025 | （agent ADR-005 類別 3 呼應）| 0047 / 0048 / 0063 |
 | ADR-026 | — | 0064 |
+| ADR-027 | —（業主裁決 2026-07-07 現場報價修正輪）| — |
 
 > 純業務參數類舊 ADR（取消費階梯 0039/0102、退款核准階梯 0040、車馬費拆分 0041、保固起算 0044、驗收 SLA 0045、急件紅碼定義 0034、序號控管 0053 等）歸 [03_PRD](../03_PRD.md) / [04_SRS](../04_SRS.md)，不列入本決策集。
 

@@ -110,6 +110,8 @@ upstream:
 | TC-ONSITE-05 | FR-0008 | 客戶 LIFF 授權失敗 | 走 QR → 仍失敗 → 紙本簽名 + 拍照 | fallback 鏈完成；audit 標 `consent_method=paper` + evidence FK | 例外 | P1 |
 | TC-ONSITE-06 | FR-0010 | 客戶不在現場 | 師傅回報客戶未到場 | 工單轉入例外流程（改期/取消分流）；不得直接結案 | 例外 | P1 |
 | TC-ONSITE-07 | FR-0008 | 線上報價與現場不符（估價誤差 / 漏項） | 師傅發起現場報價修正（requote） | 工單 `on_site → quoted`；建 quote v+1（`supersedes_quote_id` 串鏈）→ 客戶 LIFF 確認 → `approved` 續工；拒絕 → 按原報價完工或走取消分流 | happy | P0 |
+| TC-DISPATCH-07 🔜 | FR-TEC-07 | 技師平台 requote command（ADR-027） | tech-api 呼叫品牌 api `/internal/requote-requests`（含 request_id + item_diffs 不含金額） | 品牌引擎建 quote v+1 金額由引擎算；**非 assignee → 403**；同 request_id 重送 → 冪等回放；保固/建案案件自動送出 → 403 | 權限+例外 | P0 |
+| TC-DISPATCH-08 🔜 | FR-API-19 | 急件工單 onsite 結束 | SLA timer 到期前/後檢查補審任務 | onsite 結束即建 `retrospective_audit` 任務（due=+4h）進小編佇列；逾 4h 未補審 → audit alert 升主管；同品牌連 3 次逾時 → 自動開 ChangeRequest | timeout | P0 |
 
 ## 7. 結算與退款案例（TC-SETTLE）
 

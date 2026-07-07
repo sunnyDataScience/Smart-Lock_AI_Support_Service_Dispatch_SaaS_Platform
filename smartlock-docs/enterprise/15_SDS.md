@@ -253,6 +253,40 @@ on_site → quoted → approved → in_progress                              ←
 
 SLA 宣告於 flow DSL（如 `{"state":"dispatched","due":"PT2H","on_breach":["block:notify_supervisor"]}`）。引擎於狀態進入時掛 timer（Redis/分散式排程），逾時觸發 breach block（通知主管/升級/擴大派工範圍）。locksmith pack 接單 SLA：一般 10 分鐘 / 急件 5 分鐘（per-brand 可覆寫）；30 分鐘無人接單 → 擴大範圍 + 通知客服。
 
+### 4.4 現場報價修正輪的跨系統發起（ADR-027）
+
+報價 bounded context 在**品牌 api（品牌庫）**，技師身分與工作台在**跨租戶 technician-platform**——修正輪的發起走「**技師平台 command → 品牌 api 權威**」邊界（完整決策見 [../14_ADR/ADR-027](../14_ADR/ADR-027_現場報價修正發起邊界_技師平台command_品牌api權威.md)）：
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant T as 技師（師傅 web）
+    participant TP as tech-api（技師平台）
+    participant BA as 品牌 api（報價引擎）
+    participant C as 客戶（LINE/LIFF）
+    T->>TP: 發起修正請求（事由：估價誤差/加價/改項 + 項目 diff，不含金額）
+    TP->>TP: 驗 assignee_ref＝本人 + 工單 on_site/in_progress
+    TP->>BA: POST /internal/requote-requests（tenant 路由 + S2S 認證 + request_id 冪等）
+    BA->>BA: 定價引擎依 diff 計算 → 建 quote v+1（supersedes 串鏈 + 新 snapshot_hash）
+    BA->>BA: 分層核可（減價/同額直送；加價 501-2000 小編 / >2000 主管）
+    BA->>C: LIFF 推送修正報價（fallback QR / 紙本）
+    C->>BA: 確認 v+1 → 工單 on_site → quoted → approved
+    BA-->>TP: 狀態經工單投影回技師工作台（Phase 1 OHS 查詢；🔜 Phase 3 Kafka）
+```
+
+**硬規則**：技師端**零定價權**（只提交 diff，金額一律品牌引擎算）；技師平台**永不寫品牌庫**；保固 / 建案案件自動送出由品牌端 403（BR-QUOTE-03）；通道故障降級＝技師電話回報、小編後台代發（audit 標 `initiated_via=cs_fallback`）。
+
+### 4.5 急件 carve-out 事後補審引擎（🔜 規劃中——本節為補齊設計）
+
+現況支援度：急件 4 類判定（agent 決策樹）、`urgency` 欄位、接單 SLA 5 分鐘**已設計**；但 **4h 補審 timer、補審佇列、事後確認鏈在系統中不存在**，依本節補齊（宿主：品牌 api）：
+
+1. **開單**：小編急件開單，`emergency_class` 必填寫入工單；開單 gate 免事前報價（BR-WO-01 carve-out），audit 記 `emergency_bypass`。
+2. **派工**：急件優先推播，SLA 5 分鐘（§4.3 既有機制）。
+3. **補審 timer**：onsite 結束事件觸發建立 `retrospective_audit` 任務，`due = onsite_end + PT4H`，掛用 §4.3 同一 SLA timer 機制。
+4. **補審佇列**：派工小編工作台「待補審報價」佇列；補送 `retrospective_audit_only` 報價（急件加價暫定固定額 NTD 1500 `[待確認]`，SQL seed URG-01 待業主定案）→ 客戶 LIFF 事後確認 / 紙本簽 + 拍照。
+5. **逾時升級**：逾 4h → audit alert 升主管 review；同品牌連續 ≥ 3 次逾時 → 自動開 ChangeRequest 進主管佇列（BR-WO-04）。
+6. **結案 gate**：`retrospective_quote_audit_complete` 為急件結案 422 硬閘之一（04_SRS §2.2.4 既有）。
+
 ---
 
 ## 5. agent 子系統詳細設計（LockCore LINE Bot AI 客服）

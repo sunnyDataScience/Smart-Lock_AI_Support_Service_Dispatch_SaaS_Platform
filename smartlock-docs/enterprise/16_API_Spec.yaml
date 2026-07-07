@@ -384,6 +384,33 @@ paths:
       responses:
         "200": { description: 已記錄客戶決定, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
 
+  /internal/requote-requests:
+    post:
+      tags: [internal]
+      summary: 技師平台發起現場報價修正 command（ADR-027——技師只提交 diff 不定價，品牌報價引擎為唯一權威）🔜 規劃中
+      description: >
+        technician-platform 經 OHS 同步反向呼叫（tenant 路由 + service-to-service 認證）。
+        品牌 api 驗 assignee_ref 與工單狀態（on_site / in_progress）後由定價引擎建 quote v+1
+        （supersedes_quote_id 串鏈 + 新 snapshot_hash），再走分層核可與客戶 LIFF 確認。
+      security: [{ internalToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_id, work_order_id, technician_id, reason, item_diffs]
+              properties:
+                request_id: { type: string, description: 冪等鍵（重送回放不重建） }
+                work_order_id: { type: string }
+                technician_id: { type: string, description: 須等於工單 assignee_ref }
+                reason: { type: string, enum: [estimate_error, scope_add, scope_change], description: 事由分類 }
+                item_diffs: { type: array, items: { type: object }, description: 項目/料件異動草稿（不含金額——金額由品牌定價引擎計算） }
+      responses:
+        "201": { description: quote v+1 已建立（回報價 id 與核可層級）, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "403": { description: 非 assignee / 工單狀態不符 / 保固建案禁自動送出 }
+        "409": { description: 已有進行中的修正請求（冪等衝突） }
+
   # ── N. 維運 ───────────────────────────────────────────────────────────
   /health:
     get:
