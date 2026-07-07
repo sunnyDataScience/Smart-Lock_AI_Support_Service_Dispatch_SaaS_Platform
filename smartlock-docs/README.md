@@ -108,7 +108,7 @@ smartlock-docs/
 | **即時通道 in-memory 單機** — WS hub + 11 cron worker 皆進程內，Cloud Run 多實例跨實例事件遺失、cron 重複跑 | 🔴 高 | 導入 Redis pub-sub + 分散式排程 | `api/P1/05` · `00_platform/P2/09` |
 | **data-pipeline 產出鏈斷開** — `silver_to_skill` 寫入不存在的死目錄，文件描述 superseded 舊架構 | 🔴 高 | 修復產出目標對齊 lockcore references，或正式標記管線退役 | `data-pipeline/P1/05` |
 | **兩套知識系統無收斂** — pgvector RAG（後台）vs filesystem references（agent）來源不同、雙維護、無同步 | 🟡 中 | 定義單一知識真相源 + 同步機制 | `data-pipeline/P1/05` · `agent/P1/05` |
-| **兩個 LINE webhook 分流不明** — agent `/callback`（主客服）vs api `/line/webhook`（只 postback）| 🟡 中 | 文件化 LINE channel 路由分流 | `00_platform/P2/09` |
+| ~~**兩個 LINE webhook 分流不明**~~ **已決議（CR-0121 方案 A + ADR-005）** — agent `/callback` 為 LINE 唯一入站門 + postback 前綴 fan-out；api `/line/webhook` 退役 | 🟢 已收斂（待 code 實作）| 依 CR-0121 §9 實作 fan-out + `/internal/*` 端點 | `00_platform/P2/09` · `CR-0121` · `ADR-005` |
 | **無統一 Auth / API Gateway** — 認證分散各 api，JWT 密鑰隔離靠部署紀律（同名 env 不同值）| 🟡 中 | 評估集中式 identity / gateway | `api/P3/13` |
 | **v1→v2 API cutover 未完成** — v1/v2 雙掛，DeprecationMiddleware 仍在用，多份 CIA 待業主裁決 | 🟡 中 | 收尾 P4 cutover gate | `api/P1/16` |
 | **Migration registry 雙向漂移** — 純 SQL forward-only，狀態標記自承「意圖非事實」，046 前歷史不可考 | 🟡 中 | 建 CI schema 比對 | `data-pipeline/P1/05` |

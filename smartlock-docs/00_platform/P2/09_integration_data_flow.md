@@ -64,7 +64,7 @@ graph TD
     AGENT -->|"Reply/Push"| LINE
     AGENT -->|"記憶 agent.*\n直連"| DBB
     AGENT -->|"/internal/* ingest\nX-Internal-Token"| APID
-    LINE -.->|"postback\n/line/webhook"| APID
+    LINE -.->|"postback（CR-0121 退役）\n改走 /callback→/internal/*"| APID
 
     %% ===== 派工營運路徑 =====
     WD -->|"REST + WS :8001"| APID
@@ -217,7 +217,7 @@ graph TD
 | R-03 | 可擴展性 | WS pub-sub hub 與 11 cron worker 皆 in-memory 單機；Cloud Run 多實例 → 跨實例事件遺失、cron 重複跑（重複推播/告警）| api | 高 | Redis pub-sub + 分散式排程；暫以 min-instances=1 緩解 |
 | R-04 | 知識治理 | 兩套知識系統（pgvector RAG vs filesystem references）無收斂，雙維護、易漂移 | agent、data-pipeline、api | 中 | 單一真相源 + 同步管道（見 §5.2）|
 | R-05 | 跨庫一致性 | 技師權威庫 ↔ 品牌庫靠應用層雙寫 mirror，無跨庫交易；`TECH_POSTGRES_URI` 漏設靜默退回單庫 | api、DB | 中 | 雙寫協議 + 對帳 job；啟動守衛檢查 URI |
-| R-06 | LINE 路由 | 兩個 webhook 接收端（agent `/callback` 主客服 vs api `/line/webhook` postback）分流機制未明 | agent、api | 中 | 文件化 channel → webhook 分流 |
+| R-06 | LINE 路由 | ~~兩個 webhook 接收端分流機制未明~~ **已決議（2026-07-07，CR-0121 方案 A + ADR-005）**：LINE 單 channel 單 webhook URL → **agent `/callback` 為唯一入站門**，postback 按前綴 fan-out（`q:*` 本地+bridge、`r:*`/`s:*`/binding → `/internal/*`）；api `/line/webhook` 退役。根因：CR-0017 §HD-5「postback 走 api」的物理分流從未成立，CR-0095 又把 quote postback 放回 agent | agent、api | ~~中~~ **已收斂**（待 code 實作，見 CR-0121 §9）| 依 CR-0121 §9 實作 |
 | R-07 | LLM 可靠性 | agent tool-calling 不穩定（口頭轉接不呼叫工具）；無生產多供應商 failover（`FallbackProvider` 未接）| agent | 中 | deterministic 兜底（CR-0097）+ 接 FallbackProvider |
 | R-08 | 前端安全 | JWT 存 localStorage（不驗簽）；路由 gate 只是 UX；`rolePolicy` fail-open | web | 中 | deny-by-default + cookie/middleware 保護 |
 | R-09 | 記憶持久化 | agent config 仍 `backend="sqlite"` + `tempfile.mkdtemp`，容器重啟即流失（生產是否被 `POSTGRES_URI` 覆蓋待確認）| agent | 中 | 確認生產切 Postgres 後端 |

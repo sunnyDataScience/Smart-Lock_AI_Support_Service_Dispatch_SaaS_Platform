@@ -147,7 +147,7 @@ flowchart TD
     WEB -->|"HTTPS REST"| PLATFORM
     WEB -->|"WSS ?access_token&tenant_id"| WSHUB
     AGENT -->|"POST /internal/* (4 端點)\nX-Internal-Token (fail-closed)"| DISPATCH
-    LINE -.->|"POST /api/v1/line/webhook\n⚠️ 只收 postback"| DISPATCH
+    LINE -.->|"POST /api/v1/line/webhook\n⚠️ 孤兒→退役 (CR-0121)"| DISPATCH
 
     DISPATCH -->|"psycopg3 raw SQL · autocommit\n單一共享 AsyncConnection"| BRANDDB
     DISPATCH -->|"技師身分雙寫 mirror"| TECHDB
@@ -169,7 +169,7 @@ flowchart TD
 ```
 
 **圖例**：
-- `-->` 已由 code 驗證的路徑；`-.->` 只覆蓋部分語義（如 LINE webhook 只收 postback）或進程內部相依。
+- `-->` 已由 code 驗證的路徑；`-.->` 只覆蓋部分語義或進程內部相依。**LINE `/api/v1/line/webhook` 為孤兒端點**（單 channel 單 URL → LINE 只送 agent `/callback`，此端點收不到入站流量），**CR-0121 方案 A 決議退役**，postback 全走 agent `/callback` fan-out → `/internal/*`。
 - 橘色節點（ws_hub / cron）為進程內 in-memory 狀態，水平擴展會壞（§9 R-02）。
 - fallback 安全閥：未設 `TECH_POSTGRES_URI` / `PLATFORM_POSTGRES_URI` 時 `core/db.py` 回主連線，單庫行為不變（`db.py:11-13,62-64`）。
 

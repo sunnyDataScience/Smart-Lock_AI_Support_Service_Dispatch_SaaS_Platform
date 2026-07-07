@@ -247,7 +247,7 @@
 | Method | Path | Auth | 用途 |
 |--------|------|------|------|
 | GET | `/tenants/{tid}/notifications` | RT | 通知（四眼）|
-| POST | `/api/v1/line/webhook` | pub(sig) | ⚠️ LINE postback handler（只收 postback，非主客服 webhook）|
+| POST | `/api/v1/line/webhook` | pub(sig) | ⚠️ **孤兒端點，CR-0121 方案 A 決議退役**：LINE 單 channel 單 URL → 只送 agent `/callback`，此端點收不到入站流量。`r:*`/`s:*`/binding postback 改由 agent `/callback` fan-out → `/internal/*`（見 CR-0121 §9）。CAS 冪等 service 邏輯保留，入口改為內部呼叫 |
 | GET | `/api/v1/admin/lifespan-health` | RR | 8 monitor 健康查詢 |
 | GET | `/api/v1/admin/deprecation-metrics` | RR | v1 hit metrics（P4 cutover）|
 | GET | `/health` | pub | DB 連線存活（ok/degraded）|

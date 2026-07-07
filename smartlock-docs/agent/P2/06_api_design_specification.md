@@ -67,13 +67,19 @@ agent 對外只暴露一個 HTTP 端點。由 `channels/line_gateway.py:build_we
 | `image` | → Blob API 下載到 `get_media_dir("line")` → vision 管線 | base64 image_url 交 LLM 理解 |
 | `sticker` / `audio` / `video` / `file` / `location` | → 友善話術（非靜默丟棄）| `_UNSUPPORTED_MEDIA_REPLY`；後台持久化標 `[貼圖]` 等 |
 
-**Postback 事件**（CR-0095，報價回覆）：
+**Postback 事件 — `/callback` 為 LINE 唯一入站門，按前綴 fan-out**（CR-0121 方案 A + ADR-005 類別 2）：
 
-| `postback.data` 格式 | 語義 |
-|---|---|
-| `q:a\|<quote_id>` | 報價「同意」→ 旁路 POST `/internal/quotes/{id}:customer-respond`（decision=accept）|
-| `q:r\|<quote_id>` | 報價「拒絕」→ 同上（decision=reject）|
-| `s:a\|…` / `s:r\|…` | scope_change postback，本 CR 未接（走網頁 fallback，回 None）|
+> **決議（2026-07-07，CR-0121）**：LINE 單 channel 單 webhook URL，agent `/callback` 是唯一可行入口。**所有** postback 都在此按前綴 deterministic 分派，`r:*`/`s:*`/binding 旁路呼 api `/internal/*`（api `/api/v1/line/webhook` 退役）。此橋接屬 ADR-005「類別 2 — 確定性接線」→ 走 HTTP 不走 MCP。
+
+| `postback.data` 前綴 | 語義 | 目的地 |
+|---|---|---|
+| `q:a\|<quote_id>` | 報價「同意」（CR-0095）| 旁路 `POST /internal/quotes/{id}:customer-respond`（decision=accept）|
+| `q:r\|<quote_id>` | 報價「拒絕」（CR-0095）| 同上（decision=reject）|
+| `r:c\|…` / `r:r\|…` | 改約 confirm / reject（CR-0017）| 🔜 旁路 `POST /internal/reschedule/*`（方案 A 新增；現況 code 未接，實作見 CR-0121 §9）|
+| `s:a\|…` / `s:r\|…` | 範圍變更 accept / reject（CR-0017）| 🔜 旁路 `POST /internal/scope-change/*`（同上）|
+| binding | LINE 綁定 / 查進度（CR-0013）| 🔜 旁路 `/internal/*`（同上）|
+
+> ⚠️ **現況 vs 目標**：`q:*` 現況已通；`r:*`/`s:*`/binding 為 CR-0121 **待實作**目標（現行 code 於 `line_gateway.py:360` 對非 `q:*` postback 回 None「走網頁 fallback」）。本表以方案 A 目標為準，實作前該註解仍有效。
 
 ### 1.3 身分解析
 
