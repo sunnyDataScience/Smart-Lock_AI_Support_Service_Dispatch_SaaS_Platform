@@ -112,7 +112,7 @@ LINE 客人傳照片
 
 ### 進度
 
-- ⏳ S1 實作中（agent + api + web + tests）
+- ✅ S1 done（commit `e5012626`，本輪 `--no-ff` 併回 dev_new_arch）：三處接線全落地（agent `_encode_media_for_persist` + ingest `media_base64/media_mime` + 前端 `AuthChatImage` 帶認證 blob 載入）；順修 `NEXT_PUBLIC_API_BASE_URL` 空字串 `??` 漏接（ChatTimeline+MediaGallery）與 `Message.media_url` spec `uri→uri-reference`。驗證：api 新增 4 測 + 回歸 60 全綠（隔離 scratch DB）、agent 39 全綠（新增 3）、tsc 0、端到端截圖確認照片顯示（UAT 測試資料已清）。本機 dispatch api/web/agent 容器已重建。
 
 ## 9. Suggested Implementation Order
 

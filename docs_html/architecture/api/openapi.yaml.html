@@ -5950,8 +5950,9 @@ components:
           type: string
         media_url:
           type: string
-          format: uri
+          format: uri-reference
           nullable: true
+          description: 媒體相對路徑（CR-0119，例 /api/v1/media/{id}）或絕對 URL
         created_at:
           type: string
           format: date-time
