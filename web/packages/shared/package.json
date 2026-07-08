@@ -1,0 +1,6 @@
+{
+  "name": "@smartlock/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "跨 app 共用元件/lib/hooks/i18n/型別（以 tsconfig paths 原始碼引用，不經 build）"
+}
