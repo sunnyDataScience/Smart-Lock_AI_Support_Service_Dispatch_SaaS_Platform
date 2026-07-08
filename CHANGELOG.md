@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
-### Decisions
+### Removed
+
+- **根目錄雜物清理（0707 會議 AI #1「外圍雜物清乾淨」第一輪）（branch `chore/root-cleanup`，2026-07-08）**：三個探索 agent 全面盤點根目錄／文件層／活躍模組後，依業主四項裁決執行第一輪低風險清理。① 刪 11 張根目錄 Playwright 除錯截圖（`tech-home-*.png`／`vendor-*.png` 等）+ `wo-detail.md`（accessibility snapshot dump）+ `src/` 空殼目錄鏈（皆 untracked、全 repo 零引用）；② 四個會議資料夾（`20260617資料`～`20260707 資料`）集中歸檔至 `meetings/` 並加入 `.gitignore`（本機留存不進版控）；③ `git rm` 三個 tracked 孤兒元件 `SettlementDetailModal.tsx`／`NetworkErrorBanner.tsx`／`Spinner.tsx`（5-6 月起零引用，刪前 grep 再驗證）。6 個未接線 Phase II service（bom/payment/rbac-sod 等）與 2 個近期未接線元件（A37CandidateDetailDrawer/EventTimeline）依裁決**保留**備查。tsc 0。後續：R2 docs/ 中間文件整包刪、R3 CI 假綠與過期文件修正。
 
 - **ADR-P012 立案：執行債清償排程（v1→v2 cutover / migration 漂移 / CD）（branch `docs/adr-p012-exec-debt-schedule`，2026-07-07）**：平台 L1 §5 缺口表中 G-09/G-10/G-12 是唯三「定案 ADR = —、🟡 待議」者——因它們是**純執行/維運債、無架構分叉**，故無 ADR 掛靠而被擱置。但「待議」低估危害:G-09 棄用的 `/api/v1` 仍被 CR-0114/0116/0118 持續疊加(**反向惡化**)、G-10 registry↔`schema_migrations` 漂移**已咬紅測試**(`UndefinedTable`)、G-12 無 CD **卡著 [[ADR-P005]] per-brand provisioning**。ADR-P012 確認三者皆執行債並集中排程(優先序依現況危害):**1 G-10**(schema_migrations 為唯一真相 + CI drift-check)→ **2 G-09**(凍結 v1 新增止血 → 依 P4 5-gate 遷 ~42 caller → 移除 v1)→ **3 G-12**(基礎 CD 3 Cloud Run → provisioning 自動化隨 ADR-P005)。三缺口 §5 狀態 🟡待議→🎯已排程。詳見 `smartlock-docs/00_platform/P2/04_adr/ADR-P012`。
 
