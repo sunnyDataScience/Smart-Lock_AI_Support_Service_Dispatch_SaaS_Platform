@@ -3,12 +3,12 @@ name: API Types Sync Check
 on:
   push:
     paths:
-      - 'docs/architecture/api/openapi.yaml'
+      - 'api/openapi.yaml'
       - 'web/types/api.generated.ts'
       - 'scripts/ci/generate-api-types.sh'
   pull_request:
     paths:
-      - 'docs/architecture/api/openapi.yaml'
+      - 'api/openapi.yaml'
       - 'web/types/api.generated.ts'
 
 jobs:

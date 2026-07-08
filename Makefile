@@ -58,7 +58,7 @@ test-component:
 # 對應 E7x §5.2 contract layer (5%)
 # 需求：api 跑於 :8001
 test-contract:
-	@echo "→ schemathesis (docs/architecture/api/openapi.yaml)"
+	@echo "→ schemathesis (api/openapi.yaml)"
 	bash scripts/ci/contract-schemathesis.sh
 
 # ── E2E smoke：API smoke + Playwright login spec ─────────────────

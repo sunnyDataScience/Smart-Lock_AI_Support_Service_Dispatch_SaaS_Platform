@@ -213,7 +213,7 @@ app = FastAPI(
     title="Smart Lock AI — Admin REST API",
     version="0.2.0",
     description=(
-        "Phase 1 MVP. Contract SSOT (frozen V1.1): docs/architecture/api/openapi.yaml "
+        "Phase 1 MVP. Contract SSOT (frozen V1.1): api/openapi.yaml "
         "+ openapi-smart-lock-saas.yaml. NOTE: legacy /api/v1 routes were generated from the "
         "now-deleted docs/02-design/specs/openapi.yaml; spec-alignment migration in progress "
         "(see docs/_audit/spec-code-gap-audit-2026-06-01.md)."

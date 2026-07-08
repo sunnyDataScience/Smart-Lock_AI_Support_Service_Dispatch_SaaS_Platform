@@ -3,12 +3,12 @@ name: API Spec Lint
 on:
   push:
     paths:
-      - 'docs/architecture/api/openapi.yaml'
+      - 'api/openapi.yaml'
       - '.spectral.yaml'
       - '.github/workflows/spec-lint.yml'
   pull_request:
     paths:
-      - 'docs/architecture/api/openapi.yaml'
+      - 'api/openapi.yaml'
       - '.spectral.yaml'
 
 jobs:
@@ -21,5 +21,5 @@ jobs:
       - name: Lint OpenAPI
         uses: stoplightio/spectral-action@v0.8.13
         with:
-          file_glob: 'docs/architecture/api/openapi.yaml'
+          file_glob: 'api/openapi.yaml'
           spectral_ruleset: '.spectral.yaml'

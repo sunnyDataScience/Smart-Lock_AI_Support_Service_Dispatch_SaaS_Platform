@@ -6,7 +6,7 @@
 #   docker compose -f docker-compose.mock.yml down
 #
 # 或用 npx（無需 Docker）：
-#   npx --yes @stoplight/prism-cli mock docs/architecture/api/openapi.yaml --port 4010
+#   npx --yes @stoplight/prism-cli mock api/openapi.yaml --port 4010
 
 services:
   prism-openapi:
@@ -18,7 +18,7 @@ services:
       -m false
       /specs/openapi.yaml
     volumes:
-      - ./docs/architecture/api:/specs:ro
+      - ./api:/specs:ro
     ports:
       - "4010:4010"
     restart: unless-stopped

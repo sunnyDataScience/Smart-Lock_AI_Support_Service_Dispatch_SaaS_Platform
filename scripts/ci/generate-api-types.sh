@@ -14,7 +14,7 @@ set -uo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
-SPEC="docs/architecture/api/openapi.yaml"
+SPEC="api/openapi.yaml"
 CHECK_ONLY=0
 for arg in "$@"; do
   [[ "$arg" == "--check" ]] && CHECK_ONLY=1

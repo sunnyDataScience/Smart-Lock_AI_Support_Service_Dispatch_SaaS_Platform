@@ -47,7 +47,7 @@ Smart Lock AI Support & Service Dispatch SaaS Platform —— LINE Bot 智慧鎖
 - **測試走 pytest**（agent 重寫後新建 `agent/tests/`，~13 個測試含 `test_e2e_mock_turn.py` / `test_skills_loaded.py` / `test_tool_allowlist.py` / `test_litellm_provider.py` / `test_line_gateway.py` 等）—— **不再有 quality_check / LLM-as-Judge 套件**（已刪）。
 - **Config pattern**：`agent/config.toml` 用 `lockcore/app_config.py:tomllib` 載入；機密（`GEMINI_API_KEY` / `LINE_CHANNEL_*` / `credentials.json`）放 `.env` 或 gitignore 檔，**不入 toml**。
 - **永不手動構建 `POSTGRES_URI`** —— 用 `./scripts/deploy/agent.sh --update-db-uri`（自動 URL-encode + round-trip 驗證）。
-- **文件一律雙版本：寫 `docs/` 的 `.md`，再跑產生器同步 `docs_html/`** —— `docs_html/` 是 `.venv/bin/python tools/gen_docs_html.py`（pandoc）從 `docs/` **整包 `rmtree` 重建**的 HTML 鏡像，**絕不手寫 / 手改 `docs_html/`**（手改下次 regen 會被覆蓋）。新增或修改**任何** `docs/` 文件後，**必須重跑產生器**讓 HTML 同步；mirror 漂移會在下次 regen 冒出大量非預期 diff。純 HTML 報告（無 .md 源）放 `docs/` 下，產生器會自動回生成 .md 源。
+- **docs/ 雙版本工作流已退役（2026-07-08 大掃除）** —— tracked 的 `docs/`、`docs_html/` 樹已刪，文件正典= `smartlock-docs/`（純 .md，無 HTML 鏡像）。`tools/gen_docs_html.py` 僅保留給**未追蹤的報告素材**（如 `docs/20260709/` PPT 素材）本機 regen 用；不要再為一般文件建 docs_html 鏡像。
 
 ## 最常用指令（完整清單見 `@.claude/docs/commands.md`）
 
@@ -89,7 +89,7 @@ cd agent && python scripts/line_gateway.py               # LINE webhook 通道�
   2. `CHANGELOG.md` `[Unreleased]` 段 → Added / Changed / Decisions 對應條目
   3. 有架構決策 → 新開 ADR（**append-only，舊的標 `status: superseded` + `superseded_by:`，不改舊內容**）
 - Commit message 依 type 分層（見 `.claude/rules/git-workflow.md`）：`feat` 三段 WHY/WHAT/IMPACT；`fix` WHY + root cause；`docs`/`chore` 一行夠
-- **永不在 `main` / `dev_new_arch` 直接 commit** — 先開 `<type>/<short>` 分支
+- **永不在 `main` / `dev` 直接 commit** — 先開 `<type>/<short>` 分支（2026-07-08 起主線= `dev`；`dev_new_arch` 已收斂，僅留雲端備份）
 - **push 由使用者執行**，Claude 只 commit
 - 文件 6 tier 規則：`.claude/rules/context-stability.md`
 </important>
@@ -100,6 +100,6 @@ cd agent && python scripts/line_gateway.py               # LINE webhook 通道�
 - **架構細節** → `@.claude/docs/architecture.md`（request flow 圖、module map、web/api/DB/部署；2026-06-05 agent module 段已標 superseded by ADR-0107，指向 agent/README.md + lockcore/VENDOR.md）
 - **Agent 新架構** → `agent/README.md` + `agent/lockcore/VENDOR.md`（LockCore 設計依據、skill 結構、config 載入機制）
 - **開發規則** → `.claude/rules/*`（git-workflow, change-governance, context-stability, testing, security…）
-- **文件中樞** → `smartlock-docs/README.md`（企業文件集：平台級 ADR-P* + 各子系統 SAD；2026-07-08 起為文件新主線。docs/ 僅存 `architecture/`＝ADR 0001-0115 + OpenAPI，其餘中間文件依 0707 決議清除）
+- **文件中樞** → `smartlock-docs/README.md`（企業文件集：平台級 ADR-P* + 各子系統 SAD + enterprise 00–27 正典；2026-07-08 起為唯一文件主線。tracked `docs/` 樹已整棵清除——歷史 ADR 0001-0115 與舊 CR/CIA 查 git；OpenAPI 機讀 SSOT = `api/openapi.yaml`）
 
 > 維護提醒：本檔是「每次工作階段都載入」的記憶植入，不是 README。新增內容前先問「agent 自己讀 code 能不能發現？」能 → 不要寫進來，放子檔或讓它自己讀。文件過期 agent 就會錯，當基礎建設維護。

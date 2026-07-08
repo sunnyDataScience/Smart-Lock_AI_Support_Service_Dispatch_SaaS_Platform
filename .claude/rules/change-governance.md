@@ -160,6 +160,10 @@ AI 依 §9 「Suggested Implementation Order」逐步實作
 
 ## See also
 
+> ⚠️ 以下 `VibeCoding_Workflow_Templates/*` 模板與 `docs/4-exploration` 既有文件已於 2026-07-08
+> 大掃除刪除（查 git 歷史）。CIA gate 流程本身仍有效：產出 CIA 時於 `docs/4-exploration/` 重建
+> 目錄即可（驗收後依 0707 決議清除）。
+
 - `rules/context-stability.md` — what tier each artifact lives in (CIA outputs go to tier-4)
 - `rules/primitive-selection.md` — when CIA, when skill, when command
 - `skills/sunnydata-change-impact-analysis/SKILL.md` — gate execution skill

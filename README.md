@@ -46,8 +46,9 @@
 - `data/`：數據中台 Pipeline — Medallion（Raw → Bronze → Silver → Skill），產出知識素材。
 - `SQL/`：資料庫 Schema 與 forward-only migrations。
 - `scripts/`：部署（Cloud Run）、DB、環境切換腳本。
-- `docs/architecture/`：ADR（架構決策）與 OpenAPI 契約。
-- `smartlock-docs/`：企業文件集（平台級 ADR 與各子系統 SAD）。
+- `api/openapi.yaml`：OpenAPI 契約 SSOT（機讀，供 mock / lint / 型別生成 / schemathesis）。
+- `smartlock-docs/`：企業文件集正典（平台級 ADR、各子系統 SAD、Roadmap/WBS；歷史細粒度 ADR 查 git）。
+- `drawio/`：架構圖生成工程（14 張平台圖）。
 
 ## 本機四 stack (Docker Compose)
 
@@ -117,9 +118,8 @@ cd web && npx tsc --noEmit && npm test
 ## 相關文件 (Documentation)
 - [Agent 新架構說明](agent/README.md)（LockCore 設計依據、skill 結構、config 載入）
 - [LockCore vendor 說明](agent/lockcore/VENDOR.md)（fork 自 nanobot 的邊界與最小 diff 原則）
-- [架構決策 ADR](docs/architecture/adr/)
-- [OpenAPI 契約](docs/architecture/api/openapi.yaml)
-- [企業文件集](smartlock-docs/README.md)（平台級 ADR 與各子系統 SAD）
+- [OpenAPI 契約](api/openapi.yaml)
+- [企業文件集](smartlock-docs/README.md)（平台級 ADR 與各子系統 SAD；架構決策正典）
 - [工作指引 CLAUDE.md](CLAUDE.md)（工具鏈、治理規則）
 
 ## 授權 (License)
