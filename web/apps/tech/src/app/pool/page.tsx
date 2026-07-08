@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Clock, MapPin, RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import UrgencyBadge from "@/components/tech/UrgencyBadge";
+import UrgencyBadge from "@shared/components/tech/UrgencyBadge";
 import RealtimeIndicator from "@shared/components/realtime/RealtimeIndicator";
 import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 import { ApiError, api, getCurrentSession, tenantPath } from "@shared/lib/api";

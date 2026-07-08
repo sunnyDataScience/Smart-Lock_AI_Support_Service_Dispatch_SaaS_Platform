@@ -11,8 +11,8 @@ import {
   MapPin,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import StatusBadge from "@/components/tech/StatusBadge";
-import UrgencyBadge from "@/components/tech/UrgencyBadge";
+import StatusBadge from "@shared/components/tech/StatusBadge";
+import UrgencyBadge from "@shared/components/tech/UrgencyBadge";
 import SignaturePad from "@/components/tech/SignaturePad";
 import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 import { ApiError, api, tenantPath } from "@shared/lib/api";

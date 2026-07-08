@@ -16,8 +16,8 @@ import {
   Zap,
 } from "lucide-react";
 import Sidebar from "@shared/components/layout/Sidebar";
-import StatusBadge, { statusLabel } from "@/components/tech/StatusBadge";
-import UrgencyBadge from "@/components/tech/UrgencyBadge";
+import StatusBadge, { statusLabel } from "@shared/components/tech/StatusBadge";
+import UrgencyBadge from "@shared/components/tech/UrgencyBadge";
 import { ApiError, api, tenantPath } from "@shared/lib/api";
 import { friendlyError } from "@shared/lib/apiError";
 import { useLocale, useTranslations } from "@shared/components/i18n/LocaleProvider";
