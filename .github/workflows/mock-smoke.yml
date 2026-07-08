@@ -3,12 +3,12 @@ name: Mock Server Smoke Test
 on:
   push:
     paths:
-      - 'docs/architecture/api/openapi.yaml'
+      - 'api/openapi.yaml'
       - 'docker-compose.mock.yml'
       - 'scripts/ci/mock-server.sh'
   pull_request:
     paths:
-      - 'docs/architecture/api/openapi.yaml'
+      - 'api/openapi.yaml'
       - 'docker-compose.mock.yml'
 
 jobs:

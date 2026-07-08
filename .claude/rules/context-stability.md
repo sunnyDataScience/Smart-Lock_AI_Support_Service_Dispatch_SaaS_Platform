@@ -2,6 +2,11 @@
 
 > **Why this rule exists**: AI generates slop when it cannot tell which docs to trust as ground truth. This rule encodes the project's stability hierarchy so AI loads, weighs, and updates each tier appropriately.
 
+> ⚠️ **2026-07-08 大掃除後注意**：tracked `docs/` 樹與 `VibeCoding_Workflow_Templates/` 已整棵刪除
+> （查 git 歷史），本檔 tier 表的路徑前綴為歷史慣例。現行文件正典＝ `smartlock-docs/`（視為
+> tier 1-2 等級）；OpenAPI 機讀 SSOT＝ `api/openapi.yaml`。tier 分層「概念」仍適用（先讀決策、
+> 再讀契約、views 只當 cache），路徑對映待重整。
+
 ## The 6 tiers
 
 | Tier | Path prefix | Update cadence | Treat as |

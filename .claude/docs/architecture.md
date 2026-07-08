@@ -11,7 +11,7 @@
    ~~原：ReAct Agent，靠 `product_info/` mega-doc 知識庫；optional Belief-Augmented ReAct（Turn Cycle）— **已 superseded**~~
 2. **`data/`** — Medallion ETL Pipeline（Bronze → Silver SOP drafts；bronze-only sourcing rule 仍適用，內容改走 `lockcore/skills/locksmith-product-knowledge/references/{Brand}/{Model}.md`）
 3. **`web/`** — Next.js Admin Dashboard（營運監控、對話審閱）
-4. **`docs/architecture/api/`** — API Contract SSOT（OpenAPI 3.1 + CI validation）
+4. **`api/openapi.yaml`** — API Contract SSOT（OpenAPI 3.1 + CI validation；2026-07-08 自已刪的 docs/architecture/api/ 遷入）
 5. **`web_design_spec_prompt_pipeline/`** — AI 輔助網頁設計 prompt pipeline
 
 ## Request Processing Flow
@@ -161,12 +161,12 @@ Next.js 15（App Router）+ React 19 + TypeScript。Tailwind CSS 4、Recharts、
 | Admin — Reports | `/admin/reports/kpi`, `/admin/reports/revenue`, `/admin/reports/technician-ranking` |
 | Admin — System | `/admin/audit-events`, `/admin/roles`, `/admin/api-status`, `/admin/knowledge-base/sop-performance` |
 
-- **API integration**：mock → live API 遷移中。多數 admin/knowledge-base/accounting 頁已呼叫生成的 typed client。OpenAPI spec（`docs/architecture/api/openapi.yaml`）為真實來源 —— 改 spec 後跑 `./scripts/ci/generate-api-types.sh` 重生型別。
+- **API integration**：mock → live API 遷移中。多數 admin/knowledge-base/accounting 頁已呼叫生成的 typed client。OpenAPI spec（`api/openapi.yaml`）為真實來源 —— 改 spec 後跑 `./scripts/ci/generate-api-types.sh` 重生型別。
 - **Component**：`src/components/{domain}/`。生成型別在 `web/types/api.generated.ts`（tsconfig `@/types/*` alias）。
 - **Sidebar**：巢狀 `NavItem[]` 支援 `children?: NavChild[]`，active parent 自動展開。
 - **Design tokens**：`globals.css` CSS 變數 — primary `#2563EB`、accent `#F59E0B`。字體 Inter + Noto Sans TC。深色 sidebar `#1E293B` + 淺色內容 `#F8FAFC`。
 
-## API Contract System (`docs/architecture/api/`)
+## API Contract System (`api/openapi.yaml`)
 
 - `openapi.yaml` — REST API 3.1 spec
 - `web/types/api.generated.ts` — 自動生成 TypeScript 型別

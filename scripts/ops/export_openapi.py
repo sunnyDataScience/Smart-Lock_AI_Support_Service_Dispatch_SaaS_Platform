@@ -12,13 +12,13 @@ Usage:
     cd <project_root>
     python scripts/ops/export_openapi.py [--output PATH] [--pretty]
 
-Default output: docs/architecture/api/openapi-runtime.json (gitignored or
+Default output: api/openapi-runtime.json (gitignored or
 committed for diff tracking — 由 ops 決定)
 
 Web 端 codegen 範例 (Sprint BUILD 時用):
     cd web
     npx openapi-typescript \
-      ../docs/architecture/api/openapi-runtime.json \
+      ../api/openapi-runtime.json \
       -o src/types/api.generated.ts
 """
 
@@ -102,7 +102,7 @@ def main():
     parser.add_argument(
         "--output",
         type=Path,
-        default=PROJECT_ROOT / "docs/architecture/api/openapi-runtime.json",
+        default=PROJECT_ROOT / "api/openapi-runtime.json",
         help="Output JSON path",
     )
     parser.add_argument("--pretty", action="store_true", default=True)

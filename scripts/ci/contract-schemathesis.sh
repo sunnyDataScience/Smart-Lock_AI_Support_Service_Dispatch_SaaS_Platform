@@ -18,7 +18,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SPEC="$REPO_ROOT/docs/architecture/api/openapi.yaml"
+SPEC="$REPO_ROOT/api/openapi.yaml"
 API_BASE="${API_BASE:-http://localhost:8001}"
 MAX_EXAMPLES="${MAX_EXAMPLES:-10}"
 CHECK_ONLY=0
