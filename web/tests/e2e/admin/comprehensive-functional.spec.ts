@@ -183,20 +183,8 @@ test("admin/customers 4 filter 啟用 (roadmap #5/#6 BUILD)", async ({ page }) =
   await expect(page.locator("h1").first()).toBeVisible();
 });
 
-test("technicians 6/6 (search/4 filter/新增技師 modal)", async ({ page }) => {
-  await login(page);
-  await page.goto("/technicians");
-  await page.waitForLoadState("networkidle").catch(() => {});
-
-  await page.locator("button").filter({ hasText: "新增技師" }).click();
-  await expect(page.locator("h2").filter({ hasText: "新增技師" })).toBeVisible();
-  const submit = page.locator("button").filter({ hasText: "建立技師" });
-  await expect(submit).toBeDisabled();
-  await page.fill('input[placeholder*="王大鎖"]', "E2E Tester");
-  await page.fill('input[placeholder*="逗號分隔"]', "台北市信義區, 大安區");
-  await expect(submit).toBeEnabled();
-  await page.keyboard.press("Escape");
-});
+// 「technicians 6/6」測試已移除：/technicians 頁隨 CR-0114 遷至平台 console
+// （:3003/platform/technicians，另一 app），品牌 dispatch app 已無此路由。
 
 test("accounting/invoices 4 filter (含 payment_method)", async ({ page }) => {
   await login(page);

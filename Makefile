@@ -38,9 +38,10 @@ help:
 
 # ── Unit tests：純函式、無外部依賴 ────────────────────────────────
 # 對應 E7x §5.2 unit layer (55%)
+# 2026-07-08：根 tests/unit（harness 時代）已刪，對齊 CI test-suite.yml 改跑 api unit
 test-unit:
-	@echo "→ pytest -m unit"
-	uv run pytest tests/unit -m unit --tb=short
+	@echo "→ pytest -m unit (api)"
+	cd api && uv run pytest -m unit --tb=short
 
 # ── Component tests：API router + 真 DB（dev 環境） ──────────────
 # 對應 E7x §5.2 component layer (15%)
@@ -81,12 +82,12 @@ test-all: test-unit test-component test-contract
 
 # ── Coverage 報告（需 uv sync --group test 先裝 pytest-cov） ──────
 coverage:
-	@echo "→ pytest --cov（unit + component）"
-	uv run pytest tests/unit api/tests \
-		--cov=api --cov=agent --cov=tests \
+	@echo "→ pytest --cov（api unit；component 需 DB 另跑）"
+	cd api && uv run pytest -m unit \
+		--cov=. \
 		--cov-report=term-missing \
-		--cov-report=html:.coverage_html \
-		--cov-report=xml:coverage.xml
+		--cov-report=html:../.coverage_html \
+		--cov-report=xml:../coverage.xml
 	@echo ""
 	@echo "✓ HTML report: .coverage_html/index.html"
 	@echo "✓ XML report:  coverage.xml (for diff-cover)"

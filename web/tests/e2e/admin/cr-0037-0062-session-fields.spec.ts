@@ -38,7 +38,7 @@ test("工單詳情『公單資訊』面板渲染 CR-0043 客名/電話/服務類
 
 test("關鍵 admin 頁載入無致命錯誤（儀表板/工單/技師/異常/問題卡）", async ({ page }) => {
   await login(page);
-  for (const path of ["/dashboard", "/work-orders", "/technicians", "/admin/exceptions", "/problem-cards"]) {
+  for (const path of ["/dashboard", "/work-orders", "/admin/exceptions", "/problem-cards"]) {
     await page.goto(path);
     // 主內容區渲染（非白頁/錯誤頁）
     await expect(page.locator("main, [role='main']").first()).toBeVisible({ timeout: 15_000 });
