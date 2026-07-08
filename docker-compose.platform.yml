@@ -92,6 +92,7 @@ services:
       dockerfile: web/Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: "${PLATFORM_API_BASE_URL:-http://localhost:8003}"
+        APP: "platform"  # monorepo：建置 apps/platform
         NEXT_PUBLIC_APP_MODE: "platform"   # 只渲染 /platform 頁群
         # CR-0116 維運監控「詳細用量」連結 → GCP 方案 1 Metrics Scope dashboard。
         # 未設 = 前端不顯示該連結;建好 dashboard 後填其 URL 即可。

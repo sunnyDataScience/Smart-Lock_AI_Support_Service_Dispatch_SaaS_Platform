@@ -35,7 +35,9 @@ uv.lock
 
 # Node.js / Next.js 開發殘留（image build 內會重建）
 web/node_modules/
-web/.next/
+web/apps/*/node_modules/
+web/apps/*/.next/
+web/apps/*/tsconfig.tsbuildinfo
 web/.turbo/
 web/coverage/
 web/*.log

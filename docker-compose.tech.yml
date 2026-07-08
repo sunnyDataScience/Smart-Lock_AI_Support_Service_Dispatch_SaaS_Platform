@@ -84,6 +84,7 @@ services:
         # 技師前端打 tech-api(8002);WS 指品牌 api(8001,派工事件來源,見檔頭)。
         NEXT_PUBLIC_API_BASE_URL: "${TECH_API_BASE_URL:-http://localhost:8002}"
         NEXT_PUBLIC_REALTIME_BASE_URL: "${TECH_REALTIME_BASE_URL:-ws://localhost:8001}"
+        APP: "tech"  # monorepo：建置 apps/tech
         NEXT_PUBLIC_APP_MODE: "tech"                                # 師傅 build:只留師傅端路由
         NEXT_PUBLIC_PEER_PORTAL_URL: "${DISPATCH_PORTAL_URL:-http://localhost:3000}"
     ports:

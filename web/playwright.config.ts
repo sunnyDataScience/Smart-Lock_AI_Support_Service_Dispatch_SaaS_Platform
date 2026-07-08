@@ -57,7 +57,7 @@ export default defineConfig({
   webServer: USE_EXISTING_SERVER
     ? undefined
     : {
-        command: 'npm run dev',
+        command: 'npm run dev -w apps/dispatch',  // monorepo：e2e 預設起品牌後台
         port: PORT,
         timeout: 120_000,
         reuseExistingServer: !process.env.CI,

@@ -27,6 +27,7 @@ services:
       context: .
       dockerfile: web/Dockerfile
       args:
+        APP: "landing"  # monorepo：建置 apps/landing
         NEXT_PUBLIC_APP_MODE: "landing"
         # 派工 API base(保留;landing 其餘站內連結沿用)
         NEXT_PUBLIC_API_BASE_URL: "${LANDING_API_BASE_URL:-http://localhost:8001}"

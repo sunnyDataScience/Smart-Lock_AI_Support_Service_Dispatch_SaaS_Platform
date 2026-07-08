@@ -21,10 +21,10 @@ for arg in "$@"; do
 done
 
 # 決定輸出位置
-if [[ -d "web/lib" ]]; then
-  OUT_DIR="web/lib/types"
+if [[ -d "web/packages/shared/src/types" ]]; then
+  OUT_DIR="web/packages/shared/src/types"
 else
-  OUT_DIR="web/types"
+  OUT_DIR="web/packages/shared/src/types"
 fi
 mkdir -p "$OUT_DIR"
 OUT_FILE="$OUT_DIR/api.generated.ts"
@@ -67,6 +67,6 @@ mv "$TMP_FILE" "$OUT_FILE"
 echo "✅ 寫入 $OUT_FILE"
 echo ""
 echo "Next steps:"
-echo "  1) 在 web/ 專案建立後，將 $OUT_FILE 搬到 web/lib/types/"
+echo "  1) monorepo 正位：web/packages/shared/src/types/api.generated.ts"
 echo "  2) package.json 加 \"postinstall\": \"npm run generate-api-types\""
 echo "  3) CI 用 --check 模式阻擋未同步的 commit"

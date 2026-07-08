@@ -30,8 +30,10 @@ on:
       - 'pyproject.toml'
       - 'uv.lock'
       - 'web/package.json'
+      - 'web/apps/**/package.json'
+      - 'web/packages/**/package.json'
       - 'web/package-lock.json'
-      - 'web/next.config.ts'
+      - 'web/apps/*/next.config.ts'
       - '.dockerignore'
       - 'web/Dockerfile.dockerignore'
 

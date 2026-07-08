@@ -111,7 +111,7 @@ preflight_checks() {
     fi
 
     # 檢查 web/ 必要檔
-    if [[ ! -f "web/package.json" ]] || [[ ! -f "web/Dockerfile" ]]; then
+    if [[ ! -f "web/apps/${WEB_APP:-dispatch}/package.json" ]] || [[ ! -f "web/Dockerfile" ]]; then
         echo "  FAIL: web/package.json 或 web/Dockerfile 缺失"
         failed=1
     else
@@ -119,7 +119,7 @@ preflight_checks() {
     fi
 
     # 確認 next.config 設定 standalone output
-    if ! grep -q 'output.*standalone' web/next.config.* 2>/dev/null; then
+    if ! grep -q 'output.*standalone' web/apps/${WEB_APP:-dispatch}/next.config.* 2>/dev/null; then
         echo "  WARN: web/next.config 沒設 output:standalone，image 會很大"
     else
         echo "  OK: next.config 啟用 standalone build"
@@ -155,6 +155,7 @@ build_and_push() {
     fi
 
     docker build --platform linux/amd64 -f web/Dockerfile \
+        --build-arg APP="${WEB_APP:-dispatch}" \
         --build-arg NEXT_PUBLIC_API_BASE_URL="${api_url}" \
         --build-arg NEXT_PUBLIC_REALTIME_BASE_URL="${realtime_url}" \
         -t "${IMAGE}" .
