@@ -5,13 +5,11 @@ on:
     paths:
       - 'docs/architecture/api/openapi.yaml'
       - 'web/types/api.generated.ts'
-      - 'web/lib/types/api.generated.ts'
       - 'scripts/ci/generate-api-types.sh'
   pull_request:
     paths:
       - 'docs/architecture/api/openapi.yaml'
       - 'web/types/api.generated.ts'
-      - 'web/lib/types/api.generated.ts'
 
 jobs:
   types-sync:

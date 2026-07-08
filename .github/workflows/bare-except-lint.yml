@@ -5,10 +5,15 @@ name: Bare except Exception lint
 # programming bug，讓 typo 不會在開發期被抓到。
 # RP2.6（PR #25）已 narrow 46 處；此 lint 守護後續 PR 不再回歸。
 #
-# 適用範圍：agent/{harness,quality}, api/services, data/pipeline
+# 適用範圍：api/services, data/pipeline
 #   - agent/scripts/       一次性 CLI 工具，過寬 catch 可接受
-#   - agent/core/, agent/skills/, agent/profiles/, agent/memory/, agent/storage/, agent/llms/  常見 best-effort cleanup，本 lint 不掃
+#   - agent/lockcore/      fork 自 nanobot 的 vendor 套件（VENDOR.md），上游風格
+#                          大量 bare except（~126 處），依最小 diff 原則刻意不掃
 #   - api/core/            底層工具
+#
+# 2026-07-08：原掃描清單含 agent/{harness,quality}——該兩目錄已隨 2026-06-04
+# LockCore 重寫刪除，find 對不存在路徑空轉（agent 部分假綠），依 0707 會議
+# 清理輪移除；agent 現行核心 lockcore 屬 vendor 範圍不納入。
 #
 # 例外：任何位置只要加 # noqa: BLE001 註解視為刻意例外。
 # 建議：narrow 到具體型別 tuple，例如：
@@ -19,13 +24,11 @@ name: Bare except Exception lint
 on:
   pull_request:
     paths:
-      - 'agent/**/*.py'
       - 'api/**/*.py'
       - 'data/**/*.py'
   push:
     branches: [main, dev]
     paths:
-      - 'agent/**/*.py'
       - 'api/**/*.py'
       - 'data/**/*.py'
 
@@ -40,11 +43,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # 掃描範圍：harness / quality / api/services / data/pipeline
-          # 排除：scripts / core / __pycache__ / 已標 noqa: BLE001
+          # 掃描範圍：api/services / data/pipeline
+          # 排除：agent/lockcore（vendor）/ scripts / core / __pycache__ / 已標 noqa: BLE001
+          test -d api/services -a -d data/pipeline || { echo "::error::scan target missing — update this workflow"; exit 1; }
           violations=$(
             find \
-              agent/harness agent/quality \
               api/services \
               data/pipeline \
               -type f -name '*.py' \
@@ -73,4 +76,4 @@ jobs:
             echo "$violations"
             exit 1
           fi
-          echo "OK: no bare 'except Exception' in agent/harness, agent/quality, api/services, data/pipeline"
+          echo "OK: no bare 'except Exception' in api/services, data/pipeline"

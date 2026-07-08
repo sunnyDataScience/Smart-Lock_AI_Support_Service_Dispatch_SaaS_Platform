@@ -85,7 +85,7 @@ cd agent && python scripts/line_gateway.py               # LINE webhook 通道�
 
 <important if="完成一個 step / 準備 commit">
 - **三個地方同步更新**（缺一就是 audit trail 斷鏈）：
-  1. `docs/_audit/CR-NNNN-*.md` 對應 §8 `### 進度` 區塊 → 補一行 `✅ Sx done（merge <sha>）：<關鍵成果>`
+  1. `docs/4-exploration/CR-NNNN-*.md` 對應 §8 `### 進度` 區塊 → 補一行 `✅ Sx done（merge <sha>）：<關鍵成果>`（舊 `docs/_audit/` 已依 0707 決議清除，歷史查 git）
   2. `CHANGELOG.md` `[Unreleased]` 段 → Added / Changed / Decisions 對應條目
   3. 有架構決策 → 新開 ADR（**append-only，舊的標 `status: superseded` + `superseded_by:`，不改舊內容**）
 - Commit message 依 type 分層（見 `.claude/rules/git-workflow.md`）：`feat` 三段 WHY/WHAT/IMPACT；`fix` WHY + root cause；`docs`/`chore` 一行夠
@@ -100,6 +100,6 @@ cd agent && python scripts/line_gateway.py               # LINE webhook 通道�
 - **架構細節** → `@.claude/docs/architecture.md`（request flow 圖、module map、web/api/DB/部署；2026-06-05 agent module 段已標 superseded by ADR-0107，指向 agent/README.md + lockcore/VENDOR.md）
 - **Agent 新架構** → `agent/README.md` + `agent/lockcore/VENDOR.md`（LockCore 設計依據、skill 結構、config 載入機制）
 - **開發規則** → `.claude/rules/*`（git-workflow, change-governance, context-stability, testing, security…）
-- **文件中樞** → `docs/HOME.md`（5D 框架 + TR gate）
+- **文件中樞** → `smartlock-docs/README.md`（企業文件集：平台級 ADR-P* + 各子系統 SAD；2026-07-08 起為文件新主線。docs/ 僅存 `architecture/`＝ADR 0001-0115 + OpenAPI，其餘中間文件依 0707 決議清除）
 
 > 維護提醒：本檔是「每次工作階段都載入」的記憶植入，不是 README。新增內容前先問「agent 自己讀 code 能不能發現？」能 → 不要寫進來，放子檔或讓它自己讀。文件過期 agent 就會錯，當基礎建設維護。

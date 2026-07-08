@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-08（**docs/ AI 中間文件整包刪 R2（0707 會議 AI #16）**，branch `chore/docs-purge` — 依 0707 決議「核心只留 WBS/ADR/OpenAPI，其他 AI 中間文件驗收後全刪」+ 業主裁決「整包刪（git 歷史可找回）」。git rm 17 個目錄共 503 檔（4-exploration/_audit/_ops/_archive/analysis/ui/ux/governance/qa/prd/ops/3-process/5-views/html/_source/policy/uber-like-platform）。保留：docs/architecture/ 整棵（89 ADR + openapi.yaml）、本 WBS、smartlock-docs/ 新主線、VibeCoding 模板（.claude/rules 引用）。docs_html 重建 111 筆零漂移；20260701 孤兒報告歸檔 meetings/。）
+**最後更新：** 2026-07-08（**CI 假綠與過期文件修正 R3**，branch `chore/stale-refs-fix` — 清理輪收尾。reverse-import-lint 原掃已刪的 agent/{skills,core,harness}（find 空轉假綠）→ 改 lockcore 分層規則 + test -d guard；bare-except-lint 移除已刪目錄、lockcore（vendor ~126 處）明文排除，範圍內 4 處既有違規補 noqa 註記（皆刻意寬 catch，零行為變更）；api-types-sync 清舊觸發路徑；README 整篇改寫（去 LangGraph/ReAct 死架構 → LockCore + 四 stack）；Makefile 刪失效 test-agent-mini；CLAUDE.md 兩處懸空路標修正。驗證：3 workflow YAML OK、兩條新 lint 本地模擬綠、py_compile OK、make help OK。清理三輪（R1 雜物/R2 docs/R3 假綠）全數完成。）
+
+**前一次更新：** 2026-07-08（**docs/ AI 中間文件整包刪 R2（0707 會議 AI #16）**，branch `chore/docs-purge` — 依 0707 決議「核心只留 WBS/ADR/OpenAPI，其他 AI 中間文件驗收後全刪」+ 業主裁決「整包刪（git 歷史可找回）」。git rm 17 個目錄共 503 檔（4-exploration/_audit/_ops/_archive/analysis/ui/ux/governance/qa/prd/ops/3-process/5-views/html/_source/policy/uber-like-platform）。保留：docs/architecture/ 整棵（89 ADR + openapi.yaml）、本 WBS、smartlock-docs/ 新主線、VibeCoding 模板（.claude/rules 引用）。docs_html 重建 111 筆零漂移；20260701 孤兒報告歸檔 meetings/。）
 
 **前一次更新：** 2026-07-08（**根目錄雜物清理 R1（0707 會議 AI #1）**，branch `chore/root-cleanup` — 三個探索 agent 盤點根目錄／文件層／活躍模組後，依業主四項裁決執行第一輪：刪 11 張 Playwright 除錯截圖 + `wo-detail.md` + `src/` 空殼（皆 untracked 零引用）；四個會議資料夾歸檔 `meetings/`（gitignore，本機留存）；`git rm` 三個孤兒元件 SettlementDetailModal／NetworkErrorBanner／Spinner（零引用再驗證）。6 個未接線 Phase II service 與 2 個近期未接線元件依裁決保留備查。tsc 0。後續：R2 docs/ 中間文件整包刪（0707 決議「只留 WBS/ADR/OpenAPI 三核心」）、R3 CI 假綠修正（reverse-import-lint／bare-except-lint 掃已刪 agent 舊目錄、README 仍寫 LangGraph/ReAct、Makefile 失效 target）。）
 

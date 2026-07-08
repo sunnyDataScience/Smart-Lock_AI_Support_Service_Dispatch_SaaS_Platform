@@ -9,8 +9,7 @@
 #   make test-component      # API component test（需 dev DB）
 #   make test-contract       # OpenAPI 合約測試（需 api 跑於 :8001）
 #   make test-e2e-smoke      # 端對端 smoke（需 api + web）
-#   make test-agent-mini     # AI agent eval mini（5 題，需 agent 跑於 :8000）
-#   make test-all            # 跑前 3 個（agent-mini / e2e-smoke 需手動觸發）
+#   make test-all            # 跑前 3 個（e2e-smoke 需手動觸發）
 #
 # 設計原則（對齊 E7x §5.2）：
 #   - 沒有對 prod 服務的 hard dep；每個 target 失敗時印明確修復提示
@@ -18,7 +17,7 @@
 #   - 路徑全用相對 PROJECT_ROOT，不依賴 cwd
 
 .PHONY: help test-unit test-component test-contract test-e2e-smoke \
-        test-agent-mini test-all coverage mock-up mock-down clean
+        test-all coverage mock-up mock-down clean
 
 # ── 預設 target：列出說明 ─────────────────────────────────────────
 help:
@@ -29,7 +28,6 @@ help:
 	@echo "  make test-component    API component（pytest -m component，需 dev DB）"
 	@echo "  make test-contract     OpenAPI 合約（schemathesis，需 api on :8001）"
 	@echo "  make test-e2e-smoke    端對端 smoke（curl + Playwright）"
-	@echo "  make test-agent-mini   AI agent eval 5 題（需 agent on :8000）"
 	@echo "  make test-all          unit + component + contract"
 	@echo ""
 	@echo "Utilities:"
@@ -59,7 +57,7 @@ test-component:
 # 對應 E7x §5.2 contract layer (5%)
 # 需求：api 跑於 :8001
 test-contract:
-	@echo "→ schemathesis (docs/02-design/specs/openapi.yaml)"
+	@echo "→ schemathesis (docs/architecture/api/openapi.yaml)"
 	bash scripts/ci/contract-schemathesis.sh
 
 # ── E2E smoke：API smoke + Playwright login spec ─────────────────
@@ -75,21 +73,11 @@ test-e2e-smoke:
 	cd web && npm run test:e2e
 
 # ── AI agent eval mini：5 題 smoke（需 agent 跑） ─────────────────
-# 對應 E7x §8 AI eval / §10 #26
-# 注意：本 target 真打 LLM（agent → Vertex），有費用；CI 不跑，僅手動觸發
-test-agent-mini:
-	@echo "→ agent/evals/runner.py --limit 5"
-	@if ! curl -fsS http://localhost:8000/health >/dev/null 2>&1; then \
-		echo "⚠ Agent not responding on :8000. Run: ./scripts/dev/dev-up.sh"; \
-		exit 1; \
-	fi
-	cd agent && uv run python -m evals.runner --limit 5
-
-# ── 整套（不含 agent-mini / e2e-smoke，因需真 services） ──────────
+# ── 整套（不含 e2e-smoke，因需真 services） ──────────
 test-all: test-unit test-component test-contract
 	@echo ""
 	@echo "✓ test-unit / test-component / test-contract 全綠"
-	@echo "ℹ test-e2e-smoke / test-agent-mini 需手動觸發（require running services）"
+	@echo "ℹ test-e2e-smoke 需手動觸發（require running services）"
 
 # ── Coverage 報告（需 uv sync --group test 先裝 pytest-cov） ──────
 coverage:
