@@ -3,7 +3,11 @@
 # version: 1.0
 # status: active
 # owner: 平台架構師
-# last-updated: 2026-07-07
+# last-updated: 2026-07-08
+# canonical: api/openapi.yaml
+#   ↑ 端點/schema 細節以機讀 SSOT（api/openapi.yaml，schemathesis/spec-lint/
+#     prism mock/前端型別生成之依據）為準；本檔為架構導讀視圖（領域分群、
+#     錯誤信封、守衛鏈設計敘事）。兩者矛盾時以 api/openapi.yaml 為 source of truth。
 # upstream:
 #   - ../api/P2/06_api_design_specification.md          # 15 領域端點總表 / 錯誤信封 / 守衛鏈 / WS 頻道
 #   - ../agent/P2/06_api_design_specification.md        # LINE /callback 入站 + /internal 消費者側
