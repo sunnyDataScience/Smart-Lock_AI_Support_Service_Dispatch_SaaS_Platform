@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-07（**維運監控重構：儀表板不追蹤自己改追蹤導流站、租戶服務健康燈移到租戶管理頁**，branch `feat/platform-monitor-tenant-split` — 業主裁決「追蹤自己沒啥意義;改追蹤 :3002;租戶相關的監控放到 /platform/tenants」。切分規則:monitor_target.brand=租戶 slug → 健康燈顯示於租戶管理頁對應卡片(30s 輪詢,fail-soft);非租戶 brand=平台級留儀表板(摘要計數只計平台級)。新增仍走儀表板(brand=租戶 slug 即歸戶);同日追加裁決(branch `fix/platform-monitor-hide-tenant-rows`):租戶目標連精簡管理列也不顯示,儀表板完全只列平台級。本機資料:刪平台 Console API 自我探測、加導流站(host.docker.internal:3002,實測 200)、師傅 API 改組「平台共用服務」。零 API/schema 變更、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright 兩頁全過。**已部署本機 docker(platform web)**。）
+**最後更新：** 2026-07-08（**根目錄雜物清理 R1（0707 會議 AI #1）**，branch `chore/root-cleanup` — 三個探索 agent 盤點根目錄／文件層／活躍模組後，依業主四項裁決執行第一輪：刪 11 張 Playwright 除錯截圖 + `wo-detail.md` + `src/` 空殼（皆 untracked 零引用）；四個會議資料夾歸檔 `meetings/`（gitignore，本機留存）；`git rm` 三個孤兒元件 SettlementDetailModal／NetworkErrorBanner／Spinner（零引用再驗證）。6 個未接線 Phase II service 與 2 個近期未接線元件依裁決保留備查。tsc 0。後續：R2 docs/ 中間文件整包刪（0707 決議「只留 WBS/ADR/OpenAPI 三核心」）、R3 CI 假綠修正（reverse-import-lint／bare-except-lint 掃已刪 agent 舊目錄、README 仍寫 LangGraph/ReAct、Makefile 失效 target）。）
+
+**前一次更新：** 2026-07-07（**維運監控重構：儀表板不追蹤自己改追蹤導流站、租戶服務健康燈移到租戶管理頁**，branch `feat/platform-monitor-tenant-split` — 業主裁決「追蹤自己沒啥意義;改追蹤 :3002;租戶相關的監控放到 /platform/tenants」。切分規則:monitor_target.brand=租戶 slug → 健康燈顯示於租戶管理頁對應卡片(30s 輪詢,fail-soft);非租戶 brand=平台級留儀表板(摘要計數只計平台級)。新增仍走儀表板(brand=租戶 slug 即歸戶);同日追加裁決(branch `fix/platform-monitor-hide-tenant-rows`):租戶目標連精簡管理列也不顯示,儀表板完全只列平台級。本機資料:刪平台 Console API 自我探測、加導流站(host.docker.internal:3002,實測 200)、師傅 API 改組「平台共用服務」。零 API/schema 變更、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright 兩頁全過。**已部署本機 docker(platform web)**。）
 
 **前一次更新：** 2026-07-07（**平台師傅管理頁預設篩選改「全部」**，branch `fix/platform-technicians-default-all` — 業主指示 `:3003/platform/technicians` 預設顯示全部。原預設 `pending_approval`(無待審=空清單,看不出平台上有哪些師傅)→ 預設不帶 status 過濾,「全部」chip 移到第一位。純前端、CIA 豁免。驗證:tsc 0、重建 platform web、Playwright(「全部」預設選中、清單直接列出啟用中師傅)。**已部署本機 docker(platform web)**。）
 
