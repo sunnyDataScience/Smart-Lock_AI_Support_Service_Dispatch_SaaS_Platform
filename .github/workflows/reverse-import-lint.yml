@@ -1,12 +1,19 @@
 name: Reverse import lint
 
-# 規則：agent/ 模組分層必須單向（leaf → upper），禁止反向 import：
-#   - agent/skills/       不可 import harness/*
-#   - agent/core/         不可 import harness/* 或 skills/*（leaf 必須最乾淨）
-#   - agent/harness/      不可 import agent module（agent.py / from agent import）
+# 規則：lockcore 模組分層必須單向（下層不可 import 上層）：
+#   - lockcore/providers/  不可 import lockcore.agent / lockcore.channels
+#     （provider 是 loop 的下游依賴，反向會成 cycle）
+#   - lockcore/agent/      不可 import lockcore.channels
+#     （channels 疊在 agent core 之上，由 gateway / apps 接線）
 #
-# 違反會造成 pydeps 圖出現 cycle，未來重構（如 RP2.1 debounce 拆分）會被卡住。
-# 是 RP2.2 / RP2.3（PR #23 / #24）建立的分層約束的 CI 守護。
+# 歷史：本 lint 原守護 2026-06-04 重寫前的 agent/{skills,core,harness} 分層
+# （RP2.2/RP2.3，PR #23/#24）。舊目錄已隨 LockCore 重寫全刪，原檢查對不存在
+# 的路徑空轉（假綠），2026-07-08 依 0707 會議清理輪改指 lockcore 分層。
+#
+# 注意：lockcore 是 fork 自 nanobot 的 vendor 套件（見 agent/lockcore/VENDOR.md），
+# config/schema.py 對 agent.tools 的 TYPE_CHECKING／validator import 與
+# utils/progress_events.py 對 agent.hook 的 import 屬上游既有結構，不在本 lint
+# 範圍（僅檢查上述兩條會造成 cycle 的方向）。
 #
 # 例外：任何位置只要該行加上 # allow-rev-import 註解視為刻意例外。
 
@@ -21,69 +28,49 @@ on:
 
 jobs:
   lint:
-    name: Detect reverse imports between agent layers
+    name: Detect reverse imports between lockcore layers
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check skills/ → harness/
+      - name: Check providers/ → agent/ or channels/
         shell: bash
         run: |
           set -euo pipefail
+          test -d agent/lockcore/providers || { echo "::error::agent/lockcore/providers missing — layering assumption broken, update this workflow"; exit 1; }
           violations=$(
-            find agent/skills -type f -name '*.py' \
-              -not -path 'agent/skills/__pycache__/*' \
+            find agent/lockcore/providers -type f -name '*.py' \
+              -not -path '*/__pycache__/*' \
               -print0 \
-            | xargs -0 grep -nH -E '^\s*(from harness|import harness)' 2>/dev/null \
+            | xargs -0 grep -nH -E '^\s*(from|import)\s+lockcore\.(agent|channels)\b' 2>/dev/null \
             | grep -v 'allow-rev-import' \
             || true
           )
           if [ -n "$violations" ]; then
-            echo "::error::skills/ must not import from harness/"
+            echo "::error::lockcore/providers/ must not import lockcore.agent or lockcore.channels"
             echo "Violations:"
             echo "$violations"
             exit 1
           fi
-          echo "OK: agent/skills/ is clean"
+          echo "OK: lockcore/providers/ is clean"
 
-      - name: Check core/ → harness/ or skills/
+      - name: Check agent/ → channels/
         shell: bash
         run: |
           set -euo pipefail
+          test -d agent/lockcore/agent || { echo "::error::agent/lockcore/agent missing — layering assumption broken, update this workflow"; exit 1; }
           violations=$(
-            find agent/core -type f -name '*.py' \
-              -not -path 'agent/core/__pycache__/*' \
+            find agent/lockcore/agent -type f -name '*.py' \
+              -not -path '*/__pycache__/*' \
               -print0 \
-            | xargs -0 grep -nH -E '^\s*(from harness|from skills|import harness|import skills)' 2>/dev/null \
+            | xargs -0 grep -nH -E '^\s*(from|import)\s+lockcore\.channels\b' 2>/dev/null \
             | grep -v 'allow-rev-import' \
             || true
           )
           if [ -n "$violations" ]; then
-            echo "::error::core/ must not import from harness/ or skills/ (leaf layer must stay clean)"
+            echo "::error::lockcore/agent/ must not import lockcore.channels (channels sit above the core; wire via gateway/apps)"
             echo "Violations:"
             echo "$violations"
             exit 1
           fi
-          echo "OK: agent/core/ is clean"
-
-      - name: Check harness/ → agent module
-        shell: bash
-        run: |
-          set -euo pipefail
-          # match `from agent import X` or `import agent` (top-level only — exclude `from agent.X` since
-          # there is no real `agent` package, agent.py is a top-level module).
-          violations=$(
-            find agent/harness -type f -name '*.py' \
-              -not -path 'agent/harness/__pycache__/*' \
-              -print0 \
-            | xargs -0 grep -nH -E '^\s*(from agent\s+import|import\s+agent\s*$|^\s*import\s+agent\s*#)' 2>/dev/null \
-            | grep -v 'allow-rev-import' \
-            || true
-          )
-          if [ -n "$violations" ]; then
-            echo "::error::harness/ must not import from agent module (use dependency injection via init() instead)"
-            echo "Violations:"
-            echo "$violations"
-            exit 1
-          fi
-          echo "OK: agent/harness/ does not reverse-import agent"
+          echo "OK: lockcore/agent/ does not import channels"

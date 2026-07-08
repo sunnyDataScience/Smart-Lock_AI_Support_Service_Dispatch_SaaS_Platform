@@ -3,51 +3,66 @@
 ![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-blue)
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)
+![Next.js](https://img.shields.io/badge/Next.js-15-black.svg)
 
 這是一個整合 AI 智能客服與自動化技師派工的 SaaS 平台，旨在徹底革新電子鎖售後服務與維修流程。透過 AI 技術將專家知識系統化，並自動化從報修到結案的所有流程。
 
 ## 核心功能 (Core Features)
 
-### V1.0 AI 智能客服 (當前階段)
-- **7x24 LINE Bot 互動**：透過 LINE 提供即時自動化故障排除建議。
-- **ProblemCard 結構化診斷**：自動擷取品牌、型號、故障現象，生成標準化問題卡。
-- **三層解決引擎 (Resolution Engine)**：
-  - **L1 (Vector Search)**：歷史成功案例向量匹配。
-  - **L2 (RAG)**：結合產品手冊進行檢索增強生成回答。
-  - **L3 (Escalation)**：無縫轉接真人客服或自動建立派工需求。
-- **自進化知識庫**：從成功對話中自動生成 SOP 草稿，實現知識資產化。
+### AI 智能客服（LINE Bot）
+- **7x24 LINE Bot 互動**：透過 LINE 提供即時自動化故障排除建議，支援照片理解（VLM）與連續訊息合併。
+- **Agent Skills 知識庫**：產品知識與客服 SOP 以 Agent Skills 標準（SKILL.md + references）承載，可攜、可跨框架複用。
+- **L1/L2/L3 分流**：AI 自動回覆 → 轉真人客服（接管暫停 AI）→ 開工單派師傅到場。
+- **Per-user 記憶**：以 tenant + user_id 隔離的使用者記憶層，跨對話累積脈絡。
 
-### V2.0 技師派工與帳務 (規劃中)
-- **智慧派工引擎**：根據技師技能、區域及評分進行最佳匹配。
-- **技師工作台**：支援接單、完工回報與現場導航的行動端 Web App。
-- **標準化報價引擎**：基於品牌與鎖型的自動化維修計價。
-- **自動化帳務系統**：簡化墊款、結算與財務對帳流程。
+### 工單派工與帳務（營運後台）
+- **工單全生命週期**：問題卡 → 工單 → 線上報價（LINE 同意流程）→ 派工 → 施工回報 → 結案 → 月結對帳。
+- **智慧派工**：依技能、區域、評分與品牌授權標示的人工／自動派工。
+- **師傅平台**：全平台唯一實例，師傅註冊（KYC）、接單、結案、對帳。
+- **平台維運 Console**：租戶名冊與生命週期、品牌申請審核、師傅審核、服務健康監控。
 
 ## 技術棧 (Tech Stack)
 
-### 後端核心 (Backend)
-- **框架**：FastAPI (Python 3.11+)
-- **工作流控制**：LangGraph & LangChain (編排 Agent 決策流程)
-- **AI 模型**：Google Gemini 3 Pro (LLM) & text-embedding-004
-- **資料庫**：PostgreSQL 16 (含 pgvector 向量擴展) & Redis 7 (Session 快取)
+### Agent 核心
+- **LockCore**（`agent/lockcore/`）：fork 自上游 `HKUDS/nanobot` 的最小核心套件，turn 狀態機 + 工具白名單。
+- **LiteLLM 統一供應商**：單一 provider 以 model 字串路由 Gemini / Vertex / Ollama / Claude / OpenAI。
+- **Agent Skills 標準**：知識與 SOP 位於 `lockcore/skills/`（agentskills.io 格式）。
 
-### 基礎設施 (Infrastructure)
-- **部署**：Docker & Docker Compose
-- **CI/CD**：GitHub Actions
-- **介面**：LINE Messaging API
+### 後端／前端
+- **API**：FastAPI（Python 3.11+，psycopg3 raw SQL），單體多面部署（`API_SURFACE` 過濾：dispatch / tech / platform）。
+- **Web**：Next.js 15 單 codebase 多入口（`NEXT_PUBLIC_APP_MODE`：品牌後台 / 師傅站 / 導流站 / 平台 Console）。
+- **資料庫**：PostgreSQL 17 + pgvector；品牌庫、師傅庫、平台庫實體隔離。
+
+### 基礎設施
+- **部署**：Docker Compose（本機四 stack）＋ GCP Cloud Run（雲端）。
+- **CI/CD**：GitHub Actions。
+- **介面**：LINE Messaging API。
 
 ## 目錄結構 (Directory Structure)
 
-- `agent/`：Skill-based ReAct Agent — LINE Bot AI 客服（LangGraph + 25 個 SKILL.md SOP + Harness 中介層）。
-- `data/`：數據中台 Pipeline — 4 層 Medallion（Raw → Bronze → Silver → Skill），產出 SKILL.md 技能文件。
-- `docs/`：詳盡的專案文件、ADR (架構決策)、PRD 及 BDD 情境。
-- `SQL/`：資料庫 Schema 與初始化腳本。
+- `agent/`：LINE Bot AI 客服 — LockCore 核心（`agent/lockcore/`）＋ LINE gateway（`agent/scripts/line_gateway.py`）。見 `agent/README.md`。
+- `api/`：FastAPI 營運後台 API（工單、派工、報價、帳務、平台 Console）。
+- `web/`：Next.js 前端（單 codebase 依 APP_MODE 產出四種入口）。
+- `data/`：數據中台 Pipeline — Medallion（Raw → Bronze → Silver → Skill），產出知識素材。
+- `SQL/`：資料庫 Schema 與 forward-only migrations。
+- `scripts/`：部署（Cloud Run）、DB、環境切換腳本。
+- `docs/architecture/`：ADR（架構決策）與 OpenAPI 契約。
+- `smartlock-docs/`：企業文件集（平台級 ADR 與各子系統 SAD）。
+
+## 本機四 stack (Docker Compose)
+
+| Stack | Compose 檔 | 服務 |
+|---|---|---|
+| 品牌派工站（一品牌一套） | `docker-compose.dispatch.yml` | web :3000 / api :8001 / db :5433 / agent |
+| 師傅站（全平台唯一） | `docker-compose.tech.yml` | web :3001 / api :8002 / db :5434 |
+| 導流站 | `docker-compose.landing.yml` | web :3002 |
+| 平台維運 Console | `docker-compose.platform.yml` | web :3003 / api :8003 / db :5435 |
 
 ## 快速入門 (Getting Started)
 
 ### 環境需求
-- Python 3.11+
-- Conda (建議用於管理開發環境)
+- Python 3.11+（由 uv 自動管理）
+- Node.js 20+（web 前端）
 - Docker & Docker Compose
 
 ### 安裝與啟動
@@ -68,12 +83,13 @@
    後續 `pyproject.toml` 任何改動只要重跑 `uv sync` 即可。
 
 3. **環境變數設定**
-   複製 `agent/.env.example` 並重新命名為 `.env`，填入必要的 API 金鑰 (Google AI, LINE Channel 等)。
+   機密（`GEMINI_API_KEY` / `LINE_CHANNEL_*` 等）放 `.env` 或 gitignore 檔，不入 `agent/config.toml`。
 
-4. **啟動開發伺服器**
+4. **啟動 Agent（LINE webhook 通道）**
    ```bash
    cd agent
-   python main.py
+   python scripts/line_gateway.py     # LINE webhook 入口
+   python scripts/real_turn_demo.py   # 或本機 demo（真實 turn cycle）
    ```
 
 5. **LINE Webhook 設定**
@@ -91,10 +107,20 @@
    3. 開啟 **Use webhook**，點擊 **Verify** 確認連通。
    4. 關閉 **Auto-reply messages**，避免與 AI 回覆衝突。
 
+### 測試
+```bash
+cd agent && pytest      # agent 測試
+cd api && pytest        # api 測試（注意：勿對 UAT 庫跑全套，見 CLAUDE.md）
+cd web && npx tsc --noEmit && npm test
+```
+
 ## 相關文件 (Documentation)
-- [系統架構與設計文件](docs/05_architecture_and_design_document.md)
-- [開發工作流手冊](docs/01_development_workflow_cookbook.md)
-- [AI 指令上下文 (GEMINI.md)](GEMINI.md)
+- [Agent 新架構說明](agent/README.md)（LockCore 設計依據、skill 結構、config 載入）
+- [LockCore vendor 說明](agent/lockcore/VENDOR.md)（fork 自 nanobot 的邊界與最小 diff 原則）
+- [架構決策 ADR](docs/architecture/adr/)
+- [OpenAPI 契約](docs/architecture/api/openapi.yaml)
+- [企業文件集](smartlock-docs/README.md)（平台級 ADR 與各子系統 SAD）
+- [工作指引 CLAUDE.md](CLAUDE.md)（工具鏈、治理規則）
 
 ## 授權 (License)
 All rights reserved.

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Fixed
+
+- **CI 假綠與過期文件修正（清理輪 R3）（branch `chore/stale-refs-fix`，2026-07-08）**：盤點發現三處「檢查形同虛設／描述已死架構」問題一次修正。① `reverse-import-lint.yml` 原掃 `agent/{skills,core,harness}`——三目錄已隨 2026-06-04 LockCore 重寫全刪，`find` 對不存在路徑空轉、每步 vacuously 過（**假綠**）→ 改為 lockcore 分層規則（`providers/` 不可 import `lockcore.agent|channels`、`agent/` 不可 import `lockcore.channels`，本地模擬今日即綠）+ `test -d` guard（目錄再消失時 loud-fail 而非假綠）；② `bare-except-lint.yml` 掃描清單移除已刪的 `agent/{harness,quality}`（lockcore 屬 vendor fork ~126 處上游風格 bare except，依最小 diff 原則明文排除不掃）；順手把掃描範圍內 4 處既有違規補 `# noqa: BLE001` 註記（auth_service fail-soft token／inventory_v2 unique 轉譯 re-raise／kyc 清孤兒 re-raise + fail-closed 稽核——皆刻意寬 catch，純註解零行為變更）；③ `api-types-sync.yml` 移除不存在的舊觸發路徑 `web/lib/types/api.generated.ts`。④ `README.md` 整篇改寫：移除 LangGraph/ReAct/Harness 已死架構描述與失效啟動指令（`python main.py`）、失效文件連結，改為 LockCore + Agent Skills + LiteLLM、四 stack compose 表、現行測試與文件路標。⑤ `Makefile` 移除失效 target `test-agent-mini`（`agent/evals/runner.py` 已不存在）、修 `test-contract` 過期註解路徑。⑥ CLAUDE.md 兩處懸空路標修正（`docs/_audit` → `docs/4-exploration`；文件中樞 `docs/HOME.md`（不存在）→ `smartlock-docs/README.md`）。
+
 ### Removed
 
 - **docs/ AI 中間文件整包刪（0707 會議 AI #16「驗收後全刪，核心只留 WBS/ADR/OpenAPI」）（branch `chore/docs-purge`，2026-07-08）**：依 0707 會議決議 §十一/§十五（`meetings/20260707 資料/20260707 lock-AI 會議記錄.md`）與業主 2026-07-08 裁決「依決議整包刪（git 歷史可找回）」，`git rm` docs/ 下 17 個中間文件目錄共 503 檔：`4-exploration`（60 個 CR/CIA 探索）、`_audit`（35 audit trail）、`_ops`（9 runbook/baseline）、`_archive`（~65 已封存）、`analysis`（177 BR/FR 拆解）、`ui`（~120 design pipeline）、`ux`（24）、`governance`、`qa`、`prd`、`ops`、`3-process`、`5-views`、`html`、`_source`、`policy`、`uber-like-platform`。**保留核心**：`docs/architecture/` 整棵（ADR 89 個 + `api/openapi.yaml` + 架構文件）、WBS（`web/docs/system-completion-status.md`）、`smartlock-docs/` 新主線、`VibeCoding_Workflow_Templates/`（被 `.claude/rules` 引用 + smartlock-docs schema 來源）。`docs_html/` 以 `tools/gen_docs_html.py` 整包重建（111 筆，僅 index.html 變更、零漂移）；`docs_html/20260701/` 孤兒殘留（docs 源已不存在）之開發報告歸檔 `meetings/`。`docs/4-exploration/` 作為 CIA gate 輸出目錄的慣例不變，未來產出時重建目錄即可。
