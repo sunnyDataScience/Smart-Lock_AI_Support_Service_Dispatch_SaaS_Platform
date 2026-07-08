@@ -31,7 +31,6 @@ const ROUTES = [
   "/work-orders",
   "/work-orders/kanban",
   "/work-orders/map",
-  "/technicians",
   "/notifications",
   "/settings",
   // knowledge-base

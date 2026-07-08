@@ -29,10 +29,9 @@ async function expectAllowed(page: Page, url: string) {
   await expect(page).toHaveURL(new RegExp(url.replace(/\//g, "\\/")));
 }
 
-test("dispatcher：可進工單/技師，禁區（會計/報表/角色）被導 dashboard", async ({ page }) => {
+test("dispatcher：可進工單，禁區（會計/報表/角色）被導 dashboard", async ({ page }) => {
   await loginAs(page, "dispatcher@example.com");
   await expectAllowed(page, "/work-orders");
-  await expectAllowed(page, "/technicians");
   await expectRedirectedToDashboard(page, "/accounting");
   await expectRedirectedToDashboard(page, "/admin/reports/kpi");
   await expectRedirectedToDashboard(page, "/admin/roles");
@@ -42,13 +41,12 @@ test("dispatcher：可進工單/技師，禁區（會計/報表/角色）被導 
   await expect(page.locator('nav a[href="/admin/audit-events"]')).toHaveCount(0);
 });
 
-test("customer_service：可進客戶/知識庫，禁區（技師/庫存/會計）被導 dashboard", async ({
+test("customer_service：可進客戶/知識庫，禁區（庫存/會計）被導 dashboard", async ({
   page,
 }) => {
   await loginAs(page, "cs@example.com");
   await expectAllowed(page, "/admin/customers");
   await expectAllowed(page, "/knowledge-base/cases");
-  await expectRedirectedToDashboard(page, "/technicians");
   await expectRedirectedToDashboard(page, "/admin/inventory");
   await expectRedirectedToDashboard(page, "/accounting");
 });

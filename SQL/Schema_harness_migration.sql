@@ -1,12 +1,15 @@
 -- ============================================================================
 -- Harness Framework Migration
 -- ============================================================================
--- 版本：v1.0
--- 日期：2026-04-06
+-- 版本：v1.1
+-- 日期：2026-04-06（2026-07-08 清理：harness 架構已於 2026-06-04 隨 LockCore
+--       重寫刪除，本檔移除兩張零引用死表 harness_traces / user_soft_profiles
+--       的 CREATE 區塊——既有環境的存量表不受影響，只是新環境不再建。
+--       歷史 DDL 查 git。）
 -- 說明：
 --   1. problem_cards 表新增 Harness 欄位 (domain_attributes JSONB, attempts, 診斷狀態)
---   2. 新增 harness_traces 表 (L7 Observability 結構化追蹤)
---   3. 新增 problem_card_attempts 表 (L5 ResolutionAttempt 追蹤)
+--      —— problem_card_service.py 仍在使用，保留
+--   2. user_facts 表 (SCD Type 2 用戶硬事實) —— data_corrections/facts_erp_sync 在用，保留
 -- ============================================================================
 
 
@@ -50,37 +53,7 @@ COMMENT ON COLUMN problem_cards.attempts IS 'Harness L5: ResolutionAttempt 歷�
 
 
 -- ============================================================================
--- [2] harness_traces 表 — L7 Observability 結構化追蹤
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS harness_traces (
-    id              BIGSERIAL PRIMARY KEY,
-    session_id      VARCHAR(100) NOT NULL,        -- LangGraph thread_id
-    node_name       VARCHAR(50) NOT NULL,          -- e.g. "task_decompose", "router", "safety_gate"
-    timestamp       TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    status          VARCHAR(10) NOT NULL,           -- "ok" | "error"
-    duration_ms     FLOAT,                          -- 節點執行耗時 (毫秒)
-    history_tag     VARCHAR(200),                   -- e.g. "task_decompose:round_1:verifying"
-    diagnosis_status VARCHAR(50),                   -- 當前診斷狀態 (from task output)
-    symptoms        JSONB,                          -- 累積的症狀 ID 列表
-    error           TEXT,                           -- 錯誤訊息 (status=error 時)
-    metadata        JSONB DEFAULT '{}'              -- 額外 metadata (token count, model, etc.)
-);
-
--- 索引：按 session 查詢
-CREATE INDEX IF NOT EXISTS idx_ht_session ON harness_traces (session_id);
--- 索引：按時間查詢
-CREATE INDEX IF NOT EXISTS idx_ht_timestamp ON harness_traces (timestamp DESC);
--- 索引：按節點名查詢
-CREATE INDEX IF NOT EXISTS idx_ht_node ON harness_traces (node_name);
-
-COMMENT ON TABLE harness_traces IS 'Harness L7: 結構化追蹤事件，每個 graph 節點執行都產生一筆';
-COMMENT ON COLUMN harness_traces.session_id IS 'LangGraph thread_id，對應一個完整對話 session';
-COMMENT ON COLUMN harness_traces.duration_ms IS '節點執行耗時 (毫秒)，用於 latency 監控';
-
-
--- ============================================================================
--- [3] user_facts 表 — SCD Type 2 用戶屬性歷史紀錄
+-- [2] user_facts 表 — SCD Type 2 用戶屬性歷史紀錄
 -- ============================================================================
 -- 用途：儲存 device_brand / device_model / phone / address 等用戶硬事實
 -- 寫入時 expire 舊版本（is_current=FALSE + end_date=NOW），插入新版本
@@ -103,22 +76,3 @@ COMMENT ON TABLE user_facts IS 'SCD Type 2 用戶硬事實：device_brand / devi
 COMMENT ON COLUMN user_facts.is_current IS 'TRUE = 最新版本；FALSE = 已被新值取代（保留歷史）';
 COMMENT ON COLUMN user_facts.start_date IS '此版本生效時間';
 COMMENT ON COLUMN user_facts.end_date IS '此版本失效時間（is_current=FALSE 時非 NULL）';
-
-
--- ============================================================================
--- [4] user_soft_profiles 表 — 用戶軟性畫像（自由文字）
--- ============================================================================
--- 用途：儲存 LLM 萃取的軟性畫像 markdown，每位 user_id 一筆，覆寫式更新
--- 此前 schema 由 agent/profiles/manager.py 動態建立（runtime CREATE TABLE IF NOT EXISTS），
--- 自 RP3 C1 起改由本 SQL 檔統一管理；新環境部署前必須先跑此檔。
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS user_soft_profiles (
-    user_id TEXT PRIMARY KEY,
-    content TEXT NOT NULL DEFAULT '',
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-
-COMMENT ON TABLE user_soft_profiles IS '用戶軟性畫像（LLM 萃取的自由文字 markdown），每 user_id 一筆，覆寫式更新';
-COMMENT ON COLUMN user_soft_profiles.content IS '軟性畫像內容（markdown 格式）';
-COMMENT ON COLUMN user_soft_profiles.updated_at IS '最近更新時間';

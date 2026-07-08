@@ -3,6 +3,11 @@
 > 對應 2026-06-10 lock-AI 會議 Action #5 / 決議 #3：舊版 Agent 線外先跑題庫評測，
 > 確認 baseline 能力後再決定是否轉進 NanoBot source code（避免污染主系統）。
 
+> **2026-07-08 清理**：本文提及的凍結 run 產物（`baseline_clean.csv`、`baseline_per3.csv`、
+> `after_sop.csv`、`reply_quality_live_20260620.csv`、`LIVE_EVAL_RESULTS_20260620.md`）
+> 已依 0707 決議移出工作區，需要時查 git 歷史。本 README 保留作為評測結果的紀錄；
+> 數據摘要見下文。eval 腳本（`scripts/eval_reply_quality.py` 等）仍可重跑產出新結果。
+
 ## 跑法
 
 ```bash
