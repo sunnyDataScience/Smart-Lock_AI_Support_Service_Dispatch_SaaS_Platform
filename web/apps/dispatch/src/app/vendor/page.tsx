@@ -18,9 +18,9 @@ import {
   Clock,
   type LucideIcon,
 } from "lucide-react";
-import { ApiError, api, getCurrentSession, logout } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import LocaleToggle from "@/components/i18n/LocaleToggle";
+import { ApiError, api, getCurrentSession, logout } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import LocaleToggle from "@shared/components/i18n/LocaleToggle";
 
 interface Vendor {
   id: string;

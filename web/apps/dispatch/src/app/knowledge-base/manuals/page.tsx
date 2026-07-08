@@ -1,17 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import { useKbCounts } from "@/hooks/useKbCounts";
+import { usePaginatedFetch } from "@shared/hooks/usePaginatedFetch";
+import { useKbCounts } from "@shared/hooks/useKbCounts";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CloudUpload, Trash2, X } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import ManualsTable from "@/components/knowledge-base/ManualsTable";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 
 type Manual = components["schemas"]["Manual"];
 type ManualPage = components["schemas"]["ManualPage"];

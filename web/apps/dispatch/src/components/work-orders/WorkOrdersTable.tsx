@@ -3,9 +3,9 @@
 import { useMemo, useRef } from "react";
 import Link from "next/link";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { formatRelative } from "@/lib/format";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { formatRelative } from "@shared/lib/format";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];

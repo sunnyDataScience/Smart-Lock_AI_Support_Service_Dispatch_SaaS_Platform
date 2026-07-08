@@ -7,15 +7,15 @@ import {
   Calculator,
   Settings as SettingsIcon,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import PricingForm from "@/components/settings/PricingForm";
 import SystemConfigForm from "@/components/settings/SystemConfigForm";
-import ThemeToggle from "@/components/theme/ThemeToggle";
-import LocaleToggle from "@/components/i18n/LocaleToggle";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, getCurrentSession, type CurrentSession } from "@/lib/api";
-import { cacheInvalidate } from "@/lib/cache";
-import { friendlyError } from "@/lib/apiError";
+import ThemeToggle from "@shared/components/theme/ThemeToggle";
+import LocaleToggle from "@shared/components/i18n/LocaleToggle";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, getCurrentSession, type CurrentSession } from "@shared/lib/api";
+import { cacheInvalidate } from "@shared/lib/cache";
+import { friendlyError } from "@shared/lib/apiError";
 
 type TabId = "profile" | "security" | "pricing" | "system";
 

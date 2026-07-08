@@ -3,9 +3,9 @@
 import { useMemo } from "react";
 import Link from "next/link";
 import { Eye } from "lucide-react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
-import { formatRelative } from "@/lib/format";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
+import { formatRelative } from "@shared/lib/format";
 
 type Invoice = components["schemas"]["Invoice"];
 type InvoiceStatus = components["schemas"]["InvoiceStatus"];

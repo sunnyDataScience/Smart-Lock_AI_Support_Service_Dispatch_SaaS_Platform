@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
-import { api, tenantPath } from "@/lib/api";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { api, tenantPath } from "@shared/lib/api";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 

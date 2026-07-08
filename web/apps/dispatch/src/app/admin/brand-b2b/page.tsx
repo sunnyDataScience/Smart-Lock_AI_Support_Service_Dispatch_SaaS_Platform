@@ -9,9 +9,9 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 import {
   type BrandB2BStatement,
   type B2BDirection,
@@ -21,7 +21,7 @@ import {
   B2B_DIRECTION_COLOR,
   formatDecimal,
   type BadgeColor,
-} from "@/components/phase-ii";
+} from "@shared/components/phase-ii";
 
 const DIRECTION_TABS: { value: B2BDirection | "all"; label: string }[] = [
   { value: "all", label: "全部" },

@@ -15,10 +15,10 @@ import {
   ModalFooter,
   ModalHeader,
   ModalTitle,
-} from "@/components/ui/Modal";
-import { useToast } from "@/components/ui/Toast";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+} from "@shared/components/ui/Modal";
+import { useToast } from "@shared/components/ui/Toast";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 type ReportType = "kpi" | "revenue" | "technician_ranking" | "settlements";
 type Cadence = "weekly" | "monthly" | "quarterly";

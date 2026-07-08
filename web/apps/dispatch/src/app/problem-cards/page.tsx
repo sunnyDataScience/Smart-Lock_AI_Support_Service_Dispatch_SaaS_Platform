@@ -1,13 +1,13 @@
 "use client";
 
 import { Calendar, ChevronDown, Search } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import ProblemCardsTable from "@/components/problem-cards/ProblemCardsTable";
-import { resolveTenantId } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import type { components } from "@/types/api.generated";
+import { resolveTenantId } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@shared/hooks/usePaginatedFetch";
+import type { components } from "@shared/types/api.generated";
 import { useMemo, useState } from "react";
 
 type ProblemCard = components["schemas"]["ProblemCard"];

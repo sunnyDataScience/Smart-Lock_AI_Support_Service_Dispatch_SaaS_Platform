@@ -13,9 +13,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Pencil, Trash2, RefreshCw, BarChart3 } from "lucide-react";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { cacheInvalidate } from "@shared/lib/cache";
 
 const BASE = "/api/v1/platform/monitor-targets";
 const POLL_MS = 30_000;

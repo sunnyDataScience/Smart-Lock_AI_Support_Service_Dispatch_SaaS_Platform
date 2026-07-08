@@ -11,9 +11,9 @@ import {
   X,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 type RequestItem = {
   id: string;

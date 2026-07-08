@@ -1,4 +1,6 @@
 @import "tailwindcss";
+/* monorepo：共用元件的 class 需納入掃描（v4 不自動掃 app 外目錄） */
+@source "../../../../packages/shared/src";
 
 :root {
   /* Brand */

@@ -15,9 +15,9 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 import {
   type TechnicianLifecycleEvent,
   type TechnicianLifecycleEventType,
@@ -26,7 +26,7 @@ import {
   TECHNICIAN_STATUS_COLOR,
   formatDateTime,
   type BadgeColor,
-} from "@/components/phase-ii";
+} from "@shared/components/phase-ii";
 
 const EVENT_FILTERS: { value: TechnicianLifecycleEventType | "all"; label: string }[] = [
   { value: "all", label: "全部" },

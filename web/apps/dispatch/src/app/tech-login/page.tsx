@@ -4,12 +4,12 @@ import { Wrench } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import BackToHome from "@/components/layout/BackToHome";
-import LocaleToggle from "@/components/i18n/LocaleToggle";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { loginTechnician } from "@/lib/api";
-import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
-import { friendlyError } from "@/lib/apiError";
+import BackToHome from "@shared/components/layout/BackToHome";
+import LocaleToggle from "@shared/components/i18n/LocaleToggle";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { loginTechnician } from "@shared/lib/api";
+import { APP_MODE, PEER_PORTAL_URL } from "@shared/lib/appMode";
+import { friendlyError } from "@shared/lib/apiError";
 
 // 本頁 = 師傅登入入口。CR-0115：登入與註冊分離 —— 註冊由此頁的 tab 改為連到
 // 獨立多步驟頁 /tech-register（欄位擴為 KYC 等級、單卡塞不下）。

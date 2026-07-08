@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { FileText, Plus, Trash2 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { cacheInvalidate } from "@shared/lib/cache";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 interface CatalogItem {
   code: string;

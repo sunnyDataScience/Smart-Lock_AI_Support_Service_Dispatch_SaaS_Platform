@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { components } from "@/types/api.generated";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 import RestockInventoryModal from "./RestockInventoryModal";
 import EditInventoryItemModal from "./EditInventoryItemModal";
 import InventoryLogModal from "./InventoryLogModal";

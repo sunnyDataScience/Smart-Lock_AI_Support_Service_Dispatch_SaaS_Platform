@@ -1,6 +1,6 @@
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
-import Skeleton from "@/components/ui/Skeleton";
+import Sidebar from "@shared/components/layout/Sidebar";
+import Header from "@shared/components/layout/Header";
+import Skeleton from "@shared/components/ui/Skeleton";
 
 /**
  * /dashboard 路由 navigation 時的 fallback skeleton。

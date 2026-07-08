@@ -3,10 +3,10 @@
 import { Wrench, Check, ChevronLeft, ShieldCheck, Upload } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import BackToHome from "@/components/layout/BackToHome";
-import LocaleToggle from "@/components/i18n/LocaleToggle";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import BackToHome from "@shared/components/layout/BackToHome";
+import LocaleToggle from "@shared/components/i18n/LocaleToggle";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 // CR-0115 §8：師傅註冊擴充為 KYC 等級 + 登入/註冊分離。
 // 本頁 = 獨立多步驟申請表單（步驟 1 基本 / 2 專業 / 3 撥款與聯絡 / 4 確認）

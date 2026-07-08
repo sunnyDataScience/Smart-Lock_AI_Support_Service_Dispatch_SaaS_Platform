@@ -8,9 +8,9 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw, ThumbsUp, ThumbsDown, Minus } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 import {
   type SopFeedbackItem,
   type SopSentiment,
@@ -20,7 +20,7 @@ import {
   SOP_TYPE_LABEL,
   formatDateTime,
   type BadgeColor,
-} from "@/components/phase-ii";
+} from "@shared/components/phase-ii";
 
 const SENTIMENT_TABS: { value: SopSentiment | "all"; label: string }[] = [
   { value: "all", label: "全部" },

@@ -12,9 +12,9 @@
  */
 
 import { useState } from "react";
-import { api, auth, login, logout, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import Sidebar from "@/components/layout/Sidebar";
+import { api, auth, login, logout, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
 
 export default function ApiStatusPage() {
   const [email, setEmail] = useState("test@lock-ai.com");

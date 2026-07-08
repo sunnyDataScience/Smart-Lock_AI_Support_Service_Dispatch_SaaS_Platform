@@ -11,7 +11,7 @@ import {
   Line,
   ComposedChart,
 } from "recharts";
-import type { components } from "@/types/api.generated";
+import type { components } from "@shared/types/api.generated";
 
 type RevenueTrendPoint = components["schemas"]["RevenueTrendPoint"];
 

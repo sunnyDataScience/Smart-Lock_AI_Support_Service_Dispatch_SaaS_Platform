@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { MapPin, Navigation, ChevronRight, CalendarClock, Clock } from "lucide-react";
 import StatusBadge from "@/components/tech/StatusBadge";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];

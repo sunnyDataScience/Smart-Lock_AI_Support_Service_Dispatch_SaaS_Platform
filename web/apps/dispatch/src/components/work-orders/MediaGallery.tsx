@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, RefreshCw, X, Lock, LockOpen } from "lucide-react";
-import { api, auth, getCurrentSession, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { api, auth, getCurrentSession, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 interface MediaItem {
   id: string;

@@ -3,15 +3,15 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Headphones, Plus } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import ChatTimeline from "@/components/conversations/ChatTimeline";
 import DiagnosticReasoningPanel from "@/components/conversations/DiagnosticReasoningPanel";
 import HandoverComposer from "@/components/conversations/HandoverComposer";
-import { ApiError, api, tenantPath, resolveTenantId } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { formatRelative } from "@/lib/format";
-import { usePollingEffect } from "@/hooks/usePollingEffect";
-import type { components } from "@/types/api.generated";
+import { ApiError, api, tenantPath, resolveTenantId } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { formatRelative } from "@shared/lib/format";
+import { usePollingEffect } from "@shared/hooks/usePollingEffect";
+import type { components } from "@shared/types/api.generated";
 
 type Conversation = components["schemas"]["Conversation"];
 type ConversationEnvelope = components["schemas"]["ConversationEnvelope"];

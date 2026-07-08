@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import type { components } from "@/types/api.generated";
-import { formatRelative } from "@/lib/format";
+import type { components } from "@shared/types/api.generated";
+import { formatRelative } from "@shared/lib/format";
 
 type CaseEntry = components["schemas"]["CaseEntry"];
 type EmbeddingStatus = CaseEntry["embedding_status"];

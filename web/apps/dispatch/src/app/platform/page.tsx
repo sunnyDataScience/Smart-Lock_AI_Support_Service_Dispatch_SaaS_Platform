@@ -8,8 +8,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Building2, UserCheck, ArrowRight } from "lucide-react";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 import OpsMonitorPanel from "@/components/platform/OpsMonitorPanel";
 
 interface PlatformMe {

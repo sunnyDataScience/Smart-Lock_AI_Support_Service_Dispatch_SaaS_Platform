@@ -14,10 +14,10 @@ import MonthlySnapshot, {
   type DashboardSummary,
   formatNT,
 } from "@/components/tech/dashboard/MonthlySnapshot";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
-import { type TechStatement } from "@/components/phase-ii";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { type TechStatement } from "@shared/components/phase-ii";
+import type { components } from "@shared/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
 type TechnicianEnvelope = components["schemas"]["TechnicianEnvelope"];

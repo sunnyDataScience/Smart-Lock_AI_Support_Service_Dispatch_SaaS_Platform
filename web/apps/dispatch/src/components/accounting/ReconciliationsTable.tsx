@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type Reconciliation = components["schemas"]["Reconciliation"];
 type ReconciliationStatus = components["schemas"]["ReconciliationStatus"];

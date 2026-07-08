@@ -7,8 +7,8 @@
 import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { loginPlatformAdmin } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { loginPlatformAdmin } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 const inputCls =
   "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";

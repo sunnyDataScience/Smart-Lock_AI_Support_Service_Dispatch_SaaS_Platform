@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Pencil, Plus, Tag, Trash2, X } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { cacheInvalidate } from "@shared/lib/cache";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // CR-0110(20260702 會議裁決簡化版):報價主檔三類目 CRUD。
 // 一品牌一 DB → 單庫 code 唯一,無 per-tenant 複合鍵;軟刪;編輯後 is_mock=FALSE。

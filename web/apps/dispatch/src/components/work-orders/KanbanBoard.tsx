@@ -3,14 +3,14 @@
 import { useMemo } from "react";
 import { Timer, AlertTriangle, CircleX } from "lucide-react";
 import Link from "next/link";
-import type { components } from "@/types/api.generated";
+import type { components } from "@shared/types/api.generated";
 import {
   STATUS_GROUP_MAP,
   STATUS_GROUP_TONE,
   URGENCY_TONE,
   type StatusGroup,
 } from "@/components/work-orders/WorkOrdersTable";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type Urgency = components["schemas"]["Urgency"];

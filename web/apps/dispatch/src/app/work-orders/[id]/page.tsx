@@ -22,8 +22,8 @@ import {
   CalendarClock,
 } from "lucide-react";
 import Link from "next/link";
-import Sidebar from "@/components/layout/Sidebar";
-import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { UAT_HIDE_FAKE_FLOWS } from "@shared/lib/uatFlags";
 import WorkOrderDetailSidebar from "@/components/work-orders/WorkOrderDetailSidebar";
 import DispatchOrderView from "@/components/work-orders/DispatchOrderView";
 import {
@@ -31,10 +31,10 @@ import {
   STATUS_GROUP_TONE,
   URGENCY_TONE,
 } from "@/components/work-orders/WorkOrdersTable";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { ApiError, api, getCurrentSession, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];

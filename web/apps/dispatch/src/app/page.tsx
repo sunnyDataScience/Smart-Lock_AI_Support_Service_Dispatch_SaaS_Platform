@@ -22,11 +22,11 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { auth } from "@/lib/api";
-import { APP_MODE, brandApplyHref, dispatchLoginHref, techRegisterHref } from "@/lib/appMode";
-import LocaleToggle from "@/components/i18n/LocaleToggle";
-import ThemeToggle from "@/components/theme/ThemeToggle";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { auth } from "@shared/lib/api";
+import { APP_MODE, brandApplyHref, dispatchLoginHref, techRegisterHref } from "@shared/lib/appMode";
+import LocaleToggle from "@shared/components/i18n/LocaleToggle";
+import ThemeToggle from "@shared/components/theme/ThemeToggle";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // 一頁式平台介紹 landing(2026-07-07 soft UI 改版;動線不變,對齊 20260702 會議 §三
 // 「landing 掛申請窗口、半自動化導入」):

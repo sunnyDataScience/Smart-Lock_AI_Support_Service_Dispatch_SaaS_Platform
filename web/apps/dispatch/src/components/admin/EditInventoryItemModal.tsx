@@ -15,12 +15,12 @@ import {
   ModalFooter,
   ModalHeader,
   ModalTitle,
-} from "@/components/ui/Modal";
-import { useToast } from "@/components/ui/Toast";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
-import type { components } from "@/types/api.generated";
+} from "@shared/components/ui/Modal";
+import { useToast } from "@shared/components/ui/Toast";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { cacheInvalidate } from "@shared/lib/cache";
+import type { components } from "@shared/types/api.generated";
 
 type InventoryItem = components["schemas"]["InventoryItem"];
 type Owner = "platform" | "brand" | "locksmith";

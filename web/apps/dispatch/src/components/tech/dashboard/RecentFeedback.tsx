@@ -1,7 +1,7 @@
 "use client";
 
 import { MessageSquare } from "lucide-react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 import type { DashboardSummary } from "./MonthlySnapshot";
 
 interface Props {

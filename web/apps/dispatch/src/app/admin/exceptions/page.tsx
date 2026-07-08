@@ -9,10 +9,10 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw, Plus, AlertTriangle, PauseCircle } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import WorkOrderPicker from "@/components/quotes/WorkOrderPicker";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 type ExceptionCase = {
   id: string;

@@ -2,9 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ImageOff, Sparkles } from "lucide-react";
-import { auth } from "@/lib/api";
-import { formatRelative } from "@/lib/format";
-import type { components } from "@/types/api.generated";
+import { auth } from "@shared/lib/api";
+import { formatRelative } from "@shared/lib/format";
+import type { components } from "@shared/types/api.generated";
 
 type Message = components["schemas"]["Message"];
 

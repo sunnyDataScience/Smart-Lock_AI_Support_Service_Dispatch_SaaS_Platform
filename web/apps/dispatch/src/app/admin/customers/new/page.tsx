@@ -7,7 +7,7 @@
  * 邏輯與表單欄位封裝於 CustomerForm。
  */
 
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import { CustomerForm } from "@/components/admin/CustomerForm";
 
 export default function NewCustomerPage() {

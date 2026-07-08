@@ -15,14 +15,14 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, resolveTenantId } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { formatRelative } from "@/lib/format";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import { LOCK_BRANDS } from "@/lib/constants/brands";
-import type { components } from "@/types/api.generated";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, resolveTenantId } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { formatRelative } from "@shared/lib/format";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { usePaginatedFetch } from "@shared/hooks/usePaginatedFetch";
+import { LOCK_BRANDS } from "@shared/lib/constants/brands";
+import type { components } from "@shared/types/api.generated";
 
 type Customer = components["schemas"]["Customer"];
 type Technician = components["schemas"]["Technician"];

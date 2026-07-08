@@ -9,12 +9,12 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import KanbanBoard from "@/components/work-orders/KanbanBoard";
 import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderPage = components["schemas"]["WorkOrderPage"];

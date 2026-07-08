@@ -12,12 +12,12 @@ import {
   Calendar,
   Download,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, auth, getCurrentSession } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import type { components } from "@/types/api.generated";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, auth, getCurrentSession } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { usePaginatedFetch } from "@shared/hooks/usePaginatedFetch";
+import type { components } from "@shared/types/api.generated";
 
 type Voucher = components["schemas"]["Voucher"];
 type RelatedEntityType = NonNullable<Voucher["related_entity_type"]>;

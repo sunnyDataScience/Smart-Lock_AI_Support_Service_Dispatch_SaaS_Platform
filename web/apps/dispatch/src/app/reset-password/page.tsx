@@ -4,10 +4,10 @@ import { KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useState } from "react";
-import { ApiError, confirmPasswordReset } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import LocaleToggle from "@/components/i18n/LocaleToggle";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { ApiError, confirmPasswordReset } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import LocaleToggle from "@shared/components/i18n/LocaleToggle";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // CR-0025 / ADR-0114 — 自助忘記密碼 step 2：?token=... + 新密碼 → confirm。
 function ResetPasswordInner() {

@@ -10,15 +10,15 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import WorkOrdersTable from "@/components/work-orders/WorkOrdersTable";
 import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal";
-import { tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 import { useMemo, useState } from "react";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import type { components } from "@/types/api.generated";
+import { usePaginatedFetch } from "@shared/hooks/usePaginatedFetch";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 

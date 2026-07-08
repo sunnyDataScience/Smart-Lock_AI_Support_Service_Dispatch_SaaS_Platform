@@ -5,10 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import SignaturePad from "@/components/tech/SignaturePad";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 
 type SignaturePayload = components["schemas"]["SignaturePayload"];
 

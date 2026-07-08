@@ -15,13 +15,13 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import StatusBadge, { statusLabel } from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
-import { ApiError, api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { ApiError, api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useLocale, useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];

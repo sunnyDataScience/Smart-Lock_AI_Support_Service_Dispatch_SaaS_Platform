@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Plus, Trash2, CheckCircle2 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 interface ScopeItem {
   id: string;

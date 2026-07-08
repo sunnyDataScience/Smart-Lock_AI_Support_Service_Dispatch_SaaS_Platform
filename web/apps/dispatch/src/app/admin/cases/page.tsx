@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Inbox, PhoneCall, Check, AlertTriangle, ListFilter } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { cacheInvalidate } from "@shared/lib/cache";
 
 interface IntakeCase {
   id: string;

@@ -2,9 +2,9 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { formatRelative } from "@/lib/format";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { formatRelative } from "@shared/lib/format";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];

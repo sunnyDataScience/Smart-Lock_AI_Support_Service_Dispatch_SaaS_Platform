@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import type { components } from "@/types/api.generated";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 type WarrantyClaim = components["schemas"]["WarrantyClaim"];
 type WarrantyClaimStatus = components["schemas"]["WarrantyClaimStatus"];

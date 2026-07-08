@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { Eraser } from "lucide-react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // 共用手寫簽名板（canvas）。由 /signature 頁與完工頁（my-orders/[id]）共用。
 // onChange 回傳 PNG dataURL（清除時回空字串）。

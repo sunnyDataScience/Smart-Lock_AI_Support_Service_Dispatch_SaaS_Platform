@@ -11,9 +11,9 @@ import {
   LogOut,
   KeyRound,
 } from "lucide-react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import ThemeToggle from "@/components/theme/ThemeToggle";
-import { auth, logout } from "@/lib/api";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import ThemeToggle from "@shared/components/theme/ThemeToggle";
+import { auth, logout } from "@shared/lib/api";
 
 /**
  * TechSidebar — 桌面（≥768px）常駐左側導覽，對標後台 Sidebar.tsx。

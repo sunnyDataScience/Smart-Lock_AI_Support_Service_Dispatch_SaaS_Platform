@@ -6,11 +6,11 @@ import { ChevronRight, ClipboardList, RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import StatusBadge from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { formatRelative } from "@/lib/format";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { formatRelative } from "@shared/lib/format";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderPage = components["schemas"]["WorkOrderPage"];

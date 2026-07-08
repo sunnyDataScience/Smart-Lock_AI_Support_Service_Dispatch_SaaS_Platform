@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Smartphone } from "lucide-react";
-import BackToHome from "@/components/layout/BackToHome";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import BackToHome from "@shared/components/layout/BackToHome";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 const MOBILE_BREAKPOINT = 768; // 寬度 ≥ 769px 視為桌面
 

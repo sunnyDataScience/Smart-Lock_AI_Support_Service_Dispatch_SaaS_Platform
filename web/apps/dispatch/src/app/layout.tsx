@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_TC } from "next/font/google";
-import AuthGuard from "@/components/layout/AuthGuard";
-import { ToastProvider } from "@/components/ui/Toast";
-import { ThemeProvider } from "@/components/theme/ThemeProvider";
-import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import AuthGuard from "@shared/components/layout/AuthGuard";
+import { ToastProvider } from "@shared/components/ui/Toast";
+import { ThemeProvider } from "@shared/components/theme/ThemeProvider";
+import { LocaleProvider } from "@shared/components/i18n/LocaleProvider";
 import "./globals.css";
 
 /**

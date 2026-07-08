@@ -9,17 +9,17 @@ import {
   Info,
   ArrowRight,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import DateRangePicker from "@/components/ui/DateRangePicker";
+import Sidebar from "@shared/components/layout/Sidebar";
+import DateRangePicker from "@shared/components/ui/DateRangePicker";
 import {
   getPresetRange,
   mapRangeToDashboardPeriod,
   type DateRange,
-} from "@/lib/dateRange";
-import { api, auth } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
-import type { components } from "@/types/api.generated";
+} from "@shared/lib/dateRange";
+import { api, auth } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { UAT_HIDE_FAKE_FLOWS } from "@shared/lib/uatFlags";
+import type { components } from "@shared/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
 

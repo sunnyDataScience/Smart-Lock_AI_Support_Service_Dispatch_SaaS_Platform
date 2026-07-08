@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { FileBarChart, RefreshCw, AlertTriangle, TrendingUp, FileText, CheckCircle2 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, auth } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, auth } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 type SopMetrics = {
   tenant_id: string;

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import GoOnlineToggle from "./GoOnlineToggle";
-import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { useLocale, useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type Availability = components["schemas"]["Technician"]["availability"];
 

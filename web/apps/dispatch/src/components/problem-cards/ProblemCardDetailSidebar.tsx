@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { formatRelative } from "@/lib/format";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { formatRelative } from "@shared/lib/format";
 import {
   STATUS_GROUP_MAP,
   STATUS_GROUP_TONE,
   type StatusGroup,
 } from "@/components/work-orders/WorkOrdersTable";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];

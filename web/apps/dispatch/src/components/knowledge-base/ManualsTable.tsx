@@ -1,8 +1,8 @@
 "use client";
 
 import { Download, Trash2, Loader, AlertCircle } from "lucide-react";
-import type { components } from "@/types/api.generated";
-import { formatRelative } from "@/lib/format";
+import type { components } from "@shared/types/api.generated";
+import { formatRelative } from "@shared/lib/format";
 
 type Manual = components["schemas"]["Manual"];
 

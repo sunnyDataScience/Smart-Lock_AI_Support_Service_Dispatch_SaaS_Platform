@@ -8,9 +8,9 @@
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Eye, FileText, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { cacheInvalidate } from "@shared/lib/cache";
 
 interface Technician {
   id: string;

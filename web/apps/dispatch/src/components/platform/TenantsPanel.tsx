@@ -8,9 +8,9 @@
 // 內部工具,文案直接繁中(不入 i18n 兩 locale)。
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { cacheInvalidate } from "@shared/lib/cache";
 
 type Status = "active" | "suspended" | "terminated";
 

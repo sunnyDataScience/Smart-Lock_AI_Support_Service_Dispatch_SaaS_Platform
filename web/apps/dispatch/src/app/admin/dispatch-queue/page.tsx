@@ -11,12 +11,12 @@ import {
   ChevronDown,
   RefreshCw,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import DispatchQueueTable from "@/components/dispatch-queue/DispatchQueueTable";
-import { api, auth, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { api, auth, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useLocale, useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type DispatchQueueSnapshot = components["schemas"]["DispatchQueueSnapshot"];
 type DispatchLog = components["schemas"]["DispatchLog"];

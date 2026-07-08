@@ -9,10 +9,10 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 type Status = "pending" | "approved" | "rejected" | "cancelled";
 type ReqType = "leave" | "standby";

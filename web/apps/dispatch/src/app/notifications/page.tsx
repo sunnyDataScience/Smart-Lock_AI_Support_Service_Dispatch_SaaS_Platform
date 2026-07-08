@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
+import { usePaginatedFetch } from "@shared/hooks/usePaginatedFetch";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -16,19 +16,19 @@ import {
   Archive,
   X,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
-import { api, getCurrentSession, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { formatRelative } from "@/lib/format";
-import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
+import Sidebar from "@shared/components/layout/Sidebar";
+import RealtimeIndicator from "@shared/components/realtime/RealtimeIndicator";
+import { api, getCurrentSession, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { formatRelative } from "@shared/lib/format";
+import { useRealtimeChannel } from "@shared/hooks/useRealtimeChannel";
 import {
   BROADCAST_CHANNELS,
   NotificationBroadcastEvent,
   useBroadcast,
-} from "@/hooks/useBroadcast";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+} from "@shared/hooks/useBroadcast";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type Notification = components["schemas"]["Notification"];
 type NotificationSeverity = components["schemas"]["NotificationSeverity"];

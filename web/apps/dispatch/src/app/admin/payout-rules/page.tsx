@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Banknote } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 interface PayoutRule {
   rule_id: string;

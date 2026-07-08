@@ -11,17 +11,17 @@ import {
   Send,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
-import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
+import RealtimeIndicator from "@shared/components/realtime/RealtimeIndicator";
+import { useLocale, useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { ApiError, api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useRealtimeChannel } from "@shared/hooks/useRealtimeChannel";
 import {
   BROADCAST_CHANNELS,
   WorkOrderBroadcastEvent,
   useBroadcast,
-} from "@/hooks/useBroadcast";
-import type { components } from "@/types/api.generated";
+} from "@shared/hooks/useBroadcast";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];

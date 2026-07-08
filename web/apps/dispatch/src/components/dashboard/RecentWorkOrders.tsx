@@ -2,14 +2,14 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { formatRelative } from "@/lib/format";
+import { formatRelative } from "@shared/lib/format";
 import {
   STATUS_GROUP_MAP,
   STATUS_GROUP_TONE,
   URGENCY_TONE,
 } from "@/components/work-orders/WorkOrdersTable";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 

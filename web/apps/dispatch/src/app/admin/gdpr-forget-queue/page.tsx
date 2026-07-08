@@ -9,9 +9,9 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw, Shield } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 import {
   type GdprForgetRequest,
   type GdprForgetStatus,
@@ -21,7 +21,7 @@ import {
   formatDateTime,
   daysUntilDeadline,
   type BadgeColor,
-} from "@/components/phase-ii";
+} from "@shared/components/phase-ii";
 
 const STATUS_TABS: { value: GdprForgetStatus | "all"; label: string }[] = [
   { value: "all", label: "全部" },

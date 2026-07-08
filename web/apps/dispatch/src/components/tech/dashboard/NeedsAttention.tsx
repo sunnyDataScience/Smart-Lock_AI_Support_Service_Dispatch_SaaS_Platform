@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { AlertTriangle, CheckCircle2, ChevronRight } from "lucide-react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { daysUntilDeadline, type TechStatement } from "@/components/phase-ii";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { daysUntilDeadline, type TechStatement } from "@shared/components/phase-ii";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 

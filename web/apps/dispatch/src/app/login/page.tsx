@@ -4,14 +4,14 @@ import { Building2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
-import { ApiError, getCurrentSession, login, loginVendor } from "@/lib/api";
-import StaffRegisterForm from "@/components/auth/StaffRegisterForm";
-import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
-import { friendlyError } from "@/lib/apiError";
-import { fallbackRouteForRole } from "@/lib/rolePolicy";
-import LocaleToggle from "@/components/i18n/LocaleToggle";
-import BackToHome from "@/components/layout/BackToHome";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { ApiError, getCurrentSession, login, loginVendor } from "@shared/lib/api";
+import StaffRegisterForm from "@shared/components/auth/StaffRegisterForm";
+import { APP_MODE, PEER_PORTAL_URL } from "@shared/lib/appMode";
+import { friendlyError } from "@shared/lib/apiError";
+import { fallbackRouteForRole } from "@shared/lib/rolePolicy";
+import LocaleToggle from "@shared/components/i18n/LocaleToggle";
+import BackToHome from "@shared/components/layout/BackToHome";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // 20260702 會議決議 2:UI 入口濃縮為兩條、登入與註冊同框(仿 Google)。
 // 本頁 = 派案方入口「品牌 / 經銷 / 鎖店」:

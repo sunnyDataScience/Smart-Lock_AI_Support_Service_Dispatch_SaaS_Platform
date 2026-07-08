@@ -3,9 +3,9 @@
 import { KeyRound } from "lucide-react";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { requestPasswordReset } from "@/lib/api";
-import LocaleToggle from "@/components/i18n/LocaleToggle";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { requestPasswordReset } from "@shared/lib/api";
+import LocaleToggle from "@shared/components/i18n/LocaleToggle";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // CR-0025 / ADR-0114 — 自助忘記密碼 step 1：輸入 email → 寄重設連結。
 // 後端一律回 200（枚舉防護），故成功畫面固定顯示「若帳號存在已寄出」。

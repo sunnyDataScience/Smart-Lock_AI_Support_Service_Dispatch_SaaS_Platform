@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { Home, Map as MapIcon, ClipboardList, User } from "lucide-react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // 手機（<768px）底部導覽；桌面（≥768px）由 TechSidebar 取代故 md:hidden。
 export default function TechBottomNav() {

@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Search, ChevronDown, RefreshCw } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import InventoryTable from "@/components/admin/InventoryTable";
 import CreateInventoryItemModal from "@/components/admin/CreateInventoryItemModal";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type InventoryItem = components["schemas"]["InventoryItem"];
 type StockStatus = components["schemas"]["InventoryStockStatus"];

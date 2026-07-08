@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { ApiError, api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { formatRelative } from "@/lib/format";
-import type { components } from "@/types/api.generated";
+import { ApiError, api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { formatRelative } from "@shared/lib/format";
+import type { components } from "@shared/types/api.generated";
 
 type Conversation = components["schemas"]["Conversation"];
 type ConversationEnvelope = components["schemas"]["ConversationEnvelope"];

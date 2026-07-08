@@ -3,14 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import SopDraftsList from "@/components/knowledge-base/SopDraftsList";
-import { tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
-import { useKbCounts } from "@/hooks/useKbCounts";
-import { kbDocumentToSopDraft, type KBDocumentSop } from "@/lib/kb-adapter";
-import type { components } from "@/types/api.generated";
+import { tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { usePaginatedFetch } from "@shared/hooks/usePaginatedFetch";
+import { useKbCounts } from "@shared/hooks/useKbCounts";
+import { kbDocumentToSopDraft, type KBDocumentSop } from "@shared/lib/kb-adapter";
+import type { components } from "@shared/types/api.generated";
 
 type SopDraft = components["schemas"]["SopDraft"];
 type SopDraftStatus = components["schemas"]["SopDraftStatus"];

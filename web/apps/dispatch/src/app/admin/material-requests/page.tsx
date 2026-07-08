@@ -3,10 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { RefreshCw, Package, ExternalLink, CheckCircle2, Loader2 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, auth, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, auth, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useLocale, useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 /**
  * Flow 4 admin 補料管理彙整視圖 — 跨工單列出活躍的缺料回報。

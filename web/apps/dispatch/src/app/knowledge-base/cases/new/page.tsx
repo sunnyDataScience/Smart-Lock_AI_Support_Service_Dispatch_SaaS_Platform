@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { KBDocument } from "@/lib/kb-adapter";
-import type { components } from "@/types/api.generated";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { KBDocument } from "@shared/lib/kb-adapter";
+import type { components } from "@shared/types/api.generated";
 
 type CaseEntryEnvelope = components["schemas"]["CaseEntryEnvelope"];
 type CaseEntryCreateRequest = components["schemas"]["CaseEntryCreateRequest"];

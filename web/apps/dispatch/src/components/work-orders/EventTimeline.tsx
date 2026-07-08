@@ -10,9 +10,9 @@ import {
   RefreshCw,
   Wrench,
 } from "lucide-react";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 type EventType =
   | "scope_change"

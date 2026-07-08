@@ -12,11 +12,11 @@ import {
   Star,
   Info,
 } from "lucide-react";
-import { ApiError, api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
-import type { components } from "@/types/api.generated";
+import { ApiError, api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { UAT_HIDE_FAKE_FLOWS } from "@shared/lib/uatFlags";
+import type { components } from "@shared/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type Technician = components["schemas"]["Technician"];

@@ -19,7 +19,7 @@
 "use client";
 
 import { use, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 type Params = { token: string };
 

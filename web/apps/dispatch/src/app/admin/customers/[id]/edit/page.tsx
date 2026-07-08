@@ -8,10 +8,10 @@
  */
 
 import { use, useEffect, useState } from "react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import { CustomerForm, type CustomerFormInitial } from "@/components/admin/CustomerForm";
-import { api, resolveTenantId } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { api, resolveTenantId } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 interface CustomerDetailLite extends CustomerFormInitial {
   id: string;

@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import SolidBadge from "@/components/ui/SolidBadge";
-import DataTable, { type ColumnDef } from "@/components/ui/DataTable";
-import { formatRelative } from "@/lib/format";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import SolidBadge from "@shared/components/ui/SolidBadge";
+import DataTable, { type ColumnDef } from "@shared/components/ui/DataTable";
+import { formatRelative } from "@shared/lib/format";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type Conversation = components["schemas"]["Conversation"];
 type ConversationStatus = components["schemas"]["ConversationStatus"];

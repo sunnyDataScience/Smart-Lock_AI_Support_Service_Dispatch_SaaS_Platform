@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity } from "lucide-react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // 後端 GET /technicians/{id}/workload-heatmap 回傳為 untyped dict（A37 端點），
 // 此處用 loose type + guard，欄位缺失皆容忍。

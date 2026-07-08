@@ -1,7 +1,7 @@
 "use client";
 
 import { TrendingUp, CheckCircle2, Timer, Star } from "lucide-react";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 // 後端 GET /technicians/me/dashboard-summary 回傳（CR-0088）。不含租戶內排名
 // （業主 §8-3 裁決不對技師開放）。收入為 estimated_price 預估，非實收。

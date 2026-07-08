@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Check, Lock, RefreshCw, Edit3, KeyRound } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { ApiError, ApiErrorResponse, api, getCurrentSession } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { ApiError, ApiErrorResponse, api, getCurrentSession } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 import { RolePermissionsEditor } from "@/components/admin/RolePermissionsEditor";
 import AdminResetPasswordModal from "@/components/admin/AdminResetPasswordModal";
-import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
+import { useRealtimeChannel } from "@shared/hooks/useRealtimeChannel";
 
 type Role = components["schemas"]["Role"];
 type RolePermission = components["schemas"]["RolePermission"];

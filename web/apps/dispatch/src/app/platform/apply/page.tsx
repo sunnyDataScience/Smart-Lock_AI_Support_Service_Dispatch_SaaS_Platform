@@ -3,7 +3,7 @@
 import { Building2, Check, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { PLATFORM_API_BASE_URL } from "@/lib/appMode";
+import { PLATFORM_API_BASE_URL } from "@shared/lib/appMode";
 
 // 品牌/經銷/鎖店「申請導入 SmartLock 平台」公開頁(CR-0114 延伸)。
 // 原為 landing(:3002)的 modal，改為 platform 站(:3003)獨立頁，landing 品牌 CTA

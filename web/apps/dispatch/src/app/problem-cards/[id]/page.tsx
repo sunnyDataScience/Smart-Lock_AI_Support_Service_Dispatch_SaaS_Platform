@@ -14,14 +14,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import FmeaDiagnosisCard from "@/components/problem-cards/FmeaDiagnosisCard";
 import LinkedConversationCard from "@/components/problem-cards/LinkedConversationCard";
 import ResolutionTimeline from "@/components/problem-cards/ResolutionTimeline";
 import ProblemCardDetailSidebar from "@/components/problem-cards/ProblemCardDetailSidebar";
-import { ApiError, api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import { ApiError, api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];

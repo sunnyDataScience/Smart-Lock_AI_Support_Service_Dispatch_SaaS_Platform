@@ -1,6 +1,6 @@
 "use client";
 
-import type { components } from "@/types/api.generated";
+import type { components } from "@shared/types/api.generated";
 import CaseCard from "./CaseCard";
 
 type CaseEntry = components["schemas"]["CaseEntry"];

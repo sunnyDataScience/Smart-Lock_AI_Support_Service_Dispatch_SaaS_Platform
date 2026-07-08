@@ -13,8 +13,8 @@
 
 import { useState } from "react";
 import { X, KeyRound, Copy, Check } from "lucide-react";
-import { ApiError, api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { ApiError, api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 interface Props {
   onClose: () => void;

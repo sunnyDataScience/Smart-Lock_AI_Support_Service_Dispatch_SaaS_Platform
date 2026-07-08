@@ -10,9 +10,9 @@ import {
   Zap,
   AlertCircle,
 } from "lucide-react";
-import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
-import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import RealtimeIndicator from "@shared/components/realtime/RealtimeIndicator";
+import { useRealtimeChannel } from "@shared/hooks/useRealtimeChannel";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 type AlertType =
   | "quote_expiring"

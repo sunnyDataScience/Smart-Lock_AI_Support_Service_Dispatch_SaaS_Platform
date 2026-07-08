@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
-import ErrorState from "@/components/ui/ErrorState";
+import Sidebar from "@shared/components/layout/Sidebar";
+import Header from "@shared/components/layout/Header";
+import ErrorState from "@shared/components/ui/ErrorState";
 
 /**
  * /dashboard 路由 unhandled error 的全頁 fallback。

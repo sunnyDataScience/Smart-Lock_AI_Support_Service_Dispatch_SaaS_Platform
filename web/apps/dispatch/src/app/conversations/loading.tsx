@@ -1,6 +1,6 @@
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
-import Skeleton, { SkeletonTableRow } from "@/components/ui/Skeleton";
+import Sidebar from "@shared/components/layout/Sidebar";
+import Header from "@shared/components/layout/Header";
+import Skeleton, { SkeletonTableRow } from "@shared/components/ui/Skeleton";
 
 export default function ConversationsLoading() {
   return (

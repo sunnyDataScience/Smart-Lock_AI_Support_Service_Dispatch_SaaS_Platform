@@ -14,26 +14,26 @@ import {
   UserCog,
   Timer,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import Header from "@/components/layout/Header";
+import Sidebar from "@shared/components/layout/Sidebar";
+import Header from "@shared/components/layout/Header";
 import KpiCard from "@/components/dashboard/KpiCard";
 import WorkOrderTrendChart from "@/components/dashboard/WorkOrderTrendChart";
 import TechnicianStatusChart from "@/components/dashboard/TechnicianStatusChart";
 import RecentWorkOrders from "@/components/dashboard/RecentWorkOrders";
 import HotTopicsCard from "@/components/dashboard/HotTopicsCard";
 import SlaAlertBanner from "@/components/dashboard/SlaAlertBanner";
-import LiveRegion from "@/components/ui/LiveRegion";
-import DateRangePicker from "@/components/ui/DateRangePicker";
+import LiveRegion from "@shared/components/ui/LiveRegion";
+import DateRangePicker from "@shared/components/ui/DateRangePicker";
 import {
   getPresetRange,
   mapRangeToDashboardPeriod,
   type DateRange,
-} from "@/lib/dateRange";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+} from "@shared/lib/dateRange";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { UAT_HIDE_FAKE_FLOWS } from "@shared/lib/uatFlags";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type DashboardStats = components["schemas"]["DashboardStats"];
 type WorkOrder = components["schemas"]["WorkOrder"];

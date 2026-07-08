@@ -2,10 +2,10 @@
 
 import { Send } from "lucide-react";
 import { useState } from "react";
-import type { components } from "@/types/api.generated";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useToast } from "@/components/ui/Toast";
+import type { components } from "@shared/types/api.generated";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useToast } from "@shared/components/ui/Toast";
 
 type Message = components["schemas"]["Message"];
 

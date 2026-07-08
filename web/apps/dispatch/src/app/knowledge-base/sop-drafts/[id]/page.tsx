@@ -10,13 +10,13 @@ import {
   CircleX,
   PackageCheck,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { kbDocumentToSopDraft, type KBDocumentSop } from "@/lib/kb-adapter";
-import type { components } from "@/types/api.generated";
-import { formatRelative } from "@/lib/format";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { kbDocumentToSopDraft, type KBDocumentSop } from "@shared/lib/kb-adapter";
+import type { components } from "@shared/types/api.generated";
+import { formatRelative } from "@shared/lib/format";
 
 type SopDraft = components["schemas"]["SopDraft"];
 type SopDraftEnvelope = components["schemas"]["SopDraftEnvelope"];

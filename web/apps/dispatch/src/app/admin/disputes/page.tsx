@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Image as ImageIcon, RefreshCw, FileText, AlertCircle } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import DisputesTable from "@/components/admin/DisputesTable";
-import { api, getCurrentSession, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useToast } from "@/components/ui/Toast";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { api, getCurrentSession, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useToast } from "@shared/components/ui/Toast";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type Dispute = components["schemas"]["Dispute"];
 type DisputePage = components["schemas"]["DisputePage"];

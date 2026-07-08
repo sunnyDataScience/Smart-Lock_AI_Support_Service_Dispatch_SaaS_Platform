@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { SlidersHorizontal, Check } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath, getCurrentSession } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath, getCurrentSession } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 
 interface ActiveVersion {
   namespace: string;

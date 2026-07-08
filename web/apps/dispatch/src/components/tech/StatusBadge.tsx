@@ -1,9 +1,9 @@
 "use client";
 
-import type { components } from "@/types/api.generated";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { translate } from "@/lib/translate";
-import type { Locale } from "@/i18n/config";
+import type { components } from "@shared/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { translate } from "@shared/lib/translate";
+import type { Locale } from "@shared/i18n/config";
 
 type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
 

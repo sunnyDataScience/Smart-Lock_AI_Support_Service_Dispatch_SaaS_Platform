@@ -1,6 +1,6 @@
 "use client";
 
-import type { components } from "@/types/api.generated";
+import type { components } from "@shared/types/api.generated";
 
 type HotTopic = NonNullable<
   components["schemas"]["DashboardStats"]["hot_topics"]

@@ -7,8 +7,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
-import { logoutPlatformAdmin } from "@/lib/api";
-import ThemeToggle from "@/components/theme/ThemeToggle";
+import { logoutPlatformAdmin } from "@shared/lib/api";
+import ThemeToggle from "@shared/components/theme/ThemeToggle";
 
 const NAV: { href: string; label: string }[] = [
   { href: "/platform", label: "儀表板" },

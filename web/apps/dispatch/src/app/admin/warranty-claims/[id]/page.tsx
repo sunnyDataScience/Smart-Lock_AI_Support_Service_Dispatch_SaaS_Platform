@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, AlertCircle, Image as ImageIcon, ExternalLink, Wrench } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, auth } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, auth } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 
 type WarrantyClaim = components["schemas"]["WarrantyClaim"];
 type WarrantyClaimEnvelope = components["schemas"]["WarrantyClaimEnvelope"];

@@ -9,11 +9,11 @@ import {
   ModalFooter,
   ModalHeader,
   ModalTitle,
-} from "@/components/ui/Modal";
-import { useToast } from "@/components/ui/Toast";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+} from "@shared/components/ui/Modal";
+import { useToast } from "@shared/components/ui/Toast";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 /**
  * AuditExportModal — F-020 / E7x §4.2 P1 稽核日誌匯出 UI。

@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Crown, Download, RefreshCw } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 
 type Technician = components["schemas"]["Technician"];

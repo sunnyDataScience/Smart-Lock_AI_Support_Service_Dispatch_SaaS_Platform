@@ -7,6 +7,9 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   experimental: {
+    // monorepo：允許編譯 app 根目錄之外的共用原始碼（packages/shared，經 tsconfig paths 引用）
+    externalDir: true,
+
     // 自動把 named import 轉成 deep import（per-file），讓 webpack 樹搖只
     // 留實際用到的 icons / chart 子模組，避免 lucide-react 全套 1500+ icons
     // 與 recharts 全套圖表元件被一起打進 bundle

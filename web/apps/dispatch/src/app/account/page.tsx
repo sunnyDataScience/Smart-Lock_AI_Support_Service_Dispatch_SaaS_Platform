@@ -14,11 +14,11 @@ import {
   Wrench,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
-import ThemeToggle from "@/components/theme/ThemeToggle";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, auth, getCurrentSession, logout } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import ThemeToggle from "@shared/components/theme/ThemeToggle";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, auth, getCurrentSession, logout } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
 type TechnicianEnvelope = components["schemas"]["TechnicianEnvelope"];

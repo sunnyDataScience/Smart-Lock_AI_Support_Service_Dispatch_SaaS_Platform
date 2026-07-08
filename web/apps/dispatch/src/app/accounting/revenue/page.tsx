@@ -17,14 +17,14 @@ import {
   Calendar,
   Download,
 } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import Sidebar from "@shared/components/layout/Sidebar";
 import RevenueTrendChart from "@/components/accounting/RevenueTrendChart";
 import BrandRevenueChart from "@/components/accounting/BrandRevenueChart";
 import CategoryRevenueChart from "@/components/accounting/CategoryRevenueChart";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import type { components } from "@/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import type { components } from "@shared/types/api.generated";
 
 type RevenueSummary = components["schemas"]["RevenueSummary"];
 // by_category 為後端 additive 欄位（問題類別營收佔比）。openapi.yaml / api.generated.ts

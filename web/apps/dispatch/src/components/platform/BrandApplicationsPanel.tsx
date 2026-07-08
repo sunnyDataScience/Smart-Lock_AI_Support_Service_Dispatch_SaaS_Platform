@@ -5,9 +5,9 @@
 // 指引文字(裁決 2:實際開站全人工);拒絕填原因。內部工具,文案直接繁中。
 
 import { useCallback, useEffect, useState } from "react";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { cacheInvalidate } from "@/lib/cache";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { cacheInvalidate } from "@shared/lib/cache";
 
 type Status = "pending" | "approved" | "rejected";
 

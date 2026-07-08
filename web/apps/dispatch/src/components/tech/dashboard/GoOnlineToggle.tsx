@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { Power, Loader2, Lock } from "lucide-react";
-import { api } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
-import type { components } from "@/types/api.generated";
+import { api } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
 
 type Availability = components["schemas"]["Technician"]["availability"];
 

@@ -16,8 +16,8 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import Sidebar from "@/components/layout/Sidebar";
-import DateRangePicker from "@/components/ui/DateRangePicker";
+import Sidebar from "@shared/components/layout/Sidebar";
+import DateRangePicker from "@shared/components/ui/DateRangePicker";
 import {
   addDays,
   addMonths,
@@ -26,11 +26,11 @@ import {
   startOfDay,
   startOfMonth,
   type DateRange,
-} from "@/lib/dateRange";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
-import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
-import type { components } from "@/types/api.generated";
+} from "@shared/lib/dateRange";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
+import { UAT_HIDE_FAKE_FLOWS } from "@shared/lib/uatFlags";
+import type { components } from "@shared/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
 

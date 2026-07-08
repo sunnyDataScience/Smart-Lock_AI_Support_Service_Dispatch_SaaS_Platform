@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import type { components } from "@/types/api.generated";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 type Dispute = components["schemas"]["Dispute"];
 type DisputeType = components["schemas"]["DisputeType"];

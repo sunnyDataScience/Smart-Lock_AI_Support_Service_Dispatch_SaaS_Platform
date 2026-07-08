@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
-import type { components } from "@/types/api.generated";
+import type { components } from "@shared/types/api.generated";
 
 type Technician = components["schemas"]["Technician"];
 type Availability = Technician["availability"];

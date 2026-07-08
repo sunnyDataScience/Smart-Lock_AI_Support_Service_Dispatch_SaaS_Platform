@@ -1,7 +1,7 @@
 "use client";
 
-import type { components } from "@/types/api.generated";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import type { components } from "@shared/types/api.generated";
+import { useTranslations } from "@shared/components/i18n/LocaleProvider";
 
 type Urgency = components["schemas"]["Urgency"];
 

@@ -10,9 +10,9 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw, Shield } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 import {
   type AiDecisionTrace,
   type AiGovernanceSummary,
@@ -21,7 +21,7 @@ import {
   GUARDRAIL_ACTION_COLOR,
   formatDateTime,
   type BadgeColor,
-} from "@/components/phase-ii";
+} from "@shared/components/phase-ii";
 
 const COLOR_BG: Record<BadgeColor, { bg: string; text: string }> = {
   red: { bg: "#fef0ef", text: "#d70015" },

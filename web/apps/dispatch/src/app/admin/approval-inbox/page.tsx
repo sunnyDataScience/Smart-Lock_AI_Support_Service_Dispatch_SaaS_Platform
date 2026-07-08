@@ -10,9 +10,9 @@
 
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import Sidebar from "@shared/components/layout/Sidebar";
+import { api, tenantPath } from "@shared/lib/api";
+import { friendlyError } from "@shared/lib/apiError";
 import {
   type ApprovalInboxResponse,
   type ApprovalInboxItem,
@@ -22,7 +22,7 @@ import {
   SEVERITY_COLOR,
   formatDateTime,
   type BadgeColor,
-} from "@/components/phase-ii";
+} from "@shared/components/phase-ii";
 
 const TYPE_TABS: { value: ApprovalInboxItemType | "all"; label: string }[] = [
   { value: "all", label: "全部" },
