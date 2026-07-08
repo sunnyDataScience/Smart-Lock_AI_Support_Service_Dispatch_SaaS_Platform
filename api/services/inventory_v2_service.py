@@ -309,7 +309,7 @@ async def create_inventory_item_v2(
                 supplier, owner, serial_required,
             ),
         )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — 轉譯 unique violation 後原樣 re-raise
         err_str = str(exc).lower()
         if "unique" in err_str and "part_number" in err_str:
             raise ApiError(

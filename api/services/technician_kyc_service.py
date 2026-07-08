@@ -236,7 +236,7 @@ async def upload_registration_document(
                 ct, len(file_bytes), rel_path, sha256,
             ),
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 — 清孤兒檔後原樣 re-raise,不吞錯
         # metadata 入庫失敗 → 清掉剛寫的檔案,不留孤兒(額度已耗屬可接受損耗)
         abs_path.unlink(missing_ok=True)
         raise
@@ -355,7 +355,7 @@ async def reveal_kyc(
             "        %s::uuid, 'platform_admin')",
             (str(row[2]), technician_id, actor_user_id),
         )
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 — fail-closed:稽核失敗即拒絕揭露
         logger.error("KYC reveal 稽核寫入失敗,拒絕揭露(fail-closed)", exc_info=True)
         raise ApiError(
             "AUDIT_WRITE_FAILED", "稽核寫入失敗,暫時無法顯示完整資料", 500

@@ -582,7 +582,7 @@ async def register_technician(req: dict) -> dict:
         upload_token = await technician_kyc_service.issue_upload_token(
             conn, technician_id=technician_id
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 — fail-soft:token 簽發失敗不擋註冊
         logger.warning(
             "文件上傳 token 簽發失敗（migration 090 未套？）；註冊仍成功", exc_info=True
         )
