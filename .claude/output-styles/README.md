@@ -1,5 +1,10 @@
 # Output Styles
 
+> ⚠️ **2026-07-09 修繕註記**：本檔提及的 `vibecoding-*` skill（14 個）已於 2026-05-10 整併移除，
+> `sunnydata-change-impact-analysis`／`architecture-review`／`doc-freshness`／`auto-regen`／
+> `changelog-sync` 亦未安裝於 `.claude/skills/`（實裝清單見該目錄 INDEX.md，12 個 sunnydata-*）。
+> 讀到這些名稱時視為「概念流程」而非可呼叫 skill；本檔待整體改版。
+
 > **See `.claude/rules/primitive-selection.md` for the full command vs skill vs output-style decision rule.**
 >
 > **As of v4 (2026-05-10):** 14 of the original 15 output-styles were converted into Skills. Only true behavioral modes remain here.

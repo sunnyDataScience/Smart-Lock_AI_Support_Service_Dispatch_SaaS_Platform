@@ -14,7 +14,7 @@
 
 ## Hard Gate — When CIA is required
 
-AI 在實作 code 變更前，若任務涉及以下任一面向，**必須**先呼叫 `sunnydata-change-impact-analysis` skill 產出 CIA：
+AI 在實作 code 變更前，若任務涉及以下任一面向，**必須**先產出 CIA（skill `sunnydata-change-impact-analysis` 未安裝時依本檔流程與 §CIA 結構手工產出——gate 的效力在「產出 CIA 並等裁決」，不在 skill 本身）：
 
 | 觸發面向 | 涵蓋範圍 |
 |---|---|

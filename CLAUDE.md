@@ -78,7 +78,7 @@ cd agent && python scripts/line_gateway.py               # LINE webhook 通道�
 <important if="動 flow / contract / data / architecture">
 - **7 觸發面向**（命中任一就跑 CIA）：User/Business flow、API contract、Domain model、DB schema、External integration、Test plan、Architecture boundary
 - **豁免**：純 typo / 註解 / format / 單一 function 內 bug fix（無 contract 影響）/ tier-3 process doc 編輯
-- 觸發即跑 `sunnydata-change-impact-analysis` skill → 產出 CIA 至 `docs/4-exploration/CR-NNNN-<short>.md` → 🛑 等業主裁決 §8「Human Decisions Required」→ 依 §9 順序實作
+- 觸發即產出 CIA 至 `docs/4-exploration/CR-NNNN-<short>.md`（有安裝 `sunnydata-change-impact-analysis` skill 則用之；**該 skill 目前未安裝**，依 `.claude/rules/change-governance.md` 的 CIA 結構手工產出即可）→ 🛑 等業主裁決 §8「Human Decisions Required」→ 依 §9 順序實作
 - 文件衝突或讀到 `status: deprecated`/`superseded` → 停下回報 + **引用具體 ID**（BF-/UF-/API-/TC-/ADR-/CR-），絕不腦補「合理版本」
 - 完整規則：`.claude/rules/change-governance.md`（CIA gate、rewrite vs refactor 打分表、6 tier 衝突仲裁）
 </important>
