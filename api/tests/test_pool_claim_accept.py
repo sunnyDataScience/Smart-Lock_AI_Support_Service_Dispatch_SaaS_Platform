@@ -16,6 +16,8 @@ import uuid
 
 import pytest
 
+from tests.conftest import seed_accepted_quote
+
 import core.db as db_module
 from core.errors import ApiError
 from services import work_order_service as svc
@@ -58,6 +60,7 @@ async def _seed_wo(status: str, technician_id: str | None = None) -> tuple[str, 
         "VALUES (%s::uuid,%s::uuid,'Yale','YDM','維修','normal','confirmed')",
         (pid, cid),
     )
+    await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
     wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
     await db_module._conn.execute(
         "UPDATE work_orders SET status=%s, technician_id=%s WHERE id=%s::uuid",

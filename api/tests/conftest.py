@@ -170,3 +170,23 @@ def platform_admin_headers() -> dict[str, str]:
     """平台管理員 headers（CR-0114）。非 tenant-scoped，不帶 X-Tenant-ID。"""
     token = _make_token(user_id=PLATFORM_ADMIN_USER_ID, role="platform_admin")
     return {"Authorization": f"Bearer {token}"}
+
+
+async def seed_accepted_quote(pc_id: str, tenant_id: str = DEFAULT_TENANT_ID) -> str:
+    """CR-0128 報價先行 gate 測試前置：直接落一筆 accepted 報價（模擬客戶已 LINE 確認）。
+
+    convert（create_from_problem_card）自 CR-0128 起要求 PC 有客戶已確認報價
+    （或 emergency_class 急件 carve-out）；既有下游功能測試以本 helper 滿足前置。
+    """
+    import core.db as db_module
+    from core.db import _ensure_conn
+
+    await _ensure_conn()
+    row = await (await db_module._conn.execute(
+        "INSERT INTO quote (problem_card_id, state, tenant_id, version) "
+        "VALUES (%s::uuid, 'accepted', %s::uuid, "
+        "        (SELECT COALESCE(MAX(version), 0) + 1 FROM quote WHERE problem_card_id = %s::uuid)) "
+        "RETURNING id",
+        (pc_id, tenant_id, pc_id),
+    )).fetchone()
+    return str(row[0])

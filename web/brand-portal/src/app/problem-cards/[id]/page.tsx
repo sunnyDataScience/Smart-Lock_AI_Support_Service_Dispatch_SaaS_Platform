@@ -65,6 +65,40 @@ const urgencyLabel: Record<Urgency, string> = {
   high: "高",
 };
 
+// CR-0128 報價先行：PC 階段報價列（listProblemCardQuotesV2 回傳形狀）
+type PcQuote = {
+  id: string;
+  version: number;
+  state: string;
+  total_amount: string | null;
+  deposit_required: string | null;
+  expiry_at: string | null;
+  work_order_id: string | null;
+  quote_number: string | null;
+  created_at: string | null;
+};
+
+const QUOTE_STATE_LABEL: Record<string, { label: string; cls: string }> = {
+  draft: { label: "草稿", cls: "bg-[#F1F5F9] text-[#475569]" },
+  pending_approval: { label: "送審中", cls: "bg-[#FEF9C3] text-[#854D0E]" },
+  approved: { label: "已核准", cls: "bg-[#E0F2FE] text-[#0369A1]" },
+  sent: { label: "已送客戶", cls: "bg-[#EDE9FE] text-[#6D28D9]" },
+  accepted: { label: "客戶已確認", cls: "bg-[#DCFCE7] text-[#166534]" },
+  rejected: { label: "已拒絕", cls: "bg-[#FEE2E2] text-[#991B1B]" },
+  expired: { label: "已過期", cls: "bg-[#FEE2E2] text-[#991B1B]" },
+  superseded: { label: "已被取代", cls: "bg-[#F1F5F9] text-[#94A3B8]" },
+  retrospective_audit_only: { label: "急件補審中", cls: "bg-[#FFEDD5] text-[#9A3412]" },
+};
+
+// 急件 carve-out 四類（13_Security 無關——ADR-015①；跳過報價直接開單、事後 4h 補審）
+const EMERGENCY_CLASS_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "非急件（走報價先行）" },
+  { value: "locked_out", label: "急件：被鎖門外" },
+  { value: "trapped_inside", label: "急件：人困屋內" },
+  { value: "safety_risk", label: "急件：安全風險" },
+  { value: "angry_high_risk", label: "急件：高風險客訴" },
+];
+
 const RESOLUTION_LAYER_OPTIONS: { value: ResolutionLayer; label: string; hint: string }[] = [
   { value: "L1", label: "L1 — AI 直接回覆", hint: "AI 已自動處理完畢" },
   { value: "L2", label: "L2 — 技師遠端指導", hint: "客服或技師遠端排除" },
@@ -107,6 +141,10 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [matchResult, setMatchResult] = useState<DispatchCandidate[] | null>(null);
   const [matchUrgency, setMatchUrgency] = useState<AutoMatchUrgency>("normal");
+  // CR-0128 報價先行：PC 階段報價 + 急件標記
+  const [pcQuotes, setPcQuotes] = useState<PcQuote[] | null>(null);
+  const [quotePending, setQuotePending] = useState(false);
+  const [emergencyPending, setEmergencyPending] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -131,6 +169,25 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       cancelled = true;
     };
   }, [id]);
+
+  // CR-0128：載入 PC 階段報價（confirmed 卡才有報價先行語意；失敗不阻斷頁面）
+  useEffect(() => {
+    if (!card || card.status !== "confirmed") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<{ data: PcQuote[] }>(
+          tenantPath(`/problem-cards/${encodeURIComponent(id)}/quotes`),
+        );
+        if (!cancelled) setPcQuotes(res.data ?? []);
+      } catch {
+        if (!cancelled) setPcQuotes([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, card]);
 
   useEffect(() => {
     if (!actionToast) return;
@@ -252,6 +309,43 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     }
   };
 
+  // CR-0128：PC 階段建報價 → 導向報價工作台編明細/送客戶
+  const handleCreatePcQuote = async () => {
+    setQuotePending(true);
+    setActionError(null);
+    try {
+      const res = await api.post<{ data: { id: string } }>(
+        tenantPath(`/problem-cards/${encodeURIComponent(id)}/quotes`),
+        { urgent: false },
+      );
+      const qid = res.data?.id;
+      setActionToast("報價已建立，前往報價工作台編輯明細");
+      if (qid) router.push(`/admin/quotes?open=${encodeURIComponent(qid)}`);
+    } catch (e) {
+      setActionError(friendlyError(e));
+    } finally {
+      setQuotePending(false);
+    }
+  };
+
+  // CR-0128：急件標記（emergency_class 四類；空值=清除回報價先行）
+  const handleEmergencyChange = async (value: string) => {
+    setEmergencyPending(true);
+    setActionError(null);
+    try {
+      const res = await api.patch<ProblemCardEnvelope>(
+        tenantPath(`/problem-cards/${encodeURIComponent(id)}`),
+        { emergency_class: value } satisfies Partial<ProblemCardUpdateRequest>,
+      );
+      setCard(res.data ?? null);
+      setActionToast(value ? "已標記急件——開單將跳過報價、事後 4h 補審" : "已清除急件標記");
+    } catch (e) {
+      setActionError(friendlyError(e));
+    } finally {
+      setEmergencyPending(false);
+    }
+  };
+
   const handleConvertToWO = async (
     info: {
       customer_address: string;
@@ -324,6 +418,10 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const canConfirm = card?.status === "draft";
   const canResolve = card?.status === "confirmed";
   const canConvertToWO = card?.status === "confirmed";
+  // CR-0128 報價先行 gate（BR-WO-01）：無客戶確認報價且非急件 → 開單會被後端 425 擋
+  const isEmergency = Boolean(card?.emergency_class);
+  const hasAcceptedQuote = (pcQuotes ?? []).some((q) => q.state === "accepted");
+  const quoteGateSatisfied = isEmergency || hasAcceptedQuote;
   const canEdit = card?.status === "draft" || card?.status === "confirmed";
   const canAutoResolve =
     card != null &&
@@ -457,9 +555,13 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                     setActionError(null);
                     setConvertModalOpen(true);
                   }}
-                  disabled={actionPending !== null}
+                  disabled={actionPending !== null || (pcQuotes !== null && !quoteGateSatisfied)}
                   className="inline-flex items-center gap-2 rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                  title="將此問題卡轉為工單，進入派工流程"
+                  title={
+                    pcQuotes !== null && !quoteGateSatisfied
+                      ? "報價先行（BR-WO-01）：須客戶確認報價後才可開單派工；急件請先標記急件類別"
+                      : "將此問題卡轉為工單，進入派工流程"
+                  }
                 >
                   <ClipboardList className="h-4 w-4" />
                   {actionPending === "convert" ? "建立中…" : "開單"}
@@ -515,6 +617,72 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                 candidates={matchResult}
                 onClose={() => setMatchResult(null)}
               />
+            )}
+
+            {card && card.status === "confirmed" && (
+              <section className="rounded-xl border border-[var(--border)] bg-white p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-[15px] font-bold text-[var(--text-primary)]">
+                      線上報價（報價先行）
+                    </h2>
+                    <p className="mt-1 text-[12px] leading-[1.6] text-[var(--text-secondary)]">
+                      流程：問題卡 → 報價 → 客戶 LINE 確認 → 開單派工（BR-WO-01）。
+                      急件標記後可跳過報價直接開單，事後 4 小時內補審。
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={card.emergency_class ?? ""}
+                      onChange={(e) => handleEmergencyChange(e.target.value)}
+                      disabled={emergencyPending || actionPending !== null}
+                      className="rounded-md border border-[var(--border)] bg-white px-2 py-[6px] text-[12px] text-[var(--text-primary)] focus:outline-none disabled:opacity-50"
+                      title="急件 carve-out：標記後開單跳過報價（ADR-015①），系統將建補審佔位報價"
+                    >
+                      {EMERGENCY_CLASS_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleCreatePcQuote}
+                      disabled={quotePending || actionPending !== null}
+                      className="inline-flex items-center gap-2 rounded-md border border-[var(--primary)] bg-white px-3 py-[6px] text-[13px] font-semibold text-[var(--primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {quotePending ? "建立中…" : "建立報價"}
+                    </button>
+                  </div>
+                </div>
+                {pcQuotes === null ? (
+                  <p className="mt-3 text-[12px] text-[var(--text-secondary)]">報價載入中…</p>
+                ) : pcQuotes.length === 0 ? (
+                  <p className="mt-3 rounded-md border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2 text-[12px] text-[#92400E]">
+                    尚無報價——{isEmergency ? "已標記急件，可直接開單（事後補審）" : "須先建立報價並取得客戶確認才能開單"}。
+                  </p>
+                ) : (
+                  <div className="mt-3 flex flex-col gap-2">
+                    {pcQuotes.map((q) => {
+                      const st = QUOTE_STATE_LABEL[q.state] ?? { label: q.state, cls: "bg-[#F1F5F9] text-[#475569]" };
+                      return (
+                        <div key={q.id} className="flex items-center gap-3 rounded-md border border-[var(--border)] px-3 py-2 text-[13px]">
+                          <span className="font-mono text-[12px] text-[var(--text-secondary)]">
+                            {q.quote_number ?? `Q${q.version}`}
+                          </span>
+                          <span className={`rounded px-2 py-[2px] text-[11px] font-semibold ${st.cls}`}>{st.label}</span>
+                          <span className="text-[var(--text-primary)]">
+                            {q.total_amount ? `NT$ ${q.total_amount}` : "（未有明細）"}
+                          </span>
+                          <Link
+                            href={`/admin/quotes?open=${encodeURIComponent(q.id)}`}
+                            className="ml-auto text-[12px] font-semibold text-[var(--primary)] hover:underline"
+                          >
+                            編輯明細／送客戶 →
+                          </Link>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
             )}
 
             <FmeaDiagnosisCard />

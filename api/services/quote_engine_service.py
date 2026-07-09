@@ -4,6 +4,7 @@
 數值走 mock 主檔（CR-0034 / 決議 5）；核准門檻/訂金/正式價待 esales Q-01~Q-12。
 
 狀態機：draft → pending_approval → approved → sent → accepted | rejected | expired | superseded
+急件補審（CR-0128）：retrospective_audit_only →（audit_complete）accepted
 """
 
 from __future__ import annotations
@@ -32,6 +33,9 @@ _TRANSITIONS = {
     "send":    ({"approved", "draft"}, "sent"),  # draft 可直送（免核門檻內，門檻 esales Q-11 待定）
     "accept":  ({"sent"}, "accepted"),
     "decline": ({"sent"}, "rejected"),
+    # 急件補審（ADR-015①/CR-0128）：急件 carve-out 開單時系統建 retrospective_audit_only
+    # 佔位報價，客服補明細 → 客戶簽認完成 → accepted。4h timer/補審佇列＝WBS 1.2.2。
+    "audit_complete": ({"retrospective_audit_only"}, "accepted"),
 }
 
 # 有效期（BR-M04-05）：一般 14d、急件 3d（CR-0044 已知規格；以下為 config fallback 預設）
@@ -87,30 +91,132 @@ async def _conn():
 
 
 async def create_quote(
-    *, tenant_id: str, work_order_id: str, created_by: str | None = None,
-    urgent: bool = False,
+    *, tenant_id: str, work_order_id: str | None = None,
+    problem_card_id: str | None = None, created_by: str | None = None,
+    urgent: bool = False, initial_state: str = "draft",
 ) -> dict:
-    """從 work_order 建 draft 報價（version 沿同工單遞增，有效期 BR-M04-05）。"""
+    """建 draft 報價（有效期 BR-M04-05）。
+
+    兩種綁定（CR-0128 報價先行）：
+      - work_order_id：既有路徑（現場修正輪 v+1 等），problem_card_id 沿工單帶入
+      - problem_card_id：**報價先行主路徑**——問題卡階段建報價（work_order_id=NULL），
+        客戶確認後 convert 開單時回填（bind_quotes_to_work_order）
+    version 沿綁定對象遞增（CR-0095 UX2：DB default 恆為 1 會讓 TP-000001-Qn 撞號）。
+    initial_state：急件 carve-out 由 convert 以 'retrospective_audit_only' 建佔位報價。
+    """
+    if not work_order_id and not problem_card_id:
+        raise ApiError("VALIDATION_ERROR", "work_order_id 或 problem_card_id 至少一項", 422)
     conn = await _conn()
-    # 取 problem_card_id（沿 work_order）
-    pc = await (await conn.execute(
-        "SELECT problem_card_id FROM work_orders WHERE id = %s::uuid", (work_order_id,)
-    )).fetchone()
-    if not pc:
-        raise ApiError("NOT_FOUND", "work order not found", 404)
+    pc_id = problem_card_id
+    if work_order_id:
+        # 取 problem_card_id（沿 work_order）
+        pc = await (await conn.execute(
+            "SELECT problem_card_id FROM work_orders WHERE id = %s::uuid", (work_order_id,)
+        )).fetchone()
+        if not pc:
+            raise ApiError("NOT_FOUND", "work order not found", 404)
+        pc_id = str(pc[0])
+    else:
+        exists = await (await conn.execute(
+            "SELECT 1 FROM problem_cards pc JOIN conversations c ON pc.conversation_id = c.id "
+            "JOIN users u ON c.user_id = u.id "
+            "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+            (problem_card_id, tenant_id),
+        )).fetchone()
+        if not exists:
+            raise ApiError("NOT_FOUND", "problem card not found", 404)
     days = await _validity_days(urgent)
     expiry = datetime.now(timezone.utc) + timedelta(days=days)
-    # CR-0095 UX2：version 沿同工單遞增（DB default 恆為 1，會讓可讀編號 TP-000001-Qn 撞號）
-    next_version = (await (await conn.execute(
-        "SELECT COALESCE(MAX(version), 0) + 1 FROM quote WHERE work_order_id = %s::uuid",
-        (work_order_id,),
-    )).fetchone())[0]
+    if work_order_id:
+        next_version = (await (await conn.execute(
+            "SELECT COALESCE(MAX(version), 0) + 1 FROM quote WHERE work_order_id = %s::uuid",
+            (work_order_id,),
+        )).fetchone())[0]
+    else:
+        next_version = (await (await conn.execute(
+            "SELECT COALESCE(MAX(version), 0) + 1 FROM quote WHERE problem_card_id = %s::uuid",
+            (problem_card_id,),
+        )).fetchone())[0]
     row = await (await conn.execute(
         "INSERT INTO quote (work_order_id, problem_card_id, state, expiry_at, tenant_id, created_by, version) "
-        "VALUES (%s::uuid, %s, 'draft', %s, %s::uuid, %s, %s) RETURNING id",
-        (work_order_id, pc[0], expiry, tenant_id, created_by, next_version),
+        "VALUES (%s, %s, %s, %s, %s::uuid, %s, %s) RETURNING id",
+        (work_order_id, pc_id, initial_state, expiry, tenant_id, created_by, next_version),
     )).fetchone()
     return await get_quote(quote_id=str(row[0]), tenant_id=tenant_id, include_cost=True)
+
+
+# ── 報價先行 gate（CR-0128 / ADR-015①）────────────────────────────────────────
+
+# 「進行中」＝客戶尚未確認但流程未死（425 提示等待/送出）；其餘非 accepted＝已失效（409）
+_GATE_PENDING_STATES = frozenset({"draft", "pending_approval", "approved", "sent",
+                                  "retrospective_audit_only"})
+
+
+async def assert_pc_quote_confirmed(*, tenant_id: str, problem_card_id: str) -> str:
+    """開單 gate：問題卡須有客戶已確認（accepted）的報價，回傳該 quote id。
+
+    - 無任何報價、或最新報價仍在進行中 → 425 QUOTE_NOT_CUSTOMER_CONFIRMED
+    - 有報價但全數已死（rejected/expired/superseded）→ 409 QUOTE_STATE_INVALID
+    """
+    conn = await _conn()
+    rows = await (await conn.execute(
+        "SELECT id, state FROM quote WHERE problem_card_id = %s::uuid AND tenant_id = %s::uuid "
+        "ORDER BY version DESC",
+        (problem_card_id, tenant_id),
+    )).fetchall()
+    for r in rows:
+        if r[1] == "accepted":
+            return str(r[0])
+    if not rows or any(r[1] in _GATE_PENDING_STATES for r in rows):
+        raise ApiError(
+            "QUOTE_NOT_CUSTOMER_CONFIRMED",
+            "報價尚未經客戶確認——先開單派工前須完成線上報價與客戶確認（BR-WO-01）；"
+            "急件請於問題卡標記 emergency_class 走事後補審",
+            425,
+        )
+    raise ApiError(
+        "QUOTE_STATE_INVALID",
+        "問題卡的報價已失效（拒絕/過期/被取代）——請開新版本報價並取得客戶確認",
+        409,
+    )
+
+
+async def list_pc_quotes(*, tenant_id: str, problem_card_id: str) -> list[dict]:
+    """問題卡的報價列表（含 PC 階段 work_order_id=NULL 者），version 新→舊。"""
+    conn = await _conn()
+    rows = await (await conn.execute(
+        "SELECT q.id, q.version, q.state, q.total_amount, q.deposit_required, "
+        "       q.expiry_at, q.work_order_id, wo.document_number, q.created_at "
+        "FROM quote q LEFT JOIN work_orders wo ON q.work_order_id = wo.id "
+        "WHERE q.problem_card_id = %s::uuid AND q.tenant_id = %s::uuid "
+        "ORDER BY q.version DESC",
+        (problem_card_id, tenant_id),
+    )).fetchall()
+    return [{
+        "id": str(r[0]),
+        "version": r[1],
+        "state": r[2],
+        "total_amount": _dec(r[3]),
+        "deposit_required": _dec(r[4]),
+        "expiry_at": r[5].isoformat() if r[5] else None,
+        "work_order_id": str(r[6]) if r[6] else None,
+        "quote_number": _quote_number(r[7], r[1]),
+        "created_at": r[8].isoformat() if r[8] else None,
+    } for r in rows]
+
+
+async def bind_quotes_to_work_order(*, tenant_id: str, problem_card_id: str, work_order_id: str) -> int:
+    """convert 開單成功後，把 PC 階段報價（work_order_id IS NULL）回填綁定工單。
+
+    綁定後可讀編號 TP-xxxxxx-Qn 隨 wo.document_number 自然成立（get_quote join 推導）。
+    """
+    conn = await _conn()
+    cur = await conn.execute(
+        "UPDATE quote SET work_order_id = %s::uuid, updated_at = NOW() "
+        "WHERE problem_card_id = %s::uuid AND tenant_id = %s::uuid AND work_order_id IS NULL",
+        (work_order_id, problem_card_id, tenant_id),
+    )
+    return cur.rowcount or 0
 
 
 async def add_line(
@@ -123,7 +229,7 @@ async def add_line(
     q = await (await conn.execute("SELECT state, work_order_id FROM quote WHERE id = %s::uuid", (quote_id,))).fetchone()
     if not q:
         raise ApiError("NOT_FOUND", "quote not found", 404)
-    if q[0] not in ("draft", "pending_approval"):
+    if q[0] not in ("draft", "pending_approval", "retrospective_audit_only"):
         raise ApiError("STATE_CONFLICT", f"cannot add line to quote in '{q[0]}'", 409)
 
     if service_code:
@@ -156,12 +262,12 @@ async def add_line(
 
 
 async def remove_line(*, tenant_id: str, quote_id: str, line_id: str) -> dict:
-    """移除一筆報價項（add_line 的反向；僅 draft / pending_approval 可改，移除後重算總額）。"""
+    """移除一筆報價項（add_line 的反向；draft / pending_approval / 急件補審中可改，移除後重算總額）。"""
     conn = await _conn()
     q = await (await conn.execute("SELECT state FROM quote WHERE id = %s::uuid", (quote_id,))).fetchone()
     if not q:
         raise ApiError("NOT_FOUND", "quote not found", 404)
-    if q[0] not in ("draft", "pending_approval"):
+    if q[0] not in ("draft", "pending_approval", "retrospective_audit_only"):
         raise ApiError("STATE_CONFLICT", f"cannot remove line from quote in '{q[0]}'", 409)
     cur = await conn.execute(
         "DELETE FROM quote_line_items WHERE id = %s::uuid AND quote_id = %s::uuid",
@@ -328,14 +434,22 @@ async def transition(
     # 客戶接受 → best-effort 開立客戶應收發票（CR-0035；work_order_id UNIQUE 天然冪等，
     # 失敗不阻斷 accept —— 報價接受是客戶動作，發票開立是下游帳務，解耦）
     if action == "accept":
-        try:
-            from services import invoice_service
-            inv = await invoice_service.create_from_quote(tenant_id=tenant_id, quote_id=quote_id)
-            logger.info("quote accepted → invoice %s", inv.get("id"))
-        except Exception as exc:  # noqa: BLE001 — best-effort 解耦：開票失敗不阻斷客戶接受報價
-            # ERROR 級（可告警）：金流斷層需人工補開 —— 後台 POST .../accounting/invoices:from-quote
-            logger.error("quote %s accepted but invoice creation FAILED (manual from-quote needed): %s",
-                         quote_id, exc)
+        # CR-0128 報價先行：PC 階段報價（尚無工單）accept 時**延後開票**——發票錨定
+        # work_order_id（UNIQUE 冪等），convert 開單回填綁定後由 create_from_problem_card
+        # best-effort 補開。WO 已綁定者維持原路徑（accept 即開票）。
+        has_wo = await (await conn.execute(
+            "SELECT work_order_id FROM quote WHERE id = %s::uuid", (quote_id,))).fetchone()
+        if has_wo and has_wo[0]:
+            try:
+                from services import invoice_service
+                inv = await invoice_service.create_from_quote(tenant_id=tenant_id, quote_id=quote_id)
+                logger.info("quote accepted → invoice %s", inv.get("id"))
+            except Exception as exc:  # noqa: BLE001 — best-effort 解耦：開票失敗不阻斷客戶接受報價
+                # ERROR 級（可告警）：金流斷層需人工補開 —— 後台 POST .../accounting/invoices:from-quote
+                logger.error("quote %s accepted but invoice creation FAILED (manual from-quote needed): %s",
+                             quote_id, exc)
+        else:
+            logger.info("quote %s accepted at problem-card stage — invoice deferred until convert", quote_id)
 
     result = await get_quote(quote_id=quote_id, tenant_id=tenant_id, include_cost=True)
     # 送客戶 → 一併鑄客戶端查看連結（stateless public_token，quote_view purpose）

@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**角色收斂 SA-06（WBS 1.1.2，CR-0127）**，branch `refactor/role-consolidation-sa06` — 落地 0707 裁決：`_STAFF_ROLES` 5→4（dispatcher 轉保留角色，存量帳號仍可登入）；`_MATRIX`/`_ROLE_META` 補 operations_manager 行（原缺行轉 enforce 會全鎖；核准權依 SoD 歸 admin/reviewer）；四站 rolePolicy FULL_ACCESS 移除死角色 tenant_admin/super_admin；staff 頁選項同步；Schema 註解＋seed 註記同步 7 角色正典；13_Security ⚠️→✅。legacy 矩陣行處置留 SA-01。驗證：unit 331＋component 860 passed（隔離 scratch 庫）、四站 tsc 0、build 綠。）
+**最後更新：** 2026-07-09（**報價先行 gate（WBS 1.2.1，CR-0128）**，branch `feat/quote-before-dispatch` — ADR-015①② 落地：convert 須客戶確認報價（425/409）；急件 emergency_class 四類 carve-out＋自動補審佔位報價；完工硬閘補報價分支（quote_gate_applied 新單，存量豁免）；PC 層報價端點＋convert 回填綁定；_WO_TRANSITIONS 中央轉移表；前端 PC 詳情頁報價區塊＋急件標記＋開單 gate 提示；LINE 推送 uid 反查修 PC 階段路徑。migration 091。驗證：unit 331＋component 871（新增 gate 測試 11 項）、四站 tsc 0、build 綠。1.2.2 急件補審引擎＝下一工項。）
+
+**前一次更新：** 2026-07-09（**角色收斂 SA-06（WBS 1.1.2，CR-0127）**，branch `refactor/role-consolidation-sa06` — 落地 0707 裁決：`_STAFF_ROLES` 5→4（dispatcher 轉保留角色，存量帳號仍可登入）；`_MATRIX`/`_ROLE_META` 補 operations_manager 行（原缺行轉 enforce 會全鎖；核准權依 SoD 歸 admin/reviewer）；四站 rolePolicy FULL_ACCESS 移除死角色 tenant_admin/super_admin；staff 頁選項同步；Schema 註解＋seed 註記同步 7 角色正典；13_Security ⚠️→✅。legacy 矩陣行處置留 SA-01。驗證：unit 331＋component 860 passed（隔離 scratch 庫）、四站 tsc 0、build 綠。）
 
 **前一次更新：** 2026-07-09（**前端型別 SoT 改認 runtime export（ADR-031/CR-0126）**，branch `refactor/api-types-runtime-sot` — push 前預檢揭露型別鏈三工件互相矛盾且 api-types-sync 從未真正執行；業主裁決「做1」：generate-api-types 改「export_openapi.py（runtime）→ openapi-typescript@釘版」四份同步、CI 改盯 api/**/*.py＋uv；api 12 組 operationId 去重（v2→*V2，行為零變更）；四站消費端修復（api.local.ts 顯性補丁/SystemConfigForm nullable 收斂/function_tests 縮窄）。四站 tsc 0＋build 綠、api unit 331 passed、--check 冪等。設計稿 api/openapi.yaml 專職設計期契約。）
 

@@ -16,6 +16,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from tests.conftest import seed_accepted_quote
+
 import core.db as db_module
 from core.errors import ApiError
 from services import quote_engine_service, work_order_service as svc
@@ -75,8 +77,12 @@ async def _seed_chain(line_user_id: str | None) -> tuple[str, str, str]:
     await db_module._conn.execute(
         "INSERT INTO problem_cards (id, conversation_id, brand, model, category, urgency, status, intent) "
         "VALUES (%s::uuid,%s::uuid,'Yale','YDM','維修','normal','confirmed','repair')", (pid, cid))
+    # CR-0128 報價先行 gate 前置：seed 過閘後即刪——本檔測試（assign gate 擋無報價單、
+    # 報價版本從 1 起算）都需要「乾淨無報價的 WO」作起點。
+    gate_qid = await seed_accepted_quote(pid, TID)
     wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
     wid = wo["id"]
+    await db_module._conn.execute("DELETE FROM quote WHERE id=%s::uuid", (gate_qid,))
     # 過派工必填閘（CR-0026）：補地址 + problem_type
     await db_module._conn.execute(
         "UPDATE work_orders SET customer_address='台北市信義區1號', problem_type='鎖故障' "

@@ -6,6 +6,8 @@
 from __future__ import annotations
 import uuid
 import pytest
+
+from tests.conftest import seed_accepted_quote
 import core.db as db_module
 from core.errors import ApiError
 from services import work_order_service as svc
@@ -25,6 +27,7 @@ async def _seed_wo_in_progress() -> tuple[str, str, str]:
     await db_module._conn.execute(
         "INSERT INTO problem_cards (id, conversation_id, brand, model, category, urgency, status) "
         "VALUES (%s::uuid, %s::uuid, 'Yale', 'YDM', '維修', 'normal', 'confirmed')", (pid, cid))
+    await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
     wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
     await db_module._conn.execute(
         "UPDATE work_orders SET status='accepted' WHERE id=%s::uuid", (wo["id"],))

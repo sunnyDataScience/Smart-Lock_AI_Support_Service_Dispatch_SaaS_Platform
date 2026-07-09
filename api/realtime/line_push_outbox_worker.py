@@ -175,13 +175,14 @@ class LinePushOutboxWorker:
                     "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid"
                 )
             elif reference_table == "quote":
-                # CR-0095：報價推 LINE。quote → work_order → problem_card →
-                # conversation → user.line_user_id（quote 有 tenant_id 欄）。
+                # CR-0095：報價推 LINE。CR-0128 報價先行後 quote 可能尚未綁工單
+                # （work_order_id=NULL 的 PC 階段報價），改走 quote.problem_card_id
+                # 直連 problem_card → conversation → user.line_user_id
+                # （對 WO 階段報價同樣成立——problem_card_id 恆有值）。
                 sql = (
                     "SELECT u.line_user_id "
                     "FROM quote q "
-                    "JOIN work_orders wo ON q.work_order_id = wo.id "
-                    "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+                    "JOIN problem_cards pc ON q.problem_card_id = pc.id "
                     "JOIN conversations c ON pc.conversation_id = c.id "
                     "JOIN users u ON c.user_id = u.id "
                     "WHERE q.id = %s::uuid "

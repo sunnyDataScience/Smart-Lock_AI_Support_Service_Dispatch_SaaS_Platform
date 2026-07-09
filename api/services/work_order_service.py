@@ -398,7 +398,7 @@ async def create_from_problem_card(
         "SELECT pc.status, pc.urgency, "
         "       u.address, u.display_name, u.phone, "
         # CR-0026：建單時把設備辨識 + 問題類型 + 媒體從 PC 複製進 work_order
-        "       pc.brand, pc.model, pc.category, pc.media_urls "
+        "       pc.brand, pc.model, pc.category, pc.media_urls, pc.emergency_class "
         "FROM problem_cards pc "
         "JOIN conversations c ON pc.conversation_id = c.id "
         "JOIN users u ON c.user_id = u.id "
@@ -411,7 +411,7 @@ async def create_from_problem_card(
         raise ApiError("NOT_FOUND", "Problem card not found", 404)
 
     (pc_status, pc_urgency, user_address, user_name, user_phone,
-     pc_brand, pc_model, pc_category, pc_media) = row
+     pc_brand, pc_model, pc_category, pc_media, pc_emergency_class) = row
 
     if pc_status != "confirmed":
         raise ApiError(
@@ -432,6 +432,14 @@ async def create_from_problem_card(
         wo = await get_order(tenant_id=tenant_id, wo_id=str(existing[0]))
         return wo, False
 
+    # 2.5 報價先行 gate（CR-0128 / ADR-015① / BR-WO-01「線上報價 → 客人確認 → 才開單派工」）：
+    #     標準路徑須有客戶已確認（accepted）報價（無/進行中 → 425；全數失效 → 409）；
+    #     急件 carve-out（pc.emergency_class 四類）跳過報價直接開單、事後補審（4h timer＝1.2.2）。
+    from services import quote_engine_service as _qe
+
+    if pc_emergency_class is None:
+        await _qe.assert_pc_quote_confirmed(tenant_id=tenant_id, problem_card_id=pc_id)
+
     # 3. Resolve customer info（caller override > user profile fallback）
     final_address = customer_address or user_address
     if not final_address:
@@ -451,12 +459,13 @@ async def create_from_problem_card(
         "INSERT INTO work_orders "
         "  (problem_card_id, status, priority, "
         "   customer_name, customer_phone, customer_address, created_by, document_number, "
-        "   brand, model, problem_type, service_category, photos, tenant_id) "
+        "   brand, model, problem_type, service_category, photos, tenant_id, quote_gate_applied) "
         "VALUES (%s::uuid, 'created', %s, %s, %s, %s, "
         "        %s::uuid, generate_wo_number(%s), "
-        "        %s, %s, %s, %s, %s::jsonb, %s::uuid) "
+        "        %s, %s, %s, %s, %s::jsonb, %s::uuid, TRUE) "
         "RETURNING id",
         # CR-0043：problem_type 留 pc.category（問題本質）；service_category 另映射 enum（修死欄 bug）
+        # CR-0128：quote_gate_applied=TRUE——gate 後新單，結案硬閘驗報價確認（存量單 FALSE 豁免）
         (pc_id, priority, final_name, final_phone, final_address, created_by, final_address,
          pc_brand, pc_model, pc_category, _map_service_category(pc_category),
          json.dumps(pc_media, ensure_ascii=False) if pc_media else None, tenant_id),
@@ -465,6 +474,16 @@ async def create_from_problem_card(
     if not new_row:
         raise ApiError("INTERNAL_ERROR", "Failed to insert work order", 500)
     new_wo_id = str(new_row[0])
+
+    # CR-0128：PC 階段報價回填綁定工單（可讀編號 TP-xxxxxx-Qn 隨之成立）；
+    # 急件 carve-out 則建 retrospective_audit_only 佔位報價供事後補審（1.2.2 timer 追蹤）。
+    if pc_emergency_class is None:
+        await _qe.bind_quotes_to_work_order(
+            tenant_id=tenant_id, problem_card_id=pc_id, work_order_id=new_wo_id)
+    else:
+        await _qe.create_quote(
+            tenant_id=tenant_id, work_order_id=new_wo_id, created_by=created_by,
+            urgent=True, initial_state="retrospective_audit_only")
 
     # CR-0096：標記 PC 已轉工單 → 該卡不再 active，同 conversation（同一 LINE 客人）
     # 之後的新問題可開「新卡」而非 append 進這張已派工的舊卡。
@@ -626,6 +645,23 @@ async def reopen_order(
         tenant_id=tenant_id, wo_id=str(new_row[0]), event_type="work_order.reopened"
     )
 
+
+# ── 工單狀態機（DB 7 值）中央轉移表（CR-0128 G6 / ADR-015 / BRD §5.7）──────────
+# 業務對映（BRD §5.7 視角 → DB 值）：created=公單成立（報價已客戶確認或急件 carve-out）、
+# assigned=已派工、accepted=技師接單、in_progress=施工中（含現場修正輪核可後回復）、
+# completed=技師完工（硬閘：地址＋報價確認＋存證）、confirmed=客戶確認結案（API 讀值
+# 映射 closed）、cancelled=取消。
+# 本表為狀態機正典；下方各 `*_FROM` 守衛集合是它的逐動作投影（enforcement 落點），
+# 新增/修改轉移時兩邊必須同步（測試 test_cr_0128 對帳）。
+_WO_TRANSITIONS: dict[str, set[str]] = {
+    "created":     {"assigned", "accepted", "cancelled"},                 # 派工／技師搶單 claim／取消
+    "assigned":    {"assigned", "accepted", "cancelled"},                 # 重派換人／接單／取消
+    "accepted":    {"assigned", "in_progress", "completed", "cancelled"}, # 改派／開工／完工／取消
+    "in_progress": {"assigned", "completed", "cancelled"},                # 改派／完工／取消
+    "completed":   {"confirmed"},                                         # 客戶確認結案
+    "confirmed":   set(),                                                 # 終局
+    "cancelled":   set(),                                                 # 終局
+}
 
 _ACCEPT_FROM = {"assigned"}
 _COMPLETE_FROM = {"accepted", "in_progress"}
@@ -1033,10 +1069,23 @@ async def _enforce_completion_gate(
         )
     # CR-0064 / TI-M05-02 / BR-M05：結案前服務地址必填（電子工單/派工依據）
     acur = await db_module._conn.execute(
-        "SELECT customer_address FROM work_orders WHERE id = %s::uuid", (wo_id,))
+        "SELECT customer_address, quote_gate_applied FROM work_orders WHERE id = %s::uuid", (wo_id,))
     arow = await acur.fetchone()
     if not (arow and arow[0] and str(arow[0]).strip()):
         raise ApiError("ADDRESS_REQUIRED_FOR_CLOSE", "結案前須有服務地址", 422)
+    # CR-0128 / ADR-015②：完工硬閘補報價分支——報價已確認（accepted；急件補審完成後同為
+    # accepted）才可完工。僅驗 gate 後新單（quote_gate_applied=TRUE）；存量單豁免（D3a）。
+    if arow and bool(arow[1]):
+        qcur = await db_module._conn.execute(
+            "SELECT 1 FROM quote WHERE work_order_id = %s::uuid AND state = 'accepted' LIMIT 1",
+            (wo_id,),
+        )
+        if not await qcur.fetchone():
+            raise ApiError(
+                "QUOTE_NOT_CONFIRMED_FOR_CLOSE",
+                "完工前報價須經客戶確認（急件請完成事後補審簽認）——BR-WO-01/ADR-015②",
+                422,
+            )
     return summary
 
 

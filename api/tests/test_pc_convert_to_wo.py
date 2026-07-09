@@ -17,7 +17,7 @@ import uuid
 import pytest
 import pytest_asyncio
 
-from tests.conftest import DEFAULT_TENANT_ID
+from tests.conftest import DEFAULT_TENANT_ID, seed_accepted_quote
 
 pytestmark = pytest.mark.component
 
@@ -121,6 +121,7 @@ async def test_convert_happy_path(client, admin_headers, insert_pc_chain):
     chain = await insert_pc_chain(
         pc_status="confirmed", urgency="high",
     )
+    await seed_accepted_quote(chain["pc_id"])  # CR-0128 報價先行 gate 前置
     res = await client.post(
         f"/api/v1/problem-cards/{chain['pc_id']}/convert-to-work-order",
         headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
@@ -142,6 +143,7 @@ async def test_convert_happy_path(client, admin_headers, insert_pc_chain):
 @pytest.mark.asyncio
 async def test_convert_idempotent(client, admin_headers, insert_pc_chain):
     chain = await insert_pc_chain(pc_status="confirmed")
+    await seed_accepted_quote(chain["pc_id"])  # CR-0128 報價先行 gate 前置
     res1 = await client.post(
         f"/api/v1/problem-cards/{chain['pc_id']}/convert-to-work-order",
         headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
@@ -199,6 +201,7 @@ async def test_convert_missing_address_422(
     chain = await insert_pc_chain(
         pc_status="confirmed", user_address=None,
     )
+    await seed_accepted_quote(chain["pc_id"])  # CR-0128 報價先行 gate 前置
     res = await client.post(
         f"/api/v1/problem-cards/{chain['pc_id']}/convert-to-work-order",
         headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
@@ -216,6 +219,7 @@ async def test_convert_address_override(client, admin_headers, insert_pc_chain):
     chain = await insert_pc_chain(
         pc_status="confirmed", user_address="新北市板橋區舊地址 1 號",
     )
+    await seed_accepted_quote(chain["pc_id"])  # CR-0128 報價先行 gate 前置
     res = await client.post(
         f"/api/v1/problem-cards/{chain['pc_id']}/convert-to-work-order",
         headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())},
