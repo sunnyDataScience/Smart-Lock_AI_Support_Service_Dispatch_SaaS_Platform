@@ -120,7 +120,7 @@ async def get_report_revenue(
 
 @router.get(
     "/tenants/{tenantId}/reports/export",
-    operation_id="exportReport",
+    operation_id="exportReportV2",
     summary="匯出 KPI / 營收 / 技師排行 / 結算報表（tenant-scoped v2；CSV stream）",
     responses={
         200: {

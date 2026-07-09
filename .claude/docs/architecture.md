@@ -161,7 +161,7 @@ Next.js 15（App Router）+ React 19 + TypeScript。Tailwind CSS 4、Recharts、
 | Admin — Reports | `/admin/reports/kpi`, `/admin/reports/revenue`, `/admin/reports/technician-ranking` |
 | Admin — System | `/admin/audit-events`, `/admin/roles`, `/admin/api-status`, `/admin/knowledge-base/sop-performance` |
 
-- **API integration**：mock → live API 遷移中。多數 admin/knowledge-base/accounting 頁已呼叫生成的 typed client。OpenAPI spec（`api/openapi.yaml`）為真實來源 —— 改 spec 後跑 `./scripts/ci/generate-api-types.sh` 重生型別。
+- **API integration**：mock → live API 遷移中。多數 admin/knowledge-base/accounting 頁已呼叫生成的 typed client。型別 SoT＝runtime export（`api.main:app`，ADR-031）—— 改 api 端點後跑 `./scripts/ci/generate-api-types.sh` 重生四站型別；`api/openapi.yaml` 為設計期契約（spec-lint/mock-smoke 對象），非型別來源。
 - **Component**：`src/components/{domain}/`。生成型別在 `web/types/api.generated.ts`（tsconfig `@/types/*` alias）。
 - **Sidebar**：巢狀 `NavItem[]` 支援 `children?: NavChild[]`，active parent 自動展開。
 - **Design tokens**：`globals.css` CSS 變數 — primary `#2563EB`、accent `#F59E0B`。字體 Inter + Noto Sans TC。深色 sidebar `#1E293B` + 淺色內容 `#F8FAFC`。

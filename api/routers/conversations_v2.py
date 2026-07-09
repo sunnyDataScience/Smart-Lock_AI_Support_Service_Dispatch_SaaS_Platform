@@ -47,7 +47,7 @@ router = APIRouter()
 
 @router.get(
     "/tenants/{tenantId}/conversations",
-    operation_id="listConversations",
+    operation_id="listConversationsV2",
     summary="對話列表 v2（tenant-scoped，cursor 分頁）",
     response_model=ConversationPage,
     tags=["Conversations"],
@@ -88,7 +88,7 @@ async def list_conversations_v2(
 
 @router.post(
     "/tenants/{tenantId}/conversations",
-    operation_id="createConversation",
+    operation_id="createConversationV2",
     summary="建立對話 v2（tenant-scoped，F-001 LINE 報修首訊建 ServiceTicket）",
     response_model=ConversationEnvelope,
     tags=["Conversations"],
@@ -133,7 +133,7 @@ async def create_conversation_v2(
 
 @router.get(
     "/tenants/{tenantId}/conversations/{id}",
-    operation_id="getConversation",
+    operation_id="getConversationV2",
     summary="對話詳情 v2（tenant-scoped）",
     response_model=ConversationEnvelope,
     tags=["Conversations"],
@@ -164,7 +164,7 @@ async def get_conversation_v2(
 
 @router.get(
     "/tenants/{tenantId}/conversations/{id}/messages",
-    operation_id="listConversationMessages",
+    operation_id="listConversationMessagesV2",
     summary="對話訊息列表 v2（tenant-scoped，cursor 分頁）",
     response_model=MessagePage,
     tags=["Conversations"],
@@ -204,7 +204,7 @@ async def list_conversation_messages_v2(
 
 @router.post(
     "/tenants/{tenantId}/conversations/{id}/messages",
-    operation_id="sendChatMessage",
+    operation_id="sendChatMessageV2",
     summary="發送訊息 v2（tenant-scoped，人類客服接管後使用）",
     response_model=Message,
     status_code=201,

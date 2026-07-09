@@ -7,7 +7,7 @@ import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 import NotificationDrawer from "./NotificationDrawer";
 
-type Notification = components["schemas"]["Notification"];
+import type { Notification } from "@/types/api.local";
 
 interface NotificationListResponse {
   items?: Notification[];

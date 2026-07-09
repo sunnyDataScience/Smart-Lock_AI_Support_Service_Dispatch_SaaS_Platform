@@ -215,13 +215,13 @@ export default function SystemConfigForm() {
         <div className="flex gap-4">
           <NumberField
             label={tSec("rag.similarity")}
-            value={config.rag?.similarity_threshold}
+            value={config.rag?.similarity_threshold ?? undefined}
             onChange={(v) => updateSection("rag", { similarity_threshold: v })}
             min={0} max={1} step={0.01}
           />
           <NumberField
             label={tSec("rag.maxResults")}
-            value={config.rag?.max_results}
+            value={config.rag?.max_results ?? undefined}
             onChange={(v) => updateSection("rag", { max_results: Math.round(v) })}
             min={1} max={20}
           />
@@ -229,13 +229,13 @@ export default function SystemConfigForm() {
         <div className="flex gap-4">
           <NumberField
             label={tSec("rag.chunkSize")}
-            value={config.rag?.chunk_size}
+            value={config.rag?.chunk_size ?? undefined}
             onChange={(v) => updateSection("rag", { chunk_size: Math.round(v) })}
             min={100} max={4000} unit="字元"
           />
           <NumberField
             label={tSec("rag.chunkOverlap")}
-            value={config.rag?.chunk_overlap}
+            value={config.rag?.chunk_overlap ?? undefined}
             onChange={(v) => updateSection("rag", { chunk_overlap: Math.round(v) })}
             min={0} max={500} unit="字元"
           />
@@ -246,25 +246,25 @@ export default function SystemConfigForm() {
         <div className="flex gap-4">
           <TextField
             label={tSec("llm.model")}
-            value={config.llm?.model}
+            value={config.llm?.model ?? undefined}
             onChange={(v) => updateSection("llm", { model: v })}
           />
           <TextField
             label={tSec("llm.promptVersion")}
-            value={config.llm?.system_prompt_version}
+            value={config.llm?.system_prompt_version ?? undefined}
             onChange={(v) => updateSection("llm", { system_prompt_version: v })}
           />
         </div>
         <div className="flex gap-4">
           <NumberField
             label={tSec("llm.temperature")}
-            value={config.llm?.temperature}
+            value={config.llm?.temperature ?? undefined}
             onChange={(v) => updateSection("llm", { temperature: v })}
             min={0} max={2} step={0.1}
           />
           <NumberField
             label={tSec("llm.maxTokens")}
-            value={config.llm?.max_tokens}
+            value={config.llm?.max_tokens ?? undefined}
             onChange={(v) => updateSection("llm", { max_tokens: Math.round(v) })}
             min={1} max={8192}
           />
@@ -275,20 +275,20 @@ export default function SystemConfigForm() {
         <div className="flex gap-4">
           <NumberField
             label={tSec("resolution.faqThreshold")}
-            value={config.resolution?.faq_confidence_threshold}
+            value={config.resolution?.faq_confidence_threshold ?? undefined}
             onChange={(v) => updateSection("resolution", { faq_confidence_threshold: v })}
             min={0} max={1} step={0.01}
           />
           <NumberField
             label={tSec("resolution.ragThreshold")}
-            value={config.resolution?.rag_confidence_threshold}
+            value={config.resolution?.rag_confidence_threshold ?? undefined}
             onChange={(v) => updateSection("resolution", { rag_confidence_threshold: v })}
             min={0} max={1} step={0.01}
           />
         </div>
         <ToggleField
           label={tSec("resolution.autoEscalate")}
-          value={config.resolution?.auto_escalation_enabled}
+          value={config.resolution?.auto_escalation_enabled ?? undefined}
           onChange={(v) => updateSection("resolution", { auto_escalation_enabled: v })}
         />
       </SectionCard>
@@ -296,12 +296,12 @@ export default function SystemConfigForm() {
       <SectionCard title={tSec("line_bot.title")} description={tSec("line_bot.desc")}>
         <ToggleField
           label={tSec("line_bot.greeting")}
-          value={config.line_bot?.greeting_message_enabled}
+          value={config.line_bot?.greeting_message_enabled ?? undefined}
           onChange={(v) => updateSection("line_bot", { greeting_message_enabled: v })}
         />
         <NumberField
           label={tSec("line_bot.maxTurns")}
-          value={config.line_bot?.max_conversation_turns}
+          value={config.line_bot?.max_conversation_turns ?? undefined}
           onChange={(v) => updateSection("line_bot", { max_conversation_turns: Math.round(v) })}
           min={1} max={200}
         />

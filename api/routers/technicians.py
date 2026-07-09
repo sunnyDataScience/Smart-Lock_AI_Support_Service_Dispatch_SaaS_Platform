@@ -84,7 +84,7 @@ async def get_workload_heatmap(
 
 @router.get(
     "/technicians/me",
-    operation_id="getMyProfile",
+    operation_id="getMyTechnicianProfile",
     summary="取得目前登入技師個人資料",
     response_model=TechnicianProfileEnvelope,
 )
@@ -97,7 +97,7 @@ async def get_my_profile(user: CurrentUser = Depends(_technician_only)) -> dict:
 
 @router.patch(
     "/technicians/me",
-    operation_id="updateMyProfile",
+    operation_id="updateMyTechnicianProfile",
     summary="更新個人資料",
     response_model=TechnicianProfileEnvelope,
 )
