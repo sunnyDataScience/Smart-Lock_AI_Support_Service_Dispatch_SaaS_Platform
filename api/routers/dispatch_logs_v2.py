@@ -28,7 +28,7 @@ from services import dispatch_log_service
 router = APIRouter()
 
 # dispatch-logs 為管理員監控派工歷程介面；僅限 admin / operations_manager
-_DISPATCH_LOGS_ROLES = ("admin", "operations_manager", "tenant_admin")
+_DISPATCH_LOGS_ROLES = ("admin", "operations_manager")  # SA-01：死角色移除
 
 
 @router.get(

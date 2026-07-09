@@ -31,24 +31,17 @@ logger = logging.getLogger("api.role_service")
 # ─── F-019：階層強制 ─────────────────────────────────────────────
 # Director > Manager > Other：actor 不能授權給「階層 >= 自己」的角色，
 # 也不能授權自己沒有的權限（防止越權升級）。
+# SA-01（CR-0130 業主裁決 2026-07-09）：階層收斂至 7 角色正典（13_Security §3.1）
+# ＋通道角色 line_user。legacy 值（super_admin/tenant_admin/operations_director/
+# supervisor/accounting/family_reviewer/support_agent/dispatch_officer/brand_oem/
+# distributor/auditor）全面移除——未知角色階層 0，can_grant 天然拒絕。
 ROLE_HIERARCHY: dict[str, int] = {
-    "super_admin": 5,
-    "tenant_admin": 4,
-    "admin": 4,                  # admin 與 tenant_admin 同階（既有系統角色）
-    "operations_director": 3,
-    "supervisor": 3,             # 主管（治理層，CR-0111）
-    "accounting": 3,             # 會計（財務層，CR-0111）
+    "admin": 4,                  # 租戶老闆：治理＋最終核准
     "operations_manager": 2,
     "reviewer": 2,
-    "family_reviewer": 2,        # 家族覆核員（合約 4.4(d)，CR-0111）
     "customer_service": 1,
-    "support_agent": 1,
-    "dispatch_officer": 1,
-    "dispatcher": 1,
+    "dispatcher": 1,             # 保留角色（暫不開通，存量帳號有效）
     "technician": 1,
-    "brand_oem": 0,
-    "distributor": 0,            # 經銷/門市/建商（CR-0111）
-    "auditor": 0,
     "line_user": 0,
 }
 
@@ -58,8 +51,8 @@ def can_grant(actor_role: str, target_role: str) -> bool:
     return ROLE_HIERARCHY.get(actor_role, 0) > ROLE_HIERARCHY.get(target_role, 0)
 
 
-# 允許執行 updateRolePermissions 的角色白名單（spec：admin / tenant_admin / super_admin）
-RBAC_ADMIN_ROLES = frozenset({"admin", "tenant_admin", "super_admin"})
+# 允許執行 updateRolePermissions 的角色白名單（SA-01：死角色移除，僅租戶 admin）
+RBAC_ADMIN_ROLES = frozenset({"admin"})
 
 # 允許被修改的目標角色白名單（避免誤打 typo 角色名稱寫進 DB）
 ALLOWED_TARGET_ROLES = frozenset(ROLE_HIERARCHY.keys())
@@ -171,56 +164,14 @@ _MATRIX: dict[str, dict[str, dict]] = {
         "roles":           _perm(False, False, False, locked=True),
         "system_settings": _perm(False, False, False, locked=True),
     },
-    "brand_oem": {
-        "work_orders":     _perm(True, False, False),
-        "technicians":     _perm(True, False, False),
-        "customers":       _perm(True, False, False),
-        "accounting":      _perm(False, False, False),
-        "invoices":        _perm(False, False, False),
-        "refunds":         _perm(False, False, False),
-        "inventory":       _perm(True, False, False),
-        "warranty":        _perm(True, False, False),
-        "disputes":        _perm(False, False, False),
-        "audit_logs":      _perm(False, False, False, locked=True),
-        "roles":           _perm(False, False, False, locked=True),
-        "system_settings": _perm(False, False, False, locked=True),
-    },
     "line_user": {
         # LINE 使用者進不到管理後台，全部封閉；此列僅為完整性。
         r: _perm(False, False, False, locked=True) for r in _RESOURCES
     },
-    # ── CR-0111 補齊角色（權威來源 final-spec sheet 11 + M17 Q&A）──────────
-    "accounting": {
-        # 會計（財務層）：財務全資料 + 核准退款/月結/發票；不可改施工狀態（Q113=No）
-        "work_orders":     _perm(True, False, False),   # Q113：唯讀
-        "technicians":     _perm(True, False, False),
-        "customers":       _perm(True, False, False),
-        "accounting":      _perm(True, True, False, approve=True),
-        "invoices":        _perm(True, True, False, approve=True),
-        "refunds":         _perm(True, True, False, approve=True),
-        "inventory":       _perm(True, False, False),
-        "warranty":        _perm(True, False, False),
-        "disputes":        _perm(True, False, False),
-        "audit_logs":      _perm(True, False, False, locked=True),
-        "roles":           _perm(False, False, False, locked=True),
-        "system_settings": _perm(False, False, False, locked=True),
-    },
-    "supervisor": {
-        # 主管（治理層）：全域可看 + 業務資源核准；角色/系統設定唯讀（歸中央管理員）
-        "work_orders":     _perm(True, True, False, approve=True),
-        # CR-0114 裁決 1:師傅身分/生命週期歸平台方,品牌端唯讀
-        "technicians":     _perm(True, False, False),
-        "customers":       _perm(True, True, False),
-        "accounting":      _perm(True, True, False, approve=True),
-        "invoices":        _perm(True, True, False, approve=True),
-        "refunds":         _perm(True, True, False, approve=True),
-        "inventory":       _perm(True, True, False),
-        "warranty":        _perm(True, True, False, approve=True),
-        "disputes":        _perm(True, True, False, approve=True),
-        "audit_logs":      _perm(True, False, False, locked=True),
-        "roles":           _perm(True, False, False, locked=True),
-        "system_settings": _perm(True, False, False, locked=True),
-    },
+    # ── SA-01（CR-0130）：CR-0111 的 legacy 6 行（accounting/supervisor/auditor/
+    # family_reviewer/distributor/brand_oem）已依業主裁決移除——矩陣＝7 角色正典
+    # ＋line_user 通道行。歷史帳號若持 legacy 角色：登入已擋（_ADMIN_WEB_ROLES）、
+    # 矩陣查無行＝deny-by-default。──────────────────────────────────────────
     "dispatcher": {
         # 派工：看+改工單（媒合/排程/改派）、看師傅；不動會計/退款核准
         "work_orders":     _perm(True, True, False),
@@ -251,52 +202,6 @@ _MATRIX: dict[str, dict[str, dict]] = {
         "roles":           _perm(False, False, False, locked=True),
         "system_settings": _perm(False, False, False, locked=True),
     },
-    "auditor": {
-        # 稽核/只讀：只讀 audit log、報表、抽樣工單；不可改任何營運資料、無核准權
-        "work_orders":     _perm(True, False, False),
-        "technicians":     _perm(True, False, False),
-        "customers":       _perm(True, False, False),
-        "accounting":      _perm(True, False, False),
-        "invoices":        _perm(True, False, False),
-        "refunds":         _perm(True, False, False),
-        "inventory":       _perm(True, False, False),
-        "warranty":        _perm(True, False, False),
-        "disputes":        _perm(True, False, False),
-        "audit_logs":      _perm(True, False, False, locked=True),
-        "roles":           _perm(True, False, False, locked=True),
-        "system_settings": _perm(True, False, False, locked=True),
-    },
-    "family_reviewer": {
-        # 家族覆核員（合約 4.4(d)）：SOP 入庫前最終覆核 + audit 唯讀。
-        # 註：其核准權在 SOP 覆核流程（family_review_service），非此 12 業務資源。
-        "work_orders":     _perm(True, False, False),
-        "technicians":     _perm(False, False, False),
-        "customers":       _perm(False, False, False),
-        "accounting":      _perm(False, False, False),
-        "invoices":        _perm(False, False, False),
-        "refunds":         _perm(False, False, False),
-        "inventory":       _perm(False, False, False),
-        "warranty":        _perm(False, False, False),
-        "disputes":        _perm(True, False, False),
-        "audit_logs":      _perm(True, False, False, locked=True),
-        "roles":           _perm(False, False, False, locked=True),
-        "system_settings": _perm(False, False, False, locked=True),
-    },
-    "distributor": {
-        # 經銷/門市/建商：只看自己來源/專案案件與合約可見欄位；不看平台內部成本
-        "work_orders":     _perm(True, False, False),
-        "technicians":     _perm(False, False, False),
-        "customers":       _perm(True, False, False),
-        "accounting":      _perm(False, False, False),
-        "invoices":        _perm(True, False, False),
-        "refunds":         _perm(False, False, False),
-        "inventory":       _perm(False, False, False),
-        "warranty":        _perm(True, False, False),
-        "disputes":        _perm(False, False, False),
-        "audit_logs":      _perm(False, False, False, locked=True),
-        "roles":           _perm(False, False, False, locked=True),
-        "system_settings": _perm(False, False, False, locked=True),
-    },
 }
 
 
@@ -317,21 +222,9 @@ _ROLE_META: dict[str, dict] = {
         "name": "技師",
         "description": "工單接受 / 完工 / 庫存查詢；無財務 / 角色管理權限",
     },
-    "brand_oem": {
-        "name": "品牌 OEM",
-        "description": "品牌端唯讀視角：自家工單、客戶、庫存、保固",
-    },
     "line_user": {
         "name": "LINE 使用者",
         "description": "終端消費者；不適用管理後台",
-    },
-    "accounting": {
-        "name": "會計",
-        "description": "AR/AP、收款核銷、退款、月結、發票；可核准退款/月結，不可改施工狀態",
-    },
-    "supervisor": {
-        "name": "主管",
-        "description": "價格/退款/責任/月結規則拍板；全域可看、業務資源可核准",
     },
     "dispatcher": {
         "name": "派工員",
@@ -340,18 +233,6 @@ _ROLE_META: dict[str, dict] = {
     "customer_service": {
         "name": "客服",
         "description": "建立/修正 ProblemCard、報價溝通、客訴；高金額退款需主管/會計",
-    },
-    "auditor": {
-        "name": "稽核員",
-        "description": "只讀 audit log、報表、抽樣工單；不可改任何營運資料",
-    },
-    "family_reviewer": {
-        "name": "家族覆核員",
-        "description": "合約 4.4(d)：SOP 入庫前最終覆核 + audit 唯讀",
-    },
-    "distributor": {
-        "name": "經銷 / 門市 / 建商",
-        "description": "只看自己來源/專案案件與合約可見欄位；不看平台內部成本",
     },
 }
 
@@ -590,7 +471,7 @@ async def update_role_permissions(
     actor_perms = await get_flat_permissions(tenant_id=tenant_id, role_name=actor_role)
     granting = desired_set - current_set  # 新增的 grant
     out_of_scope = granting - actor_perms
-    if out_of_scope and actor_role not in {"super_admin"}:
+    if out_of_scope:  # SA-01：super_admin 死角色移除——無人可越 scope
         # super_admin 可以授權任何系統內已知權限（但仍受 locked / 階層限制）
         raise ApiError(
             "RBAC_HIERARCHY_VIOLATION",

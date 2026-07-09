@@ -103,13 +103,13 @@ upstream:
 | `auditor`、`distributor`、`brand_oem` | 未落地；需要時走 ChangeRequest 擴充，不預留矩陣行 |
 | `family_reviewer` | **非登入角色**——家族覆核以事後 event log + 7 日 dispute window 履約（BR-AUDIT-01），不入帳號體系 |
 
-Legacy 6 角色自授權矩陣移除或凍結的收尾方式 `[待確認]`（隨 SA-01 矩陣對帳一併裁決）。
+Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR-0130）——授權矩陣刪 6 行 legacy、`ROLE_HIERARCHY`/`RBAC_ADMIN_ROLES`/`FULL_ACCESS_ROLES` 死角色與 legacy 值全面移除；矩陣＝7 角色正典＋`line_user` 通道行；殘存死角色 token 不再放行任何守衛。
 
 ### 3.2 Enforce 機制
 
 - **角色來源**：Casdoor 發角色 claim（🔜 規劃中 Phase 2；過渡期 claim 由 JWT 自簽發）。
-- **執行點**：api 端資源級 `role_required` 依賴鏈（`get_current_user → require_tenant → role_required`），**deny-by-default**。授權矩陣以 **§3.1 的 7 角色正典** × 12 資源 × 4 動作為基準（現行矩陣含 legacy 角色行，隨 SA-01 對帳瘦身）；矩陣決策全量記錄供對帳。
-- **逐端點角色守衛落地為 Phase 1 roadmap**：以矩陣對帳 195 條 `role_required` 宣告，灰度順序先高風險金流 / 派工端點，驗收條件 = 未授權角色（technician / vendor）寫金流 / 派工 / 設定回 403（SA-01）。
+- **執行點**：api 端資源級 `role_required` 依賴鏈（`get_current_user → require_tenant → role_required`），**deny-by-default**。授權矩陣以 **§3.1 的 7 角色正典** × 12 資源 × 4 動作為基準（✅ SA-01/CR-0130 已瘦身至正典行）；對帳基線與殘餘表記 CR-0130（runtime 反射：157 條 role_required；金流/派工/設定弱守衛寫入已收斂，殘餘 43 個非核心寫入端點列 R2 灰度）。
+- **逐端點角色守衛落地（SA-01）**：✅ R1 完成（2026-07-09，CR-0130）——死角色收斂＋金流/派工/設定寫入 49 端點補 `role_required`＋技師動作端點顯式白名單（`TECH_ACTION_ROLES`）；驗收達標：technician/vendor 寫金流/派工/設定回 403（sweep 測試鎖定）。🔜 R2＝殘餘 43 個非核心寫入端點灰度收斂（kb/sop/conversations/media 等，CR-0130 附表）。
 - **前端 gate = UX 非邊界**：web 的 `rolePolicy` 路由 gate 僅影響頁面載入；`/platform/*` 已為對稱 deny-by-default（僅 platform_admin 可進）；全表 catch-all deny-by-default 🔜 規劃中（ACT-02）。
 - **API_SURFACE 是部署塑形非安全邊界**：tech/platform 面靠前綴過濾塑形，真正隔離押在每端點 RBAC（api C-11 設計原則，文件化 + 剔除清單測試覆蓋 🔜 規劃中 SA-03）。
 

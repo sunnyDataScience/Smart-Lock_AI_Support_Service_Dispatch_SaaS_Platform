@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from fastapi import Response
@@ -103,7 +103,7 @@ async def list_problem_cards_v2(
 async def create_problem_card_v2(
     body: ProblemCardCreateRequest,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -195,7 +195,7 @@ async def update_problem_card_v2(
     body: ProblemCardUpdateRequest,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -235,7 +235,7 @@ async def update_problem_card_v2(
 async def confirm_problem_card_v2(
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -266,7 +266,7 @@ async def resolve_problem_card_v2(
     body: ProblemCardResolveRequest,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -333,7 +333,7 @@ async def convert_problem_card_to_work_order_v2(
         default=None,
         description="CR-0042：完整度不足時，admin/ops 帶 reason 可 override 強制轉單",
     ),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:

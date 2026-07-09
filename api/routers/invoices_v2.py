@@ -33,7 +33,7 @@ from services import invoice_service
 
 router = APIRouter()
 
-_BILLING_ROLES = ("admin", "operations_manager", "tenant_admin")
+_BILLING_ROLES = ("admin", "operations_manager")  # SA-01：死角色移除
 
 
 class _FromQuoteBody(BaseModel):

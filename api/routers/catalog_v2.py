@@ -17,7 +17,7 @@ from services import payout_rule_service, quote_catalog_service
 
 router = APIRouter()
 
-_COST_VISIBLE_ROLES = {"admin", "operations_manager", "tenant_admin"}
+_COST_VISIBLE_ROLES = {"admin", "operations_manager"}  # SA-01：死角色移除
 
 
 @router.get(

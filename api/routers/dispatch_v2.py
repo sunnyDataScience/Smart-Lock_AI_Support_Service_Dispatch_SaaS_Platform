@@ -39,7 +39,6 @@ router = APIRouter()
 _PLAN_ALLOWED_ROLES = (
     "admin",
     "operations_manager",
-    "tenant_admin",
     "dispatcher",
     "customer_service",
 )
@@ -234,7 +233,7 @@ async def get_dispatch_mode_v2(
 async def set_dispatch_mode_v2(
     body: _DispatchModeBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(role_required("admin", "operations_manager", "tenant_admin")),
+    user: CurrentUser = Depends(role_required("admin", "operations_manager")),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError("CROSS_TENANT_WRITE", "Path tenantId does not match authenticated tenant", 403)

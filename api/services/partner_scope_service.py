@@ -16,7 +16,7 @@ from core.errors import ApiError
 logger = logging.getLogger("api.partner_scope_service")
 
 # 不受 partner scope 限制的管理角色（可看全 tenant）
-_PARTNER_SCOPE_BYPASS_ROLES = frozenset({"admin", "tenant_admin", "super_admin", "platform_admin"})
+_PARTNER_SCOPE_BYPASS_ROLES = frozenset({"admin", "platform_admin"})  # SA-01：死角色移除
 # 受 partner scope 限制的角色
 _PARTNER_BOUND_ROLES = frozenset({"vendor", "brand_oem", "brand", "dealer", "builder"})
 

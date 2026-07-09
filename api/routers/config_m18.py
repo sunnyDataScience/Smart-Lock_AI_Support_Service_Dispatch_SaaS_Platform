@@ -287,7 +287,7 @@ async def slo_check(
     body: SloCheckRequest,
     tenantId: str = Path(...),
     rolloutId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     """admin 觀察線上 SLO 後請求 decision；本 endpoint 只回 should_halt 不真 halt。
 

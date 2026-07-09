@@ -174,7 +174,7 @@ async def hard_delete(
 async def cancel_request(
     tenantId: str = Path(...),
     requestId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)

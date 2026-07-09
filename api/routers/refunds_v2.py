@@ -163,7 +163,7 @@ class _AgentInitiateRefundBody(BaseModel):
 async def agent_initiate_refund_v2(
     body: _AgentInitiateRefundBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """Agent 服務帳號發起退款 — 不走 SoD dual-sign（HD-02 業主裁，LangGraph 特例）。

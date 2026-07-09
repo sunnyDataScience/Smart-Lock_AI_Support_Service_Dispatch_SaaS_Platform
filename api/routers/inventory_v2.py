@@ -35,7 +35,7 @@ import logging
 from fastapi import APIRouter, Depends, Path, Query, Response
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import inventory_v2_service as svc
@@ -182,7 +182,7 @@ async def get_inventory_item_v2(
 async def create_inventory_item_v2(
     body: CreateInventoryItemBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
@@ -227,7 +227,7 @@ async def consume_material_v2(
     body: ConsumeMaterialBody,
     tenantId: str = Path(...),
     itemId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """FR-0007 AC-05：
@@ -273,7 +273,7 @@ async def return_material_v2(
     body: ReturnMaterialBody,
     tenantId: str = Path(...),
     itemId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
@@ -314,7 +314,7 @@ async def restock_inventory_v2(
     body: RestockInventoryBody,
     tenantId: str = Path(...),
     itemId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
@@ -362,7 +362,7 @@ async def update_inventory_item_v2(
     body: UpdateInventoryItemBody,
     tenantId: str = Path(...),
     itemId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

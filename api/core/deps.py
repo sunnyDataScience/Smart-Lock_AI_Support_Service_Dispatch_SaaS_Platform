@@ -193,7 +193,9 @@ async def require_sod_actors(
 # ---------------------------------------------------------------------------
 
 #: 全權管理角色（admin governance：config / roles / audit / GDPR / data-correction）
-FULL_ACCESS_ROLES: tuple[str, ...] = ("admin", "tenant_admin", "super_admin")
+# SA-01（CR-0130 業主裁決 2026-07-09）：死角色 tenant_admin/super_admin 全面移除——
+# 7 角色正典（13_Security §3.1）；殘存死角色 token 不再放行任何守衛（與 SA-06 前端一致）。
+FULL_ACCESS_ROLES: tuple[str, ...] = ("admin",)
 #: 營運後台寫入（accounting / billing / pricing / vendor-mgmt / warranty / 結算）
 OPS_ROLES: tuple[str, ...] = FULL_ACCESS_ROLES + ("operations_manager",)
 #: 派工寫入（dispatch / 自動媒合 / 技師生命週期管理）
@@ -202,6 +204,9 @@ DISPATCH_ROLES: tuple[str, ...] = OPS_ROLES + ("dispatcher",)
 BACKOFFICE_ROLES: tuple[str, ...] = DISPATCH_ROLES + ("customer_service",)
 #: 審核寫入（退款 / 保固 / 爭議）—— 對齊 role_service._MATRIX：reviewer 於此三域可寫（CR-0094）
 REVIEW_ROLES: tuple[str, ...] = OPS_ROLES + ("reviewer",)
+#: 技師現場動作（接單/完工/簽名/到場/門況/延誤/用料/現場修正）＋後台代操作（SA-01/CR-0130）
+#: —— 對齊矩陣 technician.work_orders.write；vendor / line_user 一律 403
+TECH_ACTION_ROLES: tuple[str, ...] = BACKOFFICE_ROLES + ("technician",)
 
 
 def role_required(*roles: str):

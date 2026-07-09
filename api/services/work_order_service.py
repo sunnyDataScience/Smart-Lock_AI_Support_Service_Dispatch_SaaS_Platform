@@ -1461,7 +1461,7 @@ async def _assert_not_high_risk_hold(wo_id: str) -> None:
 
 
 # CR-0095 D2：派工前報價同意 gate 的 override 角色（沿用 FULL_ACCESS / ops 慣例）
-_QUOTE_GATE_OVERRIDE_ROLES = {"admin", "operations_manager", "tenant_admin", "super_admin"}
+_QUOTE_GATE_OVERRIDE_ROLES = {"admin", "operations_manager"}  # SA-01：死角色移除
 
 
 async def _assert_quote_accepted(

@@ -70,21 +70,19 @@ async def test_list_roles_v2_200(client, admin_headers):
     body = res.json()
     assert "data" in body
     assert isinstance(body["data"], list)
-    # 系統角色（CR-0111 補齊至 12 個，含財務層會計 / 合約家族覆核）
+    # SA-01（CR-0130）：矩陣收斂 7 角色正典＋line_user 通道行——legacy 6 行已移除
     role_ids = {r["id"] for r in body["data"]}
-    assert "admin" in role_ids
-    assert "reviewer" in role_ids
-    assert {"accounting", "supervisor", "dispatcher", "auditor",
-            "customer_service", "family_reviewer"} <= role_ids
+    assert role_ids == {"admin", "operations_manager", "reviewer", "customer_service",
+                        "dispatcher", "technician", "line_user"}
     # 權限維度含 approve（CR-0111 / BR-M17-01 can-approve）
     admin_row = next(r for r in body["data"] if r["id"] == "admin")
     perm0 = admin_row["permissions"][0]
     assert "approve" in perm0
-    # 會計可核准退款、但不可改工單狀態（final-spec Q113=No）
-    acct = next(r for r in body["data"] if r["id"] == "accounting")
-    acct_perms = {p["resource"]: p for p in acct["permissions"]}
-    assert acct_perms["refunds"]["approve"] is True
-    assert acct_perms["work_orders"]["write"] is False
+    # SA-01：會計 legacy 行已移除，核准職能由 reviewer 承接——退款可核准、工單不可寫
+    rev = next(r for r in body["data"] if r["id"] == "reviewer")
+    rev_perms = {p["resource"]: p for p in rev["permissions"]}
+    assert rev_perms["refunds"]["approve"] is True
+    assert rev_perms["work_orders"]["write"] is False
 
 
 # ─── 2. GET v2 — 403 cross-tenant guard ──────────────────────────────────────
