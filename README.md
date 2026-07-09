@@ -47,7 +47,7 @@
   - `web/tech-portal/`：師傅站（接單工作台，:3001）
   - `web/landing/`：導流站（行銷一頁式，:3002）
   - `web/platform-console/`：平台維運後台（Lock AI 自用，:3003）
-- `data/`：數據中台 Pipeline — Medallion（Raw → Bronze → Silver → Skill），產出知識素材。
+- `knowledge-pipeline/`：知識產線（原 `data/`，0707 決議去混淆命名）— Medallion（Raw → Bronze → Silver）雙軌產出：事實語料（RAG）+ 行為 Skill 草稿。
 - `SQL/`：資料庫 Schema 與 forward-only migrations。
 - `scripts/`：部署（Cloud Run）、DB、環境切換腳本。
 - `api/openapi.yaml`：OpenAPI 契約 SSOT（機讀，供 mock / lint / 型別生成 / schemathesis）。

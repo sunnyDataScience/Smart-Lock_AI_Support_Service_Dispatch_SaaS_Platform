@@ -5,7 +5,7 @@ name: Bare except Exception lint
 # programming bug，讓 typo 不會在開發期被抓到。
 # RP2.6（PR #25）已 narrow 46 處；此 lint 守護後續 PR 不再回歸。
 #
-# 適用範圍：api/services, data/pipeline
+# 適用範圍：api/services, knowledge-pipeline/pipeline
 #   - agent/scripts/       一次性 CLI 工具，過寬 catch 可接受
 #   - agent/lockcore/      fork 自 nanobot 的 vendor 套件（VENDOR.md），上游風格
 #                          大量 bare except（~126 處），依最小 diff 原則刻意不掃
@@ -25,12 +25,12 @@ on:
   pull_request:
     paths:
       - 'api/**/*.py'
-      - 'data/**/*.py'
+      - 'knowledge-pipeline/**/*.py'
   push:
     branches: [main, dev]
     paths:
       - 'api/**/*.py'
-      - 'data/**/*.py'
+      - 'knowledge-pipeline/**/*.py'
 
 jobs:
   lint:
@@ -43,13 +43,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # 掃描範圍：api/services / data/pipeline
+          # 掃描範圍：api/services / knowledge-pipeline/pipeline
           # 排除：agent/lockcore（vendor）/ scripts / core / __pycache__ / 已標 noqa: BLE001
-          test -d api/services -a -d data/pipeline || { echo "::error::scan target missing — update this workflow"; exit 1; }
+          test -d api/services -a -d knowledge-pipeline/pipeline || { echo "::error::scan target missing — update this workflow"; exit 1; }
           violations=$(
             find \
               api/services \
-              data/pipeline \
+              knowledge-pipeline/pipeline \
               -type f -name '*.py' \
               -not -path '*/__pycache__/*' \
               -not -path '*/scripts/*' \
@@ -76,4 +76,4 @@ jobs:
             echo "$violations"
             exit 1
           fi
-          echo "OK: no bare 'except Exception' in api/services, data/pipeline"
+          echo "OK: no bare 'except Exception' in api/services, knowledge-pipeline/pipeline"

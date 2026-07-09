@@ -8,7 +8,7 @@ requires-python = ">=3.11,<3.12"
 dependencies = [
     "lock-cs-agent",
     "smart-lock-api",
-    "smart-lock-data",
+    "smart-lock-knowledge-pipeline",
 ]
 
 [dependency-groups]
@@ -39,14 +39,14 @@ test = [
 
 # ── uv workspace 設定 ──
 # 三個 module 各為獨立 package，但共用同一個 .venv 與 uv.lock
-# 預設：`uv sync --all-packages` 同時裝 agent / api / data 所有 deps
+# 預設：`uv sync --all-packages` 同時裝 agent / api / knowledge-pipeline 所有 deps
 [tool.uv.workspace]
-members = ["agent", "api", "data"]
+members = ["agent", "api", "knowledge-pipeline"]
 
 [tool.uv.sources]
 lock-cs-agent = { workspace = true }
 smart-lock-api = { workspace = true }
-smart-lock-data = { workspace = true }
+smart-lock-knowledge-pipeline = { workspace = true }
 
 # Root 本身不打包成 wheel（沒有 .py code，只當 workspace 容器）
 [tool.uv]

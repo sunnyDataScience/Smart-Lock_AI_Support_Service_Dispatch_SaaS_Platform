@@ -50,9 +50,7 @@ llm_provider = "vertexai"
 llm_model = "gemini-2.5-flash"
 temperature = 0.3
 
-[pipelines.silver_to_skill]
-llm_provider = "vertexai"
-llm_model = "gemini-2.5-flash"
-temperature = 0.2
-skills_dir = "../agent/skills/data"
-drafts_dir = "storage/skill_drafts"
+[pipelines.silver_to_knowledge]
+# 雙軌產出為確定性路由（不呼叫 LLM）；產出位置固定 storage/corpus/。
+# 舊 silver_to_skill 段已刪（寫入目標 agent/skills/data 於 2026-06-04 消失，見 ADR-029）。
+corpus_dir = "storage/corpus"

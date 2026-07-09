@@ -1,0 +1,6 @@
+{"id": "dormakaba-001", "q": "Dormakaba 按註冊鍵後會不會被密碼錯誤次數鎖定？", "a": "不會。Dormakaba 全系列按下註冊鍵後不受密碼錯誤次數鎖定。", "brand": "Dormakaba", "source": "domain expert 2026-04-14", "tags": ["registration"]}
+{"id": "dormakaba-002", "q": "Dormakaba 管理者密碼可以跟開門密碼相同嗎？", "a": "可以。管理者密碼可以跟開門密碼相同。", "brand": "Dormakaba", "source": "domain expert 2026-04-14", "tags": ["password"]}
+{"id": "dormakaba-003", "q": "Dormakaba 管理者卡片跟開門卡的關係？", "a": "管理者卡片可當開門卡使用，但開門卡不一定能當管理者卡片。", "brand": "Dormakaba", "source": "domain expert 2026-04-14", "tags": ["card"]}
+{"id": "dormakaba-004", "q": "Dormakaba 怎麼進入設定模式？", "a": "按註冊鍵一下，然後輸入管理者密碼 + #，或刷管理者卡片。", "brand": "Dormakaba", "source": "domain expert 2026-04-14", "tags": ["setup"]}
+{"id": "dormakaba-005", "q": "Dormakaba 面板閃兩下就熄滅代表什麼？", "a": "代表輸入了錯誤密碼或錯誤卡片，不是電力不足。", "brand": "Dormakaba", "source": "domain expert 2026-04-14", "tags": ["troubleshoot", "panel"]}
+{"id": "dormakaba-006", "q": "Dormakaba 客戶可以自行恢復原廠設定嗎？", "a": "不行。Dormakaba 恢復原廠必須安排技師到場，屬收費服務，客戶無法自行操作。", "brand": "Dormakaba", "source": "domain expert 2026-04-14", "tags": ["factory-reset", "dispatch"]}
