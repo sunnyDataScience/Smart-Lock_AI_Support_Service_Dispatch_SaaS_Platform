@@ -97,7 +97,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 1.4.1 | 🔶 code 基線 ✅ 2026-07-09（CR-0136：OTel OTLP opt-in 埋點；SigNoz 叢集/OPIK 線＝部署面 OPS） | 可觀測性：SigNoz（metrics/logs/traces/alerts）+ OPIK（LLM 品質）基線 | OPS+AG | — | ADR-007；25_Monitoring_Spec |
 | 1.5.1 | ✅ 2026-07-09（CR-0135：200 題 corpus＋judge 七分類＋dry/live gate runner＋CI；live 全量掛 nightly） | AI 禁區 200 題 Eval pipeline 常態化（每 deploy 跑，<95% block）| AG | — | FR-A10 / K8 |
 | 1.6.1 | 🔶 drift-check ✅ 2026-07-09（CR-0136：migration 檔案層守門 CI＋12 支波次補登；Cloud Run CD 觸發器＝OPS） | 基礎 CD：3 Cloud Run 自動部署 + migration drift-check CI | OPS | — | ADR-P012（G-12 / G-10）|
-| 1.7.1 | ⬜ | SIT：M1 範圍 TC 全綠 + 回歸 | QA | 1.1–1.6 | SIT 報告 |
+| 1.7.1 | ✅ 2026-07-09（CR-0137：api 1719 passed 全綠＋修 seed 順序 bug/測試污染/legacy 斷言；1 live 測試 Vertex 429 非迴歸） | SIT：M1 範圍 TC 全綠 + 回歸 | QA | 1.1–1.6 | SIT 報告 |
 | 1.7.2 | ⬜ | UAT：合約紅線（K1 ≥ 80% / K3 ≥ 95% / K8 ≥ 95%）+ 業主驗收 | QA+PM | 1.7.1 | 22_UAT 報告；**M1 Release gate** |
 
 ### M2 身分・知識・技師平台（三線平行）

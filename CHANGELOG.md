@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Fixed
+
+- **M1 SIT 全綠＋seed 順序 bug 修正（WBS 1.7.1，branch `test/m1-sit`，2026-07-09，CIA CR-0137）**：M1 範圍系統整合測試——api **1719 passed 0 failed**（unit+component 合跑，隔離 scratch 全新 bootstrap）、agent 161、rag 5。SIT 暴露並修正三缺陷：①test_cr_0111 五處 legacy 12 角色斷言（SA-01/CR-0130 收斂遲滯 fallout，unit-marked 故 component-only 未觸及）→ 7 角色正典；②matrix-defaults 測試讀到 test_rbac_dynamic 殘留 override（跨測試污染）→ 改測 `_flatten_matrix` 純矩陣層；③**seed 順序 bug**——migration 063 技能/品牌授權 seed 依 `technicians WHERE active`，但 technicians 於所有 migration 後才 seed → 063 執行時零技師 → skill/auth 全空（test_cr_0060/0114 恆 fail）→ 新增 `SQL/seeds/zz_technician_skills.sql`（zz_ 前綴 seed glob 最後補跑）。1 live 測試 Vertex 429 配額耗盡非迴歸（CI 自動 skip；確定性守門為 K8 forbidden gate）。M1 engineering 1.1-1.6 全數綠燈。
+
 ### Added
 
 - **可觀測性基線＋migration drift-check CD（WBS 1.4.1/1.6.1，branch `feat/observability-cd-baseline`，2026-07-09，CIA CR-0136）**：①**1.4.1**：`core/observability.setup_observability`——`OTEL_EXPORTER_OTLP_ENDPOINT` 設定時啟用 OTel＋FastAPI 自動埋點（OTLP gRPC→SigNoz，health/docs 排除），未設＝no-op 零行為變化，套件缺/失敗＝降級 WARNING 不癱瘓；`opentelemetry-*` 為 api `[otel]` optional extra。②**1.6.1**：`scripts/ci/migration-drift-check.py`（純檔案層——編號唯一/全數登記 REGISTRY/無死列）＋CI workflow；**首跑抓到真漂移**——12 支波次 migration（028-032/036-041/076）REGISTRY 缺登（歷史「待補登」註記從未落實）→ 全數事實化補登，91 支全綠。新測試 3、unit 334。SigNoz 叢集/OPIK/Cloud Run CD 觸發＝部署面 OPS 遺留（記 CIA）。

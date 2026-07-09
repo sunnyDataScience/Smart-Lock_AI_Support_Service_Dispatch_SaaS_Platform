@@ -27,23 +27,23 @@ def test_approve_is_fourth_dimension():
         assert "approve" in p
 
 
-def test_roles_completed_to_twelve():
+def test_roles_canon_seven_after_sa01():
+    """SA-01（CR-0130）：矩陣收斂 7 角色正典＋line_user 通道行（legacy 6 行移除）。"""
     expected = {
-        "admin", "reviewer", "technician", "brand_oem", "line_user",
-        "accounting", "supervisor", "dispatcher", "customer_service",
-        "auditor", "family_reviewer", "distributor",
+        "admin", "operations_manager", "reviewer", "customer_service",
+        "dispatcher", "technician", "line_user",
     }
-    assert expected <= set(r._ROLE_META.keys())
+    assert set(r._ROLE_META.keys()) == expected
     assert set(r._MATRIX.keys()) == set(r._ROLE_META.keys())
 
 
-def test_accounting_q113_workorder_readonly_but_approves_refund():
-    """final-spec Q113：會計不可改工單狀態；但可核准退款/月結。"""
-    acct = _perms("accounting")
-    assert acct["work_orders"]["write"] is False   # Q113=No
-    assert acct["work_orders"]["read"] is True
-    assert acct["refunds"]["approve"] is True
-    assert acct["accounting"]["approve"] is True
+def test_reviewer_workorder_readonly_but_approves_refund():
+    """SA-01 後會計職能由 reviewer 承接：不可改工單狀態；但可核准退款/爭議。"""
+    rev = _perms("reviewer")
+    assert rev["work_orders"]["write"] is False
+    assert rev["work_orders"]["read"] is True
+    assert rev["refunds"]["approve"] is True
+    assert rev["disputes"]["approve"] is True
 
 
 def test_approve_tiered_by_role():
@@ -67,11 +67,13 @@ def test_customer_service_cannot_approve_refund():
     assert cs["refunds"]["approve"] is False
 
 
-def test_hierarchy_admin_can_grant_new_roles():
-    for role in ["accounting", "supervisor", "dispatcher",
-                 "customer_service", "auditor", "family_reviewer", "distributor"]:
+def test_hierarchy_admin_can_grant_canon_roles():
+    """SA-01：admin 可授權 7 正典中的下階角色；死角色/legacy 階層 0 一律拒。"""
+    for role in ["operations_manager", "reviewer", "customer_service", "dispatcher", "technician"]:
         assert role in r.ROLE_HIERARCHY
         assert r.can_grant("admin", role) is True
-    # admin 仍不可改同階/更高階
+    # admin 不可改同階
     assert r.can_grant("admin", "admin") is False
-    assert r.can_grant("admin", "super_admin") is False
+    # 死角色/legacy 由 ALLOWED_TARGET_ROLES 阻擋（不可作為授權目標）
+    assert "super_admin" not in r.ALLOWED_TARGET_ROLES
+    assert "accounting" not in r.ALLOWED_TARGET_ROLES
