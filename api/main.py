@@ -246,6 +246,11 @@ app.add_middleware(
     expose_headers=["X-Request-Id", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset"],
 )
 app.add_middleware(RequestIdMiddleware)
+
+# CR-0136 / SA / WBS 1.4.1：可觀測性基線——OTEL_EXPORTER_OTLP_ENDPOINT 設定時
+# 啟用 OTel OTLP 埋點（SigNoz），未設＝零行為變化（單機/測試不受影響）。
+from core.observability import setup_observability  # noqa: E402
+setup_observability(app)
 app.add_middleware(DeprecationMiddleware)  # CR-0002-α D3：/api/v1/* 回應一律 Deprecation: true（含 error path）
 
 

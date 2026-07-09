@@ -51,6 +51,17 @@
 | 034 | `034-role-permissions-tenant-id.sql` | 部署修復 | 🟢 idempotent | 首次 Cloud Run 部署修復：prod 既有「舊版 role_permissions join 表（role_id/permission_id）」與 F-019（role_name/permission_code）衝突。空舊表 → DROP 重建為 F-019 spec（安全閥：非空則 RAISE 中止）。並同步修：(a) `015` kb_audit_log partial index 移除非法 `NOW()` predicate 改全索引；(b) `Schema_v2_extensions.sql` 移除舊 RBAC join 索引死碼。prod 經 cloud-sql-proxy 套用、完整重跑零錯誤 |
 
 | 035 | `035-password-reset-tokens.sql` | CR-0025 / ADR-0114 | 🟢 idempotent | 使用者自助忘記密碼：新 `password_reset_tokens` 表（token 只存 SHA-256 雜湊、明文不入庫；TTL 30 分鐘 + used_at 單次用；ON DELETE CASCADE）+ 3 indexes（token_hash UNIQUE / user_id / expires_at）。全 IF NOT EXISTS 可重套 |
+| 028 | `028-invoices-payment-method.sql` | CR-0020~0022 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| invoices 加付款方式欄（波次補登，CR-0038 事實化） |
+| 029 | `029-scheduled-reports.sql` | CR-0020~0022 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 排程報表表（波次補登） |
+| 030 | `030-users-customer-aggregates.sql` | CR-0020~0022 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| users 客戶彙總欄（波次補登） |
+| 031 | `031-wo-region-numbering.sql` | CR-0020 / ADR-0110 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 工單地區前綴公單號 per-region 流水（波次補登） |
+| 032 | `032-problem-card-ai-draft.sql` | CR-0022 / ADR-0112 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 問題卡 AI 草擬欄 source/ai_missing_fields（波次補登） |
+| 036 | `036-workorder-standard-fields.sql` | CR-0026 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 工單標準化欄位補洞（波次補登） |
+| 037 | `037-quote-line-items.sql` | CR-0027 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 報價明細項 quote_line_items（波次補登） |
+| 038 | `038-vendor-registration.sql` | CR-0029 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 廠商註冊表（波次補登） |
+| 039 | `039-dispatch-mode.sql` | CR-0030 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 派工模式 dispatched_via（波次補登） |
+| 040 | `040-quote-catalog.sql` | CR-0034 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 服務/材料目錄 service_catalog/material_catalog（波次補登） |
+| 041 | `041-quote-engine.sql` | CR-0032 | 🟢 idempotent ✅ 事實化 2026-07-09（波次補登，drift-check 對齊）| 報價引擎主表 quote/quote_approval/snapshot（波次補登） |
 | 042 | `042-invoice-from-quote.sql` | CR-0035 | 🟢 idempotent | 金流結算收尾：invoices 加 `quote_id`（追溯來源報價，nullable，FK quote ON DELETE SET NULL）+ `is_mock`（金額來自 esales mock 草稿旗標）+ idx_invoices_quote。為「報價 accepted→應收發票」接線（invoice_service.create_from_quote；work_order_id UNIQUE 冪等）。全 ADD COLUMN IF NOT EXISTS 可重套 |
 | 043 | `043-work-order-consents.sql` | CR-0033 | 🟢 idempotent | 免責合規：新 `work_order_consents`（三段 consent_type=new_installation/lock_destruction/personal_data + accepted/accepted_at + text_version 文本版本快照 + ip_address 留痕；UNIQUE(work_order_id, consent_type) 冪等 upsert）+ idx。藍圖模組 4 施工免責；文本以 consent_service 常數存（佔位待法務）。全 IF NOT EXISTS 可重套 |
 | 044 | `044-finance-config.sql` | CR-0036 | 🟢 idempotent | 金流參數入 M18 config 治理：config_namespace ×3（deposit_policy / dispatch_commission / monthly_close_schedule）+ seed 三筆 global active config_version（esales sheet24 值：訂金 0.3/min 1000、佣金 0.08、月結 3/5/10；value 內標 is_mock/esales_status/source）+ invoices 加 deposit_required。符 sheet24「規則版本化不可寫死」（值入 config 非 code）。namespace ON CONFLICT DO NOTHING + config_version NOT EXISTS + ADD COLUMN IF NOT EXISTS 可重套 |
@@ -85,6 +96,7 @@
 | 073 | `073-bom-two-layer.sql` | CR-0078 | 🟢 idempotent ✅ 2026-06-20 套 dev | 兩層 BOM（TI-FIN-BOM-03/BR-M10/Q079-087，Phase I mock）：新表 saas.product_model（第一層 brand/model）+ saas.bom_line（第二層子件 + material_owner CHECK brand/company/locksmith/customer + cost_attribution CHECK customer/brand/technician/company + return_deadline_days nullable）。Phase II 接退回狀態機。可重套 |
 | 074 | `074-family-review-ledger.sql` | CR-0079 | 🟢 idempotent ✅ 2026-06-20 套 dev | 家族覆核不可篡改 ledger（TI-A10-02/合約 4.4d 紅線）：family_reviews +prev_hash +entry_hash（hash chain 篡改偵測，複用 067 audit 機制）。雙審 distinct（家族覆核者≠初審 admin）在 service 層強制。純 ADD COLUMN 可重套 |
 | 075 | `075-vendor-partner-scope.sql` | CR-0084 | 🟢 idempotent ✅ 2026-06-20 套 dev | Partner scope 隔離（TI-PORTAL-01）：vendors +brand_partner_id + partial index。修「vendor 可讀全品牌 statement」假綠 —— partner_scope_service.resolve_partner_scope 用此欄 fail-closed 強制過濾（未綁 partner→403、跨 partner 讀→403、admin 不受限）。純 ADD COLUMN 可重套 |
+| 076 | `076-vendor-tax-id.sql` | CR-0089 | 🟢 idempotent ✅ 事實化 2026-07-09（drift-check 對齊）| vendors 加統一編號 tax_id 欄。ADD COLUMN IF NOT EXISTS 可重套 |
 | 077 | `077-problem-card-per-issue.sql` | CR-0096 | 🟢 idempotent ✅ 2026-06-23 套 dev | 修「同一 LINE 客人不同問題擠進同張問題卡」：problem_cards +converted_at（標記已轉工單）+ DROP 全唯一 conversation_id + 部分唯一索引 uniq_pc_conversation_active（同 conversation 同時只一張 active 卡）。ADD COLUMN IF NOT EXISTS + DROP CONSTRAINT IF EXISTS + CREATE INDEX IF NOT EXISTS 可重套。**註**：076→077 之間無 076 缺號（076=vendor-tax-id 已存在）|
 | 078 | `078-media-completion-signature.sql` | 技師完工簽名上傳 422 | 🟢 idempotent ✅ 2026-06-23 套 dev | 修技師完工簽名上傳 422：purpose 白名單 4 層（router v2/v1 _PURPOSE + media_service._ALLOWED_PURPOSES + DB CHECK）皆缺 `completion_signature`，前端 my-orders/[id] 簽名上傳送此值被擋。本 migration 補 DB CHECK（最後一層），並對齊 router/service（含 060 的 completion_during）。比照 060 DROP+ADD（依 door_check_before 找約束名）可重套 |
 | 079 | `079-wo-completion-summary-function-tests-sla.sql` | CR-0100 | 🟢 idempotent ✅ 2026-06-25 套 dev | 工單詳情頁 B 類後端欄位（盤點報告 wo-detail-hardcoded-audit-20260625）：work_orders +completion_summary（技師 notes 抽出乾淨欄）+function_tests jsonb（[{key,result}]，pass/fail/na，預設 []）+ config namespace sla_policy（三級 high8h/medium24h/low48h；sla_deadline 不落欄、service computed）。全 additive（ADD COLUMN IF NOT EXISTS + config ON CONFLICT/NOT EXISTS）可重套。功能測試非完工硬閘 |
@@ -105,7 +117,5 @@
 | 092 | `092-retrospective-audit-engine.sql` | CR-0129 | 🟢 idempotent（scratch 5447 驗證 2026-07-09） | 急件補審引擎（WBS 1.2.2）：`quote.audit_due_at`（完工起算 4h 窗）+ partial index + URG-01 急件加價 seed（D1a 業主定案 1500）+ `change_request_type_dim` 補 `emergency_audit_breach`（連 3 逾時自動 CR）。IF NOT EXISTS/ON CONFLICT 可重套 |
 | 093 | `093-pc-dual-gate.sql` | CR-0132 | 🟢 idempotent（scratch 5451 驗證 2026-07-09） | 問題卡雙 gate schema（WBS 1.2.3/15_SDS §4.6/18_DB §4.3）：intake/resolution_completeness 拆分＋分流欄（triage_tier/resolution_channel/resolved_by）＋RMA spine 7 欄＋knowledge_ready＋tenant_id（含 backfill）＋佇列 partial index；死欄 DROP IF EXISTS（attempts 等 5 欄，僅存量庫）。可重套 |
 
-> 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
-> 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

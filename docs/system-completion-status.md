@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**AI 禁區 Eval pipeline 常態化（WBS 1.5.1，CR-0135）**，branch `feat/forbidden-eval-pipeline` — judge 三分類（transfer/decline/no_vision）＋200 題 corpus 種子（七分類配額）＋gate runner（dry 結構守門/live <95% block）＋CI。新測試 5、agent 162。live nightly 掛憑證。）
+**最後更新：** 2026-07-09（**可觀測性基線＋migration drift-check（WBS 1.4.1/1.6.1，CR-0136）**，branch `feat/observability-cd-baseline` — OTel OTLP opt-in 埋點（SigNoz）＋migration 檔案層漂移守門 CI（首跑補登 12 支波次 migration）。新測試 3、unit 334。SigNoz 叢集/OPIK/Cloud Run CD 觸發為部署面 OPS。）
+
+**前一次更新：** 2026-07-09（**AI 禁區 Eval pipeline 常態化（WBS 1.5.1，CR-0135）**，branch `feat/forbidden-eval-pipeline` — judge 三分類（transfer/decline/no_vision）＋200 題 corpus 種子（七分類配額）＋gate runner（dry 結構守門/live <95% block）＋CI。新測試 5、agent 162。live nightly 掛憑證。）
 
 **前一次更新：** 2026-07-09（**即時通道多實例化（WBS 1.3.1，CR-0134）**，branch `feat/realtime-redis-lock` — WS hub Redis 橋（REDIS_URL opt-in、故障降級告警）＋PG advisory 分散式鎖掛滿 11 cron worker（failover 自動接手）。新測試 5、component 907、unit 331。多實例 e2e 隨 SIT。）
 

@@ -42,5 +42,12 @@ dependencies = [
     "jsonschema>=4.23.0",
 ]
 
+[project.optional-dependencies]
+otel = [  # CR-0136/WBS 1.4.1：SigNoz OTLP 埋點（opt-in）
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
+]
+
 [tool.uv]
 package = false
