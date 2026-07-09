@@ -13,6 +13,24 @@ This skill bundles the locksmith domain knowledge base. All facts live in `refer
 (a self-contained snapshot — no database or runtime needed, so this skill is portable to
 any agent/CLI that supports the Agent Skills standard). Answer **only** from these docs.
 
+## Semantic retrieval via RAG (when the MCP tools are available)
+
+If tools named `mcp_locksmith-rag_search_product_manual` / `mcp_locksmith-rag_search_similar_cases`
+are available, they search the **same governed corpus** semantically (pgvector). Use them as the
+**first lookup** for factual questions:
+
+1. Call `search_product_manual(brand, model, query)` with the customer's own wording
+   (brand/model = `general` when unknown). Treat results as facts **only if** similarity is
+   reasonably high and the content actually answers the question.
+2. **Empty result or low relevance → do NOT invent.** Fall back to reading `references/`
+   (profile gating below). The filesystem references remain the authoritative fallback.
+3. `search_similar_cases(symptom, …)` may return past resolved cases (≥0.85 similarity only);
+   use them as precedent hints, never as a substitute for the safety rules below.
+4. If the RAG tools are absent or return `RAG_UNAVAILABLE`, silently proceed with
+   `references/` — never mention internal tooling to the customer.
+
+All domain safety rules below apply **unchanged** regardless of which lookup path was used.
+
 ## How to choose which references to read (profile gating)
 
 Figure out the customer's **brand** and **model**, then load the minimal set:

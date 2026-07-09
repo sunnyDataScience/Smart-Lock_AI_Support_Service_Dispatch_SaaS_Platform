@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11,<3.12"
 # 把三個 workspace member 列為 deps，`uv sync` 才會把它們的 deps 拉進共用 venv
 dependencies = [
-    "lock-cs-agent",
+    "lock-cs-agent[eval]",  # eval extra=openpyxl(eval 腳本讀 xlsx;原搭 langchain 傳遞便車,Phase A 瘦身後顯式帶上)
     "smart-lock-api",
     "smart-lock-knowledge-pipeline",
     "smart-lock-rag",
