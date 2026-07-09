@@ -9,6 +9,8 @@ import uuid
 
 import pytest
 
+from tests.conftest import seed_accepted_quote
+
 import core.db as db_module
 from services import work_order_service as svc
 
@@ -53,6 +55,7 @@ async def test_list_orders_keyword_matches_document_number():
     """用公單號（完整＋前綴片段）當 keyword 應搜到該工單。"""
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         doc_no = wo["document_number"]
         assert doc_no, "工單建立應自動發公單號"
@@ -72,6 +75,7 @@ async def test_list_orders_keyword_still_matches_customer_name():
     """回歸：加 document_number 後，keyword 仍能用客戶名搜（不破壞既有行為）。"""
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         page = await svc.list_orders(tenant_id=TID, cursor=None, limit=50, keyword="公單號測試客")
         assert wo["id"] in [w["id"] for w in page["items"]], "客戶名搜尋應仍有效"

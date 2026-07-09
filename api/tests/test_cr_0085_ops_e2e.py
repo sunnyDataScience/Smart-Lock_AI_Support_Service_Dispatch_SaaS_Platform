@@ -6,6 +6,8 @@ AI 進線段（LINE→AI→PC）需 live LLM，不在此（切 needs_external）
 from __future__ import annotations
 import uuid
 import pytest
+
+from tests.conftest import seed_accepted_quote
 import core.db as db_module
 from core.errors import ApiError
 from services import work_order_service as svc
@@ -53,6 +55,7 @@ async def test_full_ops_pipeline_happy_path():
     if not tech:
         await _cleanup(uid, pid); pytest.skip("需要 active 技師")
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         wid = wo["id"]
         # 確保服務地址（結案地址閘 CR-0064）
@@ -83,6 +86,7 @@ async def test_accept_before_assign_409():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         with pytest.raises(ApiError) as e:
             await svc.accept_order(tenant_id=TID, wo_id=wo["id"])   # created 直接 accept
@@ -101,6 +105,7 @@ async def test_doorcheck_requires_arrival_409():
     if not tech:
         await _cleanup(uid, pid); pytest.skip("需要 active 技師")
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         await svc.assign_order(tenant_id=TID, wo_id=wo["id"], technician_id=tech, reason_code="manual",
                                actor_role="admin", override_reason="E2E 略過報價同意 gate")
@@ -119,6 +124,7 @@ async def test_confirm_only_from_completed_409():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         with pytest.raises(ApiError) as e:
             await svc.confirm_order(tenant_id=TID, wo_id=wo["id"], rating=5)   # created 直接 confirm

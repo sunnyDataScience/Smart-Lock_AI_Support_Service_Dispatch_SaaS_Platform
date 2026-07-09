@@ -220,6 +220,7 @@ async def update_problem_card_v2(
         urgency=urgency,
         status=status,
         media_urls=media_urls,
+        emergency_class=body.emergency_class,
     )
     return {"data": ProblemCard(**card).model_dump(mode="json")}
 

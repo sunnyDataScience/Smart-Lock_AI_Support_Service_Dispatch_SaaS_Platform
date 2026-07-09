@@ -2,6 +2,8 @@
 from __future__ import annotations
 import uuid
 import pytest
+
+from tests.conftest import seed_accepted_quote
 import core.db as db_module
 from services import work_order_service as svc
 
@@ -33,6 +35,7 @@ async def test_complete_stores_teaching_note():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         await db_module._conn.execute(
             "UPDATE work_orders SET status='in_progress' WHERE id=%s::uuid", (wo["id"],))

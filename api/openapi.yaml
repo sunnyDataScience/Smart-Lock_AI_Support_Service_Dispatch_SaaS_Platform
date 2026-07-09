@@ -211,8 +211,9 @@ paths:
             (急件 4 類 carve-out; retrospective audit required within 4h via
             POST /quotes/{id}/retrospective-audit)
           - Violation:
-            * non-emergency missing quote → 425 QUOTE_REQUIRED_NON_EMERGENCY
-            * quote.state != customer_confirmed → 409 QUOTE_STATE_INVALID
+            * non-emergency missing/unconfirmed quote → 425 QUOTE_NOT_CUSTOMER_CONFIRMED
+              (ADR-015①/CR-0128 錯誤碼正典；原 v2.3.0 草案名 QUOTE_REQUIRED_NON_EMERGENCY)
+            * quote 全數失效（rejected/expired/superseded）→ 409 QUOTE_STATE_INVALID
       parameters:
         - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
       requestBody:
@@ -226,18 +227,21 @@ paths:
           description: QUOTE_STATE_INVALID — quote_id provided but quote.state != customer_confirmed
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
         '425':
-          description: QUOTE_REQUIRED_NON_EMERGENCY — non-emergency PC must have a customer_confirmed quote_id (ADR-0066)
+          description: QUOTE_NOT_CUSTOMER_CONFIRMED — non-emergency PC must have a customer-confirmed quote (ADR-015①/CR-0128)
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
   /work-orders/{id}/close:
     parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
     post:
       tags: [WorkOrder]
-      summary: Close WorkOrder (422 hard gate on null address per ADR-0032)
+      summary: Close WorkOrder (422 hard gate — address + quote 雙必驗 per ADR-015②)
       operationId: closeWorkOrder
       responses:
         '200': { description: completed }
         '422':
-          description: address is null - hard gate
+          description: >-
+            hard gate 未過——ADDRESS_REQUIRED_FOR_CLOSE（地址空）或
+            QUOTE_NOT_CONFIRMED_FOR_CLOSE（報價未經客戶確認/急件補審未完成；
+            僅驗報價先行 gate 後新單，存量豁免 CR-0128 D3a）
           content:
             application/json:
               schema:
@@ -566,12 +570,12 @@ paths:
       summary: 急件事後補 quote audit (ADR-0066)
       operationId: retrospectiveQuoteAudit
       description: |
-        ADR-0066 Emergency Retrospective Audit.
-        For pc.emergency_class IN 4 categories: onsite 完工後 4h 內客服必須補建立 quote 並
-        完成 retrospective audit。逾時 → 410 AUDIT_WINDOW_EXPIRED + alert SRE / CS supervisor。
-        Audit success → `quote.state = retrospective_audit_only` (a terminal state used
-        purely for ledger reconciliation; does not gate WO creation since the WO was
-        already created under the emergency carve-out).
+        急件事後補審（ADR-015①/CR-0128 對齊，02_BRD §5.7）。
+        急件 carve-out 開單時，server 自動建立 `state = retrospective_audit_only` 佔位
+        quote（綁定 WO）；客服於 4h 內補明細並完成客戶簽認 → `state = customer_confirmed`
+        （runtime 值 accepted，經 audit_complete 轉移）。逾時 → 410 AUDIT_WINDOW_EXPIRED +
+        alert CS supervisor（4h timer/補審佇列＝WBS 1.2.2）。補審不 gate WO 建立
+        （WO 已依急件 carve-out 成立），但 gate 完工（ADR-015②）。
       parameters:
         - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
         - { name: traceparent, in: header, required: false, schema: { type: string } }
@@ -4623,6 +4627,14 @@ components:
         completeness_score: { type: number, minimum: 0, maximum: 1 }
         media_refs: { type: array, items: { type: string } }
         state: { type: string, enum: [incomplete, draft, confirmed, resolved] }
+        emergency_class:
+          type: string
+          nullable: true
+          enum: [locked_out, trapped_inside, safety_risk, angry_high_risk]
+          description: >-
+            急件 carve-out 四類（ADR-015①/CR-0128；null=非急件走報價先行）。
+            與 urgency 不同軸：urgency 為優先級，emergency_class 決定是否跳過報價
+            開單並進事後補審（1.2.2）。
 
     ProblemCardCreate:
       allOf:

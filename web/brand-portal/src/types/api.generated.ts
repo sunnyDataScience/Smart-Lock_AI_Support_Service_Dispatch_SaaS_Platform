@@ -3643,6 +3643,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenants/{tenantId}/problem-cards/{pcId}/quotes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 問題卡報價列表（含開單前 PC 階段報價） */
+        get: operations["listProblemCardQuotesV2"];
+        put?: never;
+        /**
+         * 問題卡層建報價（報價先行主路徑，CR-0128/BR-WO-01）
+         * @description 問題卡階段建報價（work_order_id=NULL）；客戶確認後 convert 開單時自動回填綁定。
+         */
+        post: operations["createProblemCardQuoteV2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tenants/{tenantId}/quotes": {
         parameters: {
             query?: never;
@@ -9376,6 +9397,8 @@ export interface components {
             source?: string | null;
             /** Ai Missing Fields */
             ai_missing_fields?: string[] | null;
+            /** Emergency Class */
+            emergency_class?: string | null;
         };
         /** ProblemCardCreateRequest */
         ProblemCardCreateRequest: {
@@ -9456,6 +9479,8 @@ export interface components {
             status?: components["schemas"]["ProblemCardStatus"] | null;
             /** Media Urls */
             media_urls?: string[] | null;
+            /** Emergency Class */
+            emergency_class?: string | null;
         };
         /** ProposeFixBody */
         ProposeFixBody: {
@@ -21520,6 +21545,84 @@ export interface operations {
             path: {
                 tenantId: string;
                 woId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_QuoteCreateBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listProblemCardQuotesV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                pcId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createProblemCardQuoteV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                pcId: string;
             };
             cookie?: never;
         };

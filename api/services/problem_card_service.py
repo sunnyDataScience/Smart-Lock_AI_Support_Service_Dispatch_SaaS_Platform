@@ -107,13 +107,15 @@ def _pc_row_to_dict(row: tuple) -> dict:
         # CR-0022/ADR-0112：來源（human / ai_line）+ AI 草擬待補欄位 hint
         "source": row[11] if len(row) > 11 else "human",
         "ai_missing_fields": (row[12] if len(row) > 12 else None) or None,
+        # CR-0128：急件 carve-out 四類（None=非急件）
+        "emergency_class": row[13] if len(row) > 13 else None,
     }
 
 
 _PC_SELECT = (
     "pc.id, pc.conversation_id, pc.brand, pc.model, pc.symptoms, pc.category, "
     "pc.urgency, pc.status, pc.media_urls, pc.created_at, pc.updated_at, "
-    "pc.source, pc.ai_missing_fields"
+    "pc.source, pc.ai_missing_fields, pc.emergency_class"
 )
 
 
@@ -286,6 +288,8 @@ async def resolve_card(
 
 # PATCH 不允許改 status；狀態請走 /confirm 或 /resolve（避免 state machine 被旁路）
 _API_URGENCY_TO_DB = {"low": "low", "medium": "normal", "high": "high"}
+# CR-0128/ADR-015①：急件 carve-out 四類（跳過報價直接開單、事後補審）
+_VALID_EMERGENCY_CLASSES = {"locked_out", "trapped_inside", "safety_risk", "angry_high_risk"}
 _VALID_API_URGENCY = set(_API_URGENCY_TO_DB)
 _API_STATUS_TO_DB = {"draft": "incomplete", "confirmed": "confirmed", "resolved": "resolved"}
 _VALID_API_STATUS = set(_API_STATUS_TO_DB)
@@ -863,8 +867,11 @@ async def update_card(
     urgency: str | None = None,
     status: str | None = None,
     media_urls: list[str] | None = None,
+    emergency_class: str | None = None,
 ) -> dict:
     """部分更新問題卡欄位。status 變更走 /confirm 或 /resolve，PATCH 拒收 status。
+
+    emergency_class（CR-0128/ADR-015①）：急件 carve-out 四類標記；空字串=清除（回非急件）。
 
     - brand/model/category 直通並 trim 至 schema 上限（DB 欄位 100 字）
     - symptom (string) 以「、」拆回 JSONB 陣列存入 symptoms 欄位
@@ -917,6 +924,18 @@ async def update_card(
             )
         sets.append("urgency = %s")
         args.append(_API_URGENCY_TO_DB[urgency])
+    if emergency_class is not None:
+        if emergency_class == "":
+            sets.append("emergency_class = NULL")
+        elif emergency_class in _VALID_EMERGENCY_CLASSES:
+            sets.append("emergency_class = %s")
+            args.append(emergency_class)
+        else:
+            raise ApiError(
+                "VALIDATION_ERROR",
+                f"emergency_class must be one of {sorted(_VALID_EMERGENCY_CLASSES)}（或空字串清除）",
+                422,
+            )
     if media_urls is not None:
         # TI-M03-07：media_urls append-only（Sync-M03）—— 更新不覆蓋既有，採聯集去重保序。
         # 多模態媒體（A08）陸續上傳，覆蓋會掉先前已附的證據照；故讀既有後 append 新者。

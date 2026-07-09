@@ -12,6 +12,8 @@ from datetime import date
 
 import pytest
 
+from tests.conftest import seed_accepted_quote
+
 import core.db as db_module
 from services import work_order_service as svc
 
@@ -77,6 +79,7 @@ async def test_update_fields_auto_fills_warranty():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         out = await svc.update_wo_fields(
             tenant_id=TID, wo_id=wo["id"],
@@ -96,6 +99,7 @@ async def test_manual_warranty_status_not_overridden():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         out = await svc.update_wo_fields(
             tenant_id=TID, wo_id=wo["id"],

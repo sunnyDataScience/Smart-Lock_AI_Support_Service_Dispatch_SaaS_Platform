@@ -63,6 +63,35 @@ async def create_quote_v2(
         tenant_id=tenantId, work_order_id=woId, created_by=user.user_id, urgent=body.urgent)}
 
 
+@router.post(
+    "/tenants/{tenantId}/problem-cards/{pcId}/quotes",
+    operation_id="createProblemCardQuoteV2", status_code=201,
+    summary="問題卡層建報價（報價先行主路徑，CR-0128/BR-WO-01）", tags=["M04 Quote"],
+)
+async def create_problem_card_quote_v2(
+    body: _QuoteCreateBody,
+    tenantId: str = Path(...), pcId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    """問題卡階段建報價（work_order_id=NULL）；客戶確認後 convert 開單時自動回填綁定。"""
+    _xt(user, tenantId)
+    return {"data": await qe.create_quote(
+        tenant_id=tenantId, problem_card_id=pcId, created_by=user.user_id, urgent=body.urgent)}
+
+
+@router.get(
+    "/tenants/{tenantId}/problem-cards/{pcId}/quotes",
+    operation_id="listProblemCardQuotesV2",
+    summary="問題卡報價列表（含開單前 PC 階段報價）", tags=["M04 Quote"],
+)
+async def list_problem_card_quotes_v2(
+    tenantId: str = Path(...), pcId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    _xt(user, tenantId)
+    return {"data": await qe.list_pc_quotes(tenant_id=tenantId, problem_card_id=pcId)}
+
+
 @router.get(
     "/tenants/{tenantId}/quotes",
     operation_id="listQuotesV2",

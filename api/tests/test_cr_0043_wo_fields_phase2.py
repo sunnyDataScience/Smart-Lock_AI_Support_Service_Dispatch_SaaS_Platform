@@ -17,6 +17,8 @@ from datetime import date, datetime, timezone
 
 import pytest
 
+from tests.conftest import seed_accepted_quote
+
 import core.db as db_module
 from core.errors import ApiError
 from services import work_order_service as svc
@@ -131,6 +133,7 @@ async def test_create_writes_service_category():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc(category="安裝")
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, created = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         assert created is True
         assert wo["service_category"] == "install"
@@ -146,6 +149,7 @@ async def test_update_wo_fields_sets_and_validates():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         wid = wo["id"]
         # 設多欄
@@ -176,6 +180,7 @@ async def test_reopen_creates_child_with_parent():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         parent, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         child = await svc.reopen_order(
             tenant_id=TID, wo_id=parent["id"], reason="客戶回報同問題復發，返修",
@@ -199,6 +204,7 @@ async def test_completion_status_progression():
     assert await db_module._ensure_conn()
     pid, uid = await _seed_confirmed_pc()
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         wid = wo["id"]
         # 強制進 in_progress（略過 assign/accept/arrival 細節）
@@ -233,6 +239,7 @@ async def test_consent_gate_blocks_when_required(monkeypatch):
     # category=維修 → service_category=repair，避開 install 的 serial gate 先觸發
     pid, uid = await _seed_confirmed_pc(category="維修")
     try:
+        await seed_accepted_quote(pid, TID)  # CR-0128 報價先行 gate 前置
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         wid = wo["id"]
         # 缺免責 → 422

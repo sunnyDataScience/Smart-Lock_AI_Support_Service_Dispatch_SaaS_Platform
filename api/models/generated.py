@@ -126,6 +126,8 @@ class ProblemCard(BaseModel):
     # CR-0022/ADR-0112：問題卡來源 + AI 草擬待補欄位 hint（optional，反相容；regen 後須重加）
     source: str | None = None
     ai_missing_fields: list[str] | None = None
+    # CR-0128/ADR-015①：急件 carve-out 四類（None=非急件走報價先行）
+    emergency_class: str | None = None
 
 
 class ProblemCardPage(CursorPage):
@@ -1074,6 +1076,8 @@ class ProblemCardUpdateRequest(BaseModel):
     urgency: Urgency | None = None
     status: ProblemCardStatus | None = None
     media_urls: list[AnyUrl] | None = None
+    # CR-0128：急件標記（四類；空字串=清除回非急件）
+    emergency_class: str | None = None
 
 
 class ResolutionLayer1(StrEnum):
