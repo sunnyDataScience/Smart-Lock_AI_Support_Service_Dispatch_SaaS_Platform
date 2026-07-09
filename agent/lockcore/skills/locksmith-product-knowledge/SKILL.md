@@ -16,14 +16,15 @@ any agent/CLI that supports the Agent Skills standard). Answer **only** from the
 ## Semantic retrieval via RAG (when the MCP tools are available)
 
 If tools named `mcp_locksmith-rag_search_product_manual` / `mcp_locksmith-rag_search_similar_cases`
-are available, they search the **same governed corpus** semantically (pgvector). Use them as the
-**first lookup** for factual questions:
+are available, they search a governed corpus semantically (pgvector). They are an **auxiliary
+lookup** — `references/` remains the authoritative primary source (ADR-030); reach for RAG when
+the customer's wording doesn't map cleanly onto reference docs or you need cross-document recall:
 
 1. Call `search_product_manual(brand, model, query)` with the customer's own wording
    (brand/model = `general` when unknown). Treat results as facts **only if** similarity is
    reasonably high and the content actually answers the question.
-2. **Empty result or low relevance → do NOT invent.** Fall back to reading `references/`
-   (profile gating below). The filesystem references remain the authoritative fallback.
+2. **Empty result or low relevance → do NOT invent.** Read `references/` (profile gating
+   below) — it is the primary, authoritative source at all times.
 3. `search_similar_cases(symptom, …)` may return past resolved cases (≥0.85 similarity only);
    use them as precedent hints, never as a substitute for the safety rules below.
 4. If the RAG tools are absent or return `RAG_UNAVAILABLE`, silently proceed with

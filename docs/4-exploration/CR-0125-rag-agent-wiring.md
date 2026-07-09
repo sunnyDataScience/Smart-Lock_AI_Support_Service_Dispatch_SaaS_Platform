@@ -52,6 +52,10 @@ golden QA 兩題 MISS——**專家更正（2026-04-14）從未進任何知識�
 ## §8 Human Decisions
 
 - ✅ Phase C 開工（業主 2026-07-09）
-- 待裁決：上述兩條專家事實的補源路徑（a 或 b）
+- ✅ **RAG 定位裁決（2026-07-09 追加，ADR-030）**：RAG-MCP＝對外開放介面（客戶自建
+  資料庫外接用）；我方 agent 以 skill 為知識與推理主軸——**cutover 計畫取消**，
+  references 永為主路徑，我方 RAG 語料降為輔助語義查找
+- 待裁決：上述兩條專家事實的補源路徑——依 ADR-030 正確落點＝(a) 補 references
+  （內容鎖定，仍需業主核可解鎖）
 - 容器化部署接線（rag 作 sidecar、streamableHttp）＝cutover 輪（ADR-010 Phase 4）處理；
   現行 docker gateway 未設 RAG env → 跳過 server，行為不變
