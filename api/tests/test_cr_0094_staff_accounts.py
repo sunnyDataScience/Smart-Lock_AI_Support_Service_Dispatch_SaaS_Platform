@@ -53,11 +53,21 @@ async def test_create_staff_invalid_role_422(client):
 
 
 @pytest.mark.asyncio
+async def test_create_staff_reserved_dispatcher_422(client):
+    """dispatcher 為保留角色（13_Security §3.1，SA-06）——不可再開通新帳號。"""
+    assert await db_module._ensure_conn()
+    with pytest.raises(ApiError) as ei:
+        await auth_service.create_staff_user(
+            _req("reserved-dispatcher@example.com", "dispatcher"), tenant_id=DEFAULT_TENANT_ID)
+    assert ei.value.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_create_staff_short_password_422(client):
     assert await db_module._ensure_conn()
     with pytest.raises(ApiError) as ei:
         await auth_service.create_staff_user(
-            {"name": "x", "email": "y@example.com", "password": "short", "role": "dispatcher"},
+            {"name": "x", "email": "y@example.com", "password": "short", "role": "customer_service"},
             tenant_id=DEFAULT_TENANT_ID)
     assert ei.value.status_code == 422
 
@@ -67,9 +77,9 @@ async def test_create_staff_duplicate_same_role_409(client):
     assert await db_module._ensure_conn()
     email = f"dup-{uuid.uuid4().hex[:8]}@example.com"
     try:
-        await auth_service.create_staff_user(_req(email, "dispatcher"), tenant_id=DEFAULT_TENANT_ID)
+        await auth_service.create_staff_user(_req(email, "customer_service"), tenant_id=DEFAULT_TENANT_ID)
         with pytest.raises(ApiError) as ei:
-            await auth_service.create_staff_user(_req(email, "dispatcher"), tenant_id=DEFAULT_TENANT_ID)
+            await auth_service.create_staff_user(_req(email, "customer_service"), tenant_id=DEFAULT_TENANT_ID)
         assert ei.value.status_code == 409
     finally:
         await _cleanup(email)

@@ -26,17 +26,19 @@ interface StaffApplication {
   created_at: string | null;
 }
 
-// CR-0094：可建立的後台角色（對齊後端 _STAFF_ROLES / auth._ADMIN_WEB_ROLES）
+// 租戶 Admin 可開通角色（對齊後端 _STAFF_ROLES；13_Security §3.1，SA-06）。
+// dispatcher 為保留角色暫不開通（業主裁決 2026-07-07）——不在選項中，
+// 但存量帳號仍有效，故 ROLE_LABEL 保留其顯示名。
 const ROLE_OPTIONS: { value: string; label: string }[] = [
   { value: "operations_manager", label: "營運主管" },
-  { value: "dispatcher", label: "派工員" },
   { value: "customer_service", label: "客服" },
   { value: "reviewer", label: "審核員" },
   { value: "admin", label: "系統管理員" },
 ];
-const ROLE_LABEL: Record<string, string> = Object.fromEntries(
-  ROLE_OPTIONS.map((o) => [o.value, o.label]),
-);
+const ROLE_LABEL: Record<string, string> = {
+  ...Object.fromEntries(ROLE_OPTIONS.map((o) => [o.value, o.label])),
+  dispatcher: "派工員（保留角色）",
+};
 
 export default function StaffPage() {
   const [items, setItems] = useState<Staff[]>([]);

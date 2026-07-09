@@ -5,12 +5,13 @@
  * 以「能否載入頁面」為 gate;唯讀差異（如 cs 看工單）由後端 role_required 把關。
  *
  * 原則：
- *   - admin / tenant_admin / super_admin → 全放行（避免誤擋管理員）。
+ *   - admin → 全放行（避免誤擋管理員）。tenant_admin / super_admin 為死角色
+ *     （CR-0114 裁決不活化；13_Security §3.1），已自 FULL_ACCESS 移除（SA-06）。
  *   - 未列到的路由 → 預設放行（demo 安全;敏感頁已明列，如 /accounting /admin/roles）。
  *   - 對應表對齊後端 role_required 守衛（前端不比後端寬/嚴，避免 confusing UX）。
  */
 
-const FULL_ACCESS_ROLES = new Set(["admin", "tenant_admin", "super_admin"]);
+const FULL_ACCESS_ROLES = new Set(["admin"]);
 
 const ALL_BACKOFFICE = [
   "admin",
@@ -67,7 +68,7 @@ const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
 /** 該角色是否可存取此路由。role 為 null（無 JWT role）時放行（token 檢查另在 AuthGuard）。 */
 export function canAccessRoute(pathname: string, role: string | null): boolean {
   // CR-0114 平台方 console:必須在 FULL_ACCESS 早退**之前**特例 —— console 只屬
-  // platform_admin,品牌超級角色(admin/tenant_admin/super_admin)亦不放行
+  // platform_admin,品牌 admin 亦不放行
   // (deny-by-default 雙向對稱;放 ROUTE_POLICY 會被下一行早退繞過)。
   // /platform/login 為公開頁,由 AuthGuard PUBLIC_PATHS 承接,不會走到這裡。
   if (pathname === "/platform" || pathname.startsWith("/platform/")) {

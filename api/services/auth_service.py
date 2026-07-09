@@ -608,9 +608,11 @@ async def register_technician(req: dict) -> dict:
     }
 
 
-# CR-0094 後台員工帳號可建立的角色（對齊 auth._ADMIN_WEB_ROLES 登入集 + admin）。
-# technician/vendor 走各自 self-register；super_admin/tenant_admin 為特殊不在此開放。
-_STAFF_ROLES = ("admin", "operations_manager", "dispatcher", "customer_service", "reviewer")
+# 租戶 Admin 可開通集合（13_Security §3.1；業主裁決 2026-07-07 收斂 4 值，SA-06）。
+# dispatcher 為**保留角色**暫不開通——存量帳號仍可登入（_ADMIN_WEB_ROLES 保留），
+# 派工職能由 admin / operations_manager 承擔 + 自動派工（BR-PC-02）；重啟走 ChangeRequest。
+# technician/vendor 走各自 self-register；super_admin/tenant_admin 為死角色不在此開放。
+_STAFF_ROLES = ("admin", "operations_manager", "customer_service", "reviewer")
 
 
 async def create_staff_user(req: dict, *, tenant_id: str) -> dict:

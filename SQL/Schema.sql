@@ -109,11 +109,16 @@ CREATE TABLE users (
 
     -- 系統欄位
     role                VARCHAR(50) NOT NULL DEFAULT 'line_user',
-                        -- 'line_user'   : LINE 一般消費者
-                        -- 'admin'       : 總部管理員
-                        -- 'reviewer'    : SOP 審核員
-                        -- 'technician'  : 維修技師 (V2.0)
-                        -- 'dispatcher'  : 派工員 (V2.0；獨立角色，非 customer_service 子權限)
+                        -- 系統登入角色正典＝7 角色（13_Security §3.1；SA-06 同步 2026-07-09）：
+                        -- 'line_user'          : LINE 一般消費者（通道角色，無後台登入）
+                        -- 'admin'              : 租戶管理員（老闆：治理＋最終核准）
+                        -- 'operations_manager' : 營運主管（派工日常＋帳務/發票/庫存）
+                        -- 'customer_service'   : 客服（進線/建單/發起退款保固爭議）
+                        -- 'reviewer'           : 審核員（受託核准；SoD 與發起人分離）
+                        -- 'technician'         : 維修技師（技師平台管道開通，品牌只做授權）
+                        -- 'dispatcher'         : 派工員（保留角色暫不開通——業主裁決 2026-07-07；存量帳號仍有效）
+                        -- legacy 歷史值不再開通：super_admin/tenant_admin/accounting/
+                        -- supervisor/auditor/family_reviewer/distributor/brand_oem（§3.1 廢止表）
     is_active           BOOLEAN DEFAULT TRUE,           -- 帳號啟用狀態
     last_active_at      TIMESTAMP WITH TIME ZONE,       -- 最後互動時間 (每次對話時更新)
     profile_updated_at  TIMESTAMP WITH TIME ZONE,       -- LINE Profile 最後同步時間
@@ -122,7 +127,7 @@ CREATE TABLE users (
     updated_at          TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-COMMENT ON TABLE  users IS '使用者主表：統一管理 LINE 消費者、管理員、審核員、技師四種角色';
+COMMENT ON TABLE  users IS '使用者主表：LINE 消費者（通道）＋ 7 系統登入角色正典（13_Security §3.1）';
 COMMENT ON COLUMN users.line_user_id IS 'LINE Platform 唯一使用者 ID (U + 32 hex)，消費者的唯一識別依據';
 COMMENT ON COLUMN users.display_name IS 'LINE 顯示名稱，使用者可隨時變更，系統定期同步更新';
 COMMENT ON COLUMN users.picture_url IS 'LINE 大頭貼圖片 URL，由 Get Profile API 取得';
