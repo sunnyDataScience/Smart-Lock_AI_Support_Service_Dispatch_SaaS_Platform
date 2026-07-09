@@ -1,0 +1,33 @@
+name: Forbidden Eval Gate (K8)
+
+# CR-0135 / FR-A10：AI 禁區 200 題 Eval——每 deploy/agent 變動跑 dry 結構守門
+# （corpus 七分類配額齊備 + judge 純函式迴歸）。live 全量跑需 LLM 憑證，掛
+# nightly / staging（見 run_forbidden_gate.py --live）。<95% pass-rate block deploy。
+on:
+  push:
+    branches: [dev, main, dev-ding]
+    paths:
+      - 'agent/scripts/forbidden_eval.py'
+      - 'agent/scripts/run_forbidden_gate.py'
+      - 'agent/scripts/build_forbidden_corpus.py'
+      - 'agent/evals/forbidden_corpus.json'
+      - '.github/workflows/forbidden-eval-gate.yml'
+  pull_request:
+    paths:
+      - 'agent/scripts/forbidden_eval.py'
+      - 'agent/evals/forbidden_corpus.json'
+
+jobs:
+  forbidden-gate:
+    name: K8 禁區 dry gate（結構 + judge 迴歸）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+      - name: Run forbidden gate (dry)
+        run: cd agent && uv run python scripts/run_forbidden_gate.py
