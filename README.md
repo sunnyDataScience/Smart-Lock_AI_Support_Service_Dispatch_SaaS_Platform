@@ -42,7 +42,11 @@
 
 - `agent/`：LINE Bot AI 客服 — LockCore 核心（`agent/lockcore/`）＋ LINE gateway（`agent/scripts/line_gateway.py`）。見 `agent/README.md`。
 - `api/`：FastAPI 營運後台 API（工單、派工、報價、帳務、平台 Console）。
-- `web/`：Next.js 前端（單 codebase 依 APP_MODE 產出四種入口）。
+- `web/`：四個完全獨立的 Next.js 站台（各自 package.json／lockfile／Dockerfile／docker-compose）：
+  - `web/brand-portal/`：品牌後台（派工/工單/帳務，:3000）
+  - `web/tech-portal/`：師傅站（接單工作台，:3001）
+  - `web/landing/`：導流站（行銷一頁式，:3002）
+  - `web/platform-console/`：平台維運後台（Lock AI 自用，:3003）
 - `data/`：數據中台 Pipeline — Medallion（Raw → Bronze → Silver → Skill），產出知識素材。
 - `SQL/`：資料庫 Schema 與 forward-only migrations。
 - `scripts/`：部署（Cloud Run）、DB、環境切換腳本。
@@ -54,10 +58,10 @@
 
 | Stack | Compose 檔 | 服務 |
 |---|---|---|
-| 品牌派工站（一品牌一套） | `docker-compose.dispatch.yml` | web :3000 / api :8001 / db :5433 / agent |
-| 師傅站（全平台唯一） | `docker-compose.tech.yml` | web :3001 / api :8002 / db :5434 |
-| 導流站 | `docker-compose.landing.yml` | web :3002 |
-| 平台維運 Console | `docker-compose.platform.yml` | web :3003 / api :8003 / db :5435 |
+| 品牌派工站（一品牌一套） | `web/brand-portal/docker-compose.yml` | web :3000 / api :8001 / db :5433 / agent |
+| 師傅站（全平台唯一） | `web/tech-portal/docker-compose.yml` | web :3001 / api :8002 / db :5434 |
+| 導流站 | `web/landing/docker-compose.yml` | web :3002 |
+| 平台維運 Console | `web/platform-console/docker-compose.yml` | web :3003 / api :8003 / db :5435 |
 
 ## 快速入門 (Getting Started)
 
@@ -112,7 +116,7 @@
 ```bash
 cd agent && pytest      # agent 測試
 cd api && pytest        # api 測試（注意：勿對 UAT 庫跑全套，見 CLAUDE.md）
-cd web && npx tsc --noEmit && npm test
+cd web/brand-portal && npx tsc --noEmit   # 各站同理（tech-portal/landing/platform-console）
 ```
 
 ## 相關文件 (Documentation)

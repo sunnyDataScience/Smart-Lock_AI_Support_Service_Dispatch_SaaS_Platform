@@ -1,0 +1,465 @@
+@import "tailwindcss";
+
+:root {
+  /* Brand */
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-light: #DBEAFE;
+  --secondary: #1E293B;
+  --secondary-hover: #334155;
+  --accent: #F59E0B;
+  --accent-hover: #D97706;
+
+  /* Backgrounds */
+  --bg-page: #F8FAFC;
+  --bg-sidebar: #1E293B;
+  --bg-surface: #FFFFFF;
+
+  /* Borders */
+  --border: #E2E8F0;
+  --border-focus: #2563EB;
+
+  /* Text — 對比度（白底 #FFFFFF / 淺底 #F8FAFC）：
+   *   --text-primary    #0F172A → 16.6:1 ✅ AA / AAA
+   *   --text-secondary  #64748B → 5.18:1 ✅ AA body (4.5)
+   *   --text-tertiary   #71717A → 4.6:1  ✅ AA body 邊界（時間戳等次要資訊用）
+   *   --text-disabled   #71717A → 4.6:1  ✅（提升自舊值 #94A3B8 = 2.85:1，原本不過 AA）
+   *   原 #A1A1AA 全站不再使用（2.85:1，配淺底僅過大字 3:1）*/
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-tertiary: #71717A;
+  --text-disabled: #71717A;
+  --text-inverse: #FFFFFF;
+
+  /* Status */
+  --status-success: #10B981;
+  --status-warning: #F59E0B;
+  --status-danger: #EF4444;
+  --status-active: #3B82F6;
+  --status-assigned: #8B5CF6;
+  --status-pending: #6366F1;
+
+  /* System */
+  --success: #10B981;
+  --warning: #F59E0B;
+  --error: #EF4444;
+  --info: #3B82F6;
+
+  /* Semantic badge / pill tokens
+   * 給 StatusBadge / KpiCard / 表格行狀態 / urgency / pending banner 等用
+   * 命名規範：--{用途}-{調性}-{bg|fg}
+   * 調性對應：
+   *   warn   → 黃（in-progress / 待派工 / urgent）
+   *   info   → 藍（assigned / 已派工）
+   *   success→ 綠（completed / 完成）
+   *   danger → 紅（overdue / 緊急 / error）
+   *   muted  → 灰（pending / normal / default）
+   */
+  --badge-warn-bg: #FEF3C7;
+  --badge-warn-fg: #B45309;
+  --badge-info-bg: #DBEAFE;
+  --badge-info-fg: #1D4ED8;
+  --badge-success-bg: #D1FAE5;
+  --badge-success-fg: #065F46;
+  --badge-danger-bg: #FEE2E2;
+  --badge-danger-fg: #DC2626;
+  --badge-muted-bg: #F1F5F9;
+  --badge-muted-fg: #64748B;
+
+  /* Surface tokens — 給卡片、區塊用 */
+  --surface-elevated: #FFFFFF;
+  --surface-subtle: #F8FAFC;
+  --surface-strong: #F1F5F9;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+  --shadow-popover: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Dark theme — 深色模式
+ *
+ * 設計原則（與 sidebar 維持深色不變的設計一致）：
+ *   - sidebar 比 light mode 再深一階（更突出對比）
+ *   - 主內容區從 #F8FAFC 翻為 #0F172A（原 text-primary）
+ *   - surface 從 #FFFFFF 翻為 #1E293B（原 sidebar 色，二級階層）
+ *   - border 從 #E2E8F0 翻為 #334155（保留分割線可見）
+ *   - 文字反相但仍維持 ≥ 4.5:1 對比度（WCAG AA body）
+ *   - primary 從 #2563EB 提亮為 #3B82F6（深底配深藍對比不夠）
+ *   - badge tones 用「深底淺字」的陰影色：bg 用品牌色 20% alpha，
+ *     fg 用品牌色 60% lightness 的提亮版本，避免 light mode 的高彩度淺色
+ *     直接套到深底（會刺眼且對比過低）
+ *
+ * 套用方式：layout.tsx 在 <head> 注入 inline script 讀 localStorage
+ * 立刻 setAttribute("data-theme", "dark"|"light")，避免 React 載入前閃白。
+ * 所有元件全部使用 CSS variable，自動繼承新值，無需逐元件改寫。
+ * ───────────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  /* Brand — primary 提亮 1 階（#2563EB → #3B82F6），對深底 4.55:1 */
+  --primary: #3B82F6;
+  --primary-hover: #60A5FA;
+  --primary-light: #1E3A8A;          /* 反向：深底用「深藍」當 light 變體 */
+  --secondary: #94A3B8;
+  --secondary-hover: #CBD5E1;
+  --accent: #FBBF24;
+  --accent-hover: #F59E0B;
+
+  /* Backgrounds — 主內容翻轉，sidebar 再深一階 */
+  --bg-page: #0F172A;
+  --bg-sidebar: #0B1220;
+  --bg-surface: #1E293B;
+
+  /* Borders */
+  --border: #334155;
+  --border-focus: #60A5FA;
+
+  /* Text — 對比度（深底 #0F172A / surface #1E293B）：
+   *   --text-primary    #F1F5F9 → 16.0:1 ✅ AAA
+   *   --text-secondary  #94A3B8 → 5.4:1  ✅ AA body
+   *   --text-tertiary   #64748B → 4.5:1  ✅ AA body 邊界
+   *   --text-disabled   #64748B → 4.5:1  ✅ */
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  --text-disabled: #64748B;
+  --text-inverse: #0F172A;
+
+  /* Status — 提亮 1 階以對深底 */
+  --status-success: #34D399;
+  --status-warning: #FBBF24;
+  --status-danger: #F87171;
+  --status-active: #60A5FA;
+  --status-assigned: #A78BFA;
+  --status-pending: #818CF8;
+
+  /* System */
+  --success: #34D399;
+  --warning: #FBBF24;
+  --error: #F87171;
+  --info: #60A5FA;
+
+  /* Semantic badge tokens — 深底版本：bg 用低飽和深色，fg 用提亮品牌色
+   * 避免直接套 light 的 #FEF3C7 / #DBEAFE 等高亮淺色（深底刺眼且對比 < 3:1） */
+  --badge-warn-bg: #422006;
+  --badge-warn-fg: #FCD34D;
+  --badge-info-bg: #1E3A5F;
+  --badge-info-fg: #93C5FD;
+  --badge-success-bg: #064E3B;
+  --badge-success-fg: #6EE7B7;
+  --badge-danger-bg: #7F1D1D;
+  --badge-danger-fg: #FCA5A5;
+  --badge-muted-bg: #1E293B;
+  --badge-muted-fg: #94A3B8;
+
+  /* Surface tokens — elevated/subtle/strong 在深底要「往上提亮」一階
+   * 而不是 light mode 的「往下加深」邏輯（深色設計通則） */
+  --surface-elevated: #1E293B;
+  --surface-subtle: #0F172A;
+  --surface-strong: #334155;
+  --shadow-card: 0 1px 3px 0 rgb(0 0 0 / 0.3), 0 1px 2px -1px rgb(0 0 0 / 0.3);
+  --shadow-popover: 0 10px 15px -3px rgb(0 0 0 / 0.5), 0 4px 6px -4px rgb(0 0 0 / 0.4);
+}
+
+/* color-scheme 提示瀏覽器原生 UI（scrollbar / form controls）配色 */
+html { color-scheme: light dark; }
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 深色模式相容補丁（過渡）
+ *
+ * 問題：全站約 68 個元件硬編了「中性淺色 surface」與「中性深色 text」的
+ *   Tailwind arbitrary 值（如 bg-[#F8FAFC] / text-[#18181B]），這些硬編色不會
+ *   隨 data-theme 翻轉 → 深色模式下文字色（主題變數）翻成淺色、但卡片背景仍是
+ *   硬編淺色 → 白字白底、看不到字（settings / 各卡片區塊最明顯）。
+ *
+ * 正解：元件改用 var(--…)。但量大，先以此單檔補丁把「中性」硬編色在深色模式
+ *   重映射到主題變數，立即消除白字白底。語意色 badge（warn/info/danger/success）
+ *   的 bg+fg 是成對硬編、本身可讀，故不動。
+ * ───────────────────────────────────────────────────────────────────────── */
+[data-theme="dark"] .bg-\[\#FFFFFF\] { background-color: var(--bg-surface) !important; }
+[data-theme="dark"] .bg-\[\#F8FAFC\] { background-color: var(--surface-subtle) !important; }
+[data-theme="dark"] .bg-\[\#F1F5F9\] { background-color: var(--surface-strong) !important; }
+[data-theme="dark"] .bg-\[\#E2E8F0\] { background-color: var(--surface-strong) !important; }
+[data-theme="dark"] .bg-\[\#EFF6FF\],
+[data-theme="dark"] .bg-\[\#F0F9FF\] { background-color: var(--primary-light) !important; }
+[data-theme="dark"] .bg-\[\#FEF2F2\] { background-color: var(--badge-danger-bg) !important; }
+
+[data-theme="dark"] .text-\[\#18181B\],
+[data-theme="dark"] .text-\[\#0F172A\] { color: var(--text-primary) !important; }
+[data-theme="dark"] .text-\[\#71717A\],
+[data-theme="dark"] .text-\[\#A1A1AA\] { color: var(--text-tertiary) !important; }
+
+[data-theme="dark"] .border-\[\#E4E4E7\],
+[data-theme="dark"] .border-\[\#E2E8F0\],
+[data-theme="dark"] .border-\[\#CBD5E1\] { border-color: var(--border) !important; }
+
+@layer base {
+  html, body {
+    height: 100%;
+  }
+
+  /* next/font 在 layout.tsx 將 Inter / Noto Sans TC 注入為 CSS variable
+   * 沒載到（SSR fallback）時退到 system font 以避免 layout shift */
+  .font-primary {
+    font-family: var(--font-inter), var(--font-noto-sans-tc),
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  .font-secondary {
+    font-family: var(--font-inter), var(--font-noto-sans-tc),
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+
+  /* WCAG 2.4.7 — 全域焦點指示器
+   *
+   * 鎖定 :focus-visible（鍵盤 / 程式焦點），不影響滑鼠 click 後的元素
+   * 仍然 outline 出現的問題。
+   *
+   * 為什麼放這：專案散落 30+ 個 outline:none / outline-none，鍵盤
+   * 使用者全部看不到焦點。這條 base-layer 規則做最後一道保險：
+   * 即使元件忘了加 focus-visible:ring，至少 native outline 還在。
+   * 元件層級若想要更好看的環，再用 focus-visible:ring-2 覆寫。 */
+  :focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+
+  /* outline-none 後仍要保證 :focus-visible 看得到（unset Tailwind reset） */
+  :focus-visible.outline-none,
+  .outline-none:focus-visible {
+    outline: 2px solid var(--border-focus);
+    outline-offset: 2px;
+  }
+
+  /* Skip link — 鍵盤使用者按 Tab 第一下會看到「跳到主要內容」按鈕，
+   * 點擊跳過 Sidebar / Header 直奔 main，符合 WCAG 2.4.1 Bypass Blocks */
+  .skip-link {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    z-index: 100;
+    padding: 8px 16px;
+    background: var(--primary);
+    color: var(--text-inverse);
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    transform: translateY(-200%);
+    transition: transform 0.15s ease-out;
+  }
+  .skip-link:focus {
+    transform: translateY(0);
+  }
+
+  /* sr-only — 視覺隱藏但保留給 screen reader（Tailwind v4 內建有 sr-only 類，
+   * 此處保險定義一份避免某些版本 plugin 缺漏） */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * UI primitives（Modal / Drawer / Toast）動效
+ *
+ * 為什麼放這：專案沒裝 tailwindcss-animate plugin，Radix 的 data-[state]
+ * attribute 變化需要自寫 CSS 接住，才能在 open / closed 時播動畫。
+ * 動效節制：fade + scale 給 modal、translate 給 drawer / toast，
+ * 一律 ease-out + 150–200ms。respects prefers-reduced-motion。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes ui-overlay-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes ui-overlay-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes ui-modal-zoom-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes ui-modal-zoom-out {
+  from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  to   { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+}
+@keyframes ui-drawer-slide-in-right {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes ui-drawer-slide-out-right {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+@keyframes ui-drawer-slide-in-left {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes ui-drawer-slide-out-left {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+@keyframes ui-drawer-slide-in-bottom {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+@keyframes ui-drawer-slide-out-bottom {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+@keyframes ui-toast-slide-in-right {
+  from { transform: translateX(calc(100% + 1rem)); opacity: 0; }
+  to   { transform: translateX(0); opacity: 1; }
+}
+@keyframes ui-toast-slide-out-right {
+  from { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(calc(100% + 1rem)); opacity: 0; }
+}
+
+.ui-modal-overlay[data-state="open"] {
+  animation: ui-overlay-fade-in 150ms ease-out;
+}
+.ui-modal-overlay[data-state="closed"] {
+  animation: ui-overlay-fade-out 150ms ease-out;
+}
+
+.ui-modal-content[data-state="open"] {
+  animation: ui-modal-zoom-in 150ms ease-out;
+}
+.ui-modal-content[data-state="closed"] {
+  animation: ui-modal-zoom-out 150ms ease-out;
+}
+
+.ui-drawer-content-right[data-state="open"] {
+  animation: ui-drawer-slide-in-right 200ms ease-out;
+}
+.ui-drawer-content-right[data-state="closed"] {
+  animation: ui-drawer-slide-out-right 200ms ease-out;
+}
+.ui-drawer-content-left[data-state="open"] {
+  animation: ui-drawer-slide-in-left 200ms ease-out;
+}
+.ui-drawer-content-left[data-state="closed"] {
+  animation: ui-drawer-slide-out-left 200ms ease-out;
+}
+.ui-drawer-content-bottom[data-state="open"] {
+  animation: ui-drawer-slide-in-bottom 200ms ease-out;
+}
+.ui-drawer-content-bottom[data-state="closed"] {
+  animation: ui-drawer-slide-out-bottom 200ms ease-out;
+}
+
+.ui-toast-root[data-state="open"] {
+  animation: ui-toast-slide-in-right 200ms ease-out;
+}
+.ui-toast-root[data-state="closed"] {
+  animation: ui-toast-slide-out-right 150ms ease-out;
+}
+/* Radix 在 swipe 關閉時會 set data-swipe="end"，此時不重播 slide-out */
+.ui-toast-root[data-swipe="move"] {
+  transform: translateX(var(--radix-toast-swipe-move-x));
+}
+.ui-toast-root[data-swipe="cancel"] {
+  transform: translateX(0);
+  transition: transform 200ms ease-out;
+}
+.ui-toast-root[data-swipe="end"] {
+  animation: ui-toast-slide-out-right 100ms ease-out;
+}
+
+/* mobile：toast viewport 從上方進入，避免擋住底部操作 */
+@media (max-width: 640px) {
+  .ui-toast-viewport {
+    top: 0.5rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
+  }
+}
+
+/* respects user motion preferences — 直接停掉動畫 */
+@media (prefers-reduced-motion: reduce) {
+  .ui-modal-overlay,
+  .ui-modal-content,
+  .ui-drawer-content-right,
+  .ui-drawer-content-left,
+  .ui-drawer-content-bottom,
+  .ui-toast-root {
+    animation: none !important;
+  }
+}
+
+/* ═══ Landing 專屬 soft UI tokens(.lp scope,不影響後台)═══
+ * 2026-07-07 landing 改版:柔和 teal 主色 + 暖琥珀點綴 + 粉彩 chip(approachable)。
+ * 深淺色各自定義,跟隨既有 [data-theme] 機制;僅 landing 頁(src/app/page.tsx)使用。
+ * 對比:--lp-primary #0F766E 於白底 5.9:1(AA);dark 用 teal-300 底配深字。 */
+.lp {
+  --lp-bg: #F5F9F8;
+  --lp-card: #FFFFFF;
+  --lp-primary: #0F766E;
+  --lp-primary-hover: #115E59;
+  --lp-primary-contrast: #FFFFFF;
+  --lp-primary-soft: #CCFBF1;
+  --lp-accent: #B45309;
+  --lp-accent-soft: #FEF3C7;
+  --lp-ring: rgba(15, 118, 110, 0.35);
+  --lp-shadow: 0 16px 40px -20px rgba(13, 148, 136, 0.28);
+  --lp-shadow-sm: 0 6px 20px -10px rgba(13, 148, 136, 0.22);
+  --lp-chip-teal: #CCFBF1;   --lp-chip-teal-ink: #0F766E;
+  --lp-chip-sky: #E0F2FE;    --lp-chip-sky-ink: #0369A1;
+  --lp-chip-violet: #EDE9FE; --lp-chip-violet-ink: #6D28D9;
+  --lp-chip-amber: #FEF3C7;  --lp-chip-amber-ink: #B45309;
+  --lp-chip-rose: #FFE4E6;   --lp-chip-rose-ink: #BE123C;
+  --lp-blob-a: rgba(45, 212, 191, 0.16);
+  --lp-blob-b: rgba(251, 191, 36, 0.14);
+}
+[data-theme="dark"] .lp {
+  --lp-bg: #0B1220;
+  --lp-card: #121D31;
+  --lp-primary: #5EEAD4;
+  --lp-primary-hover: #99F6E4;
+  --lp-primary-contrast: #0B1220;
+  --lp-primary-soft: rgba(94, 234, 212, 0.14);
+  --lp-accent: #FBBF24;
+  --lp-accent-soft: rgba(251, 191, 36, 0.14);
+  --lp-ring: rgba(94, 234, 212, 0.4);
+  --lp-shadow: 0 16px 40px -20px rgba(0, 0, 0, 0.6);
+  --lp-shadow-sm: 0 6px 20px -10px rgba(0, 0, 0, 0.5);
+  --lp-chip-teal: rgba(94, 234, 212, 0.14);  --lp-chip-teal-ink: #5EEAD4;
+  --lp-chip-sky: rgba(125, 211, 252, 0.14);  --lp-chip-sky-ink: #7DD3FC;
+  --lp-chip-violet: rgba(196, 181, 253, 0.14); --lp-chip-violet-ink: #C4B5FD;
+  --lp-chip-amber: rgba(251, 191, 36, 0.14); --lp-chip-amber-ink: #FBBF24;
+  --lp-chip-rose: rgba(253, 164, 175, 0.14); --lp-chip-rose-ink: #FDA4AF;
+  --lp-blob-a: rgba(45, 212, 191, 0.08);
+  --lp-blob-b: rgba(251, 191, 36, 0.06);
+}
+
+/* ═══ 師傅端 soft UI scope(.tech-soft)═══
+ * 2026-07-07 師傅端與 landing 同語言改版:在 tech 外殼(TechShell/tech-login/
+ * tech-register)重映射既有 theme 變數 → 全師傅端換 teal 親和配色,零逐頁改色。
+ * 品牌後台不掛此 class,不受影響。
+ * 對比:light --primary #0F766E 白字 5.9:1(AA);dark #0D9488 白字 3.9:1
+ * (與原 dark 藍 #3B82F6 3.7:1 同級,按鈕大字可讀),於深底當文字 5.1:1。 */
+.tech-soft {
+  --primary: #0F766E;
+  --primary-hover: #115E59;
+  --primary-light: #CCFBF1;
+  --bg-page: #F3F8F6;
+  --tech-shadow-sm: 0 4px 16px -8px rgba(13, 148, 136, 0.18);
+  --tech-shadow: 0 10px 28px -14px rgba(13, 148, 136, 0.25);
+}
+[data-theme="dark"] .tech-soft {
+  --primary: #0D9488;
+  --primary-hover: #14B8A6;
+  --primary-light: rgba(20, 184, 166, 0.16);
+  --bg-page: #0B1220;
+  --tech-shadow-sm: 0 4px 16px -8px rgba(0, 0, 0, 0.45);
+  --tech-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.55);
+}

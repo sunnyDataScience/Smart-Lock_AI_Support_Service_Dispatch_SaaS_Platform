@@ -1,6 +1,6 @@
 name: i18n message keys sync lint
 
-# 規則：web/src/i18n/messages/*.json 必須結構同步（兩語系 keys 完全對齊）。
+# 規則：web/*/src/i18n/messages/*.json 必須結構同步（兩語系 keys 完全對齊）。
 #
 # 為什麼：i18n scaffold（feat/i18n-scaffold PR #50）採輕量 DIY，缺 key 時
 # fallback 到 DEFAULT_LOCALE，再 fallback 到 path 字串。如果 zh-TW.json 加了
@@ -16,12 +16,12 @@ name: i18n message keys sync lint
 on:
   pull_request:
     paths:
-      - 'web/src/i18n/messages/*.json'
+      - 'web/*/src/i18n/messages/*.json'
       - '.github/workflows/i18n-keys-sync-lint.yml'
   push:
     branches: [main, dev]
     paths:
-      - 'web/src/i18n/messages/*.json'
+      - 'web/*/src/i18n/messages/*.json'
 
 jobs:
   check-keys-parity:
@@ -35,8 +35,10 @@ jobs:
         run: |
           set -euo pipefail
 
-          ZH=web/src/i18n/messages/zh-TW.json
-          EN=web/src/i18n/messages/en.json
+          # 檔案層拆分：四站各持一份 messages，逐站比對
+          for APP_DIR in web/*/src/i18n/messages; do
+            ZH=$APP_DIR/zh-TW.json
+            EN=$APP_DIR/en.json
 
           if [ ! -f "$ZH" ] || [ ! -f "$EN" ]; then
             echo "::error::Missing locale file (expected $ZH and $EN)"
@@ -91,3 +93,5 @@ jobs:
           print("(English fallback string, e.g. transliterate or short English equivalent).")
           sys.exit(1)
           PY
+            echo "checked: $APP_DIR"
+          done

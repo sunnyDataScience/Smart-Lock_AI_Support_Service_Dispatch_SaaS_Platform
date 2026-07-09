@@ -1,9 +1,10 @@
 ---
 title: "ADR-023: 單一 codebase 以 APP_MODE build 多 portal"
 version: 1.0
-status: active
+status: superseded
+superseded_by: ./ADR-028_web檔案層拆分_四站獨立專案.md
 owner: web 系統 tech lead
-last-updated: 2026-07-07
+last-updated: 2026-07-08
 upstream:
   - smartlock-docs/web/P2/04_adr/ADR-001_單一codebase_APP_MODE_多portal.md
 ---
@@ -12,7 +13,7 @@ upstream:
 
 | 欄位 | 內容 |
 |---|---|
-| 狀態 | Accepted |
+| 狀態 | **Superseded by [ADR-028](./ADR-028_web檔案層拆分_四站獨立專案.md)**（2026-07-08/09 業主裁決檔案層真拆＋複製分家；APP_MODE 塑形機制保留但單一 app 架構退場） |
 | 層級 | 系統級（web）|
 | 關聯 ADR | [ADR-022](./ADR-022_API_SURFACE單體多面塑形.md) · [ADR-024](./ADR-024_client_SPA_無BFF_Context狀態_OIDC.md) |
 

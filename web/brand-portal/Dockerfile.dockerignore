@@ -1,0 +1,52 @@
+# BuildKit per-Dockerfile ignore（會優先於專案根 .dockerignore）
+# 只在 docker build -f web/brand-portal/Dockerfile . 時生效
+
+# 版控 / IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# 環境檔（敏感）
+.env
+.env.*
+!.env.example
+credentials.json
+
+# 後端 module（web build 不需要）
+agent/
+api/
+data/
+SQL/
+docs/
+docs/Locksmith_Preparation_Checklist/
+web_design_spec_prompt_pipeline/
+.claude/
+scripts/
+tests/
+
+# Python 殘留
+.venv/
+**/__pycache__/
+**/*.py[cod]
+pyproject.toml
+uv.lock
+.python-version
+
+# Node.js / Next.js 開發殘留（image build 內會重建）
+web/*/node_modules/
+web/*/.next/
+web/*/tsconfig.tsbuildinfo
+web/*/coverage/
+web/*/*.log
+web/*/test-results/
+web/*/playwright-report/
+
+# Docker / CI 自身
+**/Dockerfile.dockerignore
+.dev-logs/
+tmp/
+
+# OS 雜物
+.DS_Store
+Thumbs.db

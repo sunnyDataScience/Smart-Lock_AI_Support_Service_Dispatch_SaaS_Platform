@@ -1,0 +1,3501 @@
+{
+  "common": {
+    "save": "Save",
+    "saveChanges": "Save changes",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading…",
+    "submitting": "Working…",
+    "error": "Error",
+    "success": "Success",
+    "search": "Search",
+    "language": "Language",
+    "comingSoon": "Coming soon",
+    "notAvailable": "—"
+  },
+  "header": {
+    "searchPlaceholder": "Search work orders, technicians, customers...",
+    "searchLabel": "Global search",
+    "searchSrLabel": "Search work orders, technicians, customers"
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "system": "System",
+      "pricing": "Pricing",
+      "profile": "Profile",
+      "security": "Security"
+    },
+    "profile": {
+      "title": "Profile",
+      "metaJwt": "Only your sign-in identity is shown for now; name / phone / preferences coming soon",
+      "metaSession": "Display name and phone are editable and saved; the rest is your sign-in identity (read-only)",
+      "displayName": "Display name",
+      "email": "Email",
+      "userId": "User ID",
+      "role": "Role",
+      "tenantId": "Organization code",
+      "timezone": "Timezone",
+      "timezoneTaipei": "(UTC+8) Taipei",
+      "language": "Language",
+      "theme": "Theme",
+      "phone": "Phone",
+      "phonePlaceholder": "Enter phone number (optional)",
+      "uploadAvatar": "Upload avatar",
+      "nameRequired": "Display name is required",
+      "savedMsg": "Profile saved",
+      "saving": "Saving…"
+    },
+    "security": {
+      "title": "Security",
+      "metaCurrent": "Password change is available; two-factor authentication and device management coming soon",
+      "metaSubtitle": "Manage password and sign-in security",
+      "currentPassword": "Current password",
+      "currentPasswordPlaceholder": "Enter current password",
+      "newPassword": "New password",
+      "newPasswordPlaceholder": "Enter new password (8–72 chars)",
+      "confirmPassword": "Confirm new password",
+      "confirmPasswordPlaceholder": "Re-enter new password",
+      "twoFactor": "Two-factor authentication (2FA)",
+      "twoFactorPending": "Pending",
+      "authenticatorApp": "Authenticator App",
+      "authenticatorDesc": "Requires backend TOTP enrol / verify endpoint; not in this release",
+      "twoFactorDisabled": "Disabled",
+      "updatePassword": "Update password",
+      "updating": "Updating…",
+      "validateMissing": "Please fill in all password fields",
+      "validateLength": "New password must be 8–72 characters",
+      "validateMismatch": "Password confirmation does not match",
+      "validateSame": "New password must differ from current password",
+      "successMsg": "Password updated"
+    }
+  },
+  "locale": {
+    "label": "Language",
+    "menuLabel": "Language options",
+    "current": "Switch language (current: {label})",
+    "zh-TW": "Traditional Chinese",
+    "en": "English"
+  },
+  "theme": {
+    "label": "Theme mode",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System",
+    "current": "Switch theme (current: {label})",
+    "menuLabel": "Theme options"
+  },
+  "role": {
+    "admin": "System Administrator",
+    "reviewer": "Reviewer",
+    "technician": "Technician",
+    "brand_oem": "Brand OEM",
+    "line_user": "LINE User"
+  },
+  "landing": {
+    "tagline": "Smart Lock AI Support × Dispatch Platform",
+    "subtitle": "Choose how you'd like to sign in",
+    "techTitle": "Locksmith Technician",
+    "techDesc": "Technician entrance: sign in or register for the tech workspace",
+    "enterBackend": "Signed in — enter console",
+    "backToHome": "Back",
+    "footer": "SmartLock — Smart Lock AI Support & Dispatch",
+    "dispatcherTitle": "Brand / Distributor / Locksmith Shop",
+    "dispatcherDesc": "Dispatcher entrance: sign in or register for the admin console",
+    "navLogin": "Sign in",
+    "heroEyebrow": "SmartLock Dispatch Platform",
+    "heroTitle": "AI answers the call, pros show up",
+    "heroSubtitle": "A LINE AI agent takes repair requests 24/7 — understanding text and photos; smart dispatch matches local locksmiths; quoting, on-site work, dual-signature closing and reconciliation, all in one place.",
+    "ctaTech": "I'm a locksmith — I want jobs",
+    "ctaTechHint": "Free to join, grab jobs freely, transparent monthly settlement",
+    "ctaBrand": "I'm a brand / distributor — apply to onboard",
+    "ctaBrandHint": "Fill in basic info and we'll help you launch",
+    "featuresTitle": "What the platform does",
+    "f1Title": "LINE AI customer service",
+    "f1Desc": "Customers report issues right in LINE. The AI understands text and photos, answers product questions, drafts problem cards, and hands over to humans anytime.",
+    "f2Title": "Smart dispatch & job pool",
+    "f2Desc": "Match technicians by region, skills and brand authorization; assign from the back office or let technicians claim jobs, with real-time tracking.",
+    "f3Title": "Technician mobile workbench",
+    "f3Desc": "Accept jobs, navigate, report arrival by GPS, take before/after photos and close with dual signatures — earnings at a glance.",
+    "f4Title": "Quoting & accounting loop",
+    "f4Desc": "Send quotes to customers via LINE for one-tap approval; invoices, reconciliation and monthly statements are wired together.",
+    "howTitle": "How it works",
+    "s1Title": "Customer reports via LINE",
+    "s1Desc": "The AI collects symptoms and photos, creating a problem card automatically",
+    "s2Title": "Dispatch matches a technician",
+    "s2Desc": "Back-office assignment or job-pool claiming, with instant notifications",
+    "s3Title": "On-site work & closing",
+    "s3Desc": "Before/after photos plus dual signatures; customers confirm quotes and track progress online",
+    "techSectionTitle": "Start earning — just one sign-up away",
+    "techP1": "Grab jobs freely: a live job pool, with regions and brands of your choice",
+    "techP2": "Transparent settlement: pay accrues on completion, statements online",
+    "techP3": "All the tools: navigation, reporting, signature closing — one phone is enough",
+    "brandSectionTitle": "Leave smart-lock after-sales to the platform",
+    "brandSectionDesc": "Brands, distributors and locksmith shops can all apply. Submit your basic info; we review, help deploy and train, and you're live once approved.",
+    "applyTitle": "Apply to onboard",
+    "applyDesc": "Fill in your brand's basic information. We'll review and get in touch shortly.",
+    "applyClose": "Close",
+    "applyNotes": "Notes (optional)",
+    "applySuccess": "Application submitted! Our team will contact you after review.",
+    "applyError": "Submission failed, please try again later",
+    "heroChip1": "24/7 AI intake",
+    "heroChip2": "Local technicians nationwide",
+    "heroChip3": "Transparent monthly payouts",
+    "secWo": "Ticket Management",
+    "secOmni": "Omnichannel Intake",
+    "secAi": "AI Customer Service",
+    "secPrice": "Pricing",
+    "woTitle": "Ticket management at a glance",
+    "woDesc": "From report to sign-off, every ticket's status, assigned technician and SLA live on one board — synced in real time between back office and technician phones.",
+    "woCol1": "To Dispatch",
+    "woCol2": "In Progress",
+    "woCol3": "Completed",
+    "woT1Title": "Smart lock dead, door won't open",
+    "woT1Meta": "Taipei · Da'an",
+    "woT1Tag": "Urgent",
+    "woT2Title": "Fingerprint reader failing",
+    "woT2Meta": "New Taipei · Banqiao",
+    "woT2Tech": "Tech Chen · En route",
+    "woT3Title": "Smart lock replacement + install",
+    "woT3Meta": "Taichung · Xitun",
+    "woT3Tech": "Tech Lin · Dual-signed",
+    "woB1": "Real-time status sync: assign, reschedule, parts, sign-off — back office and technician apps always match",
+    "woB2": "SLA tracking: overdue urgent tickets alert automatically, nothing slips through",
+    "woB3": "Evidence-backed closure: before/after photos plus technician and customer signatures",
+    "omniTitle": "Wherever customers come from, we catch it",
+    "omniDesc": "Every intake channel funnels into one ticket queue — no more requests scattered across DMs and phone calls.",
+    "omni1Title": "LINE Official Account",
+    "omni1Desc": "Customers report issues right in LINE; AI replies around the clock and understands photos",
+    "omni2Title": "No-login web links",
+    "omni2Desc": "Quote confirmation and progress tracking in one link — no app install needed",
+    "omni3Title": "Phone-assisted tickets",
+    "omni3Desc": "Agents create tickets on behalf of callers, so regulars get full service by phone",
+    "omni4Title": "Technician mobile app",
+    "omni4Desc": "On-site upsells and scope changes report straight back into the same ticket",
+    "aiTitle": "AI support that actually reads photos",
+    "aiDesc": "Customers can type it or snap it. The AI understands the problem, answers from the product knowledge base, drafts a problem card — and hands off to a human with full context in one tap.",
+    "aiChatU1": "My door lock isn't responding — is it broken? (photo attached)",
+    "aiChatA1": "From the photo this is a Yale-series smart lock; a dark keypad usually means dead batteries. Try replacing the 4 AA batteries first — if it still won't respond, I can arrange a technician visit.",
+    "aiChatU2": "Changed the batteries, still nothing. Book me a technician",
+    "aiChatA2": "Your service ticket is created. A technician is available this afternoon — I'll send a confirmation link shortly, one tap to book.",
+    "aiChatPhoto": "Photo",
+    "aiB1": "Reads text and photos",
+    "aiB2": "Auto problem cards",
+    "aiB3": "Seamless human handover",
+    "aiB4": "Knowledge-base answers",
+    "priceTitle": "Pick the plan that fits",
+    "priceDesc": "We deploy and operate the platform for you on a monthly fee. Choose by store count — submit an application and we'll quote after assessment, no upfront payment.",
+    "p1Name": "Starter",
+    "p1For": "Single store · locksmith",
+    "p1Price": "Monthly fee",
+    "p2Name": "Growth",
+    "p2For": "Multi-store · distributor",
+    "p2Price": "Monthly fee",
+    "p3Name": "Enterprise",
+    "p3For": "Brand HQ · custom integration",
+    "p3Price": "Custom quote",
+    "priceRecommended": "Most popular",
+    "pf1": "LINE AI customer service",
+    "pf2": "Ticket & dispatch board",
+    "pf3": "Technician mobile app",
+    "pf4": "Quotes & monthly billing",
+    "pf5": "Multi-store management",
+    "pf6": "Dedicated database deployment",
+    "pf7": "Brand customization & API",
+    "pf8": "Guided onboarding & training",
+    "priceCta": "Apply · Free assessment",
+    "priceNote": "Final pricing depends on store count and enabled modules, quoted after your application.",
+    "finalTitle": "Ready to make after-sales service simple?",
+    "finalDesc": "Two minutes to apply and we handle the rest — technicians can register and start taking jobs today."
+  },
+  "login": {
+    "title": "Sign in to SmartLock Admin",
+    "subtitle": "Enter your credentials to continue",
+    "emailLabel": "Email",
+    "emailPlaceholder": "test@lock-ai.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "••••••••",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "forgotPassword": "Forgot password?",
+    "devHint": "Test account: test@lock-ai.com / changeme123",
+    "entryTitle": "Brand / Distributor / Locksmith Shop",
+    "entrySubtitle": "Dispatcher entrance — sign in or register for the admin console",
+    "tabLogin": "Sign in",
+    "tabRegister": "Staff apply",
+    "techEntryLink": "I am a locksmith technician →"
+  },
+  "staffApply": {
+    "intro": "Brand staff account application: submit your basic details, then a brand admin reviews and assigns your role. Once approved you can sign in with this email and password.",
+    "name": "Name",
+    "email": "Email",
+    "phone": "Phone (optional)",
+    "password": "Password (min 8)",
+    "submit": "Submit application",
+    "submitting": "Submitting…",
+    "success": "Application submitted. Once a brand admin reviews it and assigns a role, you can sign in."
+  },
+  "register": {
+    "toLogin": "Go to login"
+  },
+  "vendorLogin": {
+    "title": "Vendor / Brand sign in",
+    "subtitle": "For requestors (vendor portal under construction)",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "forgotPassword": "Forgot password?",
+    "registerLink": "No account? Register"
+  },
+  "passwordReset": {
+    "requestTitle": "Forgot password",
+    "requestSubtitle": "Enter your account email and we'll send a reset link",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "requestSubmit": "Send reset link",
+    "requestSubmitting": "Sending…",
+    "requestSent": "If an account exists, a reset link has been sent. Check your inbox (valid for 30 minutes).",
+    "backToLogin": "Back to sign in",
+    "confirmTitle": "Set a new password",
+    "confirmSubtitle": "Enter your new password",
+    "newPasswordLabel": "New password",
+    "newPasswordPlaceholder": "At least 8 characters",
+    "confirmPasswordLabel": "Confirm new password",
+    "confirmSubmit": "Set new password",
+    "confirmSubmitting": "Saving…",
+    "confirmSuccess": "Password reset. Please sign in with your new password.",
+    "mismatch": "The two passwords do not match",
+    "tooShort": "Password must be at least 8 characters",
+    "missingToken": "The reset link is invalid or missing a token. Please request a new one.",
+    "expiredOrUsed": "This reset link has expired or already been used. Please request a new one.",
+    "goLogin": "Go to sign in"
+  },
+  "status": {
+    "workOrder": {
+      "inquiring": "Inquiring",
+      "qualified": "Qualified",
+      "quoted": "Quoted",
+      "negotiating": "Negotiating",
+      "accepted": "Accepted",
+      "scheduled": "Scheduled",
+      "dispatching": "Dispatching",
+      "assigned": "Assigned",
+      "en_route": "En route",
+      "arrived": "Arrived",
+      "in_progress": "In progress",
+      "completed": "Completed",
+      "billed": "Billed",
+      "paid": "Paid",
+      "closed": "Closed",
+      "cancelled": "Cancelled"
+    },
+    "workOrderGroup": {
+      "pending": "Pending",
+      "dispatched": "Dispatched",
+      "in_progress": "In progress",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    }
+  },
+  "urgency": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "highBadge": "Urgent"
+  },
+  "tables": {
+    "empty": "No data",
+    "loading": "Loading…",
+    "workOrders": {
+      "ariaLabel": "Work orders",
+      "cols": {
+        "id": "Order ID",
+        "address": "District / Address",
+        "brand": "Brand",
+        "model": "Model",
+        "status": "Status",
+        "urgency": "Urgency",
+        "estimate": "Estimate",
+        "createdAt": "Created"
+      }
+    },
+    "problemCards": {
+      "ariaLabel": "Problem cards",
+      "cols": {
+        "id": "Card ID",
+        "symptom": "Symptom",
+        "status": "Status",
+        "urgency": "Urgency",
+        "category": "Category",
+        "brand": "Brand",
+        "model": "Model",
+        "createdAt": "Created"
+      }
+    },
+    "conversations": {
+      "ariaLabel": "Conversations",
+      "empty": "No matching conversations",
+      "cols": {
+        "id": "Conversation ID",
+        "idCard": "ID",
+        "customer": "Customer",
+        "customerCard": "Customer",
+        "status": "Status",
+        "messages": "Messages",
+        "resolution": "Resolution layer",
+        "time": "Updated",
+        "timeCard": "Updated"
+      }
+    }
+  },
+  "problemCardStatus": {
+    "draft": "Draft",
+    "confirmed": "Confirmed",
+    "resolved": "Resolved"
+  },
+  "conversationStatus": {
+    "active": "Active",
+    "waiting_human": "Escalated",
+    "closed": "Closed"
+  },
+  "resolutionLayer": {
+    "case_library": "Case library",
+    "rag": "RAG",
+    "human": "Human"
+  },
+  "sidebar": {
+    "appName": "SmartLock",
+    "navAria": "Main navigation",
+    "pageNavAria": "Page navigation",
+    "submenuLabel": "{label} submenu",
+    "loggedOut": "Not signed in",
+    "logout": "Sign out",
+    "loggingOut": "Signing out",
+    "section": {
+      "operations": "Operations",
+      "review": "Review & Exceptions",
+      "insight": "Knowledge & Reports",
+      "configuration": "Settings & Master Data"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "intakeCases": "Intake Cases",
+      "conversations": "Conversations",
+      "problemCards": "Problem cards",
+      "knowledgeBase": "Knowledge base",
+      "kbCases": "Cases",
+      "kbManuals": "Manuals",
+      "kbSopDrafts": "SOP review",
+      "kbFamilyReviews": "Family reviews",
+      "dispatch": "Dispatch",
+      "workOrders": "Work orders",
+      "dispatchQueue": "Dispatch queue",
+      "materialRequests": "Material requests",
+      "exceptions": "Exceptions",
+      "quoteCatalog": "Price catalog",
+      "quotes": "Quotes",
+      "customers": "Customers",
+      "accounting": "Accounting",
+      "settlements": "Settlements",
+      "refunds": "Refunds",
+      "warranty": "Warranty claims",
+      "disputes": "Disputes",
+      "inventory": "Inventory",
+      "reports": "Reports",
+      "kpi": "KPI dashboard",
+      "techRanking": "Technician ranking",
+      "revenue": "Revenue",
+      "sopPerformance": "SOP performance",
+      "audit": "Audit & permissions",
+      "roles": "RBAC",
+      "auditLogs": "Audit logs",
+      "sentimentAlerts": "Sentiment alerts",
+      "settings": "Settings",
+      "staff": "Staff Accounts",
+      "payoutRules": "Payout Rules",
+      "configGovernance": "Config Governance"
+    }
+  },
+  "pages": {
+    "dashboard": {
+      "title": "Dashboard",
+      "subtitle": "Last 7 days operations",
+      "loadingAria": "Loading dashboard data",
+      "loadFailedAria": "Failed to load data",
+      "loadedAria": "Dashboard loaded — {workOrders} work orders, {technicians} technicians",
+      "loadFailed": "Failed to load dashboard: {error}",
+      "rangeLabel": "Date range",
+      "pendingBadge": "Pending dispatch module",
+      "dispatchSection": "Dispatch metrics",
+      "kpi": {
+        "convTotal": "Total conversations (last 7d)",
+        "convTotalSub": "Active {active} · Resolved {resolved}",
+        "convActive": "Active conversations",
+        "convActiveSub": "Conversations not yet closed",
+        "convResolved": "Resolved",
+        "convResolvedSub": "AI resolution rate {rate}",
+        "convEscalated": "Escalated to human",
+        "convEscalatedSub": "Awaiting agent reply",
+        "aiRate": "AI resolution rate",
+        "aiRateSub": "Resolved by case library + RAG",
+        "avgResolution": "Avg. resolution time",
+        "avgResolutionSub": "From start to close",
+        "todayWorkOrders": "Today's work orders",
+        "todayWorkOrdersSub": "Created today",
+        "completionRate": "Completion rate",
+        "completionRateSub": "Today closed / created",
+        "overdue": "Overdue work orders",
+        "overdueSub": "Past schedule, not closed",
+        "onlineTech": "Online technicians",
+        "onlineTechSub": "{count} dispatchable",
+        "slaRate": "SLA hit rate",
+        "slaRateValue": "88%",
+        "slaRateSub": "Monthly target 95%"
+      },
+      "duration": {
+        "seconds": "{n} s",
+        "minutes": "{n} min",
+        "hours": "{n} h",
+        "hoursMinutes": "{h} h {m} min"
+      },
+      "recentWorkOrders": {
+        "title": "Recent work orders",
+        "viewAll": "View all →",
+        "loadFailed": "Failed to load work orders: {error}",
+        "loading": "Loading…",
+        "empty": "No work orders",
+        "showingCount": "Showing latest {count}",
+        "unassigned": "Unassigned",
+        "technicianTag": "Tech {id}",
+        "cols": {
+          "id": "Order ID",
+          "address": "District / Address",
+          "device": "Brand / Model",
+          "status": "Status",
+          "urgency": "Urgency",
+          "createdAt": "Created",
+          "technician": "Technician"
+        }
+      }
+    },
+    "problemCards": {
+      "breadcrumb": "Home > Problem cards",
+      "title": "Problem card management",
+      "totalLabelPrefix": "Total",
+      "totalCards": "cards",
+      "totalCardsMore": "+ cards",
+      "filters": {
+        "status": "Status",
+        "urgency": "Urgency",
+        "brand": "Brand",
+        "dateRange": "Date range",
+        "source": "Source"
+      },
+      "comingSoonTitle": "Coming soon",
+      "searchPlaceholder": "Search coming soon",
+      "loadFailed": "Failed to load problem cards: {error}",
+      "loadingMore": "Loading…",
+      "loadMore": "Load more"
+    },
+    "workOrders": {
+      "breadcrumb": "Home > Work orders > List",
+      "title": "Work order management",
+      "totalLabelPrefix": "Total",
+      "totalOrders": "orders",
+      "totalOrdersMore": "+ orders",
+      "filters": {
+        "status": "Status",
+        "last7Days": "Last 7 days",
+        "brand": "Brand"
+      },
+      "views": {
+        "list": "List",
+        "kanban": "Kanban",
+        "map": "Map"
+      },
+      "comingSoonTitle": "Coming soon",
+      "searchPlaceholder": "Search coming soon",
+      "loadFailed": "Failed to load work orders: {error}",
+      "loadingMore": "Loading…",
+      "loadMore": "Load more"
+    },
+    "conversations": {
+      "title": "Conversations",
+      "tabs": {
+        "all": "All",
+        "active": "Active",
+        "waiting_human": "Escalated",
+        "closed": "Closed"
+      },
+      "loading": "Loading…",
+      "totalCount": "Total {count}",
+      "totalCountMore": "Total {count}+",
+      "loadingMore": "Loading…",
+      "loadMore": "Load more"
+    },
+    "workOrderDetail": {
+      "breadcrumb": "Home > Work orders > List > {id}",
+      "urgencyLabel": "Urgency: {label}",
+      "metaBrand": "Brand: ",
+      "metaModel": "Model: ",
+      "metaAddress": "Address: ",
+      "linkedProblemCard": "Linked problem card: {id}",
+      "actions": {
+        "accept": "Accept dispatch",
+        "accepting": "Processing…",
+        "assignNew": "Reassign",
+        "assignFresh": "Assign technician",
+        "complete": "Mark completed",
+        "cancel": "Cancel work order",
+        "confirmClose": "Confirm closure",
+        "escalate": "Escalate",
+        "signature": "E-signature",
+        "reschedule": "Send reschedule",
+        "assign": "Assign technician",
+        "reassign": "Reassign technician",
+        "actionFailed": "Action failed: {error}",
+        "requestReschedule": "Request Reschedule",
+        "notifyDelay": "Notify Delay",
+        "materialRequest": "Material Request"
+      },
+      "toasts": {
+        "accepted": "Dispatch accepted",
+        "completed": "Work order marked complete",
+        "cancelled": "Work order cancelled",
+        "assigned": "Technician assigned",
+        "confirmed": "Customer confirmed closure",
+        "escalatedOps": "Escalated to operations manager",
+        "escalatedTenant": "Escalated to tenant administrator",
+        "rescheduled": "Reschedule submitted ({count} candidate slots)"
+      },
+      "errors": {
+        "actionFailed": "Action failed: {msg}",
+        "loadFailed": "Failed to load work order: {msg}"
+      },
+      "loading": {
+        "loadFailed": "Failed to load work order: {error}",
+        "loadingOrder": "Loading…"
+      },
+      "infoBanner": "Work order info, SLA progress, history, conversation & media, completion report and exception records are all live data; only the device panel (battery / connectivity / last activity) is illustrative, pending smart-lock telemetry integration.",
+      "sla": {
+        "create": "Created",
+        "dispatch": "Dispatched",
+        "accept": "Accepted",
+        "inProgress": "In progress",
+        "complete": "Completed",
+        "confirm": "Confirmed",
+        "remaining": "Remaining {time}",
+        "overdue": "Overdue {time}",
+        "stage": {
+          "created": "Created",
+          "dispatched": "Dispatched",
+          "accepted": "Accepted",
+          "inProgress": "In progress",
+          "completed": "Completed",
+          "confirmed": "Confirmed"
+        }
+      },
+      "problemCard": {
+        "title": "Diagnosis summary",
+        "tag": "ProblemCard",
+        "noLink": "This work order is not linked to a problem card",
+        "loadError": "Load failed: {msg}",
+        "loading": "Loading problem card…",
+        "urgencyPrefix": "Urgency {label}",
+        "aiConfidence": "AI confidence {percent}%",
+        "brand": "Brand",
+        "model": "Model",
+        "category": "Category",
+        "linkedConversation": "Linked conversation",
+        "symptom": "Symptom",
+        "status": {
+          "draft": "Draft",
+          "confirmed": "Confirmed",
+          "resolved": "Resolved"
+        }
+      },
+      "media": {
+        "title": "Customer-uploaded media",
+        "channel": "LINE",
+        "count": "{count} item(s)",
+        "noConversation": "No linked conversation; no media to display",
+        "loadError": "Failed to load media: {msg}",
+        "loading": "Loading media…",
+        "empty": "Customer has not uploaded any media",
+        "video": "🎬 Video",
+        "alt": "Customer upload",
+        "submittedAt": "Submitted: {time}",
+        "badge": "LINE",
+        "loadFailed": "Failed to load media: {error}",
+        "videoLabel": "🎬 Video",
+        "imageAlt": "Customer upload"
+      },
+      "timeline": {
+        "title": "Work-order timeline",
+        "empty": "No timeline data yet",
+        "all": "All",
+        "filterTitle": "Coming soon",
+        "badge": {
+          "system": "System",
+          "tech": "Tech",
+          "schedule": "Schedule",
+          "complete": "Completion",
+          "technician": "Technician"
+        },
+        "events": {
+          "created": "Work order created",
+          "createdFromPc": "Derived from problem card {id}",
+          "scheduled": "Scheduled arrival",
+          "scheduledTech": "Technician {id} scheduled",
+          "noTech": "No technician assigned yet",
+          "arrived": "Technician arrived on-site",
+          "completed": "Work order completed",
+          "lastUpdate": "Last update",
+          "currentStatus": "Current status: {status}"
+        },
+        "filterAll": "All",
+        "comingSoon": "Coming soon",
+        "event": {
+          "created": "Work order created",
+          "createdFromPc": "Derived from problem card {shortId}",
+          "scheduledTitle": "Estimated arrival",
+          "scheduledWithTech": "Technician {shortId} scheduled",
+          "scheduledNoTech": "No technician assigned",
+          "arrivedTitle": "Technician arrived on site",
+          "completedTitle": "Work order completed",
+          "lastUpdatedTitle": "Last updated",
+          "lastUpdatedDetail": "Current status: {status}"
+        }
+      },
+      "conversation": {
+        "title": "LINE conversation log",
+        "openInNewWindow": "Open in new window",
+        "readOnly": "Read-only — LINE conversation backup",
+        "readOnlyNotice": "Read-only — this is a backup of the LINE conversation",
+        "noConversation": "No conversation linked to this work order yet",
+        "loading": "Loading conversation…",
+        "empty": "No messages yet",
+        "loadFailed": "Load failed: {error}",
+        "roleCustomer": "Customer",
+        "roleAgent": "Agent",
+        "roleSystem": "System",
+        "attachment": "View attachment"
+      },
+      "completionReport": {
+        "title": "Completion report (placeholder)",
+        "submittedAt": "Submitted: —",
+        "funcTests": "Functional tests",
+        "tests": {
+          "fingerprint": "Fingerprint unlock",
+          "password": "Password unlock",
+          "battery": "Battery voltage (placeholder)"
+        }
+      },
+      "exception": {
+        "title": "Exception records",
+        "loading": "Loading…",
+        "empty": "No exception records for this work order"
+      },
+      "completeModal": {
+        "title": "Mark complete",
+        "summaryLabel": "Completion summary",
+        "summaryPlaceholder": "e.g. replaced mainboard, fingerprint and password unlock verified",
+        "amountLabel": "Actual amount (NT$, optional)",
+        "amountPlaceholder": "e.g. 3500.00",
+        "amountInvalid": "Amount must be numeric with at most 2 decimals",
+        "cancel": "Cancel",
+        "submit": "Confirm completion",
+        "submitting": "Submitting…"
+      },
+      "assignModal": {
+        "titleNew": "Assign technician",
+        "titleReplace": "Reassign technician",
+        "scoreFormula": "Score = 0.4 skill + 0.3 distance + 0.3 rating",
+        "candidatesLabel": "Candidates (sorted by composite score)",
+        "loadingCandidates": "Computing candidates…",
+        "loadError": "Load failed: {msg}",
+        "noCandidates": "No dispatchable candidates (off-hours / circuit-broken excluded)",
+        "currentlyAssigned": "Currently assigned",
+        "scoreTitle": "Composite score (0–100)",
+        "skillPercent": "Skill {percent}%",
+        "distancePrefix": "Distance {value}",
+        "ratingPrefix": "Rating {value} / 5",
+        "skillsPrefix": "Skills {names}{more}",
+        "distInArea": "in area",
+        "distKm": "≈ {km} km",
+        "etaMinutes": "{min} min ETA",
+        "reasonCodeLabel": "Assignment reason",
+        "reasonTextLabel": "Notes (optional)",
+        "reasonTextPlaceholder": "e.g. customer requested Mr. Zhang; only nearby technician with this brand experience",
+        "cancel": "Cancel",
+        "submit": "Confirm assignment",
+        "submitting": "Submitting…",
+        "reasons": {
+          "auto_dispatch_exhausted": "Auto-dispatch exhausted",
+          "customer_requested_specific_tech": "Customer requested",
+          "skill_shortage_override": "Skill shortage override",
+          "sla_rescue": "SLA rescue",
+          "other": "Other"
+        }
+      },
+      "cancelModal": {
+        "title": "Cancel work order",
+        "reasonLabel": "Cancellation reason (optional)",
+        "reasonPlaceholder": "e.g. customer rescheduled, duplicate work order",
+        "back": "Back",
+        "submit": "Confirm cancellation",
+        "submitting": "Submitting…"
+      },
+      "confirmModal": {
+        "title": "Customer confirmation",
+        "ratingLabel": "Satisfaction rating",
+        "starAria": "Give {n} stars",
+        "feedbackLabel": "Customer feedback (optional, up to 1000 chars)",
+        "feedbackPlaceholder": "e.g. technician arrived on time, explained clearly, lock works fine",
+        "warning": "Closure is final — once submitted you cannot revert to in_progress / completed.",
+        "back": "Back",
+        "submit": "Confirm closure",
+        "submitting": "Submitting…",
+        "ratingHint": {
+          "1": "Very dissatisfied",
+          "2": "Dissatisfied",
+          "3": "Neutral",
+          "4": "Satisfied",
+          "5": "Very satisfied"
+        }
+      },
+      "signatureModal": {
+        "title": "Dual e-signature",
+        "intro": "Customer and technician signatures are written to digital_signatures with a SHA-256 integrity hash. Already-signed roles cannot be overwritten; once both are done the work order cannot be re-signed.",
+        "customerLabel": "Customer signature *",
+        "technicianLabel": "Technician signature *",
+        "gpsLabel": "GPS location (optional, signing-location proof)",
+        "captureGps": "Capture current location",
+        "latPlaceholder": "Latitude (lat)",
+        "lngPlaceholder": "Longitude (lng)",
+        "errors": {
+          "notImage": "Please pick an image (PNG / JPEG / SVG)",
+          "tooLarge": "File too large, must be under 2 MB",
+          "readFail": "Failed to read file",
+          "noGps": "Geolocation is not supported on this device",
+          "gpsFail": "Failed to locate",
+          "coordsNumber": "Coordinates must be numeric"
+        },
+        "back": "Back",
+        "submit": "Confirm signature",
+        "submitting": "Submitting…",
+        "uploadedHint": "Uploaded ({chars} chars)",
+        "clear": "Clear and re-upload",
+        "uploadCta": "Choose signature image (PNG / JPEG / SVG, <2 MB)"
+      },
+      "escalateModal": {
+        "title": "Escalate work order",
+        "reasonLabel": "Escalation reason (required, max 500 chars)",
+        "reasonHint": "Explain why {label} is needed (written to service_report audit trail)",
+        "reasonFallback": "Please enter an escalation reason",
+        "warning": "After escalation, priority will move to urgent; the work order keeps its current status pending higher-level review.",
+        "back": "Back",
+        "submit": "Confirm escalation",
+        "submitting": "Submitting…",
+        "options": {
+          "operations_manager": {
+            "label": "Escalate to operations manager",
+            "hint": "When the technician reports inability to handle, SLA is about to breach, or customer complaint needs higher-level intervention."
+          },
+          "tenant_admin": {
+            "label": "Escalate to tenant admin",
+            "hint": "Amount disputes, process exceptions, or cross-team coordination needing the tenant's top authority."
+          }
+        }
+      },
+      "rescheduleModal": {
+        "title": "Send reschedule request",
+        "slotPrefix": "Candidate slot {n}",
+        "remove": "Remove",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "addSlot": "+ Add candidate slot ({count}/3)",
+        "messageLabel": "Customer notice (required, max 120 chars)",
+        "messagePlaceholder": "Technician was pulled to a neighbour's emergency. Please pick a convenient slot.",
+        "channelLabel": "Notification channel",
+        "warning": "MVP does not actually push LINE/SMS, but the first slot will immediately update scheduled_at. Up to 3 reschedules in 24h, otherwise RESCHEDULE_LIMIT_EXCEEDED is returned.",
+        "back": "Back",
+        "submit": "Send reschedule",
+        "submitting": "Submitting…"
+      },
+      "header": {
+        "breadcrumb": "Home > Work orders > List > {shortId}",
+        "urgencyLabel": "Urgency: {label}",
+        "brandLabel": "Brand: ",
+        "modelLabel": "Model: ",
+        "addressLabel": "Address: ",
+        "linkedProblemCard": "Linked problem card: {shortId}"
+      },
+      "info": {
+        "title": "Notice",
+        "banner": "Work order info, SLA progress, history, conversation & media, completion report and exception records are all live data; only the device panel (battery / connectivity / last activity) is illustrative, pending smart-lock telemetry integration."
+      },
+      "toast": {
+        "accepted": "Dispatch accepted",
+        "completed": "Work order marked completed",
+        "cancelled": "Work order cancelled",
+        "assigned": "Technician assigned",
+        "confirmed": "Customer confirmed closure",
+        "signatureDone": "Both parties signed",
+        "escalatedOps": "Escalated to operations manager",
+        "escalatedTenant": "Escalated to tenant administrator",
+        "rescheduleSent": "Reschedule request sent ({count} candidate slots)",
+        "requestRescheduleSent": "Reschedule request sent",
+        "notifyDelaySent": "Delay notification sent",
+        "materialRequestSent": "Material request sent"
+      },
+      "pcSummary": {
+        "title": "Problem-card summary",
+        "badge": "ProblemCard",
+        "noPc": "This work order has no linked problem card",
+        "loadFailed": "Load failed: {error}",
+        "loading": "Loading problem card…",
+        "urgencyLabel": "Urgency {label}",
+        "aiConfidence": "AI confidence {percent}%",
+        "status": {
+          "draft": "Draft",
+          "confirmed": "Confirmed",
+          "resolved": "Resolved"
+        },
+        "field": {
+          "brand": "Brand",
+          "model": "Model",
+          "category": "Category",
+          "conversation": "Linked conversation",
+          "symptom": "Symptom"
+        }
+      },
+      "completion": {
+        "title": "Completion report",
+        "submittedAt": "Submitted: {time}",
+        "notCompleted": "Not yet completed",
+        "statusLabel": "Completion status",
+        "finalAmountLabel": "Final amount",
+        "summaryLabel": "Work summary",
+        "noSummary": "(no work summary)",
+        "functionTestsLabel": "Function tests",
+        "testResult": {
+          "pass": "Pass",
+          "fail": "Fail",
+          "na": "N/A"
+        }
+      },
+      "completeDialog": {
+        "title": "Mark completed",
+        "summaryLabel": "Completion summary",
+        "summaryRequired": "*",
+        "summaryPlaceholder": "e.g. Replaced motherboard; verified fingerprint and password unlocking",
+        "summaryCounter": "{current} / 2000",
+        "amountLabel": "Actual amount (NT$, optional)",
+        "amountPlaceholder": "e.g. 3500.00",
+        "amountInvalid": "Amount must be a number with up to two decimal places",
+        "cancel": "Cancel",
+        "submit": "Confirm completion",
+        "submitting": "Submitting…"
+      },
+      "assignDialog": {
+        "titleAssign": "Assign technician",
+        "titleReassign": "Reassign technician",
+        "scoreFormula": "Score = 0.4 skill + 0.3 distance + 0.3 rating",
+        "candidateLabel": "Candidate technicians (sorted by score)",
+        "required": "*",
+        "loadingCandidates": "Computing candidates…",
+        "loadFailed": "Load failed: {error}",
+        "noCandidates": "No assignable candidates (offline / circuit-broken excluded)",
+        "currentlyAssigned": "Currently assigned",
+        "scoreTooltip": "Score (0–100)",
+        "skillPercent": "Skill {percent}%",
+        "distance": "Distance {value}",
+        "distanceInArea": "In area",
+        "distanceKm": "≈ {km} km",
+        "rating": "Rating {rating} / 5",
+        "etaMinutes": "{min} min ETA",
+        "skillsPrefix": "Skills {names}",
+        "skillsMore": "…",
+        "reasonLabel": "Assignment reason",
+        "reason": {
+          "auto_dispatch_exhausted": "Auto-dispatch exhausted",
+          "customer_requested_specific_tech": "Customer requested specific technician",
+          "skill_shortage_override": "Skill shortage override",
+          "sla_rescue": "SLA rescue",
+          "other": "Other"
+        },
+        "reasonTextLabel": "Notes (optional)",
+        "reasonTextPlaceholder": "e.g. Customer asked for Mr. Chang; only nearby tech with this brand experience",
+        "reasonTextCounter": "{current} / 500",
+        "cancel": "Cancel",
+        "submit": "Confirm assignment",
+        "submitting": "Submitting…"
+      },
+      "cancelDialog": {
+        "title": "Cancel work order",
+        "reasonLabel": "Note (optional)",
+        "reasonPlaceholder": "e.g. Customer rescheduled; duplicate work order",
+        "counter": "{current} / 500",
+        "back": "Back",
+        "submit": "Confirm cancellation",
+        "submitting": "Submitting…",
+        "reasonCodeLabel": "Cancellation reason category",
+        "initiatorLabel": "Initiated by",
+        "approverLabel": "Approver ID (SoD — must differ from initiator)",
+        "approverPlaceholder": "Enter approver account ID",
+        "goodwillLabel": "Goodwill waiver (fee → 0, requires supervisor)",
+        "feeResult": "Cancelled (stage {stage}); customer fee NT${customerFee}, travel fee NT${travelFee}",
+        "initiator": {
+          "customer": "Customer",
+          "customer_service": "Customer service",
+          "technician": "Technician",
+          "system_auto": "System"
+        },
+        "reasonCodes": {
+          "quote_not_confirmed": "Before quote confirmed (S1, free)",
+          "quote_confirmed_no_dispatch": "Quote confirmed, not dispatched (S1.5, free)",
+          "dispatched_not_departed": "Dispatched, not departed (S2)",
+          "en_route_cancelled": "En route, not arrived (S3)",
+          "customer_not_onsite": "Arrived, customer absent (S3, evidence required)",
+          "onsite_not_executed": "Onsite, cannot perform (S4)",
+          "customer_refused": "Onsite, customer refused (S4)",
+          "partial_completed_cancel": "Cancel after partial work (S5)",
+          "technician_initiated_cancel": "Technician-initiated (customer free)",
+          "unpaid_no_response": "Unpaid / no response timeout (system)",
+          "business_cancel": "Platform-initiated"
+        }
+      },
+      "confirmDialog": {
+        "title": "Customer confirms closure",
+        "ratingLabel": "Satisfaction rating",
+        "required": "*",
+        "starAria": "Give {n} star(s)",
+        "ratingHint": {
+          "1": "Very dissatisfied",
+          "2": "Dissatisfied",
+          "3": "Neutral",
+          "4": "Satisfied",
+          "5": "Very satisfied"
+        },
+        "feedbackLabel": "Customer feedback (optional, up to 1000 chars)",
+        "feedbackPlaceholder": "e.g. Technician arrived on time, explained clearly, lock works fine",
+        "counter": "{current} / 1000",
+        "warning": "Closure is terminal — once submitted you cannot revert to in_progress / completed.",
+        "back": "Back",
+        "submit": "Confirm closure",
+        "submitting": "Submitting…"
+      },
+      "signatureDialog": {
+        "title": "Both-party e-signature",
+        "intro": "Customer and technician signatures are stored in digital_signatures with a SHA-256 integrity hash. A signed role cannot be overwritten; once both parties sign, the work order cannot be re-signed.",
+        "customerLabel": "Customer signature *",
+        "technicianLabel": "Technician signature *",
+        "gpsLabel": "GPS location (optional, signature location evidence)",
+        "captureGps": "Capture current location",
+        "latPlaceholder": "Latitude (lat)",
+        "lngPlaceholder": "Longitude (lng)",
+        "errorNoGeolocation": "This device does not support geolocation",
+        "errorLocateFailed": "Failed to locate",
+        "errorLatLngNumeric": "Lat/lng must be numeric",
+        "back": "Back",
+        "submit": "Confirm signature",
+        "submitting": "Submitting…"
+      },
+      "signaturePad": {
+        "uploadedLength": "Uploaded ({chars} chars)",
+        "clear": "Clear & re-upload",
+        "selectFile": "Choose signature image (PNG / JPEG / SVG, <2 MB)",
+        "errorImageOnly": "Please choose an image (PNG / JPEG / SVG)",
+        "errorTooLarge": "File too large; must be under 2 MB",
+        "errorReadFailed": "Failed to read file",
+        "base64Label": "base64"
+      },
+      "escalateDialog": {
+        "title": "Escalate work order",
+        "level": {
+          "operations_manager": {
+            "label": "Escalate to operations manager",
+            "hint": "When the technician cannot resolve, the SLA is about to breach, or the complaint needs higher-level intervention."
+          },
+          "tenant_admin": {
+            "label": "Escalate to tenant administrator",
+            "hint": "Pricing dispute, process exception, or cross-team coordination requiring the highest tenant authority."
+          }
+        },
+        "reasonLabel": "Escalation reason (required, up to 500 chars)",
+        "reasonPlaceholderActive": "Explain why {label} is needed (recorded in the service_report audit trail)",
+        "reasonPlaceholderFallback": "Please provide an escalation reason",
+        "counter": "{current} / 500",
+        "warning": "After escalation the priority is raised to urgent; the work order keeps its current status pending higher-level review.",
+        "back": "Back",
+        "submit": "Confirm escalation",
+        "submitting": "Submitting…"
+      },
+      "rescheduleDialog": {
+        "title": "Send reschedule request",
+        "slotTitle": "Candidate slot {n}",
+        "removeSlot": "Remove",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "addSlot": "+ Add candidate slot ({current}/3)",
+        "messageLabel": "Customer message (required, up to 120 chars)",
+        "messagePlaceholder": "Technician was pulled into a neighboring emergency; please pick a convenient slot",
+        "messageCounter": "{current} / 120",
+        "channelLabel": "Notification channel",
+        "channelLine": "LINE",
+        "channelLineSms": "LINE + SMS",
+        "warning": "MVP does not actually push LINE/SMS, but the first slot is written to scheduled_at immediately; up to 3 reschedules per 24 h, beyond which RESCHEDULE_LIMIT_EXCEEDED is returned.",
+        "back": "Back",
+        "submit": "Send reschedule",
+        "submitting": "Submitting…"
+      },
+      "quoteCta": "Create / View Quote"
+    },
+    "track": {
+      "title": "Work order tracking",
+      "downloadDocument": "Download work order PDF",
+      "skeletonLabel": "Loading work order status",
+      "errorTitle": "Cannot load work order info",
+      "errors": {
+        "notFound": "Link is invalid or expired. Please contact support.",
+        "expired": "Link has expired. Please contact support for the latest status.",
+        "rateLimit": "Too many requests, please retry later.",
+        "fail": "Lookup failed, please retry later or contact support.",
+        "network": "Network error, please retry later."
+      },
+      "fields": {
+        "orderId": "Order ID",
+        "currentStatus": "Current status",
+        "scheduled": "Scheduled time",
+        "completed": "Completed time",
+        "technician": "Technician",
+        "technicianPhone": "Technician phone",
+        "lastUpdate": "Last Update"
+      },
+      "etaText": "Technician arrives in approximately {min} min",
+      "status": {
+        "pending": "Booked",
+        "scheduled": "Scheduled",
+        "on_the_way": "On the way",
+        "in_progress": "In progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      }
+    },
+    "scopeChangePublic": {
+      "title": "Scope change confirmation",
+      "errorTitle": "Cannot load proposal",
+      "errors": {
+        "notFound": "Link is invalid or expired. Please contact support.",
+        "expired": "Link has expired. Please contact support for the latest status.",
+        "rateLimit": "Too many requests, please retry later.",
+        "fail": "Lookup failed, please retry later or contact support.",
+        "network": "Network error, please retry later.",
+        "stateChanged": "Proposal status changed, refreshing…",
+        "submitFail": "Submission failed, please retry later or contact support.",
+        "networkSubmit": "Network error, please retry later."
+      },
+      "confirmAccept": "Accept these added items and continue work?",
+      "fields": {
+        "status": "Proposal status",
+        "techNote": "Technician note",
+        "items": "Added items",
+        "quantity": "Qty: {count}",
+        "totalDelta": "Total delta",
+        "validUntil": "Valid until: {time}"
+      },
+      "result": {
+        "accepted": "Proposal accepted",
+        "rejected": "Proposal rejected"
+      },
+      "buttons": {
+        "reject": "Reject",
+        "accept": "Accept",
+        "submitting": "Working…"
+      },
+      "status": {
+        "pending": "Awaiting your reply",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "expired": "Expired",
+        "superseded": "Superseded by a new proposal"
+      }
+    },
+    "consentPublic": {
+      "title": "Service disclaimer consent",
+      "intro": "Please read and agree to the three statements below before service.",
+      "skeletonLabel": "Loading disclaimers",
+      "errorTitle": "Unable to load disclaimers",
+      "errors": {
+        "notFound": "Link invalid or expired. Please contact support.",
+        "expired": "This link has expired. Please contact support for a new one.",
+        "rateLimit": "Too many requests, please try again shortly.",
+        "fail": "Failed to load, please try again later or contact support.",
+        "network": "Network error, please try again later."
+      },
+      "submit": "I have read and agree to all of the above",
+      "submitHint": "Please check all three statements",
+      "submitting": "Submitting…",
+      "done": "Consent recorded. Thank you for your cooperation.",
+      "versionNote": "Terms version: {v}"
+    },
+    "quotesPublic": {
+      "title": "Quote confirmation",
+      "skeletonLabel": "Loading quote",
+      "errorTitle": "Unable to load quote",
+      "errors": {
+        "notFound": "Link invalid or expired. Please contact support.",
+        "expired": "This quote link has expired. Please contact support for an updated quote.",
+        "rateLimit": "Too many requests, please try again shortly.",
+        "fail": "Request failed, please try again later or contact support.",
+        "network": "Network error, please try again later."
+      },
+      "fields": {
+        "item": "Item",
+        "qty": "Qty",
+        "price": "Amount",
+        "total": "Total",
+        "validUntil": "Valid until",
+        "snapshot": "Quote ref"
+      },
+      "buttons": {
+        "accept": "Accept quote",
+        "decline": "Decline quote",
+        "accepting": "Processing…",
+        "declining": "Processing…"
+      },
+      "state": {
+        "draft": "Draft",
+        "pending_approval": "Pending approval",
+        "approved": "Approved",
+        "sent": "Awaiting confirmation",
+        "accepted": "Accepted",
+        "rejected": "Declined",
+        "expired": "Expired"
+      },
+      "statusHint": {
+        "draft": "This quote is still being prepared.",
+        "pending_approval": "This quote is under internal approval.",
+        "approved": "This quote is approved and will be sent to you shortly.",
+        "accepted": "You have accepted this quote. We will arrange the service soon.",
+        "rejected": "This quote was declined. Contact support for a re-quote.",
+        "expired": "This quote has expired. Please contact support for an updated quote."
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "unreadBadge": "Unread {count}",
+      "refresh": "Refresh",
+      "markAll": "Mark all as read",
+      "markAllBusy": "Working…",
+      "preferences": "Preferences",
+      "totalCount": "{count}{plus} total",
+      "loading": "Loading…",
+      "selectAll": "Select all",
+      "clearSelection": "Clear selection",
+      "empty": {
+        "unread": "All unread notifications cleared",
+        "archived": "No archived notifications",
+        "all": "No notifications"
+      },
+      "managePrefs": "Manage preferences →",
+      "moreHint": "Showing the most recent {limit}; use filters to narrow down",
+      "detail": "Notification detail",
+      "fromSource": "Source: {source}",
+      "sourceLabel": {
+        "websocket": "Real-time push",
+        "line_push": "LINE push",
+        "system": "System",
+        "email_fallback": "Email fallback"
+      },
+      "openLink": "Go to",
+      "openLinkSource": "source page",
+      "quickActions": "Quick actions",
+      "markRead": "Mark as read",
+      "archive": "Archive",
+      "selectedCount": "{count} selected",
+      "bulkMarkRead": "Mark as read",
+      "bulkArchive": "Archive",
+      "bulkCancel": "Cancel",
+      "severity": {
+        "critical": "Critical",
+        "warning": "Warning"
+      },
+      "tabs": {
+        "unread": "Unread",
+        "all": "All",
+        "read": "Read",
+        "archived": "Archived"
+      },
+      "types": {
+        "all": "All types",
+        "work_order": "Work order",
+        "refund": "Refund",
+        "dispute": "Dispute",
+        "rbac": "RBAC",
+        "inventory": "Inventory",
+        "sla": "SLA",
+        "system": "System",
+        "mention": "Mention"
+      }
+    },
+    "account": {
+      "profile": {
+        "fallbackName": "Technician",
+        "ariaToggleOnline": "Toggle online/offline",
+        "onlineToggleLabel": "Accepting orders",
+        "onlineToggleHint": "(Toggle online / offline to receive dispatches)",
+        "monthIncome": "This month's income (API pending)",
+        "incomeNote": "Income overview, commission breakdown, and settlements ship in V1.1",
+        "completedOrders": "Completed",
+        "rating": "Avg rating",
+        "level": "Level",
+        "personal": "Personal info",
+        "loading": "Loading…",
+        "phone": "Phone",
+        "skills": "Skills",
+        "serviceArea": "Service area",
+        "noProfile": "No profile available",
+        "appearance": "Appearance",
+        "mySchedule": "My schedule",
+        "notifPref": "Notification preferences",
+        "editProfile": "Edit profile",
+        "logoutConfirm": "Are you sure you want to sign out?",
+        "logout": "Sign out",
+        "loggingOut": "Signing out…",
+        "footer": "Smart Lock Technician Console v0.1",
+        "availability": {
+          "available": "Online",
+          "busy": "Busy",
+          "offline": "Offline",
+          "on_leave": "On leave",
+          "circuit_breaker_open": "Paused (circuit breaker)"
+        }
+      },
+      "schedule": {
+        "back": "Back",
+        "title": "My schedule",
+        "prevMonth": "Previous month",
+        "nextMonth": "Next month",
+        "monthLabel": "{month}/{year}",
+        "leaveQuota": "Leave requests",
+        "standbyQuota": "Standby requests",
+        "monthOrders": "Orders this month",
+        "weekdays": {
+          "sun": "Sun",
+          "mon": "Mon",
+          "tue": "Tue",
+          "wed": "Wed",
+          "thu": "Thu",
+          "fri": "Fri",
+          "sat": "Sat"
+        },
+        "legend": {
+          "leave": "Leave",
+          "standby": "Standby",
+          "orders": "Orders"
+        },
+        "closeToday": "Close today's intake",
+        "closeTodayHint": "Effective immediately if no orders within 1h; otherwise after the last order completes.",
+        "closeTodayAria": "Toggle today's intake",
+        "applyLeave": "Apply leave",
+        "applyStandby": "Apply standby",
+        "pending": "Pending requests",
+        "pendingCount": "{count}",
+        "noPending": "No pending requests",
+        "leaveTag": "Leave",
+        "standbyTag": "Standby",
+        "statusPrefix": "Status: {label}",
+        "cancelAria": "Cancel request",
+        "cancelConfirm": "Cancel this request?",
+        "cancelDone": "Request cancelled",
+        "submitDone": "{type} request submitted, awaiting admin approval",
+        "closeDone": "Today's intake is closed",
+        "openDone": "Today's intake reopened",
+        "modal": {
+          "leaveTitle": "Apply for leave",
+          "standbyTitle": "Apply for standby/overtime",
+          "startDate": "Start date",
+          "endDate": "End date",
+          "leaveReason": "Leave reason",
+          "standbyNote": "Standby note",
+          "leaveReasonPlaceholder": "e.g. annual leave / medical / family",
+          "standbyNotePlaceholder": "e.g. covering today's shortage",
+          "minLength": "Min 5 chars ({count}/5)",
+          "cancel": "Cancel",
+          "submit": "Submit",
+          "submitting": "Submitting…"
+        },
+        "requestStatus": {
+          "pending": "Pending",
+          "approved": "Approved",
+          "rejected": "Rejected"
+        }
+      }
+    }
+  },
+  "alerts": {
+    "sla": {
+      "channelName": "SLA alerts channel",
+      "noAlerts": "No alerts",
+      "breached": "⚠ SLA breached",
+      "warning": "SLA alert",
+      "countSuffix": " ({count})",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "dismissAll": "Mark all read",
+      "handle": "Handle",
+      "dismissAria": "Dismiss",
+      "escalated": " · escalated to {to}",
+      "thresholdMin": " (threshold {min} min)",
+      "targetIdPrefix": "target #",
+      "types": {
+        "quote_expiring": {
+          "label": "Quote expiring",
+          "description": "Quote will expire — past retention window"
+        },
+        "dispatch_delay": {
+          "label": "Dispatch delay",
+          "description": "Auto-dispatch timeout or repeated rejections — manual action needed"
+        },
+        "response_overdue": {
+          "label": "Response SLA breach",
+          "description": "Customer response time exceeded SLA threshold"
+        },
+        "arrival_overdue": {
+          "label": "Technician arrival overdue (red alert)",
+          "description": "Technician >2h late — escalated to Ops Manager"
+        }
+      }
+    }
+  },
+  "admin": {
+    "common": {
+      "refresh": "Refresh",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "lastUpdated": "Last updated: {time}",
+      "totalCount": "{count} record(s)",
+      "totalCountMore": "{count}+ record(s)",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "submitting": "Submitting…",
+      "submit": "Submit",
+      "cancel": "Cancel",
+      "comingSoon": "Coming soon",
+      "all": "All",
+      "clearFilter": "Clear filter",
+      "noData": "No data",
+      "back": "Back",
+      "approvalFailed": "Approval failed: {error}"
+    },
+    "refunds": {
+      "title": "Refund review queue",
+      "decision": {
+        "approve": "Approve refund",
+        "reject": "Reject refund",
+        "escalate": "Escalate review",
+        "submitted": "{label} submitted"
+      },
+      "sla": {
+        "tier2": "Filed ≤ 2 hours",
+        "tier8": "Filed ≤ 8 hours",
+        "tierLong": "Filed > 8 hours"
+      },
+      "modal": {
+        "title": "Refund decision",
+        "refundId": "Refund ID:",
+        "amount": "Amount:",
+        "originalReason": "Original reason: {reason}",
+        "approveHint": "After approval, status moves to \"Approved\". Cashier still needs to release the payment.",
+        "rejectHint": "Rejection ends the request; please write a customer-friendly reason in the field.",
+        "escalateHint": "Use when the amount or scenario exceeds your authority. Status becomes \"Escalated\".",
+        "reasonLabel": "Approval reason (required, max 500 chars)",
+        "reasonPlaceholder": "Describe the rationale for this decision (will be written to approval_chain)",
+        "charCount": "{count} / 500",
+        "dualSignNote": "This case is flagged for dual-sign; MVP will retain audit trail after a single-step write."
+      }
+    },
+    "disputes": {
+      "title": "Dispute case handling",
+      "tabs": {
+        "all": "All",
+        "filed": "Filed",
+        "in_review": "Reviewing",
+        "resolved": "Resolved",
+        "rejected": "Rejected"
+      },
+      "type": {
+        "label": "Type",
+        "pricing": "Pricing",
+        "quality": "Quality",
+        "warranty": "Warranty",
+        "cancellation_fee": "Cancellation fee",
+        "settlement": "Settlement"
+      },
+      "description": "Dispute description",
+      "resolution": "Resolution:",
+      "evidence": {
+        "customer": "Customer evidence",
+        "technician": "Technician evidence",
+        "countComing": "{count} item(s) (thumbnails coming)",
+        "thumbnailPending": "Thumbnail rendering will go live after the media upload path is ready."
+      },
+      "form": {
+        "title": "Resolution form",
+        "noteLabel": "Resolution note",
+        "notePlaceholder": "Enter resolution note...",
+        "amountLabel": "Resolution amount NT$",
+        "methodLabel": "Resolution method",
+        "methodPlaceholder": "Partial refund",
+        "saveDraft": "Save draft",
+        "confirmResolution": "Confirm resolution"
+      }
+    },
+    "warranty": {
+      "title": "Warranty claim management",
+      "tabs": {
+        "all": "All",
+        "filed": "Filed",
+        "in_progress": "In progress",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "closed": "Closed"
+      },
+      "ruleNotice": "Warranty starts from the \"handover date\", not the \"move-in date\". This is a core system rule and applies to all warranty calculations.",
+      "searchPlaceholder": "Search by case ID, device, or customer...",
+      "toast": {
+        "approved": "Warranty approved",
+        "rejected": "Warranty rejected",
+        "startReview": "Moved to in-progress"
+      },
+      "decision": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "startReview": "Move to in-progress",
+        "approveHint": "Warranty valid or approved on review: optional out-of-warranty discount can be attached.",
+        "rejectHint": "Out of warranty or ineligible: rejection reason is required for customer reference.",
+        "startReviewHint": "Needs evidence or customer follow-up: temporarily push to in_progress before final decision."
+      },
+      "modal": {
+        "title": "Warranty decision",
+        "warrantyUntil": "Warranty until",
+        "withinWarranty": " (within warranty)",
+        "outOfWarranty": " (expired)",
+        "resolutionLabel": "Approval comment / resolution",
+        "resolutionMaxHint": " (max 500 chars)",
+        "resolutionPlaceholderApprove": "e.g., Mainboard fault during warranty, approved free replacement",
+        "resolutionPlaceholderReject": "e.g., Out of warranty by 18 months and visible signs of human damage",
+        "resolutionPlaceholderReview": "e.g., Customer is gathering documents; will revisit after invoice is provided",
+        "discountLabel": "Discount / offset (NT$, optional)",
+        "discountPlaceholder": "e.g., 1500.00 or 0 for fully free",
+        "discountFormatError": "Amount must be a number with up to two decimals",
+        "decisionFinalHint": "After submission status becomes \"{label}\"; approve / reject is final and cannot be changed."
+      }
+    },
+    "sentiment": {
+      "title": "Negative sentiment alerts",
+      "filterLabel": "Status",
+      "empty": "No matching alerts",
+      "alreadyResolved": "Resolved",
+      "status": {
+        "pending": "Pending",
+        "acknowledged": "Acknowledged",
+        "resolved": "Resolved"
+      },
+      "label": {
+        "very_negative": "Very negative",
+        "negative": "Negative",
+        "neutral": "Neutral",
+        "positive": "Positive"
+      },
+      "action": {
+        "acknowledge": "Acknowledge",
+        "resolve": "Resolve"
+      },
+      "cols": {
+        "time": "Time",
+        "status": "Status",
+        "sentiment": "Sentiment",
+        "confidence": "Confidence",
+        "messageSnippet": "Customer message",
+        "keywords": "Keywords",
+        "conversation": "Chat",
+        "action": "Action"
+      },
+      "modal": {
+        "titleResolve": "Resolve alert",
+        "titleAcknowledge": "Acknowledge alert",
+        "closeAria": "Close",
+        "noteLabel": "Admin note",
+        "notePlaceholderResolve": "Resolution summary (e.g., refund issued / supervisor reached out)",
+        "notePlaceholderAcknowledge": "(Optional) Note contact log, expected handling time, etc.",
+        "noteCount": "{count} / 1000",
+        "noteOverLimit": "Exceeds 1000-char limit",
+        "required": "Required",
+        "submitResolve": "Confirm resolve",
+        "submitAcknowledge": "Confirm"
+      },
+      "escalate": {
+        "button": "Escalate WO",
+        "tooltip": "Escalate linked work order (Flow 9)",
+        "modalTitle": "Escalate linked work order",
+        "modalHint": "Calls escalate on the linked work order; the alert will auto-mark as acknowledged and append the escalation trail to the note.",
+        "levelLabel": "Escalation level",
+        "level": {
+          "operations_manager": "Operations Manager",
+          "tenant_admin": "Tenant Admin"
+        },
+        "reasonLabel": "Reason",
+        "reasonPlaceholder": "Why does this alert need immediate escalation? (saved to WO escalation log + sentiment alert note)",
+        "reasonOverLimit": "Exceeds 500-char limit",
+        "submitButton": "Confirm escalate",
+        "successAlert": "Linked work order {woId} escalated."
+      }
+    },
+    "inventory": {
+      "title": "Inventory management",
+      "addItem": "Add item",
+      "addItemTooltip": "Coming soon (requires createInventoryItem endpoint)",
+      "summary": {
+        "current": "Current page items",
+        "currentMore": "Current page items (+)",
+        "low": "Low stock",
+        "out": "Out of stock"
+      },
+      "searchPlaceholder": "Search by name or part number (filters current page)...",
+      "categoryLabel": "Category",
+      "categoryTooltip": "Coming soon (requires server-side category filter)",
+      "stockStatusLabel": "Stock status",
+      "stockStatusTooltip": "Coming soon (requires server-side status filter)"
+    },
+    "audit": {
+      "title": "Audit logs",
+      "export": "Export",
+      "filterLabel": "Event type",
+      "empty": "No matching audit records",
+      "logType": {
+        "api_call": "API call",
+        "llm_interaction": "LLM interaction",
+        "rag_retrieval": "RAG retrieval",
+        "admin_action": "Admin action",
+        "agent_message": "Agent message"
+      },
+      "actor": {
+        "system": "System",
+        "admin": "Admin"
+      },
+      "cols": {
+        "time": "Time",
+        "logType": "Event type",
+        "actor": "Actor",
+        "action": "Action"
+      },
+      "json": {
+        "copy": "Copy JSON",
+        "copied": "Copied",
+        "copyFailed": "Copy failed"
+      }
+    },
+    "roles": {
+      "title": "Roles & permissions",
+      "createCustom": "Create custom role",
+      "createCustomTooltip": "Coming soon (requires custom-role CRUD endpoint)",
+      "loadingRoles": "Loading…",
+      "noRoles": "No roles available",
+      "systemBadge": "System",
+      "userCount": "Users {count}",
+      "matrixTitle": "{name} permission matrix",
+      "matrixHint": "(Lock icon = system-enforced. The Approve column is for configuration/display only and is not yet applied to actual operations.)",
+      "editPermissions": "Edit permissions",
+      "editTooltipNoRbac": "Your role tier is not high enough to grant this permission",
+      "editTooltipNoTier": "Your role tier is not high enough to grant this role",
+      "savedToast": "Updated permission matrix for \"{name}\"",
+      "cols": {
+        "resource": "Resource",
+        "read": "Read",
+        "write": "Write",
+        "approve": "Approve",
+        "delete": "Delete"
+      },
+      "resource": {
+        "work_orders": "Work orders",
+        "technicians": "Technicians",
+        "customers": "Customers",
+        "accounting": "Accounting",
+        "invoices": "Invoices",
+        "refunds": "Refunds",
+        "inventory": "Inventory",
+        "warranty": "Warranty",
+        "disputes": "Disputes",
+        "audit_logs": "Audit logs",
+        "roles": "Role permissions",
+        "system_settings": "System settings"
+      }
+    },
+    "scheduleRequests": {
+      "title": "Schedule request review",
+      "breadcrumb": "Home > Dispatch > Schedule request review",
+      "tabs": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled",
+        "all": "All"
+      },
+      "type": {
+        "leave": "Leave",
+        "standby": "Standby"
+      },
+      "status": {
+        "pending": "Pending",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      },
+      "emptyPending": "No pending requests",
+      "emptyOther": "No {label} requests",
+      "cols": {
+        "technician": "Technician",
+        "type": "Type",
+        "dateRange": "Date range",
+        "reason": "Reason",
+        "status": "Status",
+        "createdAt": "Submitted at",
+        "actions": "Actions"
+      },
+      "approvalNote": "Approval note: {note}",
+      "approve": "Approve",
+      "reject": "Reject",
+      "toast": {
+        "approved": "Request approved",
+        "rejected": "Request rejected"
+      },
+      "modal": {
+        "titleApprove": "Approve request",
+        "titleReject": "Reject request",
+        "noteLabel": "Approval note (optional, recorded in audit):",
+        "notePlaceholder": "e.g., Approved / suggest reschedule / rejection reason...",
+        "processing": "Processing…",
+        "confirmApprove": "Confirm approve",
+        "confirmReject": "Confirm reject"
+      }
+    },
+    "dispatchManual": {
+      "missingParam": {
+        "title": "Missing work order parameter",
+        "hint": "Open via the dispatch queue (A28) \"Manual override\" link, or append",
+        "queryHint": "?work_order_id=xxx",
+        "goQueue": "Go to dispatch queue"
+      },
+      "breadcrumb": "Home > Dispatch > Manual override",
+      "title": "Manual dispatch override",
+      "refresh": "Refresh",
+      "ctxLoading": "Loading work order…",
+      "ctxNotFound": "Work order not found (id: {id})",
+      "ctxOrderTitle": "Work order #{id}",
+      "ctxAttempted": "Dispatch attempts",
+      "ctxTimes": "",
+      "ctxAttemptHistory": "Auto-dispatch attempts ({count})",
+      "ctxAttemptOutcome": {
+        "declined": "Declined",
+        "timeout": "Timeout",
+        "accepted": "Accepted"
+      },
+      "filters": {
+        "title": "Filters",
+        "techLevel": "Technician level",
+        "minRating": "Minimum rating: {value}",
+        "excludeCircuit": "Exclude circuit-broken technicians",
+        "sortLabel": "Sort by",
+        "sort": {
+          "score": "Composite score",
+          "distance": "Closest distance",
+          "rating": "Highest rating"
+        }
+      },
+      "candidates": {
+        "summary": "Candidates ({count}{available})",
+        "available": " / {total} available",
+        "selected": "Selected: {name}",
+        "loading": "Loading…",
+        "emptyTitle": "No matching technicians",
+        "emptyHint": "Loosen filters or escalate to a manager",
+        "cols": {
+          "tech": "Technician",
+          "level": "Level",
+          "score": "Score",
+          "distance": "Distance",
+          "rating": "Rating",
+          "skill": "Skill match",
+          "availability": "Availability"
+        },
+        "circuitBadge": "Broken",
+        "etaImmediate": "Immediate",
+        "etaMinutes": "in {min} min"
+      },
+      "panel": {
+        "noTech": "Pick a technician from the candidate list",
+        "willAssign": "Assign work order #{id} to {name}",
+        "cancelOrder": "Cancel order",
+        "escalate": "Escalate",
+        "reschedule": "Reschedule + notify",
+        "assignAction": "Assign",
+        "assignActionTo": "Assign to {name}"
+      },
+      "modal": {
+        "title": "Assignment reason",
+        "intro": "Assigning to {name} (level {level}). Pick a reason for audit:",
+        "extra": "Notes",
+        "extraPlaceholder": "10–500 chars",
+        "cancel": "Cancel",
+        "submit": "Confirm assignment",
+        "submitting": "Submitting…"
+      },
+      "reasons": {
+        "auto_dispatch_exhausted": "Auto-dispatch exhausted",
+        "customer_requested_specific_tech": "Customer requested",
+        "skill_shortage_override": "Skill shortage override",
+        "sla_rescue": "SLA breach imminent — force assign",
+        "other": "Other (free text)"
+      },
+      "errors": {
+        "otherRequired": "\"Other\" reason requires 10–500 chars",
+        "circuitBreaker": "Technician circuit-broken; needs operations_manager dual-sign (MVP pending)",
+        "conflict": "Work order already assigned by someone else, please refresh",
+        "escalatePrompt": "Reason for higher-level review (required):",
+        "cancelConfirm": "Cancel this work order and refund in full? Customer will be notified."
+      },
+      "actionMsg": {
+        "assignedTo": "Assigned to {name}",
+        "fallbackTech": "technician",
+        "escalated": "Escalated to operations_manager, awaiting manager",
+        "cancelled": "Work order cancelled"
+      },
+      "scoreCell": {
+        "title": "Score breakdown",
+        "weight": "(×{weight})",
+        "contribution": "{value} pts",
+        "formula": "Formula: skill ×0.4 + distance ×0.3 + rating ×0.3 = 0–100 pts",
+        "dim": {
+          "skill": "Skill match",
+          "distance": "Distance",
+          "rating": "Rating"
+        }
+      },
+      "connection": {
+        "ok": "Connected",
+        "fail": "Disconnected"
+      }
+    },
+    "dispatchQueue": {
+      "breadcrumb": "Home > Dispatch > Queue",
+      "title": "Dispatch queue monitor",
+      "lastUpdated": "Updated: {time}",
+      "notLoaded": "Not loaded",
+      "refresh": "Refresh",
+      "dispatchMode": {
+        "label": "Dispatch mode",
+        "hint": "manual = tenant self-assign / platform_paid = platform-assisted (billable) / auto_match = auto-match (next phase)",
+        "manual": "Tenant manual",
+        "platformPaid": "Platform-assisted (paid)",
+        "autoMatch": "Auto-match"
+      },
+      "connection": {
+        "ok": "Connected",
+        "fail": "Disconnected"
+      },
+      "cards": {
+        "pending": {
+          "title": "Pending",
+          "subtitle": "No technician assigned"
+        },
+        "assigning": {
+          "title": "Dispatching",
+          "subtitle": "Awaiting technician response"
+        },
+        "assigned": {
+          "title": "Assigned",
+          "subtitle": "Technician accepted"
+        },
+        "sla_at_risk": {
+          "title": "SLA risk",
+          "subtitle": "May breach within 2h"
+        }
+      },
+      "search": {
+        "placeholder": "Coming soon: search by order ID, customer, address",
+        "comingSoon": "Coming soon"
+      },
+      "filters": {
+        "dispatchCount": "Dispatch attempts: All",
+        "responseStatus": "Response: All",
+        "needIntervention": "Show needs-intervention only"
+      },
+      "pool": {
+        "title": "Pickable pool (listWorkOrderPool)",
+        "summary": "{count} items · sorted by urgency + created time",
+        "empty": "No work orders to pick",
+        "more": "{count} more not shown — handle them in /work-orders."
+      },
+      "urgency": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      }
+    },
+    "materialRequests": {
+      "breadcrumb": "Home > Dispatch > Material requests",
+      "title": "Material requests",
+      "count": "{n} active reports",
+      "lastUpdated": "Last updated: {time}",
+      "notLoaded": "Not loaded",
+      "refresh": "Refresh",
+      "loading": "Loading…",
+      "empty": "No active material requests",
+      "noItems": "(no items)",
+      "supplyAction": "Mark supplied",
+      "supplyConfirm": "Confirm this material request is supplied? The row will be removed from the list.",
+      "filter": {
+        "all": "All",
+        "now": "Now",
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "other": "Other"
+      },
+      "col": {
+        "urgency": "Urgency",
+        "reportedAt": "Reported at",
+        "workOrder": "Work order",
+        "woStatus": "WO status",
+        "scheduledAt": "Scheduled at",
+        "items": "Items",
+        "note": "Note",
+        "action": "Action"
+      }
+    },
+    "customers": {
+      "list": {
+        "title": "Customers",
+        "tenantTag": "SmartLock tenant",
+        "searchPlaceholder": "Filter on this page: name / phone / LINE ID / address…",
+        "refresh": "Refresh",
+        "addCustomer": "Add customer",
+        "stats": {
+          "pageTotal": "Customers on this page",
+          "active": "Active customers",
+          "activeNote": "Active in last 30 days",
+          "highRisk": "High-risk",
+          "highRiskNote": "Risk level high / critical",
+          "warrantyExpiring": "Warranty expired",
+          "warrantyNote": "Customers past warranty"
+        },
+        "filterChips": {
+          "risk": "Risk level",
+          "brand": "Device brand",
+          "warranty": "Warranty status",
+          "preferredTech": "Preferred technician",
+          "brandOther": "Other",
+          "preferredTechAll": "All technicians",
+          "riskOptions": {
+            "low": "Low",
+            "medium": "Medium",
+            "high": "High",
+            "critical": "Critical"
+          },
+          "warrantyOptions": {
+            "active": "In warranty",
+            "expired": "Expired",
+            "none": "No warranty"
+          }
+        },
+        "comingSoon": "Coming soon",
+        "cols": {
+          "customer": "Customer",
+          "lineId": "LINE ID",
+          "address": "Address",
+          "conversations": "Conv.",
+          "orders": "Orders",
+          "lastService": "Last service",
+          "lastActive": "Last active"
+        },
+        "loading": "Loading…",
+        "emptyFilter": "No matching customers on this page",
+        "empty": "No customers yet",
+        "loadMore": "Load more",
+        "loadingMore": "Loading…",
+        "viewDetail": "View detail",
+        "editCustomer": "Edit customer"
+      },
+      "detail": {
+        "back": "Back",
+        "breadcrumb": "Home > Customers > Detail",
+        "edit": "Edit customer",
+        "loading": "Loading…",
+        "notFound": "Customer not found",
+        "addressLabel": "Address: ",
+        "lineIdLabel": "LINE ID: ",
+        "createdLabel": "Created: ",
+        "lastActiveLabel": "Last active: ",
+        "kpi": {
+          "totalOrders": "Total orders",
+          "totalConversations": "Conversations",
+          "avgRating": "Avg rating",
+          "rated": "{count} ratings",
+          "noRating": "No ratings yet",
+          "disputeCount": "Disputes",
+          "avgCompletion": "Avg completion",
+          "minutes": "{min} min",
+          "refundCount": "Refunds",
+          "refundTotal": "Refund total"
+        },
+        "statusBreakdown": "Status breakdown",
+        "statusValue": "{label}: ",
+        "recentOrders": "Recent orders ({count})",
+        "noOrders": "No work order history",
+        "ordersCols": {
+          "id": "Order",
+          "brandModel": "Brand / model",
+          "status": "Status",
+          "estimate": "Estimate",
+          "createdAt": "Created"
+        },
+        "recentConversations": "Recent conversations ({count})",
+        "noConversations": "No conversation history",
+        "status": {
+          "created": "Pending dispatch",
+          "assigned": "Assigned",
+          "accepted": "Accepted",
+          "in_progress": "In progress",
+          "completed": "Completed",
+          "confirmed": "Confirmed",
+          "cancelled": "Cancelled"
+        },
+        "convStatus": {
+          "active": "Active",
+          "escalated": "Escalated",
+          "closed": "Closed"
+        },
+        "convChannel": {
+          "line": "LINE",
+          "web": "Web",
+          "phone": "Phone"
+        }
+      }
+    },
+    "quoteCatalog": {
+      "title": "Quote Catalog",
+      "loading": "Loading…",
+      "services": "Services ({n})",
+      "materials": "Materials ({n})",
+      "surcharges": "Surcharges ({n})",
+      "code": "Code",
+      "name": "Name",
+      "type": "Type",
+      "cost": "Cost",
+      "custPrice": "Suggested Price",
+      "ruleType": "Rule Type",
+      "value": "Value",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "quotes": {
+      "title": "Quotes",
+      "mockBadge": "Mock Data",
+      "woId": "Work Order ID",
+      "woPickerLabel": "Select Work Order",
+      "woPickerPlaceholder": "Enter doc no. (TP-000001) or customer name",
+      "woPickerSearching": "Searching…",
+      "woPickerNoResult": "No matching work orders",
+      "woPickerClear": "Clear selected work order",
+      "createDraft": "Create Draft",
+      "quoteId": "Quote ID",
+      "item": "Item",
+      "pickItem": "Select an item",
+      "services": "Services",
+      "materials": "Materials",
+      "qty": "Qty",
+      "addLine": "Add Item",
+      "removeLine": "Remove item",
+      "deleteQuote": "Delete quote",
+      "deleteConfirm": "Delete this entire quote? This cannot be undone.",
+      "name": "Name",
+      "category": "Category",
+      "cost": "Cost",
+      "custPrice": "Customer Price",
+      "noLines": "No items",
+      "customerLink": "Customer Link",
+      "copied": "Copied",
+      "copyLink": "Copy Link",
+      "getLink": "Get Link",
+      "snapshot": "Snapshot Hash",
+      "note": "This page shows mock data; amounts are for reference only.",
+      "state": {
+        "draft": "Draft",
+        "pending_approval": "Pending Approval",
+        "approved": "Approved",
+        "sent": "Sent",
+        "accepted": "Accepted",
+        "rejected": "Rejected",
+        "expired": "Expired"
+      },
+      "action": {
+        "submit": "Submit",
+        "send": "Send & push to LINE",
+        "approve": "Approve",
+        "reject": "Reject",
+        "accept": "Mark Accepted"
+      },
+      "createInvoice": "Create Invoice",
+      "invoiceCreated": "Invoice created: {no}",
+      "lineApprovalHint": "Quote pushed to the customer's LINE; they can approve/reject right in LINE. The link below is a web fallback.",
+      "listTitle": "Quotes",
+      "woNumber": "WO No.",
+      "customer": "Customer",
+      "statusCol": "Status",
+      "total": "Total",
+      "open": "Open",
+      "quoteNo": "Quote No."
+    }
+  },
+  "kb": {
+    "tabs": {
+      "cases": "Cases",
+      "manuals": "Manuals",
+      "sopDrafts": "SOP drafts"
+    },
+    "breadcrumbHome": "Home",
+    "breadcrumbKb": "Knowledge base",
+    "pageTitle": "Knowledge base",
+    "cases": {
+      "breadcrumbCases": "Cases",
+      "searchPlaceholder": "Search cases by keyword (title / problem / solution)",
+      "clear": "Clear",
+      "brandFilterLabel": "Filter by brand",
+      "verifiedFilterLabel": "Filter by verification",
+      "allBrands": "All brands",
+      "allStatuses": "All statuses",
+      "verified": "Verified",
+      "unverified": "Unverified",
+      "verifiedCheck": "✓ Verified",
+      "clearFilter": "Clear filters",
+      "exportTitleAll": "Export tenant-wide knowledge base",
+      "exportTitleBrand": "Export filtered by brand \"{brand}\"",
+      "exporting": "Exporting…",
+      "exportButton": "Export index",
+      "exportError": "Export failed: {error}",
+      "exportToast": "Exported {count} entries ({scope})",
+      "exportDownloadFail": "Download failed (HTTP {status})",
+      "scopeCases": "Cases only",
+      "addCase": "New case",
+      "searchHits": "Found {count} cases for \"{query}\"",
+      "searchHitsBrand": " (brand: {brand})",
+      "form": {
+        "newTitle": "New case",
+        "editTitle": "Edit case",
+        "back": "Cancel",
+        "backToList": "Back to cases",
+        "backToDetail": "Back to case detail",
+        "title": "Title",
+        "titlePlaceholder": "e.g. AI-99 misaligned door causes lock failure",
+        "brand": "Brand",
+        "brandPlaceholder": "Chatlock / Dormakaba / KESO ...",
+        "model": "Model",
+        "modelPlaceholder": "AI-99",
+        "tags": "Tags (comma separated)",
+        "tagsPlaceholder": "install, door, mechanical",
+        "problem": "Problem description",
+        "problemPlaceholder": "Customer-reported symptoms...",
+        "solution": "Solution",
+        "solutionPlaceholder": "Steps taken and final outcome...",
+        "verifiedCheckbox": "Mark as verified",
+        "creating": "Creating…",
+        "createSubmit": "Create case",
+        "saving": "Saving…",
+        "saveSubmit": "Save changes",
+        "cancel": "Cancel",
+        "validateRequired": "Please provide title, brand, problem and solution.",
+        "errorNoData": "Backend returned no case data"
+      },
+      "detail": {
+        "loading": "Loading…",
+        "fallbackTitle": "Case detail",
+        "edit": "Edit",
+        "delete": "Delete",
+        "deleting": "Deleting…",
+        "confirmDelete": "Delete case \"{title}\"? This cannot be undone.",
+        "notFoundTitle": "Case not found",
+        "notFoundDesc": "The case may have been deleted, or the URL is invalid.",
+        "notFoundDescShort": "The case may have been deleted.",
+        "problemTitle": "Problem description",
+        "solutionTitle": "Solution",
+        "createdAt": "Created {time}",
+        "updatedAt": "Updated {time}",
+        "embedProcessing": "Indexing",
+        "embedReady": "Indexed",
+        "embedFailed": "Index failed"
+      }
+    },
+    "manuals": {
+      "breadcrumbManuals": "Manuals",
+      "brandFilterLabel": "Filter by brand",
+      "allBrands": "All brands",
+      "clearFilter": "Clear filter",
+      "uploadCta": "Click to upload manual (PDF)",
+      "uploadHint": "Status starts as processing; switches to ready once the PDF parsing pipeline finishes · max 50MB per file",
+      "loading": "Loading…",
+      "showCount": "Showing {count}",
+      "hasMoreSuffix": " (more available)",
+      "loadMore": "Load more",
+      "deleteToast": "Deleted \"{title}\"",
+      "uploadToast": "Uploaded \"{title}\" (processing in background)",
+      "deleteModal": {
+        "title": "Delete manual",
+        "confirmPrefix": "Delete manual ",
+        "confirmTitle": "\"{title}\"",
+        "confirmSuffix": "? This will also remove its parsed chunks and cannot be undone.",
+        "cancel": "Cancel",
+        "deleting": "Deleting…",
+        "confirm": "Confirm delete"
+      },
+      "uploadModal": {
+        "title": "Upload manual",
+        "fileLabel": "PDF file (required, up to 50MB)",
+        "fileInvalid": " (not a PDF or exceeds 50MB)",
+        "brandLabel": "Brand (required)",
+        "modelLabel": "Model (optional, leave empty for brand-wide manual)",
+        "modelPlaceholder": "e.g. AI-99",
+        "titleLabel": "Manual title (required, up to 200 chars)",
+        "titlePlaceholder": "e.g. Chatlock AI-99 user manual v2.3",
+        "noResponse": "Server returned no manual data",
+        "info": "After submit the status is processing; it switches to ready once the PDF parsing pipeline finishes. The file remains in the list while processing.",
+        "back": "Back",
+        "uploading": "Uploading…",
+        "submit": "Upload"
+      }
+    },
+    "sopDrafts": {
+      "review": {
+        "back": "Back to SOP drafts",
+        "loading": "Loading…",
+        "stepsTitle": "SOP steps",
+        "noSteps": "No steps yet",
+        "sourceCard": "Source problem card",
+        "createdAt": "Created {time}",
+        "reviewedAt": "Reviewed {time}",
+        "toolsTitle": "Review tools",
+        "workflowPrefix": "Workflow:",
+        "workflowStep1": " under review → approve/reject",
+        "workflowMid": "; once approved you can",
+        "workflowStep2": " adopt into the case library",
+        "workflowSuffix": " (creates a case entry). Rejected drafts cannot be restored.",
+        "commentLabel": "Review comment",
+        "commentMeta": " (optional, up to 1000 chars)",
+        "commentPlaceholderActive": "Enter review comment to send with your decision…",
+        "commentPlaceholderDisabled": "Draft is not in \"under review\"; comment disabled",
+        "existingReview": "Existing review record",
+        "approveTitle": "Approve draft (can be adopted later)",
+        "approveDisabledTitle": "Only \"under review\" drafts can be approved",
+        "rejectTitle": "Reject draft",
+        "rejectDisabledTitle": "Only \"under review\" drafts can be rejected",
+        "adoptTitle": "Adopt into case library — creates case_entry and marks the draft as published",
+        "adoptDisabledTitle": "Only \"approved\" drafts can be adopted",
+        "approve": "Approve",
+        "reject": "Reject",
+        "adopt": "Adopt into library",
+        "submitting": "Working…",
+        "approveToast": "Draft approved",
+        "rejectToast": "Draft rejected",
+        "adoptToastWithCase": "Adopted and created case {id}…",
+        "adoptToastNoCase": "Draft adopted",
+        "statusDraft": "Draft",
+        "statusUnderReview": "Under review",
+        "statusApproved": "Approved",
+        "statusRejected": "Rejected"
+      }
+    },
+    "familyReviews": {
+      "title": "Family review",
+      "summary": " · {pending} pending · {history}{plus} historical",
+      "errorClose": "Close",
+      "pendingTitle": "Pending family review (passed admin review)",
+      "colSopTitle": "SOP title",
+      "colReviewer": "Admin reviewer",
+      "colApprovedAt": "Admin approved at",
+      "colWaiting": "Waiting time",
+      "colAction": "Action",
+      "loading": "Loading…",
+      "noPending": "No drafts awaiting family review",
+      "actionApprove": "Approve",
+      "actionReject": "Reject",
+      "historyTitle": "Review history",
+      "filterAll": "All",
+      "filterApproved": "Approved",
+      "filterRejected": "Rejected",
+      "colTime": "Time",
+      "colResult": "Result",
+      "colDraft": "SOP draft",
+      "colReviewerHistory": "Reviewer",
+      "colNote": "Note",
+      "noHistory": "No reviews match the filter",
+      "loadMore": "Load more",
+      "modalTitle": "Submit family review",
+      "noteLabel": "Note",
+      "notePlaceholderReject": "Reason for rejection (required)",
+      "notePlaceholderApprove": "Optional: review comment / next steps",
+      "noteRequired": "Reason required when rejecting",
+      "cancel": "Cancel",
+      "submit": "Submit",
+      "submitting": "Submitting…"
+    }
+  },
+  "accounting": {
+    "tabs": {
+      "settlements": "Settlements",
+      "invoices": "Invoices",
+      "vouchers": "Vouchers",
+      "revenue": "Revenue"
+    },
+    "pageTitle": "Accounting & settlements",
+    "common": {
+      "refresh": "Refresh",
+      "lastUpdated": "Last updated: {time}",
+      "notLoaded": "Not loaded",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "loading": "Loading…",
+      "loadMore": "Load more",
+      "totalCount": "{count} total",
+      "totalCountPlus": "{count}+ total",
+      "comingSoon": "Coming soon",
+      "exportCsv": "Export CSV",
+      "dash": "—"
+    },
+    "settlements": {
+      "exportTitle": "Export CSV",
+      "filterPending": "Pending",
+      "filterApproved": "Approved",
+      "filterDisputed": "Disputed",
+      "filterAll": "All",
+      "segMonth": "Monthly (5th)",
+      "segBiweek": "Bi-weekly",
+      "segWeek": "Weekly",
+      "periodLast3m": "Last 3 months",
+      "periodLast12m": "Last 12 months",
+      "allPeriods": "All periods",
+      "genMonthly": "Run this month's settlement",
+      "genMonthlyBusy": "Processing…",
+      "genMonthlyDone": "Triggered settlement for {year}-{month}",
+      "totalBadge": "{count} total",
+      "reconTitle": "Reconciliations",
+      "settlementTitle": "Settlements",
+      "approveModal": {
+        "title": "Approve reconciliation",
+        "reconId": "Reconciliation ID",
+        "technician": "Technician",
+        "payout": "Technician payout",
+        "desc": "Approving will create a settlement (status=pending) and cannot be undone. Optional audit note:",
+        "notePlaceholder": "Note (optional, up to 500 chars)",
+        "cancel": "Cancel",
+        "approving": "Approving…",
+        "confirm": "Confirm"
+      },
+      "approveToast": "Approved reconciliation {id} (created {payout} settlement)",
+      "genMonthlyNoPaymentNote": "No payment gateway: creates ledger records only; payouts are wired manually by finance"
+    },
+    "vouchers": {
+      "filterStartLabel": "Start date",
+      "filterEndLabel": "End date",
+      "filterTo": "to",
+      "filterClear": "Clear dates",
+      "noResults": "No vouchers match the filter",
+      "exportTitle": "Export PDF",
+      "exporting": "Exporting…",
+      "exportButton": "PDF",
+      "colVoucherNo": "Voucher #",
+      "colType": "Type",
+      "colDate": "Posting date",
+      "colDebit": "Debit",
+      "colCredit": "Credit",
+      "colAmount": "Amount",
+      "colMemo": "Memo",
+      "colAction": "Action",
+      "entityReconciliation": "Reconciliation",
+      "entitySettlement": "Settlement",
+      "entityRefund": "Refund",
+      "entityInvoice": "Invoice"
+    },
+    "revenue": {
+      "kpiMonthRevenue": "Month revenue",
+      "kpiAvgInvoice": "Average invoice amount",
+      "kpiPaidRate": "Paid rate",
+      "kpiOutstanding": "Outstanding amount",
+      "kpiOutstandingSub": "{count} outstanding",
+      "segDay": "Day",
+      "segWeek": "Week",
+      "segMonth": "Month",
+      "dateRange": "Date range",
+      "exportCsv": "Export CSV",
+      "exportExcel": "Export Excel"
+    },
+    "invoices": {
+      "searchPlaceholder": "Search invoice number, customer name...",
+      "filterAllStatus": "All statuses",
+      "filterPaymentMethod": "Payment method",
+      "dateRange": "Date range"
+    }
+  },
+  "techPortal": {
+    "common": {
+      "back": "Back",
+      "cancel": "Cancel",
+      "loading": "Loading…",
+      "submitting": "Submitting…",
+      "uploading": "Uploading…",
+      "remove": "Remove",
+      "add": "Add",
+      "notFound": "Work order not found",
+      "backToList": "Back to list",
+      "refresh": "Refresh",
+      "clear": "Clear"
+    },
+    "shell": {
+      "guard": {
+        "openOnPhone": "Please open on a phone",
+        "description": "The technician portal is mobile-first. Open it on a phone (≤ 768px) for the best experience.",
+        "qrAlt": "Scan QR code to open on phone",
+        "scanHint": "Scan to open this page on your phone",
+        "devCheckHint": "Need desktop view for development/testing?",
+        "forceDesktop": "Force desktop view"
+      },
+      "bottomNav": {
+        "home": "Home",
+        "pool": "Pool",
+        "myOrders": "My orders",
+        "account": "Account"
+      },
+      "sidebar": {
+        "brandName": "Smart Lock",
+        "subtitle": "Technician portal",
+        "logout": "Sign out",
+        "logoutConfirm": "Sign out?"
+      }
+    },
+    "home": {
+      "title": "Home",
+      "greeting": "Hi {name}",
+      "refresh": "Refresh",
+      "status": {
+        "available": "Online",
+        "busy": "Busy",
+        "offline": "Offline",
+        "on_leave": "On leave",
+        "circuit_breaker_open": "Dispatch paused",
+        "earningsCaption": "Settled this month",
+        "todayCaption": "Est. earnings today",
+        "weekCaption": "Est. earnings this week"
+      },
+      "goOnline": {
+        "online": "Online · tap to go offline",
+        "offline": "Go online",
+        "submitting": "Switching…",
+        "locked": "Dispatch paused",
+        "busy": "Busy",
+        "on_leave": "On leave",
+        "onlineHint": "You can receive new dispatches",
+        "offlineHint": "Tap to start receiving dispatches",
+        "readOnlyHint": "Status is set by system / schedule and can't be toggled manually",
+        "lockedHint": "Dispatch paused due to service quality; contact admin"
+      },
+      "today": {
+        "title": "Today",
+        "summary": "In progress {inProgress} · Pending {active}",
+        "loading": "Loading…",
+        "empty": "No active orders",
+        "goPool": "Go to pool",
+        "currentTag": "Current",
+        "navigate": "Navigate",
+        "viewAll": "All orders",
+        "scheduledAt": "Scheduled {time}",
+        "overdue": "Overdue"
+      },
+      "monthly": {
+        "title": "Monthly snapshot",
+        "loading": "Loading…",
+        "gross": "Gross this month (est.)",
+        "completion": "Completion",
+        "avgArrival": "Avg arrival",
+        "rating": "Rating ({count})",
+        "estNote": "Earnings are estimated (not settled); see statements for actual payout.",
+        "recentFeedback": "Recent feedback"
+      },
+      "attention": {
+        "title": "Needs attention",
+        "allClear": "Nothing needs attention",
+        "acceptedPending": "{count} accepted order(s) — schedule departure",
+        "statementDeadline": "{count} statement(s) to confirm, {days} day(s) left to dispute",
+        "statementPending": "{count} statement(s) to confirm",
+        "disputed": "{count} statement(s) in dispute"
+      },
+      "workload": {
+        "title": "This month's load",
+        "loading": "Loading…",
+        "empty": "No workload data",
+        "completionRate": "Completion",
+        "avgPerDay": "Avg/day",
+        "less": "Less",
+        "more": "More"
+      },
+      "performance": {
+        "title": "My performance",
+        "completed": "Completed",
+        "rating": "Rating",
+        "level": "Level"
+      }
+    },
+    "techLogin": {
+      "brandName": "Smart Lock",
+      "subtitle": "Technician portal",
+      "title": "Sign in",
+      "identifierLabel": "Phone number or email",
+      "identifierPlaceholder": "0912xxxxxx or tech@example.com",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "••••••",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "forgotPassword": "Forgot password?",
+      "forgotPasswordTitle": "Go to self-service password reset",
+      "footerVersion": "v0.1 — Technician PWA",
+      "tabLogin": "Sign in",
+      "tabRegister": "Register",
+      "brandEntryLink": "I am a brand / distributor / shop →",
+      "noAccount": "No account yet?",
+      "applyLink": "Apply as technician →"
+    },
+    "pool": {
+      "title": "Order pool",
+      "loading": "Loading…",
+      "availableCount": "{count} orders available",
+      "refreshTitle": "Refresh",
+      "conflictTaken": "This order has been taken by another technician",
+      "empty": "No orders available right now",
+      "estimatedReward": "Est. ${amount}",
+      "accept": "Accept order",
+      "accepting": "Accepting…"
+    },
+    "myOrders": {
+      "title": "My orders",
+      "refreshTitle": "Refresh",
+      "errorNoSession": "Not signed in or technician identity unavailable",
+      "tabs": {
+        "active": "Active",
+        "pending": "Pending",
+        "history": "History"
+      },
+      "empty": {
+        "active": "No active orders right now",
+        "pending": "No pending orders",
+        "history": "No historical orders"
+      },
+      "goToPool": "Go to order pool"
+    },
+    "detail": {
+      "title": "Order details",
+      "completionSubmitted": "Completion report submitted, awaiting customer confirmation",
+      "address": "Service address",
+      "navigate": "Navigate",
+      "device": "Device info",
+      "service": "Service info",
+      "status": "Status",
+      "estimatedReward": "Estimated reward",
+      "scheduledTime": "Scheduled time",
+      "completionTime": "Completion time",
+      "customer": "Customer info",
+      "viewProblemCard": "View problem card →",
+      "callCustomer": "Call customer (TBD)",
+      "completeCta": "Complete order",
+      "subflows": {
+        "reschedule": "Reschedule",
+        "delay": "Delay notice",
+        "scopeChange": "Scope change",
+        "materialRequest": "Material request",
+        "doorCheck": "Door check",
+        "signature": "Signature"
+      },
+      "form": {
+        "title": "Completion report",
+        "summaryLabel": "Work summary",
+        "summaryPlaceholder": "e.g. Replaced lock cylinder, tested open/close, confirmed with customer.",
+        "photosLabel": "Completion photos (before/during/after, min 3)",
+        "photoBefore": "+ Before",
+        "photoDuring": "+ During",
+        "photoAfter": "+ After",
+        "errorSummaryShort": "Please enter a completion summary (at least 5 characters)",
+        "submit": "Submit completion",
+        "submitting": "Submitting…",
+        "note": "Note: parts list, signatures and other fields will be added in later iterations",
+        "signatureLabel": "Customer Signature",
+        "signatureUploadCta": "Upload customer signature",
+        "signatureUploading": "Uploading signature…",
+        "signatureDone": "Signature uploaded",
+        "photosCounter": "Photos {n}/3",
+        "gateHint": "Completion requires ≥3 photos and a customer signature"
+      },
+      "terminalNotice": "This order is already {status} and cannot be modified",
+      "arrivedCta": "Arrived on site",
+      "arrivedSubmitting": "Reporting...",
+      "arrivedConfirm": "Confirm you have arrived on site? Arrival time and GPS will be recorded.",
+      "arrivedAt": "Arrived: {time}",
+      "gpsUnavailable": "Geolocation is not supported on this device",
+      "gpsDenied": "Location permission is required to report arrival"
+    },
+    "doorCheck": {
+      "title": "Door appearance check",
+      "successProceed": "Check completed, proceeding to signature",
+      "beforeLabel": "Before photos (required, at least 1)",
+      "afterLabel": "After photos (required, at least 1)",
+      "captureCta": "Take photo / choose image",
+      "checklistLabel": "Checklist ({checked} / {total})",
+      "checklist": {
+        "frame_intact": "Door frame intact, no deformation",
+        "no_scratches": "No new scratches on door",
+        "lock_aligned": "Lock alignment correct",
+        "handle_smooth": "Handle turns smoothly",
+        "test_open_close": "Tested open/close at least 5 times",
+        "customer_confirmed": "Customer confirmed appearance on site"
+      },
+      "notesLabel": "Notes (optional)",
+      "notesPlaceholder": "e.g. Original cylinder slightly rusted, all good after install...",
+      "submit": "Finish check → Signature",
+      "submitting": "Submitting…"
+    },
+    "delay": {
+      "title": "Delay notification",
+      "successSubmitted": "Delay notification sent",
+      "durationLabel": "Delay duration",
+      "durations": {
+        "min15": "+15 min",
+        "min30": "+30 min",
+        "min60": "+60 min",
+        "h2": "+2 hr"
+      },
+      "customMinutes": "Custom minutes",
+      "reasonLabel": "Reason",
+      "reasons": {
+        "previousOrder": "Previous order ran long",
+        "traffic": "Traffic / road conditions",
+        "customerNotArrived": "Customer not on site",
+        "materialNotArrived": "Materials not yet arrived",
+        "other": "Other"
+      },
+      "reasonOtherPlaceholder": "Additional details...",
+      "notifyLabel": "Notify",
+      "notify": {
+        "customerOnly": "Customer only",
+        "customerAndStaff": "Customer and dispatcher"
+      },
+      "rescheduleHintTitle": "Need to pick a new time slot?",
+      "rescheduleHintBody": "If the delay exceeds 1 hour or the customer wants a different day, use the reschedule flow:",
+      "rescheduleLink": "Open reschedule calendar",
+      "submit": "Send delay notice",
+      "submitting": "Sending…"
+    },
+    "materialRequest": {
+      "title": "Material request",
+      "successSubmitted": "Material request sent, dispatcher will coordinate restock",
+      "listTitle": "Missing parts",
+      "addItem": "Add",
+      "brandPlaceholder": "Brand (e.g. Yale)",
+      "modelPlaceholder": "Model (e.g. YDM-7116)",
+      "quantityLabel": "Qty",
+      "urgencyLabel": "Urgency",
+      "urgencies": {
+        "now": "Now (interrupting work)",
+        "today": "Today",
+        "tomorrow": "Tomorrow OK"
+      },
+      "noteLabel": "Notes",
+      "notePlaceholder": "e.g. Customer needs delivery before 8pm tonight...",
+      "submit": "Send material request",
+      "submitting": "Sending…"
+    },
+    "reschedule": {
+      "title": "Reschedule calendar",
+      "originalScheduled": "Original schedule:",
+      "fromHints": {
+        "label": "Source:",
+        "delay": "T7 delay notice",
+        "noShow": "Flow 11 customer no-show",
+        "staffAssist": "Dispatcher manual assist"
+      },
+      "successSubmitted": "Reschedule request sent, awaiting customer confirmation",
+      "customerInfoTitle": "Customer info hints",
+      "preferredHours": "Preferred:",
+      "dndHours": "Do not disturb:",
+      "pastCount": "This order has been rescheduled {count} times",
+      "pastCountWarning": " (please coordinate with customer to avoid further changes)",
+      "selectDate": "Select date",
+      "prevWeek": "Prev week",
+      "nextWeek": "Next week",
+      "slotsTitle": "Time slots (30 min)",
+      "slotsHint": "Pick 1-{max} alternatives ({selected} selected)",
+      "slotsLoading": "Loading slots…",
+      "slotsEmpty": "No available slots on this date",
+      "reasons": {
+        "buffer_insufficient": "Insufficient buffer between adjacent orders",
+        "another_order": "Another order already scheduled",
+        "customer_dnd": "Customer do-not-disturb hours",
+        "holiday": "Holiday",
+        "tooDense": "Adjacent slots too dense"
+      },
+      "softConflictTitle": "Selected slots have soft conflicts",
+      "ackLabel": "I understand and want to use these slots anyway",
+      "messageTitle": "Message to customer",
+      "defaultMessage": "Sorry, we need to adjust the time. Are any of the following slots convenient?",
+      "sendVia": "Send via:",
+      "sendViaLine": "LINE",
+      "sendViaLineSms": "LINE + SMS",
+      "willProvide": "Will offer {count} alternative slots to the customer",
+      "errorLimitExceeded": "This order has been rescheduled 3 times in 24 hours, please contact support",
+      "errorConflict": "Time slot or order status conflict, please reselect",
+      "errorRejectedByCustomer": "Customer rejected the reschedule, please pick new slots",
+      "submit": "Send reschedule request",
+      "submitting": "Sending…"
+    },
+    "scopeChange": {
+      "title": "Scope change request",
+      "successSubmitted": "Scope change submitted, awaiting customer approval",
+      "reasonLabel": "Reason for change",
+      "reasonPlaceholder": "e.g. Customer confirmed on-site, need to add 2 lock cylinders...",
+      "reasonHint": "At least 10 characters ({count}/10)",
+      "itemsLabel": "Additional items",
+      "addItem": "Add",
+      "itemNamePlaceholder": "Item name",
+      "unitPriceLabel": "Unit price",
+      "unitPricePlaceholder": "$",
+      "quantityLabel": "Qty",
+      "subtotal": "Subtotal: ${amount}",
+      "totalLabel": "Additional total",
+      "submit": "Submit request",
+      "submitting": "Submitting…"
+    },
+    "signature": {
+      "title": "Dual electronic signature",
+      "successSigned": "Signatures completed",
+      "instruction": "Both technician and customer please sign below to confirm the service and completion. Submission records timestamp and GPS location.",
+      "techLabel": "Technician signature",
+      "customerLabel": "Customer signature",
+      "clear": "Clear",
+      "uploadHint": "Signature data uploaded as base64 PNG to `/api/v1/work-orders/{id}/signature`",
+      "submit": "Confirm signature",
+      "submitting": "Submitting…"
+    }
+  },
+  "components": {
+    "admin": {
+      "quoteCatalog": {
+        "title": "Price catalog",
+        "mockBadge": "mock (pending owner price review)",
+        "loading": "Loading…",
+        "services": "Services ({n})",
+        "materials": "Materials ({n})",
+        "surcharges": "Surcharge / cancellation rules ({n})",
+        "code": "Code",
+        "name": "Name",
+        "type": "Type",
+        "cost": "Internal cost",
+        "custPrice": "Suggested price",
+        "ruleType": "Rule type",
+        "value": "Value / rule",
+        "status": "Status"
+      },
+      "quotes": {
+        "title": "Quotes",
+        "mockBadge": "mock (amounts pending owner price review)",
+        "woId": "Work order ID",
+        "createDraft": "Create draft quote",
+        "quoteId": "Quote ID",
+        "item": "Item",
+        "pickItem": "— pick a service / material —",
+        "services": "Services",
+        "materials": "Materials",
+        "qty": "Qty",
+        "addLine": "Add line",
+        "name": "Name",
+        "category": "Category",
+        "cost": "Internal cost",
+        "custPrice": "Customer price",
+        "noLines": "No line items yet",
+        "customerLink": "Customer view link",
+        "getLink": "Get customer link",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "snapshot": "Frozen snapshot",
+        "note": "Amounts come from the mock catalog; approval threshold, deposit, tax etc. pending owner confirmation (esales Q-01~Q-12).",
+        "state": {
+          "draft": "Draft",
+          "pending_approval": "Pending approval",
+          "approved": "Approved",
+          "sent": "Sent to customer",
+          "accepted": "Customer accepted",
+          "rejected": "Rejected",
+          "expired": "Expired"
+        },
+        "action": {
+          "submit": "Submit for approval",
+          "approve": "Approve",
+          "reject": "Reject",
+          "send": "Send to customer",
+          "accept": "Mark customer accepted"
+        }
+      },
+      "vendorApprovals": {
+        "title": "Vendor approvals",
+        "pendingCount": "{n} pending",
+        "loading": "Loading…",
+        "empty": "No vendors pending approval",
+        "colName": "Vendor",
+        "colType": "Type",
+        "colContact": "Contact",
+        "colAction": "Action",
+        "approve": "Approve",
+        "reject": "Reject",
+        "rejectReasonPrompt": "Enter rejection reason (optional)"
+      },
+      "refundReview": {
+        "cols": {
+          "id": "Refund ID",
+          "workOrder": "Work order",
+          "amount": "Amount",
+          "reason": "Reason",
+          "dualSign": "Dual sign",
+          "approvalProgress": "Approval",
+          "status": "Status",
+          "createdAt": "Submitted",
+          "actions": "Actions"
+        },
+        "loading": "Loading…",
+        "empty": "No refund requests",
+        "status": {
+          "pending": "Pending",
+          "csmApproved": "Awaiting 2nd sign",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "escalated": "Escalated",
+          "executed": "Settled",
+          "cancelled": "Cancelled"
+        },
+        "dualSign": {
+          "required": "Yes"
+        },
+        "chain": {
+          "notStarted": "Not started",
+          "stepCount": "{count} steps"
+        },
+        "actions": {
+          "approve": "Approve",
+          "secondSign": "2nd sign",
+          "reject": "Reject",
+          "executed": "Settled",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "cancelled": "Cancelled",
+          "escalated": "Escalated",
+          "approveTitleSecondSign": "Second sign approval (must be a different user)",
+          "approveTitleFirstWithDual": "First approval (second sign required)",
+          "approveTitleSimple": "Approve"
+        }
+      },
+      "warrantyClaims": {
+        "cols": {
+          "id": "Case ID",
+          "device": "Device",
+          "warrantyStart": "Warranty start",
+          "warrantyEnd": "Warranty end",
+          "remainingDays": "Days remaining",
+          "warrantyPeriod": "Period",
+          "claimStatus": "Status",
+          "discount": "Discount",
+          "actions": "Actions"
+        },
+        "loading": "Loading…",
+        "empty": "No warranty claims",
+        "remaining": {
+          "overdue": "{days} days overdue",
+          "today": "Expires today",
+          "days": "{days} days"
+        },
+        "period": {
+          "expired": "Expired",
+          "grace": "Grace period",
+          "active": "Active"
+        },
+        "status": {
+          "filed": "Filed",
+          "inProgress": "In progress",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "closed": "Closed"
+        },
+        "actions": {
+          "viewDetails": "View details",
+          "comingSoon": "Coming soon",
+          "review": "Review",
+          "reviewing": "Working…"
+        }
+      },
+      "disputes": {
+        "cols": {
+          "id": "Dispute ID",
+          "type": "Type",
+          "workOrder": "Linked entity",
+          "resolutionAmount": "Resolution amount",
+          "createdAt": "Created",
+          "status": "Status"
+        },
+        "loading": "Loading…",
+        "empty": "No disputes",
+        "type": {
+          "pricing": "Pricing",
+          "quality": "Quality",
+          "warranty": "Warranty",
+          "cancellationFee": "Cancellation fee",
+          "settlement": "Settlement"
+        },
+        "status": {
+          "filed": "Filed",
+          "inReview": "In review",
+          "resolved": "Resolved",
+          "rejected": "Rejected",
+          "closed": "Closed"
+        },
+        "ref": {
+          "workOrder": "Work order {id}",
+          "invoice": "Invoice {id}"
+        }
+      },
+      "rolePermissions": {
+        "title": "Edit permissions: {name}",
+        "description": "Updates are pushed live via WebSocket to all {count} users in this role.",
+        "closeAria": "Close",
+        "tableHeaderResource": "Resource",
+        "actions": {
+          "read": "Read",
+          "write": "Write",
+          "approve": "Approve",
+          "delete": "Delete"
+        },
+        "resources": {
+          "workOrders": "Work orders",
+          "technicians": "Technicians",
+          "customers": "Customers",
+          "accounting": "Accounting",
+          "invoices": "Invoices",
+          "refunds": "Refunds",
+          "inventory": "Inventory",
+          "warranty": "Warranty",
+          "disputes": "Disputes",
+          "auditLogs": "Audit logs",
+          "roles": "Roles",
+          "systemSettings": "System settings"
+        },
+        "reasonLabel": "Reason for change",
+        "reasonPlaceholder": "e.g. F-019 — grant reviewer write access to invoices",
+        "reasonHint": "Recorded in audit_events.payload.reason (min 4 characters)",
+        "errors": {
+          "reasonTooShort": "Please provide a reason (at least 4 characters)",
+          "forbidden": "Your role tier cannot grant this permission (server: {code})",
+          "validation": "Validation failed: {message}",
+          "generic": "{code} ({status}): {message}"
+        },
+        "cancel": "Cancel",
+        "submit": "Save permissions"
+      },
+      "customerForm": {
+        "back": "Cancel",
+        "titleCreate": "New customer",
+        "titleEdit": "Edit customer",
+        "fields": {
+          "displayName": "Customer name",
+          "phone": "Phone",
+          "phoneHint": "Taiwan mobile format (e.g. 0912-345-678)",
+          "email": "Email",
+          "emailPlaceholder": "optional",
+          "address": "Address"
+        },
+        "errors": {
+          "displayNameRequired": "Customer name is required",
+          "phoneRequired": "Phone is required",
+          "phoneInvalid": "Please enter a valid Taiwan mobile number (09xx-xxx-xxx)",
+          "emailInvalid": "Invalid email format",
+          "missingId": "Missing customer ID (edit mode)",
+          "server": "{code} ({status}): {message}"
+        },
+        "actions": {
+          "cancel": "Cancel",
+          "create": "Create customer",
+          "creating": "Creating…",
+          "save": "Save changes",
+          "saving": "Saving…"
+        }
+      },
+      "inventory": {
+        "cols": {
+          "name": "Item name",
+          "partNumber": "Part number",
+          "category": "Category",
+          "quantity": "On hand",
+          "reorderPoint": "Reorder point",
+          "lastRestocked": "Last restocked",
+          "actions": "Actions"
+        },
+        "loading": "Loading…",
+        "empty": "No inventory items",
+        "badge": {
+          "lowStock": "Low stock",
+          "outOfStock": "Out of stock"
+        },
+        "actions": {
+          "restock": "Restock",
+          "edit": "Edit",
+          "log": "Log",
+          "comingSoon": "Coming soon",
+          "restockComingSoon": "Coming soon (requires inventory_transactions write endpoint)"
+        }
+      },
+      "auditExport": {
+        "title": "Export audit logs",
+        "description": "Export audit events using current filters. Volumes over 100k auto-switch to background processing.",
+        "useCurrentFilters": "Apply current filters",
+        "format": "Export format",
+        "formatLabel": {
+          "csv": "CSV (spreadsheet)",
+          "json": "JSON"
+        },
+        "actions": {
+          "cancel": "Cancel",
+          "export": "Export",
+          "exporting": "Exporting…"
+        },
+        "toast": {
+          "successTitle": "Export complete",
+          "failTitle": "Export failed",
+          "emptyBody": "Empty response",
+          "errorBody": "{code} ({status}): {message}"
+        },
+        "filters": {
+          "logType": "Event type",
+          "from": "From",
+          "to": "To",
+          "actor": "Actor",
+          "resourceType": "Resource type",
+          "none": "No filters — exporting everything"
+        }
+      },
+      "reportExport": {
+        "useCurrentFilters": "Apply current filters",
+        "format": "Export format",
+        "formatLabel": {
+          "csv": "CSV (spreadsheet)",
+          "pdf": "PDF (A4 print)"
+        },
+        "contentTypeLabel": "Content-Type:",
+        "actions": {
+          "cancel": "Cancel",
+          "export": "Start export",
+          "exporting": "Exporting…"
+        },
+        "toast": {
+          "successTitle": "Export complete",
+          "failTitle": "Export failed",
+          "errorBody": "{code} ({status}): {message}"
+        },
+        "filters": {
+          "none": "No filters — exporting everything"
+        },
+        "report": {
+          "kpi": {
+            "title": "Export KPI report",
+            "description": "Export the current period (today / 7d / 30d / 90d) as CSV / PDF."
+          },
+          "revenue": {
+            "title": "Export revenue report",
+            "description": "Export by current date range and brand slice as CSV / PDF."
+          },
+          "technicianRanking": {
+            "title": "Export technician ranking report",
+            "description": "Export technician ranking for the current date range as CSV / PDF."
+          },
+          "accounting": {
+            "title": "Export settlement report",
+            "description": "Export settlement list (settlement / technician / amount / status) as CSV / PDF."
+          }
+        }
+      }
+    },
+    "dispatchQueue": {
+      "table": {
+        "cols": {
+          "workOrderId": "Work order",
+          "attemptCount": "Attempts",
+          "currentTech": "Current tech",
+          "matchScore": "Match score",
+          "reason": "Reason / notes",
+          "remaining": "Remaining",
+          "createdAt": "Created",
+          "actions": "Actions"
+        },
+        "loading": "Loading…",
+        "empty": "No dispatch history",
+        "attemptBadge": "Attempt {n}",
+        "techUnassigned": "Unassigned",
+        "reason": {
+          "accepted": "Accepted by technician"
+        },
+        "remaining": {
+          "overdue": "{minutes}min overdue"
+        },
+        "actions": {
+          "intervene": "Intervene",
+          "comingSoon": "Coming soon"
+        },
+        "footer": "Showing {rows} active orders ({total} dispatch events total)"
+      }
+    },
+    "layout": {
+      "notificationDrawer": {
+        "closeOverlayAria": "Close notification center",
+        "title": "Notifications",
+        "refresh": "Refresh",
+        "close": "Close",
+        "tabs": {
+          "unread": "Unread",
+          "all": "All"
+        },
+        "markAllRead": "Mark all as read",
+        "marking": "Working…",
+        "loading": "Loading…",
+        "emptyUnread": "No unread notifications",
+        "emptyAll": "No notifications",
+        "markOneRead": "Mark as read",
+        "markingOne": "Marking…",
+        "openLink": "Open",
+        "limitNote": "Showing latest {limit}",
+        "viewAll": "View all notifications",
+        "type": {
+          "workOrder": "Work order",
+          "refund": "Refund",
+          "dispute": "Dispute",
+          "rbac": "Role",
+          "inventory": "Inventory",
+          "sla": "SLA",
+          "system": "System",
+          "mention": "Mention"
+        }
+      }
+    },
+    "accounting": {
+      "settlementTable": {
+        "batchSelectAll": "Select all",
+        "batchConfirm": "Batch confirm",
+        "batchMarkPaid": "Batch mark paid",
+        "batchHint": "Select settlement rows to enable batch actions",
+        "comingSoon": "Coming soon",
+        "loading": "Loading…",
+        "empty": "No settlement data",
+        "cols": {
+          "technician": "Technician",
+          "amount": "Amount",
+          "status": "Status",
+          "paymentMethod": "Payment method",
+          "paidAt": "Paid at",
+          "createdAt": "Created"
+        },
+        "status": {
+          "pending": "Pending",
+          "confirmed": "Confirmed",
+          "paid": "Paid",
+          "failed": "Failed"
+        },
+        "paymentMethod": {
+          "bank_transfer": "Bank transfer",
+          "other": "Other"
+        }
+      },
+      "invoicesTable": {
+        "loading": "Loading…",
+        "empty": "No invoice records",
+        "cols": {
+          "invoiceNumber": "Invoice #",
+          "workOrder": "Work order",
+          "amount": "Amount",
+          "category": "Tax category",
+          "status": "Status",
+          "issuedAt": "Issued",
+          "updatedAt": "Updated",
+          "actions": "Actions"
+        },
+        "status": {
+          "pending": "Pending",
+          "issued": "Issued",
+          "allowance_pending": "Allowance pending",
+          "voided": "Voided",
+          "reopened": "Reopened"
+        },
+        "category": {
+          "service_fee": "Service fee",
+          "travel_fee": "Travel fee",
+          "parts": "Parts",
+          "other": "Other"
+        }
+      },
+      "reconciliationsTable": {
+        "loading": "Loading…",
+        "empty": "No reconciliation records",
+        "approve": "Approve",
+        "processing": "Processing…",
+        "cols": {
+          "id": "ID",
+          "technician": "Technician",
+          "period": "Period",
+          "orders": "Orders",
+          "revenue": "Revenue",
+          "platformFee": "Platform fee",
+          "payout": "Payout",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "status": {
+          "pending": "Pending",
+          "approved": "Approved",
+          "disputed": "Disputed"
+        }
+      },
+      "settlementDetailModal": {
+        "title": "{technician} settlement — {month}",
+        "period": "Period: {period}",
+        "mockTechName": "Chen Chien-hung",
+        "mockMonth": "2026/04",
+        "mockPeriod": "2026/04/01 - 2026/04/30",
+        "serviceType": {
+          "repair": "Repair",
+          "install": "Install",
+          "customMaterial": "Customer parts"
+        },
+        "bonus": {
+          "highRating": "High rating bonus (≥ 4.8) — {orderId}",
+          "fastFinish": "Fast finish bonus (25% faster) — {orderId}"
+        },
+        "penalty": {
+          "rework": "Rework deduction (repeat fix) — {orderId}",
+          "complaint": "Complaint deduction (customer complaint) — {orderId}"
+        },
+        "summary": {
+          "labor": "Labor total",
+          "bonus": "Bonus total",
+          "penalty": "Penalty total",
+          "net": "Net amount"
+        },
+        "ordersTitle": "Order commission breakdown",
+        "cols": {
+          "orderId": "Order #",
+          "serviceType": "Service type",
+          "rate": "Commission rate",
+          "orderAmount": "Order amount",
+          "commission": "Commission"
+        },
+        "totalRow": "Total ({count})",
+        "bonusTitle": "Bonus details",
+        "penaltyTitle": "Penalty details",
+        "finalAmount": "Final settlement amount",
+        "print": "Print",
+        "confirm": "Confirm settlement",
+        "close": "Close"
+      }
+    },
+    "workOrders": {
+      "eventTimeline": {
+        "title": "Event timeline",
+        "countSuffix": "{count} events",
+        "filterAll": "All types",
+        "refresh": "Refresh",
+        "loading": "Loading…",
+        "emptyAll": "No subflow events for this work order",
+        "emptyFiltered": "No {label} events",
+        "byUser": "by user #{id}",
+        "type": {
+          "scope_change": "Scope change",
+          "material_request": "Material request",
+          "delay": "Delay notice",
+          "door_check": "Door inspection",
+          "signature_submitted": "E-signature",
+          "reschedule_proposed": "Reschedule",
+          "other": "Other"
+        },
+        "payload": {
+          "reasonLabel": "Reason: {value}",
+          "itemUnit": "(unit ${value})",
+          "totalEstimate": "Estimated addition: ${value}",
+          "urgencyLabel": "Urgency: {value}",
+          "noteLabel": "Note: {value}",
+          "delaySummary": "Delay {minutes} min · {reason}",
+          "delayExtra": "Note: {value}",
+          "notify": "Notify: {value}",
+          "checkSummary": "Check {checked}/{total} · Photos before {before}/after {after}",
+          "notesLabel": "Notes: {value}"
+        }
+      },
+      "detailSidebar": {
+        "deviceSnLabel": "S/N: — (mock)",
+        "deviceBattery": "Battery (mock)",
+        "deviceConnection": "Connection (mock)",
+        "deviceLastOp": "Last op (mock)",
+        "comingSoon": "Coming soon",
+        "remoteUnlock": "Remote unlock",
+        "resetCode": "Reset PIN",
+        "quotationTitle": "Quotation",
+        "estimateLabel": "Estimate",
+        "quotationInfo": "Parts / dispatch fee / discount details will appear once the dispatch billing module ships.",
+        "woFieldsTitle": "Work Order Info",
+        "woServiceCategory": "Service type",
+        "woProblemType": "Problem type",
+        "woWarranty": "Warranty",
+        "woDoorType": "Door type",
+        "woCompletion": "Completion status",
+        "woStatusReason": "Status reason",
+        "woFieldsEmpty": "Work order fields not filled yet",
+        "costTitle": "Cost breakdown",
+        "costMock": "Estimated (pending review)",
+        "costEmpty": "No cost items yet",
+        "costInternal": "cost",
+        "costFinal": "Customer total",
+        "costHidden": "(Cost details visible to back-office roles only)",
+        "downloadDocument": "Download work order PDF",
+        "customerTitle": "Customer",
+        "loadFailed": "Load failed",
+        "noConversation": "No linked conversation",
+        "loading": "Loading…",
+        "viewConversation": "View full conversation →",
+        "technicianTitle": "Assigned technician",
+        "unassigned": "Not assigned",
+        "markIssue": "Flag issue",
+        "modulePending": "Actions enabled once dispatch module is connected"
+      },
+      "kanban": {
+        "loading": "Loading…",
+        "empty": "No work orders",
+        "columnEmpty": "No work orders in this column",
+        "unscheduled": "Unscheduled",
+        "overdue": "Overdue {minutes}min",
+        "remaining": "Remaining {hh}:{mm}",
+        "urgency": "Urgency {label}",
+        "techTag": "Tech {id}",
+        "unassignedItalic": "Unassigned",
+        "column": {
+          "pending": "Unassigned",
+          "dispatched": "Dispatched",
+          "in_progress": "In progress",
+          "done": "Completed",
+          "cancelled": "Cancelled"
+        }
+      },
+      "mapPanel": {
+        "title": "Work orders",
+        "slaSort": "Sort by SLA",
+        "comingSoon": "Coming soon",
+        "loading": "Loading…",
+        "empty": "No work orders",
+        "unscheduled": "Unscheduled",
+        "overdue": "Overdue {minutes}min",
+        "remaining": "Remaining {hh}:{mm}",
+        "techTag": "Tech {id}",
+        "unassigned": "Unassigned"
+      },
+      "mapView": {
+        "notice": "Map rendering (Leaflet/Mapbox + geocoding) requires the GIS module. This view buckets work orders by district instead; click an order in the left list to inspect it on the right. Technician assignment and routing actions ship with the dispatch AI engine.",
+        "districtTitle": "By district",
+        "noData": "No district data",
+        "noDistrict": "Unzoned",
+        "bucketPending": "Pending {count}",
+        "bucketInProgress": "In progress {count}",
+        "bucketDone": "Done {count}",
+        "urgency": "Urgency {label}",
+        "scheduled": "Scheduled {time}",
+        "unscheduled": "Unscheduled",
+        "techTag": "Tech {id}",
+        "unassigned": "Unassigned",
+        "comingSoon": "Coming soon",
+        "assignTech": "Assign technician",
+        "viewDetail": "View details →",
+        "hint": "Click an order on the left to see its details",
+        "hintSub": "Interactive map ships with the GIS module"
+      }
+    },
+    "problemCards": {
+      "detailSidebar": {
+        "statusTitle": "Status",
+        "loading": "Loading…",
+        "status": {
+          "draft": "Draft",
+          "confirmed": "Confirmed",
+          "resolved": "Resolved"
+        },
+        "aiConfidence": "AI confidence",
+        "timeTitle": "Timestamps",
+        "createdAt": "Created",
+        "updatedAt": "Last updated",
+        "linkedTitle": "Linked work order",
+        "loadFailed": "Load failed: {error}",
+        "querying": "Loading…",
+        "noLinked": "No linked work order",
+        "orderId": "Order #",
+        "orderStatus": "Order status",
+        "technician": "Technician",
+        "techTag": "Tech {id}",
+        "unassigned": "Unassigned",
+        "markResolved": "Mark resolved",
+        "escalate": "Escalate to L3",
+        "linkCase": "Link knowledge case",
+        "comingSoon": "Coming soon"
+      }
+    },
+    "settings": {
+      "pricingForm": {
+        "title": "Pricing rules V2.0",
+        "refresh": "Refresh",
+        "connection": {
+          "ok": "Connected",
+          "fail": "Disconnected"
+        },
+        "lastUpdated": "Updated: {time}",
+        "subtitle": "Manage base pricing by brand, lock type, and difficulty",
+        "intro": "Live data from listPricingRules (disabled rules filtered). You can create and edit on the fly.",
+        "calc": "Estimate price",
+        "create": "Add rule",
+        "cols": {
+          "brand": "Brand",
+          "lockType": "Lock type",
+          "difficulty": "Difficulty",
+          "basePrice": "Base price",
+          "surcharges": "Surcharges"
+        },
+        "loading": "Loading…",
+        "empty": "No pricing rules yet",
+        "noSurcharge": "No surcharges",
+        "edit": "Edit rule",
+        "createdToast": "Rule created: {brand} / {lockType}",
+        "updatedToast": "Rule updated: {brand} / {lockType}",
+        "lockTypes": {
+          "digital_deadbolt": "Digital deadbolt",
+          "smart_lock": "Smart lock",
+          "padlock": "Padlock",
+          "other": "Other"
+        },
+        "difficulties": {
+          "simple": "Simple",
+          "moderate": "Moderate",
+          "complex": "Complex"
+        },
+        "editor": {
+          "createTitle": "Create pricing rule",
+          "editTitle": "Edit pricing rule",
+          "fields": {
+            "brand": "Brand",
+            "brandPlaceholder": "e.g. Yale",
+            "brandLockedHint": "Cannot change after creation",
+            "lockType": "Lock type",
+            "difficulty": "Difficulty",
+            "basePrice": "Base price (NT$)",
+            "basePricePlaceholder": "e.g. 1200.00",
+            "surcharges": "Surcharges (optional)",
+            "addSurcharge": "Add surcharge",
+            "noSurchargeYet": "No surcharges configured",
+            "surchargeName": "Name (e.g. night service)",
+            "surchargeCondition": "Condition (e.g. 22:00–06:00)",
+            "surchargeAmount": "Amount",
+            "remove": "Remove"
+          },
+          "errors": {
+            "brandRequired": "Please enter brand",
+            "basePriceFormat": "Base price format: 1200 or 1200.50",
+            "surchargeName": "Surcharge #{n}: please enter a name",
+            "surchargeAmount": "Surcharge #{n}: amount must be numeric (e.g. 500.00)",
+            "noChange": "No changes",
+            "basePriceRequired": "Please enter base price"
+          },
+          "cancel": "Cancel",
+          "create": "Create",
+          "update": "Update",
+          "saving": "Saving…"
+        },
+        "calculator": {
+          "title": "Estimate price",
+          "close": "Close",
+          "brand": "Brand",
+          "brandPlaceholder": "Enter brand",
+          "lockType": "Lock type",
+          "difficulty": "Difficulty",
+          "isEmergency": "Emergency surcharge",
+          "isNight": "Night service",
+          "additional": "Additional items (split by comma or newline, e.g. balcony, 2nd floor)",
+          "additionalPlaceholder": "balcony, 2nd floor",
+          "basePrice": "Base price",
+          "noSurcharges": "No surcharges applied",
+          "totalLabel": "Total ({currency})",
+          "calc": "Estimate",
+          "calculating": "Calculating…",
+          "errBrandRequired": "Please enter brand"
+        }
+      },
+      "systemConfigForm": {
+        "title": "System settings",
+        "refresh": "Refresh",
+        "connection": {
+          "ok": "Connected",
+          "fail": "Disconnected"
+        },
+        "savedAt": "Saved: {time}",
+        "subtitle": "Live RAG / LLM / resolution / LINE Bot settings",
+        "sections": {
+          "rag": {
+            "title": "RAG retrieval",
+            "desc": "Vector similarity and chunking parameters; affects case-library matching accuracy",
+            "similarity": "Similarity threshold",
+            "maxResults": "Max results",
+            "chunkSize": "Chunk size",
+            "chunkOverlap": "Chunk overlap"
+          },
+          "llm": {
+            "title": "LLM model",
+            "desc": "Primary inference model, temperature, and token cap",
+            "model": "Model",
+            "promptVersion": "System prompt version",
+            "temperature": "Temperature",
+            "maxTokens": "Max tokens"
+          },
+          "resolution": {
+            "title": "Resolution engine",
+            "desc": "L1→L2→L3 escalation thresholds and auto handoff",
+            "faqThreshold": "FAQ confidence threshold",
+            "ragThreshold": "RAG confidence threshold",
+            "autoEscalate": "Auto escalate to human"
+          },
+          "line_bot": {
+            "title": "LINE Bot",
+            "desc": "Greeting message and conversation-turn cap",
+            "greeting": "Enable greeting",
+            "maxTurns": "Max conversation turns"
+          }
+        },
+        "reset": "Discard changes",
+        "save": "Save settings",
+        "saving": "Saving…"
+      }
+    }
+  }
+}

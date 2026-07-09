@@ -14,7 +14,7 @@ upstream:
 
 # 14_ADR 索引 — 架構決策紀錄總覽
 
-本目錄收錄平台全部 27 篇架構決策紀錄（ADR-001 ~ ADR-027），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
+本目錄收錄平台全部 28 篇架構決策紀錄（ADR-001 ~ ADR-028），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
 
 **與鄰近文件邊界**：[12_SAD](../12_SAD.md) 是決策的「結果態」（結構與元件視圖），引 ADR 不重述取捨；[13_Security_Architecture](../13_Security_Architecture.md) 承載安全機制細節，ADR 只記安全決策點；[15_SDS](../15_SDS.md) 承載細部設計（DSL schema、狀態機欄位），ADR 只記「採哪條路」；純業務參數（費率階梯、SLA 時數、保固模式）屬 [03_PRD](../03_PRD.md) / [04_SRS](../04_SRS.md)，不進 ADR。
 
@@ -54,13 +54,14 @@ upstream:
 | [ADR-021](./ADR-021_psycopg3_rawSQL與純SQL_migration.md) | psycopg3 raw SQL + 純 SQL forward-only migration | 系統(api/data) | Accepted | 020 · 003 |
 | **群 H — API 與 Web 形態** |||||
 | [ADR-022](./ADR-022_API_SURFACE單體多面塑形.md) | API_SURFACE 單體多面塑形（一 codebase → 三暴露面）| 系統(api) | Accepted | 005 · 004 · 006 · 002 |
-| [ADR-023](./ADR-023_單一codebase_APP_MODE多portal.md) | 單一 codebase 以 APP_MODE build 多 portal | 系統(web) | Accepted | 022 · 024 |
+| [ADR-023](./ADR-023_單一codebase_APP_MODE多portal.md) | 單一 codebase 以 APP_MODE build 多 portal | 系統(web) | **Superseded by 028** | 022 · 024 |
 | [ADR-024](./ADR-024_client_SPA_無BFF_Context狀態_OIDC.md) | web 為 client SPA（無 BFF）+ Context 狀態 + OIDC 認證 | 系統(web) | Accepted | 023 · 004 · 005 |
 | **群 I — 領域安全紅線** |||||
 | [ADR-025](./ADR-025_AI話術邊界與永不自轉工單憲章.md) | AI 話術邊界與「永不自轉工單」紅線憲章 | 平台 | Accepted | 011 · 015 · 012 |
 | [ADR-026](./ADR-026_報價快照hash-chain不可否認性.md) | 報價快照 hash-chain 不可否認性 | 系統(api) | Accepted | 015 · 021 |
 | **群 J — 跨系統流程邊界** |||||
 | [ADR-027](./ADR-027_現場報價修正發起邊界_技師平台command_品牌api權威.md) | 現場報價修正發起邊界——技師平台只發 command、品牌 api 為報價唯一權威 | 平台 | Accepted | 016 · 017 · 026 |
+| [ADR-028](./ADR-028_web檔案層拆分_四站獨立專案.md) | web 檔案層拆分——四站台完全獨立專案（複製分家） | 系統(web) | Accepted | supersedes 023 · 022 · 024 |
 
 ## 依賴關係圖
 
@@ -92,6 +93,7 @@ graph TD
   A002 --> A003
   A005 --> A022
   A022 --> A023[ADR-023 APP_MODE 多 portal]
+  A023 --> A028[ADR-028 web 四站獨立專案]
   A004 --> A024[ADR-024 client SPA + OIDC]
   A023 --> A024
   A015 --> A026[ADR-026 報價快照 hash-chain]

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # compose-db-init.sh — 派工方 stack 全新品牌空庫一次性初始化(CR-0112)
 #
-# 由 docker-compose.dispatch.yml 的 db-init service(profile: init)在容器內執行,
+# 由 web/brand-portal/docker-compose.yml 的 db-init service(profile: init)在容器內執行,
 # psql 連線參數走 PG* 環境變數(PGHOST=db)。套用順序同 scripts/dev/quickstart.sh:
 #   SQL/Schema.sql → SQL/Schema_*.sql(字母序)→ SQL/migrations/*.sql(編號序)
 #   → SQL/seeds(SEED_ORDER,FK 相依順序)

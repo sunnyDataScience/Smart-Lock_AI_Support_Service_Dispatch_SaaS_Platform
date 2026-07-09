@@ -4,12 +4,12 @@ on:
   push:
     paths:
       - 'api/openapi.yaml'
-      - 'web/types/api.generated.ts'
+      - 'web/packages/shared/src/types/api.generated.ts'
       - 'scripts/ci/generate-api-types.sh'
   pull_request:
     paths:
       - 'api/openapi.yaml'
-      - 'web/types/api.generated.ts'
+      - 'web/packages/shared/src/types/api.generated.ts'
 
 jobs:
   types-sync:
