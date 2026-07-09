@@ -3162,6 +3162,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenants/{tenantId}/problem-cards/knowledge-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 待補知識佇列（CR-0132/15_SDS §4.6：resolved 但 Gate② 未過的卡）
+         * @description 精煉服務（15_SDS §9）只汲取 knowledge_ready=true；本佇列列出待補 spine 的卡。
+         */
+        get: operations["listKnowledgeQueueV2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tenants/{tenantId}/problem-cards/{id}": {
         parameters: {
             query?: never;
@@ -9436,6 +9456,36 @@ export interface components {
             ai_missing_fields?: string[] | null;
             /** Emergency Class */
             emergency_class?: string | null;
+            /** Intake Completeness */
+            intake_completeness?: number | null;
+            /** Resolution Completeness */
+            resolution_completeness?: number | null;
+            /** Triage Tier */
+            triage_tier?: string | null;
+            /** Resolution Channel */
+            resolution_channel?: string | null;
+            /** Knowledge Ready */
+            knowledge_ready?: boolean | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Failure Mode */
+            failure_mode?: string | null;
+            /** Root Cause */
+            root_cause?: string | null;
+            /** Root Cause Category */
+            root_cause_category?: string | null;
+            /** Corrective Action */
+            corrective_action?: string | null;
+            /** Verification */
+            verification?: boolean | null;
+            /** Disposition */
+            disposition?: string | null;
+            /** Firmware Version */
+            firmware_version?: string | null;
+            /** Serial */
+            serial?: string | null;
+            /** Resolved By */
+            resolved_by?: string | null;
         };
         /** ProblemCardCreateRequest */
         ProblemCardCreateRequest: {
@@ -9518,6 +9568,28 @@ export interface components {
             media_urls?: string[] | null;
             /** Emergency Class */
             emergency_class?: string | null;
+            /** Contact Phone */
+            contact_phone?: string | null;
+            /** Failure Mode */
+            failure_mode?: string | null;
+            /** Triage Tier */
+            triage_tier?: string | null;
+            /** Resolution Channel */
+            resolution_channel?: string | null;
+            /** Root Cause */
+            root_cause?: string | null;
+            /** Root Cause Category */
+            root_cause_category?: string | null;
+            /** Corrective Action */
+            corrective_action?: string | null;
+            /** Verification */
+            verification?: boolean | null;
+            /** Disposition */
+            disposition?: string | null;
+            /** Firmware Version */
+            firmware_version?: string | null;
+            /** Serial */
+            serial?: string | null;
         };
         /** ProposeFixBody */
         ProposeFixBody: {
@@ -20305,6 +20377,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listKnowledgeQueueV2: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

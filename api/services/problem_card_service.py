@@ -109,13 +109,34 @@ def _pc_row_to_dict(row: tuple) -> dict:
         "ai_missing_fields": (row[12] if len(row) > 12 else None) or None,
         # CR-0128：急件 carve-out 四類（None=非急件）
         "emergency_class": row[13] if len(row) > 13 else None,
+        # CR-0132 雙 gate（15_SDS §4.6）
+        "intake_completeness": row[14] if len(row) > 14 else None,
+        "resolution_completeness": row[15] if len(row) > 15 else None,
+        "triage_tier": row[16] if len(row) > 16 else None,
+        "resolution_channel": row[17] if len(row) > 17 else None,
+        "knowledge_ready": bool(row[18]) if len(row) > 18 and row[18] is not None else False,
+        "contact_phone": row[19] if len(row) > 19 else None,
+        "failure_mode": row[20] if len(row) > 20 else None,
+        "root_cause": row[21] if len(row) > 21 else None,
+        "root_cause_category": row[22] if len(row) > 22 else None,
+        "corrective_action": row[23] if len(row) > 23 else None,
+        "verification": row[24] if len(row) > 24 else None,
+        "disposition": row[25] if len(row) > 25 else None,
+        "firmware_version": row[26] if len(row) > 26 else None,
+        "serial": row[27] if len(row) > 27 else None,
+        "resolved_by": str(row[28]) if len(row) > 28 and row[28] else None,
     }
 
 
 _PC_SELECT = (
     "pc.id, pc.conversation_id, pc.brand, pc.model, pc.symptoms, pc.category, "
     "pc.urgency, pc.status, pc.media_urls, pc.created_at, pc.updated_at, "
-    "pc.source, pc.ai_missing_fields, pc.emergency_class"
+    "pc.source, pc.ai_missing_fields, pc.emergency_class, "
+    # CR-0132 雙 gate 欄位
+    "pc.intake_completeness, pc.resolution_completeness, pc.triage_tier, "
+    "pc.resolution_channel, pc.knowledge_ready, pc.contact_phone, pc.failure_mode, "
+    "pc.root_cause, pc.root_cause_category, pc.corrective_action, pc.verification, "
+    "pc.disposition, pc.firmware_version, pc.serial, pc.resolved_by"
 )
 
 
@@ -238,7 +259,13 @@ async def _fetch_status_for_update(pc_id: str, tenant_id: str) -> str:
 
 
 async def confirm_card(*, tenant_id: str, pc_id: str) -> dict:
-    """incomplete → confirmed。對齊 OpenAPI draft → confirmed。"""
+    """incomplete → confirmed。對齊 OpenAPI draft → confirmed。
+
+    CR-0132 Gate①（進料閘，15_SDS §4.6）：M18 config `problemcard_policy.gate1_enforce`
+    開啟時，confirm 前必過 §4.6 必填集（contact_phone/brand/model/failure_mode/
+    triage_tier＋L3 location）——未過 → 422 INTAKE_GATE_UNMET。預設 off（沿用
+    CR-0042 convert 閘行為）；前端補齊分流欄位 UI 上線後由業主開啟。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     current = await _fetch_status_for_update(pc_id, tenant_id)
@@ -248,6 +275,27 @@ async def confirm_card(*, tenant_id: str, pc_id: str) -> dict:
             f"Cannot confirm problem card in status '{current}'; expected 'incomplete'",
             409,
         )
+    await _recompute_gates(pc_id)
+
+    from services import config_m18_service
+    cfg = await config_m18_service.read_global_value(namespace="problemcard_policy")
+    if isinstance(cfg, dict) and cfg.get("gate1_enforce"):
+        cur = await db_module._conn.execute(
+            "SELECT contact_phone, brand, model, failure_mode, triage_tier, location "
+            "FROM problem_cards WHERE id = %s::uuid", (pc_id,))
+        row = await cur.fetchone()
+        keys = ("contact_phone", "brand", "model", "failure_mode", "triage_tier", "location")
+        pc = dict(zip(keys, row))
+        g1 = list(_GATE1_FIELDS) + (["location"] if pc.get("triage_tier") == "L3" else [])
+        missing = [f for f in g1 if not _field_filled(pc.get(f))]
+        if missing:
+            raise ApiError(
+                "INTAKE_GATE_UNMET",
+                f"進料閘（Gate①）未過——缺：{', '.join(missing)}（15_SDS §4.6；小編補齊後再確認）",
+                422,
+                details=[{"field": f, "issue": "missing", "gate": "intake"} for f in missing],
+            )
+
     await db_module._conn.execute(
         "UPDATE problem_cards SET status = 'confirmed', updated_at = NOW() "
         "WHERE id = %s::uuid",
@@ -258,8 +306,14 @@ async def confirm_card(*, tenant_id: str, pc_id: str) -> dict:
 
 async def resolve_card(
     *, tenant_id: str, pc_id: str, resolution_layer: str,
+    resolved_by: str | None = None, resolution_channel: str | None = None,
 ) -> dict:
-    """confirmed → resolved，記錄 resolution_layer (L1/L2/L3)。"""
+    """confirmed → resolved，記錄 resolution_layer (L1/L2/L3)。
+
+    CR-0132：同步落分流欄——triage_tier（空時以 layer 補）、resolution_channel
+    （未明給時依 layer 預設映射 L1→ai_auto/L2→line_text_cs/L3→onsite）、
+    resolved_by（操作者）；resolve 後重算雙完整度（Gate② 起算）。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     if resolution_layer not in {"L1", "L2", "L3"}:
@@ -275,21 +329,102 @@ async def resolve_card(
             f"Cannot resolve problem card in status '{current}'; expected 'confirmed'",
             409,
         )
+    if resolution_channel is not None and resolution_channel not in _RESOLUTION_CHANNELS:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"resolution_channel must be one of {sorted(_RESOLUTION_CHANNELS)}",
+            422,
+        )
     await db_module._conn.execute(
         "UPDATE problem_cards SET "
         "  status = 'resolved', "
         "  resolution_layer = %s, "
+        # CR-0132：triage_tier 空時以 layer 補；channel 未明給依 layer 預設映射
+        "  triage_tier = COALESCE(triage_tier, %s), "
+        "  resolution_channel = COALESCE(%s, resolution_channel, %s), "
+        "  resolved_by = COALESCE(%s::uuid, resolved_by), "
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
-        (resolution_layer, pc_id),
+        (resolution_layer, resolution_layer,
+         resolution_channel, _LAYER_DEFAULT_CHANNEL.get(resolution_layer),
+         resolved_by, pc_id),
     )
+    await _recompute_gates(pc_id)
     return await get_card(tenant_id=tenant_id, pc_id=pc_id)
+
+
+async def list_knowledge_queue(*, tenant_id: str, limit: int = 100) -> list[dict]:
+    """待補知識佇列（CR-0132 / 15_SDS §4.6）：operational 已結（resolved）但 Gate②
+    未過（knowledge_ready=FALSE）的卡——提示小編/技師補 RMA spine；精煉只吃 ready。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    cur = await db_module._conn.execute(
+        f"SELECT {_PC_SELECT} FROM problem_cards pc "
+        "WHERE pc.tenant_id = %s::uuid AND pc.status = 'resolved' AND pc.knowledge_ready = FALSE "
+        "ORDER BY pc.updated_at DESC LIMIT %s",
+        (tenant_id, limit),
+    )
+    return [_pc_row_to_dict(r) for r in await cur.fetchall()]
 
 
 # PATCH 不允許改 status；狀態請走 /confirm 或 /resolve（避免 state machine 被旁路）
 _API_URGENCY_TO_DB = {"low": "low", "medium": "normal", "high": "high"}
 # CR-0128/ADR-015①：急件 carve-out 四類（跳過報價直接開單、事後補審）
 _VALID_EMERGENCY_CLASSES = {"locked_out", "trapped_inside", "safety_risk", "angry_high_risk"}
+
+# ── CR-0132 雙 gate（15_SDS §4.6 / 18_DB §4.3）────────────────────────────────
+_TRIAGE_TIERS = {"L1", "L2", "L3"}
+_RESOLUTION_CHANNELS = {"ai_auto", "line_text_cs", "phone_callback", "onsite"}
+_DISPOSITIONS = {"replacement", "repair", "software_update", "user_education",
+                 "onsite_service", "ntf"}
+# resolution_layer → 預設處理管道（resolve 未明給 channel 時的映射）
+_LAYER_DEFAULT_CHANNEL = {"L1": "ai_auto", "L2": "line_text_cs", "L3": "onsite"}
+
+# Gate①（進料/派工）必填；triage_tier=L3 時追加 location（服務地址，既有 HITL 補址欄）
+_GATE1_FIELDS = ("contact_phone", "brand", "model", "failure_mode", "triage_tier")
+# Gate②（知識/精煉 RMA spine）必填；L3 追加 firmware_version/serial
+_GATE2_FIELDS = ("root_cause", "root_cause_category", "corrective_action",
+                 "verification", "disposition", "resolution_channel", "resolved_by")
+
+
+def _dual_scores(pc: dict) -> tuple[float, float]:
+    """依 §4.6 必填集計算 (intake_completeness, resolution_completeness)。"""
+    tier = pc.get("triage_tier")
+    g1 = list(_GATE1_FIELDS) + (["location"] if tier == "L3" else [])
+    g2 = list(_GATE2_FIELDS) + (["firmware_version", "serial"] if tier == "L3" else [])
+    def score(fields):
+        filled = sum(1 for f in fields if _field_filled(pc.get(f)))
+        return round(filled / max(len(fields), 1), 2)
+    return score(g1), score(g2)
+
+
+async def _recompute_gates(pc_id: str) -> None:
+    """重算雙完整度並持久化；Gate② 滿分 → knowledge_ready=TRUE（精煉汲取條件）。
+
+    knowledge_ready 單向落 TRUE 後不自動退回（避免精煉已汲取後旗標翻覆）；
+    spine 欄位被清空屬人工異常，交由審核流程處理。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT contact_phone, brand, model, failure_mode, triage_tier, location, "
+        "       root_cause, root_cause_category, corrective_action, verification, "
+        "       disposition, resolution_channel, resolved_by, firmware_version, serial "
+        "FROM problem_cards WHERE id = %s::uuid",
+        (pc_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return
+    keys = ("contact_phone", "brand", "model", "failure_mode", "triage_tier", "location",
+            "root_cause", "root_cause_category", "corrective_action", "verification",
+            "disposition", "resolution_channel", "resolved_by", "firmware_version", "serial")
+    pc = dict(zip(keys, row))
+    intake, resolution = _dual_scores(pc)
+    await db_module._conn.execute(
+        "UPDATE problem_cards SET intake_completeness = %s, resolution_completeness = %s, "
+        "  knowledge_ready = (knowledge_ready OR %s), updated_at = updated_at "
+        "WHERE id = %s::uuid",
+        (intake, resolution, resolution >= 1.0, pc_id),
+    )
 _VALID_API_URGENCY = set(_API_URGENCY_TO_DB)
 _API_STATUS_TO_DB = {"draft": "incomplete", "confirmed": "confirmed", "resolved": "resolved"}
 _VALID_API_STATUS = set(_API_STATUS_TO_DB)
@@ -523,8 +658,8 @@ async def create_card(
         f"INSERT INTO problem_cards "
         f"  (conversation_id, brand, model, category, location, "
         f"   door_status, network_status, symptoms, urgency, intent, "
-        f"   media_urls, status) "
-        f"VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb, 'incomplete') "
+        f"   media_urls, status, tenant_id) "
+        f"VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb, 'incomplete', %s::uuid) "
         f"RETURNING id",
         (
             conversation_id,
@@ -538,10 +673,12 @@ async def create_card(
             db_urgency,
             db_intent,
             json.dumps(media) if media else None,
+            tenant_id,  # CR-0132：直接租戶欄
         ),
     )
     row = await cur.fetchone()
     new_id = str(row[0])
+    await _recompute_gates(new_id)
     return await get_card(tenant_id=tenant_id, pc_id=new_id)
 
 
@@ -728,9 +865,9 @@ async def escalation_to_draft_pc(
     cur = await db_module._conn.execute(
         "INSERT INTO problem_cards "
         "  (conversation_id, brand, model, category, symptoms, urgency, intent, status, "
-        "   source, ai_missing_fields, idempotency_key) "
+        "   source, ai_missing_fields, idempotency_key, tenant_id) "
         "VALUES (%s::uuid, %s, %s, %s, %s::jsonb, %s, 'repair', 'incomplete', "
-        "        'ai_line', %s::jsonb, %s) "
+        "        'ai_line', %s::jsonb, %s, %s::uuid) "
         "RETURNING id",
         (
             conv_id,
@@ -741,10 +878,12 @@ async def escalation_to_draft_pc(
             urgency,
             json.dumps(missing),
             idem_key,
+            tenant_id,  # CR-0132：直接租戶欄
         ),
     )
     row = await cur.fetchone()
     pc_id = str(row[0])
+    await _recompute_gates(pc_id)
     # CR-0108 S3：新 LINE 進線卡 → ensure 一張 source_channel=line 的 Case 並連 case_id。
     await _ensure_line_case(tenant_id=tenant_id, conv_id=conv_id, pc_id=pc_id, summary=symptom_text)
     card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
@@ -868,6 +1007,18 @@ async def update_card(
     status: str | None = None,
     media_urls: list[str] | None = None,
     emergency_class: str | None = None,
+    # CR-0132 雙 gate 欄位（15_SDS §4.6：分流＋RMA spine，小編/技師漸進補寫）
+    contact_phone: str | None = None,
+    failure_mode: str | None = None,
+    triage_tier: str | None = None,
+    resolution_channel: str | None = None,
+    root_cause: str | None = None,
+    root_cause_category: str | None = None,
+    corrective_action: str | None = None,
+    verification: bool | None = None,
+    disposition: str | None = None,
+    firmware_version: str | None = None,
+    serial: str | None = None,
 ) -> dict:
     """部分更新問題卡欄位。status 變更走 /confirm 或 /resolve，PATCH 拒收 status。
 
@@ -924,6 +1075,32 @@ async def update_card(
             )
         sets.append("urgency = %s")
         args.append(_API_URGENCY_TO_DB[urgency])
+    # CR-0132：雙 gate 欄位（enum 驗證＋trim）
+    if triage_tier is not None:
+        if triage_tier not in _TRIAGE_TIERS:
+            raise ApiError("VALIDATION_ERROR", f"triage_tier must be one of {sorted(_TRIAGE_TIERS)}", 422)
+        sets.append("triage_tier = %s"); args.append(triage_tier)
+    if resolution_channel is not None:
+        if resolution_channel not in _RESOLUTION_CHANNELS:
+            raise ApiError("VALIDATION_ERROR", f"resolution_channel must be one of {sorted(_RESOLUTION_CHANNELS)}", 422)
+        sets.append("resolution_channel = %s"); args.append(resolution_channel)
+    if disposition is not None:
+        if disposition not in _DISPOSITIONS:
+            raise ApiError("VALIDATION_ERROR", f"disposition must be one of {sorted(_DISPOSITIONS)}", 422)
+        sets.append("disposition = %s"); args.append(disposition)
+    for _col, _val, _lim in (
+        ("contact_phone", contact_phone, 50), ("failure_mode", failure_mode, 60),
+        ("root_cause_category", root_cause_category, 60),
+        ("firmware_version", firmware_version, 50), ("serial", serial, 100),
+    ):
+        if _val is not None:
+            sets.append(f"{_col} = %s"); args.append(_val.strip()[:_lim] or None)
+    for _col, _val in (("root_cause", root_cause), ("corrective_action", corrective_action)):
+        if _val is not None:
+            sets.append(f"{_col} = %s"); args.append(_val.strip() or None)
+    if verification is not None:
+        sets.append("verification = %s"); args.append(verification)
+
     if emergency_class is not None:
         if emergency_class == "":
             sets.append("emergency_class = NULL")
@@ -958,4 +1135,5 @@ async def update_card(
     sql = f"UPDATE problem_cards SET {', '.join(sets)} WHERE id = %s::uuid"
     args.append(pc_id)
     await db_module._conn.execute(sql, args)
+    await _recompute_gates(pc_id)  # CR-0132：欄位異動 → 雙完整度重算（Gate② 滿 → knowledge_ready）
     return await get_card(tenant_id=tenant_id, pc_id=pc_id)

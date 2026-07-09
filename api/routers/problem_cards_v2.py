@@ -159,6 +159,24 @@ async def create_problem_card_v2(
 
 
 @router.get(
+    "/tenants/{tenantId}/problem-cards/knowledge-queue",
+    operation_id="listKnowledgeQueueV2",
+    summary="待補知識佇列（CR-0132/15_SDS §4.6：resolved 但 Gate② 未過的卡）",
+    tags=["M03 ProblemCard"],
+)
+async def list_knowledge_queue_v2(
+    tenantId: str = Path(...),
+    limit: int = Query(default=100, ge=1, le=500),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
+) -> dict:
+    """精煉服務（15_SDS §9）只汲取 knowledge_ready=true；本佇列列出待補 spine 的卡。"""
+    # cross-tenant guard（ADR-0030）
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_READ", "Path tenantId does not match authenticated tenant", 403)
+    return {"data": await problem_card_service.list_knowledge_queue(tenant_id=tenantId, limit=limit)}
+
+
+@router.get(
     "/tenants/{tenantId}/problem-cards/{id}",
     operation_id="getProblemCardV2",
     summary="問題卡詳情 v2（tenant-scoped）",
@@ -221,6 +239,17 @@ async def update_problem_card_v2(
         status=status,
         media_urls=media_urls,
         emergency_class=body.emergency_class,
+        contact_phone=body.contact_phone,
+        failure_mode=body.failure_mode,
+        triage_tier=body.triage_tier,
+        resolution_channel=body.resolution_channel,
+        root_cause=body.root_cause,
+        root_cause_category=body.root_cause_category,
+        corrective_action=body.corrective_action,
+        verification=body.verification,
+        disposition=body.disposition,
+        firmware_version=body.firmware_version,
+        serial=body.serial,
     )
     return {"data": ProblemCard(**card).model_dump(mode="json")}
 
@@ -283,6 +312,7 @@ async def resolve_problem_card_v2(
         tenant_id=tenantId,
         pc_id=id,
         resolution_layer=layer_str,
+        resolved_by=user.user_id,  # CR-0132：誰解的（Gate② spine）
     )
     payload = {"data": ProblemCard(**card).model_dump(mode="json")}
     if idem is not None:
