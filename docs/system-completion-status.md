@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**RAG agent 接線 Phase C（WBS 2.2.2）**，branch `feat/rag-agent-wiring` — load_mcp_servers（env 缺值=跳過,未配置行為不變）+ gateway startup hook/demo 顯式連線（vendor 零改動、白名單紅線原樣）+ references 249 塊唯讀遷入 RAG + SKILL.md 檢索程序 + 引用率 gate（4/6=67%＜90%→cutover 不切;兩題 MISS=專家更正從未進知識源,🛑待業主裁決補源路徑）。E2E 真實 turn：MCP 連線→工具註冊→agent 實呼兩 RAG 工具→回覆 grounded。修 Phase A 遺留（openpyxl 隱性依賴、BRONZE 舊路徑）。agent 160 passed。CIA CR-0125。）
+**最後更新：** 2026-07-09（**ADR-030 RAG 定位裁決**，branch `docs/rag-positioning-decision` — 業主釐清：RAG-MCP＝客戶自建資料庫的外接介面（我方 rag/ 兼參考實作）；agent 以 skill 為知識與推理主軸（永久）；ADR-010 cutover 取消、references 永為主路徑。SKILL.md/rag README/CR-0125 §8/INDEX 同步。已建 rag/ 服務與接線保留（opt-in）。）
+
+**前一次更新：** 2026-07-09（**RAG agent 接線 Phase C（WBS 2.2.2）**，branch `feat/rag-agent-wiring` — load_mcp_servers（env 缺值=跳過,未配置行為不變）+ gateway startup hook/demo 顯式連線（vendor 零改動、白名單紅線原樣）+ references 249 塊唯讀遷入 RAG + SKILL.md 檢索程序 + 引用率 gate（4/6=67%＜90%→cutover 不切;兩題 MISS=專家更正從未進知識源,🛑待業主裁決補源路徑）。E2E 真實 turn：MCP 連線→工具註冊→agent 實呼兩 RAG 工具→回覆 grounded。修 Phase A 遺留（openpyxl 隱性依賴、BRONZE 舊路徑）。agent 160 passed。CIA CR-0125。）
 
 **前一次更新：** 2026-07-09（**RAG 語義層 Phase B（WBS 2.2.1）**，branch `feat/rag-semantic-layer` — Schema_rag.sql（manual_chunks/case_entries，768 維 HNSW）+ 新頂層 rag/ 服務（embed=LiteLLM、store=tenant default-deny、ingest=冪等灌注+紅線防禦、server=FastMCP 兩工具+fail-soft）。ADR-010 實證勘誤：text-embedding-004 中文退化→multilingual-002。臨時容器驗證：862 chunk 全灌+冪等、檢索 0.806 命中正解、單測 5 passed，未碰 UAT 庫。CIA CR-0124。Phase C=lockcore mcp_servers 接線+品牌庫灌注+Skill 重切。）
 

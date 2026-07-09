@@ -1,7 +1,9 @@
 # rag — RAG 語義層（WBS 2.2.1 / ADR-010）
 
-pgvector 事實語料 + MCP server。**Skill 是駕駛，RAG 是它按規範呼叫的工具**（ADR-010）。
-per-brand bundle 元件（ADR-002）：與品牌 agent/api 同租戶部署，查詢必帶 `tenant_id`（default deny）。
+pgvector 事實語料 + MCP server。**定位（ADR-030）：對外開放介面**——品牌客戶自建知識庫/RAG
+經 MCP 接入平台 agent；本服務同時是介面的參考實作。我方 agent 以 **skill 為知識與推理主軸**
+（references 永為主路徑），RAG 為 skill 按規範呼叫的輔助工具。
+per-brand bundle 元件（ADR-002）：查詢必帶 `tenant_id`（default deny）。
 
 ## 組成
 
@@ -39,7 +41,8 @@ uv run pytest tests -q
 - **bronze-only**：只灌 `facts.jsonl`（經 audit gate）；ingest 內建 gdrive 紅線二次防禦
 - **default deny**：無 `RAG_TENANT_ID` 拒啟動／拒查詢
 - **fail-soft**：DB/embedding 不可用回 `RAG_UNAVAILABLE`，agent 側 cs-sop 走「不編造、轉真人」
-- **cutover 原則**（ADR-010）：filesystem references 保留為 fallback，直到檢索品質過 gate（2.2.2 引用率 ≥ 90%）
+- **無 cutover**（ADR-030 取消 ADR-010 Phase 4）：references 永為主路徑；引用率 gate＝
+  輔助工具品質指標，非切換開關
 
 ## 後續（Phase C = WBS 2.2.2）
 
