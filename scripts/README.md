@@ -226,7 +226,6 @@ uv run tests/tools/view_facts.py [--user <id>]    # 看 user_facts (SCD2)
 uv run tests/tools/view_logs.py [N]               # 看 audit logs
 uv run tests/tools/view_corrections.py [--all|--export|--clear]
 uv run tests/tools/clean_data.py [--pg|--sqlite|--profile]
-uv run tests/tools/simulate_e2e.py                # debounce / Quick Reply / 多模態 模擬
 ```
 
 若已啟動 venv（`source .venv/bin/activate`），可省 `uv run`：

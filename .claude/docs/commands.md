@@ -67,7 +67,6 @@ uv run tests/tools/view_facts.py <user_id>      # 檢視 user facts
 uv run tests/tools/view_logs.py                 # 查 audit logs
 uv run tests/tools/view_corrections.py          # 檢視 #資料修正 記錄
 uv run tests/tools/clean_data.py                # DB cleanup
-uv run tests/tools/simulate_e2e.py              # E2E 模擬
 # 已 activate venv 時也可：./tests/tools/view_facts.py（shebang）；Windows: python tests\tools\view_facts.py
 ```
 
