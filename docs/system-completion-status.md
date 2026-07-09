@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**問題卡雙 gate schema（WBS 1.2.3，CR-0132）**，branch `feat/pc-dual-gate-schema` — migration 093（雙完整度/分流/RMA spine/knowledge_ready/tenant_id 直欄+backfill/死欄清理）；雙分數自動重算引擎；resolve 落分流；Gate① enforce config 開關（預設 off 待分流 UI）；待補知識佇列端點。新測試 6、component 900、unit 331、四站 tsc 0。）
+**最後更新：** 2026-07-09（**對話三方全量存檔驗證（WBS 1.2.4，CR-0133）**，branch `feat/conv-archival-verify` — 存檔鏈查證完整（含接管期）；補失敗 ERROR 告警＋spool 補送（零缺漏）；三方 sender_role 驗證測試。api 902＋agent 162。）
+
+**前一次更新：** 2026-07-09（**問題卡雙 gate schema（WBS 1.2.3，CR-0132）**，branch `feat/pc-dual-gate-schema` — migration 093（雙完整度/分流/RMA spine/knowledge_ready/tenant_id 直欄+backfill/死欄清理）；雙分數自動重算引擎；resolve 落分流；Gate① enforce config 開關（預設 off 待分流 UI）；待補知識佇列端點。新測試 6、component 900、unit 331、四站 tsc 0。）
 
 **前一次更新：** 2026-07-09（**fail-closed 白名單＋surface 剔除測試（WBS 1.1.3，CR-0131）**，branch `feat/api-surface-fail-closed` — SA-05：金流終局/派工指派 20 端點 fail-closed（安全狀態不可驗→503，不退 claims-only；正典對帳測試防漂移）；SA-03：tech/platform 面剔除清單測試（31 敏感前綴零外洩＋技師必要路由反向斷言＋保留面 RBAC 證明）。component 894、unit 331、types 零變更。13_Security 三處銷案，WBS 1.1.3 ✅——M1 安全群 1.1.x 全數完結。）
 
