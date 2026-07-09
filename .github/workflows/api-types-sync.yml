@@ -1,27 +1,44 @@
 name: API Types Sync Check
 
-# ⚠️ 已知 SoT 衝突（2026-07-09 發現，待業主裁決）：入庫的四份 api.generated.ts
-# 實際源自 runtime export（scripts/ops/export_openapi.py，/api/v1/* 464 端點），
-# 而本 check 從設計稿 api/openapi.yaml（145 條無前綴路徑）生成——兩者根本是
-# 不同契約，--check 必紅。裁決型別 SoT 歸屬前，此 job 紅燈＝已知狀態非新回歸。
+# 型別 SoT = FastAPI runtime export（2026-07-09 業主裁決，CR-0126）：
+# api.generated.ts 由 api.main:app 的實際契約生成（export_openapi.py →
+# openapi-typescript），故觸發條件盯 api 程式碼而非設計稿 api/openapi.yaml
+# （設計稿的守門在 spec-lint / mock-smoke / contract-check）。
 on:
   push:
     paths:
-      - 'api/openapi.yaml'
+      - 'api/**/*.py'
+      - 'api/pyproject.toml'
       # S8 複製分家後 types 為四站各持一份（web/packages/shared/ 已解散）
       - 'web/*/src/types/api.generated.ts'
       - 'scripts/ci/generate-api-types.sh'
+      - 'scripts/ops/export_openapi.py'
+      - '.github/workflows/api-types-sync.yml'
   pull_request:
     paths:
-      - 'api/openapi.yaml'
+      - 'api/**/*.py'
+      - 'api/pyproject.toml'
       - 'web/*/src/types/api.generated.ts'
+      - 'scripts/ci/generate-api-types.sh'
+      - 'scripts/ops/export_openapi.py'
 
 jobs:
   types-sync:
-    name: 檢查 TypeScript 型別是否與 OpenAPI 同步
+    name: 檢查 TypeScript 型別是否與 runtime 契約同步
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+
+      - name: Sync deps（api.main:app import 所需）
+        run: uv sync
 
       - uses: actions/setup-node@v4
         with:
@@ -34,5 +51,5 @@ jobs:
       - name: Failure hint
         if: failure()
         run: |
-          echo "::error::TypeScript 型別檔與 openapi.yaml 不同步。"
+          echo "::error::TypeScript 型別檔與 runtime 契約（api.main:app）不同步。"
           echo "::error::請在本地執行：./scripts/ci/generate-api-types.sh 並 commit 結果"

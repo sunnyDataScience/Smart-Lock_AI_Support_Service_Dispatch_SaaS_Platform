@@ -15,7 +15,7 @@ import type { components } from "@/types/api.generated";
 
 type Manual = components["schemas"]["Manual"];
 type ManualPage = components["schemas"]["ManualPage"];
-type ManualEnvelope = components["schemas"]["ManualEnvelope"];
+import type { ManualEnvelope } from "@/types/api.local";
 
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 const ACCEPTED_EXTENSION = ".pdf";

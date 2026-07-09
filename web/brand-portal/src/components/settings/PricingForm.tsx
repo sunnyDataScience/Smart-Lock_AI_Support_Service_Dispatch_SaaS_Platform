@@ -10,7 +10,7 @@ import type { components } from "@/types/api.generated";
 type PricingRule = components["schemas"]["PricingRule"];
 type PricingRulePage = components["schemas"]["PricingRulePage"];
 type PricingSurcharge = components["schemas"]["PricingSurcharge"];
-type PricingRuleEnvelope = components["schemas"]["PricingRuleEnvelope"];
+import type { PricingRuleEnvelope } from "@/types/api.local";
 type PricingRuleCreateRequest = components["schemas"]["PricingRuleCreateRequest"];
 type PricingRuleUpdateRequest = components["schemas"]["PricingRuleUpdateRequest"];
 type PricingCalculateRequest = components["schemas"]["PricingCalculateRequest"];

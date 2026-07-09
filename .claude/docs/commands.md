@@ -92,7 +92,7 @@ cd knowledge-pipeline && uv run python -m pipeline.silver_to_knowledge.audit_cor
 
 ```bash
 ADMIN_EMAIL=test@lock-ai.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh   # API smoke（uvicorn 起好後）
-./scripts/ci/generate-api-types.sh    # 從 OpenAPI 生 TypeScript 型別
+./scripts/ci/generate-api-types.sh    # 從 runtime export 生 TypeScript 型別（ADR-031；四站同步寫入）
 ./scripts/ci/mock-server.sh           # 起 Prism mock server（port 4010）
 npx @stoplight/spectral-cli lint api/openapi.yaml   # Lint spec
 ```

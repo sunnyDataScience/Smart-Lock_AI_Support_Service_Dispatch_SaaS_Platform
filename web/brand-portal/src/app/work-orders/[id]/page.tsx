@@ -37,6 +37,9 @@ import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
+// 後端 detail model 將 function_tests 宣告為 list[dict]（api/models/generated.py），
+// 實際回傳形狀＝_FunctionTestResult（key + pass/fail/na）——map 前縮窄用
+type FunctionTestResult = components["schemas"]["_FunctionTestResult"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
 type WorkOrderStatus = components["schemas"]["WorkOrderStatus"];
 type WorkOrderAssignRequest = components["schemas"]["WorkOrderAssignRequest"];
@@ -1018,7 +1021,7 @@ function CompletionReport({ order }: { order: WorkOrder | null }) {
                 {t("functionTestsLabel")}
               </span>
               <div className="flex flex-col gap-[6px]">
-                {order.function_tests.map((ft) => {
+                {(order.function_tests as FunctionTestResult[]).map((ft) => {
                   const style =
                     FUNCTION_TEST_RESULT_STYLE[ft.result] ??
                     FUNCTION_TEST_RESULT_STYLE.na;

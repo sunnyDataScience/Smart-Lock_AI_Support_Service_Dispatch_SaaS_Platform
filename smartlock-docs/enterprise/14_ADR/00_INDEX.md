@@ -14,7 +14,7 @@ upstream:
 
 # 14_ADR 索引 — 架構決策紀錄總覽
 
-本目錄收錄平台全部 30 篇架構決策紀錄（ADR-001 ~ ADR-030），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
+本目錄收錄平台全部 31 篇架構決策紀錄（ADR-001 ~ ADR-031），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
 
 **與鄰近文件邊界**：[12_SAD](../12_SAD.md) 是決策的「結果態」（結構與元件視圖），引 ADR 不重述取捨；[13_Security_Architecture](../13_Security_Architecture.md) 承載安全機制細節，ADR 只記安全決策點；[15_SDS](../15_SDS.md) 承載細部設計（DSL schema、狀態機欄位），ADR 只記「採哪條路」；純業務參數（費率階梯、SLA 時數、保固模式）屬 [03_PRD](../03_PRD.md) / [04_SRS](../04_SRS.md)，不進 ADR。
 
@@ -64,6 +64,7 @@ upstream:
 | [ADR-028](./ADR-028_web檔案層拆分_四站獨立專案.md) | web 檔案層拆分——四站台完全獨立專案（複製分家） | 系統(web) | Accepted | supersedes 023 · 022 · 024 |
 | [ADR-029](./ADR-029_知識產線雙軌重構_knowledge-pipeline.md) | 知識產線雙軌重構——data/ 改名 knowledge-pipeline + facts/behavior 分軌 + provenance 治理 | 系統(knowledge-pipeline) | Accepted | 010 · 018 · 019 |
 | [ADR-030](./ADR-030_RAG定位_外接介面_Skill為知識主軸.md) | RAG-MCP＝對外開放介面；Skill 為知識與推理主軸（cutover 取消） | 平台 | Accepted | 部分取代 010 · 011 |
+| [ADR-031](./ADR-031_契約工件三分層_型別SoT為runtime_export.md) | 契約工件三分層——前端型別 SoT＝runtime export；設計稿 spec 專職設計期契約 | 系統(api/web) | Accepted | refines 022 · 028 |
 
 ## 依賴關係圖
 
@@ -102,6 +103,8 @@ graph TD
   A004 --> A024[ADR-024 client SPA + OIDC]
   A023 --> A024
   A015 --> A026[ADR-026 報價快照 hash-chain]
+  A022 --> A031[ADR-031 型別 SoT=runtime export]
+  A028 --> A031
 ```
 
 關鍵依賴語義：

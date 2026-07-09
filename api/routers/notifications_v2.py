@@ -67,7 +67,7 @@ class MarkAllReadBody(BaseModel):
 
 @router.get(
     "/tenants/{tenantId}/notifications",
-    operation_id="listNotifications",
+    operation_id="listNotificationsV2",
     summary="通知列表 v2（tenant-scoped，游標分頁，status/type 過濾）",
     tags=["Notifications"],
 )
@@ -107,7 +107,7 @@ async def list_notifications_v2(
 
 @router.patch(
     "/tenants/{tenantId}/notifications/{notificationId}",
-    operation_id="updateNotification",
+    operation_id="updateNotificationV2",
     summary="標記通知狀態 v2（tenant-scoped，標記已讀或封存）",
     tags=["Notifications"],
 )
@@ -141,7 +141,7 @@ async def update_notification_v2(
 
 @router.post(
     "/tenants/{tenantId}/notifications:bulk",
-    operation_id="bulkUpdateNotifications",
+    operation_id="bulkUpdateNotificationsV2",
     summary="批次處理通知 v2（tenant-scoped，mark_read/mark_unread/archive/delete）",
     tags=["Notifications"],
 )
@@ -179,7 +179,7 @@ async def bulk_update_notifications_v2(
 
 @router.post(
     "/tenants/{tenantId}/notifications:mark-all-read",
-    operation_id="markAllNotificationsRead",
+    operation_id="markAllNotificationsReadV2",
     summary="全部標為已讀 v2（tenant-scoped，Critical 類除外）",
     tags=["Notifications"],
 )

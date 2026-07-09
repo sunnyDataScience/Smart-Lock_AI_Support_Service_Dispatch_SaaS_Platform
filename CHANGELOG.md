@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Changed
+
+- **前端型別 SoT 改認 runtime export——契約工件三分層（branch `refactor/api-types-runtime-sot`，2026-07-09，ADR-031 / CIA CR-0126）**：業主裁決「做1」落地。①**生成鏈改接**：`generate-api-types.sh` 先跑 `scripts/ops/export_openapi.py`（離線 import `api.main:app`，464 端點/341 schemas）再以釘版 `openapi-typescript@7.13.0` 生成四站（`@latest` 會讓 `--check` 假紅）；`api-types-sync.yml` 改盯 `api/**/*.py`＋加 uv 環境——設計稿 `api/openapi.yaml` 專職設計期契約（spec-lint/mock-smoke/contract-check 對象不變），**不再是型別來源**。②**api 12 組 operationId 去重**（v2 → `*V2`、technicians 自身資料 → `*TechnicianProfile`；FastAPI 匯出告警清零；元資料改名——前端僅消費 `components`、`operations[]` 零引用、api 測試僅註解提及，行為零變更）。③**四站型別重生成＋消費端修復**：新增 `api.local.ts` 顯性補丁（Notification 系列與 Manual/PricingRule Envelope——後端未宣告 response_model 的端點，依實際回傳形狀本地宣告、註明遷回條件）；SystemConfigForm 13 處 nullable 收斂（`?? undefined`）；work-orders function_tests 以 `_FunctionTestResult` 縮窄（後端宣告 `list[dict]` 的實際形狀）。驗證：四站 tsc 0＋next build 全綠、api unit 331 passed、`--check` 冪等通過——**型別同步鏈自 Week 4 建立以來第一次真正閉環**（觸發路徑歷來失準、check 從未執行）。遺留顯性技債記 CR-0126（後端補 response_model 後縮減 api.local.ts）。
+
 ### Fixed
 
 - **OpenAPI 機讀 spec 重複 key 修正 + api-types-sync 死觸發路徑（branch `fix/openapi-dup-description-key`，2026-07-09）**：push 前 CI 預檢發現兩處。① `api/openapi.yaml:6011` `WorkOrder.document_number` 有兩個 `description` key——PyYAML 靜默取後值（過期的 `WO-YYYYMMDD-NNNN`），redocly/spectral 嚴格解析直接炸（spec-lint、api-types-sync、mock-smoke 三條 CI 會紅）；刪過期行、保留與實作一致的 `{2碼地區}-{6碼流水}`（CR-0020 / work_order_service.py:448），修後 spectral 0 errors、schemathesis 結構過。② `api-types-sync.yml` 觸發路徑仍盯已解散的 `web/packages/shared/src/types/api.generated.ts`（S8 複製分家後不存在＝types 編輯永不觸發的假沉默）→ 改 `web/*/src/types/api.generated.ts` glob。**同場發現重大 SoT 衝突另行回報**：入庫的四份 `api.generated.ts` 實際源自 runtime export（`export_openapi.py`，464 端點 `/api/v1/*`），與設計稿 spec（145 條無前綴路徑）根本是兩份契約——`generate-api-types.sh --check` 從設計稿生成必紅，型別同步鏈需業主裁決 SoT 歸屬後重建（見 CR 待立案）。

@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**非開發整理 R3 修繕**，branch `chore/housekeeping-r3` — 19 個懸空 skill 引用修正（CIA gate 改「skill 缺席時依 rules 手工產出」；vibecoding-*/5 個 sunnydata-* 標未安裝概念流程）；.claude/docs 死路徑清理（web 四站台/knowledge-pipeline/silver_to_knowledge）；清過期 subagent 報告。R1-R3 非開發整理全數完成。）
+**最後更新：** 2026-07-09（**前端型別 SoT 改認 runtime export（ADR-031/CR-0126）**，branch `refactor/api-types-runtime-sot` — push 前預檢揭露型別鏈三工件互相矛盾且 api-types-sync 從未真正執行；業主裁決「做1」：generate-api-types 改「export_openapi.py（runtime）→ openapi-typescript@釘版」四份同步、CI 改盯 api/**/*.py＋uv；api 12 組 operationId 去重（v2→*V2，行為零變更）；四站消費端修復（api.local.ts 顯性補丁/SystemConfigForm nullable 收斂/function_tests 縮窄）。四站 tsc 0＋build 綠、api unit 331 passed、--check 冪等。設計稿 api/openapi.yaml 專職設計期契約。）
+
+**前一次更新：** 2026-07-09（**非開發整理 R3 修繕**，branch `chore/housekeeping-r3` — 19 個懸空 skill 引用修正（CIA gate 改「skill 缺席時依 rules 手工產出」；vibecoding-*/5 個 sunnydata-* 標未安裝概念流程）；.claude/docs 死路徑清理（web 四站台/knowledge-pipeline/silver_to_knowledge）；清過期 subagent 報告。R1-R3 非開發整理全數完成。）
 
 **前一次更新：** 2026-07-09（**非開發整理 R2 歸位**，branch `chore/housekeeping-r2` — gen_docs_html→scripts/dev（tools/ 消失）、smoke→scripts/ci（tests/ 消失）、root testpaths 改 agent/tests 安全預設、引用同步（Makefile/dev-up/README）。根目錄=11 功能包+6 必要根檔。）
 
