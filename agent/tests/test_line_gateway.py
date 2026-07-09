@@ -669,3 +669,55 @@ def test_webhook_debounce_merges_two_messages(monkeypatch):
     assert loop.calls[0]["content"] == "我的鎖打不開\n型號是 K9"
     assert loop.calls[0]["session_key"] == "locksmart:Udebounce"
     assert replies == ["收到,馬上為您查詢 🔍"]
+
+
+# ── CR-0133 / BR-Conv-004:持久化失敗告警＋spool 補送(對話零缺漏)────────────
+def test_persist_failure_spools_then_flush(tmp_path, monkeypatch):
+    """POST 失敗 → 落 spool(告警);下次持久化先補送 spool、成功即清空。"""
+    import asyncio
+    import json as _json
+
+    import lockcore.channels.line_gateway as gw
+
+    spool = tmp_path / "spool.jsonl"
+    monkeypatch.setattr(gw, "_PERSIST_SPOOL_PATH", str(spool))
+    monkeypatch.setattr(gw, "_spool_lock", None)  # 重建 lock（跨 event loop 安全）
+    monkeypatch.setenv("LOCK_API_BASE_URL", "http://bridge.test")
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "tok")
+
+    calls = {"n": 0, "fail": True}
+
+    async def _fake_post(base_url, token, payload):
+        calls["n"] += 1
+        return not calls["fail"]
+
+    monkeypatch.setattr(gw, "_post_ingest", _fake_post)
+
+    # 第一輪:POST 失敗 → spool 落 1 筆
+    asyncio.run(gw._persist_turn_safe("t1", "Uabcdef", "你好", "AI 回覆"))
+    assert spool.exists()
+    rows = [_json.loads(x) for x in spool.read_text(encoding="utf-8").splitlines()]
+    assert len(rows) == 1 and rows[0]["user_text"] == "你好"
+
+    # 第二輪:恢復 → 先補送 spool(1)再送本輪(1) → spool 清空
+    calls["fail"] = False
+    asyncio.run(gw._persist_turn_safe("t1", "Uabcdef", "第二句", "AI 回覆2"))
+    assert not spool.exists(), "補送成功應清空 spool"
+    assert calls["n"] >= 3  # 失敗1 + 補送1 + 本輪1
+
+
+def test_spool_cap_drops_oldest(tmp_path, monkeypatch):
+    import asyncio
+    import json as _json
+
+    import lockcore.channels.line_gateway as gw
+
+    spool = tmp_path / "spool.jsonl"
+    monkeypatch.setattr(gw, "_PERSIST_SPOOL_PATH", str(spool))
+    monkeypatch.setattr(gw, "_PERSIST_SPOOL_MAX", 3)
+    monkeypatch.setattr(gw, "_spool_lock", None)
+
+    for i in range(5):
+        asyncio.run(gw._spool_append({"user_text": f"m{i}"}))
+    rows = [_json.loads(x) for x in spool.read_text(encoding="utf-8").splitlines()]
+    assert [r["user_text"] for r in rows] == ["m2", "m3", "m4"], "超限應丟最舊"

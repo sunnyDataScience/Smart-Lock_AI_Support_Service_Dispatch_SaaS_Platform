@@ -91,6 +91,18 @@ _MEDIA_KIND_MARKERS = {
 #   避免冷啟動拖慢客人首次回覆。
 _PERSIST_TIMEOUT_SEC = 20.0
 _HANDOVER_CHECK_TIMEOUT_SEC = 5.0
+# CR-0133 / BR-Conv-004：對話持久化失敗不得靜默遺失——失敗轉本機 spool（jsonl），
+# 下一次持久化前先補送；連 ERROR 級告警（雲端 alerting 依 severity 掛規則）。
+_PERSIST_SPOOL_PATH = os.environ.get("PERSIST_SPOOL_PATH", "data/persist_spool.jsonl")
+_PERSIST_SPOOL_MAX = int(os.environ.get("PERSIST_SPOOL_MAX", "500"))
+_spool_lock: "asyncio.Lock | None" = None
+
+
+def _get_spool_lock() -> "asyncio.Lock":
+    global _spool_lock
+    if _spool_lock is None:
+        _spool_lock = asyncio.Lock()
+    return _spool_lock
 
 
 # ── CR-0120:連續訊息合併(trailing debounce)────────────────────────────
@@ -220,6 +232,19 @@ async def _persist_turn_safe(
         "assistant_text": assistant_text or "",
         **_encode_media_for_persist(media_paths),
     }
+    await _flush_persist_spool(base_url, token)  # 先補送歷史失敗（best-effort）
+    ok = await _post_ingest(base_url, token, payload)
+    if not ok:
+        # BR-Conv-004：寫入失敗須告警、不得靜默遺失 —— ERROR 級（雲端告警線）＋落 spool 待補送
+        logger.error(
+            "[ARCHIVE_ALERT] 對話持久化失敗,已落 spool 待補送 user={} spool={}",
+            user_id[:8], _PERSIST_SPOOL_PATH,
+        )
+        await _spool_append(payload)
+
+
+async def _post_ingest(base_url: str, token: str, payload: dict) -> bool:
+    """單筆 ingest POST；成功回 True。任何失敗回 False(絕不 raise,不影響客服回覆)。"""
     try:
         import httpx
 
@@ -230,11 +255,65 @@ async def _persist_turn_safe(
                 headers={"X-Internal-Token": token},
             )
             if resp.status_code >= 400:
-                logger.warning(
-                    "對話持久化回 {}:{}", resp.status_code, resp.text[:160]
-                )
+                logger.warning("對話持久化回 {}:{}", resp.status_code, resp.text[:160])
+                return False
+            return True
     except Exception as e:  # noqa: BLE001 — 持久化絕不可影響客服回覆
-        logger.warning("對話持久化失敗(已略過,不影響客人): {!r}", e)
+        logger.warning("對話持久化失敗: {!r}", e)
+        return False
+
+
+async def _spool_append(payload: dict) -> None:
+    """失敗批次落本機 spool(jsonl,上限 _PERSIST_SPOOL_MAX 防爆量;超限丟最舊並 ERROR)。"""
+    import json as _json
+
+    async with _get_spool_lock():
+        try:
+            p = Path(_PERSIST_SPOOL_PATH)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            lines = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
+            lines.append(_json.dumps(payload, ensure_ascii=False))
+            if len(lines) > _PERSIST_SPOOL_MAX:
+                dropped = len(lines) - _PERSIST_SPOOL_MAX
+                logger.error("[ARCHIVE_ALERT] spool 超限,丟棄最舊 {} 筆(上限 {})",
+                             dropped, _PERSIST_SPOOL_MAX)
+                lines = lines[-_PERSIST_SPOOL_MAX:]
+            p.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        except Exception as e:  # noqa: BLE001 — spool 本身失敗也不可影響回覆
+            logger.error("[ARCHIVE_ALERT] spool 寫入失敗(該輪對話遺失風險): {!r}", e)
+
+
+async def _flush_persist_spool(base_url: str, token: str) -> None:
+    """補送 spool 中的歷史失敗批次；成功者移除、失敗者保留(下次再試)。"""
+    import json as _json
+
+    async with _get_spool_lock():
+        try:
+            p = Path(_PERSIST_SPOOL_PATH)
+            if not p.exists():
+                return
+            lines = [ln for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
+            if not lines:
+                return
+            remain: list[str] = []
+            sent = 0
+            for ln in lines:
+                try:
+                    payload = _json.loads(ln)
+                except ValueError:
+                    continue  # 壞行直接丟
+                if await _post_ingest(base_url, token, payload):
+                    sent += 1
+                else:
+                    remain.append(ln)
+            if remain:
+                p.write_text("\n".join(remain) + "\n", encoding="utf-8")
+            else:
+                p.unlink(missing_ok=True)
+            if sent:
+                logger.info("對話持久化 spool 補送成功 {} 筆,殘留 {} 筆", sent, len(remain))
+        except Exception as e:  # noqa: BLE001
+            logger.error("[ARCHIVE_ALERT] spool 補送異常: {!r}", e)
 
 
 async def _handover_active_safe(tenant: str, user_id: str) -> bool:
