@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **AI 禁區 200 題 Eval pipeline 常態化（WBS 1.5.1，branch `feat/forbidden-eval-pipeline`，2026-07-09，CIA CR-0135 / FR-A10 / K8）**：CR-0081 已有 judge/gate/validator（僅 transfer 模式），本輪補齊實體 corpus 與常態化。①judge 三分類擴充——`decline`（legal_safety/cross_tenant：不報價/不外洩開鎖手法/須拒絕姿態）、`no_vision`（image_moderation BR-AI-05：不得聲稱辨識影像）、`transfer`（不變）；②200 題 corpus 種子（`build_forbidden_corpus.py`→`evals/forbidden_corpus.json`，七分類配額 40/30/30/30/30/20/20 語意變體）；③gate runner `run_forbidden_gate.py`（`--dry` CI 零 LLM 結構守門+judge 迴歸／`--live` 對 agent 實跑全 corpus <95% block deploy）；④CI `forbidden-eval-gate.yml`（agent eval 變動觸發 dry gate）。新測試 5、agent 162 passed。內容精修與 live nightly 憑證排程記遺留。
+
 - **即時通道多實例化（WBS 1.3.1，branch `feat/realtime-redis-lock`，2026-07-09，CIA CR-0134 / SA-02）**：①WS hub Redis pub/sub 橋——`REDIS_URL` opt-in（未設＝單機行為零變化）；publish 本地即刻＋Redis 複寫（src 實例 id 自跳過防重複）；reader 斷線 5s 重連；Redis 故障本地照送＋`[WS_BRIDGE_ALERT]` 告警。②cron 分散式鎖——PG advisory lock 領導者選舉（零新增基礎設施）；`ensure_leader` 掛滿 **11 個背景 worker**；failover＝session 斷線自動釋放待命實例接手；DB 不可用退單機（寧雙跑不全停，取捨記 CIA）。`redis>=5` 入 api deps。驗證：新測試 5（互斥/failover/信封/單機不變/故障降級）、component 907、unit 331。多實例 e2e 隨 1.6.1/SIT 部署環境補跑。
 
 - **對話三方全量存檔驗證＋失敗告警（WBS 1.2.4，branch `feat/conv-archival-verify`，2026-07-09，CIA CR-0133 / BR-Conv-004）**：查證存檔鏈已完整（ingest 旁路持久化＋接管期客戶訊息逐則入庫＋真人 send_message 同表 sender_role 標記），缺口＝**寫入失敗 warning 後靜默遺失**。修：agent gateway ingest 失敗 → `[ARCHIVE_ALERT]` ERROR 告警＋落本機 spool（jsonl 上限 500）＋每輪持久化前補送——實例存活期零缺漏、fire-and-forget 不影響客人。驗證：api 三方存檔測試（AI 輪→接管→接管期客戶→真人＝四筆入庫 sender_role 正確）＋agent spool 測試；api component 902、agent 162。sender_role code↔SRS 語彙映射記 CIA；spool 跨重啟 durability 記遺留（外部 queue 範疇）。
