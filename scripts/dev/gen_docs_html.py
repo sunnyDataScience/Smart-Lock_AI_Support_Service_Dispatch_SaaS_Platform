@@ -5,7 +5,7 @@
 鏡像分類目錄結構；既有 .html 原樣複製。產一份單頁可搜尋總目錄 docs_html/index.html
 （分類摺疊 + 每檔說明 + 佈告欄最近更新）。純 html 檔另產 .md 源放回 docs/。
 
-用法：.venv/bin/python tools/gen_docs_html.py
+用法：.venv/bin/python scripts/dev/gen_docs_html.py
 """
 from __future__ import annotations
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tests/smoke/api.sh — 18 endpoints happy-path smoke test
+# scripts/ci/smoke-api.sh — 18 endpoints happy-path smoke test（2026-07-09 自 tests/smoke 遷入）
 #
 # Prereq:
 #   1. uvicorn main:app --port 8001 已啟動
@@ -7,7 +7,7 @@
 #   3. 已存在 admin user (email/password 從 ADMIN_EMAIL/ADMIN_PASSWORD 環境變數)
 #
 # 用法：
-#   ADMIN_EMAIL=admin@x.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh
+#   ADMIN_EMAIL=admin@x.com ADMIN_PASSWORD=changeme123 ./scripts/ci/smoke-api.sh
 #
 set -euo pipefail
 

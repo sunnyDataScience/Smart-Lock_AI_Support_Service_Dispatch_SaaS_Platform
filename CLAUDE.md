@@ -47,7 +47,7 @@ Smart Lock AI Support & Service Dispatch SaaS Platform —— LINE Bot 智慧鎖
 - **測試走 pytest**（agent 重寫後新建 `agent/tests/`，~13 個測試含 `test_e2e_mock_turn.py` / `test_skills_loaded.py` / `test_tool_allowlist.py` / `test_litellm_provider.py` / `test_line_gateway.py` 等）—— **不再有 quality_check / LLM-as-Judge 套件**（已刪）。
 - **Config pattern**：`agent/config.toml` 用 `lockcore/app_config.py:tomllib` 載入；機密（`GEMINI_API_KEY` / `LINE_CHANNEL_*` / `credentials.json`）放 `.env` 或 gitignore 檔，**不入 toml**。
 - **永不手動構建 `POSTGRES_URI`** —— 用 `./scripts/deploy/agent.sh --update-db-uri`（自動 URL-encode + round-trip 驗證）。
-- **docs/ 雙版本工作流已退役（2026-07-08 大掃除）** —— tracked 的 `docs/`、`docs_html/` 樹已刪，文件正典= `smartlock-docs/`（純 .md，無 HTML 鏡像）。`tools/gen_docs_html.py` 僅保留給**未追蹤的報告素材**（如 `docs/20260709/` PPT 素材）本機 regen 用；不要再為一般文件建 docs_html 鏡像。
+- **docs/ 雙版本工作流已退役（2026-07-08 大掃除）** —— tracked 的 `docs/`、`docs_html/` 樹已刪，文件正典= `smartlock-docs/`（純 .md，無 HTML 鏡像）。`scripts/dev/gen_docs_html.py`（原 tools/）僅保留給**未追蹤的報告素材**（如 `docs/20260709/` PPT 素材）本機 regen 用；不要再為一般文件建 docs_html 鏡像。
 
 ## 最常用指令（完整清單見 `@.claude/docs/commands.md`）
 

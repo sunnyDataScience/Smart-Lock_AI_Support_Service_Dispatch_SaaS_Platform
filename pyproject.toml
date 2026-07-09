@@ -57,7 +57,9 @@ package = false
 # ── pytest 全域設定（root 層；api/ 仍保留自己的 api/pytest.ini） ──
 # 測試金字塔分層 markers，對應 E7x §5.2
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# 根 tests/ 已整併(2026-07-09):smoke→scripts/ci、其餘隨舊架構移除。
+# 根層 pytest 預設跑 agent 套件(無 DB 依賴);api 套件須 cd api 並用隔離 scratch DB。
+testpaths = ["agent/tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 markers = [
