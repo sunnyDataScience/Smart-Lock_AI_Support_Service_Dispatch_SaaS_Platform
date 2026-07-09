@@ -119,7 +119,7 @@ async def get_invoice_v2(
 async def create_invoice_from_quote_v2(
     body: _FromQuoteBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*_BILLING_ROLES)),
+    user: CurrentUser = Depends(role_required(*_BILLING_ROLES, fail_closed=True)),
 ) -> dict:
     """後台手動補開應收發票（accept 自動開立失敗 / 需人工控管時）。
 

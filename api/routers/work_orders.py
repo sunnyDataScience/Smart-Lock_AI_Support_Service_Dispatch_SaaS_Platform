@@ -173,7 +173,7 @@ async def accept_work_order(
 async def assign_work_order(
     body: WorkOrderAssignRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     reason_code = (

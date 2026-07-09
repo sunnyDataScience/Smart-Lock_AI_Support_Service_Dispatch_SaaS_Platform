@@ -52,7 +52,7 @@ upstream:
 | JWT 簽發 | HS256；access 60 min / refresh 30 d；claims：`sub / role / tenant_id / jti / type`；refresh token 不可打 API（401）| api C-01 |
 | jti 撤銷 | 登出寫 `revoked_jti` 表；每請求查撤銷狀態；platform_admin 的 revoked_jti 存平台庫（依 role 路由查詢）| api C-03 |
 | 每請求安全狀態重查 | `load_user_security_state` 查 `is_active`（停權即時 403 `ACCOUNT_DISABLED`）+ `password_changed_at`（改密後舊 token 401 `TOKEN_STALE`）| api C-04 |
-| 可用性取捨 | DB 不可用時安全狀態退回 claims-only（可用性換安全的明確設計取捨）；關鍵金流/派工寫入的 fail-closed 白名單 🔜 規劃中（SA-05）| api C-05 |
+| 可用性取捨 | DB 不可用時安全狀態退回 claims-only（可用性換安全的明確設計取捨）；✅ 關鍵金流/派工寫入 fail-closed 白名單 20 端點（SA-05，2026-07-09 CR-0131——不可驗即 503，正典對帳測試防漂移）| api C-05 |
 | 密碼雜湊 | bcrypt via passlib，`bcrypt_rounds=12` | api B-05 |
 | 密鑰隔離 | platform surface 使用獨立 `PLATFORM_JWT_SECRET_KEY`；platform 啟動守衛：密鑰 ≥16 字元、不含 `dev-secret`/`do-not-use`，否則 `RuntimeError` 拒啟 | api D-01/D-02 |
 
@@ -111,7 +111,7 @@ Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR
 - **執行點**：api 端資源級 `role_required` 依賴鏈（`get_current_user → require_tenant → role_required`），**deny-by-default**。授權矩陣以 **§3.1 的 7 角色正典** × 12 資源 × 4 動作為基準（✅ SA-01/CR-0130 已瘦身至正典行）；對帳基線與殘餘表記 CR-0130（runtime 反射：157 條 role_required；金流/派工/設定弱守衛寫入已收斂，殘餘 43 個非核心寫入端點列 R2 灰度）。
 - **逐端點角色守衛落地（SA-01）**：✅ R1 完成（2026-07-09，CR-0130）——死角色收斂＋金流/派工/設定寫入 49 端點補 `role_required`＋技師動作端點顯式白名單（`TECH_ACTION_ROLES`）；驗收達標：technician/vendor 寫金流/派工/設定回 403（sweep 測試鎖定）。✅ R2 完成（同日）——37 端點收斂（kb/sop/conversations/sentiment/media/resolution/rma/ai-gov/推播）；定案保留 require_tenant：自身通知操作 ×6 與客戶綁定 generate-token（客戶流程，隨 vendor 定位 CR 再議）。
 - **前端 gate = UX 非邊界**：web 的 `rolePolicy` 路由 gate 僅影響頁面載入；`/platform/*` 已為對稱 deny-by-default（僅 platform_admin 可進）；全表 catch-all deny-by-default 🔜 規劃中（ACT-02）。
-- **API_SURFACE 是部署塑形非安全邊界**：tech/platform 面靠前綴過濾塑形，真正隔離押在每端點 RBAC（api C-11 設計原則，文件化 + 剔除清單測試覆蓋 🔜 規劃中 SA-03）。
+- **API_SURFACE 是部署塑形非安全邊界**：tech/platform 面靠白名單前綴過濾塑形（fail-closed by construction），真正隔離押在每端點 RBAC（api C-11）。✅ 剔除清單測試覆蓋（SA-03，2026-07-09 CR-0131——31 組敏感前綴逐路由驗證＋保留面 RBAC 證明）。
 
 ### 3.3 職責分離（SoD，既有控制）
 
@@ -202,7 +202,7 @@ Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR
 | 類別 | 既有控制 | 規劃中 |
 |---|---|---|
 | 認證 | JWT + jti 撤銷 + 每請求重查 + 三密鑰隔離 + platform 啟動守衛 | Casdoor OIDC 化（Phase 2）|
-| 授權 | 守衛鏈 + SoD 雙簽 + `/platform` 面獨立密鑰 | 資源級 role_required 全面 enforce（SA-01）；fail-closed 白名單（SA-05）|
+| 授權 | 守衛鏈 + SoD 雙簽 + `/platform` 面獨立密鑰 | ✅ 資源級 role_required enforce（SA-01）；✅ fail-closed 白名單（SA-05）|
 | 資料 | 三庫物理隔離、PII Fernet（KYC）、GDPR forget_v2 + T+30、bcrypt(12) | 跨庫一致性啟動守衛（SA-04）|
 | 應用 | psycopg3 參數化、Pydantic v2 全 body 驗證（243 schema class）、冪等鍵（TTL 24h）、RFC7807、WS 頻道授權 | 速率限制真實化（SA-06）|
 | 基礎設施 | Secret Manager、`--update-db-uri`、`/health` 探針、graceful shutdown（11 worker 依序停）| Redis 去單機（SA-02）；集中錯誤監控；CD（ADR-P012）|

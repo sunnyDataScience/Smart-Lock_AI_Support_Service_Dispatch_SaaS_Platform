@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**RBAC 轉 enforce R2＝1.1.1 完結（CR-0130 續）**，branch `feat/rbac-enforce-sa01-r2` — 殘餘 43 弱守衛寫入收斂 37（kb/sop/conversations/sentiment/media/resolution/rma/ai-gov/推播依矩陣歸位；技師 media/sop-feedback 走 TECH_ACTION 白名單）；定案保留 7（自身通知×6＋客戶綁定 token）。R2 sweep 測試；component 888 零波及、unit 331、四站 tsc 0。SA-01 全案銷結，WBS 1.1.1 ✅。）
+**最後更新：** 2026-07-09（**fail-closed 白名單＋surface 剔除測試（WBS 1.1.3，CR-0131）**，branch `feat/api-surface-fail-closed` — SA-05：金流終局/派工指派 20 端點 fail-closed（安全狀態不可驗→503，不退 claims-only；正典對帳測試防漂移）；SA-03：tech/platform 面剔除清單測試（31 敏感前綴零外洩＋技師必要路由反向斷言＋保留面 RBAC 證明）。component 894、unit 331、types 零變更。13_Security 三處銷案，WBS 1.1.3 ✅——M1 安全群 1.1.x 全數完結。）
+
+**前一次更新：** 2026-07-09（**RBAC 轉 enforce R2＝1.1.1 完結（CR-0130 續）**，branch `feat/rbac-enforce-sa01-r2` — 殘餘 43 弱守衛寫入收斂 37（kb/sop/conversations/sentiment/media/resolution/rma/ai-gov/推播依矩陣歸位；技師 media/sop-feedback 走 TECH_ACTION 白名單）；定案保留 7（自身通知×6＋客戶綁定 token）。R2 sweep 測試；component 888 零波及、unit 331、四站 tsc 0。SA-01 全案銷結，WBS 1.1.1 ✅。）
 
 **前一次更新：** 2026-07-09（**RBAC 轉 enforce R1（WBS 1.1.1，CR-0130）**，branch `feat/rbac-enforce-sa01` — 業主裁決 legacy 全面移除＋金流/派工/設定先：死角色出清（FULL_ACCESS/矩陣 6 行/HIERARCHY/RBAC_ADMIN/8 處硬編碼，殘存 token 立即失效）；49 個弱守衛寫入端點補 role_required（技師動作 TECH_ACTION_ROLES 白名單、問題卡/開單 BACKOFFICE、庫存/定價/保固/退款/設定各歸矩陣）；runtime 對帳基線＋R2 殘餘 43 端點表落 CR-0130。sweep 測試鎖驗收線（technician/vendor 寫金流/派工/設定→403）。component 884、unit 331、四站 tsc 0。13_Security [待確認] 銷案。）
 

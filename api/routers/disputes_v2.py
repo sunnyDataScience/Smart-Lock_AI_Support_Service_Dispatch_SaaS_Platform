@@ -228,7 +228,7 @@ async def review_dispute_v2(
     body: ReviewDisputeBody,
     tenantId: str = Path(...),
     disputeId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES, fail_closed=True)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -269,7 +269,7 @@ async def co_sign_dispute_v2(
     body: CoSignDisputeBody,
     tenantId: str = Path(...),
     disputeId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES, fail_closed=True)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:

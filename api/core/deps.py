@@ -209,8 +209,13 @@ REVIEW_ROLES: tuple[str, ...] = OPS_ROLES + ("reviewer",)
 TECH_ACTION_ROLES: tuple[str, ...] = BACKOFFICE_ROLES + ("technician",)
 
 
-def role_required(*roles: str):
-    """Dependency factory 限制角色。"""
+def role_required(*roles: str, fail_closed: bool = False):
+    """Dependency factory 限制角色。
+
+    fail_closed（SA-05 / CR-0131 關鍵金流/派工寫入白名單）：安全狀態不可驗
+    （DB 不可用 → revoked_jti / is_active 查不到）時拒絕請求（503），不退
+    claims-only。一般端點維持 C-05 fail-open 取捨（可用性換安全）。
+    """
     async def _dep(
         request: Request,
         authorization: str | None = Header(default=None, alias="Authorization"),
@@ -223,6 +228,15 @@ def role_required(*roles: str):
                 message=f"Requires one of roles: {', '.join(roles)}",
                 status_code=403,
             )
+        if fail_closed:
+            from core.auth import security_state_verifiable
+
+            if not await security_state_verifiable(user.role):
+                raise ApiError(
+                    error_code="SECURITY_STATE_UNAVAILABLE",
+                    message="安全狀態不可驗（撤銷/停權查核離線）——關鍵金流/派工寫入拒絕執行（SA-05 fail-closed）",
+                    status_code=503,
+                )
         return user
     return _dep
 

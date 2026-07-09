@@ -131,6 +131,14 @@ async def load_user_security_state(user_id: str, role: str | None = None) -> dic
     return {"is_active": row[0], "password_changed_at": row[1]}
 
 
+async def security_state_verifiable(role: str | None = None) -> bool:
+    """安全狀態是否可驗（SA-05 / CR-0131）：能取得對應安全庫連線＝可查 revoked_jti
+    與 users.is_active。DB 不可用 → False——關鍵金流/派工寫入端點（fail_closed=True
+    白名單）此時拒絕請求（503），不退 claims-only；一般端點維持 fail-open（C-05 取捨）。
+    """
+    return (await _security_conn(role)) is not None
+
+
 async def is_jti_revoked(jti: str, role: str | None = None) -> bool:
     conn = await _security_conn(role)
     if conn is None:

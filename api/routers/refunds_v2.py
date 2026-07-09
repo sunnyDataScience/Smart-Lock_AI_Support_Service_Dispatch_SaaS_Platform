@@ -88,7 +88,7 @@ async def submit_refund_decision_v2(
     body: RefundDecision,
     tenantId: str = Path(...),
     refundId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（對齊 create_refund_sod，ADR-0030）
@@ -163,7 +163,7 @@ class _AgentInitiateRefundBody(BaseModel):
 async def agent_initiate_refund_v2(
     body: _AgentInitiateRefundBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """Agent 服務帳號發起退款 — 不走 SoD dual-sign（HD-02 業主裁，LangGraph 特例）。

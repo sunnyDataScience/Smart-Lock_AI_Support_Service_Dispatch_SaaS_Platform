@@ -76,7 +76,7 @@ async def list_dispatch_candidates(
 async def auto_match_dispatch(
     body: DispatchAutoMatchRequest,
     response: Response,
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
@@ -106,7 +106,7 @@ async def auto_match_dispatch(
 )
 async def assign_dispatch(
     body: DispatchAssignRequest,
-    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await dispatch_service.assign_dispatch(
