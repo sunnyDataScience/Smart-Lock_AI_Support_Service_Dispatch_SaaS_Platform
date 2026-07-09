@@ -95,3 +95,51 @@ def test_role_canon_consistency():
                 deps.BACKOFFICE_ROLES, deps.REVIEW_ROLES, deps.TECH_ACTION_ROLES):
         assert not (dead & set(grp)), grp
     assert deps.TECH_ACTION_ROLES[-1] == "technician"
+
+
+# ── R2（2026-07-09 續輪）：kb/sop/conversations/media 等 37 端點收斂 ──────────
+
+_R2_PROTECTED_WRITES = [
+    ("POST", "/api/v1/knowledge-base/cases", {"title": "x"}),                 # kb：客服域寫入
+    ("POST", "/api/v1/knowledge-base/manuals/upload", {}),                    # kb：手冊管理（OPS）
+    ("POST", "/api/v1/sop-drafts", {"title": "x"}),                           # sop 起草（後台）
+    ("POST", f"/api/v1/sop-drafts/{uuid.uuid4()}/adopt", {}),                 # sop 採納（REVIEW）
+    ("POST", "/api/v1/conversations", {"user_id": str(uuid.uuid4())}),        # 對話代開（後台）
+    ("POST", f"/tenants/{TID}/conversations/{uuid.uuid4()}/messages", {"content": "x"}),
+    ("PATCH", f"/api/v1/sentiment/alerts/{uuid.uuid4()}", {"status": "acknowledged"}),
+    ("POST", f"/tenants/{TID}/rma-quality-findings", {"finding": "x"}),       # 品質記錄（OPS）
+    ("POST", f"/tenants/{TID}/ai-governance/traces", {"trace": {}}),          # AI 治理（OPS）
+    ("POST", "/api/v1/notifications/push", {"title": "x"}),                   # 手動推播（OPS）
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("role", ["technician", "vendor"])
+async def test_r2_writes_forbidden_for_field_roles(client, role):
+    """R2 收斂：technician / vendor 寫 kb/sop/對話/情緒/品質/推播 → 403。"""
+    headers = _headers(role)
+    for method, path, body in _R2_PROTECTED_WRITES:
+        res = await client.request(method, path, json=body, headers=headers)
+        assert res.status_code == 403, f"{role} {method} {path} → {res.status_code}（應 403）"
+
+
+@pytest.mark.asyncio
+async def test_r2_technician_allowed_paths(client):
+    """R2 白名單：技師傳媒體（完工照）與 SOP 回饋不被 RBAC 擋（可因 payload 4xx，非 403）。"""
+    headers = {"Authorization": f"Bearer {_make_token(user_id=TECHNICIAN_USER_ID, role='technician')}",
+               "X-Tenant-ID": TID}
+    for method, path, body in [
+        ("POST", "/api/v1/media", {}),                       # TECH_ACTION_ROLES
+        ("POST", f"/tenants/{TID}/sop-feedback", {"sop_id": str(uuid.uuid4()), "helpful": True}),
+    ]:
+        res = await client.request(method, path, json=body, headers=headers)
+        assert res.status_code != 403, f"technician {path} 被誤鎖（{res.status_code}）"
+
+
+@pytest.mark.asyncio
+async def test_r2_self_scoped_notifications_stay_open(client):
+    """對帳定案：自身通知操作（mark-all-read）維持 require_tenant——技師也要能收/清自己的通知。"""
+    headers = {"Authorization": f"Bearer {_make_token(user_id=TECHNICIAN_USER_ID, role='technician')}",
+               "X-Tenant-ID": TID}
+    res = await client.post("/api/v1/notifications/mark-all-read", json={}, headers=headers)
+    assert res.status_code != 403, f"自身通知操作不應被 RBAC 擋（{res.status_code}）"

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query, Response, status
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.idempotency import idempotency_guard, IdempotencyContext
 from models.generated import (
     CaseEntry,
@@ -65,7 +65,7 @@ async def list_cases(
 )
 async def create_case(
     body: CaseEntryCreateRequest,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     case = await case_service.create_case(
@@ -102,7 +102,7 @@ async def get_case(
 async def update_case(
     body: CaseEntryUpdateRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     case = await case_service.update_case(
@@ -124,7 +124,7 @@ async def update_case(
 )
 async def delete_case(
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> Response:
     await case_service.delete_case(tenant_id=user.tenant_id, case_id=id)
@@ -141,7 +141,7 @@ async def delete_case(
 )
 async def search_cases(
     body: CaseSearchRequest,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     result = await case_service.search_cases(
         tenant_id=user.tenant_id,

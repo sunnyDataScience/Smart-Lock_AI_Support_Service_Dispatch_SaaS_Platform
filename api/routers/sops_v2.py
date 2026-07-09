@@ -25,7 +25,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, Path, Query
 from fastapi.responses import JSONResponse
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, REVIEW_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -57,7 +57,7 @@ router = APIRouter()
 async def sop_dual_review(
     body: SopDraftReviewRequest,
     id: str = Path(..., description="SOP draft UUID"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """雙人初審 — approve / reject。
@@ -101,7 +101,7 @@ async def sop_dual_review(
 async def sop_family_review(
     body: FamilyReviewCreateRequest,
     id: str = Path(..., description="SOP draft UUID"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """家族覆核 — approved / rejected。
@@ -274,7 +274,7 @@ async def get_sop_draft_v2(
 async def create_sop_draft_v2(
     body: dict[str, Any],
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
@@ -313,7 +313,7 @@ async def create_sop_draft_v2(
 async def delete_sop_draft_v2(
     tenantId: str = Path(...),
     draftId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> None:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError("CROSS_TENANT_WRITE", "Path tenantId mismatch", 403)
@@ -394,7 +394,7 @@ async def adopt_sop_draft_v2(
     tenantId: str = Path(...),
     draftId: str = Path(...),
     body: dict[str, Any] | None = None,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:

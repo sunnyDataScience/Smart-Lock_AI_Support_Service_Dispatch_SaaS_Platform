@@ -20,7 +20,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -82,7 +82,7 @@ async def update_sentiment_alert_v2(
     payload: SentimentAlertUpdateRequest,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）

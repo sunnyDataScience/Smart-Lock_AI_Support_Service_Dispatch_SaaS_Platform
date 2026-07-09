@@ -32,7 +32,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, File, Form, Path, Response, UploadFile
 from pydantic import BaseModel, Field
 
-from core.deps import REVIEW_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import CurrentUser, REVIEW_ROLES, TECH_ACTION_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from services import media_service
 
@@ -69,7 +69,7 @@ async def upload_media_v2(
     purpose: _PURPOSE = Form(...),
     work_order_id: str | None = Form(default=None),
     dispute_id: str | None = Form(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, Path, Query, status
 from pydantic import BaseModel, Field
 
 from core.config import load_config
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.idempotency import idempotency_guard, IdempotencyContext
 from services import notification_service
 
@@ -137,7 +137,7 @@ async def mark_all_notifications_read(
 )
 async def push_notification(
     body: PushBody,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     payload = await notification_service.push_notification(

@@ -12,7 +12,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, Path, Response, UploadFile
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
 from services import media_service
 
 router = APIRouter()
@@ -41,7 +41,7 @@ async def upload_media(
     purpose: _PURPOSE = Form(...),
     work_order_id: str | None = Form(default=None),
     dispute_id: str | None = Form(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
 ) -> dict:
     file_bytes = await file.read()
     return await media_service.upload_media(

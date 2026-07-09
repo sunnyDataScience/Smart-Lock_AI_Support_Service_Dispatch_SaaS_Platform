@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -97,7 +97,7 @@ async def create_conversation_v2(
     body: ConversationCreateRequest,
     tenantId: str = Path(..., description="租戶 UUID（ADR-0030）"),
     response: Response = None,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -214,7 +214,7 @@ async def send_chat_message_v2(
     body: SendChatMessageRequest,
     tenantId: str = Path(..., description="租戶 UUID（ADR-0030）"),
     id: str = Path(..., description="對話 UUID"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """客服接管 escalated 對話後送訊息給 LINE 用戶 v2（tenant-scoped）。
@@ -260,7 +260,7 @@ async def send_chat_message_v2(
 async def resolve_conversation_handover_v2(
     tenantId: str = Path(..., description="租戶 UUID（ADR-0030）"),
     id: str = Path(..., description="對話 UUID"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     """客服結束人工接管，把對話交還 AI（status escalated → active）。
 

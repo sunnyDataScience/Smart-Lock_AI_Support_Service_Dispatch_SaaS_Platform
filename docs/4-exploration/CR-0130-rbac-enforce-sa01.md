@@ -1,7 +1,7 @@
 # CR-0130: RBAC 轉 enforce——死角色收斂＋金流/派工/設定守衛落地（WBS 1.1.1 / SA-01）
 
 - **日期**: 2026-07-09
-- **狀態**: done（R1 完成；R2 殘餘另表）
+- **狀態**: done（R1＋R2 全數完成 2026-07-09）
 - **觸發面向**: 授權矩陣（security contract）、API 守衛、Domain model（角色目錄）
 - **上游正典**: 13_Security §3.1/§3.2、ADR-005（deny-by-default）；前置 1.1.2（CR-0127）
 
@@ -43,7 +43,22 @@
 - component **884 passed**（隔離 scratch @5448；rbac_dynamic/rbac_v2 legacy 斷言改寫正典）、
   unit 331、四站 tsc 0、types --check 冪等。
 
-## R2 對帳表（殘餘 43 個 require_tenant 寫入端點——下輪灰度收斂）
+## R2 完成（2026-07-09 同日續輪）
+
+37/43 端點收斂：kb（cases→BACKOFFICE、manuals/documents/export→OPS、search→BACKOFFICE）、
+sop（起草→BACKOFFICE、review/adopt/dual/family/刪草稿→REVIEW、**技師回饋→TECH_ACTION**）、
+conversations（代開/接管訊息/交接→BACKOFFICE）、sentiment ack→BACKOFFICE、
+media ×2→TECH_ACTION（技師完工照）、resolution/resolve-suggest→BACKOFFICE、
+family_reviews→REVIEW、rma/ai-governance→OPS、notifications push→OPS。
+
+**定案保留 require_tenant（6＋1）**：自身通知操作 ×6（PATCH/bulk/mark-all-read v1+v2——
+使用者操作自己的通知，技師亦需）；`consumer/bindings:generate-token`（**客戶**登入 web/track
+的綁定流程，掛後台角色會鎖死客戶——與 vendor/客戶身分定位 `[待確認]` CR 同綁再議）。
+
+驗收：R2 sweep 測試（technician/vendor 寫 10 樣本 403；技師 media/sop-feedback 白名單不誤鎖；
+自身通知不被擋）；component 888 passed 零波及、unit 331、四站 tsc 0。
+
+## R2 對帳表（原殘餘 43 個 require_tenant 寫入端點——上表為收斂結果）
 
 kb（cases/manuals/documents/export）、sop（drafts/review/adopt/feedback）、conversations
 （create/messages/resolve-handover）、notifications（self-scoped，多數屬使用者自身操作可留）、
