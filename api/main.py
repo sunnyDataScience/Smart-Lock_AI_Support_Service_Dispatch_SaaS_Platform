@@ -177,6 +177,10 @@ async def lifespan(app: FastAPI):
     from realtime.statement_auto_approval_cron import worker as statement_auto_approval
     from realtime.statement_generate_cron import worker as statement_generate
 
+    # CR-0134 / SA-02：REDIS_URL 設定時啟動 WS 跨實例橋（未設定＝單機行為不變）
+    from realtime.ws_hub import hub as _ws_hub
+    await _ws_hub.start_redis()
+
     if _RUN_BACKGROUND_WORKERS:
         inventory_monitor.start()
         sla_monitor.start()
@@ -193,6 +197,7 @@ async def lifespan(app: FastAPI):
         logger.info("API_SURFACE=%s → 背景 worker 全部停用（由派工方 stack 執行）", _API_SURFACE)  # tech/platform 面共用此訊息
     logger.info("API service ready (port=%s, surface=%s)", cfg.system["port"], _API_SURFACE)
     yield
+    await _ws_hub.stop_redis()
     if _RUN_BACKGROUND_WORKERS:
         await auto_confirm_cron.stop()
         await media_retention_cron.stop()

@@ -18,6 +18,7 @@ import os
 
 import core.db as db_module
 from core.db import _ensure_conn
+from core.distributed_lock import ensure_leader as _ensure_leader
 
 logger = logging.getLogger("api.inventory_monitor")
 
@@ -62,6 +63,13 @@ class InventoryMonitor:
             pass
 
         while not self._stopping.is_set():
+            # SA-02（CR-0134）分散式鎖：他實例為 leader → 本實例待命（leader 斷線自動接手）
+            if not await _ensure_leader("inventory_monitor"):
+                try:
+                    await asyncio.wait_for(self._stopping.wait(), timeout=self._interval)
+                    return
+                except asyncio.TimeoutError:
+                    continue
             try:
                 await self._scan_once()
             except Exception:  # noqa: BLE001
