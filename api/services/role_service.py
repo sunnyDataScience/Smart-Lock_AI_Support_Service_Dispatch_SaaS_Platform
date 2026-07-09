@@ -123,6 +123,25 @@ _MATRIX: dict[str, dict[str, dict]] = {
         "roles":           _perm(True, False, False, locked=True),
         "system_settings": _perm(True, False, False, locked=True),
     },
+    "operations_manager": {
+        # 營運主管（SA-06 補行——13_Security §3.1：帳務/報表/庫存/知識庫＋派工日常；
+        # 承接 legacy accounting/supervisor 的日常職能）。核准權依 SoD 歸 admin/reviewer
+        # （發起人 ≠ 核准人）；work_orders approve=派工異常/改派屬營運日常裁量。
+        # 報價目錄「限營運主管改」的細粒度守則屬 0707 AI #14 另案，system_settings 先與
+        # admin 同格（R + locked）。
+        "work_orders":     _perm(True, True, False, approve=True),
+        "technicians":     _perm(True, False, False),   # CR-0114：品牌端唯讀
+        "customers":       _perm(True, False, False),
+        "accounting":      _perm(True, True, False),    # 帳務日常；月結核准歸 admin
+        "invoices":        _perm(True, True, False),
+        "refunds":         _perm(True, False, False),   # 發起歸客服、核准歸 reviewer/admin
+        "inventory":       _perm(True, True, False),
+        "warranty":        _perm(True, False, False),
+        "disputes":        _perm(True, False, False),
+        "audit_logs":      _perm(True, False, False, locked=True),
+        "roles":           _perm(False, False, False, locked=True),
+        "system_settings": _perm(True, False, False, locked=True),
+    },
     "reviewer": {
         # 審核員：退款 / 保固 / 爭議可審核（write + approve），其餘唯讀
         "work_orders":     _perm(True, False, False),
@@ -285,6 +304,10 @@ _ROLE_META: dict[str, dict] = {
     "admin": {
         "name": "系統管理員",
         "description": "擁有完整系統管理權限；可管理所有業務資料",
+    },
+    "operations_manager": {
+        "name": "營運主管",
+        "description": "派工日常（佇列/手動派工/異常）＋帳務/發票/庫存管理；核准依 SoD 歸 admin/reviewer",
     },
     "reviewer": {
         "name": "審核員",

@@ -83,7 +83,7 @@ upstream:
 | 6 | `technician` | 技師 | **跨租戶**（師傅 web）| 技師平台註冊 → platform console 審核 → `active`；**品牌只做品牌授權（technician_brand_authorization），不開帳號** | 接單 / 到府 / 現場修正發起 / 對帳 |
 | 7 | `dispatcher` | 派工小編（員工）| 租戶內派工 | **保留角色——暫不開放租戶開通**（業主裁決 2026-07-07） | 派工職能由 admin / operations_manager 承擔 + 自動派工路徑（BR-PC-02）；單量成長需要專職派工時經 ChangeRequest 重新啟用 |
 
-**租戶 Admin 可開通集合**＝`{admin, operations_manager, customer_service, reviewer}`（業主裁決 2026-07-07 收斂為 4 值；⚠️ code 現況 `auth_service._STAFF_ROLES` 仍含 `dispatcher`，收斂併入 SA-06）。開通兩路：(a) 員工於品牌站「員工帳號申請」tab 自申請 → Admin 審核並指派角色；(b) Admin 於 `/admin/staff` 直建。角色指派走 SoD 雙簽（`saas.role_assignment`）。**租戶 Admin 不可開通**：`platform_admin`（平台內部）、`technician`（技師平台管道）、`dispatcher`（保留）、任何 legacy 角色。
+**租戶 Admin 可開通集合**＝`{admin, operations_manager, customer_service, reviewer}`（業主裁決 2026-07-07 收斂為 4 值；✅ `auth_service._STAFF_ROLES` 已同步 4 值——SA-06 角色收斂 2026-07-09，CR-0127）。開通兩路：(a) 員工於品牌站「員工帳號申請」tab 自申請 → Admin 審核並指派角色；(b) Admin 於 `/admin/staff` 直建。角色指派走 SoD 雙簽（`saas.role_assignment`）。**租戶 Admin 不可開通**：`platform_admin`（平台內部）、`technician`（技師平台管道）、`dispatcher`（保留）、任何 legacy 角色。
 
 **租戶標準人力配置**（業主裁決）：`admin`（老闆：治理 + 最終核准）＋ `operations_manager`（營運日常：派工 + 帳務報價）＋ `customer_service`（進線 / 建單 / 發起）＋ `reviewer`（受託核准）。SoD 約束下發起人 ≠ 核准人（任二相同 403）——客服發起、reviewer / admin 核准即為最小合規閉環。
 
@@ -98,7 +98,7 @@ upstream:
 
 | Legacy 值 | 處置 |
 |---|---|
-| `super_admin`、`tenant_admin` | 死角色（CR-0114 裁決不活化）；語義由 `platform_admin` / `admin` 取代。⚠️ 前端 `rolePolicy` FULL_ACCESS 仍放行此二值 → 清理項 **SA-06** |
+| `super_admin`、`tenant_admin` | 死角色（CR-0114 裁決不活化）；語義由 `platform_admin` / `admin` 取代。✅ 前端 `rolePolicy` FULL_ACCESS 已移除此二值（SA-06 角色收斂 2026-07-09，CR-0127）|
 | `accounting`、`supervisor` | 職能由 `operations_manager` / `reviewer` 承接（`/accounting` 路由現由 admin / ops / reviewer 存取）|
 | `auditor`、`distributor`、`brand_oem` | 未落地；需要時走 ChangeRequest 擴充，不預留矩陣行 |
 | `family_reviewer` | **非登入角色**——家族覆核以事後 event log + 7 日 dispute window 履約（BR-AUDIT-01），不入帳號體系 |
@@ -319,7 +319,7 @@ AI 客服的安全邊界採「**物理限制優先於行為約束**」：
 | 記憶持久化 | FA-02：生產 `backend="postgres"` | 實例重啟記憶不流失；PII 落 Cloud SQL 加密層 |
 | token 安全儲存 | ACT-01：httpOnly cookie + server 端驗簽（隨 Casdoor 授權碼流）| localStorage 不再存 token |
 | 前端 deny-by-default | ACT-02：rolePolicy catch-all 拒絕 + CI 漏登記檢查 | 未登記敏感頁預設拒絕 |
-| 死角色清理 | SA-06：`rolePolicy` FULL_ACCESS 移除 `tenant_admin` / `super_admin` 放行；`users.role` 欄位註解與 seed 同步角色正典（§3.1）；`_STAFF_ROLES` 移除 `dispatcher`（保留角色不開通）；`_MATRIX` 補 `operations_manager` 行（現缺行，轉 enforce 前必補否則該角色全鎖）| 死角色 token 不再全放行；DB 註解與正典一致；ops_manager 矩陣行齊備 |
+| 死角色清理 | SA-06：`rolePolicy` FULL_ACCESS 移除 `tenant_admin` / `super_admin` 放行；`users.role` 欄位註解與 seed 同步角色正典（§3.1）；`_STAFF_ROLES` 移除 `dispatcher`（保留角色不開通）；`_MATRIX` 補 `operations_manager` 行（轉 enforce 前必補否則該角色全鎖）| ✅ **本項完成（2026-07-09，CR-0127）**：死角色 token 不再全放行；DB 註解與正典一致；ops_manager 矩陣行齊備（核准權依 SoD 歸 admin/reviewer）|
 | 租戶 fallback | ACT-03：無有效 tenant 導登入 | 不再退回預設租戶 |
 | 三庫守衛 | SA-04 / DA-04：URI 啟動斷言 | 缺 URI 啟動失敗非靜默退化 |
 | 備份還原 | DA-02：三庫備份 SOP + RTO/RPO + 還原演練 | 至少一次還原演練記錄 |
