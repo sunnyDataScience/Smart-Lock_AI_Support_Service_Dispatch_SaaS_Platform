@@ -1,5 +1,5 @@
 [project]
-name = "smart-lock-data"
+name = "smart-lock-knowledge-pipeline"
 version = "0.1.0"
 description = "Smart Lock data ETL pipeline (Medallion: source → raw → bronze → silver → SKILL.md)"
 requires-python = ">=3.11,<3.12"

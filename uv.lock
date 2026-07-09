@@ -11,7 +11,7 @@ resolution-markers = [
 members = [
     "lock-cs-agent",
     "smart-lock-api",
-    "smart-lock-data",
+    "smart-lock-knowledge-pipeline",
     "smart-lock-platform",
 ]
 
@@ -2246,9 +2246,9 @@ requires-dist = [
 ]
 
 [[package]]
-name = "smart-lock-data"
+name = "smart-lock-knowledge-pipeline"
 version = "0.1.0"
-source = { virtual = "data" }
+source = { virtual = "knowledge-pipeline" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "google-api-python-client" },
@@ -2300,7 +2300,7 @@ source = { virtual = "." }
 dependencies = [
     { name = "lock-cs-agent" },
     { name = "smart-lock-api" },
-    { name = "smart-lock-data" },
+    { name = "smart-lock-knowledge-pipeline" },
 ]
 
 [package.dev-dependencies]
@@ -2325,7 +2325,7 @@ test = [
 requires-dist = [
     { name = "lock-cs-agent", editable = "agent" },
     { name = "smart-lock-api", virtual = "api" },
-    { name = "smart-lock-data", virtual = "data" },
+    { name = "smart-lock-knowledge-pipeline", virtual = "knowledge-pipeline" },
 ]
 
 [package.metadata.requires-dev]

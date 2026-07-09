@@ -11,7 +11,7 @@ on:
       - 'pyproject.toml'
       - 'agent/pyproject.toml'
       - 'api/pyproject.toml'
-      - 'data/pyproject.toml'
+      - 'knowledge-pipeline/pyproject.toml'
       - 'uv.lock'
       - '.python-version'
       - '.github/workflows/uv-lock-check.yml'
@@ -20,7 +20,7 @@ on:
       - 'pyproject.toml'
       - 'agent/pyproject.toml'
       - 'api/pyproject.toml'
-      - 'data/pyproject.toml'
+      - 'knowledge-pipeline/pyproject.toml'
       - 'uv.lock'
       - '.python-version'
 
