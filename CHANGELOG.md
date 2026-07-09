@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Changed
+
+- **非開發整理 R2——根目錄歸位（branch `chore/housekeeping-r2`，2026-07-09）**：`tools/gen_docs_html.py` → `scripts/dev/`（docs_html 工作流退役後僅剩報告素材 regen 用途，`tools/` 目錄消失）；`tests/smoke/api.sh` → `scripts/ci/smoke-api.sh`（根 `tests/` 目錄消失）；root pyproject `testpaths` 改 `agent/tests`（安全預設：根層 pytest 跑無 DB 依賴的 agent 套件，api 套件須 cd api + 隔離 scratch DB）；Makefile／dev-up／README 引用同步。根目錄現況：11 個功能包目錄 + 6 個必要根檔，每項皆為活物。
+
 ### Removed
 
 - **非開發整理 R1——過期文件與失效工具移除（branch `chore/housekeeping-r1`，2026-07-09）**：依業主核准計劃。① `MISSION.md`（2026-06-04 任務書：判準引用已刪的 docs/analysis/fr、紅線講已刪架構——0707「文件只留結果」）；② `MCP_SETUP_GUIDE.md` + `.mcp.json.{linux,windows}.example`（2026-03 通用模板 MCP 指南，與實際 MCP 使用脫節、零引用）；③ `tests/tools/` 4 支手動工具 + `tests/fixtures/line_simulator.py`（讀已刪的舊 agent 記憶層，實質失效；兩處文件提及順手清）；④ `docs/4-exploration/` CR-0122~0125（status: done，依 0707「CIA 驗收後清除」慣例；決策本體在 ADR-028/029/030 與 CHANGELOG）；⑤ tests/unit pycache 殘骸（untracked rm）。歷史全在 git。

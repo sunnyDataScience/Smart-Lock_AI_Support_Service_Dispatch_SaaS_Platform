@@ -64,11 +64,11 @@ test-contract:
 # ── E2E smoke：API smoke + Playwright login spec ─────────────────
 # 對應 E7x §5.2 e2e layer (5%)
 test-e2e-smoke:
-	@echo "→ tests/smoke/api.sh (API endpoints)"
+	@echo "→ scripts/ci/smoke-api.sh (API endpoints)"
 	@if [ -z "$$ADMIN_PASSWORD" ]; then \
 		echo "ℹ Skipping API smoke (set ADMIN_EMAIL=... ADMIN_PASSWORD=... to run)"; \
 	else \
-		bash tests/smoke/api.sh; \
+		bash scripts/ci/smoke-api.sh; \
 	fi
 	@echo "→ Playwright e2e (web/tests/e2e/admin)"
 	cd web && npm run test:e2e

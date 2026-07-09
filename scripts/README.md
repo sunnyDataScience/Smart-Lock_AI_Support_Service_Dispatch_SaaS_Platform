@@ -22,9 +22,9 @@ scripts/
 > `scripts/setup/`（v1.37.x，pip-based），現已併入 `scripts/dev/`（uv-based，
 > 與 `pyproject.toml` workspace 對齊）。
 
-> 額外位置：`tests/smoke/`（happy-path smoke test）、`tests/tools/`（除錯工具
-> 如 view_facts / view_logs / clean_data 等）、`api/scripts/generate_models.sh`
-> （API 內部 codegen，與 api/models 強耦合，未集中）。
+> 額外位置：`api/scripts/generate_models.sh`（API 內部 codegen，與 api/models 強耦合，未集中）。
+> 原 `tests/smoke`、`tests/tools` 已於 2026-07-09 整併：smoke → `scripts/ci/smoke-api.sh`；
+> 除錯工具（view_facts / view_logs / clean_data 等，讀已刪舊記憶層）已移除。
 
 ---
 
@@ -92,7 +92,7 @@ cp .env.local.example .env.local
 curl "http://localhost:8000/chat?q=門打不開"
 
 # API smoke test（必須先用 --with-api 或 --full 起 api）
-ADMIN_EMAIL=test@lock-ai.com ADMIN_PASSWORD=changeme123 ./tests/smoke/api.sh
+ADMIN_EMAIL=test@lock-ai.com ADMIN_PASSWORD=changeme123 ./scripts/ci/smoke-api.sh
 ```
 
 ---
@@ -240,7 +240,7 @@ uv run tests/tools/clean_data.py [--pg|--sqlite|--profile]
 
 ## 跨平台注意事項
 
-### Bash 腳本（`scripts/**/*.sh`、`tests/smoke/*.sh`）
+### Bash 腳本（`scripts/**/*.sh`）
 
 | 平台 | 支援度 | 說明 |
 | :--- | :--- | :--- |
