@@ -14,7 +14,7 @@ upstream:
 
 # 14_ADR 索引 — 架構決策紀錄總覽
 
-本目錄收錄平台全部 28 篇架構決策紀錄（ADR-001 ~ ADR-028），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
+本目錄收錄平台全部 29 篇架構決策紀錄（ADR-001 ~ ADR-029），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
 
 **與鄰近文件邊界**：[12_SAD](../12_SAD.md) 是決策的「結果態」（結構與元件視圖），引 ADR 不重述取捨；[13_Security_Architecture](../13_Security_Architecture.md) 承載安全機制細節，ADR 只記安全決策點；[15_SDS](../15_SDS.md) 承載細部設計（DSL schema、狀態機欄位），ADR 只記「採哪條路」；純業務參數（費率階梯、SLA 時數、保固模式）屬 [03_PRD](../03_PRD.md) / [04_SRS](../04_SRS.md)，不進 ADR。
 
@@ -62,6 +62,7 @@ upstream:
 | **群 J — 跨系統流程邊界** |||||
 | [ADR-027](./ADR-027_現場報價修正發起邊界_技師平台command_品牌api權威.md) | 現場報價修正發起邊界——技師平台只發 command、品牌 api 為報價唯一權威 | 平台 | Accepted | 016 · 017 · 026 |
 | [ADR-028](./ADR-028_web檔案層拆分_四站獨立專案.md) | web 檔案層拆分——四站台完全獨立專案（複製分家） | 系統(web) | Accepted | supersedes 023 · 022 · 024 |
+| [ADR-029](./ADR-029_知識產線雙軌重構_knowledge-pipeline.md) | 知識產線雙軌重構——data/ 改名 knowledge-pipeline + facts/behavior 分軌 + provenance 治理 | 系統(knowledge-pipeline) | Accepted | 010 · 018 · 019 |
 
 ## 依賴關係圖
 
@@ -94,6 +95,8 @@ graph TD
   A005 --> A022
   A022 --> A023[ADR-023 APP_MODE 多 portal]
   A023 --> A028[ADR-028 web 四站獨立專案]
+  A010 --> A029[ADR-029 知識產線雙軌重構]
+  A019 --> A029
   A004 --> A024[ADR-024 client SPA + OIDC]
   A023 --> A024
   A015 --> A026[ADR-026 報價快照 hash-chain]

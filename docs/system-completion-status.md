@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**web 檔案層拆分——四站完全獨立專案（最終佈局）**，branch `refactor/web-apps-split` — 業主四段裁決：檔案層真拆→共用碼複製分家→web/ 收納→compose 與站台同住+直白命名。`web/{brand-portal,tech-portal,landing,platform-console}` 各自足專案（獨立 lockfile/Dockerfile/tests/**docker-compose.yml** 同住；共用碼各持副本；api.generated.ts 例外走生成腳本四份同步）；mock compose 歸 api/；根目錄只留大功能包；本 WBS 自 web/docs 遷 docs/。ADR-028 supersede ADR-023 + CIA CR-0122。驗證：四站 npm install+tsc+build 全綠、五 compose config 過；image×4+smoke 於 merge 前補驗。）
+**最後更新：** 2026-07-09（**知識產線 Phase A 重構**，branch `refactor/knowledge-pipeline` — data/ 改名 knowledge-pipeline（0707 AI #1 收尾）+ LLM 統一 LiteLLM（刪 langchain 群）+ 尾端雙軌重寫（死路徑 silver_to_skill 刪除 → silver_to_knowledge：facts 語料/behavior 候選/gdrive 隔離=紅線機器化）+ provenance 強制與 audit gate + golden QA 種子（Dormakaba 專家 6 條）。實跑 facts=862 全綠、抓到並修復 13 筆 bronze 血緣漂移。ADR-029 + CIA CR-0123。Phase B=WBS 2.2.1 pgvector/MCP、Phase C=Skill 重切、Phase D=迴路二服務化。）
+
+**前一次更新：** 2026-07-09（**web 檔案層拆分——四站完全獨立專案（最終佈局）**，branch `refactor/web-apps-split` — 業主四段裁決：檔案層真拆→共用碼複製分家→web/ 收納→compose 與站台同住+直白命名。`web/{brand-portal,tech-portal,landing,platform-console}` 各自足專案（獨立 lockfile/Dockerfile/tests/**docker-compose.yml** 同住；共用碼各持副本；api.generated.ts 例外走生成腳本四份同步）；mock compose 歸 api/；根目錄只留大功能包；本 WBS 自 web/docs 遷 docs/。ADR-028 supersede ADR-023 + CIA CR-0122。驗證：四站 npm install+tsc+build 全綠、五 compose config 過；image×4+smoke 於 merge 前補驗。）
 
 **前一次更新：** 2026-07-08（**主線收斂 dev + OpenAPI 重接線**，branch `chore/rewire-after-doc-purge` — 業主裁決主線改 `dev`（enterprise 文件基線），dev_new_arch 本地移除僅留雲端備份。merge 四輪清理入 dev（981 檔 delete/delete 自動收斂、零程式碼衝突）；OpenAPI 機讀 SSOT 遷 `api/openapi.yaml`（6861 行自 git 還原），大掃除斷鏈的 11 個消費者（mock/spec-lint/api-types/schemathesis/prism/export_openapi/main.py 等）全部重接，YAML/bash/py/compose/make 驗證全過；VibeCoding 懸空引用加註 + 刪 /template-check；CLAUDE.md 主線與文件路標對齊。）
 
