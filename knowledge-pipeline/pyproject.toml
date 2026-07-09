@@ -5,9 +5,7 @@ description = "Smart Lock data ETL pipeline (Medallion: source → raw → bronz
 requires-python = ">=3.11,<3.12"
 dependencies = [
     # === LLM ===
-    "litellm>=1.84.0",           # 資安全修(2026-07-07,PYSEC-2026-388)
-    "langchain-core>=0.3.0",
-    "langsmith>=0.8.18",         # 資安全修(2026-07-07,GHSA-f4xh-w4cj-qxq8;langchain 傳遞相依顯式釘)
+    "litellm>=1.84.0",           # 唯一 LLM 介面(2026-07-09 統一;原 langchain 適配器群已刪)
     # === 內容下載與處理 ===
     "yt-dlp>=2026.6.9",          # 資安全修(2026-07-07,CVE-2026-50019/50023/50574、GHSA-69qj-pvh9-c5wg)
     "playwright",
@@ -21,11 +19,8 @@ dependencies = [
     "python-dotenv>=1.0.0",
 ]
 
-# 可選 LLM provider — 按需安裝（uv add --optional <provider>）
-[project.optional-dependencies]
-openai = ["langchain-openai"]
-anthropic = ["langchain-anthropic"]
-ollama = ["langchain-ollama"]
+# LLM 多家路由由 litellm model 字串處理（vertex_ai/、ollama_chat/、claude-*、gpt-*），
+# 不再需要 per-provider optional extras（2026-07-09 移除 langchain-* 三組）。
 
 [tool.uv]
 package = false
