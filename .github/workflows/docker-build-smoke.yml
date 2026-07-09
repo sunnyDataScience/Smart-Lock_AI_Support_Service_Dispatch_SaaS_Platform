@@ -64,18 +64,18 @@ jobs:
               except ImportError:
                   pass
               print(f'fastapi={fastapi.__version__} reportlab={md.version("reportlab")}')
-          - module: web/dispatch
+          - module: web/brand-portal
             kind: web
-            tag: web-dispatch
-          - module: web/tech
+            tag: web-brand-portal
+          - module: web/tech-portal
             kind: web
-            tag: web-tech
+            tag: web-tech-portal
           - module: web/landing
             kind: web
             tag: web-landing
-          - module: web/platform
+          - module: web/platform-console
             kind: web
-            tag: web-platform
+            tag: web-platform-console
             # web image 沒有 python，用 docker run + curl 測 server 起來
 
     steps:

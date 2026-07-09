@@ -1,12 +1,12 @@
 # syntax=docker/dockerfile:1.7
 #
-# web/platform/Dockerfile — 平台 console（platform :3003） 容器化（Next.js 15 standalone）
+# web/brand-portal/Dockerfile — 品牌後台（dispatch :3000） 容器化（Next.js 15 standalone）
 #
 # 2026-07-09 檔案層拆分：四站台各自獨立專案（0707 AI #2 + 業主裁決複製分家），
 # 本檔只建本站；共用碼已內化於本站 src/。
 #
 # Build context: 專案根目錄（與 agent / api 一致，可共用 .dockerignore）
-# 範例：docker build --platform linux/amd64 -f web/platform/Dockerfile -t smart-lock-platform-web .
+# 範例：docker build --platform linux/amd64 -f web/brand-portal/Dockerfile -t smart-lock-web .
 #
 # 三階段：
 #   deps    : 用 npm ci 純裝 node_modules（cache layer）
@@ -23,7 +23,7 @@ FROM node:${NODE_VERSION}-alpine AS deps
 WORKDIR /app
 
 # 先 copy lockfile，享 layer cache（程式碼變動不需要重裝 deps）
-COPY web/platform/package.json web/platform/package-lock.json* ./
+COPY web/brand-portal/package.json web/brand-portal/package-lock.json* ./
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
@@ -39,7 +39,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 
 # Copy 全部 web/ 原始碼
-COPY web/platform/ ./
+COPY web/brand-portal/ ./
 
 # 確保 public/ 至少存在（Next.js 不一定有，但 standalone runtime 要 copy）
 RUN mkdir -p public

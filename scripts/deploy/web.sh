@@ -57,8 +57,8 @@ TIMEOUT=60         # web 是 SSR，不需要 long-running request
 
 # ── 環境變數（NEXT_PUBLIC_ 開頭的會編進 image，必須在 build time 注入）──
 # 先讀本機 web/<app>/.env.production（如有），fallback 到預設值
-# 檔案層拆分（2026-07-09）：WEB_APP 選站台目錄（預設 dispatch = Cloud Run smart-lock-web 現況）
-WEB_APP="${WEB_APP:-dispatch}"
+# 檔案層拆分（2026-07-09）：WEB_APP 選站台目錄（預設 brand-portal = Cloud Run smart-lock-web 現況）
+WEB_APP="${WEB_APP:-brand-portal}"
 WEB_DIR="web/${WEB_APP}"
 WEB_ENV_FILE="${WEB_DIR}/.env.production"
 if [[ -f "${WEB_ENV_FILE}" ]]; then

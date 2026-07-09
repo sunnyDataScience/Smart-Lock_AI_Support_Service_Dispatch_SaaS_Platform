@@ -24,7 +24,7 @@ name: lock-landing
 services:
   landing-web:
     build:
-      context: ..
+      context: ../..
       dockerfile: web/landing/Dockerfile
       args:
         NEXT_PUBLIC_APP_MODE: "landing"

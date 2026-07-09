@@ -46,7 +46,7 @@ services:
 
   tech-api:
     build:
-      context: ..
+      context: ../..
       dockerfile: api/Dockerfile
     ports:
       - "${TECH_API_PORT:-8002}:8080"
@@ -78,8 +78,8 @@ services:
 
   tech-web:
     build:
-      context: ..
-      dockerfile: web/tech/Dockerfile
+      context: ../..
+      dockerfile: web/tech-portal/Dockerfile
       args:
         # 技師前端打 tech-api(8002);WS 指品牌 api(8001,派工事件來源,見檔頭)。
         NEXT_PUBLIC_API_BASE_URL: "${TECH_API_BASE_URL:-http://localhost:8002}"

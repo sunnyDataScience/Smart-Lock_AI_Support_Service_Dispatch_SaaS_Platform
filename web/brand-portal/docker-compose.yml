@@ -57,14 +57,14 @@ services:
       PGPASSWORD: "0000"
       PGDATABASE: lock_AI_data
     volumes:
-      - ../SQL:/init/SQL:ro
-      - ../scripts/dev/compose-db-init.sh:/init/db-init.sh:ro
+      - ../../SQL:/init/SQL:ro
+      - ../../scripts/dev/compose-db-init.sh:/init/db-init.sh:ro
     entrypoint: ["bash", "/init/db-init.sh"]
     restart: "no"
 
   api:
     build:
-      context: ..
+      context: ../..
       dockerfile: api/Dockerfile
     ports:
       - "${API_PORT:-8001}:8080"
@@ -100,7 +100,7 @@ services:
 
   agent:
     build:
-      context: ..
+      context: ../..
       dockerfile: agent/Dockerfile
     ports:
       - "${AGENT_PORT:-8000}:8080"
@@ -113,7 +113,7 @@ services:
       LOCK_API_BASE_URL: "http://api:8080"
     volumes:
       # Vertex 認證：本機用 credentials.json（雲端才走 SA ADC）。唯讀掛載，不入映像。
-      - ../agent/credentials.json:/app/agent/credentials.json:ro
+      - ../../agent/credentials.json:/app/agent/credentials.json:ro
     depends_on:
       api:
         condition: service_healthy
@@ -121,8 +121,8 @@ services:
 
   web:
     build:
-      context: ..
-      dockerfile: web/dispatch/Dockerfile
+      context: ../..
+      dockerfile: web/brand-portal/Dockerfile
       args:
         # NEXT_PUBLIC_* 均 build-time 烤入 bundle(見 web/Dockerfile)。
         NEXT_PUBLIC_REALTIME_BASE_URL: "${NEXT_PUBLIC_REALTIME_BASE_URL:-ws://localhost:8001}"

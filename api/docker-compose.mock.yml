@@ -18,7 +18,7 @@ services:
       -m false
       /specs/openapi.yaml
     volumes:
-      - ../api:/specs:ro
+      - ./:/specs:ro
     ports:
       - "4010:4010"
     restart: unless-stopped

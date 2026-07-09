@@ -43,7 +43,7 @@ Smart Lock AI Support & Service Dispatch SaaS Platform —— LINE Bot 智慧鎖
 
 - **Python 用 `uv`，不是 pip** —— `uv sync` 裝 deps；跑任何 script 用 `uv run ...`。`pyproject.toml` 改了就重跑 `uv sync`。
 - **Agent 採 hatchling build + optional dependencies** —— `pip install -e ".[dev]"`（base + pytest）/ `.[vertex]`（+ Vertex AI SDK）/ `.[line]`（+ LINE webhook 通道）。
-- **Web 用 Node/npm**，與 uv 無關（`cd web && npm install`）。
+- **Web 用 Node/npm**，與 uv 無關；四站台完全獨立（`cd web/<站台> && npm install`，站台=brand-portal/tech-portal/landing/platform-console，各有獨立 lockfile 與 docker-compose.yml）。
 - **測試走 pytest**（agent 重寫後新建 `agent/tests/`，~13 個測試含 `test_e2e_mock_turn.py` / `test_skills_loaded.py` / `test_tool_allowlist.py` / `test_litellm_provider.py` / `test_line_gateway.py` 等）—— **不再有 quality_check / LLM-as-Judge 套件**（已刪）。
 - **Config pattern**：`agent/config.toml` 用 `lockcore/app_config.py:tomllib` 載入；機密（`GEMINI_API_KEY` / `LINE_CHANNEL_*` / `credentials.json`）放 `.env` 或 gitignore 檔，**不入 toml**。
 - **永不手動構建 `POSTGRES_URI`** —— 用 `./scripts/deploy/agent.sh --update-db-uri`（自動 URL-encode + round-trip 驗證）。

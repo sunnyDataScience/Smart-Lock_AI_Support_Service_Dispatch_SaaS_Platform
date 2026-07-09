@@ -21,7 +21,7 @@ for arg in "$@"; do
   [[ "$arg" == "--check" ]] && CHECK_ONLY=1
 done
 
-OUT_DIRS=(web/dispatch/src/types web/tech/src/types web/landing/src/types web/platform/src/types)
+OUT_DIRS=(web/brand-portal/src/types web/tech-portal/src/types web/landing/src/types web/platform-console/src/types)
 
 echo "== OpenAPI → TypeScript =="
 echo "Spec:    $SPEC"

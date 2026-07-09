@@ -49,7 +49,7 @@ services:
 
   platform-api:
     build:
-      context: ..
+      context: ../..
       dockerfile: api/Dockerfile
     ports:
       - "${PLATFORM_API_PORT:-8003}:8080"
@@ -88,8 +88,8 @@ services:
 
   platform-web:
     build:
-      context: ..
-      dockerfile: web/platform/Dockerfile
+      context: ../..
+      dockerfile: web/platform-console/Dockerfile
       args:
         NEXT_PUBLIC_API_BASE_URL: "${PLATFORM_API_BASE_URL:-http://localhost:8003}"
         NEXT_PUBLIC_APP_MODE: "platform"   # 只渲染 /platform 頁群

@@ -1,5 +1,5 @@
 # BuildKit per-Dockerfile ignore（會優先於專案根 .dockerignore）
-# 只在 docker build -f web/dispatch/Dockerfile . 時生效
+# 只在 docker build -f web/platform-console/Dockerfile . 時生效
 
 # 版控 / IDE
 .git/

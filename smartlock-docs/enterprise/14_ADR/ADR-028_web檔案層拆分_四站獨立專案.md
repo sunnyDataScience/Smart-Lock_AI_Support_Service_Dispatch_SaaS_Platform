@@ -12,7 +12,7 @@ supersedes:
 
 | 欄位 | 內容 |
 |---|---|
-| 狀態 | Accepted（業主裁決 2026-07-08「先拆」+ 2026-07-09 兩次追加：共用碼「就複製吧，這四個網站本來就是獨立運行的，未來說不定也會用不同的風格重新設計」、佈局「建立一個 folder 統一存放四個 web + compose 整理在一起」） |
+| 狀態 | Accepted（業主裁決 2026-07-08「先拆」+ 2026-07-09 三次追加：共用碼「就複製吧，這四個網站本來就是獨立運行的，未來說不定也會用不同的風格重新設計」、web/ 統一收納、compose 與站台同住＋站台改直白名（brand-portal/tech-portal/landing/platform-console）） |
 | 層級 | 系統級（web） |
 | 關聯 ADR | supersedes [ADR-023](./ADR-023_單一codebase_APP_MODE多portal.md) · [ADR-022](./ADR-022_API_SURFACE單體多面塑形.md) · [ADR-024](./ADR-024_client_SPA_無BFF_Context狀態_OIDC.md) |
 
@@ -26,20 +26,22 @@ ADR-023 以單一 Next.js app + `APP_MODE` build-time 塑形服務四 portal。0
 
 ```
 repo/
-├── web/
-│   ├── dispatch/    # 品牌後台 :3000（自有 package.json / lockfile / Dockerfile / tests）
-│   ├── tech/        # 師傅站   :3001（同上）
-│   ├── landing/     # 導流站   :3002（同上）
-│   └── platform/    # 平台 console :3003（同上）
-└── compose/         # docker-compose.{dispatch,tech,landing,platform,mock}.yml 集中
+└── web/
+    ├── brand-portal/      # 品牌後台 :3000（自有 package.json/lockfile/Dockerfile/tests/docker-compose.yml）
+    ├── tech-portal/       # 師傅站   :3001（同上）
+    ├── landing/           # 導流站   :3002（同上）
+    └── platform-console/  # 平台 console :3003（同上）
+# 各站 stack 的 docker-compose.yml 與站台同住（業主裁決「compose 跟網站放一起」）；
+# mock compose 屬 api 開發工具 → api/docker-compose.mock.yml；根目錄只留大功能包
+# （agent / api / data / web / SQL / scripts…，對齊 0707 §十二 微服務結構）。
 ```
 
 - **共用碼複製分家**（業主裁決）：ui/i18n/theme/auth/realtime/layout/phase-ii 元件、hooks、lib、i18n messages 各站自持一份於自身 `src/`——這是刻意 fork（各站將獨立演化風格），非漂移風險。
 - **無 workspaces、無共用套件**：各站獨立 `npm install`／lockfile／`tsc`／`next build`，可單獨搬離 repo 零解耦成本。
 - **例外——`src/types/api.generated.ts` 不算 fork**：四份由 `scripts/ci/generate-api-types.sh` 從單一 `api/openapi.yaml` 一次生成同步寫入（api-types-sync CI `--check` 擋漂移）。
-- 每站自有 Dockerfile（單站三階段 standalone，context = repo 根）；compose 檔內相對路徑上移一層（`context: ..`）；`compose/.env` 為指向根 `.env` 的 symlink（interpolation 與 env_file 解析用）。
+- 每站自有 Dockerfile（單站三階段 standalone，context = repo 根）與 `docker-compose.yml`（相對路徑 `context: ../..`）；各站 `.env` 為指向根 `.env` 的 symlink（compose interpolation 與 env_file 解析用；注意 next dev 也會讀到，屬已知取捨）。
 - `APP_MODE`／`appMode.ts` 各站保留（跨站 CTA 與 AuthGuard 導向解析仍需 env 烤入）。
-- e2e 隨站走：admin/public specs → `web/dispatch/tests`；tech/account → `web/tech/tests`；各站自有 playwright.config。
+- e2e 隨站走：admin/public specs → `web/brand-portal/tests`；tech/account → `web/tech-portal/tests`；各站自有 playwright.config。
 
 ## Consequences（後果）
 
