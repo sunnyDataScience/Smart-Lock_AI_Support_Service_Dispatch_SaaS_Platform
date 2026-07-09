@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+### Removed
+
+- **非開發整理 R1——過期文件與失效工具移除（branch `chore/housekeeping-r1`，2026-07-09）**：依業主核准計劃。① `MISSION.md`（2026-06-04 任務書：判準引用已刪的 docs/analysis/fr、紅線講已刪架構——0707「文件只留結果」）；② `MCP_SETUP_GUIDE.md` + `.mcp.json.{linux,windows}.example`（2026-03 通用模板 MCP 指南，與實際 MCP 使用脫節、零引用）；③ `tests/tools/` 4 支手動工具 + `tests/fixtures/line_simulator.py`（讀已刪的舊 agent 記憶層，實質失效；兩處文件提及順手清）；④ `docs/4-exploration/` CR-0122~0125（status: done，依 0707「CIA 驗收後清除」慣例；決策本體在 ADR-028/029/030 與 CHANGELOG）；⑤ tests/unit pycache 殘骸（untracked rm）。歷史全在 git。
+
 - **ADR-030：RAG 定位裁決——對外開放介面；Skill 為知識與推理主軸（branch `docs/rag-positioning-decision`，2026-07-09）**：業主釐清「RAG 是要做成 MCP 當客戶有自己的資料庫時可以外接用的；我們的 Agent 還是以 skill 為出發，因為 skill 才能完整紀錄回答的推理流程」。裁決落文：①RAG-MCP 首要定位＝品牌客戶自建知識庫的**外接介面**（我方 rag/ 服務兼作參考實作）；②我方 agent 知識與推理主軸＝**Skill（永久非過渡）**；③**ADR-010 Phase 4 cutover 計畫取消**——references 永為主路徑，引用率 gate 降為輔助工具品質指標。同步修正：SKILL.md（RAG 由 first lookup 改 auxiliary lookup）、rag/README 定位段、CR-0125 §8（語料缺口補源落點依此＝references，仍待解鎖核可）、ADR INDEX。已建的 rag/ 服務與 MCP 接線全數保留（opt-in、同一介面服務未來外接場景）。
 
 - **RAG agent 接線 + references 語料灌注 + 引用率 gate——Phase C（WBS 2.2.2）（branch `feat/rag-agent-wiring`，2026-07-09）**：①**接線**：`app_config.load_mcp_servers()`（config.toml `[mcp_servers.locksmith-rag]`，env `${VAR}` 展開、缺值＝跳過 server → RAG 未配置 agent 行為完全不變）；gateway 以 startup hook、demo 顯式連線（兩者直呼 `_process_message` 繞過 `loop.run()` 懶連線點——lockcore vendor 零改動；MCP 工具註冊在 CS_TOOL_ALLOWLIST 剝離後，紅線測試原樣）。②**灌注（二）**：`ingest_references.py` 把 references（專家精選層）按章節切 249 塊唯讀遷入 RAG（內容鎖定不動、依 cutover 原則續為 fallback）。③ SKILL.md 新增 RAG 檢索程序（第一查找、不編造、fallback references）。④ `eval_retrieval.py` 引用率 gate：**4/6=67%＜90% → cutover 不切**；兩題 MISS＝專家更正從未進任何知識源（註冊鍵不受鎖定／面板閃兩下）→ 🛑 待業主裁決補源路徑（改鎖定 references 或走 refinery）。**E2E 真實 turn 驗證**（scratch pgvector）：MCP 連線→兩工具註冊→agent 實呼 search_similar_cases+search_product_manual→回覆 grounded 於語料。修 Phase A 兩處遺留：openpyxl 隱性依賴（root 顯式帶 `lock-cs-agent[eval]`）、test_cr_0076 BRONZE 舊路徑；Vertex embedding 批次上限改字元預算分批。agent 全套 160 passed。CIA `docs/4-exploration/CR-0125`。

@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**ADR-030 RAG 定位裁決**，branch `docs/rag-positioning-decision` — 業主釐清：RAG-MCP＝客戶自建資料庫的外接介面（我方 rag/ 兼參考實作）；agent 以 skill 為知識與推理主軸（永久）；ADR-010 cutover 取消、references 永為主路徑。SKILL.md/rag README/CR-0125 §8/INDEX 同步。已建 rag/ 服務與接線保留（opt-in）。）
+**最後更新：** 2026-07-09（**非開發整理 R1**，branch `chore/housekeeping-r1` — 移除：MISSION.md（過期任務書）、MCP_SETUP_GUIDE+.mcp.json examples（脫節零引用）、tests/{tools,fixtures}（讀已刪記憶層的失效工具）、docs/4-exploration CR-0122~0125（done 驗收清除，決策在 ADR/CHANGELOG）。歷史皆在 git。後續 R2 歸位（gen_docs_html→scripts/dev、smoke→scripts/ci）、R3 .claude 懸空引用修繕。）
+
+**前一次更新：** 2026-07-09（**ADR-030 RAG 定位裁決**，branch `docs/rag-positioning-decision` — 業主釐清：RAG-MCP＝客戶自建資料庫的外接介面（我方 rag/ 兼參考實作）；agent 以 skill 為知識與推理主軸（永久）；ADR-010 cutover 取消、references 永為主路徑。SKILL.md/rag README/CR-0125 §8/INDEX 同步。已建 rag/ 服務與接線保留（opt-in）。）
 
 **前一次更新：** 2026-07-09（**RAG agent 接線 Phase C（WBS 2.2.2）**，branch `feat/rag-agent-wiring` — load_mcp_servers（env 缺值=跳過,未配置行為不變）+ gateway startup hook/demo 顯式連線（vendor 零改動、白名單紅線原樣）+ references 249 塊唯讀遷入 RAG + SKILL.md 檢索程序 + 引用率 gate（4/6=67%＜90%→cutover 不切;兩題 MISS=專家更正從未進知識源,🛑待業主裁決補源路徑）。E2E 真實 turn：MCP 連線→工具註冊→agent 實呼兩 RAG 工具→回覆 grounded。修 Phase A 遺留（openpyxl 隱性依賴、BRONZE 舊路徑）。agent 160 passed。CIA CR-0125。）
 
