@@ -2152,7 +2152,7 @@ name = "smart-lock-platform"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "lock-cs-agent" },
+    { name = "lock-cs-agent", extra = ["eval"] },
     { name = "smart-lock-api" },
     { name = "smart-lock-knowledge-pipeline" },
     { name = "smart-lock-rag" },
@@ -2178,7 +2178,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "lock-cs-agent", editable = "agent" },
+    { name = "lock-cs-agent", extras = ["eval"], editable = "agent" },
     { name = "smart-lock-api", virtual = "api" },
     { name = "smart-lock-knowledge-pipeline", virtual = "knowledge-pipeline" },
     { name = "smart-lock-rag", virtual = "rag" },

@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 import os
+import os
+import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -149,3 +151,64 @@ def build_escalation_store(cfg: AppConfig):
     from lockcore.agent.user_memory import EscalationStore
 
     return EscalationStore(cfg.db_path)
+
+
+# ── MCP servers（RAG-via-MCP，ADR-010/CR-0125）────────────────────────────
+# config.toml [mcp_servers.<name>] → lockcore MCPServerConfig。
+# env 值支援 ${VAR} 展開（機密不入 toml）；任一 ${VAR} 解不到值 → 跳過該 server
+# （= RAG 未配置,agent 完全維持既有行為;MCP 工具註冊在 CS_TOOL_ALLOWLIST
+# 剝離之後,白名單紅線不動）。
+
+_ENV_VAR_RE = re.compile(r"\$\{([A-Z0-9_]+)\}")
+
+
+def _expand_env(value: str) -> tuple[str, bool]:
+    """展開 ${VAR}；回傳 (結果, 是否有變數解不到值)。"""
+    missing = False
+
+    def sub(m: re.Match) -> str:
+        nonlocal missing
+        v = os.environ.get(m.group(1), "")
+        if not v:
+            missing = True
+        return v
+
+    return _ENV_VAR_RE.sub(sub, value), missing
+
+
+def load_mcp_servers(path: str | Path | None = None) -> dict:
+    """讀 config.toml 的 [mcp_servers.*]，回傳 {name: MCPServerConfig}。"""
+    from lockcore.config.schema import MCPServerConfig
+    from loguru import logger
+
+    cfg_path = Path(path) if path else DEFAULT_CONFIG_PATH
+    data = tomllib.loads(cfg_path.read_text(encoding="utf-8"))
+    servers: dict[str, object] = {}
+    for name, raw in (data.get("mcp_servers") or {}).items():
+        env: dict[str, str] = {}
+        skip = False
+        for k, v in (raw.get("env") or {}).items():
+            expanded, missing = _expand_env(str(v))
+            if missing:
+                logger.info(
+                    "MCP server '{}' 未配置（env {} 缺值）→ 跳過,agent 行為不變", name, k
+                )
+                skip = True
+                break
+            env[k] = expanded
+        if skip:
+            continue
+        cwd = raw.get("cwd") or ""
+        if cwd and not Path(cwd).is_absolute():
+            cwd = str((cfg_path.parent / cwd).resolve())
+        servers[name] = MCPServerConfig(
+            type=raw.get("type"),
+            command=raw.get("command", ""),
+            args=list(raw.get("args", [])),
+            env=env,
+            cwd=cwd,
+            url=raw.get("url", ""),
+            tool_timeout=int(raw.get("tool_timeout", 30)),
+            enabled_tools=list(raw.get("enabled_tools", ["*"])),
+        )
+    return servers

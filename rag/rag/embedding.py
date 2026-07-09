@@ -33,6 +33,26 @@ def embed_model() -> str:
     return os.getenv("RAG_EMBED_MODEL", DEFAULT_MODEL)
 
 
+# Vertex embedding 每 request 有總 token 上限（~20k）；中文字 ≈ 1-2 token，
+# 以字元預算保守分批（長章節如 references WiFi 流程單塊可達 3000 字）。
+BATCH_CHAR_BUDGET = 8000
+
+
+def _make_batches(texts: list[str], *, batch_size: int, char_budget: int) -> list[list[str]]:
+    batches: list[list[str]] = []
+    cur: list[str] = []
+    cur_chars = 0
+    for t in texts:
+        if cur and (len(cur) >= batch_size or cur_chars + len(t) > char_budget):
+            batches.append(cur)
+            cur, cur_chars = [], 0
+        cur.append(t)
+        cur_chars += len(t)
+    if cur:
+        batches.append(cur)
+    return batches
+
+
 def embed_texts(texts: list[str], *, batch_size: int = 64) -> list[list[float]]:
     """批次 embedding；回傳與輸入等長的 768 維向量列表。
 
@@ -41,8 +61,7 @@ def embed_texts(texts: list[str], *, batch_size: int = 64) -> list[list[float]]:
     _ensure_credentials()
     model = embed_model()
     vectors: list[list[float]] = []
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i : i + batch_size]
+    for batch in _make_batches(texts, batch_size=batch_size, char_budget=BATCH_CHAR_BUDGET):
         response = litellm.embedding(model=model, input=batch)
         # litellm 回傳順序與輸入一致；仍以 index 排序防禦
         items = sorted(response.data, key=lambda d: d["index"])

@@ -15,7 +15,7 @@ sys.path.insert(0, str(AGENT_ROOT / "scripts"))
 from governance_checks import scan_references_sourcing, compute_agent_kpi_gate  # noqa: E402
 
 REFS = AGENT_ROOT / "lockcore" / "skills" / "locksmith-product-knowledge" / "references"
-BRONZE = AGENT_ROOT.parent / "data" / "storage" / "bronze"
+BRONZE = AGENT_ROOT.parent / "knowledge-pipeline" / "storage" / "bronze"  # 2026-07-09 data/ 改名(ADR-029)
 
 
 # ── 真實 references 全 bronze 合規（0 violation）──

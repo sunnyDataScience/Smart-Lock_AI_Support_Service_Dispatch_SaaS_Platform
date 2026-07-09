@@ -19,6 +19,7 @@ from pathlib import Path
 from lockcore.agent.loop import AgentLoop
 from lockcore.app_config import (
     CS_TOOL_ALLOWLIST,
+    load_mcp_servers,
     build_escalation_store,
     build_memory_manager,
     build_provider,
@@ -49,7 +50,12 @@ async def main(config_path: str | None = None):
         memory_tenant=cfg.tenant,
         escalation_store=esc,
         tool_allowlist=CS_TOOL_ALLOWLIST,
+        # RAG-via-MCP(ADR-010):未配置(env 缺)=空 dict,行為不變;連線失敗 fail-soft 重試
+        mcp_servers=load_mcp_servers(),
     )
+
+    # 直呼 _process_message 不經 loop.run() → 顯式連 MCP(未配置=no-op)
+    await loop._connect_mcp()
 
     uid = "cust-001"
 
