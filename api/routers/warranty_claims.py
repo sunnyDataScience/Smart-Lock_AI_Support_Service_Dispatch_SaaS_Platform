@@ -63,7 +63,7 @@ async def list_warranty_claims(
 async def create_warranty_claim(
     body: WarrantyClaimCreateRequest,
     response: Response,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required("admin", "customer_service", "reviewer")),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     claim_type = (

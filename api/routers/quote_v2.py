@@ -20,8 +20,8 @@ from services import quote_engine_service as qe
 
 router = APIRouter()
 
-_COST_VISIBLE_ROLES = {"admin", "operations_manager", "tenant_admin"}
-_APPROVE_ROLES = ("admin", "operations_manager", "tenant_admin")
+_COST_VISIBLE_ROLES = {"admin", "operations_manager"}  # SA-01：死角色移除
+_APPROVE_ROLES = ("admin", "operations_manager")  # SA-01：死角色移除
 
 
 def _xt(user: CurrentUser, tenant_id: str) -> None:

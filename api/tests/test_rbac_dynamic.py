@@ -64,23 +64,22 @@ async def _cleanup(role: str) -> None:
 def test_hierarchy_can_grant_matrix():
     from services.role_service import can_grant
 
-    # admin (4) 嚴格高於 operations_manager (2)、reviewer (2)、technician (1)
+    # SA-01（CR-0130）：階層收斂 7 角色正典——admin (4) 嚴格高於 ops (2)、reviewer (2)、tech (1)
     assert can_grant("admin", "reviewer") is True
     assert can_grant("admin", "technician") is True
-    assert can_grant("tenant_admin", "operations_manager") is True
+    assert can_grant("admin", "operations_manager") is True
 
     # 同階互不能授權
-    assert can_grant("admin", "tenant_admin") is False
     assert can_grant("operations_manager", "reviewer") is False
 
     # 低階不能授權高階
     assert can_grant("operations_manager", "admin") is False
     assert can_grant("technician", "operations_manager") is False
-    assert can_grant("brand_oem", "technician") is False
 
-    # super_admin 高於一切
-    assert can_grant("super_admin", "admin") is True
-    assert can_grant("super_admin", "tenant_admin") is True
+    # 死角色/legacy 值（tenant_admin/super_admin/brand_oem…）已移除——階層 0，一律拒絕
+    assert can_grant("tenant_admin", "operations_manager") is False
+    assert can_grant("super_admin", "admin") is False
+    assert can_grant("auditor", "technician") is False  # legacy 探針：未知角色階層 0
 
 
 # ─── 2. RBAC admin 成功路徑 + WS publish ──────────────────────────
@@ -302,7 +301,7 @@ async def test_audit_log_persisted(client, admin_headers):
         pytest.skip("DB not available")
 
     await client.patch(
-        PATH.format(role="brand_oem"),
+        PATH.format(role="reviewer"),
         json={
             "permissions": [
                 "work_orders.read",
@@ -310,6 +309,7 @@ async def test_audit_log_persisted(client, admin_headers):
                 "customers.read",
                 "inventory.read",
                 "warranty.read",
+                "audit_logs.read",  # reviewer locked+granted：全覆寫必回填，否則 403（見上）
             ],
             "reason": "audit log test",
         },
@@ -318,7 +318,7 @@ async def test_audit_log_persisted(client, admin_headers):
 
     cur = await db_module._conn.execute(
         "SELECT action, payload FROM audit_events "
-        "WHERE action = %s "
+        "WHERE action = %s AND payload->>'reason' = 'audit log test' "
         "ORDER BY created_at DESC LIMIT 1",
         ("role.permissions_updated",),
     )
@@ -326,8 +326,8 @@ async def test_audit_log_persisted(client, admin_headers):
     assert row is not None
     assert row[0] == "role.permissions_updated"
     payload = row[1] if isinstance(row[1], dict) else json.loads(row[1])
-    assert payload["role_name"] == "brand_oem"
+    assert payload["role_name"] == "reviewer"
     assert payload["reason"] == "audit log test"
     assert "before" in payload and "after" in payload
 
-    await _cleanup("brand_oem")
+    await _cleanup("reviewer")

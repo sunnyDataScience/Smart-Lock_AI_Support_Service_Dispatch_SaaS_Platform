@@ -416,7 +416,7 @@ from realtime.ws_hub import hub, verify_ws_token, authorize_channel, WSAuthError
 
 
 # admin 類頻道允許的角色（依需求調整）
-_ADMIN_ROLES = {"admin", "operations_manager", "tenant_admin"}
+_ADMIN_ROLES = {"admin", "operations_manager"}  # SA-01：死角色移除
 _ADMIN_OR_FINANCE = {"admin", "operations_manager", "accountant"}
 _ADMIN_OR_SUPPORT = {"admin", "operations_manager", "support_agent"}
 

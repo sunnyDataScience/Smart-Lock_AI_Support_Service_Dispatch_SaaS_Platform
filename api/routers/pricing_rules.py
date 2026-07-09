@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import BACKOFFICE_ROLES, CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     PricingCalculateRequest,
@@ -110,7 +110,7 @@ async def update_pricing_rule(
 )
 async def calculate_pricing(
     body: PricingCalculateRequest,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     result = await pricing_rule_service.calculate_pricing(
         tenant_id=user.tenant_id,

@@ -35,7 +35,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import BACKOFFICE_ROLES, CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -52,8 +52,8 @@ router = APIRouter()
 # Role guards（對齊 work_order_actions.py 的 legacy 定義）
 # ---------------------------------------------------------------------------
 
-_tech_or_admin = role_required("technician", "admin", "operations_manager", "tenant_admin")
-_admin_only = role_required("admin", "operations_manager", "tenant_admin")
+_tech_or_admin = role_required("technician", "admin", "operations_manager")
+_admin_only = role_required("admin", "operations_manager")
 
 
 # ---------------------------------------------------------------------------
@@ -269,7 +269,7 @@ async def record_material_request_v2(
     body: _MaterialRequestBodyV2,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -471,7 +471,7 @@ async def confirm_customer_reschedule_v2(
     body: _CustomerRescheduleConfirmBody,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -497,7 +497,7 @@ async def confirm_customer_reschedule_v2(
 async def reject_customer_reschedule_v2(
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)

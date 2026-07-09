@@ -39,7 +39,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Path, Query, Response
 from pydantic import BaseModel, Field
 
-from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import BACKOFFICE_ROLES, CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -65,13 +65,12 @@ from services import (
 router = APIRouter()
 
 # CR-0027：成本（unit_price）僅後台管理角色可見（server 端 RBAC 遮蔽）
-_COST_VISIBLE_ROLES = {"admin", "operations_manager", "tenant_admin"}
+_COST_VISIBLE_ROLES = {"admin", "operations_manager"}  # SA-01：死角色移除
 
 # F-004 manual dispatch — 允許角色（與 legacy 對齊）
 _DISPATCH_ALLOWED_ROLES = (
     "admin",
     "operations_manager",
-    "tenant_admin",
     "dispatcher",
     "customer_service",
 )
@@ -341,7 +340,7 @@ async def create_work_order_v2(
 async def accept_work_order_v2(
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -432,7 +431,7 @@ async def complete_work_order_v2(
     body: CompletionReport,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -471,7 +470,7 @@ async def confirm_work_order_v2(
     body: WorkOrderConfirmRequest,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -499,7 +498,7 @@ async def escalate_work_order_v2(
     body: WorkOrderEscalateRequest,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -601,7 +600,7 @@ async def submit_work_order_signature_v2(
     body: SignaturePayload,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -635,7 +634,7 @@ async def record_scope_change_v2(
     body: _ScopeChangeRequest,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -758,7 +757,7 @@ async def onsite_arrival_v2(
     body: _ArrivalEventRequest,
     tenantId: str = Path(...),
     woId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """到場事件：寫入 event_type='arrival' 結構化事件（GPS + arrived_at）+ 補 started_at。
@@ -797,7 +796,7 @@ async def onsite_completion_v2(
     body: _CompletionSubmitRequest,
     tenantId: str = Path(...),
     woId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """完工送簽：呼叫 complete_order（accepted | in_progress → completed）。
@@ -867,7 +866,7 @@ async def submit_door_check_v2(
     body: _DoorCheckSubmitRequest,
     tenantId: str = Path(...),
     woId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """CR-0007 HD-01=(a)：缺 arrival event → 409 STATE_CONFLICT。"""
@@ -931,7 +930,7 @@ async def add_quote_item_v2(
     body: _QuoteLineItemRequest,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(role_required("admin", "operations_manager", "tenant_admin")),
+    user: CurrentUser = Depends(role_required("admin", "operations_manager")),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)

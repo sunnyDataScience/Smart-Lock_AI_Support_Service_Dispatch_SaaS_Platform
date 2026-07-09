@@ -53,8 +53,8 @@ class _NotifyDelayBody(BaseModel):
 
 
 # 技師可改自己的工單；admin / operations_manager 可改任何工單（service 層做 ownership 檢查）
-_tech_or_admin = role_required("technician", "admin", "operations_manager", "tenant_admin")
-_admin_only = role_required("admin", "operations_manager", "tenant_admin")
+_tech_or_admin = role_required("technician", "admin", "operations_manager")
+_admin_only = role_required("admin", "operations_manager")
 
 
 # ---------------------------------------------------------------------------

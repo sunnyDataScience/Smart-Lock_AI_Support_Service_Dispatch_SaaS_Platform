@@ -12,7 +12,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from services import scheduled_report_service as svc
 
@@ -38,7 +38,7 @@ class CreateScheduleBody(BaseModel):
 async def create_scheduled_report(
     body: CreateScheduleBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
@@ -92,7 +92,7 @@ async def list_scheduled_reports(
 async def cancel_scheduled_report(
     tenantId: str = Path(...),
     scheduleId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

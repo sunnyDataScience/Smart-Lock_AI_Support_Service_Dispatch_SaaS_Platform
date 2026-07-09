@@ -15,7 +15,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import BACKOFFICE_ROLES, CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -41,7 +41,6 @@ from services import audit_log_service, signature_service, work_order_service
 _DISPATCH_ALLOWED_ROLES = (
     "admin",
     "operations_manager",
-    "tenant_admin",
     "dispatcher",
     "customer_service",
 )
@@ -152,7 +151,7 @@ async def get_work_order(
 )
 async def accept_work_order(
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await work_order_service.accept_order(
@@ -218,7 +217,7 @@ async def assign_work_order(
 async def complete_work_order(
     body: CompletionReport,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # CR-0039：v1 :complete 同 v2，為後台 override 路徑；技師須走現場完工送簽硬閘端點
@@ -275,7 +274,7 @@ async def cancel_work_order(
 async def confirm_work_order(
     body: WorkOrderConfirmRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await work_order_service.confirm_order(
@@ -299,7 +298,7 @@ async def confirm_work_order(
 async def escalate_work_order(
     body: WorkOrderEscalateRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     level_str = body.level.value if hasattr(body.level, "value") else str(body.level)
@@ -324,7 +323,7 @@ async def escalate_work_order(
 async def submit_work_order_signature(
     body: SignaturePayload,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     result = await signature_service.submit_work_order_signature(
@@ -354,7 +353,7 @@ async def submit_work_order_signature(
 async def propose_reschedule(
     body: _ProposeRescheduleRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     slots = [
@@ -437,7 +436,7 @@ class _DoorCheckRequest(BaseModel):
 async def record_scope_change(
     body: _ScopeChangeRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await work_order_service.record_scope_change(
@@ -463,7 +462,7 @@ async def record_scope_change(
 async def record_material_request(
     body: _MaterialRequestBody,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await work_order_service.record_material_request(
@@ -488,7 +487,7 @@ async def record_material_request(
 async def record_delay(
     body: _DelayRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await work_order_service.record_delay(
@@ -514,7 +513,7 @@ async def record_delay(
 async def record_door_check(
     body: _DoorCheckRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await work_order_service.record_door_check(
@@ -580,7 +579,7 @@ class _CustomerRescheduleConfirmRequest(BaseModel):
 async def confirm_customer_reschedule(
     body: _CustomerRescheduleConfirmRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await work_order_service.confirm_reschedule_by_customer(
@@ -603,7 +602,7 @@ async def confirm_customer_reschedule(
 )
 async def reject_customer_reschedule(
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     order = await work_order_service.reject_reschedule_by_customer(

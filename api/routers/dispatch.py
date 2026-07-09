@@ -28,7 +28,6 @@ from services import audit_log_service, dispatch_service
 _DISPATCH_ALLOWED_ROLES = (
     "admin",
     "operations_manager",
-    "tenant_admin",
     "dispatcher",
     "customer_service",
 )

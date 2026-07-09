@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     ConvertProblemCardToWorkOrderRequest,
@@ -94,7 +94,7 @@ async def get_problem_card(
 async def create_problem_card(
     response: Response,
     body: ProblemCardCreateRequest,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
@@ -178,7 +178,7 @@ async def update_problem_card(
     response: Response,
     body: ProblemCardUpdateRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
     response.headers["Deprecation"] = "true"
@@ -214,7 +214,7 @@ async def update_problem_card(
 async def confirm_problem_card(
     response: Response,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
@@ -241,7 +241,7 @@ async def resolve_problem_card(
     response: Response,
     body: ProblemCardResolveRequest,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
@@ -272,7 +272,7 @@ async def convert_to_work_order(
     response: Response,
     body: ConvertProblemCardToWorkOrderRequest | None = None,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     wo, created = await work_order_service.create_from_problem_card(
