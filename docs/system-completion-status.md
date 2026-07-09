@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**非開發整理 R2 歸位**，branch `chore/housekeeping-r2` — gen_docs_html→scripts/dev（tools/ 消失）、smoke→scripts/ci（tests/ 消失）、root testpaths 改 agent/tests 安全預設、引用同步（Makefile/dev-up/README）。根目錄=11 功能包+6 必要根檔。）
+**最後更新：** 2026-07-09（**非開發整理 R3 修繕**，branch `chore/housekeeping-r3` — 19 個懸空 skill 引用修正（CIA gate 改「skill 缺席時依 rules 手工產出」；vibecoding-*/5 個 sunnydata-* 標未安裝概念流程）；.claude/docs 死路徑清理（web 四站台/knowledge-pipeline/silver_to_knowledge）；清過期 subagent 報告。R1-R3 非開發整理全數完成。）
+
+**前一次更新：** 2026-07-09（**非開發整理 R2 歸位**，branch `chore/housekeeping-r2` — gen_docs_html→scripts/dev（tools/ 消失）、smoke→scripts/ci（tests/ 消失）、root testpaths 改 agent/tests 安全預設、引用同步（Makefile/dev-up/README）。根目錄=11 功能包+6 必要根檔。）
 
 **前一次更新：** 2026-07-09（**非開發整理 R1**，branch `chore/housekeeping-r1` — 移除：MISSION.md（過期任務書）、MCP_SETUP_GUIDE+.mcp.json examples（脫節零引用）、tests/{tools,fixtures}（讀已刪記憶層的失效工具）、docs/4-exploration CR-0122~0125（done 驗收清除，決策在 ADR/CHANGELOG）。歷史皆在 git。後續 R2 歸位（gen_docs_html→scripts/dev、smoke→scripts/ci）、R3 .claude 懸空引用修繕。）
 

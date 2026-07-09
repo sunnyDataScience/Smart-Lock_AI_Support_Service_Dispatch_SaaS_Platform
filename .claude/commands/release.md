@@ -31,7 +31,7 @@ Abort with clear message if any fails.
 
 ### Step 2: Generate CHANGELOG via skill
 
-Invoke `sunnydata-changelog-sync` skill with the target version. It:
+Invoke `sunnydata-changelog-sync（未安裝時：手工彙整 Conventional Commits + ADR + CR 產 release notes）` skill with the target version. It:
 - Scans `git log <last-tag>..HEAD`
 - Scans accepted ADRs / implemented CRs in range
 - Prepends release section to `CHANGELOG.md`

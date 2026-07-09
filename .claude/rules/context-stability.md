@@ -24,7 +24,7 @@ When starting any non-trivial task, load tiers in this order:
 
 1. **Tier 0** — establishes worldview (mission, non-goals, technical invariants)
 2. **Tier 1** — relevant ADRs for the touched area
-3. **Tier 2** — contracts for any module/API the task touches *(after `sunnydata-doc-freshness` skill passes)*
+3. **Tier 2** — contracts for any module/API the task touches（sunnydata-doc-freshness skill 未安裝——以 frontmatter last-synced 自行檢查）
 4. **Tier 3** — relevant checklists for the kind of work
 5. **Tier 4** — only if you need motivation context
 6. **Tier 5** — explore the actual code first; use views only as a sanity check
@@ -35,10 +35,10 @@ When starting any non-trivial task, load tiers in this order:
 |---|---|---|---|
 | 0 | Human only | Major version | Team review |
 | 1 | Human or AI draft + human approve | New decision | New ADR file, never edit accepted ones |
-| 2 | AI generates + human verifies | Contract change | Use `vibecoding-write-api-contract` / `vibecoding-write-tdd` skill; carry frontmatter |
+| 2 | AI generates + human verifies | Contract change | 直接撰寫（原 vibecoding-* 模板 skill 已於 2026-05-10 整併移除）; carry frontmatter |
 | 3 | Human curates | Quarterly | Direct edit; bump version footer |
-| 4 | AI drafts on demand | Task start | Use `vibecoding-write-prd` skill; date-stamp filename |
-| 5 | AI auto-regenerates | After refactor | Use `sunnydata-auto-regen` skill; never hand-edit |
+| 4 | AI drafts on demand | Task start | 直接撰寫（原 vibecoding-write-prd 已移除）; date-stamp filename |
+| 5 | AI auto-regenerates | After refactor | 以產生器腳本 regen（sunnydata-auto-regen skill 未安裝）; never hand-edit |
 
 ## When tiers conflict
 
@@ -61,5 +61,5 @@ When proposing a change, name the tier explicitly:
 
 - Tier definitions: this file (`.claude/rules/context-stability.md`)
 - Per-tier policy detail: `VibeCoding_Workflow_Templates/<tier>/README.md`
-- Sync mechanism: `.claude/skills/sunnydata-doc-freshness/SKILL.md` + `.claude/hooks/post-write.sh`
+- Sync mechanism: `.claude/hooks/post-write.sh`（sunnydata-doc-freshness skill 未安裝）
 - Recommended `docs/` layout: `VibeCoding_Workflow_Templates/HOW-TO-INSTANTIATE.md`

@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **非開發整理 R3——.claude 懸空引用修繕（branch `chore/housekeeping-r3`，2026-07-09）**：修 19 個不存在 skill 的懸空引用。①最關鍵：CLAUDE.md CIA gate 主流程指定的 `sunnydata-change-impact-analysis` **實際未安裝**——改為「skill 缺席時依 change-governance.md 結構手工產出 CIA」（gate 效力在產出與裁決，不在 skill）；change-governance/context-stability/release 指令同語意修正。②`.claude/{WORKFLOW,README}`、coordination、output-styles 檔頭加修繕註記（vibecoding-* 14 個 2026-05-10 已移除、5 個 sunnydata-* 未安裝——提及視為概念流程）。③`.claude/docs/{commands,architecture}.md` 死路徑清理（cd web→四站台、data/pipeline→knowledge-pipeline、silver_to_skill→silver_to_knowledge）。④清 6/1 過期 subagent 決策報告。
+
+### Changed
+
 - **非開發整理 R2——根目錄歸位（branch `chore/housekeeping-r2`，2026-07-09）**：`tools/gen_docs_html.py` → `scripts/dev/`（docs_html 工作流退役後僅剩報告素材 regen 用途，`tools/` 目錄消失）；`tests/smoke/api.sh` → `scripts/ci/smoke-api.sh`（根 `tests/` 目錄消失）；root pyproject `testpaths` 改 `agent/tests`（安全預設：根層 pytest 跑無 DB 依賴的 agent 套件，api 套件須 cd api + 隔離 scratch DB）；Makefile／dev-up／README 引用同步。根目錄現況：11 個功能包目錄 + 6 個必要根檔，每項皆為活物。
 
 ### Removed

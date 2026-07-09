@@ -10,7 +10,7 @@
 #   pip install --user uv   |   pipx install uv
 uv sync                     # 一行裝齊三個 module 的 deps + dev tools；pyproject.toml 改了就重跑
 
-cd web && npm install       # Web dashboard（Node 環境，與 uv 無關）
+cd web/<站台> && npm install   # 四站台各自獨立(brand-portal/tech-portal/landing/platform-console)
 ```
 
 ## Run（本地）
@@ -19,7 +19,7 @@ cd web && npm install       # Web dashboard（Node 環境，與 uv 無關）
 cd agent && uv run python main.py                          # Agent CLI（驗證 LLM 連線，免 LINE Bot）
 cd agent && uv run uvicorn app:app --reload --port 8000    # Agent FastAPI（LINE webhook 模式）
 cd api   && uv run uvicorn main:app --reload --port 8001   # REST API backend
-cd web   && npm run dev                                    # Web dashboard（http://localhost:3000）
+cd web/brand-portal && npm run dev                         # 品牌後台（:3000;其餘站台 dev port 3001-3003）
 
 ./scripts/dev/dev-up.sh                                    # 一鍵起本地環境（DB + ngrok + uvicorn）
 ./scripts/dev/dev-down.sh                                  # 拆除（DB container 保留）
@@ -54,8 +54,8 @@ cd agent && pytest -k line_gateway      # LINE webhook 通道
 ## Web build / lint
 
 ```bash
-cd web && npm run build      # Production build
-cd web && npm run lint       # ESLint
+cd web/brand-portal && npm run build   # 各站台同理
+cd web/brand-portal && npm run lint    # 各站台同理
 ```
 
 ## Debug 工具（從專案根目錄跑，工具會自動把 agent/ 加進 sys.path）
@@ -73,8 +73,9 @@ uv run tests/tools/clean_data.py                # DB cleanup
 ## Skill approval（data pipeline → agent，legacy）
 
 ```bash
-uv run python data/pipeline/silver_to_skill/approve_drafts.py --dry-run
-uv run python data/pipeline/silver_to_skill/approve_drafts.py --confirm
+# silver_to_skill 已汰換(ADR-029);現行雙軌產出:
+cd knowledge-pipeline && uv run python -m pipeline.silver_to_knowledge.emit_corpus
+cd knowledge-pipeline && uv run python -m pipeline.silver_to_knowledge.audit_corpus
 ```
 
 ## 環境 / DB target 切換（.env 管理）

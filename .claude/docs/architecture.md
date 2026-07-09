@@ -109,7 +109,7 @@ Post-reply (background, 非阻塞)：
 - 收集途徑：Quick Reply 按鈕（brand/model）、`update_user_info` tool（brand/model）、回覆後 LLM 萃取（phone/address）
 - Brand/model facts 驅動 product info 過濾 —— 缺 brand = 只能存取 `_common/*`
 
-## Data Pipeline (`data/pipeline/`)
+## Knowledge Pipeline (`knowledge-pipeline/pipeline/`，原 data/——ADR-029)
 
 4 層 Medallion：
 1. `source_to_raw/` — 下載（YouTube via yt-dlp、website via Playwright、Google Drive）
