@@ -5,7 +5,7 @@
 #   1. 套 SQL/platform/Schema_platform.sql(IF NOT EXISTS,可重複執行)
 #   2. seed 第一個平台管理員(bcrypt 後入庫;明文絕不入 repo/argv/history)
 #
-# 用法(先起 platform stack:docker compose -f docker-compose.platform.yml up -d):
+# 用法(先起 platform stack:docker compose -f compose/docker-compose.platform.yml up -d):
 #   ./scripts/db/init-platform-db.sh --email test@lock-ai.com [--name '平台管理員']
 #     → 密碼互動輸入(不回顯),或事先 export PLATFORM_ADMIN_PASSWORD
 #   PLATFORM_DB_URI=postgresql://lock:0000@localhost:5435/lock_platform ./scripts/db/init-platform-db.sh ...

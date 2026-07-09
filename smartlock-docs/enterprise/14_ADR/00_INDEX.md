@@ -61,7 +61,7 @@ upstream:
 | [ADR-026](./ADR-026_報價快照hash-chain不可否認性.md) | 報價快照 hash-chain 不可否認性 | 系統(api) | Accepted | 015 · 021 |
 | **群 J — 跨系統流程邊界** |||||
 | [ADR-027](./ADR-027_現場報價修正發起邊界_技師平台command_品牌api權威.md) | 現場報價修正發起邊界——技師平台只發 command、品牌 api 為報價唯一權威 | 平台 | Accepted | 016 · 017 · 026 |
-| [ADR-028](./ADR-028_web檔案層拆分_monorepo_workspaces.md) | web 檔案層拆分——npm workspaces monorepo（apps×4 + shared） | 系統(web) | Accepted | supersedes 023 · 022 · 024 |
+| [ADR-028](./ADR-028_web檔案層拆分_四站獨立專案.md) | web 檔案層拆分——四站台完全獨立專案（複製分家） | 系統(web) | Accepted | supersedes 023 · 022 · 024 |
 
 ## 依賴關係圖
 
@@ -93,7 +93,7 @@ graph TD
   A002 --> A003
   A005 --> A022
   A022 --> A023[ADR-023 APP_MODE 多 portal]
-  A023 --> A028[ADR-028 web monorepo 檔案層拆分]
+  A023 --> A028[ADR-028 web 四站獨立專案]
   A004 --> A024[ADR-024 client SPA + OIDC]
   A023 --> A024
   A015 --> A026[ADR-026 報價快照 hash-chain]

@@ -53,9 +53,9 @@ warn() { printf '%s[redeploy]%s %s\n' "$c_yel" "$c_rst" "$*"; }
 err()  { printf '%s[redeploy]%s %s\n' "$c_red" "$c_rst" "$*" >&2; }
 need() { command -v "$1" >/dev/null 2>&1 || { err "缺少工具: $1"; exit 1; }; }
 
-# CR-0112 雙 stack 拆分後,本 script 打「派工方 stack」(docker-compose.dispatch.yml;
-# 師傅 stack 見 docker-compose.tech.yml,rebuild 同參數換 -f 即可)。
-DC="docker compose -f $PROJECT_ROOT/docker-compose.dispatch.yml"
+# CR-0112 雙 stack 拆分後,本 script 打「派工方 stack」(compose/docker-compose.dispatch.yml;
+# 師傅 stack 見 compose/docker-compose.tech.yml,rebuild 同參數換 -f 即可)。
+DC="docker compose --env-file $PROJECT_ROOT/.env -f $PROJECT_ROOT/compose/docker-compose.dispatch.yml"
 dbq() { $DC exec -T "$DB_SVC" psql -U "$DB_USER" -d "$DB_NAME" "$@"; }
 http_code() { curl -s -o /dev/null -w "%{http_code}" --max-time 8 "$@"; }
 

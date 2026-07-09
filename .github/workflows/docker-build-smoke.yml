@@ -17,25 +17,23 @@ on:
       - 'pyproject.toml'
       - 'uv.lock'
       - '.dockerignore'
-      - 'web/Dockerfile.dockerignore'
+      - 'web/*/Dockerfile.dockerignore'
       - '.python-version'
       - '.github/workflows/docker-build-smoke.yml'
   pull_request:
     paths:
       - 'agent/Dockerfile'
       - 'api/Dockerfile'
-      - 'web/Dockerfile'
+      - 'web/*/Dockerfile'
       - 'agent/pyproject.toml'
       - 'api/pyproject.toml'
       - 'pyproject.toml'
       - 'uv.lock'
-      - 'web/package.json'
-      - 'web/apps/**/package.json'
-      - 'web/packages/**/package.json'
-      - 'web/package-lock.json'
-      - 'web/apps/*/next.config.ts'
+      - 'web/*/package.json'
+      - 'web/*/package-lock.json'
+      - 'web/*/next.config.ts'
       - '.dockerignore'
-      - 'web/Dockerfile.dockerignore'
+      - 'web/*/Dockerfile.dockerignore'
 
 jobs:
   build:
@@ -45,7 +43,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [agent, api, web]
+        # 2026-07-09 web 檔案層拆分：四站各自獨立專案（web/{dispatch,tech,landing,platform}）
+        # module = Dockerfile 所在路徑；tag = image 名（路徑含 / 不能直接當 tag）
         include:
           - module: agent
             kind: python
@@ -65,10 +64,19 @@ jobs:
               except ImportError:
                   pass
               print(f'fastapi={fastapi.__version__} reportlab={md.version("reportlab")}')
-          - module: web
+          - module: web/dispatch
             kind: web
-            # web image 沒有 python，改用 docker run + curl 測 server 起來
-            # 不寫 healthcheck（healthcheck 欄位給 python 用）
+            tag: web-dispatch
+          - module: web/tech
+            kind: web
+            tag: web-tech
+          - module: web/landing
+            kind: web
+            tag: web-landing
+          - module: web/platform
+            kind: web
+            tag: web-platform
+            # web image 沒有 python，用 docker run + curl 測 server 起來
 
     steps:
       - uses: actions/checkout@v4
@@ -84,7 +92,7 @@ jobs:
           platforms: linux/amd64
           push: false
           load: true     # 載入到本地 daemon 讓下一步 docker run 用
-          tags: smart-lock-${{ matrix.module }}:ci
+          tags: smart-lock-${{ matrix.tag || matrix.module }}:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -94,7 +102,7 @@ jobs:
       - name: Smoke-test ${{ matrix.module }} image (python)
         if: matrix.kind == 'python'
         run: |
-          cat <<'PYEOF' | docker run --rm -i --entrypoint python smart-lock-${{ matrix.module }}:ci -
+          cat <<'PYEOF' | docker run --rm -i --entrypoint python smart-lock-${{ matrix.tag || matrix.module }}:ci -
           ${{ matrix.healthcheck }}
           PYEOF
 
@@ -102,7 +110,7 @@ jobs:
       - name: Smoke-test web image (next standalone runtime)
         if: matrix.kind == 'web'
         run: |
-          docker run -d --name web-ci -p 3001:8080 smart-lock-web:ci
+          docker run -d --name web-ci -p 3001:8080 smart-lock-${{ matrix.tag }}:ci
           for i in $(seq 1 30); do
             code=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3001/ || echo 000)
             if [ "$code" = "200" ]; then
@@ -119,4 +127,4 @@ jobs:
           exit 1
 
       - name: Print image size
-        run: docker images smart-lock-${{ matrix.module }}:ci --format '{{.Size}}'
+        run: docker images smart-lock-${{ matrix.tag || matrix.module }}:ci --format '{{.Size}}'

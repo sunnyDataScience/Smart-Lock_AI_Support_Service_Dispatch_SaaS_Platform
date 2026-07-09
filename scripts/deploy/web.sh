@@ -56,8 +56,11 @@ MAX_INSTANCES=3
 TIMEOUT=60         # web 是 SSR，不需要 long-running request
 
 # ── 環境變數（NEXT_PUBLIC_ 開頭的會編進 image，必須在 build time 注入）──
-# 先讀本機 web/.env.production（如有），fallback 到預設值
-WEB_ENV_FILE="web/.env.production"
+# 先讀本機 web/<app>/.env.production（如有），fallback 到預設值
+# 檔案層拆分（2026-07-09）：WEB_APP 選站台目錄（預設 dispatch = Cloud Run smart-lock-web 現況）
+WEB_APP="${WEB_APP:-dispatch}"
+WEB_DIR="web/${WEB_APP}"
+WEB_ENV_FILE="${WEB_DIR}/.env.production"
 if [[ -f "${WEB_ENV_FILE}" ]]; then
     echo "  使用 ${WEB_ENV_FILE} 中的 NEXT_PUBLIC_* 設定"
 fi
@@ -111,16 +114,16 @@ preflight_checks() {
     fi
 
     # 檢查 web/ 必要檔
-    if [[ ! -f "web/apps/${WEB_APP:-dispatch}/package.json" ]] || [[ ! -f "web/Dockerfile" ]]; then
-        echo "  FAIL: web/package.json 或 web/Dockerfile 缺失"
+    if [[ ! -f "${WEB_DIR}/package.json" ]] || [[ ! -f "${WEB_DIR}/Dockerfile" ]]; then
+        echo "  FAIL: ${WEB_DIR}/package.json 或 ${WEB_DIR}/Dockerfile 缺失"
         failed=1
     else
-        echo "  OK: web/package.json + web/Dockerfile 存在"
+        echo "  OK: ${WEB_DIR}/package.json + ${WEB_DIR}/Dockerfile 存在"
     fi
 
     # 確認 next.config 設定 standalone output
-    if ! grep -q 'output.*standalone' web/apps/${WEB_APP:-dispatch}/next.config.* 2>/dev/null; then
-        echo "  WARN: web/next.config 沒設 output:standalone，image 會很大"
+    if ! grep -q 'output.*standalone' ${WEB_DIR}/next.config.* 2>/dev/null; then
+        echo "  WARN: ${WEB_DIR}/next.config 沒設 output:standalone，image 會很大"
     else
         echo "  OK: next.config 啟用 standalone build"
     fi
@@ -154,8 +157,7 @@ build_and_push() {
         echo "  NEXT_PUBLIC_REALTIME_BASE_URL=${realtime_url}"
     fi
 
-    docker build --platform linux/amd64 -f web/Dockerfile \
-        --build-arg APP="${WEB_APP:-dispatch}" \
+    docker build --platform linux/amd64 -f ${WEB_DIR}/Dockerfile \
         --build-arg NEXT_PUBLIC_API_BASE_URL="${api_url}" \
         --build-arg NEXT_PUBLIC_REALTIME_BASE_URL="${realtime_url}" \
         -t "${IMAGE}" .

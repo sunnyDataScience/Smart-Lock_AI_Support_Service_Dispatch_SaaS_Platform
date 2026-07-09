@@ -54,10 +54,10 @@
 
 | Stack | Compose 檔 | 服務 |
 |---|---|---|
-| 品牌派工站（一品牌一套） | `docker-compose.dispatch.yml` | web :3000 / api :8001 / db :5433 / agent |
-| 師傅站（全平台唯一） | `docker-compose.tech.yml` | web :3001 / api :8002 / db :5434 |
-| 導流站 | `docker-compose.landing.yml` | web :3002 |
-| 平台維運 Console | `docker-compose.platform.yml` | web :3003 / api :8003 / db :5435 |
+| 品牌派工站（一品牌一套） | `compose/docker-compose.dispatch.yml` | web :3000 / api :8001 / db :5433 / agent |
+| 師傅站（全平台唯一） | `compose/docker-compose.tech.yml` | web :3001 / api :8002 / db :5434 |
+| 導流站 | `compose/docker-compose.landing.yml` | web :3002 |
+| 平台維運 Console | `compose/docker-compose.platform.yml` | web :3003 / api :8003 / db :5435 |
 
 ## 快速入門 (Getting Started)
 

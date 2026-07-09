@@ -212,7 +212,7 @@ async def test_approve_returns_onboarding_guide(client):
         assert data["slug"] == "test-brand"
         guide = data["onboarding_guide"]
         assert "brands/test-brand.env" in guide
-        assert "docker-compose.dispatch.yml" in guide
+        assert "compose/docker-compose.dispatch.yml" in guide
         assert body["contact_name"] in guide
 
         # 已核准再核准 → 409

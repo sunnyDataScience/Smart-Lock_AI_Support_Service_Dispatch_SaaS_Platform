@@ -32,7 +32,7 @@ dex() { docker exec -i "$TECH_CONTAINER" "$@"; }
 bq()  { dex psql "$BRAND_URI" -tAc "$1"; }   # 品牌庫查詢
 tq()  { dex psql "$TECH_URI"  -tAc "$1"; }   # 技師庫查詢
 
-docker inspect "$TECH_CONTAINER" >/dev/null 2>&1 || { err "找不到容器 $TECH_CONTAINER —— 先起 docker-compose.tech.yml"; exit 1; }
+docker inspect "$TECH_CONTAINER" >/dev/null 2>&1 || { err "找不到容器 $TECH_CONTAINER —— 先起 compose/docker-compose.tech.yml"; exit 1; }
 
 # ── verify 模式 ──────────────────────────────────────────────────────────
 verify() {
@@ -114,4 +114,4 @@ dex bash -c "psql '$BRAND_URI' -c '\\copy (SELECT * FROM saas.technician_lifecyc
   | psql '$TECH_URI' -c '\\copy saas.technician_lifecycle_event FROM stdin'"
 
 verify
-ok "拆分完成。接著讓兩個 api 都帶 TECH_POSTGRES_URI 重起(見 docker-compose.tech.yml 檔頭)。"
+ok "拆分完成。接著讓兩個 api 都帶 TECH_POSTGRES_URI 重起(見 compose/docker-compose.tech.yml 檔頭)。"
