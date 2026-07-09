@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Added
+
+- **fail-closed 白名單＋API_SURFACE 剔除清單測試（WBS 1.1.3，branch `feat/api-surface-fail-closed`，2026-07-09，CIA CR-0131 / SA-03・SA-05）**：①**SA-05**：`role_required(..., fail_closed=True)`＋`core.auth.security_state_verifiable()`——安全狀態不可驗（DB 離線→撤銷/停權查核失能）時，關鍵**金流終局/派工指派 20 端點**拒絕 `503 SECURITY_STATE_UNAVAILABLE` 不退 claims-only（退款決策×3＋agent-initiate、爭議 review/co-sign、發票 from-quote、三類月結 approve/mark-paid、dispatch assign/auto-match/plan×4、工單 assign/reassign×3）；發起/撤回類維持 C-05 fail-open 可用性取捨；白名單正典以 runtime 反射對帳測試防漂移。②**SA-03**：surface 剔除清單測試——tech 面 31 組敏感前綴逐路由驗證零外洩＋技師必要路由防過濾過頭、platform 面僅 `/api/v1/platform`、保留前綴下 assign/reassign 仍由 RBAC 擋技師（C-11「塑形非安全邊界」可執行證明）。新測試 6 項；component 894 passed、unit 331、types 零變更。13_Security C-05/C-11/Phase-1 表三處銷案；WBS 1.1.3 ✅。
+
 ### Changed
 
 - **RBAC 轉 enforce R2——非核心寫入端點全數收斂（WBS 1.1.1 完結，branch `feat/rbac-enforce-sa01-r2`，2026-07-09，CIA CR-0130 續）**：R1 對帳表 43 個殘餘 require_tenant 寫入端點收斂 37 個——kb（cases→BACKOFFICE、manuals/documents/export→OPS）、sop（起草→BACKOFFICE、review/adopt/dual/family→REVIEW、技師回饋→TECH_ACTION）、conversations 代開/接管/交接→BACKOFFICE、sentiment ack→BACKOFFICE、media×2→TECH_ACTION（技師完工照不誤鎖）、resolution→BACKOFFICE、family_reviews→REVIEW、rma/ai-governance→OPS、notifications 手動推播→OPS。**定案保留 7**：自身通知操作×6（使用者管自己的通知，技師亦需）＋客戶綁定 generate-token（客戶 web/track 流程，掛後台角色會鎖死客戶——隨 vendor/客戶身分定位 CR 再議）。R2 sweep 測試（technician/vendor 寫 10 樣本 403、技師白名單、自身通知不擋）；component 888 passed 零波及、unit 331、四站 tsc 0。WBS 1.1.1 ✅ 完結；13_Security §3.2 SA-01 銷案。

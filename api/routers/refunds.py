@@ -68,7 +68,7 @@ async def list_refund_requests(
 async def create_refund_request(
     body: RefundRequestCreateRequest,
     response: Response,
-    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES, fail_closed=True)),
     # CR-0111 shadow：log-only 稽核（矩陣 refunds.write vs 現行 REVIEW_ROLES 守衛），不擋
     _shadow: None = Depends(permission_shadow("refunds", "write")),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
@@ -123,7 +123,7 @@ async def get_refund_request(
 async def submit_refund_decision(
     body: RefundDecision,
     id: str = Path(),
-    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES, fail_closed=True)),
     # CR-0111 shadow：log-only 稽核（矩陣 refunds.approve vs 現行 REVIEW_ROLES 守衛），不擋
     _shadow: None = Depends(permission_shadow("refunds", "approve")),
     idem: IdempotencyContext | None = Depends(idempotency_guard),

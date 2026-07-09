@@ -153,7 +153,7 @@ async def dispute(
 async def approve(
     tenantId: str = Path(...),
     statementId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES, fail_closed=True)),
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
@@ -190,7 +190,7 @@ async def reject(
 async def mark_paid(
     tenantId: str = Path(...),
     statementId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES, fail_closed=True)),
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)

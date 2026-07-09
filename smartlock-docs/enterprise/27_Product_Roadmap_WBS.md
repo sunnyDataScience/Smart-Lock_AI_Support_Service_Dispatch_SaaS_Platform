@@ -88,7 +88,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 |---|---|---|---|---|---|
 | 1.1.1 | ✅ 2026-07-09（CR-0130 R1+R2：死角色全面移除＋86 端點守衛落地＋技師白名單；殘餘 7＝定案保留【自身通知/客戶綁定】） | RBAC 轉 enforce：195 條 `role_required` 對帳 + 逐端點落地（先金流 / 派工）| BE | 1.1.2 | SA-01；未授權角色寫入 403（TC 權限類全綠）|
 | 1.1.2 | ✅ 2026-07-09（CR-0127） | 角色收斂：`_STAFF_ROLES` 4 值、`rolePolicy` 移除死角色、`_MATRIX` 補 `operations_manager` 行、Schema 註解同步 | BE+FE | — | SA-06；13_Security §3.1 正典一致 |
-| 1.1.3 | ⬜ | fail-closed 白名單 + API_SURFACE 剔除清單測試 | BE | 1.1.1 | SA-03 / SA-05 |
+| 1.1.3 | ✅ 2026-07-09（CR-0131：金流/派工終局 20 端點 fail-closed＋surface 剔除測試 6 項） | fail-closed 白名單 + API_SURFACE 剔除清單測試 | BE | 1.1.1 | SA-03 / SA-05 |
 | 1.2.1 | ✅ 2026-07-09（CR-0128） | 工單狀態機對齊「報價先行＋現場修正輪」（flow gate + 轉移表）| BE | — | 02_BRD §5.7；TC-WO-*、TC-ONSITE-07 |
 | 1.2.2 | ✅ 2026-07-09（CR-0129；加價額 1500 已定案） | 急件事後補審引擎（timer + 補審佇列 + 事後 LIFF/紙本 + 逾時升級）| BE+FE | 1.2.1 | FR-API-19；15_SDS §4.5；TC-DISPATCH-08；急件加價額 `[待確認]` 業主定案 |
 | 1.2.3 | ⬜ | 問題卡雙 gate schema（CIA + migration：雙完整度 / 分流欄 / RMA spine / knowledge_ready / tenant_id）| BE+DT | CIA 裁決 | 15_SDS §4.6；18_DB §4.3 目標欄位 |

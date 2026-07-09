@@ -116,7 +116,7 @@ async def get_dispatch_candidate_detail_v2(
 async def plan_dispatch_auto_match_v2(
     body: DispatchAutoMatchRequest,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
@@ -151,7 +151,7 @@ async def plan_dispatch_auto_match_v2(
 async def plan_dispatch_v2(
     body: DispatchAssignRequest,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*_PLAN_ALLOWED_ROLES)),
+    user: CurrentUser = Depends(role_required(*_PLAN_ALLOWED_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """POST /tenants/{tenantId}/dispatch:plan — 指定技師接單（assign 統一入口）。

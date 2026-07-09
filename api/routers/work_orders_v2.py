@@ -370,7 +370,7 @@ async def assign_work_order_v2(
         default=None,
         description="CR-0095：主管強制派工原因（繞過『須有已同意報價』gate；僅 admin/ops 生效，audited）",
     ),
-    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     _cross_tenant_write(user, tenantId)
@@ -539,7 +539,7 @@ async def reassign_work_order_v2(
     body: _ReassignWorkOrderBodyV2,
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES, fail_closed=True)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """Flow 8 二次派工：admin / dispatcher 強制改派工單。
