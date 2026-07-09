@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
-### Changed
+### Fixed
+
+- **OpenAPI 機讀 spec 重複 key 修正 + api-types-sync 死觸發路徑（branch `fix/openapi-dup-description-key`，2026-07-09）**：push 前 CI 預檢發現兩處。① `api/openapi.yaml:6011` `WorkOrder.document_number` 有兩個 `description` key——PyYAML 靜默取後值（過期的 `WO-YYYYMMDD-NNNN`），redocly/spectral 嚴格解析直接炸（spec-lint、api-types-sync、mock-smoke 三條 CI 會紅）；刪過期行、保留與實作一致的 `{2碼地區}-{6碼流水}`（CR-0020 / work_order_service.py:448），修後 spectral 0 errors、schemathesis 結構過。② `api-types-sync.yml` 觸發路徑仍盯已解散的 `web/packages/shared/src/types/api.generated.ts`（S8 複製分家後不存在＝types 編輯永不觸發的假沉默）→ 改 `web/*/src/types/api.generated.ts` glob。**同場發現重大 SoT 衝突另行回報**：入庫的四份 `api.generated.ts` 實際源自 runtime export（`export_openapi.py`，464 端點 `/api/v1/*`），與設計稿 spec（145 條無前綴路徑）根本是兩份契約——`generate-api-types.sh --check` 從設計稿生成必紅，型別同步鏈需業主裁決 SoT 歸屬後重建（見 CR 待立案）。
 
 ### Changed
 
 - **非開發整理 R3——.claude 懸空引用修繕（branch `chore/housekeeping-r3`，2026-07-09）**：修 19 個不存在 skill 的懸空引用。①最關鍵：CLAUDE.md CIA gate 主流程指定的 `sunnydata-change-impact-analysis` **實際未安裝**——改為「skill 缺席時依 change-governance.md 結構手工產出 CIA」（gate 效力在產出與裁決，不在 skill）；change-governance/context-stability/release 指令同語意修正。②`.claude/{WORKFLOW,README}`、coordination、output-styles 檔頭加修繕註記（vibecoding-* 14 個 2026-05-10 已移除、5 個 sunnydata-* 未安裝——提及視為概念流程）。③`.claude/docs/{commands,architecture}.md` 死路徑清理（cd web→四站台、data/pipeline→knowledge-pipeline、silver_to_skill→silver_to_knowledge）。④清 6/1 過期 subagent 決策報告。
-
-### Changed
 
 - **非開發整理 R2——根目錄歸位（branch `chore/housekeeping-r2`，2026-07-09）**：`tools/gen_docs_html.py` → `scripts/dev/`（docs_html 工作流退役後僅剩報告素材 regen 用途，`tools/` 目錄消失）；`tests/smoke/api.sh` → `scripts/ci/smoke-api.sh`（根 `tests/` 目錄消失）；root pyproject `testpaths` 改 `agent/tests`（安全預設：根層 pytest 跑無 DB 依賴的 agent 套件，api 套件須 cd api + 隔離 scratch DB）；Makefile／dev-up／README 引用同步。根目錄現況：11 個功能包目錄 + 6 個必要根檔，每項皆為活物。
 

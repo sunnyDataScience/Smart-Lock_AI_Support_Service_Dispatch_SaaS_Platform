@@ -1,15 +1,20 @@
 name: API Types Sync Check
 
+# ⚠️ 已知 SoT 衝突（2026-07-09 發現，待業主裁決）：入庫的四份 api.generated.ts
+# 實際源自 runtime export（scripts/ops/export_openapi.py，/api/v1/* 464 端點），
+# 而本 check 從設計稿 api/openapi.yaml（145 條無前綴路徑）生成——兩者根本是
+# 不同契約，--check 必紅。裁決型別 SoT 歸屬前，此 job 紅燈＝已知狀態非新回歸。
 on:
   push:
     paths:
       - 'api/openapi.yaml'
-      - 'web/packages/shared/src/types/api.generated.ts'
+      # S8 複製分家後 types 為四站各持一份（web/packages/shared/ 已解散）
+      - 'web/*/src/types/api.generated.ts'
       - 'scripts/ci/generate-api-types.sh'
   pull_request:
     paths:
       - 'api/openapi.yaml'
-      - 'web/packages/shared/src/types/api.generated.ts'
+      - 'web/*/src/types/api.generated.ts'
 
 jobs:
   types-sync:
