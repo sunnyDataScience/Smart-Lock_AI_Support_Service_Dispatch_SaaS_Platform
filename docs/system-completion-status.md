@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**對話三方全量存檔驗證（WBS 1.2.4，CR-0133）**，branch `feat/conv-archival-verify` — 存檔鏈查證完整（含接管期）；補失敗 ERROR 告警＋spool 補送（零缺漏）；三方 sender_role 驗證測試。api 902＋agent 162。）
+**最後更新：** 2026-07-09（**即時通道多實例化（WBS 1.3.1，CR-0134）**，branch `feat/realtime-redis-lock` — WS hub Redis 橋（REDIS_URL opt-in、故障降級告警）＋PG advisory 分散式鎖掛滿 11 cron worker（failover 自動接手）。新測試 5、component 907、unit 331。多實例 e2e 隨 SIT。）
+
+**前一次更新：** 2026-07-09（**對話三方全量存檔驗證（WBS 1.2.4，CR-0133）**，branch `feat/conv-archival-verify` — 存檔鏈查證完整（含接管期）；補失敗 ERROR 告警＋spool 補送（零缺漏）；三方 sender_role 驗證測試。api 902＋agent 162。）
 
 **前一次更新：** 2026-07-09（**問題卡雙 gate schema（WBS 1.2.3，CR-0132）**，branch `feat/pc-dual-gate-schema` — migration 093（雙完整度/分流/RMA spine/knowledge_ready/tenant_id 直欄+backfill/死欄清理）；雙分數自動重算引擎；resolve 落分流；Gate① enforce config 開關（預設 off 待分流 UI）；待補知識佇列端點。新測試 6、component 900、unit 331、四站 tsc 0。）
 

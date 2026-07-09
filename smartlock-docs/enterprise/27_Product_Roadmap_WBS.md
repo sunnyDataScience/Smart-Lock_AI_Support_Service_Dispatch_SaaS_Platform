@@ -93,7 +93,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 1.2.2 | ✅ 2026-07-09（CR-0129；加價額 1500 已定案） | 急件事後補審引擎（timer + 補審佇列 + 事後 LIFF/紙本 + 逾時升級）| BE+FE | 1.2.1 | FR-API-19；15_SDS §4.5；TC-DISPATCH-08；急件加價額 `[待確認]` 業主定案 |
 | 1.2.3 | ✅ 2026-07-09（CR-0132：migration 093＋雙完整度引擎＋knowledge_ready＋待補知識佇列；Gate① enforce 開關預設 off 待 UI） | 問題卡雙 gate schema（CIA + migration：雙完整度 / 分流欄 / RMA spine / knowledge_ready / tenant_id）| BE+DT | CIA 裁決 | 15_SDS §4.6；18_DB §4.3 目標欄位 |
 | 1.2.4 | ✅ 2026-07-09（CR-0133：三方存檔驗證測試＋失敗 ERROR 告警＋spool 補送零缺漏） | 對話三方全量存檔驗證（接管期間零缺漏 + 寫入失敗告警）| AG+BE | — | FR-A11 / BR-CONV-03；FR-AGT-09 驗收 |
-| 1.3.1 | ⬜ | 即時通道：WS hub 遷 Redis pub-sub + cron 分散式鎖 | BE+OPS | — | SA-02；多實例不遺失、cron 不重跑 |
+| 1.3.1 | ✅ 2026-07-09（CR-0134：Redis 橋 opt-in＋PG advisory 領導者選舉掛滿 11 worker；多實例 e2e 隨 SIT） | 即時通道：WS hub 遷 Redis pub-sub + cron 分散式鎖 | BE+OPS | — | SA-02；多實例不遺失、cron 不重跑 |
 | 1.4.1 | ⬜ | 可觀測性：SigNoz（metrics/logs/traces/alerts）+ OPIK（LLM 品質）基線 | OPS+AG | — | ADR-007；25_Monitoring_Spec |
 | 1.5.1 | ⬜ | AI 禁區 200 題 Eval pipeline 常態化（每 deploy 跑，<95% block）| AG | — | FR-A10 / K8 |
 | 1.6.1 | ⬜ | 基礎 CD：3 Cloud Run 自動部署 + migration drift-check CI | OPS | — | ADR-P012（G-12 / G-10）|
