@@ -484,6 +484,22 @@ async def create_from_problem_card(
         await _qe.create_quote(
             tenant_id=tenant_id, work_order_id=new_wo_id, created_by=created_by,
             urgent=True, initial_state="retrospective_audit_only")
+        # 15_SDS §4.5 步驟1：急件跳過事前報價開單，audit 記 emergency_bypass（fail-soft）
+        from services.audit_log_service import log_event
+        await log_event(
+            event_type="work_order",
+            actor_id=created_by,
+            actor_role="customer_service",
+            action="emergency_bypass",
+            target_type="work_order",
+            target_id=new_wo_id,
+            payload={
+                "emergency_class": pc_emergency_class,
+                "problem_card_id": pc_id,
+                "policy": "BR-WO-01 carve-out（ADR-015①/CR-0128）",
+                "retrospective_audit": "required within window after completion（CR-0129）",
+            },
+        )
 
     # CR-0096：標記 PC 已轉工單 → 該卡不再 active，同 conversation（同一 LINE 客人）
     # 之後的新問題可開「新卡」而非 append 進這張已派工的舊卡。
@@ -994,6 +1010,34 @@ async def _signature_exists(wo_id: str) -> bool:
     return (await cur.fetchone()) is not None
 
 
+async def _start_retrospective_audit_timer(wo_id: str) -> None:
+    """急件單完工回報時為補審報價起算 4h 窗（CR-0129 / 15_SDS §4.5 步驟3）。
+
+    僅急件單（PC.emergency_class 非空）且補審尚未完成（retrospective_audit_only
+    或已送客戶）且未起算者；非急件單無此類報價，天然 no-op。
+    """
+    from services import config_m18_service
+
+    hours = 4
+    cfg = await config_m18_service.read_global_value(namespace="emergency_audit_policy")
+    if isinstance(cfg, dict):
+        try:
+            hours = int(cfg.get("audit_window_hours", 4))
+        except (TypeError, ValueError):
+            pass
+    cur = await db_module._conn.execute(
+        "UPDATE quote q SET audit_due_at = NOW() + (INTERVAL '1 hour' * %s), updated_at = NOW() "
+        "FROM work_orders wo JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "WHERE q.work_order_id = wo.id AND wo.id = %s::uuid "
+        "  AND pc.emergency_class IS NOT NULL "
+        "  AND q.audit_due_at IS NULL "
+        "  AND q.state IN ('retrospective_audit_only', 'sent')",
+        (hours, wo_id),
+    )
+    if cur.rowcount:
+        logger.info("急件補審窗起算：wo=%s quotes=%d due=+%dh", wo_id, cur.rowcount, hours)
+
+
 async def _enforce_completion_gate(
     *,
     wo_id: str,
@@ -1073,17 +1117,21 @@ async def _enforce_completion_gate(
     arow = await acur.fetchone()
     if not (arow and arow[0] and str(arow[0]).strip()):
         raise ApiError("ADDRESS_REQUIRED_FOR_CLOSE", "結案前須有服務地址", 422)
-    # CR-0128 / ADR-015②：完工硬閘補報價分支——報價已確認（accepted；急件補審完成後同為
-    # accepted）才可完工。僅驗 gate 後新單（quote_gate_applied=TRUE）；存量單豁免（D3a）。
+    # CR-0128/CR-0129（D2a）：完工閘報價分支——標準單須 accepted；**急件補審中可完工**
+    # （retrospective_audit_only 佔位或補審已送客戶 audit_due_at 非空）——完工回報是
+    # 4h 補審窗起算點（15_SDS §4.5），補審完成擋在結案（confirm_order）。
+    # 僅驗 gate 後新單（quote_gate_applied=TRUE）；存量單豁免（D3a）。
     if arow and bool(arow[1]):
         qcur = await db_module._conn.execute(
-            "SELECT 1 FROM quote WHERE work_order_id = %s::uuid AND state = 'accepted' LIMIT 1",
+            "SELECT 1 FROM quote WHERE work_order_id = %s::uuid "
+            "  AND (state = 'accepted' OR state = 'retrospective_audit_only' "
+            "       OR audit_due_at IS NOT NULL) LIMIT 1",
             (wo_id,),
         )
         if not await qcur.fetchone():
             raise ApiError(
                 "QUOTE_NOT_CONFIRMED_FOR_CLOSE",
-                "完工前報價須經客戶確認（急件請完成事後補審簽認）——BR-WO-01/ADR-015②",
+                "完工前報價須經客戶確認（急件單須有補審佔位報價）——BR-WO-01/ADR-015②",
                 422,
             )
     return summary
@@ -1174,6 +1222,14 @@ async def complete_order(
          (json.dumps(function_tests) if function_tests else None),
          wo_id),
     )
+    # CR-0129 / 15_SDS §4.5：急件單完工回報＝補審 4h 窗起算——佔位/已送補審報價寫
+    # audit_due_at（窗長讀 M18 config emergency_audit_policy.audit_window_hours，缺省 4h）。
+    # fail-soft：起算失敗記 ERROR（可告警人工補），不阻斷完工。
+    try:
+        await _start_retrospective_audit_timer(wo_id)
+    except Exception:  # noqa: BLE001 — timer 起算失敗不可卡死完工主流程
+        logger.exception("急件補審 timer 起算失敗（需人工補 audit_due_at）wo=%s", wo_id)
+
     # CR-0117 S3：完工落庫後回寫技師聚合統計（fail-soft）
     await _rollup_tech_stats_safe(tenant_id, wo_id)
     await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)
@@ -1796,6 +1852,24 @@ async def confirm_order(
     feedback_clean: str | None = None
     if feedback and feedback.strip():
         feedback_clean = feedback.strip()[:1000]
+
+    # CR-0129 / ADR-015②（D2a 業主裁決）：結案硬閘——報價須客戶確認才可 confirmed；
+    # 急件單＝補審完成（佔位報價經 LIFF accept 或紙本 audit_complete 轉 accepted）。
+    # 僅驗 gate 後新單（quote_gate_applied），存量豁免（CR-0128 D3a）。
+    gcur = await db_module._conn.execute(
+        "SELECT quote_gate_applied FROM work_orders WHERE id = %s::uuid", (wo_id,))
+    grow = await gcur.fetchone()
+    if grow and bool(grow[0]):
+        qcur = await db_module._conn.execute(
+            "SELECT 1 FROM quote WHERE work_order_id = %s::uuid AND state = 'accepted' LIMIT 1",
+            (wo_id,))
+        if not await qcur.fetchone():
+            raise ApiError(
+                "QUOTE_NOT_CONFIRMED_FOR_CLOSE",
+                "結案前報價須經客戶確認——急件單請完成事後補審（LIFF 確認或紙本簽認）"
+                "（ADR-015②/15_SDS §4.5）",
+                422,
+            )
 
     await db_module._conn.execute(
         "UPDATE work_orders SET "

@@ -2,7 +2,7 @@
 
 對應 docs/02-design/specs/asyncapi.yaml /realtime/sla-alerts。
 
-四類 alert_type（spec 規範）：
+五類 alert_type（原 spec 四類 + CR-0129 audit_overdue）：
   - quote_expiring     : 工單已 quoted（estimated_price 已設）但客戶長時間未確認
                           MVP 代理：work_orders.status='created' AND
                           estimated_price IS NOT NULL AND created > X 分
@@ -25,6 +25,8 @@
     SLA_DISPATCH_DELAY_MINUTES（預設 30）
     SLA_RESPONSE_OVERDUE_MINUTES（預設 30）
     SLA_ARRIVAL_OVERDUE_MINUTES（預設 120 = 2 小時，F-016）
+  - audit_overdue       : 急件補審逾 4h 窗未完成（CR-0129/15_SDS §4.5；due 存 quote.audit_due_at，
+                          窗長由完工時依 M18 config 寫入，本監測不再另設閾值 env）
 
 PM Q5=B 拍板（Soft SLA）：
   - arrival_overdue 觸發後僅做 dashboard 紅燈 + Ops Manager 通知 + audit log
@@ -228,6 +230,34 @@ class SLAMonitor:
                     }
                 )
 
+        # ─── audit_overdue（CR-0129 急件補審逾時，15_SDS §4.5 步驟5）────────
+        # 條件：急件補審報價（audit_due_at 非空）逾窗未達 accepted（佔位或已送客戶皆算）。
+        # 告警升主管；同租戶最近 3 件急件補審**全數逾時** → 自動開 ChangeRequest（BR-WO-04）。
+        cur = await db_module._conn.execute(
+            "SELECT q.id, q.work_order_id, q.tenant_id, q.audit_due_at "
+            "FROM quote q "
+            "WHERE q.audit_due_at IS NOT NULL "
+            "  AND q.audit_due_at < NOW() "
+            "  AND q.state IN ('retrospective_audit_only', 'sent')",
+        )
+        for r in await cur.fetchall():
+            target_id = str(r[0])
+            key = ("audit_overdue", target_id)
+            active_keys.add(key)
+            if key not in self._alerted:
+                new_alerts.append(
+                    {
+                        "alert_type": "audit_overdue",
+                        "target_id": target_id,
+                        "severity": "red",
+                        "escalated_to": "ops_manager",
+                        # 額外 context
+                        "work_order_id": str(r[1]) if r[1] else None,
+                        "tenant_id": str(r[2]) if r[2] else None,
+                        "audit_due_at": r[3].isoformat() if r[3] else None,
+                    }
+                )
+
         # 從 _alerted 移除已恢復（不再符合條件）的告警
         recovered = self._alerted - active_keys
         if recovered:
@@ -248,13 +278,17 @@ class SLAMonitor:
                 # F-016 紅色警報需額外寫 audit log（PM Q5=B Soft SLA 政策）
                 if alert["alert_type"] == "arrival_overdue":
                     await self._write_arrival_overdue_audit(alert)
+                # CR-0129：急件補審逾時 → audit log + 連 3 逾時自動開 ChangeRequest
+                if alert["alert_type"] == "audit_overdue":
+                    await self._handle_audit_overdue(alert)
             logger.info(
-                "SLA alerts pushed: %d new (quote=%d, dispatch=%d, response=%d, arrival=%d)",
+                "SLA alerts pushed: %d new (quote=%d, dispatch=%d, response=%d, arrival=%d, audit=%d)",
                 len(new_alerts),
                 sum(1 for a in new_alerts if a["alert_type"] == "quote_expiring"),
                 sum(1 for a in new_alerts if a["alert_type"] == "dispatch_delay"),
                 sum(1 for a in new_alerts if a["alert_type"] == "response_overdue"),
                 sum(1 for a in new_alerts if a["alert_type"] == "arrival_overdue"),
+                sum(1 for a in new_alerts if a["alert_type"] == "audit_overdue"),
             )
         except Exception:  # noqa: BLE001
             logger.exception("ws publish sla.alert failed (non-fatal)")
@@ -289,6 +323,90 @@ class SLAMonitor:
             )
         except Exception:  # noqa: BLE001 — audit 失敗不影響主流程
             logger.exception("audit log for arrival_overdue failed (non-fatal)")
+
+
+    async def _handle_audit_overdue(self, alert: dict) -> None:
+        """急件補審逾時處置（CR-0129 / 15_SDS §4.5 步驟5 / BR-WO-04）。
+
+        1. audit log（升主管軌跡）。
+        2. 同租戶**最近 3 件**已起算補審窗的急件報價全數逾時（未達 accepted 且逾 due，
+           或事後才補完＝accepted 但完成時間晚於 due）→ 自動開 ChangeRequest
+           （type=emergency_audit_breach，pending_approval 進主管佇列）；
+           已有未結案同型 CR 則不重複開。
+        """
+        try:
+            from services.audit_log_service import log_event
+
+            await log_event(
+                event_type="escalation",
+                actor_id=None,
+                actor_role="system",
+                action="sla.audit_overdue",
+                target_type="quote",
+                target_id=alert["target_id"],
+                payload={
+                    "alert_type": "audit_overdue",
+                    "work_order_id": alert.get("work_order_id"),
+                    "audit_due_at": alert.get("audit_due_at"),
+                    "escalated_to": alert.get("escalated_to"),
+                    "policy": "15_SDS §4.5 逾時升級",
+                },
+            )
+        except Exception:  # noqa: BLE001 — audit 失敗不影響主流程
+            logger.exception("audit log for audit_overdue failed (non-fatal)")
+
+        tenant_id = alert.get("tenant_id")
+        if not tenant_id:
+            return
+        try:
+            cur = await db_module._conn.execute(
+                "SELECT q.state, q.audit_due_at, q.updated_at "
+                "FROM quote q "
+                "WHERE q.tenant_id = %s::uuid AND q.audit_due_at IS NOT NULL "
+                "ORDER BY q.audit_due_at DESC LIMIT 3",
+                (tenant_id,),
+            )
+            rows = await cur.fetchall()
+            if len(rows) < 3:
+                return
+
+            def _overdue(row) -> bool:
+                state, due, updated = row
+                if state in ("retrospective_audit_only", "sent"):
+                    return True  # 本 scan 由逾期觸發；未完成且列入近 3 件即逾時中
+                return bool(due and updated and updated > due)  # 完成但晚於窗
+
+            if not all(_overdue(r) for r in rows):
+                return
+            # 已有未結案同型 CR → 不重複開
+            cur = await db_module._conn.execute(
+                "SELECT 1 FROM saas.change_request "
+                "WHERE tenant_id = %s::uuid AND type_code = 'emergency_audit_breach' "
+                "  AND state IN ('draft', 'pending_approval') LIMIT 1",
+                (tenant_id,),
+            )
+            if await cur.fetchone():
+                return
+            await db_module._conn.execute(
+                "INSERT INTO saas.change_request "
+                "  (tenant_id, type_code, state, payload_diff, reason, created_by) "
+                "VALUES (%s::uuid, 'emergency_audit_breach', 'pending_approval', %s::jsonb, %s, "
+                "        '00000000-0000-0000-0000-000000000000')",
+                (
+                    tenant_id,
+                    __import__("json").dumps({
+                        "trigger": "sla_monitor.audit_overdue",
+                        "consecutive_overdue": 3,
+                        "latest_quote_id": alert["target_id"],
+                    }),
+                    "急件補審連續 ≥3 件逾時（BR-WO-04 自動開立）——請主管檢討急件流程",
+                ),
+            )
+            logger.warning(
+                "急件補審連 3 逾時 → 自動開 ChangeRequest（tenant=%s，BR-WO-04）", tenant_id,
+            )
+        except Exception:  # noqa: BLE001 — CR 開立失敗不可卡死 SLA 掃描
+            logger.exception("emergency_audit_breach ChangeRequest 開立失敗 tenant=%s", tenant_id)
 
 
 # 單例

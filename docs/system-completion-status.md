@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**報價先行 gate（WBS 1.2.1，CR-0128）**，branch `feat/quote-before-dispatch` — ADR-015①② 落地：convert 須客戶確認報價（425/409）；急件 emergency_class 四類 carve-out＋自動補審佔位報價；完工硬閘補報價分支（quote_gate_applied 新單，存量豁免）；PC 層報價端點＋convert 回填綁定；_WO_TRANSITIONS 中央轉移表；前端 PC 詳情頁報價區塊＋急件標記＋開單 gate 提示；LINE 推送 uid 反查修 PC 階段路徑。migration 091。驗證：unit 331＋component 871（新增 gate 測試 11 項）、四站 tsc 0、build 綠。1.2.2 急件補審引擎＝下一工項。）
+**最後更新：** 2026-07-09（**急件事後補審引擎（WBS 1.2.2，CR-0129）**，branch `feat/retrospective-audit-engine` — 15_SDS §4.5 六步全落地：完工回報起算 4h 補審窗（audit_due_at，config 可調）；LIFF/紙本兩路徑補審；sla_monitor audit_overdue 告警升主管＋連 3 逾時自動開 ChangeRequest（BR-WO-04）；結案硬閘（D2a 業主裁決，BRD 勘誤）；admin/quotes 補審佇列 UI；URG-01 急件加價 1500 定案（D1a，config 可覆蓋）；emergency_bypass audit 補記。migration 092。驗證：unit 331＋component 878、四站 tsc 0、build 綠。M1 剩 1.1.1/1.1.3/1.2.3/1.2.4/1.3-1.7。）
+
+**前一次更新：** 2026-07-09（**報價先行 gate（WBS 1.2.1，CR-0128）**，branch `feat/quote-before-dispatch` — ADR-015①② 落地：convert 須客戶確認報價（425/409）；急件 emergency_class 四類 carve-out＋自動補審佔位報價；完工硬閘補報價分支（quote_gate_applied 新單，存量豁免）；PC 層報價端點＋convert 回填綁定；_WO_TRANSITIONS 中央轉移表；前端 PC 詳情頁報價區塊＋急件標記＋開單 gate 提示；LINE 推送 uid 反查修 PC 階段路徑。migration 091。驗證：unit 331＋component 871（新增 gate 測試 11 項）、四站 tsc 0、build 綠。1.2.2 急件補審引擎＝下一工項。）
 
 **前一次更新：** 2026-07-09（**角色收斂 SA-06（WBS 1.1.2，CR-0127）**，branch `refactor/role-consolidation-sa06` — 落地 0707 裁決：`_STAFF_ROLES` 5→4（dispatcher 轉保留角色，存量帳號仍可登入）；`_MATRIX`/`_ROLE_META` 補 operations_manager 行（原缺行轉 enforce 會全鎖；核准權依 SoD 歸 admin/reviewer）；四站 rolePolicy FULL_ACCESS 移除死角色 tenant_admin/super_admin；staff 頁選項同步；Schema 註解＋seed 註記同步 7 角色正典；13_Security ⚠️→✅。legacy 矩陣行處置留 SA-01。驗證：unit 331＋component 860 passed（隔離 scratch 庫）、四站 tsc 0、build 綠。）
 

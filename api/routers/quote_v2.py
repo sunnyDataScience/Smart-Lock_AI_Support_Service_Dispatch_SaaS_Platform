@@ -106,6 +106,19 @@ async def list_quotes_v2(
 
 
 @router.get(
+    "/tenants/{tenantId}/quotes/audit-queue",
+    operation_id="listAuditQueueV2",
+    summary="急件補審佇列（CR-0129/15_SDS §4.5：待補審報價＋剩餘時間/逾時）", tags=["M04 Quote"],
+)
+async def list_audit_queue_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    _xt(user, tenantId)
+    return {"data": await qe.list_audit_queue(tenant_id=tenantId)}
+
+
+@router.get(
     "/tenants/{tenantId}/quotes/{id}",
     operation_id="getQuoteV2", summary="報價詳情 v2（成本 RBAC 遮蔽）", tags=["M04 Quote"],
 )
@@ -204,3 +217,11 @@ async def approve_quote_v2(body: _DecisionBody, tenantId: str = Path(...), id: s
 async def reject_quote_v2(body: _DecisionBody, tenantId: str = Path(...), id: str = Path(...),
                           user: CurrentUser = Depends(role_required(*_APPROVE_ROLES))) -> dict:
     return await _transition(tenantId, id, "reject", user, body.comment)
+
+
+@router.post("/tenants/{tenantId}/quotes/{id}:audit-complete", operation_id="auditCompleteQuoteV2",
+             summary="急件補審完成（紙本/現場簽認，CR-0129；限急件補審單）", tags=["M04 Quote"])
+async def audit_complete_quote_v2(body: _DecisionBody, tenantId: str = Path(...), id: str = Path(...),
+                                  user: CurrentUser = Depends(role_required(*OPS_ROLES))) -> dict:
+    """LIFF 事後確認走既有 :send → 客戶 accept；本端點為紙本簽認路徑（comment 記佐證）。"""
+    return await _transition(tenantId, id, "audit_complete", user, body.comment)

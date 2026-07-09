@@ -90,7 +90,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 1.1.2 | ✅ 2026-07-09（CR-0127） | 角色收斂：`_STAFF_ROLES` 4 值、`rolePolicy` 移除死角色、`_MATRIX` 補 `operations_manager` 行、Schema 註解同步 | BE+FE | — | SA-06；13_Security §3.1 正典一致 |
 | 1.1.3 | ⬜ | fail-closed 白名單 + API_SURFACE 剔除清單測試 | BE | 1.1.1 | SA-03 / SA-05 |
 | 1.2.1 | ✅ 2026-07-09（CR-0128） | 工單狀態機對齊「報價先行＋現場修正輪」（flow gate + 轉移表）| BE | — | 02_BRD §5.7；TC-WO-*、TC-ONSITE-07 |
-| 1.2.2 | ⬜ | 急件事後補審引擎（timer + 補審佇列 + 事後 LIFF/紙本 + 逾時升級）| BE+FE | 1.2.1 | FR-API-19；15_SDS §4.5；TC-DISPATCH-08；急件加價額 `[待確認]` 業主定案 |
+| 1.2.2 | ✅ 2026-07-09（CR-0129；加價額 1500 已定案） | 急件事後補審引擎（timer + 補審佇列 + 事後 LIFF/紙本 + 逾時升級）| BE+FE | 1.2.1 | FR-API-19；15_SDS §4.5；TC-DISPATCH-08；急件加價額 `[待確認]` 業主定案 |
 | 1.2.3 | ⬜ | 問題卡雙 gate schema（CIA + migration：雙完整度 / 分流欄 / RMA spine / knowledge_ready / tenant_id）| BE+DT | CIA 裁決 | 15_SDS §4.6；18_DB §4.3 目標欄位 |
 | 1.2.4 | ⬜ | 對話三方全量存檔驗證（接管期間零缺漏 + 寫入失敗告警）| AG+BE | — | FR-A11 / BR-CONV-03；FR-AGT-09 驗收 |
 | 1.3.1 | ⬜ | 即時通道：WS hub 遷 Redis pub-sub + cron 分散式鎖 | BE+OPS | — | SA-02；多實例不遺失、cron 不重跑 |
