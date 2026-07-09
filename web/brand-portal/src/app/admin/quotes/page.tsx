@@ -40,6 +40,35 @@ interface Quote {
   quote_number?: string | null; // CR-0095：可讀報價單號（TP-000001-Q1）
   customer_name?: string | null;
 }
+// CR-0129：急件補審佇列項（GET /quotes/audit-queue）
+interface AuditQueueItem {
+  id: string;
+  version: number;
+  state: string;
+  total_amount: string | null;
+  audit_due_at: string | null;
+  work_order_id: string | null;
+  quote_number: string | null;
+  customer_name: string | null;
+  overdue: boolean;
+  emergency_class: string | null;
+}
+
+const EMERGENCY_LABEL: Record<string, string> = {
+  locked_out: "被鎖門外",
+  trapped_inside: "人困屋內",
+  safety_risk: "安全風險",
+  angry_high_risk: "高風險客訴",
+};
+
+function auditRemainLabel(item: AuditQueueItem): { text: string; danger: boolean } {
+  if (!item.audit_due_at) return { text: "未起算（待完工回報）", danger: false };
+  const remainMs = new Date(item.audit_due_at).getTime() - Date.now();
+  if (remainMs <= 0) return { text: "已逾時", danger: true };
+  const mins = Math.floor(remainMs / 60000);
+  return { text: `剩 ${Math.floor(mins / 60)}h ${mins % 60}m`, danger: mins < 60 };
+}
+
 // CR-0095：報價列表項（GET /quotes，免手貼 UUID）
 interface QuoteListItem {
   id: string;
@@ -100,6 +129,8 @@ export default function QuotesPage() {
   const [copied, setCopied] = useState(false);
   const [invoiceMsg, setInvoiceMsg] = useState<string | null>(null);
   const [quotes, setQuotes] = useState<QuoteListItem[]>([]); // CR-0095 報價列表
+  // CR-0129 急件補審佇列（15_SDS §4.5：待補審報價＋剩餘時間/逾時）
+  const [auditQueue, setAuditQueue] = useState<AuditQueueItem[]>([]);
   // 瀏覽模式「尚無報價的工單」清單來源（與報價算差集）；woTruncated=工單超過 100 筆只載前頁
   const [workOrders, setWorkOrders] = useState<WorkOrderLite[]>([]);
   const [woTruncated, setWoTruncated] = useState(false);
@@ -126,6 +157,7 @@ export default function QuotesPage() {
       }
     })();
     // CR-0095：載入報價列表 + 處理工單頁深連結 ?wo=（免手貼 UUID）
+    void fetchAuditQueue(); // CR-0129 急件補審佇列
     (async () => {
       const list = await fetchQuotes();
       setQuotes(list);
@@ -224,6 +256,32 @@ export default function QuotesPage() {
       return res.data ?? [];
     } catch {
       return []; // 列表載入失敗不阻斷工作台
+    }
+  }
+
+  async function fetchAuditQueue() {
+    try {
+      const res = await api.get<{ data: AuditQueueItem[] }>(tenantPath("/quotes/audit-queue"));
+      setAuditQueue(res.data ?? []);
+    } catch {
+      setAuditQueue([]); // 佇列載入失敗不阻斷報價工作台
+    }
+  }
+
+  // CR-0129 紙本簽認：急件補審完成（LIFF 路徑=開啟報價後照常「送客戶」）
+  async function auditCompletePaper(id: string) {
+    const comment = window.prompt("紙本簽認佐證說明（簽單編號/照片 evidence 參照）：");
+    if (comment === null) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(tenantPath(`/quotes/${id}:audit-complete`), { comment: comment.trim() || null });
+      await fetchAuditQueue();
+      setQuotes(await fetchQuotes());
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -437,6 +495,58 @@ export default function QuotesPage() {
               {t("createDraft")}
             </button>
           </div>
+
+          {/* CR-0129 急件補審佇列（15_SDS §4.5）：完工後 4h 內須補審——LIFF 補送或紙本簽認 */}
+          {auditQueue.length > 0 && (
+            <div className="mb-6 rounded-lg border border-[#FDBA74] bg-[#FFF7ED] p-4">
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-[14px] font-bold text-[#9A3412]">急件補審佇列</span>
+                <span className="rounded bg-[#FFEDD5] px-2 py-[2px] text-[11px] text-[#9A3412]">
+                  完工後 4 小時內須完成客戶確認（LIFF）或紙本簽認
+                </span>
+              </div>
+              <div className="flex flex-col gap-2">
+                {auditQueue.map((q) => {
+                  const remain = auditRemainLabel(q);
+                  return (
+                    <div key={q.id} className="flex flex-wrap items-center gap-3 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px]">
+                      <span className="font-mono text-[12px] text-[var(--text-secondary)]">
+                        {q.quote_number ?? `Q${q.version}`}
+                      </span>
+                      <span className="text-[var(--text-primary)]">{q.customer_name ?? "—"}</span>
+                      {q.emergency_class && (
+                        <span className="rounded bg-[#FEE2E2] px-2 py-[2px] text-[11px] font-semibold text-[#991B1B]">
+                          {EMERGENCY_LABEL[q.emergency_class] ?? q.emergency_class}
+                        </span>
+                      )}
+                      <span className={`rounded px-2 py-[2px] text-[11px] font-semibold ${remain.danger ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#F1F5F9] text-[#475569]"}`}>
+                        {remain.text}
+                      </span>
+                      <span className="text-[12px] text-[var(--text-secondary)]">
+                        {q.state === "sent" ? "已送客戶待確認" : "待補明細"}
+                      </span>
+                      <div className="ml-auto flex items-center gap-2">
+                        <button
+                          onClick={() => loadQuote(q.id)}
+                          disabled={busy}
+                          className="rounded border border-[var(--primary)] px-3 py-[4px] text-[12px] font-semibold text-[var(--primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+                        >
+                          補明細／送 LIFF
+                        </button>
+                        <button
+                          onClick={() => auditCompletePaper(q.id)}
+                          disabled={busy}
+                          className="rounded bg-[#9A3412] px-3 py-[4px] text-[12px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                        >
+                          紙本簽認完成
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* CR-0101：依問題卡帶入 context（品牌/型號/症狀），報價時免切回問題卡翻 */}
           {pcContext && (pcContext.brand || pcContext.model || pcContext.symptom) && (

@@ -573,9 +573,11 @@ paths:
         急件事後補審（ADR-015①/CR-0128 對齊，02_BRD §5.7）。
         急件 carve-out 開單時，server 自動建立 `state = retrospective_audit_only` 佔位
         quote（綁定 WO）；客服於 4h 內補明細並完成客戶簽認 → `state = customer_confirmed`
-        （runtime 值 accepted，經 audit_complete 轉移）。逾時 → 410 AUDIT_WINDOW_EXPIRED +
-        alert CS supervisor（4h timer/補審佇列＝WBS 1.2.2）。補審不 gate WO 建立
-        （WO 已依急件 carve-out 成立），但 gate 完工（ADR-015②）。
+        （runtime 值 accepted，經 audit_complete 轉移）。逾時**不擋**補審完成（越晚補越糟，
+        擋掉更糟）——逾時＝sla_monitor `audit_overdue` 告警升主管；同租戶連 ≥3 件逾時
+        自動開 ChangeRequest（emergency_audit_breach，BR-WO-04）。補審不 gate WO 建立
+        （WO 已依急件 carve-out 成立）也不 gate 完工（完工＝4h 窗起算點，CR-0129 D2a），
+        但 gate **結案**（ADR-015②）。
       parameters:
         - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
         - { name: traceparent, in: header, required: false, schema: { type: string } }

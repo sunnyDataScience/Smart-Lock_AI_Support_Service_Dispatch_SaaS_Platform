@@ -153,8 +153,9 @@ async def test_audit_complete_transition():
 # ── 完工硬閘（ADR-015②）─────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_completion_gate_blocks_unaudited_emergency(monkeypatch):
-    """急件單補審未完成（佔位報價未 accepted）→ 完工 422 QUOTE_NOT_CONFIRMED_FOR_CLOSE。"""
+async def test_completion_gate_emergency_d2a(monkeypatch):
+    """D2a（CR-0129 業主裁決）：急件補審中**可完工**（完工=4h 補審窗起算點）；
+    補審完成擋在結案（confirm，見 test_cr_0129）。無任何報價的 gated 單仍擋完工。"""
     from services import config_m18_service
 
     async def _cfg(*, namespace, key="default"):
@@ -168,21 +169,21 @@ async def test_completion_gate_blocks_unaudited_emergency(monkeypatch):
         wo, _ = await svc.create_from_problem_card(tenant_id=TID, pc_id=pid)
         await db_module._conn.execute(
             "UPDATE work_orders SET status='accepted' WHERE id=%s::uuid", (wo["id"],))
+        # 急件佔位補審中 → 完工放行（D2a）
+        out = await svc.complete_order(
+            tenant_id=TID, wo_id=wo["id"], summary="急件完工",
+            photo_evidence_ids=[], signature_evidence_id=None, is_override=False)
+        assert out
+        # gated 單若連補審佔位都沒有（報價被刪）→ 完工仍擋
+        await db_module._conn.execute(
+            "DELETE FROM quote WHERE work_order_id=%s::uuid", (wo["id"],))
+        await db_module._conn.execute(
+            "UPDATE work_orders SET status='accepted' WHERE id=%s::uuid", (wo["id"],))
         with pytest.raises(ApiError) as ei:
             await svc.complete_order(
-                tenant_id=TID, wo_id=wo["id"], summary="測試完工",
+                tenant_id=TID, wo_id=wo["id"], summary="再完工",
                 photo_evidence_ids=[], signature_evidence_id=None, is_override=False)
         assert ei.value.error_code == "QUOTE_NOT_CONFIRMED_FOR_CLOSE"
-        # 補審完成 → 同樣路徑不再被 quote 閘擋（可能被其他閘擋，故只驗不再是本閘）
-        qrow = await (await db_module._conn.execute(
-            "SELECT id FROM quote WHERE work_order_id=%s::uuid", (wo["id"],))).fetchone()
-        await qe.transition(tenant_id=TID, quote_id=str(qrow[0]), action="audit_complete")
-        try:
-            await svc.complete_order(
-                tenant_id=TID, wo_id=wo["id"], summary="測試完工",
-                photo_evidence_ids=[], signature_evidence_id=None, is_override=False)
-        except ApiError as exc:
-            assert exc.error_code != "QUOTE_NOT_CONFIRMED_FOR_CLOSE"
     finally:
         await _cleanup(uid, pid)
 

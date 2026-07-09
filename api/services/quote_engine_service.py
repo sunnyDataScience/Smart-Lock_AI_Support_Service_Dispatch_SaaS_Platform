@@ -30,12 +30,15 @@ _TRANSITIONS = {
     "submit":  ({"draft"}, "pending_approval"),
     "approve": ({"pending_approval"}, "approved"),
     "reject":  ({"pending_approval"}, "rejected"),
-    "send":    ({"approved", "draft"}, "sent"),  # draft 可直送（免核門檻內，門檻 esales Q-11 待定）
+    # send 亦放行急件補審起點（CR-0129：補明細後走 LIFF 事後確認，沿用送客戶/推播/accept 鏈）
+    "send":    ({"approved", "draft", "retrospective_audit_only"}, "sent"),  # draft 可直送（免核門檻內，門檻 esales Q-11 待定）
     "accept":  ({"sent"}, "accepted"),
     "decline": ({"sent"}, "rejected"),
-    # 急件補審（ADR-015①/CR-0128）：急件 carve-out 開單時系統建 retrospective_audit_only
-    # 佔位報價，客服補明細 → 客戶簽認完成 → accepted。4h timer/補審佇列＝WBS 1.2.2。
-    "audit_complete": ({"retrospective_audit_only"}, "accepted"),
+    # 急件補審（ADR-015①/CR-0128/CR-0129）：急件 carve-out 開單時系統建
+    # retrospective_audit_only 佔位報價 → 完工回報起算 4h 窗（audit_due_at）→
+    # 客服補明細 → LIFF 事後確認（send→accept）或紙本簽認（audit_complete）→ accepted。
+    # audit_complete 亦允許 sent 起點（已送 LIFF 但客戶改簽紙本）——service 層限定急件單。
+    "audit_complete": ({"retrospective_audit_only", "sent"}, "accepted"),
 }
 
 # 有效期（BR-M04-05）：一般 14d、急件 3d（CR-0044 已知規格；以下為 config fallback 預設）
@@ -205,6 +208,40 @@ async def list_pc_quotes(*, tenant_id: str, problem_card_id: str) -> list[dict]:
     } for r in rows]
 
 
+async def list_audit_queue(*, tenant_id: str) -> list[dict]:
+    """急件補審佇列（CR-0129）：補審未完成的急件報價，逾時在前、再依 due 升冪。
+
+    含未起算窗者（佔位建立但技師尚未完工回報——due 為 NULL 顯示「未起算」）。
+    """
+    conn = await _conn()
+    rows = await (await conn.execute(
+        "SELECT q.id, q.version, q.state, q.total_amount, q.audit_due_at, "
+        "       q.work_order_id, wo.document_number, wo.customer_name, "
+        "       (q.audit_due_at IS NOT NULL AND q.audit_due_at < NOW()) AS overdue, "
+        "       pc.emergency_class "
+        "FROM quote q "
+        "LEFT JOIN work_orders wo ON q.work_order_id = wo.id "
+        "LEFT JOIN problem_cards pc ON q.problem_card_id = pc.id "
+        "WHERE q.tenant_id = %s::uuid "
+        "  AND q.state IN ('retrospective_audit_only', 'sent') "
+        "  AND (q.audit_due_at IS NOT NULL OR q.state = 'retrospective_audit_only') "
+        "ORDER BY overdue DESC, q.audit_due_at ASC NULLS LAST",
+        (tenant_id,),
+    )).fetchall()
+    return [{
+        "id": str(r[0]),
+        "version": r[1],
+        "state": r[2],
+        "total_amount": _dec(r[3]),
+        "audit_due_at": r[4].isoformat() if r[4] else None,
+        "work_order_id": str(r[5]) if r[5] else None,
+        "quote_number": _quote_number(r[6], r[1]),
+        "customer_name": r[7],
+        "overdue": bool(r[8]),
+        "emergency_class": r[9],
+    } for r in rows]
+
+
 async def bind_quotes_to_work_order(*, tenant_id: str, problem_card_id: str, work_order_id: str) -> int:
     """convert 開單成功後，把 PC 階段報價（work_order_id IS NULL）回填綁定工單。
 
@@ -250,6 +287,18 @@ async def add_line(
     name = item_name or cat[0]
     unit_cost = cat[1] or 0
     cust_price = cat[2] or 0
+    # CR-0129 D1a：急件加價（URG-01）金額可由 M18 config 覆蓋（seed 1500 為初值，
+    # 調價走 config emergency_audit_policy.surcharge_amount 不改目錄/code）。
+    if service_code == "URG-01":
+        from services import config_m18_service
+        cfg = await config_m18_service.read_global_value(namespace="emergency_audit_policy")
+        if isinstance(cfg, dict):
+            try:
+                override = cfg.get("surcharge_amount")
+                if override is not None:
+                    cust_price = float(override)
+            except (TypeError, ValueError):
+                pass
     await conn.execute(
         "INSERT INTO quote_line_items (quote_id, work_order_id, tenant_id, item_name, category, "
         "  unit_price, quantity, customer_price, is_mock, service_code, material_code) "
@@ -376,6 +425,22 @@ async def transition(
     if cur[0] not in from_states:
         raise ApiError("STATE_CONFLICT", f"cannot {action} quote in '{cur[0]}'", 409)
 
+    # CR-0129：audit_complete 僅限急件補審單——佔位態（retrospective_audit_only）天然急件；
+    # sent 起點須為急件補審（曾為佔位/已起算 audit_due_at 或急件 PC），防一般 sent 報價
+    # 繞過客戶 LIFF 確認。
+    if action == "audit_complete" and cur[0] == "sent":
+        em = await (await conn.execute(
+            "SELECT 1 FROM quote q "
+            "LEFT JOIN problem_cards pc ON q.problem_card_id = pc.id "
+            "WHERE q.id = %s::uuid AND (q.audit_due_at IS NOT NULL OR pc.emergency_class IS NOT NULL) "
+            "LIMIT 1", (quote_id,))).fetchone()
+        if not em:
+            raise ApiError(
+                "STATE_CONFLICT",
+                "audit_complete 僅限急件補審報價——一般報價須客戶 LIFF 確認（accept）",
+                409,
+            )
+
     # 核准門檻（esales Q-11）：總額超門檻不可從 draft 直送，須先 submit→approve。
     # CR-0046：門檻讀 M18 config discount_policy.approval_threshold（mock 範例待業主確認，可動態改）。
     if action == "send" and cur[0] == "draft":
@@ -429,6 +494,12 @@ async def transition(
             "INSERT INTO quote_approval (quote_id, approver_id, decision, comment) "
             "VALUES (%s::uuid, %s::uuid, %s, %s)",
             (quote_id, actor_id, "approved" if action == "approve" else "rejected", comment))
+    if action == "audit_complete":
+        # 紙本簽認軌跡（CR-0129）：佐證說明（紙本簽單/拍照 evidence 參照）記 quote_approval
+        await conn.execute(
+            "INSERT INTO quote_approval (quote_id, approver_id, decision, threshold_reason, comment) "
+            "VALUES (%s::uuid, %s::uuid, 'audit_complete', '急件事後補審（紙本/現場簽認）', %s)",
+            (quote_id, actor_id, comment))
     if action == "send":
         await _freeze_snapshot(quote_id, tenant_id)
     # 客戶接受 → best-effort 開立客戶應收發票（CR-0035；work_order_id UNIQUE 天然冪等，

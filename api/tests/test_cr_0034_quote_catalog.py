@@ -24,8 +24,8 @@ async def test_catalog_seeded_and_mock(client):
     assert len(cat["services"]) >= 29
     assert len(cat["materials"]) >= 20
     assert len(cat["surcharges"]) >= 12
-    # 全 mock
-    assert all(s["is_mock"] for s in cat["services"])
+    # 全 mock——URG-01 急件加價除外（CR-0129 D1a 業主已定案 1500，is_mock=FALSE）
+    assert all(s["is_mock"] for s in cat["services"] if s.get("service_code") != "URG-01")
     # 取消費已知規格（ADR-0102）；急件待決策
     rules = {r["rule_code"]: r for r in cat["surcharges"]}
     assert rules["CNL-S2"]["decision_status"] == "已知規格"

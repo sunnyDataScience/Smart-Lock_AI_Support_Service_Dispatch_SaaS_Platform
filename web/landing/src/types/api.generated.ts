@@ -3681,6 +3681,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenants/{tenantId}/quotes/audit-queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 急件補審佇列（CR-0129/15_SDS §4.5：待補審報價＋剩餘時間/逾時） */
+        get: operations["listAuditQueueV2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tenants/{tenantId}/quotes/{id}": {
         parameters: {
             query?: never;
@@ -3829,6 +3846,26 @@ export interface paths {
         put?: never;
         /** 駁回報價 v2（管理角色） */
         post: operations["rejectQuoteV2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenantId}/quotes/{id}:audit-complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 急件補審完成（紙本/現場簽認，CR-0129；限急件補審單）
+         * @description LIFF 事後確認走既有 :send → 客戶 accept；本端點為紙本簽認路徑（comment 記佐證）。
+         */
+        post: operations["auditCompleteQuoteV2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -21690,6 +21727,42 @@ export interface operations {
             };
         };
     };
+    listAuditQueueV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     getQuoteV2: {
         parameters: {
             query?: never;
@@ -22033,6 +22106,47 @@ export interface operations {
         };
     };
     rejectQuoteV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_DecisionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    auditCompleteQuoteV2: {
         parameters: {
             query?: never;
             header?: {
