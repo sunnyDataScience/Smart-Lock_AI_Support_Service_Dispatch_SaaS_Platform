@@ -12,7 +12,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, File, Form, Path, Query, Response, UploadFile
 from fastapi.responses import JSONResponse
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import Manual, ManualPage
 from services import manual_service
@@ -56,7 +56,7 @@ async def upload_manual(
     brand: str = Form(...),
     title: str = Form(...),
     model: str | None = Form(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> JSONResponse:
     file_bytes = await file.read()
@@ -85,7 +85,7 @@ async def upload_manual(
 )
 async def delete_manual(
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> Response:
     await manual_service.delete_manual(tenant_id=user.tenant_id, manual_id=id)
     return Response(status_code=204)

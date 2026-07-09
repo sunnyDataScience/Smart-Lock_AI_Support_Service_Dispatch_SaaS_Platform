@@ -41,7 +41,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Path, Query, status
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import case_service, manual_service
@@ -206,7 +206,7 @@ async def list_kb_documents(
 )
 async def ingest_kb_document(
     body: dict[str, Any],
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     """POST /kb/documents — 依 body.doc_type 分派建立。
@@ -417,7 +417,7 @@ async def update_kb_document(
     body: dict[str, Any],
     docId: str = Path(..., description="文件 UUID"),
     doc_type: str | None = Query(default=None, description="case 或 manual"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if doc_type and doc_type not in _DOC_TYPES:
         raise ApiError(
@@ -492,7 +492,7 @@ async def update_kb_document(
 async def delete_kb_document(
     docId: str = Path(..., description="文件 UUID"),
     doc_type: str | None = Query(default=None, description="case 或 manual"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> None:
     if doc_type and doc_type not in _DOC_TYPES:
         raise ApiError(
@@ -586,7 +586,7 @@ async def delete_kb_document(
 )
 async def search_kb_documents(
     body: dict[str, Any],
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     """POST /kb/documents:search — keyword scoring + meta-wrap 響應。
 
@@ -666,7 +666,7 @@ async def search_kb_documents(
     tags=["KB (Agent Knowledge Base)"],
 )
 async def export_kb_documents(
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     doc_type: str = Query(default="case", description="case 或 manual（manual 暫不支援）"),
     fmt: str = Query(default="csv", alias="format", description="csv 或 json"),
     brand: str | None = Query(default=None),

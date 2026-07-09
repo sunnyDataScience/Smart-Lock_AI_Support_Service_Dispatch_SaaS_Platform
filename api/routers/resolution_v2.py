@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import ResolveResponse
@@ -39,7 +39,7 @@ router = APIRouter()
 async def resolve_problem_suggest_v2(
     tenantId: str = Path(...),
     problemCardId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）

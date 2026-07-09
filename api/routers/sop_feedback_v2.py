@@ -13,7 +13,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from services import sop_feedback_service as svc
 
@@ -50,7 +50,7 @@ class FeedbackBody(BaseModel):
 async def log_feedback(
     body: FeedbackBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*TECH_ACTION_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
     result = await svc.log_feedback(

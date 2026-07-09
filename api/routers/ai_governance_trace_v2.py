@@ -54,7 +54,7 @@ class TraceBody(BaseModel):
 async def log_trace(
     body: TraceBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
     result = await svc.log_decision(

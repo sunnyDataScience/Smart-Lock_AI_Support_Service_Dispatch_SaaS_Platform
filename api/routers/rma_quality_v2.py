@@ -14,7 +14,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from services import rma_quality_service as svc
 
@@ -58,7 +58,7 @@ class FindingBody(BaseModel):
 async def log_finding(
     body: FindingBody,
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
     result = await svc.log_finding(

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, REVIEW_ROLES, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     FamilyReview,
@@ -70,7 +70,7 @@ async def list_history(
 )
 async def create_family_review(
     body: FamilyReviewCreateRequest,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     review = await family_review_service.create_review(

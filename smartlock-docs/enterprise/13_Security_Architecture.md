@@ -109,7 +109,7 @@ Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR
 
 - **角色來源**：Casdoor 發角色 claim（🔜 規劃中 Phase 2；過渡期 claim 由 JWT 自簽發）。
 - **執行點**：api 端資源級 `role_required` 依賴鏈（`get_current_user → require_tenant → role_required`），**deny-by-default**。授權矩陣以 **§3.1 的 7 角色正典** × 12 資源 × 4 動作為基準（✅ SA-01/CR-0130 已瘦身至正典行）；對帳基線與殘餘表記 CR-0130（runtime 反射：157 條 role_required；金流/派工/設定弱守衛寫入已收斂，殘餘 43 個非核心寫入端點列 R2 灰度）。
-- **逐端點角色守衛落地（SA-01）**：✅ R1 完成（2026-07-09，CR-0130）——死角色收斂＋金流/派工/設定寫入 49 端點補 `role_required`＋技師動作端點顯式白名單（`TECH_ACTION_ROLES`）；驗收達標：technician/vendor 寫金流/派工/設定回 403（sweep 測試鎖定）。🔜 R2＝殘餘 43 個非核心寫入端點灰度收斂（kb/sop/conversations/media 等，CR-0130 附表）。
+- **逐端點角色守衛落地（SA-01）**：✅ R1 完成（2026-07-09，CR-0130）——死角色收斂＋金流/派工/設定寫入 49 端點補 `role_required`＋技師動作端點顯式白名單（`TECH_ACTION_ROLES`）；驗收達標：technician/vendor 寫金流/派工/設定回 403（sweep 測試鎖定）。✅ R2 完成（同日）——37 端點收斂（kb/sop/conversations/sentiment/media/resolution/rma/ai-gov/推播）；定案保留 require_tenant：自身通知操作 ×6 與客戶綁定 generate-token（客戶流程，隨 vendor 定位 CR 再議）。
 - **前端 gate = UX 非邊界**：web 的 `rolePolicy` 路由 gate 僅影響頁面載入；`/platform/*` 已為對稱 deny-by-default（僅 platform_admin 可進）；全表 catch-all deny-by-default 🔜 規劃中（ACT-02）。
 - **API_SURFACE 是部署塑形非安全邊界**：tech/platform 面靠前綴過濾塑形，真正隔離押在每端點 RBAC（api C-11 設計原則，文件化 + 剔除清單測試覆蓋 🔜 規劃中 SA-03）。
 

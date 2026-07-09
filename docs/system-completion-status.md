@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**RBAC 轉 enforce R1（WBS 1.1.1，CR-0130）**，branch `feat/rbac-enforce-sa01` — 業主裁決 legacy 全面移除＋金流/派工/設定先：死角色出清（FULL_ACCESS/矩陣 6 行/HIERARCHY/RBAC_ADMIN/8 處硬編碼，殘存 token 立即失效）；49 個弱守衛寫入端點補 role_required（技師動作 TECH_ACTION_ROLES 白名單、問題卡/開單 BACKOFFICE、庫存/定價/保固/退款/設定各歸矩陣）；runtime 對帳基線＋R2 殘餘 43 端點表落 CR-0130。sweep 測試鎖驗收線（technician/vendor 寫金流/派工/設定→403）。component 884、unit 331、四站 tsc 0。13_Security [待確認] 銷案。）
+**最後更新：** 2026-07-09（**RBAC 轉 enforce R2＝1.1.1 完結（CR-0130 續）**，branch `feat/rbac-enforce-sa01-r2` — 殘餘 43 弱守衛寫入收斂 37（kb/sop/conversations/sentiment/media/resolution/rma/ai-gov/推播依矩陣歸位；技師 media/sop-feedback 走 TECH_ACTION 白名單）；定案保留 7（自身通知×6＋客戶綁定 token）。R2 sweep 測試；component 888 零波及、unit 331、四站 tsc 0。SA-01 全案銷結，WBS 1.1.1 ✅。）
+
+**前一次更新：** 2026-07-09（**RBAC 轉 enforce R1（WBS 1.1.1，CR-0130）**，branch `feat/rbac-enforce-sa01` — 業主裁決 legacy 全面移除＋金流/派工/設定先：死角色出清（FULL_ACCESS/矩陣 6 行/HIERARCHY/RBAC_ADMIN/8 處硬編碼，殘存 token 立即失效）；49 個弱守衛寫入端點補 role_required（技師動作 TECH_ACTION_ROLES 白名單、問題卡/開單 BACKOFFICE、庫存/定價/保固/退款/設定各歸矩陣）；runtime 對帳基線＋R2 殘餘 43 端點表落 CR-0130。sweep 測試鎖驗收線（technician/vendor 寫金流/派工/設定→403）。component 884、unit 331、四站 tsc 0。13_Security [待確認] 銷案。）
 
 **前一次更新：** 2026-07-09（**急件事後補審引擎（WBS 1.2.2，CR-0129）**，branch `feat/retrospective-audit-engine` — 15_SDS §4.5 六步全落地：完工回報起算 4h 補審窗（audit_due_at，config 可調）；LIFF/紙本兩路徑補審；sla_monitor audit_overdue 告警升主管＋連 3 逾時自動開 ChangeRequest（BR-WO-04）；結案硬閘（D2a 業主裁決，BRD 勘誤）；admin/quotes 補審佇列 UI；URG-01 急件加價 1500 定案（D1a，config 可覆蓋）；emergency_bypass audit 補記。migration 092。驗證：unit 331＋component 878、四站 tsc 0、build 綠。M1 剩 1.1.1/1.1.3/1.2.3/1.2.4/1.3-1.7。）
 

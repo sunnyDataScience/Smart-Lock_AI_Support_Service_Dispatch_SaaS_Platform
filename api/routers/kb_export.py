@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Request
 from fastapi.responses import Response
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import KbExportJob, KbExportRequest
 from services import kb_export_service
@@ -35,7 +35,7 @@ def _base_url(request: Request) -> str:
 async def start_kb_export(
     request: Request,
     body: KbExportRequest | None = None,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     scope = "all"
