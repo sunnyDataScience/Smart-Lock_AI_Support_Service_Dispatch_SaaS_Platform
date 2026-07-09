@@ -128,6 +128,22 @@ class ProblemCard(BaseModel):
     ai_missing_fields: list[str] | None = None
     # CR-0128/ADR-015①：急件 carve-out 四類（None=非急件走報價先行）
     emergency_class: str | None = None
+    # CR-0132 雙 gate（15_SDS §4.6）：分流＋RMA spine＋知識就緒
+    intake_completeness: float | None = None
+    resolution_completeness: float | None = None
+    triage_tier: str | None = None
+    resolution_channel: str | None = None
+    knowledge_ready: bool | None = None
+    contact_phone: str | None = None
+    failure_mode: str | None = None
+    root_cause: str | None = None
+    root_cause_category: str | None = None
+    corrective_action: str | None = None
+    verification: bool | None = None
+    disposition: str | None = None
+    firmware_version: str | None = None
+    serial: str | None = None
+    resolved_by: str | None = None
 
 
 class ProblemCardPage(CursorPage):
@@ -1078,6 +1094,18 @@ class ProblemCardUpdateRequest(BaseModel):
     media_urls: list[AnyUrl] | None = None
     # CR-0128：急件標記（四類；空字串=清除回非急件）
     emergency_class: str | None = None
+    # CR-0132 雙 gate 欄位（漸進補寫；enum 於 service 驗證）
+    contact_phone: str | None = None
+    failure_mode: str | None = None
+    triage_tier: str | None = None
+    resolution_channel: str | None = None
+    root_cause: str | None = None
+    root_cause_category: str | None = None
+    corrective_action: str | None = None
+    verification: bool | None = None
+    disposition: str | None = None
+    firmware_version: str | None = None
+    serial: str | None = None
 
 
 class ResolutionLayer1(StrEnum):

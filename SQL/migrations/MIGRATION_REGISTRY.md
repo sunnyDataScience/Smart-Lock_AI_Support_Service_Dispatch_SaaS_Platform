@@ -103,6 +103,7 @@
 | 090 | `090-technician-registration-documents.sql` | CR-0115 S-upload | 🟢 idempotent ✅ 2026-07-06 套 dev（5433+5434） | 師傅 KYC 文件上傳 Tier 3：`technician_upload_token`（兩階段 token，明文不落庫只存 SHA-256）+ `technician_registration_document`（文件 metadata，落師傅權威庫）+ `saas.technician_lifecycle_event` CHECK 追加 `kyc_reveal`（§8-3 揭露稽核）。CREATE TABLE IF NOT EXISTS + DROP/ADD CONSTRAINT 可重套 |
 | 091 | `091-quote-before-dispatch.sql` | CR-0128 | 🟢 idempotent（scratch 5446 驗證 2026-07-09） | 報價先行 gate（WBS 1.2.1/ADR-015①②）：`problem_cards.emergency_class`（急件四類，NULL=非急件）+ `work_orders.quote_gate_applied`（D3a 存量豁免標記）+ `quote.state` 註解補審狀態 + `idx_quote_problem_card_state`。ADD COLUMN/CREATE INDEX IF NOT EXISTS 可重套 |
 | 092 | `092-retrospective-audit-engine.sql` | CR-0129 | 🟢 idempotent（scratch 5447 驗證 2026-07-09） | 急件補審引擎（WBS 1.2.2）：`quote.audit_due_at`（完工起算 4h 窗）+ partial index + URG-01 急件加價 seed（D1a 業主定案 1500）+ `change_request_type_dim` 補 `emergency_audit_breach`（連 3 逾時自動 CR）。IF NOT EXISTS/ON CONFLICT 可重套 |
+| 093 | `093-pc-dual-gate.sql` | CR-0132 | 🟢 idempotent（scratch 5451 驗證 2026-07-09） | 問題卡雙 gate schema（WBS 1.2.3/15_SDS §4.6/18_DB §4.3）：intake/resolution_completeness 拆分＋分流欄（triage_tier/resolution_channel/resolved_by）＋RMA spine 7 欄＋knowledge_ready＋tenant_id（含 backfill）＋佇列 partial index；死欄 DROP IF EXISTS（attempts 等 5 欄，僅存量庫）。可重套 |
 
 > 註：028-032 為 agent/CR-0020~0022 波次 migration（已實作於分支，registry 待補登）。
 > 註：036-041 為 CR-0026~0034 波次 migration（已實作於分支，registry 待補登）。

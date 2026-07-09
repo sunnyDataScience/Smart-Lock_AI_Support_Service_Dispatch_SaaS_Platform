@@ -201,6 +201,17 @@ async def update_problem_card(
         status=status,
         media_urls=media_urls,
         emergency_class=body.emergency_class,
+        contact_phone=body.contact_phone,
+        failure_mode=body.failure_mode,
+        triage_tier=body.triage_tier,
+        resolution_channel=body.resolution_channel,
+        root_cause=body.root_cause,
+        root_cause_category=body.root_cause_category,
+        corrective_action=body.corrective_action,
+        verification=body.verification,
+        disposition=body.disposition,
+        firmware_version=body.firmware_version,
+        serial=body.serial,
     )
     return {"data": ProblemCard(**card).model_dump(mode="json")}
 
@@ -255,6 +266,7 @@ async def resolve_problem_card(
         tenant_id=user.tenant_id,
         pc_id=id,
         resolution_layer=layer_str,
+        resolved_by=user.user_id,  # CR-0132：誰解的（Gate② spine）
     )
     payload = {"data": ProblemCard(**card).model_dump(mode="json")}
     if idem is not None:

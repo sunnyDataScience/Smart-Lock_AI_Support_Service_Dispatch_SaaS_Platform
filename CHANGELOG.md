@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **問題卡雙 gate schema（WBS 1.2.3，branch `feat/pc-dual-gate-schema`，2026-07-09，CIA CR-0132 / 15_SDS §4.6・18_DB §4.3 落地）**：migration 093——`intake_completeness`/`resolution_completeness` 拆分（completeness_score 標 DEPRECATED 相容保留）＋分流欄（`triage_tier` L1/L2/L3、`resolution_channel` 四值、`resolved_by`）＋Gate① 欄（`contact_phone`/`failure_mode`）＋RMA spine 7 欄（root_cause/category/corrective_action/verification/disposition 六值 enum/firmware_version/serial）＋`knowledge_ready`＋`tenant_id` 直欄（存量 backfill）＋死欄清理 5 個。雙完整度引擎於建卡/PATCH/confirm/resolve 自動重算（L3 條件必填：Gate①+location、Gate②+firmware/serial）；Gate② 滿分單向翻 `knowledge_ready`（精煉汲取條件，**不擋 operational 結案**）；resolve 落分流（layer 預設映射管道＋resolved_by）；**Gate① enforce 走 M18 config 開關預設 off**（沒分流欄 UI 的硬閘是假的——同 CR-0128 D1a 判準，開啟留業主）；新端點「待補知識佇列」。驗證：新測試 6 項、component 900 passed、unit 331、四站 tsc 0。
+
 - **fail-closed 白名單＋API_SURFACE 剔除清單測試（WBS 1.1.3，branch `feat/api-surface-fail-closed`，2026-07-09，CIA CR-0131 / SA-03・SA-05）**：①**SA-05**：`role_required(..., fail_closed=True)`＋`core.auth.security_state_verifiable()`——安全狀態不可驗（DB 離線→撤銷/停權查核失能）時，關鍵**金流終局/派工指派 20 端點**拒絕 `503 SECURITY_STATE_UNAVAILABLE` 不退 claims-only（退款決策×3＋agent-initiate、爭議 review/co-sign、發票 from-quote、三類月結 approve/mark-paid、dispatch assign/auto-match/plan×4、工單 assign/reassign×3）；發起/撤回類維持 C-05 fail-open 可用性取捨；白名單正典以 runtime 反射對帳測試防漂移。②**SA-03**：surface 剔除清單測試——tech 面 31 組敏感前綴逐路由驗證零外洩＋技師必要路由防過濾過頭、platform 面僅 `/api/v1/platform`、保留前綴下 assign/reassign 仍由 RBAC 擋技師（C-11「塑形非安全邊界」可執行證明）。新測試 6 項；component 894 passed、unit 331、types 零變更。13_Security C-05/C-11/Phase-1 表三處銷案；WBS 1.1.3 ✅。
 
 ### Changed
