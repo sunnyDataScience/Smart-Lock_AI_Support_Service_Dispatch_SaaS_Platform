@@ -6,7 +6,7 @@ name: uv Lock Check
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, dev-ding]
     paths:
       - 'pyproject.toml'
       - 'agent/pyproject.toml'

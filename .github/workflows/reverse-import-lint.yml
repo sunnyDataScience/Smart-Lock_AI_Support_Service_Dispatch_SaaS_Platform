@@ -22,7 +22,7 @@ on:
     paths:
       - 'agent/**/*.py'
   push:
-    branches: [main, dev]
+    branches: [main, dev, dev-ding]
     paths:
       - 'agent/**/*.py'
 

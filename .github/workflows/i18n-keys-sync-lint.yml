@@ -19,7 +19,7 @@ on:
       - 'web/*/src/i18n/messages/*.json'
       - '.github/workflows/i18n-keys-sync-lint.yml'
   push:
-    branches: [main, dev]
+    branches: [main, dev, dev-ding]
     paths:
       - 'web/*/src/i18n/messages/*.json'
 

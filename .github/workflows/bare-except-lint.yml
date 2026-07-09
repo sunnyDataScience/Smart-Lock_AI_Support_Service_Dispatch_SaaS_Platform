@@ -27,7 +27,7 @@ on:
       - 'api/**/*.py'
       - 'knowledge-pipeline/**/*.py'
   push:
-    branches: [main, dev]
+    branches: [main, dev, dev-ding]
     paths:
       - 'api/**/*.py'
       - 'knowledge-pipeline/**/*.py'

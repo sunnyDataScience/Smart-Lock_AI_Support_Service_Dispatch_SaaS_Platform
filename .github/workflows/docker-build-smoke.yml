@@ -8,7 +8,7 @@ name: Docker Build Smoke Test
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, dev, dev-ding]
     paths:
       - 'agent/**'
       - 'api/**'

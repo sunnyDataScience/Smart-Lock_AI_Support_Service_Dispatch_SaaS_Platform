@@ -18,9 +18,9 @@ name: test-suite
 
 on:
   push:
-    branches: [dev, main]
+    branches: [dev, main, dev-ding]
   pull_request:
-    branches: [dev, main]
+    branches: [dev, main, dev-ding]
 
 jobs:
   unit:

@@ -16,7 +16,7 @@ on:
     - cron: "0 18 * * *"      # 每日 02:00 台灣時間（UTC 18:00）
   workflow_dispatch: {}        # 允許手動觸發
   push:
-    branches: [dev, main]
+    branches: [dev, main, dev-ding]
     paths:                     # schema/測試基建變動時也跑一次，及早抓 migration 漂移
       - "SQL/**"
       - "api/tests/conftest.py"
