@@ -76,40 +76,45 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 
 > 編號規則：`M.工作群.工作包`。負責線：BE（api）/ FE（web）/ AG（agent）/ DT（data）/ OPS（DevOps）/ QA。
 > 每個工作包的完整驗收細節以「驗收依據」欄指向的 FR / TC / SA 為準，本表不重複內文。
+>
+> **狀態欄**（2026-07-09 啟用，每輪開發完成隨 `docs/system-completion-status.md` 同步打勾）：
+> ✅ 完成（附日期與 CR）／🔶 部分完成或需重定義（附註）／⬜ 未標記。
+> ⚠️ ⬜ ＝「尚未逐項對帳」而非必然未動工——存量功能的補標隨 SIT（1.7.1）對帳完成；
+> 只有經驗證的項目才打 ✅（完成度虛報教訓，CR-0038）。
 
 ### M1 上線硬化（單品牌可收費上線）
 
-| WBS | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
-|---|---|---|---|---|
-| 1.1.1 | RBAC 轉 enforce：195 條 `role_required` 對帳 + 逐端點落地（先金流 / 派工）| BE | 1.1.2 | SA-01；未授權角色寫入 403（TC 權限類全綠）|
-| 1.1.2 | 角色收斂：`_STAFF_ROLES` 4 值、`rolePolicy` 移除死角色、`_MATRIX` 補 `operations_manager` 行、Schema 註解同步 | BE+FE | — | SA-06；13_Security §3.1 正典一致 |
-| 1.1.3 | fail-closed 白名單 + API_SURFACE 剔除清單測試 | BE | 1.1.1 | SA-03 / SA-05 |
-| 1.2.1 | 工單狀態機對齊「報價先行＋現場修正輪」（flow gate + 轉移表）| BE | — | 02_BRD §5.7；TC-WO-*、TC-ONSITE-07 |
-| 1.2.2 | 急件事後補審引擎（timer + 補審佇列 + 事後 LIFF/紙本 + 逾時升級）| BE+FE | 1.2.1 | FR-API-19；15_SDS §4.5；TC-DISPATCH-08；急件加價額 `[待確認]` 業主定案 |
-| 1.2.3 | 問題卡雙 gate schema（CIA + migration：雙完整度 / 分流欄 / RMA spine / knowledge_ready / tenant_id）| BE+DT | CIA 裁決 | 15_SDS §4.6；18_DB §4.3 目標欄位 |
-| 1.2.4 | 對話三方全量存檔驗證（接管期間零缺漏 + 寫入失敗告警）| AG+BE | — | FR-A11 / BR-CONV-03；FR-AGT-09 驗收 |
-| 1.3.1 | 即時通道：WS hub 遷 Redis pub-sub + cron 分散式鎖 | BE+OPS | — | SA-02；多實例不遺失、cron 不重跑 |
-| 1.4.1 | 可觀測性：SigNoz（metrics/logs/traces/alerts）+ OPIK（LLM 品質）基線 | OPS+AG | — | ADR-007；25_Monitoring_Spec |
-| 1.5.1 | AI 禁區 200 題 Eval pipeline 常態化（每 deploy 跑，<95% block）| AG | — | FR-A10 / K8 |
-| 1.6.1 | 基礎 CD：3 Cloud Run 自動部署 + migration drift-check CI | OPS | — | ADR-P012（G-12 / G-10）|
-| 1.7.1 | SIT：M1 範圍 TC 全綠 + 回歸 | QA | 1.1–1.6 | SIT 報告 |
-| 1.7.2 | UAT：合約紅線（K1 ≥ 80% / K3 ≥ 95% / K8 ≥ 95%）+ 業主驗收 | QA+PM | 1.7.1 | 22_UAT 報告；**M1 Release gate** |
+| WBS | 狀態 | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
+|---|---|---|---|---|---|
+| 1.1.1 | ⬜ | RBAC 轉 enforce：195 條 `role_required` 對帳 + 逐端點落地（先金流 / 派工）| BE | 1.1.2 | SA-01；未授權角色寫入 403（TC 權限類全綠）|
+| 1.1.2 | ✅ 2026-07-09（CR-0127） | 角色收斂：`_STAFF_ROLES` 4 值、`rolePolicy` 移除死角色、`_MATRIX` 補 `operations_manager` 行、Schema 註解同步 | BE+FE | — | SA-06；13_Security §3.1 正典一致 |
+| 1.1.3 | ⬜ | fail-closed 白名單 + API_SURFACE 剔除清單測試 | BE | 1.1.1 | SA-03 / SA-05 |
+| 1.2.1 | ✅ 2026-07-09（CR-0128） | 工單狀態機對齊「報價先行＋現場修正輪」（flow gate + 轉移表）| BE | — | 02_BRD §5.7；TC-WO-*、TC-ONSITE-07 |
+| 1.2.2 | ⬜ | 急件事後補審引擎（timer + 補審佇列 + 事後 LIFF/紙本 + 逾時升級）| BE+FE | 1.2.1 | FR-API-19；15_SDS §4.5；TC-DISPATCH-08；急件加價額 `[待確認]` 業主定案 |
+| 1.2.3 | ⬜ | 問題卡雙 gate schema（CIA + migration：雙完整度 / 分流欄 / RMA spine / knowledge_ready / tenant_id）| BE+DT | CIA 裁決 | 15_SDS §4.6；18_DB §4.3 目標欄位 |
+| 1.2.4 | ⬜ | 對話三方全量存檔驗證（接管期間零缺漏 + 寫入失敗告警）| AG+BE | — | FR-A11 / BR-CONV-03；FR-AGT-09 驗收 |
+| 1.3.1 | ⬜ | 即時通道：WS hub 遷 Redis pub-sub + cron 分散式鎖 | BE+OPS | — | SA-02；多實例不遺失、cron 不重跑 |
+| 1.4.1 | ⬜ | 可觀測性：SigNoz（metrics/logs/traces/alerts）+ OPIK（LLM 品質）基線 | OPS+AG | — | ADR-007；25_Monitoring_Spec |
+| 1.5.1 | ⬜ | AI 禁區 200 題 Eval pipeline 常態化（每 deploy 跑，<95% block）| AG | — | FR-A10 / K8 |
+| 1.6.1 | ⬜ | 基礎 CD：3 Cloud Run 自動部署 + migration drift-check CI | OPS | — | ADR-P012（G-12 / G-10）|
+| 1.7.1 | ⬜ | SIT：M1 範圍 TC 全綠 + 回歸 | QA | 1.1–1.6 | SIT 報告 |
+| 1.7.2 | ⬜ | UAT：合約紅線（K1 ≥ 80% / K3 ≥ 95% / K8 ≥ 95%）+ 業主驗收 | QA+PM | 1.7.1 | 22_UAT 報告；**M1 Release gate** |
 
 ### M2 身分・知識・技師平台（三線平行）
 
-| WBS | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
-|---|---|---|---|---|
-| 2.1.1 | Casdoor 統一 IdP：org（租戶）/ OIDC 授權碼流 / License 訂閱管理 | BE+OPS | M1 | ADR-004（Casdoor）；web token 改 httpOnly（ACT-01）|
-| 2.1.2 | 租戶自助開帳：員工申請 tab + Admin 審核指派（4 角色）+ SoD 雙簽 | FE+BE | 2.1.1 | 13_Security §3.1 開通權矩陣 |
-| 2.2.1 | RAG 語義層：`embed()` + pgvector 語料 + MCP server | AG+DT | — | agent ADR-004；FR-A03 / FR-AGT-07 |
-| 2.2.2 | 語料灌注：型號事實 chunk 遷移 + Skill 重切（行為留 skill、事實入 RAG）| AG | 2.2.1 | RAG 引用率 ≥ 90% 品質 gate |
-| 2.3.1 | knowledge-refinery 服務：診斷對話輸入汲取（吃 `knowledge_ready` 卡）+ 提煉分流 | DT | 1.2.3 / 1.2.4 | ADR-018；KR P1/05 |
-| 2.3.2 | HITL 審核 UI（draft → 人審 diff → 核可落地 pgvector + skill）| FE+DT | 2.3.1 | ADR-018 §審核層 |
-| 2.4.1 | technician-platform 獨立系統：技師庫 + tech-api + 師傅 web 拆出 | BE+FE | M1 | ADR-016；跨租戶單一身分 |
-| 2.4.2 | 技師 KYC 註冊三層（登入/註冊分離 + 敏感 PII + 文件上傳）| BE+FE | 2.4.1 | CR-0115（七項設計裁決依 §8）|
-| 2.4.3 | OHS requote command 通道（tenant 路由 + 冪等 + 降級）| BE | 2.4.1 / 1.2.1 | ADR-027；FR-TEC-07；TC-DISPATCH-07 |
-| 2.5.1 | v1 API 收斂：凍結 → 遷移 ~42 caller → 移除（5-gate）| BE+FE | M1 | ADR-P012（G-09）|
-| 2.6.1 | M2 SIT + UAT（含跨系統整合場景）| QA | 2.1–2.5 | **M2 Release gate = 階段一完成** |
+| WBS | 狀態 | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
+|---|---|---|---|---|---|
+| 2.1.1 | ⬜ | Casdoor 統一 IdP：org（租戶）/ OIDC 授權碼流 / License 訂閱管理 | BE+OPS | M1 | ADR-004（Casdoor）；web token 改 httpOnly（ACT-01）|
+| 2.1.2 | ⬜ | 租戶自助開帳：員工申請 tab + Admin 審核指派（4 角色）+ SoD 雙簽 | FE+BE | 2.1.1 | 13_Security §3.1 開通權矩陣 |
+| 2.2.1 | ✅ 2026-07-09（CR-0124/0125，提前於 M1 期完成） | RAG 語義層：`embed()` + pgvector 語料 + MCP server | AG+DT | — | agent ADR-004；FR-A03 / FR-AGT-07 |
+| 2.2.2 | 🔶 語料灌注 ✅（references 249 chunk）；Skill 重切與引用率 ≥90% gate 依 ADR-030 取消/轉輔助指標——驗收待依 ADR-030 重定義 | 語料灌注：型號事實 chunk 遷移 + Skill 重切（行為留 skill、事實入 RAG）| AG | 2.2.1 | RAG 引用率 ≥ 90% 品質 gate |
+| 2.3.1 | ⬜ | knowledge-refinery 服務：診斷對話輸入汲取（吃 `knowledge_ready` 卡）+ 提煉分流 | DT | 1.2.3 / 1.2.4 | ADR-018；KR P1/05 |
+| 2.3.2 | ⬜ | HITL 審核 UI（draft → 人審 diff → 核可落地 pgvector + skill）| FE+DT | 2.3.1 | ADR-018 §審核層 |
+| 2.4.1 | ⬜ | technician-platform 獨立系統：技師庫 + tech-api + 師傅 web 拆出 | BE+FE | M1 | ADR-016；跨租戶單一身分 |
+| 2.4.2 | ⬜ | 技師 KYC 註冊三層（登入/註冊分離 + 敏感 PII + 文件上傳）| BE+FE | 2.4.1 | CR-0115（七項設計裁決依 §8）|
+| 2.4.3 | ⬜ | OHS requote command 通道（tenant 路由 + 冪等 + 降級）| BE | 2.4.1 / 1.2.1 | ADR-027；FR-TEC-07；TC-DISPATCH-07 |
+| 2.5.1 | ⬜ | v1 API 收斂：凍結 → 遷移 ~42 caller → 移除（5-gate）| BE+FE | M1 | ADR-P012（G-09）|
+| 2.6.1 | ⬜ | M2 SIT + UAT（含跨系統整合場景）| QA | 2.1–2.5 | **M2 Release gate = 階段一完成** |
 
 ---
 
@@ -119,14 +124,14 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 
 ### M3 多品牌規模化（業主裁決 2026-07-07：自階段一移入階段二）
 
-| WBS | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
-|---|---|---|---|---|
-| 3.1.1 | Kafka 事件骨幹：`commission.accrued` / 工單投影事件上線（替換 outbox 輪詢）| BE+OPS | 階段閘 | ADR-006 / ADR-017；17_AsyncAPI |
-| 3.1.2 | 技師工作台改吃 CQRS 投影（跨品牌工單聚合）| BE+FE | 3.1.1 / 2.4.1 | FR-TEC-*；TC-DISPATCH-05 欄位最小化 |
-| 3.2.1 | 期末對帳 reconcile 閘門（品牌計費 vs 平台結算對平）| BE+DT | 3.1.1 | BR-SETTLE-05；FR-E03 |
-| 3.3.1 | License → provisioning 自動化（開站流程腳本化）| OPS | 2.1.1 | ADR-002（per-brand bundle）|
-| 3.4.1 | 雲端拓撲對齊（tech / platform 面雲端部署 + 技師庫上雲）| OPS | 2.4.1 | 平台 L1 G-01 收斂 |
-| 3.5.1 | 第 2 品牌租戶開站演練（全流程 dry-run：申請 → 核准 → 開站 → 綁 LINE）| PM+OPS | 3.3.1 | 開站 SOP 文件化；**M3 Release gate** |
+| WBS | 狀態 | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
+|---|---|---|---|---|---|
+| 3.1.1 | ⬜ | Kafka 事件骨幹：`commission.accrued` / 工單投影事件上線（替換 outbox 輪詢）| BE+OPS | 階段閘 | ADR-006 / ADR-017；17_AsyncAPI |
+| 3.1.2 | ⬜ | 技師工作台改吃 CQRS 投影（跨品牌工單聚合）| BE+FE | 3.1.1 / 2.4.1 | FR-TEC-*；TC-DISPATCH-05 欄位最小化 |
+| 3.2.1 | ⬜ | 期末對帳 reconcile 閘門（品牌計費 vs 平台結算對平）| BE+DT | 3.1.1 | BR-SETTLE-05；FR-E03 |
+| 3.3.1 | ⬜ | License → provisioning 自動化（開站流程腳本化）| OPS | 2.1.1 | ADR-002（per-brand bundle）|
+| 3.4.1 | ⬜ | 雲端拓撲對齊（tech / platform 面雲端部署 + 技師庫上雲）| OPS | 2.4.1 | 平台 L1 G-01 收斂 |
+| 3.5.1 | ⬜ | 第 2 品牌租戶開站演練（全流程 dry-run：申請 → 核准 → 開站 → 綁 LINE）| PM+OPS | 3.3.1 | 開站 SOP 文件化；**M3 Release gate** |
 
 ### M4 / M5 平台化（概要層級）
 
