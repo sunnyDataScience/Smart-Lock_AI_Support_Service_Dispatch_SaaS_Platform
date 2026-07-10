@@ -55,7 +55,7 @@ upstream:
 | **Logs** | 結構化 JSON + `request_id`（api `RequestIdMiddleware` 注入）；等級：ERROR 進告警評估、INFO 供查案；保留期 `[待確認]` |
 | **Traces** | 分散式追蹤關鍵鏈：LINE webhook → agent turn → `/internal/*` → api service → DB；WS publish 鏈；LINE push outbox 鏈 |
 
-**PII scrubbing（硬性）**：trace / log 進 SigNoz 前必須遮蔽 PII（電話、地址、LINE user id 雜湊化）；OPIK 的 prompt / trace 含對話原文，屬 PII 敏感面——dev 環境使用測試資料，prod 開啟 OPIK 前須先過 PII 遮蔽評估（詳見 [13_Security_Architecture.md](./13_Security_Architecture.md)）。〔標注 2026-07-10：api 面已落地——feat/otel-pii-scrub 之 `scrub_text` + 出站包裝器（2026-07-10）；agent / OPIK 面仍待（排程待業主）〕
+**PII scrubbing（硬性）**：trace / log 進 SigNoz 前必須遮蔽 PII（電話、地址、LINE user id 雜湊化）；OPIK 的 prompt / trace 含對話原文，屬 PII 敏感面——dev 環境使用測試資料，prod 開啟 OPIK 前須先過 PII 遮蔽評估（詳見 [13_Security_Architecture.md](./13_Security_Architecture.md)）。〔標注 2026-07-10：api 面已落地——feat/otel-pii-scrub 之 `scrub_text` + 出站包裝器（2026-07-10）；agent / OPIK 面仍待（排程待業主）〕〔標注 2026-07-10（續）：agent／refinery 面亦已落地（CR-0156，scrub 同源複製）；OPIK 為 opt-in 接線——prod 開啟前仍須過本節 PII 遮蔽評估（OPIK_API_KEY 未配置＝不上報）〕
 
 ## 4. 系統層 SLI dashboard（SigNoz）
 

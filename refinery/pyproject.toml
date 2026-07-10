@@ -13,6 +13,13 @@ dependencies = [
     "python-jose[cryptography]>=3.3",  # JWT 共驗（與 api 同庫同算法 HS256）
 ]
 
+[project.optional-dependencies]
+otel = [  # CR-0156/ADR-007：SigNoz OTLP 埋點（opt-in；未裝＝no-op，比照 api [otel]）
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25",
+    "opentelemetry-instrumentation-fastapi>=0.46b0",
+]
+
 # 2.3.2 起為真套件（容器化 uv sync --package 需要；2.3.1 曾為 package=false）
 [build-system]
 requires = ["hatchling"]

@@ -30,6 +30,15 @@ from loguru import logger
 
 from lockcore.bus.events import InboundMessage
 
+# CR-0156/ADR-007:可觀測性 webhook span(opt-in;observability 模組缺=零行為變化)
+try:
+    from lockcore.observability import turn_span as _turn_span
+except Exception:  # noqa: BLE001 — 防禦:可觀測性缺失不可影響 webhook 主流程
+    from contextlib import nullcontext
+
+    def _turn_span(name: str, **attrs: Any):  # type: ignore[misc]
+        return nullcontext()
+
 # LINE 單則文字訊息上限 5000 字,留點 buffer。
 _LINE_TEXT_LIMIT = 4900
 
@@ -849,6 +858,12 @@ def build_webapp(
     debouncer = _TurnDebouncer(_debounce_seconds, _run_merged_turn)
 
     async def callback(request):
+        # CR-0156/ADR-007:每個 webhook 請求包 "line.webhook" span
+        # (observability 未啟用時 _turn_span=nullcontext,零行為變化)。
+        with _turn_span("line.webhook"):
+            return await _handle_callback(request)
+
+    async def _handle_callback(request):
         signature = request.headers.get("X-Line-Signature", "")
         body = await request.text()
         try:

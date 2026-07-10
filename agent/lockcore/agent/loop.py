@@ -62,6 +62,14 @@ if TYPE_CHECKING:
     )
     from lockcore.cron.service import CronService
 
+# CR-0156/ADR-007:可觀測性 turn span(opt-in;observability 模組缺=零行為變化)
+try:
+    from lockcore.observability import turn_span as _turn_span
+except Exception:  # noqa: BLE001 — 防禦:可觀測性缺失不可影響 agent 主流程
+
+    def _turn_span(name: str, **attrs: Any):  # type: ignore[misc]
+        return nullcontext()
+
 
 UNIFIED_SESSION_KEY = "unified:default"
 
@@ -1135,7 +1143,32 @@ class AgentLoop:
         on_stream_end: Callable[..., Awaitable[None]] | None = None,
         pending_queue: asyncio.Queue | None = None,
     ) -> OutboundMessage | None:
-        """Process a single inbound message and return the response."""
+        """Process a single inbound message and return the response.
+
+        CR-0156/ADR-007:整輪 turn 包 "agent.turn" span(observability 未啟用時
+        _turn_span=nullcontext,零行為變化)。attrs 只放 channel,不放 sender_id
+        原值(PII);字串屬性另由 turn_span 進場遮蔽 + exporter 出站遮蔽雙防線。
+        """
+        with _turn_span("agent.turn", channel=msg.channel):
+            return await self._process_message_impl(
+                msg,
+                session_key=session_key,
+                on_progress=on_progress,
+                on_stream=on_stream,
+                on_stream_end=on_stream_end,
+                pending_queue=pending_queue,
+            )
+
+    async def _process_message_impl(
+        self,
+        msg: InboundMessage,
+        session_key: str | None = None,
+        on_progress: Callable[..., Awaitable[None]] | None = None,
+        on_stream: Callable[[str], Awaitable[None]] | None = None,
+        on_stream_end: Callable[..., Awaitable[None]] | None = None,
+        pending_queue: asyncio.Queue | None = None,
+    ) -> OutboundMessage | None:
+        """_process_message 的原實作(turn 狀態機);由外層包 span 後委派進來。"""
         self._refresh_provider_snapshot()
 
         if msg.channel == "system":

@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**改約／範圍變更 LINE postback 轉發橋（CR-0155）**，branch `feat/line-ops-postback-bridge` — gateway 原封轉發 r:*/s:* 至 api line_webhook（CR-0017 冪等鏈沿用）；測試 4＋agent 175 綠。另立 CR-0154 連線池 CIA（🛑 設計裁決）。）
+**最後更新：** 2026-07-10（**agent/refinery/web OTel＋OPIK 埋點（CR-0156／ADR-007 補課）**，branch `feat/otel-rollout` — 三線並行：agent span＋OPIK opt-in／refinery FastAPI 埋點／brand-portal instrumentation 參考實作；PII scrub 同源。agent 186＋refinery 14＋web build 全綠。殘＝SigNoz/secrets（OPS）＋三站複製。）
+
+**前一次更新：** 2026-07-10（**改約／範圍變更 LINE postback 轉發橋（CR-0155）**，branch `feat/line-ops-postback-bridge` — gateway 原封轉發 r:*/s:* 至 api line_webhook（CR-0017 冪等鏈沿用）；測試 4＋agent 175 綠。另立 CR-0154 連線池 CIA（🛑 設計裁決）。）
 
 **前一次更新：** 2026-07-10（**三庫 URI 啟動守衛（CR-0153／ADR-020 補課）**，branch `feat/db-uri-strict-guard` — DB_URI_STRICT=1 opt-in 拒啟守衛＋prod deploy／三站 compose 接線；測試 4＋unit 347 綠。）
 
