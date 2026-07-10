@@ -226,7 +226,17 @@
     "entrySubtitle": "Dispatcher entrance — sign in or register for the admin console",
     "tabLogin": "Sign in",
     "tabRegister": "Staff apply",
-    "techEntryLink": "I am a locksmith technician →"
+    "techEntryLink": "I am a locksmith technician →",
+    "heroBrand": "SmartLock Cloud Service Platform",
+    "heroTitle": "Smart lock after-sales service, all in one place",
+    "heroSubtitle": "LINE AI support answers customers around the clock, and unresolved issues become dispatch orders automatically — quotes, progress and billing all handled online.",
+    "heroFeature1Title": "AI Customer Support",
+    "heroFeature1Desc": "24/7 LINE bot with instant product knowledge answers",
+    "heroFeature2Title": "Work Order Dispatch",
+    "heroFeature2Desc": "Create, assign, track and close orders end to end",
+    "heroFeature3Title": "Quotes & Billing",
+    "heroFeature3Desc": "Online quotes with customer consent via LINE, plus clear monthly statements",
+    "heroFootnote": "© 2026 SmartLock — Admin console for brands, distributors and locksmith shops"
   },
   "staffApply": {
     "intro": "Brand staff account application: submit your basic details, then a brand admin reviews and assigns your role. Once approved you can sign in with this email and password.",

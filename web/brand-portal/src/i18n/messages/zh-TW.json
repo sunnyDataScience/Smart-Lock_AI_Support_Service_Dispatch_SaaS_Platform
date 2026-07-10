@@ -226,7 +226,17 @@
     "entrySubtitle": "派案方入口 — 登入或註冊後進入後台管理系統",
     "tabLogin": "登入",
     "tabRegister": "員工申請",
-    "techEntryLink": "我是鎖匠師傅 →"
+    "techEntryLink": "我是鎖匠師傅 →",
+    "heroBrand": "SmartLock 雲端服務平台",
+    "heroTitle": "智慧鎖售後服務，一站完成",
+    "heroSubtitle": "LINE AI 客服自動應答，無法解決的問題自動開單派工；報價、進度、對帳全程線上。",
+    "heroFeature1Title": "AI 智慧客服",
+    "heroFeature1Desc": "LINE 機器人 24 小時應答，產品知識即問即答",
+    "heroFeature2Title": "派工單管理",
+    "heroFeature2Desc": "開單、指派師傅、進度追蹤到結案一條龍",
+    "heroFeature3Title": "報價與對帳",
+    "heroFeature3Desc": "線上報價經客戶 LINE 同意，月結對帳一目瞭然",
+    "heroFootnote": "© 2026 SmartLock — 品牌 / 經銷 / 鎖店後台管理系統"
   },
   "staffApply": {
     "intro": "品牌員工帳號申請:填寫基本資料送出後,待品牌管理員審核並指派角色,核准後即可用此 Email 與密碼登入。",
