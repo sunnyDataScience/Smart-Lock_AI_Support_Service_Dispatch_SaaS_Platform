@@ -14,10 +14,10 @@ pytestmark = pytest.mark.skipif(
 )
 
 TID = "00000000-0000-0000-0000-000000000001"
-SECRET = "kr-test-secret"
 
 os.environ.setdefault("REFINERY_TENANT_ID", TID)
-os.environ.setdefault("API_JWT_SECRET_KEY", SECRET)
+# 跟隨外部 env(SIT 合跑時由呼叫端指定;未設才用測試預設)——寫死會與 env 不一致 401
+SECRET = os.environ.setdefault("API_JWT_SECRET_KEY", "kr-test-secret")
 
 FAKE_VEC = [0.001] * 768
 

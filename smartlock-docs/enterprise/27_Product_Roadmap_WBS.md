@@ -114,7 +114,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 2.4.2 | ✅ 2026-07-10 帳面收斂（CR-0115 早已落地：migration 089/090＋三層註冊＋PII 加密＋文件上傳＋平台審核 KYC 區塊＋測試 14+；稽核查實。遺留：雲端套 089/090＋GCS 落點＋tech-register i18n） | 技師 KYC 註冊三層（登入/註冊分離 + 敏感 PII + 文件上傳）| BE+FE | 2.4.1 | CR-0115（七項設計裁決依 §8）|
 | 2.4.3 | ✅ 2026-07-10（CR-0144：/internal/requote-requests＋冪等回放/409＋v+1 supersedes 串鏈＋cs_fallback 降級＋TC-DISPATCH-07 測試 4/4。技師 UI 入口＋cs_fallback 代發起已補（scope-change 舊頁原地改造去定價）；多品牌路由隨 AI-2/AI-3） | OHS requote command 通道（tenant 路由 + 冪等 + 降級）| BE | 2.4.1 / 1.2.1 | ADR-027；FR-TEC-07；TC-DISPATCH-07 |
 | 2.5.1 | 🔶 Gate-1 凍結 enforced 2026-07-10（CR-0145：baseline 195 ops＋CI 守門——新增 v1 即紅）。遷移/移除受三項業主待決阻擋（auth 定位/platform v2/5-gate 名實，CR-0145 §8），依 ADR-003 排 M3 | v1 API 收斂：凍結 → 遷移 ~42 caller → 移除（5-gate）| BE+FE | M1 | ADR-P012（G-09）|
-| 2.6.1 | ⬜ | M2 SIT + UAT（含跨系統整合場景）| QA | 2.1–2.5 | **M2 Release gate = 階段一完成** |
+| 2.6.1 | 🔶 SIT ✅ 2026-07-10（CR-0147：api 1738＋agent 162＋rag 7（含新 MCP 整合）＋refinery 12 全綠；五項 live 實證含 refinery 真 LLM 煉製與 OIDC 瀏覽器全流程）。**UAT=業主**（M1 1.7.2＋M2 驗收，合約紅線 K1/K3/K8） | M2 SIT + UAT（含跨系統整合場景）| QA | 2.1–2.5 | **M2 Release gate = 階段一完成** |
 
 ---
 
