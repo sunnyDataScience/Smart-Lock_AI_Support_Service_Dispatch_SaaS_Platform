@@ -1,7 +1,7 @@
 # CR-0150 — requote 分層核可+保固建案 403+item_diffs 收緊(ADR-027/16_API 補課)
 
 - **日期**:2026-07-10
-- **狀態**:已裁決(2026-07-10)——實作中
+- **狀態**:done(2026-07-10)
 - **觸發面向**:API contract(/internal/requote-requests 行為)、Domain model(quote 審核流)
 - **依據**:ADR-027 Decision 3、16_API_Spec.yaml:397-415(規格明列)、2026-07-10 業主裁決「smartlock-docs 為準」、文件合規稽核查實三缺口(CR-0144 遺留)
 
@@ -33,3 +33,7 @@
 ### §8 裁決記錄（2026-07-10）
 
 業主「開工」＝**採建議案**（解讀可否決）：①主管＝`operations_manager`（小編＝customer_service）；②保固判定＝工單關聯 warranty_claims 有 record 即擋，建案判定記遺留；③delta＝|v+1 總額 − v 總額|；④排 **M2 收尾**。
+
+### 進度
+
+- ✅ done(branch `feat/requote-tiered-approval`,2026-07-10):①分層核可 gate 落 service 層 `transition(action="send")`(delta=|v+1−v|,>2000 限 operations_manager/admin,403 REQUOTE_SUPERVISOR_REQUIRED;legacy 未帶 actor_role=fail-closed)——**查實 router 層 :send 現行 RBAC=admin/ops_manager(CR-0130 收斂)比分層更嚴,「小編核可 501-2000」在 API 面暫不可行使,若要開放 customer_service 送修正單屬 RBAC 擴權另案**;②item_diffs 兩入口收緊必填非空(422);③保固/建案 403 歸 CR-0152 AI 閘(同 send 點)。測試 5+CR-0144 迴歸 4+quote 相關 78 全綠(scratch 5465)。

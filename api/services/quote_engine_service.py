@@ -410,9 +410,16 @@ async def list_quotes(*, tenant_id: str, limit: int = 100) -> list[dict]:
     ]
 
 
+# CR-0150（ADR-027 Decision 3／16_API:397）：requote v+1 送出分層核可。
+# delta=|v+1 總額 − v 總額|：≤500 逕送；501–2000 小編核可（OPS 角色執行送出
+# 即核可，身分由 router RBAC 保證）；>2000 主管覆核（僅下列角色可執行送出）。
+_REQUOTE_TIER_EDITOR_MAX = 2000.0
+_REQUOTE_SUPERVISOR_ROLES = ("operations_manager", "admin")
+
+
 async def transition(
     *, tenant_id: str, quote_id: str, action: str, actor_id: str | None = None,
-    comment: str | None = None,
+    comment: str | None = None, actor_role: str | None = None,
 ) -> dict:
     """狀態機轉換。send → 凍結 pricing snapshot；approve/reject → 記 quote_approval。"""
     if action not in _TRANSITIONS:
@@ -440,6 +447,25 @@ async def transition(
                 "audit_complete 僅限急件補審報價——一般報價須客戶 LIFF 確認（accept）",
                 409,
             )
+
+    # CR-0150：requote v+1（supersedes 串鏈）送出分層核可——delta 超過小編層
+    # 上限時，僅主管角色可執行送出。legacy 呼叫端未帶 actor_role → fail-closed。
+    if action == "send":
+        rq = await (await conn.execute(
+            "SELECT supersedes_quote_id, COALESCE(total_amount, 0) "
+            "FROM quote WHERE id = %s::uuid", (quote_id,))).fetchone()
+        if rq and rq[0]:
+            prev = await (await conn.execute(
+                "SELECT COALESCE(total_amount, 0) FROM quote WHERE id = %s::uuid",
+                (rq[0],))).fetchone()
+            delta = abs(float(rq[1]) - float(prev[0] if prev else 0))
+            if delta > _REQUOTE_TIER_EDITOR_MAX and (actor_role or "") not in _REQUOTE_SUPERVISOR_ROLES:
+                raise ApiError(
+                    "REQUOTE_SUPERVISOR_REQUIRED",
+                    f"修正報價價差 {delta:.0f} 超過 {_REQUOTE_TIER_EDITOR_MAX:.0f}，"
+                    "須由主管（operations_manager／admin）執行送出（CR-0150 分層核可）",
+                    403,
+                )
 
     # 核准門檻（esales Q-11）：總額超門檻不可從 draft 直送，須先 submit→approve。
     # CR-0046：門檻讀 M18 config discount_policy.approval_threshold（mock 範例待業主確認，可動態改）。

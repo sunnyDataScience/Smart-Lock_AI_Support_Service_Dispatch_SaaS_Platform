@@ -464,6 +464,9 @@ paths:
         品牌 api 驗 assignee_ref 與工單狀態（on_site / in_progress）後由定價引擎建 quote v+1
         （supersedes_quote_id 串鏈 + 新 snapshot_hash），再走分層核可與客戶 LIFF 確認。
         分層核可（501-2000/>2000）與保固建案 403 = CR-0150 落地範圍（遺留）。
+        # 標注 2026-07-10:分層核可已落地(CR-0150,service 層 gate:delta>2000 限
+        # operations_manager/admin;現行 :send RBAC=admin/ops_manager 比分層更嚴,
+        # 小編層待 RBAC 擴權另案);保固建案 403 歸 CR-0152 AI 閘。
         同 request_id 重送回放既有結果（200 非 201）。
       security: [{ internalToken: [] }]
       requestBody:
