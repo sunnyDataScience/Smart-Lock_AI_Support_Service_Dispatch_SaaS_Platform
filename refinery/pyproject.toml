@@ -1,16 +1,25 @@
 [project]
 name = "smart-lock-refinery"
-version = "0.1.0"
-description = "knowledge-refinery — 診斷對話汲取 + 提煉分流 + Draft Queue（WBS 2.3.1 / ADR-018；per-brand License 附加系統）"
+version = "0.2.0"
+description = "knowledge-refinery — 汲取+提煉分流+Draft Queue（2.3.1）＋HITL 審核服務與 Publisher（2.3.2）；ADR-018 License 附加系統"
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    "litellm>=1.84.0",           # 提煉分流器 LLM（JSON schema 強制）
+    "litellm>=1.84.0",            # 提煉分流器 LLM + Publisher embed（統一介面）
     "psycopg[binary]>=3.1",
     "python-dotenv>=1.0.0",
+    "fastapi>=0.115",             # 審核 backend + 靜態 UI（2.3.2）
+    "uvicorn>=0.30",
+    "httpx>=0.27",                # 登入代理 → api /auth/login
+    "python-jose[cryptography]>=3.3",  # JWT 共驗（與 api 同庫同算法 HS256）
 ]
 
-[tool.uv]
-package = false
+# 2.3.2 起為真套件（容器化 uv sync --package 需要；2.3.1 曾為 package=false）
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["refinery"]
 
 [dependency-groups]
 dev = ["pytest>=8.0"]

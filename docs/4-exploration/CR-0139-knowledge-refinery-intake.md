@@ -74,3 +74,4 @@ refinery/intake  ──▶  refinery/refine(LLM 提煉分流器)
 
 - ✅ S1-S4 done(2026-07-10,branch `feat/knowledge-refinery`):migration 094 + REGISTRY;`refinery/` 套件(db/intake/llm/refine/store/run_intake);root workspace + api/agent Dockerfile COPY 同步;測試 **7 passed**(3 單元 + 4 元件,scratch 5456,094 冪等重套驗證,drift-check 92 支全綠);15_SDS §9.1 汲取層 [待確認] 銷案 + Draft Queue 落點註記。live LLM 煉製(真 Vertex 呼叫)待 quota / 隨 2.3.2 一併驗
 - §8-1(case_entries 表名衝突)/§8-3(references 解鎖)維持待業主,阻擋 2.3.2 非 2.3.1
+- ✅ §8-1 已裁決(2026-07-10 業主:「就用併形的方式處理」)→ 落地於 CR-0140(migration 095 併形 + rag 查詢修復);§8-3 以 CR-0140 D5 兩段式(patch artifact + apply CLI 人審 git)處理,product-knowledge references 鎖定不受影響
