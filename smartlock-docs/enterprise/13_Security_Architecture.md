@@ -38,11 +38,11 @@ upstream:
 
 **Casdoor 為身分 / 租戶 / 角色 / License 的單一真相源**：
 
-- **IdP**：OAuth2/OIDC 統一發 token，各服務驗 OIDC token。🔶 **R1 已落地（2026-07-10 CR-0141）**：api 雙驗（自簽 HS256 優先＋Casdoor RS256 opt-in，`CASDOOR_*` env 未配置＝零行為變化；claims 映射走 user properties `smartlock_user_id`/`tenant_id`/`smartlock_role`，A2/A3 每請求重查對 OIDC token 同樣生效）；✅ **web 授權碼流 R2 已落地（2026-07-10 CR-0146）**——brand-portal 薄回調參考實作（`/auth/callback` code→token→httpOnly cookie）＋登入頁 SSO 按鈕，live E2E 通過；過渡期 token 雙寫 localStorage，ACT-01 退場＝R3（業主排程）。過渡期各 api 以 JWT HS256 自簽驗證運作（見 §2.2）。
+- **IdP**：OAuth2/OIDC 統一發 token，各服務驗 OIDC token。🔶 **R1 已落地（2026-07-10 CR-0141）**：api 雙驗（自簽 HS256 優先＋Casdoor RS256 opt-in，`CASDOOR_*` env 未配置＝零行為變化；claims 映射走 user properties `smartlock_user_id`/`tenant_id`/`smartlock_role`，A2/A3 每請求重查對 OIDC token 同樣生效）；web 授權碼流＋ACT-01 為 R2。過渡期各 api 以 JWT HS256 自簽驗證運作（見 §2.2）。〔標注 2026-07-10：R2 之授權碼流已落地（CR-0146）——brand-portal 薄回調參考實作（`/auth/callback` code→token→httpOnly cookie）＋登入頁 SSO 按鈕，live E2E 通過；過渡期 token 雙寫 localStorage，ACT-01 退場與三站複製改列 R3（業主排程）〕
 - **租戶（org）**：Casdoor organization = 品牌租戶；租戶 Admin 可自助開通帳號給自己人。🔶 R1：org/7 角色/使用者（bcrypt hash 原樣遷移）冪等同步腳本 `scripts/idp/casdoor_bootstrap.py`，live E2E 實證（真 token→api 驗證器映射全對）。
 - **角色 claim**：Casdoor role/permission 作為角色來源，api 端 resource-level enforce（§3）。
 - **License 開通**：Casdoor application / subscription / pricing 管理品牌授權與到期，作為 per-brand provisioning 的開通閘門（ADR-P005）。
-- **前端登入**：標準 **OIDC 授權碼流**，token 以 httpOnly cookie / 安全儲存 + server 端驗簽。✅ brand-portal 參考實作已落地（2026-07-10 CR-0146，live E2E 通過）；三站複製＋ACT-01 退場＝R3（業主排程）——過渡期 token 雙寫 localStorage，故前端一律不視為安全邊界（§7 T-3）。
+- **前端登入**：標準 **OIDC 授權碼流**，token 以 httpOnly cookie / 安全儲存 + server 端驗簽。🔜 規劃中（Phase 2）——落地前的過渡期 token 儲存於 localStorage，故前端一律不視為安全邊界（§7 T-3）。〔標注 2026-07-10：brand-portal 參考實作已落地（CR-0146，live E2E 通過）；三站複製＋ACT-01 退場＝R3（業主排程），過渡期 token 雙寫 localStorage〕
 - Casdoor 為跨品牌關鍵單點：**HA + 備份**為部署必要條件（`./12_SAD.md` §12 R-01）。
 
 ### 2.2 使用者認證控制（既有控制，api P3/13 §C）
@@ -103,7 +103,7 @@ upstream:
 | `auditor`、`distributor`、`brand_oem` | 未落地；需要時走 ChangeRequest 擴充，不預留矩陣行 |
 | `family_reviewer` | **非登入角色**——家族覆核以事後 event log + 7 日 dispute window 履約（BR-AUDIT-01），不入帳號體系 |
 
-Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR-0130）——授權矩陣刪 6 行 legacy、`ROLE_HIERARCHY`/`RBAC_ADMIN_ROLES`/`FULL_ACCESS_ROLES` 死角色與 legacy 值全面移除；矩陣＝6 個租戶角色＋`line_user` 通道行（共 7 列）；`platform_admin` 不入租戶矩陣，走平台庫獨立帳號池＋獨立守衛（33 條 platform 路由）；殘存死角色 token 不再放行任何守衛。
+Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR-0130）——授權矩陣刪 6 行 legacy、`ROLE_HIERARCHY`/`RBAC_ADMIN_ROLES`/`FULL_ACCESS_ROLES` 死角色與 legacy 值全面移除；矩陣＝7 角色正典＋`line_user` 通道行；殘存死角色 token 不再放行任何守衛。〔標注 2026-07-10 精確化：矩陣實為 6 個租戶角色＋`line_user` 通道行（共 7 列）；`platform_admin` 不入租戶矩陣，走平台庫獨立帳號池＋獨立守衛（33 條 platform 路由）〕
 
 ### 3.2 Enforce 機制
 
@@ -223,7 +223,7 @@ Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR
 | 類別 | 既有控制 | 規劃中 |
 |---|---|---|
 | 定位 | **前端不是安全邊界**——授權真相在後端 `role_required` | — |
-| 認證 | token 刷新（401 → refresh once → 重放）；失敗清 token 導登入 | OIDC 授權碼流 + httpOnly cookie：✅ brand-portal 參考實作（2026-07-10 CR-0146）；三站複製＋ACT-01 退場＝R3 |
+| 認證 | token 刷新（401 → refresh once → 重放）；失敗清 token 導登入 | httpOnly cookie + server 端驗簽 + Next middleware gate（ACT-01，Phase 2）〔標注 2026-07-10：OIDC 授權碼流＋httpOnly cookie 之 brand-portal 參考實作已落地（CR-0146）；三站複製＋ACT-01 退場＝R3〕|
 | 授權 gate（UX）| `/platform/*` deny-by-default（僅 platform_admin）| 全表 catch-all deny-by-default + 漏登記 CI 檢查（ACT-02）|
 | 租戶 | `X-Tenant-ID` header 附帶 | 無有效 tenant 擋下導登入（ACT-03）|
 | 應用 | React JSX 轉義；TS strict；WS/SSE 斷線靜默降級；`UAT_HIDE_FAKE_FLOWS` 隱藏未接通流程 | CSP 等安全 headers（ACT-04）；XSS 注入點稽核 + npm audit gate（ACT-07）；BFF 評估（ACT-05）|

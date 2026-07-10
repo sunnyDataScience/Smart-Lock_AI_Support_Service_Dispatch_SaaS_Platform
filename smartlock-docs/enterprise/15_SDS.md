@@ -371,7 +371,7 @@ agent 為單一 Python 進程（aiohttp），核心引擎 LockCore 採「三層�
 | EscalationStore | `lockcore/agent/user_memory/escalation.py` | 轉真人稽核紀錄（含 facts_snapshot JSON）|
 | SkillsLoader + 2 builtin skills | `lockcore/skills/` | Agent Skills 標準（SKILL.md + references）：`locksmith-product-knowledge`（事實層）+ `locksmith-cs-sop`（行為層，紅線決策樹）|
 
-長尾逐型號事實檢索走 **RAG-via-MCP** 查 pgvector 唯一事實語料（`rag_manual_chunks` / `case_entries`；manual 表原名撞 kb-v2 表，CR-0142 改名自持）；skill 只留行為 + 精選事實（🔜 規劃中，語義層依 agent ADR-004 分階段建置）。filesystem references **永為 agent 主路徑**——cutover 已取消，RAG 引用率轉為輔助品質指標（ADR-030，2026-07-09 業主裁決）。
+長尾逐型號事實檢索走 **RAG-via-MCP** 查 pgvector 唯一事實語料（`rag_manual_chunks` / `case_entries`；manual 表原名撞 kb-v2 表，CR-0142 改名自持）；skill 只留行為 + 精選事實（🔜 規劃中，語義層依 agent ADR-004 分階段建置，filesystem references 於品質 gate 通過前為 fallback）。〔標注 2026-07-10：本句「fallback／cutover」語意已被 ADR-030（2026-07-09 業主裁決）取代——filesystem references 永為 agent 主路徑、cutover 取消、RAG 引用率轉輔助品質指標〕
 
 ### 5.2 Turn 狀態機
 
@@ -612,7 +612,7 @@ License 開通的附加系統（集中共用，非 per-brand bundle）：長駐�
 | 提煉分流器 | LLM 依第一性原則分流：「定義 agent 怎麼行為」→ 行為/精選；「被查找的事實」→ 事實 |
 | Draft Queue | 提煉產物落地前的審核佇列（事實 draft + provenance；行為 draft + diff vs 既有 skill）。落地＝品牌庫 `knowledge_drafts` 表（migration 094，CR-0139 D2）：兩軌分流 + `UNIQUE(tenant_id, draft_key)` 冪等 + 狀態機欄 |
 | 審核 UI backend | draft 狀態機（§9.2）+ diff 呈現；與 AI Onboarding Compiler 共用 HITL 審核骨架（ADR-P011 孿生）|
-| Publisher | 核可後才落地：事實 → `embed()`（與 rag 共用 `RAG_EMBED_MODEL` env，預設 `vertex_ai/text-multilingual-embedding-002`，768 維；CR-0124 勘誤：text-embedding-004 對中文短文本退化，CR-0140 D3 一致性裁決，2026-07-10）chunk+embed 灌 pgvector `rag_manual_chunks` / `case_entries`（帶 tenant/brand 過濾欄）；行為 → 核可產 patch artifact → `apply_behavior` CLI 落檔 `agent/lockcore/skills/locksmith-cs-sop/references/refined/`（append-only 新檔，人審 git commit；非直接寫 `{Brand}/{Model}.md` + SKILL.md——CR-0140 D5，2026-07-10：服務容器無 skills 檔案系統）|
+| Publisher | 核可後才落地：事實 → `embed()`（text-embedding-004，768 維）chunk+embed 灌 pgvector `rag_manual_chunks` / `case_entries`（帶 tenant/brand 過濾欄）；行為 → append-only git 寫入 lockcore `references/{Brand}/{Model}.md` + SKILL.md 〔標注 2026-07-10 落地實況：①embed 模型＝與 rag 共用 `RAG_EMBED_MODEL` env，預設 `vertex_ai/text-multilingual-embedding-002`（CR-0124 勘誤：004 對中文短文本退化；CR-0140 D3）；②行為軌＝核可產 patch artifact → `apply_behavior` CLI 落檔 `locksmith-cs-sop/references/refined/`（append-only 新檔、人審 git commit），非直接寫 {Brand}/{Model}.md＋SKILL.md（CR-0140 D5：服務容器無 skills 檔案系統）〕|
 
 `rag_manual_chunks`（rag 擁有）/ `case_entries`（api 資料層擁有，095 併形）的 schema 各歸其主；本系統僅為寫入方。
 
@@ -630,7 +630,7 @@ draft → pending → approved（Publisher 落地）
 
 **診斷 → 精煉 → 審核 → 落地**：素材 + 診斷對話 → raw_to_bronze → bronze（★ sourcing 真相源）→ bronze_to_silver（Python 覆寫 provenance）→ 提煉分流（事實 / 行為）→ Draft Queue → 審核者（Casdoor OIDC）看 diff → 核可（事實）→ embed → 灌 pgvector；核可（行為）→ append-only 更新 skill；退回 → re-refine；拒絕 → 留 audit。下游：agent 經 RAG-via-MCP 查語料 + 載入 skill；api 後台查同一份語料（唯一事實語料，單一真相）。
 
-**Bronze-only Sourcing（不變鐵律）**：知識內容嚴格源自 bronze 層（YouTube 字幕 / website / video transcript）；**PDF（GDrive）不可信——只引 URL、不抄內容**。治理落點依軌分工：Python 覆寫 provenance；**素材軌**的 bronze 白名單校驗由 knowledge-pipeline 的 `audit_corpus` gate 把關（ADR-029 決策 4，2026-07-09）；refinery **對話軌** draft 溯源則強制綁 `problem_card` provenance（非 bronze）；CI 做 references ↔ pgvector 同源檢查。
+**Bronze-only Sourcing（不變鐵律）**：知識內容嚴格源自 bronze 層（YouTube 字幕 / website / video transcript）；**PDF（GDrive）不可信——只引 URL、不抄內容**。治理落點：Python 覆寫 provenance、Publisher 灌注前校驗 draft `source` 屬 bronze 白名單、CI 做 references ↔ pgvector 同源檢查。〔標注 2026-07-10 落地實況：bronze 白名單校驗依軌分工——素材軌由 knowledge-pipeline 的 `audit_corpus` gate 把關（ADR-029 決策 4）；refinery 對話軌 draft 溯源＝強制綁 `problem_card` provenance（非 bronze），Publisher 端未另設 bronze 校驗〕
 
 ---
 
