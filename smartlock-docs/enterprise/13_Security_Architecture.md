@@ -38,8 +38,8 @@ upstream:
 
 **Casdoor 為身分 / 租戶 / 角色 / License 的單一真相源**：
 
-- **IdP**：OAuth2/OIDC 統一發 token，各服務驗 OIDC token。🔜 規劃中（Phase 2）——導入前過渡期各 api 以 JWT HS256 自簽驗證運作（見 §2.2）。
-- **租戶（org）**：Casdoor organization = 品牌租戶；租戶 Admin 可自助開通帳號給自己人。
+- **IdP**：OAuth2/OIDC 統一發 token，各服務驗 OIDC token。🔶 **R1 已落地（2026-07-10 CR-0141）**：api 雙驗（自簽 HS256 優先＋Casdoor RS256 opt-in，`CASDOOR_*` env 未配置＝零行為變化；claims 映射走 user properties `smartlock_user_id`/`tenant_id`/`smartlock_role`，A2/A3 每請求重查對 OIDC token 同樣生效）；web 授權碼流＋ACT-01 為 R2。過渡期各 api 以 JWT HS256 自簽驗證運作（見 §2.2）。
+- **租戶（org）**：Casdoor organization = 品牌租戶；租戶 Admin 可自助開通帳號給自己人。🔶 R1：org/7 角色/使用者（bcrypt hash 原樣遷移）冪等同步腳本 `scripts/idp/casdoor_bootstrap.py`，live E2E 實證（真 token→api 驗證器映射全對）。
 - **角色 claim**：Casdoor role/permission 作為角色來源，api 端 resource-level enforce（§3）。
 - **License 開通**：Casdoor application / subscription / pricing 管理品牌授權與到期，作為 per-brand provisioning 的開通閘門（ADR-P005）。
 - **前端登入**：標準 **OIDC 授權碼流**，token 以 httpOnly cookie / 安全儲存 + server 端驗簽。🔜 規劃中（Phase 2）——落地前的過渡期 token 儲存於 localStorage，故前端一律不視為安全邊界（§7 T-3）。

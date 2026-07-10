@@ -38,10 +38,10 @@ REFINERY_TENANT_ID=<uuid> POSTGRES_URI=postgresql://... \
 ## 審核服務(2.3.2)
 
 ```bash
-# 本機直跑(UI 在 http://localhost:8002)
+# 本機直跑(UI 在 http://localhost:8004)
 REFINERY_TENANT_ID=<uuid> POSTGRES_URI=... API_JWT_SECRET_KEY=... \
   LOCK_API_BASE_URL=http://localhost:8001 \
-  uv run uvicorn refinery.service:app --port 8002
+  uv run uvicorn refinery.service:app --port 8004
 
 # compose(License 附加,profile 隔離;於 web/brand-portal/)
 docker compose --profile refinery up -d refinery

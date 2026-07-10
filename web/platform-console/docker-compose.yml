@@ -100,6 +100,42 @@ services:
       - "${PLATFORM_WEB_PORT:-3003}:8080"
     restart: unless-stopped
 
+  # ── Casdoor 統一 IdP(WBS 2.1.1/CR-0141/ADR-004;集中共用元件,ADR-002)──
+  # profile 隔離:平時 up 不啟動。啟用:
+  #   docker compose -f docker-compose.platform.yml --profile idp up -d casdoor
+  # 首次啟動後跑 bootstrap 同步 org/角色/使用者:
+  #   uv run python scripts/idp/casdoor_bootstrap.py --help
+  # ⚠ 內建 admin 密碼(admin/123)僅限本機;prod 必換 + HA/備份(13_Security L46)。
+  casdoor-db:
+    image: pgvector/pgvector:pg17
+    profiles: ["idp"]
+    environment:
+      POSTGRES_USER: lock
+      POSTGRES_PASSWORD: "0000"     # 與 infra/casdoor/app.conf dataSourceName 對齊(僅本機)
+      POSTGRES_DB: casdoor
+    ports:
+      - "${CASDOOR_DB_PORT:-5436}:5432"
+    volumes:
+      - casdoor_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lock -d casdoor"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  casdoor:
+    image: casbin/casdoor:latest    # prod 部署時 pin 版本
+    profiles: ["idp"]
+    ports:
+      - "${CASDOOR_PORT:-8005}:8000"
+    volumes:
+      - ../../infra/casdoor/app.conf:/conf/app.conf:ro
+    depends_on:
+      casdoor-db:
+        condition: service_healthy
+    restart: unless-stopped
+
 networks:
   default:
     # 加入派工方 stack 的 network(該 stack 先起)以解析 `db` 與 `tech-db`。
@@ -109,6 +145,8 @@ networks:
 volumes:
   platform_pgdata:
     name: lock-platform-pgdata
+  casdoor_pgdata:
+    name: lock-platform-casdoor-pgdata
   media:
     # 與派工/tech stack 共用同一顆(dispatch compose 建立並擁有)。
     # external:必標 —— 否則本 stack `down -v` 會把整顆品牌媒體(工單照片/

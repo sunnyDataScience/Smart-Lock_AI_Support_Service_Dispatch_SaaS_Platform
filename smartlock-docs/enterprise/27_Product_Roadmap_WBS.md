@@ -104,7 +104,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 
 | WBS | 狀態 | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
 |---|---|---|---|---|---|
-| 2.1.1 | ⬜ | Casdoor 統一 IdP：org（租戶）/ OIDC 授權碼流 / License 訂閱管理 | BE+OPS | M1 | ADR-004（Casdoor）；web token 改 httpOnly（ACT-01）|
+| 2.1.1 | 🔶 R1 ✅ 2026-07-10（CR-0141：Casdoor 部署 profile idp＋org/角色/users bcrypt 遷移同步＋api OIDC 雙驗 opt-in＋cookie 地基；live E2E 實證；api 1729 綠。**R2 待做：四站授權碼流＋ACT-01 localStorage 退場**；License gate 依 ADR-004 隨 ADR-002） | Casdoor 統一 IdP：org（租戶）/ OIDC 授權碼流 / License 訂閱管理 | BE+OPS | M1 | ADR-004（Casdoor）；web token 改 httpOnly（ACT-01）|
 | 2.1.2 | ⬜ | 租戶自助開帳：員工申請 tab + Admin 審核指派（4 角色）+ SoD 雙簽 | FE+BE | 2.1.1 | 13_Security §3.1 開通權矩陣 |
 | 2.2.1 | ✅ 2026-07-09（CR-0124/0125，提前於 M1 期完成） | RAG 語義層：`embed()` + pgvector 語料 + MCP server | AG+DT | — | agent ADR-004；FR-A03 / FR-AGT-07 |
 | 2.2.2 | 🔶 語料灌注 ✅（references 249 chunk）；Skill 重切與引用率 ≥90% gate 依 ADR-030 取消/轉輔助指標——驗收待依 ADR-030 重定義 | 語料灌注：型號事實 chunk 遷移 + Skill 重切（行為留 skill、事實入 RAG）| AG | 2.2.1 | RAG 引用率 ≥ 90% 品質 gate |

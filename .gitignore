@@ -90,3 +90,6 @@ cloud-sql-proxy
 
 # 會議資料歸檔（本機留存，不進版控；0707 決議根目錄雜物清理）
 /meetings/
+
+# Casdoor 本機實例匯出的驗簽公鑰(每套安裝不同,由 bootstrap 腳本產生)
+infra/casdoor/casdoor_cert.pem

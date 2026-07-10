@@ -129,7 +129,8 @@ services:
       dockerfile: refinery/Dockerfile
     profiles: ["refinery"]
     ports:
-      - "${REFINERY_PORT:-8002}:8080"
+      # 8004:8002 已被師傅 stack tech-api 占用(埠位表見 docker-compose.platform.yml 檔頭)
+      - "${REFINERY_PORT:-8004}:8080"
     env_file:
       - .env                      # API_JWT_SECRET_KEY（與 api 同 secret 共驗）
     environment:

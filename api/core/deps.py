@@ -11,6 +11,7 @@ from fastapi import Depends, Header, Request
 
 from core.auth import decode_token, is_jti_revoked, load_user_security_state
 from core.errors import ApiError
+from core.oidc import OIDCError, oidc_enabled, verify_oidc_token
 from core.tenant import resolve_tenant_id
 
 logger = logging.getLogger("api.deps")
@@ -25,22 +26,51 @@ class CurrentUser:
     token_type: str
 
 
-def _extract_bearer(authorization: str | None) -> str:
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise ApiError(
-            error_code="UNAUTHENTICATED",
-            message="Missing or invalid Authorization header",
-            status_code=401,
-        )
-    return authorization.split(" ", 1)[1].strip()
+# ACT-01 地基(CR-0141 D5):R2 薄回調 handler 會把 token 寫進 httpOnly cookie;
+# 無 Authorization header 時退回讀此 cookie。CSRF 緩解:SameSite=Lax +
+# tenant-scoped 端點強制 X-Tenant-ID 自訂 header(必觸發 CORS preflight)。
+_ACCESS_TOKEN_COOKIE = "smartlock_access_token"
+
+
+def _extract_bearer(authorization: str | None, request: Request | None = None) -> str:
+    if authorization and authorization.lower().startswith("bearer "):
+        return authorization.split(" ", 1)[1].strip()
+    if request is not None:
+        cookie_token = request.cookies.get(_ACCESS_TOKEN_COOKIE, "").strip()
+        if cookie_token:
+            return cookie_token
+    raise ApiError(
+        error_code="UNAUTHENTICATED",
+        message="Missing or invalid Authorization header",
+        status_code=401,
+    )
+
+
+def _decode_any_token(token: str) -> dict:
+    """自簽 HS256 優先;失敗且 OIDC 已配置(CASDOOR_*)→ 驗 Casdoor RS256(CR-0141 D3)。
+
+    OIDC payload 已由 core.oidc 正規化為同形 dict(sub=users.id 映射),
+    下游 jti 撤銷/A2/A3 重查/role_required 零改動。
+    """
+    try:
+        return decode_token(token)
+    except Exception:
+        if not oidc_enabled():
+            raise
+        try:
+            return verify_oidc_token(token)
+        except OIDCError as e:
+            logger.debug("OIDC 驗證失敗: %s", e)
+            raise
 
 
 async def get_current_user(
+    request: Request,
     authorization: str | None = Header(default=None, alias="Authorization"),
 ) -> CurrentUser:
-    token = _extract_bearer(authorization)
+    token = _extract_bearer(authorization, request)
     try:
-        payload = decode_token(token)
+        payload = _decode_any_token(token)
     except Exception:
         raise ApiError(
             error_code="UNAUTHENTICATED",
@@ -107,7 +137,7 @@ async def require_tenant(
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
 ) -> CurrentUser:
     """同時驗 JWT + 比對 X-Tenant-ID 與 claim 一致。"""
-    user = await get_current_user(authorization)
+    user = await get_current_user(request, authorization)
     tenant = await resolve_tenant_id(x_tenant_id)
     if user.tenant_id and user.tenant_id != tenant:
         raise ApiError(
@@ -129,6 +159,7 @@ async def require_admin(user: CurrentUser) -> CurrentUser:
 
 
 async def require_platform_admin(
+    request: Request,
     authorization: str | None = Header(default=None, alias="Authorization"),
 ) -> CurrentUser:
     """平台方 console 專用守衛（CR-0114）。
@@ -138,7 +169,7 @@ async def require_platform_admin(
     （FULL_ACCESS/OPS/DISPATCH…），品牌 token 打平台端點、平台 token 打
     品牌端點皆 deny-by-default。
     """
-    user = await get_current_user(authorization)
+    user = await get_current_user(request, authorization)
     if user.role != "platform_admin":
         raise ApiError(
             error_code="FORBIDDEN",
@@ -318,6 +349,7 @@ async def require_internal_token(
 
 
 async def require_keeper_role(
+    request: Request,
     authorization: str | None = Header(default=None, alias="Authorization"),
     x_keeper_role: str | None = Header(default=None, alias="X-Keeper-Role"),
 ) -> CurrentUser:
@@ -331,7 +363,7 @@ async def require_keeper_role(
     flat path（/vouchers/{id}/void）不做 tenant 綁定；keeper 可跨租戶操作，
     voucher 自帶 tenant_id 做隔離。
     """
-    user = await get_current_user(authorization)
+    user = await get_current_user(request, authorization)
     if not x_keeper_role:
         raise ApiError(
             error_code="KEEPER_ROLE_REQUIRED",
