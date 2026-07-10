@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **agent／refinery／web OTel＋agent OPIK 埋點（branch `feat/otel-rollout`，2026-07-10，CIA CR-0156／ADR-007 補課）**：架構稽核 #4 查實三系統零埋點且被誤標「部署面」。全數照 api 範式（opt-in／no-op 預設／初始化失敗降級／**PII scrub 同源複製**）：agent＝`lockcore/observability.py`＋`line.webhook`/`agent.turn` span（薄包裝，原邏輯零改動）＋**OPIK opt-in**（OPIK_API_KEY 設定時掛 litellm callback，LLM call 追蹤）；refinery＝FastAPI 自動埋點；web＝brand-portal `instrumentation.ts`＋@vercel/otel **參考實作**（Next 15 hook，token 實查走 header 不入 URL；三站複製後續輪）。驗證：agent 186（＋11）／refinery 14／brand-portal tsc＋build＋vitest 6＋standalone 含 instrumentation 全綠。殘＝SigNoz 叢集與 secrets（OPS）。
+
 - **改約／範圍變更 LINE postback 轉發橋（branch `feat/line-ops-postback-bridge`，2026-07-10，CIA CR-0155／ADR-011 缺口）**：LINE 單一 webhook 指向 agent gateway，api 端 CR-0017 handler（r:c／r:r／s:a／s:r，CAS 冪等＋推播確認）早已完整但 postback 到不了——gateway 現對 ops postback **原封轉發 body＋X-Line-Signature** 至 `/api/v1/line/webhook`（api 同 secret 重驗簽，零重複業務邏輯）；成功靜默（api 推確認避免雙訊息）、失敗友善話術 fail-soft。q:* 報價旁路不變。**同輪立案 CR-0154（DB 連線池 CIA）**：盤點 660 呼叫點＋交易綁定連線（FOR UPDATE），🛑 設計裁決待業主（A. request-scoped ContextVar 池／B. pgbouncer／C. 降級），不硬上。驗證：新測試 4＋agent 全套 175 綠。遺留：binding postback、live LINE 實測隨 UAT。
 
 - **三庫 URI 啟動守衛（branch `feat/db-uri-strict-guard`，2026-07-10，CIA CR-0153／ADR-020 補課）**：`DB_URI_STRICT=1`（opt-in）時依 API_SURFACE 斷言必要庫 URI——漏設 RuntimeError 拒啟，不得靜默 fallback 單庫；prod deploy 腳本與三站 compose 一律帶上；**預設關閉**保 pytest／本機單庫 fallback 語意（收斂 ADR-020「須有」vs 附註「規劃中」的自相矛盾）。驗證：新測試 4＋unit 347＋main import＋compose YAML／腳本語法全過。

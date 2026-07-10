@@ -3,7 +3,7 @@ title: "ADR-007: 可觀測性分層（SigNoz 系統監控 + OPIK Agent LLM Ops�
 version: 1.0
 status: active
 owner: 平台架構團隊
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P002_SigNoz_單一可觀測性平台.md
 ---
@@ -53,3 +53,4 @@ upstream:
 ## Status 附註
 
 - 🔜 規劃中：SigNoz 部署（跨品牌集中共用元件）與四系統 OTel 接入；agent OPIK 接線 + dev 開 / prod 關旗標。
+- **2026-07-10 落地（CR-0156）**：四系統 OTel 接入 code 面完成——api（CR-0136＋PII scrub）、agent（lockcore/observability.py＋line.webhook／agent.turn span）、refinery（FastAPI 自動埋點）、web（brand-portal instrumentation.ts＋@vercel/otel 參考實作，三站複製後續輪）；**agent OPIK 已接**（OPIK_API_KEY opt-in，litellm callback 法）。全部 opt-in／no-op 預設／PII 遮蔽。殘＝SigNoz 叢集部署與 secrets 配置（OPS）。

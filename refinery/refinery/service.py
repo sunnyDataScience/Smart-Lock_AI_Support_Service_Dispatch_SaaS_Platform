@@ -10,6 +10,7 @@ interim auth(Casdoor OIDC 隨 2.1.1 替換,CIA 記遺留):
        uv run uvicorn refinery.service:app --port 8002
 """
 
+import logging
 import os
 from pathlib import Path
 
@@ -25,6 +26,15 @@ _REVIEW_ROLES = {"admin", "operations_manager", "reviewer"}
 _STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
 app = FastAPI(title="knowledge-refinery 審核服務", version="0.2.0")
+
+# ── 可觀測性(CR-0156/ADR-007:opt-in,env 未設=no-op;任何失敗不可癱瘓服務) ──
+try:
+    from .observability import setup_observability
+
+    setup_observability(app, service_name="knowledge-refinery")
+except Exception:  # noqa: BLE001 — 防禦性:觀測層掛掉服務照常啟動
+    logging.getLogger("refinery.service").exception(
+        "observability 初始化失敗 → 降級略過(服務照常啟動)")
 
 
 # ── auth ─────────────────────────────────────────────────────────────────────
