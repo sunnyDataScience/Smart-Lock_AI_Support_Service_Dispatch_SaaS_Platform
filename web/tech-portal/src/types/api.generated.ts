@@ -2785,6 +2785,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenants/{tenantId}/work-orders/{workOrderId}/requote-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 現場報價修正 browser 入口(技師本人;後台角色=cs_fallback 降級) */
+        post: operations["submitRequoteRequestAsTech"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/inventory/items": {
         parameters: {
             query?: never;
@@ -10644,6 +10661,15 @@ export interface components {
          * @enum {string}
          */
         TaxType: "taxable" | "zero_rated" | "exempt";
+        /** TechRequoteBody */
+        TechRequoteBody: {
+            /** Reason */
+            reason: string;
+            /** Item Diffs */
+            item_diffs?: unknown[];
+            /** Request Id */
+            request_id?: string | null;
+        };
         /** Technician */
         Technician: {
             /**
@@ -19466,6 +19492,48 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["RequoteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submitRequoteRequestAsTech: {
+        parameters: {
+            query?: never;
+            header?: {
+                "Idempotency-Key"?: string | null;
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                workOrderId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TechRequoteBody"];
             };
         };
         responses: {

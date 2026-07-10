@@ -131,3 +131,46 @@ async def test_internal_token_required_and_cs_fallback_audit(client, monkeypatch
         assert r.json()["data"]["initiated_via"] == "cs_fallback"
     finally:
         await _cleanup(wid)
+
+
+# ── browser 入口(technician 本人/cs_fallback 代發起,CR-0144 續) ─────────────
+
+SEED_TECH_USER = "66666666-aaaa-4aaa-aaaa-aaaaaaaaaa01"  # technicians.sql 對應 users 列
+
+
+def _bearer(user_id: str, role: str) -> dict:
+    from tests.conftest import _make_token
+    return {"Authorization": f"Bearer {_make_token(user_id=user_id, role=role)}",
+            "X-Tenant-ID": TID, "Idempotency-Key": f"ik-{uuid.uuid4().hex[:10]}"}
+
+
+@pytest.mark.asyncio
+async def test_tech_browser_entry_and_cs_fallback(client, monkeypatch):
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "test-internal-token")
+    wid, _ = await _mk_wo()
+    try:
+        url = f"/tenants/{TID}/work-orders/{wid}/requote-requests"
+        # 技師本人(seed 技師的 users 列)
+        r = await client.post(url, json={"reason": "scope_add",
+                                         "item_diffs": [{"item": "鎖芯", "quantity": 1}]},
+                              headers=_bearer(SEED_TECH_USER, "technician"))
+        assert r.status_code == 201, r.text
+        assert r.json()["data"]["initiated_via"] == "technician_command"
+    finally:
+        await _cleanup(wid)
+
+    wid2, _ = await _mk_wo()
+    try:
+        url = f"/tenants/{TID}/work-orders/{wid2}/requote-requests"
+        # 後台客服代發起 → cs_fallback 降級標記
+        r = await client.post(url, json={"reason": "estimate_error", "item_diffs": []},
+                              headers=_bearer(str(uuid.uuid4()), "customer_service"))
+        assert r.status_code == 201, r.text
+        assert r.json()["data"]["initiated_via"] == "cs_fallback"
+
+        # vendor 不可打(TECH_ACTION 白名單外)
+        r = await client.post(url, json={"reason": "scope_add", "item_diffs": []},
+                              headers=_bearer(str(uuid.uuid4()), "vendor"))
+        assert r.status_code == 403
+    finally:
+        await _cleanup(wid2)

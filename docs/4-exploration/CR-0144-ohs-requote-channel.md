@@ -26,4 +26,5 @@
 ### 進度
 
 - ✅ 通道 done(2026-07-10,branch `feat/ohs-requote-channel`):migration 097+REGISTRY;requote_service(assignee/狀態 403、request_id 冪等回放 200、同單 open 409、v+1 supersedes 串鏈——欄位首次真正寫入、cs_fallback 降級標記、audit);/internal/requote-requests(require_internal_token,對齊 16_API:391);測試 4/4(TC-DISPATCH-07 核心)。types 重生
-- 遺留:技師端 UI 發起入口(tech-scoped wrapper——browser 不可持 internal token)+ 既有 scope-change 自填單價頁退場(與 ADR-027 相悖,待業主);多品牌 tenant 路由表隨 AI-2/AI-3(ADR-016 完整形態,業主 0703 裁決)
+- ✅ UI 入口 done(同輪續):browser 端點 `/tenants/{tid}/work-orders/{woId}/requote-requests`(TECH_ACTION 白名單;technician=本人發起、後台角色=cs_fallback 降級代發起);**scope-change 舊頁原地改造**為 requote 表單(移除自填單價——ADR-027 tier-1 正典直接落地,退場議題就地解決);測試 5/5;types 重生;tech/brand tsc 0
+- 遺留:多品牌 tenant 路由表隨 AI-2/AI-3(ADR-016 完整形態,業主 0703 裁決)
