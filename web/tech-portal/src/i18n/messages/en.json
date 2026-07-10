@@ -2475,7 +2475,17 @@
       "tabRegister": "Register",
       "brandEntryLink": "I am a brand / distributor / shop →",
       "noAccount": "No account yet?",
-      "applyLink": "Apply as technician →"
+      "applyLink": "Apply as technician →",
+      "entrySubtitle": "Sign in to see your dispatched jobs and order progress",
+      "heroTitle": "Take jobs, report on site, get paid — all from your phone",
+      "heroSubtitle": "Join the Smart Lock service network and get work orders dispatched straight to you; on-site progress updates, quote revisions and monthly statements are all handled online.",
+      "heroFeature1Title": "Job Pool & Dispatch",
+      "heroFeature1Desc": "Grab jobs from the pool or get assigned, with instant notifications",
+      "heroFeature2Title": "On-site Reporting",
+      "heroFeature2Desc": "Progress updates, completion photos and quote revisions on the spot",
+      "heroFeature3Title": "Earnings & Statements",
+      "heroFeature3Desc": "Monthly statements for completed orders keep your income clear",
+      "heroFootnote": "© 2026 Smart Lock — Technician workspace"
     },
     "pool": {
       "title": "Order pool",
