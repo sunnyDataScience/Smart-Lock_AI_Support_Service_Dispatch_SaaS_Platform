@@ -3,7 +3,7 @@ title: "ADR-004: Casdoor 統一 IdP + 租戶 + License 授權"
 version: 1.0
 status: active
 owner: 平台架構團隊
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P003_Casdoor_統一IdP_租戶_License.md
 ---
@@ -47,3 +47,4 @@ upstream:
 ## Status 附註
 
 - 🔜 規劃中：各服務 OIDC 接入的分期上線（品牌 org + 角色映射先行，License-gated provisioning 隨 [ADR-002](./ADR-002_per-brand授權部署.md) 落地）。
+- R1 已落地 2026-07-10 CR-0141（部署 profile `idp`＋bootstrap 冪等同步＋api OIDC 雙驗）；R2 已落地 CR-0146（brand-portal 授權碼流參考實作）；R3＝ACT-01 退場＋三站複製＋prod HA/密碼換發，業主排程。

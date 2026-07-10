@@ -3,7 +3,7 @@ title: 測試計畫（Test Plan）
 version: 1.0
 status: active
 owner: QA Lead
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P1/05_platform_architecture_L1.md
   - smartlock-docs/00_platform/P2/09_integration_data_flow.md
@@ -84,7 +84,7 @@ upstream:
 |---|---|---|---|
 | agent | `cd agent && pytest`（`agent/tests/`，含 `test_e2e_mock_turn.py` / `test_skills_loaded.py` / `test_tool_allowlist.py` / `test_litellm_provider.py` / `test_line_gateway.py` / `test_memory.py`）| — | 主測試入口 |
 | api | `cd api && uv run pytest -m unit`（PR gate）；`-m component`（需 live DB + 全 migration）| — | component 套件排 nightly |
-| web | TypeScript strict + lint | `cd web && npx playwright test`（`web/tests/e2e/`）| Playwright 為唯一 E2E 框架 |
+| web | TypeScript strict + lint | `cd web/<站台> && npx playwright test`（`web/<站台>/tests/e2e/`，四站拆分後各自持有，ADR-028）| Playwright 為唯一 E2E 框架 |
 | data-pipeline | pytest（migration 冪等 / drift 驗證）| — | drift-check 進 CI 為 P0 行動項 |
 | technician-platform / knowledge-refinery | pytest + 契約測試 | Playwright（師傅 web / 審核 UI）| 🔜 規劃中隨系統獨立部署補齊 |
 
@@ -121,7 +121,7 @@ upstream:
 4. **PII 匿名化管線**：Extract（唯讀快照）→ Anonymize（姓名/電話/地址/LINE id/簽名全替換）→ Scrub（照片 OCR 偵測證件/車牌/門牌後模糊化）→ Validate（re-scan 零 PII）→ Store（匿名 fixture 入 git + audit 紀錄）。
 5. **Failure injection**：webhook 重送、LLM timeout、DB 連線抖動、Kafka consumer lag、quote 過期 cron 等失效情境各配 fixture（比例目標：每一 P0 happy path 至少配 1 個 failure 案例）。
 6. **Eval 題庫**：AI 準確率標準題 50 + OOD 20 + 對抗 10；負面情緒 labeled 100 + 反諷 20；**Forbidden 200 題**（final_quote 40 / discount 30 / warranty_free 30 / legal_safety 30 / cross_tenant 30 / image_moderation 20 / other 20）+ 20 題同義改寫抗過擬合。每 sprint 增 ≥10 題輪換。
-7. **知識來源治理**：產品知識 references 嚴格源自 `data/storage/bronze/`；PDF 來源只引 URL 不抄內容（測試含 provenance 驗證）。
+7. **知識來源治理**：產品知識 references 嚴格源自 `knowledge-pipeline/storage/bronze/`（原 `data/storage/bronze/`，2026-07-09 ADR-029 改名）；PDF 來源只引 URL 不抄內容（測試含 provenance 驗證）。
 
 ## 7. 品質門禁與覆蓋率目標
 

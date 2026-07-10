@@ -3,7 +3,7 @@ title: "ADR-003: 平台工程治理排程（migration 防漂移・API 版本收�
 version: 1.0
 status: active
 owner: 平台架構團隊
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P012_執行債清償排程_cutover_migration_CD.md
 ---
@@ -61,3 +61,4 @@ upstream:
 ## Status 附註
 
 - 🔜 排程中三項皆未完成；近期低風險先行：drift-check、基礎 CD；跨 sprint：v1 caller 遷移、provisioning 自動化。
+- 2026-07-10 CR-0145：凍結 gate 已 enforce（`scripts/ci/v1-freeze-check.py`＋baseline 195 ops＋CI workflow，新增即紅）；migration drift-check 已落地；v1 caller 盤點完成——遷移/移除的三項待決（auth 定位／platform v2 平面／5-gate 名實）見 CR-0145 §8。

@@ -3,7 +3,7 @@ title: "ADR-024: web 為 client SPA（無 BFF）+ React Context 狀態 + OIDC �
 version: 1.0
 status: active
 owner: web 系統 tech lead
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/web/P2/04_adr/ADR-002_純React_Context_不用狀態管理庫.md
   - smartlock-docs/web/P2/04_adr/ADR-003_瀏覽器直連後端_無BFF_client_SPA.md
@@ -66,3 +66,4 @@ web 是後台營運系統（非 SEO 導向），需要決定三件事：(1) 前�
 ## Status 附註
 
 - 🔜 規劃中：OIDC 授權碼流 + httpOnly cookie 接線（隨 Casdoor 部署，[ADR-004](./ADR-004_Casdoor統一IdP租戶License.md)）；`lib/cache.ts` 與 401 refresh 單元測試。
+- brand-portal 薄回調參考實作已落地 2026-07-10 CR-0146（httpOnly cookie＋SameSite=Lax）；過渡期 localStorage 雙寫（既有 30+ 頁同步依賴），退場＝ACT-01 R3 業主排程。

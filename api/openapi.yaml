@@ -1,8 +1,15 @@
 openapi: 3.1.0
 info:
   title: Smart Lock SaaS Platform API
-  version: 2.3.0
+  version: 2.4.0
   description: |
+    v2.4.0 (2026-07-10): M2 契約銷案（實作已落地、契約補登）per CR-0143 / CR-0144.
+    - New /tenants/{tenantId}/role-assignments 4 端點（SoD 雙簽 propose/list/:approve/:reject）
+      per CR-0143 (2026-07-10)（13_Security §3.1 / saas.role_assignment）
+    - New /internal/requote-requests + /tenants/{tenantId}/work-orders/{workOrderId}/requote-requests
+      per CR-0144 (2026-07-10) / ADR-027（OHS 現場報價修正 command——技師只提交 diff 不定價）
+    - New internalToken security scheme（X-Internal-Token）; 8 new error codes
+
     v2.3.0 (2026-05-26): Quote / Pricing API cascade per Forum-Lite Q01 (2026-05-26-Q01).
     - New /pricing/calculate + /quotes/* (8 endpoints) per ADR-0062 ~ 0066
     - WorkOrderCreate.quote_id (with emergency carve-out per ADR-0066)
@@ -125,6 +132,8 @@ tags:
   - name: M10 Inventory  # FR-0007 per-tenant 庫存狀態機 v2 (CR-0004 §8 / ADR-0052 / ADR-0053)
   - name: M11 Pricing Rules  # Track B S4: tenant-scoped Pricing Rules CRUD v2 (CR-0004 §8 C3 / ADR-0046)
   - name: M09 Data Corrections  # Track B S5: tenant-scoped DataCorrections review queue v2 (CR-0004 §8 / ADR-0029 / ADR-0030)
+  - name: M17 Role Assignments  # M2: SoD 雙簽角色指派 propose/list/approve/reject (CR-0143 2026-07-10 / 13_Security §3.1)
+  - name: Requote  # M2: OHS 現場報價修正 command internal + browser 入口 (CR-0144 2026-07-10 / ADR-027)
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -4343,6 +4352,265 @@ paths:
           description: VALIDATION_ERROR — 問題卡缺少 brand/model/symptom，無法建構查詢
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
+  # --- M17 Role Assignments — SoD 雙簽角色指派 (CR-0143, 2026-07-10) ---
+  /tenants/{tenantId}/role-assignments:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    post:
+      tags: ['M17 Role Assignments']
+      summary: 提案角色變更（SoD step-1；提案人=當前 admin）
+      operationId: proposeRoleAssignment
+      description: |
+        建立 status='proposed' 提案（saas.role_assignment）。guard：role_required(admin)
+        ＋ path tenantId 與 token tenant 比對（403 TENANT_MISMATCH）。
+        驗證：to_role 屬合法角色白名單（否則 404）；can_grant 階層強制
+        （403 RBAC_HIERARCHY_VIOLATION）；同 target user 已有未結提案
+        （proposed/approved 未 apply）→ 409 STATE_CONFLICT。
+        初次開帳的角色指派（員工申請核准/Admin 直建）不經此流程——SoD 管的是
+        既有帳號的角色變更（解讀記 CR-0143 §8-1）。
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleAssignmentProposeRequest' }
+      responses:
+        '201':
+          description: 已建立提案（status=proposed）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleAssignmentEnvelope' }
+        '403':
+          description: FORBIDDEN（非 admin）/ TENANT_MISMATCH / RBAC_HIERARCHY_VIOLATION
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — target user 不存在或 to_role 不合法
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 同 target user 已有未結提案
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '503':
+          description: DB_UNAVAILABLE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    get:
+      tags: ['M17 Role Assignments']
+      summary: 角色變更提案清單（?status=proposed 為待核佇列）
+      operationId: listRoleAssignments
+      description: |
+        審核佇列/歷史查詢（proposed_at 倒序，上限 100）。guard 同 propose
+        （role_required(admin) ＋ tenant 比對）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string }
+          description: 過濾狀態：proposed / approved / applied / rejected / cancelled（空 = 全部）
+      responses:
+        '200':
+          description: OK — 提案清單（時間倒序）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleAssignmentListEnvelope' }
+        '403':
+          description: FORBIDDEN（非 admin）/ TENANT_MISMATCH
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '503':
+          description: DB_UNAVAILABLE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/role-assignments/{assignmentId}:approve:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: assignmentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: 角色變更提案 UUID（saas.role_assignment）
+    post:
+      tags: ['M17 Role Assignments']
+      summary: 核准並套用（SoD step-2+3；核准人≠提案人否則 403）
+      operationId: approveRoleAssignment
+      description: |
+        SoD 核心：approver ≠ proposer，違反回 403 SOD_VIOLATION_RBAC
+        （service 層 + DB role_assign_dual_sign_distinct CHECK 雙防）。
+        核准即套用：approve 成功後 apply 為機械步驟（同 tx UPDATE users.role
+        ＋提案轉 applied）；apply 失敗留 approved 可重試。
+        雙庫模式下技師帳號不可經此流程變更角色（雙庫不變量，422）。
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK — 已核准並套用（status=applied，users.role 已變更）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleAssignmentEnvelope' }
+        '403':
+          description: SOD_VIOLATION_RBAC（同人核准）/ FORBIDDEN / TENANT_MISMATCH / RBAC_HIERARCHY_VIOLATION
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 提案不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 狀態非 proposed / 併發已決（樂觀鎖）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — 技師帳號角色不可經角色指派流程變更（雙庫不變量）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '503':
+          description: DB_UNAVAILABLE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/role-assignments/{assignmentId}:reject:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: assignmentId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: 角色變更提案 UUID（saas.role_assignment）
+    post:
+      tags: ['M17 Role Assignments']
+      summary: 拒絕提案（擋壞提案不需雙人）
+      operationId: rejectRoleAssignment
+      description: |
+        proposed → rejected（留 audit）。SoD 不限制拒絕者（可為提案人本人），
+        但仍須 admin ＋ tenant 比對。reason 有帶時覆寫提案 reason。
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleAssignmentReviewRequest' }
+      responses:
+        '200':
+          description: OK — 已拒絕（status=rejected）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RoleAssignmentEnvelope' }
+        '403':
+          description: FORBIDDEN（非 admin）/ TENANT_MISMATCH
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — 提案不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 狀態非 proposed / 併發已決
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '503':
+          description: DB_UNAVAILABLE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  # --- Requote — OHS 現場報價修正 command (CR-0144 / ADR-027, 2026-07-10) ---
+  /internal/requote-requests:
+    post:
+      tags: [Requote]
+      summary: 技師平台發起現場報價修正 command（service-to-service；冪等回放）
+      operationId: submitRequoteRequest
+      description: |
+        technician-platform 經 OHS 反向呼叫（X-Internal-Token 服務間認證，
+        fail-closed：env 未設回 503、不符回 401）。技師只提交 diff 草稿不定價
+        （ADR-027），品牌報價引擎為唯一權威：驗 assignee 與工單狀態（in_progress）
+        → 冪等記錄 → 建 quote v+1（supersedes_quote_id 串鏈，draft 進 CR-0128
+        審核流，金額由小編定價）→ audit。
+        冪等：同 request_id 重送回放既有結果（200 非 201）。
+        分層核可（501-2000/>2000）與保固建案 403 = CR-0150 落地範圍（遺留）。
+      security: [{ internalToken: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RequoteRequestCreate' }
+      responses:
+        '201':
+          description: quote v+1 已建立（帶 created_quote_id / quote_version / supersedes_quote_id）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequoteRequestEnvelope' }
+        '200':
+          description: 冪等回放 — 同 request_id 既有結果（非新建）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequoteRequestEnvelope' }
+        '401':
+          description: INTERNAL_AUTH_FAILED — X-Internal-Token 缺失或不符
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '403':
+          description: FORBIDDEN — technician 非本工單 assignee / 工單狀態非 in_progress
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — work order 不存在
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 已有進行中的修正請求（received/quoted）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — reason / initiated_via 不合法
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '503':
+          description: DB_UNAVAILABLE / INTERNAL_AUTH_NOT_CONFIGURED（fail-closed）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /tenants/{tenantId}/work-orders/{workOrderId}/requote-requests:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - name: workOrderId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+        description: 工單 UUID
+    post:
+      tags: [Requote]
+      summary: 現場報價修正 browser 入口（技師本人；後台角色=cs_fallback 降級代發起）
+      operationId: submitRequoteRequestAsTech
+      description: |
+        guard：role_required(TECH_ACTION_ROLES＝admin / operations_manager /
+        dispatcher / customer_service / technician)＋ path tenantId 與 token
+        tenant 比對（403 TENANT_MISMATCH）。
+        technician＝本人發起（users.id → technicians.id 反查，無技師主檔 403；
+        service 再驗 assignee；initiated_via=technician_command）。
+        後台角色＝代發起：technician_id 取工單 assignee（無 assignee 422），
+        initiated_via=cs_fallback 降級標記（ADR-027 Consequences）。
+        冪等鍵優先序：body.request_id → Idempotency-Key header → 伺服端生成；
+        同鍵重送回放既有結果（200 非 201）。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: false
+          schema: { type: string }
+          description: body.request_id 未帶時作為冪等鍵（皆未帶則伺服端生成）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TechRequoteRequestCreate' }
+      responses:
+        '201':
+          description: quote v+1 已建立（帶 created_quote_id / quote_version / supersedes_quote_id）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequoteRequestEnvelope' }
+        '200':
+          description: 冪等回放 — 同冪等鍵既有結果（非新建）
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RequoteRequestEnvelope' }
+        '403':
+          description: FORBIDDEN（非允許角色 / 無對應技師主檔 / 非 assignee / 工單狀態不符）/ TENANT_MISMATCH
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '404':
+          description: NOT_FOUND — work order 不存在
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 已有進行中的修正請求（received/quoted）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — reason 不合法 / 後台代發起但工單無 assignee
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '503':
+          description: DB_UNAVAILABLE
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
 
 components:
   parameters:
@@ -4436,6 +4704,11 @@ components:
       in: header
       name: X-DPO-Or-Data-Subject
       description: 'DPO or data-subject role (ADR-0061 GDPR); required for forget request'
+    internalToken:
+      type: apiKey
+      in: header
+      name: X-Internal-Token
+      description: '服務間憑證（technician-platform / agent → api；CR-0144 2026-07-10）。fail-closed：env 未設回 503 INTERNAL_AUTH_NOT_CONFIGURED、不符回 401 INTERNAL_AUTH_FAILED；常數時間比對。'
   schemas:
     # --- Sentiment Alerts (CR-0003 P2-W2 / FR-0018 / ADR-0048) ---
     SentimentAlertStatus:
@@ -4558,6 +4831,15 @@ components:
             # M09 Data Corrections v2 (Track B S5 / CR-0004 §8 / ADR-0029)
             - CONFLICT                  # 409 approve/reject/resolve: status not in allowed_from
             - INVALID                   # 400 invalid query param (cursor/status)
+            # M2 role-assignments SoD 雙簽 + requote command (CR-0143 / CR-0144, 2026-07-10)
+            - FORBIDDEN                 # 403 非允許角色 / 非工單 assignee / 工單狀態不符
+            - TENANT_MISMATCH           # 403 path tenantId ≠ token tenant
+            - SOD_VIOLATION_RBAC        # 403 approve: approver = proposer（SoD 雙簽）
+            - RBAC_HIERARCHY_VIOLATION  # 403 propose/approve: can_grant 階層強制
+            - VALIDATION_ERROR          # 422 reason/initiated_via 不合法；技師帳號雙庫不變量
+            - DB_UNAVAILABLE            # 503 資料庫不可用
+            - INTERNAL_AUTH_NOT_CONFIGURED  # 503 internal token 未配置（fail-closed）
+            - INTERNAL_AUTH_FAILED      # 401 X-Internal-Token 缺失或不符
         trace_id:
           type: string
           description: 'W3C trace_id; required on /quote/* and /pricing/* error responses (v2.3 telemetry)'
@@ -6872,3 +7154,175 @@ components:
           maximum: 1.0
           nullable: true
           description: 引擎信心度（0.0–1.0；escalation 層無此值）
+
+    # --- M17 Role Assignments SoD 雙簽 (CR-0143, 2026-07-10) ---
+    RoleAssignmentProposeRequest:
+      type: object
+      required: [target_user_id, to_role]
+      description: 角色變更提案 body（對齊 role_assignments.py ProposeBody）
+      properties:
+        target_user_id:
+          type: string
+          format: uuid
+          description: 目標使用者（users.id）
+        to_role:
+          type: string
+          description: 目標角色（7 角色正典白名單，13_Security §3.1；can_grant 階層強制）
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 提案事由（選填）
+    RoleAssignmentReviewRequest:
+      type: object
+      description: 審核 body（對齊 ReviewBody；reject 時 reason 覆寫提案 reason）
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          nullable: true
+          description: 審核備註（選填）
+    RoleAssignment:
+      type: object
+      required: [id, tenant_id, target_user_id, to_role, status]
+      description: 角色變更提案（saas.role_assignment，對齊 role_assignment_service._row_to_dict）
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        target_user_id: { type: string, format: uuid }
+        from_role:
+          type: string
+          nullable: true
+          description: 提案當下的現有角色快照
+        to_role: { type: string }
+        status:
+          type: string
+          enum: [proposed, approved, applied, rejected, cancelled]
+          description: 狀態機 proposed→{approved,rejected,cancelled}；approved→{applied,cancelled}；applied/rejected/cancelled 終態
+        proposed_by:
+          type: string
+          format: uuid
+          nullable: true
+        proposed_at:
+          type: string
+          format: date-time
+          nullable: true
+        approved_by:
+          type: string
+          format: uuid
+          nullable: true
+        approved_at:
+          type: string
+          format: date-time
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+    RoleAssignmentEnvelope:
+      type: object
+      description: 單筆角色變更提案信封（data 包裝，對應 propose/approve/reject response）
+      properties:
+        data:
+          $ref: '#/components/schemas/RoleAssignment'
+          nullable: true
+    RoleAssignmentListEnvelope:
+      type: object
+      description: 角色變更提案清單信封（proposed_at 倒序，上限 100，對應 listRoleAssignments 200 response）
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/RoleAssignment' }
+          nullable: true
+
+    # --- Requote — OHS 現場報價修正 command (CR-0144 / ADR-027, 2026-07-10) ---
+    RequoteRequestCreate:
+      type: object
+      required: [request_id, work_order_id, technician_id, reason]
+      description: 現場報價修正 command（internal 入口，對齊 requote_requests.py RequoteBody）
+      properties:
+        request_id:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: 冪等鍵（同鍵重送回放既有結果，200 非 201）
+        work_order_id:
+          type: string
+          format: uuid
+        technician_id:
+          type: string
+          format: uuid
+          description: 技師主檔 id；須等於工單 assignee（否則 403）
+        reason:
+          type: string
+          enum: [estimate_error, scope_add, scope_change]
+          description: 事由分類（service 驗證，非法回 422 VALIDATION_ERROR）
+        item_diffs:
+          type: array
+          items: { type: object }
+          default: []
+          description: 項目/料件異動草稿（不含金額——金額由品牌定價引擎計算）
+        initiated_via:
+          type: string
+          enum: [technician_command, cs_fallback]
+          default: technician_command
+          description: 發起通道（cs_fallback=客服代發起降級標記，ADR-027 Consequences）
+        tenant_id:
+          type: string
+          nullable: true
+          description: 選填；單品牌 stack 可省略（服務端退 AGENT_TENANT_ID）
+    TechRequoteRequestCreate:
+      type: object
+      required: [reason]
+      description: 現場報價修正 browser 入口 body（對齊 TechRequoteBody；work_order/technician 由 path/token 決定）
+      properties:
+        reason:
+          type: string
+          enum: [estimate_error, scope_add, scope_change]
+          description: 事由分類（service 驗證，非法回 422 VALIDATION_ERROR）
+        item_diffs:
+          type: array
+          items: { type: object }
+          default: []
+          description: 項目/料件異動草稿（不含金額）
+        request_id:
+          type: string
+          nullable: true
+          description: 冪等鍵（未帶=以 Idempotency-Key header 為鍵，再無則伺服端生成）
+    RequoteRequest:
+      type: object
+      required: [request_id, work_order_id, technician_id, reason, initiated_via, status]
+      description: 現場報價修正 command 結果（requote_requests，對齊 requote_service._row_to_dict；新建 201 另帶 quote_version / supersedes_quote_id）
+      properties:
+        request_id: { type: string }
+        work_order_id: { type: string, format: uuid }
+        technician_id: { type: string, format: uuid }
+        reason:
+          type: string
+          enum: [estimate_error, scope_add, scope_change]
+        initiated_via:
+          type: string
+          enum: [technician_command, cs_fallback]
+        status:
+          type: string
+          description: received / quoted（建立成功即 quoted）
+        created_quote_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 建立的 quote v+1（draft 進 CR-0128 審核流）
+        quote_version:
+          type: integer
+          nullable: true
+          description: 新報價版本（僅新建 201 帶；冪等回放不帶）
+        supersedes_quote_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: 被取代的前一版報價（僅新建 201 帶；首版報價為 null）
+    RequoteRequestEnvelope:
+      type: object
+      description: 現場報價修正結果信封（data 包裝，對應 submitRequoteRequest / submitRequoteRequestAsTech response）
+      properties:
+        data:
+          $ref: '#/components/schemas/RequoteRequest'
+          nullable: true
