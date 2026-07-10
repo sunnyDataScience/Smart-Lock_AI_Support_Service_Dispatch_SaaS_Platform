@@ -575,7 +575,7 @@ async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> st
     """
     parts = (data or "").split("|", 1)
     if len(parts) != 2 or parts[0] not in ("q:a", "q:r"):
-        return None  # 非報價 postback（如 s:a/s:r scope_change，本 CR 未接，走網頁 fallback）
+        return None  # 非報價 postback（r:*/s:* 由 _forward_ops_postback_safe 轉發 api，CR-0155）
     decision = "accept" if parts[0] == "q:a" else "reject"
     quote_id = parts[1].strip()
     if not quote_id:
@@ -605,6 +605,42 @@ async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> st
     if decision == "accept":
         return "已收到您的同意 ✅ 我們將盡快為您安排技師到府服務，感謝您！"
     return "已收到您的回覆 🙏 如需調整報價內容，客服將盡快與您聯繫。"
+
+
+async def _forward_ops_postback_safe(raw_body: str, signature: str, data: str) -> str | None:
+    """CR-0155(ADR-011 附註缺口):改約 r:c/r:r、範圍變更 s:a/s:r postback →
+    原始 body+簽章原封轉發 api /api/v1/line/webhook(CR-0017 handler:CAS 冪等
+    +服務端推播確認)。零重複業務邏輯——api 以同一 LINE_CHANNEL_SECRET 重驗簽。
+
+    回 None=已轉發成功或非本函式範圍(api 會自行推確認,gateway 不回話避免雙訊息);
+    回字串=轉發失敗的友善話術。fail-soft 絕不 raise。
+    """
+    prefix = (data or "").split("|", 1)[0]
+    if prefix not in ("r:c", "r:r", "s:a", "s:r"):
+        return None
+    base_url = os.environ.get("LOCK_API_BASE_URL")
+    if not base_url:
+        logger.warning("ops postback({}) 收到但 LOCK_API_BASE_URL 未設", prefix)
+        return "系統忙線中，請稍後再試或洽客服 🙏"
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_PERSIST_TIMEOUT_SEC) as client:
+            resp = await client.post(
+                f"{base_url.rstrip('/')}/api/v1/line/webhook",
+                content=raw_body.encode("utf-8"),
+                headers={
+                    "Content-Type": "application/json",
+                    "X-Line-Signature": signature or "",
+                },
+            )
+        if resp.status_code >= 400:
+            logger.warning("ops postback 轉發回 {}:{}", resp.status_code, resp.text[:160])
+            return "您的回覆可能未送達，請稍後再試或洽客服 🙏"
+    except Exception:  # noqa: BLE001 — 轉發絕不可影響客人
+        logger.warning("ops postback 轉發失敗（已略過）", exc_info=True)
+        return "系統忙線中，請稍後再試或洽客服 🙏"
+    return None  # 成功:api 端會推播確認,gateway 靜默
 
 
 def load_dotenv(path: str | Path) -> dict[str, str]:
@@ -830,9 +866,15 @@ def build_webapp(
                     pb_native = getattr(event.source, "user_id", None)
                     if pb_native:
                         _, pb_user = resolve_identity("line", pb_native, tenant)
+                        pb_data = getattr(event.postback, "data", "") or ""
                         pb_reply = await _route_quote_postback_safe(
-                            tenant, pb_user, getattr(event.postback, "data", "") or "",
+                            tenant, pb_user, pb_data,
                         )
+                        # CR-0155:改約/範圍變更 postback → 原封轉發 api webhook
+                        if pb_reply is None:
+                            pb_reply = await _forward_ops_postback_safe(
+                                body, signature, pb_data,
+                            )
                         if pb_reply and event.reply_token:
                             await line_api.reply_message(
                                 ReplyMessageRequest(
