@@ -76,6 +76,7 @@ SEED_ORDER=(
   family_reviews.sql
   sentiment_alerts.sql
   sop_drafts.sql
+  zz_technician_skills.sql
 )
 for s in "${SEED_ORDER[@]}"; do
   [ -f "$SQL_DIR/seeds/$s" ] && apply "$SQL_DIR/seeds/$s"

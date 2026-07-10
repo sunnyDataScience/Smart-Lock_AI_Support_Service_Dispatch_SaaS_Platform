@@ -452,7 +452,7 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 
 | 系統 | 風險 | 嚴重性 | 緩解 |
 |---|---|---|---|
-| api | WS hub 與 cron 為進程內狀態，水平擴展會事件遺失 / cron 重跑 | 高 | Redis pub/sub + 分散式鎖（Phase 1）；擴展前 min-instances=1〔標注 2026-07-10：CR-0134（2026-07-09）已落 Redis 橋 opt-in＋PG advisory 領導者選舉；殘項＝部署面 `REDIS_URL`（OPS）與 DB 連線池（排程待業主）。〕|
+| api | WS hub 與 cron 為進程內狀態，水平擴展會事件遺失 / cron 重跑 | 高 | Redis pub/sub + 分散式鎖（Phase 1）；擴展前 min-instances=1〔標注 2026-07-10：CR-0134（2026-07-09）已落 Redis 橋 opt-in＋PG advisory 領導者選舉；殘項＝部署面 `REDIS_URL`（OPS）與 DB 連線池（排程待業主）。〕〔標注 2026-07-10（續）：連線池已落地（CR-0154 選項 A，request-scoped ContextVar 池＋kill-switch；SIT 1767 綠）——殘項只剩部署面 REDIS_URL（OPS）〕|
 | api | 單一共享 AsyncConnection 非池，高併發序列化瓶頸 | 低-中 | 連線池（隨 ADR-P007 Phase 1）|
 | agent | 主 LLM 供應商中斷時降級為友善話術 | 中 | FallbackProvider + fallback presets（Phase 1）|
 | agent | LLM tool-calling 不可靠（生成轉接話術卻不呼叫工具）| 低機率高影響 | deterministic 兜底補 escalation（既有控制）|

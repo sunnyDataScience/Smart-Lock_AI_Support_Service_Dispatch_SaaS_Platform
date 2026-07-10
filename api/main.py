@@ -172,6 +172,10 @@ _assert_uri_strict()
 async def lifespan(app: FastAPI):
     """Application lifecycle: 連線 DB → 啟動 monitors → 關閉。"""
     await init_db(cfg.database)
+    # CR-0154(ADR-006 Phase 1/選項 A):request-scoped 連線池(失敗降級共享連線)
+    from core.db import open_pool
+
+    await open_pool()
     # 啟動背景監測（單機 in-memory；多 worker 須改 distributed scheduler）
     from realtime.config_canary_advance_cron import worker as canary_advance_cron
     from realtime.dispute_escalation_cron import worker as dispute_escalation_cron
@@ -254,6 +258,10 @@ app.add_middleware(
     expose_headers=["X-Request-Id", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset"],
 )
 app.add_middleware(RequestIdMiddleware)
+# CR-0154:http 請求各借一條池連線(scoped),交易語意同 task 同連線;池未啟用=直通
+from core.db import DBPoolScopeMiddleware
+
+app.add_middleware(DBPoolScopeMiddleware)
 
 # CR-0136 / SA / WBS 1.4.1：可觀測性基線——OTEL_EXPORTER_OTLP_ENDPOINT 設定時
 # 啟用 OTel OTLP 埋點（SigNoz），未設＝零行為變化（單機/測試不受影響）。

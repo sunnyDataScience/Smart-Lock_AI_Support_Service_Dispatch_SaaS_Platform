@@ -17,14 +17,17 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
+import types
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
+from contextvars import ContextVar
+from typing import Any, AsyncIterator
 
 from psycopg import AsyncConnection
 
 logger = logging.getLogger("api.db")
 
-_conn: AsyncConnection | None = None
+_shared_conn: AsyncConnection | None = None
 _uri_env: str = "POSTGRES_URI"
 
 _tech_conn: AsyncConnection | None = None
@@ -35,27 +38,27 @@ _PLATFORM_URI_ENV: str = "PLATFORM_POSTGRES_URI"
 
 
 async def _ensure_conn() -> bool:
-    global _conn
+    global _shared_conn
     # getattr 防禦:單元測試以假連線(無 closed/broken 屬性)monkeypatch _conn,
     # 視為健康直接沿用(真 psycopg 連線兩屬性必存在)。
-    if _conn is not None and not getattr(_conn, "closed", False) and not getattr(_conn, "broken", False):
+    if _shared_conn is not None and not getattr(_shared_conn, "closed", False) and not getattr(_shared_conn, "broken", False):
         return True
     uri = os.getenv(_uri_env)
     if not uri:
         logger.error("環境變數 %s 未設定", _uri_env)
         return False
     try:
-        if _conn is not None:
+        if _shared_conn is not None:
             try:
-                await _conn.close()
+                await _shared_conn.close()
             except Exception as e:
                 logger.warning("[DB] close 既有連線失敗（將以新連線取代）: %s", e, exc_info=True)
-        _conn = await AsyncConnection.connect(uri, autocommit=True)
+        _shared_conn = await AsyncConnection.connect(uri, autocommit=True)
         logger.info("[DB] 已連線（autocommit=True, env=%s）", _uri_env)
         return True
     except Exception as e:
         logger.error("[DB] 連線失敗：%s", e)
-        _conn = None
+        _shared_conn = None
         return False
 
 
@@ -151,12 +154,13 @@ async def init_db(database_cfg: dict) -> None:
 
 
 async def close_db() -> None:
-    global _conn, _tech_conn, _platform_conn
-    if _conn is not None:
+    global _shared_conn, _tech_conn, _platform_conn
+    await close_pool()
+    if _shared_conn is not None:
         try:
-            await _conn.close()
+            await _shared_conn.close()
         finally:
-            _conn = None
+            _shared_conn = None
     if _tech_conn is not None:
         try:
             await _tech_conn.close()
@@ -173,7 +177,7 @@ async def healthcheck() -> bool:
     if not await _ensure_conn():
         return False
     try:
-        cur = await _conn.execute("SELECT 1")
+        cur = await _shared_conn.execute("SELECT 1")
         await cur.fetchone()
     except Exception as e:
         logger.error("[DB] healthcheck 失敗：%s", e)
@@ -203,9 +207,13 @@ async def healthcheck() -> bool:
 @asynccontextmanager
 async def get_conn() -> AsyncIterator[AsyncConnection]:
     """以 context manager 形式取出共享連線。供 FastAPI dependency 使用。"""
+    scoped = _scoped_conn.get()
+    if scoped is not None:
+        yield scoped
+        return
     if not await _ensure_conn():
         raise RuntimeError("DB unavailable")
-    yield _conn  # type: ignore[misc]
+    yield _shared_conn  # type: ignore[misc]
 
 
 async def require_tech_conn() -> AsyncConnection:
@@ -219,7 +227,7 @@ async def require_tech_conn() -> AsyncConnection:
         return _tech_conn  # type: ignore[return-value]
     if not await _ensure_conn():
         raise RuntimeError("DB unavailable")
-    return _conn  # type: ignore[return-value]
+    return _current_conn()  # type: ignore[return-value]
 
 
 @asynccontextmanager
@@ -240,10 +248,123 @@ async def require_platform_conn() -> AsyncConnection:
         return _platform_conn  # type: ignore[return-value]
     if not await _ensure_conn():
         raise RuntimeError("DB unavailable")
-    return _conn  # type: ignore[return-value]
+    return _current_conn()  # type: ignore[return-value]
 
 
 @asynccontextmanager
 async def get_platform_conn() -> AsyncIterator[AsyncConnection]:
     """平台域連線的 context-manager 形式（未配置平台庫時 fallback 主連線）。"""
     yield await require_platform_conn()
+
+
+# ── CR-0154（ADR-006 Phase 1／業主 2026-07-10 裁決選項 A）──────────────────
+# request-scoped 連線池：http 請求各借一條池連線入 ContextVar，`db_module._conn`
+# 一律「scoped 優先、共享 fallback」解析——660 個既有呼叫點零改動、同 task 內
+# 交易（async with _conn.transaction() / FOR UPDATE）天然同連線。共享連線保留
+# 給 cron worker／WS／池未啟用情境（=改造前語意）。kill-switch：DB_POOL_DISABLED=1。
+
+_scoped_conn: ContextVar[AsyncConnection | None] = ContextVar(
+    "db_scoped_conn", default=None
+)
+_pool: Any = None  # psycopg_pool.AsyncConnectionPool | None（lazy import）
+
+
+def _current_conn() -> AsyncConnection | None:
+    scoped = _scoped_conn.get()
+    return scoped if scoped is not None else _shared_conn
+
+
+def pool_enabled() -> bool:
+    return _pool is not None
+
+
+async def open_pool() -> bool:
+    """lifespan 開池。DB_POOL_DISABLED=1／URI 缺／psycopg_pool 缺／開池失敗
+    一律降級共享連線（絕不癱瘓啟動）。"""
+    global _pool
+    if _pool is not None:
+        return True
+    if os.getenv("DB_POOL_DISABLED", "").strip() == "1":
+        logger.info("[DBPool] DB_POOL_DISABLED=1 → 停用（共享連線 fallback）")
+        return False
+    uri = os.getenv(_uri_env)
+    if not uri:
+        return False
+    try:
+        from psycopg_pool import AsyncConnectionPool
+
+        pool = AsyncConnectionPool(
+            uri,
+            min_size=int(os.getenv("DB_POOL_MIN", "1")),
+            max_size=int(os.getenv("DB_POOL_MAX", "10")),
+            kwargs={"autocommit": True},
+            open=False,
+        )
+        await pool.open(wait=True, timeout=30)
+        _pool = pool
+        logger.info(
+            "[DBPool] 連線池已開（min=%s, max=%s）", pool.min_size, pool.max_size
+        )
+        return True
+    except Exception as e:  # noqa: BLE001 — 池失敗不可癱瘓服務
+        logger.error("[DBPool] 開池失敗（fallback 共享連線）：%s", e)
+        _pool = None
+        return False
+
+
+async def close_pool() -> None:
+    global _pool
+    if _pool is not None:
+        try:
+            await _pool.close()
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[DBPool] close 失敗（略過）：%s", e)
+        finally:
+            _pool = None
+
+
+@asynccontextmanager
+async def pool_scope() -> AsyncIterator[None]:
+    """借一條池連線入 ContextVar；離開歸還。池未啟用＝無作用（fallback）。"""
+    if _pool is None:
+        yield
+        return
+    async with _pool.connection() as conn:
+        token = _scoped_conn.set(conn)
+        try:
+            yield
+        finally:
+            _scoped_conn.reset(token)
+
+
+class DBPoolScopeMiddleware:
+    """純 ASGI：http 請求包 pool_scope。websocket 不包（長連線佔池；WS 面
+    維持共享連線＝既有語意）；池未啟用時零開銷直通。"""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or _pool is None:
+            await self.app(scope, receive, send)
+            return
+        async with pool_scope():
+            await self.app(scope, receive, send)
+
+
+class _DbModule(types.ModuleType):
+    """模組屬性攔截（CR-0154）：`db_module._conn` 讀＝scoped 優先；寫＝導回
+    共享槽——既有測試「直接賦值 FakeConn」慣例（conftest _isolate_db_conn 亦
+    直接賦值 None）因此零破壞，不會遮蔽 property。"""
+
+    @property
+    def _conn(self) -> AsyncConnection | None:  # type: ignore[override]
+        return _current_conn()
+
+    @_conn.setter
+    def _conn(self, value: AsyncConnection | None) -> None:
+        global _shared_conn
+        _shared_conn = value
+
+
+sys.modules[__name__].__class__ = _DbModule

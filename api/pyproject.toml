@@ -15,6 +15,7 @@ dependencies = [
     "pydantic[email]>=2.6",
     # === DB ===
     "psycopg[binary]>=3.2",
+    "psycopg-pool>=3.2",  # CR-0154 request-scoped 連線池
     # === Auth ===
     "python-jose[cryptography]>=3.3",
     "passlib[bcrypt]>=1.7",

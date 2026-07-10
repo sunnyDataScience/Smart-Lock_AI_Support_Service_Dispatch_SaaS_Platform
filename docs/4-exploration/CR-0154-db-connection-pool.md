@@ -1,7 +1,7 @@
 # CR-0154 — DB 連線池(SAD §13 Phase 1/ADR-006 懸空項)
 
 - **日期**:2026-07-10
-- **狀態**:CIA 草案 —— 🛑 §8 設計裁決後實作(資料完整性風險,不宜一詞裁決)
+- **狀態**:done(2026-07-10)
 - **觸發面向**:Architecture boundary(DB 存取層)、全 api 波及
 - **依據**:12_SAD §12「單一共享 AsyncConnection 非池」風險列+§13 Phase 1、ADR-006 Phase 1「DB 連線池前置」;架構稽核 #5 查實 WBS 零承接=排程斷鏈
 
@@ -28,3 +28,11 @@
 ## §9 實作順序(裁決後)
 
 1. `core/db.py` 池+ContextVar+PEP 562 解析(fallback 共享連線)→ 2. FastAPI middleware scope → 3. 11 個 cron worker 迭代 scope → 4. 交易路徑專項測試(inventory FOR UPDATE 併發)→ 5. 全套 SIT+壓測 → 6. SAD/ADR-006 銷案。
+
+### §8 裁決記錄(2026-07-10)
+
+業主:「連線池選 A」。參數採建議 min=1/max=10(env 可調);獨立一輪+全套 SIT。
+
+### 進度
+
+- ✅ done(branch `feat/db-connection-pool`,2026-07-10):①core/db.py——內部共享連線改名 `_shared_conn`,模組 class 換裝+property `_conn`(讀=scoped 優先/寫=導回共享槽——~21 個測試直接賦值 FakeConn 的慣例零破壞);②`open_pool/close_pool/pool_scope`(psycopg_pool,autocommit,kill-switch `DB_POOL_DISABLED=1`,開池失敗降級共享連線);③`DBPoolScopeMiddleware`(純 ASGI,只包 http;WS/cron 維持共享連線=既有語意);④main.py lifespan 開池+middleware。**驗證**:新測試 5(property 攔截/並發雙連線/scope 內交易+FOR UPDATE 同連線/kill-switch/直通)+**全套 api SIT 1767 passed 0 failed**(scratch 5466 全新 bootstrap)+live 雙實例(池開 log+登入/rbac 讀寫/WS 訂閱/跨實例廣播全過)。**順修**:compose-db-init SEED_ORDER 漏 `zz_technician_skills.sql`(CR-0137 只補 glob 版,顯式清單漏同步→technician_brand_authorization 0 筆,CR-0114 測試 2 紅——既有 bug 被本輪 SIT 揪出)。遺留:熱讀 cache(ADR-006 Phase 1 另項)、cron/WS 面池化(現維持共享連線,水平擴展輪再議)。
