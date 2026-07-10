@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**角色指派 SoD 雙簽生產接線＝2.1.2 收案（CR-0143）**，branch `feat/role-assignment-sod-wiring` — 稽核查實主體早已落地、SoD 為無生產入口的文件宣稱 → 補 4 端點＋admin/staff 提案/核准 UI（同人 403）＋types 重生。新測試 4；api 全套 **1733 passed 0 failed**；四站 tsc 0。13_Security §3.1 銷案。）
+**最後更新：** 2026-07-10（**OHS requote command 通道＝2.4.3 收案＋2.4.1/2.4.2 帳面收斂（CR-0144）**，branch `feat/ohs-requote-channel` — /internal/requote-requests＋冪等回放/409＋v+1 supersedes 串鏈（欄位首次寫入）＋cs_fallback 降級；測試 4/4。2.4.1 🔶（方案A/B 已落地）、2.4.2 ✅（CR-0115 查實）。**M2 技師平台線收斂**。）
+
+**前一次更新：** 2026-07-10（**角色指派 SoD 雙簽生產接線＝2.1.2 收案（CR-0143）**，branch `feat/role-assignment-sod-wiring` — 稽核查實主體早已落地、SoD 為無生產入口的文件宣稱 → 補 4 端點＋admin/staff 提案/核准 UI（同人 403）＋types 重生。新測試 4；api 全套 **1733 passed 0 failed**；四站 tsc 0。13_Security §3.1 銷案。）
 
 **前一次更新：** 2026-07-10（**rag_manual_chunks 撞名修復＋2.2.2 收案（CR-0142）**，branch `fix/rag-manual-chunks-collision` — RAG 主表原名撞 kb 表恆 no-op（從未真正存在）→ 096 改名自持；UAT live 灌注 249 chunk＋檢索基準 83%（ADR-030：輔助指標非切換開關）；2.2.2 依 ADR-030 重定義收案。**M2 知識線（2.2.x/2.3.x）全數完結**。）
 
