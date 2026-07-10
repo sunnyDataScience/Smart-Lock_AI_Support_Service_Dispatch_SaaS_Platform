@@ -83,7 +83,7 @@ upstream:
 | 6 | `technician` | 技師 | **跨租戶**（師傅 web）| 技師平台註冊 → platform console 審核 → `active`；**品牌只做品牌授權（technician_brand_authorization），不開帳號** | 接單 / 到府 / 現場修正發起 / 對帳 |
 | 7 | `dispatcher` | 派工小編（員工）| 租戶內派工 | **保留角色——暫不開放租戶開通**（業主裁決 2026-07-07） | 派工職能由 admin / operations_manager 承擔 + 自動派工路徑（BR-PC-02）；單量成長需要專職派工時經 ChangeRequest 重新啟用 |
 
-**租戶 Admin 可開通集合**＝`{admin, operations_manager, customer_service, reviewer}`（業主裁決 2026-07-07 收斂為 4 值；✅ `auth_service._STAFF_ROLES` 已同步 4 值——SA-06 角色收斂 2026-07-09，CR-0127）。開通兩路：(a) 員工於品牌站「員工帳號申請」tab 自申請 → Admin 審核並指派角色；(b) Admin 於 `/admin/staff` 直建。角色指派走 SoD 雙簽（`saas.role_assignment`）。**租戶 Admin 不可開通**：`platform_admin`（平台內部）、`technician`（技師平台管道）、`dispatcher`（保留）、任何 legacy 角色。
+**租戶 Admin 可開通集合**＝`{admin, operations_manager, customer_service, reviewer}`（業主裁決 2026-07-07 收斂為 4 值；✅ `auth_service._STAFF_ROLES` 已同步 4 值——SA-06 角色收斂 2026-07-09，CR-0127）。開通兩路：(a) 員工於品牌站「員工帳號申請」tab 自申請 → Admin 審核並指派角色；(b) Admin 於 `/admin/staff` 直建。角色指派走 SoD 雙簽（`saas.role_assignment`）——✅ 生產接線 2026-07-10（CR-0143）：4 端點＋admin/staff 頁提案/核准 UI；既有帳號角色變更須第二位 admin 核准（同人 403），初次開帳維持單一 admin 審核（解讀記 CR-0143 §8-1）。**租戶 Admin 不可開通**：`platform_admin`（平台內部）、`technician`（技師平台管道）、`dispatcher`（保留）、任何 legacy 角色。
 
 **租戶標準人力配置**（業主裁決）：`admin`（老闆：治理 + 最終核准）＋ `operations_manager`（營運日常：派工 + 帳務報價）＋ `customer_service`（進線 / 建單 / 發起）＋ `reviewer`（受託核准）。SoD 約束下發起人 ≠ 核准人（任二相同 403）——客服發起、reviewer / admin 核准即為最小合規閉環。
 

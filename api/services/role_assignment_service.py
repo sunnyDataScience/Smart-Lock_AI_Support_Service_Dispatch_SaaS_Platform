@@ -193,3 +193,55 @@ async def apply_role_change(*, tenant_id: str, assignment_id: str) -> dict:
     except Exception as exc:  # noqa: BLE001
         logger.warning("role apply audit failed: %s", exc)
     return _row_to_dict(out)
+
+
+async def list_role_assignments(
+    *, tenant_id: str, status: str | None = None, limit: int = 100,
+) -> list[dict]:
+    """審核佇列/歷史查詢（CR-0143 生產接線；預設全狀態、時間倒序）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    sql = f"SELECT {_SELECT} FROM saas.role_assignment WHERE tenant_id=%s::uuid"
+    params: list = [tenant_id]
+    if status:
+        sql += " AND status=%s"
+        params.append(status)
+    sql += " ORDER BY proposed_at DESC LIMIT %s"
+    params.append(limit)
+    cur = await db_module._conn.execute(sql, params)
+    return [_row_to_dict(r) for r in await cur.fetchall()]
+
+
+async def reject_role_change(
+    *, tenant_id: str, assignment_id: str, actor_id: str, actor_role: str,
+    reason: str | None = None,
+) -> dict:
+    """proposed → rejected（留 audit；SoD 不限制拒絕者——擋壞提案不需雙人）。"""
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    if actor_role not in RBAC_ADMIN_ROLES:
+        raise ApiError("FORBIDDEN", "actor must be an RBAC admin role", 403)
+    cur = await db_module._conn.execute(
+        "SELECT status FROM saas.role_assignment WHERE id=%s::uuid AND tenant_id=%s::uuid",
+        (assignment_id, tenant_id))
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "role assignment not found", 404)
+    _check_transition(row[0], "rejected")
+    upd = await db_module._conn.execute(
+        "UPDATE saas.role_assignment SET status='rejected', "
+        "  reason=COALESCE(%s, reason), updated_at=NOW() "
+        "WHERE id=%s::uuid AND tenant_id=%s::uuid AND status='proposed' "
+        f"RETURNING {_SELECT}",
+        (reason, assignment_id, tenant_id))
+    out = await upd.fetchone()
+    if not out:
+        raise ApiError("STATE_CONFLICT", "concurrent state change (already decided)", 409)
+    try:
+        await audit_log_service.log_event(
+            event_type="rbac", actor_id=actor_id, actor_role=actor_role,
+            action="role.change_rejected", target_type="users", target_id=str(out[2]),
+            payload={"assignment_id": assignment_id, "reason": reason})
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("role reject audit failed: %s", exc)
+    return _row_to_dict(out)
