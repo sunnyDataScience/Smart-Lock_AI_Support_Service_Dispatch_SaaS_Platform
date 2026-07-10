@@ -12,7 +12,10 @@ import uuid
 
 import psycopg
 
-CASE_SIMILARITY_THRESHOLD = 0.85
+# ADR-010 原訂 0.85 係按 text-embedding-004 設想;CR-0124 換 multilingual-002 後
+# 實測(CR-0148,2026-07-10):語意明確相符的中文改寫查詢 sim≈0.74 → 0.85 恆不命中。
+# 門檻綁模型須隨模型校正:env 可調,預設 0.70(高於雜訊、涵蓋真改寫)。
+CASE_SIMILARITY_THRESHOLD = float(os.getenv("RAG_CASE_SIM_THRESHOLD", "0.70"))
 DEFAULT_TOP_K = 5
 
 
