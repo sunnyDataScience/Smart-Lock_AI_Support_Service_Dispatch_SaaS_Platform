@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { UserCog, UserPlus, Check, ClipboardList, X } from "lucide-react";
+import { UserCog, UserPlus, Check, ClipboardList, ShieldCheck, X } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
@@ -14,6 +14,18 @@ interface Staff {
   role: string;
   is_active: boolean;
   created_at: string | null;
+}
+
+// CR-0143:角色指派 SoD 雙簽(13_Security §3.1)——既有員工角色變更走提案→第二位 admin 核准。
+interface RoleAssignment {
+  id: string;
+  target_user_id: string;
+  from_role: string | null;
+  to_role: string;
+  status: string;
+  proposed_by: string | null;
+  proposed_at: string | null;
+  reason: string | null;
 }
 
 // CR-0114 R5:品牌員工自助申請(登入頁 → pending),此頁審核並指派角色。
@@ -58,6 +70,13 @@ export default function StaffPage() {
   const [appRole, setAppRole] = useState<Record<string, string>>({});
   const [appBusy, setAppBusy] = useState<string | null>(null);
 
+  // 角色變更 SoD 雙簽(CR-0143)
+  const [proposals, setProposals] = useState<RoleAssignment[]>([]);
+  const [raTarget, setRaTarget] = useState("");
+  const [raRole, setRaRole] = useState("operations_manager");
+  const [raReason, setRaReason] = useState("");
+  const [raBusy, setRaBusy] = useState<string | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -84,10 +103,62 @@ export default function StaffPage() {
     }
   }, []);
 
+  const loadProposals = useCallback(async () => {
+    try {
+      const res = await api.get<{ data: RoleAssignment[] }>(
+        `${tenantPath("/role-assignments")}?status=proposed`,
+      );
+      setProposals(res.data ?? []);
+    } catch (e) {
+      setError(friendlyError(e));
+    }
+  }, []);
+
   useEffect(() => {
     load();
     loadApps();
-  }, [load, loadApps]);
+    loadProposals();
+  }, [load, loadApps, loadProposals]);
+
+  async function proposeRoleChange() {
+    if (!raTarget) {
+      setError("請選擇要變更角色的員工");
+      return;
+    }
+    setRaBusy("propose");
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(tenantPath("/role-assignments"), {
+        target_user_id: raTarget,
+        to_role: raRole,
+        reason: raReason.trim() || null,
+      });
+      setOk("角色變更提案已建立,待另一位管理員核准(SoD 雙簽)");
+      setRaTarget("");
+      setRaReason("");
+      await loadProposals();
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setRaBusy(null);
+    }
+  }
+
+  async function decideProposal(p: RoleAssignment, action: "approve" | "reject") {
+    setRaBusy(p.id);
+    setError(null);
+    setOk(null);
+    try {
+      await api.post(tenantPath(`/role-assignments/${p.id}:${action}`), {});
+      setOk(action === "approve" ? "已核准並套用角色變更" : "已拒絕提案");
+      await Promise.all([loadProposals(), load()]);
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setRaBusy(null);
+    }
+  }
 
   async function approveApp(app: StaffApplication) {
     const assigned = appRole[app.id] ?? "operations_manager";
@@ -277,6 +348,92 @@ export default function StaffPage() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* 角色變更 SoD 雙簽(CR-0143;13_Security §3.1) */}
+          <div className="mb-6 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4">
+            <div className="mb-1 flex items-center gap-2 text-[15px] font-semibold text-[var(--text-primary)]">
+              <ShieldCheck className="h-5 w-5 text-[var(--primary)]" /> 角色變更(SoD 雙簽)
+            </div>
+            <p className="mb-3 text-[12px] text-[var(--text-secondary)]">
+              既有員工的角色變更須由一位管理員提案、另一位管理員核准(同一人核准自己的提案會被拒絕)。
+            </p>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+              <Field label="員工" required>
+                <select value={raTarget} onChange={(e) => setRaTarget(e.target.value)} className={INPUT}>
+                  <option value="">— 選擇員工 —</option>
+                  {items.filter((s) => s.role !== "technician").map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}({ROLE_LABEL[s.role] ?? s.role})
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="變更為" required>
+                <select value={raRole} onChange={(e) => setRaRole(e.target.value)} className={INPUT}>
+                  {ROLE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="原因">
+                <input value={raReason} onChange={(e) => setRaReason(e.target.value)}
+                       placeholder="如:職務調整" className={INPUT} />
+              </Field>
+              <div className="flex items-end">
+                <button
+                  onClick={proposeRoleChange}
+                  disabled={raBusy === "propose"}
+                  className="h-[38px] w-full rounded-md bg-[var(--primary)] px-4 text-sm font-semibold text-white hover:bg-[#1D4ED8] disabled:opacity-50"
+                >
+                  {raBusy === "propose" ? "提案中…" : "建立提案"}
+                </button>
+              </div>
+            </div>
+            {proposals.length > 0 && (
+              <div className="mt-4 overflow-hidden rounded-md border border-[var(--border)]">
+                <table className="w-full text-[13px]">
+                  <thead className="bg-[#F8FAFC] text-xs text-[var(--text-secondary)]">
+                    <tr>
+                      <th className="px-3 py-2 text-left">員工</th>
+                      <th className="px-3 py-2 text-left">變更</th>
+                      <th className="px-3 py-2 text-left">原因</th>
+                      <th className="px-3 py-2 text-right">待第二位管理員核准</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {proposals.map((p) => {
+                      const staff = items.find((s) => s.id === p.target_user_id);
+                      return (
+                        <tr key={p.id} className="border-t border-[var(--border)]">
+                          <td className="px-3 py-2 font-medium">{staff?.name ?? p.target_user_id.slice(0, 8)}</td>
+                          <td className="px-3 py-2">
+                            {(ROLE_LABEL[p.from_role ?? ""] ?? p.from_role ?? "—")} → <strong>{ROLE_LABEL[p.to_role] ?? p.to_role}</strong>
+                          </td>
+                          <td className="px-3 py-2 text-[var(--text-secondary)]">{p.reason ?? "—"}</td>
+                          <td className="px-3 py-2 text-right">
+                            <button
+                              onClick={() => decideProposal(p, "approve")}
+                              disabled={raBusy === p.id}
+                              className="mr-2 rounded-md bg-[#15803D] px-3 py-[6px] text-[12px] font-semibold text-white disabled:opacity-50"
+                            >
+                              核准並套用
+                            </button>
+                            <button
+                              onClick={() => decideProposal(p, "reject")}
+                              disabled={raBusy === p.id}
+                              className="rounded-md border border-[var(--border)] px-3 py-[6px] text-[12px] font-semibold text-[var(--text-primary)] disabled:opacity-50"
+                            >
+                              拒絕
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
           {/* 員工列表 */}
