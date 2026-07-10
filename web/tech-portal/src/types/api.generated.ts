@@ -2768,6 +2768,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/internal/requote-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 技師平台發起現場報價修正 command(ADR-027;冪等回放) */
+        post: operations["submitRequoteRequest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/inventory/items": {
         parameters: {
             query?: never;
@@ -9987,6 +10004,26 @@ export interface components {
              * Format: email
              */
             email: string;
+        };
+        /** RequoteBody */
+        RequoteBody: {
+            /** Request Id */
+            request_id: string;
+            /** Work Order Id */
+            work_order_id: string;
+            /** Technician Id */
+            technician_id: string;
+            /** Reason */
+            reason: string;
+            /** Item Diffs */
+            item_diffs?: unknown[];
+            /**
+             * Initiated Via
+             * @default technician_command
+             */
+            initiated_via: string;
+            /** Tenant Id */
+            tenant_id?: string | null;
         };
         /** Resolution */
         Resolution: {
@@ -19397,6 +19434,43 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submitRequoteRequest: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Internal-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequoteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };

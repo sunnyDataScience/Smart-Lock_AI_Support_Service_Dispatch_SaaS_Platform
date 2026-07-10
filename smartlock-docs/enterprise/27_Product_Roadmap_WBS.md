@@ -110,9 +110,9 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 2.2.2 | ✅ 2026-07-10（CR-0142 收案：驗收依 ADR-030 重定義——語料灌注 ✅＋引用率轉輔助品質指標（live 基準 83%）＋Skill 重切取消。**同輪修撞名事故**：RAG 主表原名撞 kb manual_chunks 恆 no-op → 096 改名 rag_manual_chunks 自持，UAT live 灌注 249 chunk 首次真正可檢索） | 語料灌注：型號事實 chunk 遷移 + Skill 重切（行為留 skill、事實入 RAG）| AG | 2.2.1 | ADR-030 重定義：語料灌注＋引用率輔助指標（原 ≥90% cutover gate 取消） |
 | 2.3.1 | ✅ 2026-07-10（CR-0139：`refinery/` member——DB 直連汲取 default-deny＋LLM 兩軌分流＋migration 094 Draft Queue 狀態機；7 tests；live LLM 煉製隨 2.3.2 驗。case_entries 表名衝突落 §8-1 待業主，阻 2.3.2） | knowledge-refinery 服務：診斷對話輸入汲取（吃 `knowledge_ready` 卡）+ 提煉分流 | DT | 1.2.3 / 1.2.4 | ADR-018；KR P1/05（已整併 15_SDS §9） |
 | 2.3.2 | ✅ 2026-07-10（CR-0140：case_entries 併形 095＋rag 案例查詢修復；FastAPI 審核服務＋UI :8002；Publisher 核可才落地——事實軌 embed+case_entries／行為軌 patch+apply CLI；12 tests。遺留：auth 隨 2.1.1 Casdoor 化） | HITL 審核 UI（draft → 人審 diff → 核可落地 pgvector + skill）| FE+DT | 2.3.1 | ADR-018 §審核層 |
-| 2.4.1 | ⬜ | technician-platform 獨立系統：技師庫 + tech-api + 師傅 web 拆出 | BE+FE | M1 | ADR-016；跨租戶單一身分 |
-| 2.4.2 | ⬜ | 技師 KYC 註冊三層（登入/註冊分離 + 敏感 PII + 文件上傳）| BE+FE | 2.4.1 | CR-0115（七項設計裁決依 §8）|
-| 2.4.3 | ⬜ | OHS requote command 通道（tenant 路由 + 冪等 + 降級）| BE | 2.4.1 / 1.2.1 | ADR-027；FR-TEC-07；TC-DISPATCH-07 |
+| 2.4.1 | 🔶 方案A/B 已落地（CR-0112：雙 stack＋技師身分權威庫拆分＋投影雙寫＋API_SURFACE 塑形＋tech web；稽核 2026-07-10 查實）。ADR-016 完整形態（OHS API/事件投影/品牌不直連）依業主 0703 裁決隨 AI-2/AI-3 | technician-platform 獨立系統：技師庫 + tech-api + 師傅 web 拆出 | BE+FE | M1 | ADR-016；跨租戶單一身分 |
+| 2.4.2 | ✅ 2026-07-10 帳面收斂（CR-0115 早已落地：migration 089/090＋三層註冊＋PII 加密＋文件上傳＋平台審核 KYC 區塊＋測試 14+；稽核查實。遺留：雲端套 089/090＋GCS 落點＋tech-register i18n） | 技師 KYC 註冊三層（登入/註冊分離 + 敏感 PII + 文件上傳）| BE+FE | 2.4.1 | CR-0115（七項設計裁決依 §8）|
+| 2.4.3 | ✅ 2026-07-10（CR-0144：/internal/requote-requests＋冪等回放/409＋v+1 supersedes 串鏈＋cs_fallback 降級＋TC-DISPATCH-07 測試 4/4。遺留：技師 UI 入口＋scope-change 舊頁退場待業主；多品牌路由隨 AI-2/AI-3） | OHS requote command 通道（tenant 路由 + 冪等 + 降級）| BE | 2.4.1 / 1.2.1 | ADR-027；FR-TEC-07；TC-DISPATCH-07 |
 | 2.5.1 | ⬜ | v1 API 收斂：凍結 → 遷移 ~42 caller → 移除（5-gate）| BE+FE | M1 | ADR-P012（G-09）|
 | 2.6.1 | ⬜ | M2 SIT + UAT（含跨系統整合場景）| QA | 2.1–2.5 | **M2 Release gate = 階段一完成** |
 
