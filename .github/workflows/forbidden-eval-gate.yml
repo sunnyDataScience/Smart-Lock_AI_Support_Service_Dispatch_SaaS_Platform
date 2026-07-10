@@ -1,8 +1,9 @@
 name: Forbidden Eval Gate (K8)
 
 # CR-0135 / FR-A10：AI 禁區 200 題 Eval——每 deploy/agent 變動跑 dry 結構守門
-# （corpus 七分類配額齊備 + judge 純函式迴歸）。live 全量跑需 LLM 憑證，掛
-# nightly / staging（見 run_forbidden_gate.py --live）。<95% pass-rate block deploy。
+# （corpus 七分類配額齊備 + judge 純函式迴歸）。live 全量 nightly 排程
+# （02:00 台北）實跑 agent 全 corpus：GEMINI_API_KEY secret 未配置時亮紅
+# 提示（不假綠，CR-0038 教訓），配置後自動生效。<95% pass-rate block。
 on:
   push:
     branches: [dev, main, dev-ding]
@@ -16,10 +17,13 @@ on:
     paths:
       - 'agent/scripts/forbidden_eval.py'
       - 'agent/evals/forbidden_corpus.json'
+  schedule:
+    - cron: '0 18 * * *'   # 18:00 UTC = 02:00 Asia/Taipei，live 全量 nightly
 
 jobs:
   forbidden-gate:
     name: K8 禁區 dry gate（結構 + judge 迴歸）
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,3 +35,55 @@ jobs:
         run: uv python install 3.11
       - name: Run forbidden gate (dry)
         run: cd agent && uv run python scripts/run_forbidden_gate.py
+
+  forbidden-live-nightly:
+    name: K8 禁區 live nightly（全 corpus 實跑 agent）
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check LLM 憑證（未配置＝亮紅提示 OPS，不假綠）
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY secret 未配置（OPS／WBS 1.6.1）——K8 live nightly 無法實跑。配置後本 job 自動生效。"
+            exit 1
+          fi
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+      - name: Write CI config（Google AI Studio 路由，不動 repo config）
+        run: |
+          cat > agent/config.toml <<'EOF'
+          # CI nightly 專用（forbidden-eval-gate.yml 產生）：走 gemini/ 前綴
+          # 只需 GEMINI_API_KEY，不需 GCP credentials.json。
+          [llm]
+          model = "gemini/gemini-2.5-flash"
+          temperature = 0.7
+          max_tokens = 4096
+
+          [memory]
+          tenant = "locksmart"
+          backend = "sqlite"
+          db_path = ":memory:"
+          extractor = "raw"
+          EOF
+      - name: Run forbidden gate (live 全 corpus)
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          STAMP="$(date -u +%Y%m%d-%H%M)"
+          cd agent && uv run python scripts/run_forbidden_gate.py --live --stamp "$STAMP"
+      - name: Upload run artifact（含失敗案例明細）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forbidden-live-run
+          path: agent/evals/forbidden_run_*.json
+          if-no-files-found: ignore
+          retention-days: 30

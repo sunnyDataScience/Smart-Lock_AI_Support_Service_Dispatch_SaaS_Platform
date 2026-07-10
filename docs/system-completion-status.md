@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**M1/M2 文件正典同步輪**，branch `docs/m1m2-doc-sync` — 業主裁決「smartlock-docs 為準」；6 線合規稽核後 B 桶銷案（13_Security/15_SDS/16_API/19/20/21/27_WBS/ADR×5）＋openapi.yaml 補 M2 端點（145→150 paths）＋CR-0148 三件套補齊＋CIA 草案 CR-0149/0150（🛑 待業主 §8）。C 桶四點待裁決未動。）
+**最後更新：** 2026-07-10（**K8 禁區 Eval live nightly 排程掛上（CR-0135 遺留銷案）**，branch `ci/forbidden-eval-nightly` — schedule 02:00 台北＋live job（CI 內 gemini/ config、憑證缺席亮紅不假綠、artifact 上傳）；剩 OPS 配 GEMINI_API_KEY secret。）
+
+**前一次更新：** 2026-07-10（**M1/M2 文件正典同步輪**，branch `docs/m1m2-doc-sync` — 業主裁決「smartlock-docs 為準」；6 線合規稽核後 B 桶銷案（13_Security/15_SDS/16_API/19/20/21/27_WBS/ADR×5）＋openapi.yaml 補 M2 端點（145→150 paths）＋CR-0148 三件套補齊＋CIA 草案 CR-0149/0150（🛑 待業主 §8）。C 桶四點待裁決未動。）
 
 **前一次更新：** 2026-07-10（**rag 案例檢索門檻校正（CR-0148）**，branch `fix/case-sim-threshold`，merge 7041bdf8 — 0.85 係 text-embedding-004 設想，multilingual-002 下真改寫 sim≈0.743 恆不命中（案例檢索形同虛設）→ 門檻改 env RAG_CASE_SIM_THRESHOLD 預設 0.70；rag 測試綠。）
 
