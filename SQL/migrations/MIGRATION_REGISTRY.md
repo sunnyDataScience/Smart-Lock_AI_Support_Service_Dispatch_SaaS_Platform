@@ -116,6 +116,7 @@
 | 091 | `091-quote-before-dispatch.sql` | CR-0128 | 🟢 idempotent（scratch 5446 驗證 2026-07-09） | 報價先行 gate（WBS 1.2.1/ADR-015①②）：`problem_cards.emergency_class`（急件四類，NULL=非急件）+ `work_orders.quote_gate_applied`（D3a 存量豁免標記）+ `quote.state` 註解補審狀態 + `idx_quote_problem_card_state`。ADD COLUMN/CREATE INDEX IF NOT EXISTS 可重套 |
 | 092 | `092-retrospective-audit-engine.sql` | CR-0129 | 🟢 idempotent（scratch 5447 驗證 2026-07-09） | 急件補審引擎（WBS 1.2.2）：`quote.audit_due_at`（完工起算 4h 窗）+ partial index + URG-01 急件加價 seed（D1a 業主定案 1500）+ `change_request_type_dim` 補 `emergency_audit_breach`（連 3 逾時自動 CR）。IF NOT EXISTS/ON CONFLICT 可重套 |
 | 093 | `093-pc-dual-gate.sql` | CR-0132 | 🟢 idempotent（scratch 5451 驗證 2026-07-09） | 問題卡雙 gate schema（WBS 1.2.3/15_SDS §4.6/18_DB §4.3）：intake/resolution_completeness 拆分＋分流欄（triage_tier/resolution_channel/resolved_by）＋RMA spine 7 欄＋knowledge_ready＋tenant_id（含 backfill）＋佇列 partial index；死欄 DROP IF EXISTS（attempts 等 5 欄，僅存量庫）。可重套 |
+| 094 | `094-knowledge-drafts.sql` | CR-0139 | 🟢 idempotent（scratch 5456 驗證 2026-07-10） | knowledge-refinery Draft Queue（WBS 2.3.1/ADR-018/15_SDS §9）：`knowledge_drafts` 表——兩軌分流（case_entry/behavior）＋payload/provenance JSONB＋狀態機（pending_review/approved/rejected/re_refine/superseded）＋`UNIQUE(tenant_id, draft_key)` 冪等＋佇列與反查 index。CREATE TABLE/INDEX IF NOT EXISTS 可重套 |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

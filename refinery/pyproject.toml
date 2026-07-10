@@ -1,0 +1,16 @@
+[project]
+name = "smart-lock-refinery"
+version = "0.1.0"
+description = "knowledge-refinery — 診斷對話汲取 + 提煉分流 + Draft Queue（WBS 2.3.1 / ADR-018；per-brand License 附加系統）"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "litellm>=1.84.0",           # 提煉分流器 LLM（JSON schema 強制）
+    "psycopg[binary]>=3.1",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
