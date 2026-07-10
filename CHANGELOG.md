@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OIDC 授權碼流 web 接線（WBS 2.1.1-R2，branch `feat/casdoor-oidc-web-r2`，2026-07-10，CIA CR-0146 / ADR-024）**：brand-portal 參考實作——`/auth/callback` 薄回調（server-side code→token、寫 httpOnly cookie `smartlock_access_token`＝api R1 cookie 來源）＋`/auth/sso-complete` 過渡雙寫（localStorage，既有同步 getCurrentSession 依賴）＋登入頁 SSO 按鈕（redirect_uri client 端組——SSR 空值 bug 由 live E2E 抓到並修）。**live E2E 全通**（Playwright＋真 Casdoor）：SSO→授權→bcrypt 遷移密碼登入→cookie 已設（JS 不可讀）→RS256 角色/租戶映射→dashboard。R3（業主排程）：ACT-01 localStorage 退場（30+ 頁同步→非同步改造）＋三站複製＋prod cookie 網域。
+
 - **v1 API 凍結 gate 落實（WBS 2.5.1 Gate-1，branch `chore/v1-freeze-gate`，2026-07-10，CIA CR-0145 / ADR-003）**：稽核查實凍結宣告後仍新增 v1 端點且零 enforce → `scripts/ci/v1-freeze-check.py`＋baseline（195 個 v1 操作快照）＋CI workflow——runtime openapi 的 /api/v1 操作集**新增即紅**、減少提示收斂。盤點更新：brand 殘餘 v1 caller 全屬無 v2 對應清單（config/staff/kb/reports），遷移被 v2 缺位阻擋；移除 gate 的三項業主待決落 §8（auth 定位/platform v2 平面/5-gate 名實）。WBS 2.5.1 → 🔶（凍結 enforced；遷移/移除依業主裁決排 M3）。
 
 - **OHS 現場報價修正 command 通道（WBS 2.4.3，branch `feat/ohs-requote-channel`，2026-07-10，CIA CR-0144 / ADR-027）**：技師只提交 diff 不定價、品牌報價引擎唯一權威。migration 097 `requote_requests`（UNIQUE(tenant_id,request_id) 冪等）＋`/internal/requote-requests`（require_internal_token，對齊 16_API:391 既定規格）——assignee/工單狀態 403、同 request_id 回放 200 不重建、同單 open 409、**quote v+1 supersedes_quote_id 串鏈（欄位自 041 存在以來首次真正寫入）**、initiated_via=cs_fallback 降級 audit 標記。測試 4/4（TC-DISPATCH-07 核心）。同輪帳面收斂：2.4.1 標 🔶（CR-0112 方案A/B 已落地；ADR-016 完整形態依業主 0703 裁決隨 AI-2/AI-3）、2.4.2 標 ✅（CR-0115 稽核查實）。同輪續補 browser 入口：`/tenants/{tid}/work-orders/{woId}/requote-requests`（technician=本人、後台=cs_fallback 代發起）＋ **scope-change 舊頁原地改造**（移除技師自填單價，ADR-027 落地）；測試 5/5。

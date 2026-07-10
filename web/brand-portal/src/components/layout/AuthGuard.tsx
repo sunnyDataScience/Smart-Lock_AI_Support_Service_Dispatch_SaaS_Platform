@@ -32,6 +32,7 @@ const PUBLIC_PATHS = new Set([
   "/reset-password",
   "/platform/login", // CR-0114 平台 console 登入（漏列 → 平台管理員到不了登入頁）
   "/platform/apply", // 品牌/經銷/鎖店「申請導入平台」公開頁（未登入必須可達）
+  "/auth/sso-complete", // CR-0146 OIDC 授權碼流過渡落地頁（進場時尚無 localStorage token）
 ]);
 const PUBLIC_PREFIXES = ["/track/", "/scope-change/", "/quotes/", "/consent/"];
 

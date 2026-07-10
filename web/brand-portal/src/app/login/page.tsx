@@ -199,6 +199,23 @@ function BrandLoginForm({
       >
         {t("forgotPassword")}
       </Link>
+
+      {/* CR-0146 OIDC 授權碼流(2.1.1-R2):NEXT_PUBLIC_CASDOOR_ENDPOINT 配置時顯示。
+          redirect_uri 須於 client 端組(SSR 無 window → 空值 bug,E2E 抓到) */}
+      {process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT && (
+        <button
+          type="button"
+          onClick={() => {
+            const ep = (process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT ?? "").replace(/\/$/, "");
+            const cid = process.env.NEXT_PUBLIC_CASDOOR_CLIENT_ID ?? "smartlock-portal-client";
+            const uri = encodeURIComponent(`${window.location.origin}/auth/callback`);
+            window.location.href = `${ep}/login/oauth/authorize?client_id=${encodeURIComponent(cid)}&response_type=code&redirect_uri=${uri}&scope=read&state=smartlock`;
+          }}
+          className="flex h-10 items-center justify-center rounded-lg border border-[var(--border)] text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-page)]"
+        >
+          以單一登入(SSO)繼續
+        </button>
+      )}
     </form>
   );
 }
