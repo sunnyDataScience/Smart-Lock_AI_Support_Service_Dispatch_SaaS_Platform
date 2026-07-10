@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-09（**M1 SIT 全綠（WBS 1.7.1，CR-0137）**，branch `test/m1-sit` — api 1719 passed 0 failed（合跑）、agent 161、rag 5。SIT 修三缺陷：0111 legacy 斷言→7 角色正典、matrix 測試污染→_flatten_matrix、**seed 順序 bug**（技師技能/授權 seed 早於 technicians→新增 zz_ seed 補跑）。1 live 測試 Vertex 429 非迴歸。**M1 工程 1.1-1.7.1 全完，剩 1.7.2 UAT 業主驗收。**）
+**最後更新：** 2026-07-10（**問題卡雙 gate 前端 UI（WBS 1.2.3 補完，CR-0138）**，branch `feat/pc-dual-gate-ui` — 詳情頁診斷雙 gate 進度區塊＋編輯 modal（分流 Gate①＋RMA spine Gate②，L3 條件欄）＋新頁 /admin/knowledge-queue 待補知識佇列＋Sidebar/rolePolicy/i18n 接線。Gate① enforce 現可開啟。四站 tsc 0、build 綠、i18n 平衡。）
+
+**前一次更新：** 2026-07-09（**M1 SIT 全綠（WBS 1.7.1，CR-0137）**，branch `test/m1-sit` — api 1719 passed 0 failed（合跑）、agent 161、rag 5。SIT 修三缺陷：0111 legacy 斷言→7 角色正典、matrix 測試污染→_flatten_matrix、**seed 順序 bug**（技師技能/授權 seed 早於 technicians→新增 zz_ seed 補跑）。1 live 測試 Vertex 429 非迴歸。**M1 工程 1.1-1.7.1 全完，剩 1.7.2 UAT 業主驗收。**）
 
 **前一次更新：** 2026-07-09（**可觀測性基線＋migration drift-check（WBS 1.4.1/1.6.1，CR-0136）**，branch `feat/observability-cd-baseline` — OTel OTLP opt-in 埋點（SigNoz）＋migration 檔案層漂移守門 CI（首跑補登 12 支波次 migration）。新測試 3、unit 334。SigNoz 叢集/OPIK/Cloud Run CD 觸發為部署面 OPS。）
 
