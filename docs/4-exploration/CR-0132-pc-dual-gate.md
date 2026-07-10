@@ -43,6 +43,10 @@ gate 是假的」同判準，開關留業主）。`knowledge_ready` 單向不回
 
 ## 遺留
 
-- Gate① enforce 開啟＝業主動作（前端分流欄 UI 屬後續輪；佇列/徽章 UI 同）。
+- ✅ **前端 UI 已補齊**（CR-0138，2026-07-10）：問題卡詳情頁「診斷雙 gate」區塊
+  （intake/resolution 完整度進度條＋knowledge_ready 徽章）＋「編輯診斷/知識」modal
+  （分流 Gate①＋RMA spine Gate②，L3 條件欄）；新頁 `/admin/knowledge-queue`
+  待補知識佇列；Sidebar/rolePolicy/i18n 接線。**Gate① enforce 開關現可由業主開啟**
+  （分流欄填寫 UI 已就緒）。
 - 精煉服務（2.3.1，M2）接 `knowledge_ready=true` 汲取；`completeness_score`
   正式退場隨舊消費者清完另議。

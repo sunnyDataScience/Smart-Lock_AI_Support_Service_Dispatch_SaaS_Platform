@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Added
+
+- **問題卡雙 gate 前端 UI（WBS 1.2.3 前端補完，branch `feat/pc-dual-gate-ui`，2026-07-10，CIA CR-0138）**：CR-0132 後端雙 gate（schema/引擎/端點）的操作員介面補齊。①問題卡詳情頁「診斷雙 gate」區塊——進料閘（Gate①）/知識閘（Gate②）完整度進度條＋`knowledge_ready` 徽章＋分流/管道/處置摘要；②「編輯診斷/知識」modal——分流欄（triage_tier/contact_phone/failure_mode/resolution_channel）＋RMA spine（root_cause/category/corrective_action/verification/disposition），triage_tier=L3 時展開韌體/序號條件欄；③新頁 `/admin/knowledge-queue` 待補知識佇列（resolved 但 Gate② 未過的卡，點入補 spine）；④Sidebar 導航＋四站 rolePolicy 路由＋i18n（zh-TW/en 平衡 3112 鍵）＋ui-sweep e2e 路由。PATCH 沿用 CR-0132 已開放欄位，儲存後後端自動重算完整度/knowledge_ready。**Gate① enforce config 開關現可由業主開啟**（分流欄填寫 UI 就緒）。驗證：四站 tsc 0、brand-portal next build 綠（新頁入建）、i18n parity。
+
 ### Fixed
 
 - **M1 SIT 全綠＋seed 順序 bug 修正（WBS 1.7.1，branch `test/m1-sit`，2026-07-09，CIA CR-0137）**：M1 範圍系統整合測試——api **1719 passed 0 failed**（unit+component 合跑，隔離 scratch 全新 bootstrap）、agent 161、rag 5。SIT 暴露並修正三缺陷：①test_cr_0111 五處 legacy 12 角色斷言（SA-01/CR-0130 收斂遲滯 fallout，unit-marked 故 component-only 未觸及）→ 7 角色正典；②matrix-defaults 測試讀到 test_rbac_dynamic 殘留 override（跨測試污染）→ 改測 `_flatten_matrix` 純矩陣層；③**seed 順序 bug**——migration 063 技能/品牌授權 seed 依 `technicians WHERE active`，但 technicians 於所有 migration 後才 seed → 063 執行時零技師 → skill/auth 全空（test_cr_0060/0114 恆 fail）→ 新增 `SQL/seeds/zz_technician_skills.sql`（zz_ 前綴 seed glob 最後補跑）。1 live 測試 Vertex 429 配額耗盡非迴歸（CI 自動 skip；確定性守門為 K8 forbidden gate）。M1 engineering 1.1-1.6 全數綠燈。

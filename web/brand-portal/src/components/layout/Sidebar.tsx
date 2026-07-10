@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BookMarked,
   Lock,
   LayoutDashboard,
   Inbox,
@@ -121,6 +122,8 @@ const navSections: NavSection[] = [
           { id: "kbFamilyReviews", href: "/knowledge-base/family-reviews" },
         ],
       },
+      // CR-0132：待補知識佇列（Gate② 未過的已結案卡）
+      { icon: BookMarked, id: "knowledgeQueue", href: "/admin/knowledge-queue" },
       {
         icon: BarChart3,
         id: "reports",

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useState, type ReactNode } from "react";
 import {
   CheckCircle2,
   ClipboardList,
@@ -99,6 +99,30 @@ const EMERGENCY_CLASS_OPTIONS: { value: string; label: string }[] = [
   { value: "angry_high_risk", label: "急件：高風險客訴" },
 ];
 
+// CR-0132 雙 gate（15_SDS §4.6）——分流＋RMA spine 選項
+const TRIAGE_TIER_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "未分流" },
+  { value: "L1", label: "L1 — AI 直接回" },
+  { value: "L2", label: "L2 — 遠端指導（文字/電話）" },
+  { value: "L3", label: "L3 — 現場派工" },
+];
+const RESOLUTION_CHANNEL_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "未設定" },
+  { value: "ai_auto", label: "AI 自動" },
+  { value: "line_text_cs", label: "文字客服" },
+  { value: "phone_callback", label: "電話回撥" },
+  { value: "onsite", label: "現場派工" },
+];
+const DISPOSITION_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "未分類" },
+  { value: "replacement", label: "換貨" },
+  { value: "repair", label: "維修" },
+  { value: "software_update", label: "軟體更新" },
+  { value: "user_education", label: "誤操作教育" },
+  { value: "onsite_service", label: "現場服務" },
+  { value: "ntf", label: "NTF 無法重現" },
+];
+
 const RESOLUTION_LAYER_OPTIONS: { value: ResolutionLayer; label: string; hint: string }[] = [
   { value: "L1", label: "L1 — AI 直接回覆", hint: "AI 已自動處理完畢" },
   { value: "L2", label: "L2 — 技師遠端指導", hint: "客服或技師遠端排除" },
@@ -137,6 +161,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [convertModalOpen, setConvertModalOpen] = useState(false);
+  const [diagnosisModalOpen, setDiagnosisModalOpen] = useState(false); // CR-0132 雙 gate 診斷/知識欄位
   const [autoResolveResult, setAutoResolveResult] = useState<ResolveResponse | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
   const [matchResult, setMatchResult] = useState<DispatchCandidate[] | null>(null);
@@ -343,6 +368,25 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       setActionError(friendlyError(e));
     } finally {
       setEmergencyPending(false);
+    }
+  };
+
+  // CR-0132：診斷/知識欄位（雙 gate）PATCH，成功後重載 card（後端會重算完整度/knowledge_ready）
+  const handleDiagnosisSave = async (patch: ProblemCardUpdateRequest) => {
+    setActionPending("update");
+    setActionError(null);
+    try {
+      const res = await api.patch<ProblemCardEnvelope>(
+        tenantPath(`/problem-cards/${encodeURIComponent(id)}`),
+        patch,
+      );
+      setCard(res.data ?? null);
+      setDiagnosisModalOpen(false);
+      setActionToast("診斷/知識欄位已更新");
+    } catch (e) {
+      setActionError(friendlyError(e));
+    } finally {
+      setActionPending(null);
     }
   };
 
@@ -685,6 +729,62 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
               </section>
             )}
 
+            {/* CR-0132 雙 gate（15_SDS §4.6）：進料閘（派工）＋知識閘（精煉）完整度 */}
+            {card && (
+              <section className="rounded-xl border border-[var(--border)] bg-white p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-[15px] font-bold text-[var(--text-primary)]">
+                      診斷雙 gate（分流 · 知識）
+                    </h2>
+                    <p className="mt-1 text-[12px] leading-[1.6] text-[var(--text-secondary)]">
+                      進料閘（Gate①）管能否派工；知識閘（Gate②）管能否進知識精煉。
+                      未過知識閘不擋結案，但卡會留在「待補知識佇列」。
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setActionError(null);
+                      setDiagnosisModalOpen(true);
+                    }}
+                    disabled={actionPending !== null}
+                    className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] bg-white px-3 py-[6px] text-[13px] font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    編輯診斷/知識
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <GateBar
+                    label="進料閘（Gate① · 派工）"
+                    score={card.intake_completeness ?? null}
+                    hint="必填：聯絡電話 / 品牌 / 型號 / 失效模式 / 分流層（L3 另加地址）"
+                  />
+                  <GateBar
+                    label="知識閘（Gate② · 精煉）"
+                    score={card.resolution_completeness ?? null}
+                    hint="必填：根因 / 分類 / 矯正措施 / 驗證 / 處置 / 管道 / 解決者（L3 另加韌體/序號）"
+                    ready={card.knowledge_ready ?? false}
+                  />
+                </div>
+                {(card.triage_tier || card.resolution_channel || card.disposition) && (
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-[var(--text-secondary)]">
+                    {card.triage_tier && (
+                      <span><span className="text-[var(--text-disabled)]">分流：</span>{card.triage_tier}</span>
+                    )}
+                    {card.resolution_channel && (
+                      <span><span className="text-[var(--text-disabled)]">管道：</span>
+                        {RESOLUTION_CHANNEL_OPTIONS.find((o) => o.value === card.resolution_channel)?.label ?? card.resolution_channel}</span>
+                    )}
+                    {card.disposition && (
+                      <span><span className="text-[var(--text-disabled)]">處置：</span>
+                        {DISPOSITION_OPTIONS.find((o) => o.value === card.disposition)?.label ?? card.disposition}</span>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+
             <FmeaDiagnosisCard />
 
             <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-6">
@@ -766,6 +866,14 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
         />
       )}
 
+      {diagnosisModalOpen && card && (
+        <DiagnosisModal
+          initial={card}
+          pending={actionPending === "update"}
+          onCancel={() => setDiagnosisModalOpen(false)}
+          onSubmit={handleDiagnosisSave}
+        />
+      )}
       {editModalOpen && card && (
         <EditModal
           initial={card}
@@ -1350,6 +1458,213 @@ function EditModal({
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-white px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            取消
+          </button>
+          <button
+            onClick={() => onSubmit(patch)}
+            disabled={pending || !dirty}
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? "送出中…" : dirty ? "儲存變更" : "無變更"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// CR-0132：雙 gate 完整度進度條（分數 null=未起算）
+function GateBar({
+  label,
+  score,
+  hint,
+  ready,
+}: {
+  label: string;
+  score: number | null;
+  hint: string;
+  ready?: boolean;
+}) {
+  const pct = score === null ? 0 : Math.round(score * 100);
+  const full = score !== null && score >= 1;
+  const barColor = full ? "bg-[#16A34A]" : pct >= 50 ? "bg-[#F59E0B]" : "bg-[#DC2626]";
+  return (
+    <div className="flex flex-col gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] p-3">
+      <div className="flex items-center justify-between">
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{label}</span>
+        <div className="flex items-center gap-2">
+          {ready !== undefined && (
+            <span
+              className={`rounded px-2 py-[1px] text-[11px] font-semibold ${
+                ready ? "bg-[#DCFCE7] text-[#166534]" : "bg-[#F1F5F9] text-[#64748B]"
+              }`}
+            >
+              {ready ? "知識就緒" : "待補"}
+            </span>
+          )}
+          <span className="text-[12px] font-mono text-[var(--text-secondary)]">
+            {score === null ? "未起算" : `${pct}%`}
+          </span>
+        </div>
+      </div>
+      <div className="h-[6px] w-full overflow-hidden rounded-full bg-[var(--border)]">
+        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="text-[11px] leading-[1.5] text-[var(--text-disabled)]">{hint}</span>
+    </div>
+  );
+}
+
+// CR-0132：診斷/知識欄位編輯 modal（分流 Gate① + RMA spine Gate②，漸進補寫）
+function DiagnosisModal({
+  initial,
+  pending,
+  onCancel,
+  onSubmit,
+}: {
+  initial: ProblemCard;
+  pending: boolean;
+  onCancel: () => void;
+  onSubmit: (patch: ProblemCardUpdateRequest) => Promise<void>;
+}) {
+  const [triageTier, setTriageTier] = useState(initial.triage_tier ?? "");
+  const [contactPhone, setContactPhone] = useState(initial.contact_phone ?? "");
+  const [failureMode, setFailureMode] = useState(initial.failure_mode ?? "");
+  const [resolutionChannel, setResolutionChannel] = useState(initial.resolution_channel ?? "");
+  const [rootCause, setRootCause] = useState(initial.root_cause ?? "");
+  const [rootCauseCategory, setRootCauseCategory] = useState(initial.root_cause_category ?? "");
+  const [correctiveAction, setCorrectiveAction] = useState(initial.corrective_action ?? "");
+  const [verification, setVerification] = useState<boolean | null>(initial.verification ?? null);
+  const [disposition, setDisposition] = useState(initial.disposition ?? "");
+  const [firmwareVersion, setFirmwareVersion] = useState(initial.firmware_version ?? "");
+  const [serial, setSerial] = useState(initial.serial ?? "");
+
+  const isL3 = triageTier === "L3";
+
+  const buildPatch = (): ProblemCardUpdateRequest => {
+    const p: ProblemCardUpdateRequest = {};
+    const set = <K extends keyof ProblemCardUpdateRequest>(
+      key: K,
+      cur: ProblemCardUpdateRequest[K],
+      orig: unknown,
+    ) => {
+      if (cur !== (orig ?? "")) p[key] = cur;
+    };
+    set("triage_tier", triageTier, initial.triage_tier);
+    set("contact_phone", contactPhone, initial.contact_phone);
+    set("failure_mode", failureMode, initial.failure_mode);
+    set("resolution_channel", resolutionChannel, initial.resolution_channel);
+    set("root_cause", rootCause, initial.root_cause);
+    set("root_cause_category", rootCauseCategory, initial.root_cause_category);
+    set("corrective_action", correctiveAction, initial.corrective_action);
+    set("disposition", disposition, initial.disposition);
+    set("firmware_version", firmwareVersion, initial.firmware_version);
+    set("serial", serial, initial.serial);
+    if (verification !== (initial.verification ?? null) && verification !== null) {
+      p.verification = verification;
+    }
+    return p;
+  };
+
+  const patch = buildPatch();
+  const dirty = Object.keys(patch).length > 0;
+
+  const field = (labelTxt: string, node: ReactNode) => (
+    <label className="flex flex-col gap-1">
+      <span className="text-[12px] font-medium text-[var(--text-secondary)]">{labelTxt}</span>
+      {node}
+    </label>
+  );
+  const inputCls =
+    "rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none disabled:opacity-50";
+
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4 py-8"
+      onClick={() => !pending && onCancel()}
+    >
+      <div
+        className="max-h-full w-full max-w-[640px] overflow-y-auto rounded-xl bg-white p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-1 flex items-center gap-2">
+          <Pencil className="h-5 w-5 text-[var(--text-primary)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            編輯診斷 / 知識欄位
+          </span>
+        </div>
+        <p className="mb-4 text-[13px] text-[var(--text-secondary)]">
+          分流欄（進料閘）與失效分析 spine（知識閘）——漸進補寫，儲存後系統自動重算完整度。
+        </p>
+
+        <h3 className="mb-2 text-[13px] font-bold text-[#0369A1]">進料閘（Gate① · 決定能否派工）</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {field("分流層", (
+            <select value={triageTier} onChange={(e) => setTriageTier(e.target.value)} disabled={pending} className={inputCls}>
+              {TRIAGE_TIER_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          ))}
+          {field("聯絡電話", (
+            <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} disabled={pending} maxLength={50} className={inputCls} />
+          ))}
+          {field("失效模式", (
+            <input value={failureMode} onChange={(e) => setFailureMode(e.target.value)} disabled={pending} maxLength={60} placeholder="如 motor_stuck / battery_drain" className={inputCls} />
+          ))}
+          {field("處理管道", (
+            <select value={resolutionChannel} onChange={(e) => setResolutionChannel(e.target.value)} disabled={pending} className={inputCls}>
+              {RESOLUTION_CHANNEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          ))}
+        </div>
+
+        <h3 className="mb-2 mt-5 text-[13px] font-bold text-[#9333EA]">知識閘（Gate② · 失效分析 spine · 精煉素材）</h3>
+        <div className="flex flex-col gap-3">
+          {field("根因", (
+            <textarea value={rootCause} onChange={(e) => setRootCause(e.target.value)} disabled={pending} rows={2} className={inputCls} />
+          ))}
+          <div className="grid gap-3 sm:grid-cols-2">
+            {field("根因分類", (
+              <input value={rootCauseCategory} onChange={(e) => setRootCauseCategory(e.target.value)} disabled={pending} maxLength={60} placeholder="如 mechanical / firmware / user_error" className={inputCls} />
+            ))}
+            {field("處置分類", (
+              <select value={disposition} onChange={(e) => setDisposition(e.target.value)} disabled={pending} className={inputCls}>
+                {DISPOSITION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            ))}
+          </div>
+          {field("矯正措施 / 處置步驟", (
+            <textarea value={correctiveAction} onChange={(e) => setCorrectiveAction(e.target.value)} disabled={pending} rows={2} className={inputCls} />
+          ))}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={verification === true}
+              onChange={(e) => setVerification(e.target.checked)}
+              disabled={pending}
+              className="h-4 w-4 rounded border-[var(--border)]"
+            />
+            <span className="text-[13px] text-[var(--text-primary)]">已驗證修復（8D D6——未驗證的解法不入知識庫）</span>
+          </label>
+          {isL3 && (
+            <div className="grid gap-3 sm:grid-cols-2 rounded-lg border border-[#DDD6FE] bg-[#FAF5FF] p-3">
+              <span className="col-span-full text-[11px] font-semibold text-[#7C3AED]">L3 現場額外（RMA 批次瑕疵關聯）</span>
+              {field("韌體版本", (
+                <input value={firmwareVersion} onChange={(e) => setFirmwareVersion(e.target.value)} disabled={pending} maxLength={50} className={inputCls} />
+              ))}
+              {field("鎖體序號", (
+                <input value={serial} onChange={(e) => setSerial(e.target.value)} disabled={pending} maxLength={100} className={inputCls} />
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mt-6 flex justify-end gap-2">
           <button
             onClick={onCancel}
             disabled={pending}

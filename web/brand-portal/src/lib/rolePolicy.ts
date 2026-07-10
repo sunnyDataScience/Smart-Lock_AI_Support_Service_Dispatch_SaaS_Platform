@@ -55,6 +55,8 @@ const ROUTE_POLICY: { prefix: string; roles: string[] }[] = [
   { prefix: "/admin/inventory", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/reports", roles: ["admin", "operations_manager"] },
   { prefix: "/admin/knowledge-base", roles: ["admin", "operations_manager"] },
+  // CR-0132：待補知識佇列
+  { prefix: "/admin/knowledge-queue", roles: ["admin", "operations_manager", "customer_service"] },
   { prefix: "/admin/roles", roles: ["admin"] },
   { prefix: "/admin/staff", roles: ["admin"] }, // CR-0094 員工帳號管理
   { prefix: "/admin/config-governance", roles: ["admin"] }, // CR-0036 M18 config 治理

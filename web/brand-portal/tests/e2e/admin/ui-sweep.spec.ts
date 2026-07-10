@@ -64,6 +64,7 @@ const ROUTES = [
   "/admin/ai-governance",
   "/admin/sop-feedback",
   "/admin/rma-quality",
+  "/admin/knowledge-queue",  // CR-0132 待補知識佇列
   "/admin/api-status",
   "/admin/sentiment-alerts",
   "/admin/schedule-requests",
