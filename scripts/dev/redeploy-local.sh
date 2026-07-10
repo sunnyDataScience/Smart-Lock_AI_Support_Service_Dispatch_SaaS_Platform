@@ -145,7 +145,9 @@ PR_CODE="$(http_code -X POST "$API_BASE/api/v1/auth/request-password-reset" -H '
 [ "$PR_CODE" != "404" ] && check "CR-0025 忘記密碼端點在實機" "ok" "ok" || check "CR-0025 忘記密碼端點在實機" "ok" "404"
 
 # 4e. 公開頁可達（AuthGuard 白名單 + bundle 路由都要對）
-for p in /login /register /forgot-password /vendor-login /tech-login; do
+# /tech-login 不在此列：四站檔案層拆分後屬 tech-portal(:3001)，dispatch build
+# 回 404（not-found.tsx 跨站導流），本 script 只顧派工 stack。
+for p in /login /register /forgot-password /vendor-login; do
   check "web 公開頁 $p"          "200" "$(http_code "$WEB_BASE$p")"
 done
 
