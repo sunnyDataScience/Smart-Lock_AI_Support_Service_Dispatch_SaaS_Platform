@@ -3,7 +3,7 @@ title: "ADR-010: 知識分層 — Agent Skills 行為驅動 + RAG-via-MCP 檢索
 version: 1.0
 status: active
 owner: agent 系統 tech lead
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/agent/P2/04_adr/ADR-004_RAG-via-MCP檢索能力與Skill行為驅動分工.md
   - smartlock-docs/agent/P2/04_adr/ADR-003_Agent_Skills_標準與_filesystem_references.md
@@ -77,3 +77,5 @@ agent 的知識有兩種本質不同的東西，混在一起就會既不可攜�
 
 - 分期：Phase 1 RAG 語義層（embed + 兩 cosine query + MCP server）→ Phase 2 語料灌注 → Phase 3 接線 + Skill 重切 → Phase 4 測試 + cutover。🔜 各 Phase 規劃中，昂貴階段 gate 在業主同意。
 - **Cutover 原則**：filesystem references 保留為 fallback，直到 RAG 檢索品質通過 gate 才切換 gating 主路徑。
+- **2026-07-10 業主裁決勘誤（實證推翻，code 不回退）**：①本文 embed 模型 text-embedding-004 對中文短文本退化（相似度趨 1.0，CR-0124 勘誤）——as-built＝`RAG_EMBED_MODEL` env，預設 `vertex_ai/text-multilingual-embedding-002`（768 維，CR-0140 D3 一致性）；②`search_similar_cases` 門檻 ≥0.85 係 004 設想——multilingual-002 下真改寫 sim≈0.743 恆不命中，as-built＝`RAG_CASE_SIM_THRESHOLD` env 預設 **0.70**（CR-0148）。
+- **2026-07-10 補注**：cutover 已由 ADR-030（2026-07-09 業主裁決）取消——references 永為主路徑、RAG 引用率轉輔助品質指標；本文分期之 Phase 4 cutover 不再適用。

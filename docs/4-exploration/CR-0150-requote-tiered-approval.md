@@ -1,7 +1,7 @@
 # CR-0150 — requote 分層核可+保固建案 403+item_diffs 收緊(ADR-027/16_API 補課)
 
 - **日期**:2026-07-10
-- **狀態**:CIA 草案 —— 🛑 等 §8 業主裁決後實作
+- **狀態**:已裁決(2026-07-10)——實作中
 - **觸發面向**:API contract(/internal/requote-requests 行為)、Domain model(quote 審核流)
 - **依據**:ADR-027 Decision 3、16_API_Spec.yaml:397-415(規格明列)、2026-07-10 業主裁決「smartlock-docs 為準」、文件合規稽核查實三缺口(CR-0144 遺留)
 
@@ -29,3 +29,7 @@
 ## §9 實作順序(裁決後)
 
 1. quote 送出點分層 gate(角色檢查+delta 計算)→ 2. BR-QUOTE-03 判定+403+負向測試 → 3. item_diffs min_length=1+router 422 測試 → 4. 16_API/20_Test_Cases(TC-DISPATCH-07 兩斷言)銷案 → 5. 治理三件套。
+
+### §8 裁決記錄（2026-07-10）
+
+業主「開工」＝**採建議案**（解讀可否決）：①主管＝`operations_manager`（小編＝customer_service）；②保固判定＝工單關聯 warranty_claims 有 record 即擋，建案判定記遺留；③delta＝|v+1 總額 − v 總額|；④排 **M2 收尾**。
