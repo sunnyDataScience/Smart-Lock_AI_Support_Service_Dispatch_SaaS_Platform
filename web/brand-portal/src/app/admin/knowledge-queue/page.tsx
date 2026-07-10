@@ -64,9 +64,9 @@ export default function KnowledgeQueuePage() {
         <div className="flex-1 overflow-auto pl-14 pr-4 md:px-8 py-6">
           <div className="mb-4 flex items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
             <span className="text-[13px] leading-[1.6] text-[#475569]">
-              這些問題卡已結案（operational），但**知識閘（Gate②）** 未過——失效分析 spine
-              尚未補齊。精煉服務只汲取「知識就緒」的卡；請點入補完根因 / 矯正措施 / 驗證 /
-              處置，補齊後自動離開本佇列。
+              這些問題卡已結案（operational），但<strong>知識閘（Gate②）</strong>未過——失效分析
+              spine 尚未補齊。精煉服務只汲取「知識就緒」的卡；請點入補完根因 / 矯正措施 /
+              驗證 / 處置，補齊後自動離開本佇列。
             </span>
           </div>
 
