@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**OIDC 授權碼流 web 接線＝2.1.1-R2（CR-0146）**，branch `feat/casdoor-oidc-web-r2` — 薄回調＋httpOnly cookie 雙寫＋SSO 按鈕；live E2E 全通（真 Casdoor→cookie→映射→dashboard）。R3=ACT-01 退場＋三站複製（業主排程）。）
+**最後更新：** 2026-07-10（**M2 SIT 全綠（WBS 2.6.1，CR-0147）**，branch `test/m2-sit` — api 1738＋agent 162＋rag 7（含新 MCP 整合）＋refinery 12；五項 live 實證（含 refinery 真 LLM 煉製、OIDC 瀏覽器全流程）。**M2 工程全數完結，剩 UAT 業主驗收**。）
+
+**前一次更新：** 2026-07-10（**OIDC 授權碼流 web 接線＝2.1.1-R2（CR-0146）**，branch `feat/casdoor-oidc-web-r2` — 薄回調＋httpOnly cookie 雙寫＋SSO 按鈕；live E2E 全通（真 Casdoor→cookie→映射→dashboard）。R3=ACT-01 退場＋三站複製（業主排程）。）
 
 **前一次更新：** 2026-07-10（**v1 凍結 gate 落實＝2.5.1 Gate-1（CR-0145）**，branch `chore/v1-freeze-gate` — baseline 195 ops＋CI 守門（新增 v1 即紅）；遷移/移除受三項業主待決阻擋（§8）排 M3。）
 
