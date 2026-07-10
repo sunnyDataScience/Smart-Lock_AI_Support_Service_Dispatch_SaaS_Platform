@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Dockerfile 對齊 knowledge-pipeline 改名＋rag workspace member（branch `fix/dockerfile-knowledge-pipeline-rename`，2026-07-10）**：2026-07-09 `data/`→`knowledge-pipeline/` 改名與 Phase B 新增 rag member 時，api/agent Dockerfile 的 workspace pyproject COPY 清單與 `.dockerignore` 未同步 → **docker build（本機 compose 與雲端 deploy 腳本共用同兩支 Dockerfile）自改名起即壞**；`redeploy-local.sh` 本機重建實測抓到。同輪順修 redeploy smoke 過時期望（四站拆分後 `/tech-login` 屬 tech-portal，dispatch build 404 屬預期）與待補知識佇列頁殘留 markdown 星號字面值。
+
 - **M1 SIT 全綠＋seed 順序 bug 修正（WBS 1.7.1，branch `test/m1-sit`，2026-07-09，CIA CR-0137）**：M1 範圍系統整合測試——api **1719 passed 0 failed**（unit+component 合跑，隔離 scratch 全新 bootstrap）、agent 161、rag 5。SIT 暴露並修正三缺陷：①test_cr_0111 五處 legacy 12 角色斷言（SA-01/CR-0130 收斂遲滯 fallout，unit-marked 故 component-only 未觸及）→ 7 角色正典；②matrix-defaults 測試讀到 test_rbac_dynamic 殘留 override（跨測試污染）→ 改測 `_flatten_matrix` 純矩陣層；③**seed 順序 bug**——migration 063 技能/品牌授權 seed 依 `technicians WHERE active`，但 technicians 於所有 migration 後才 seed → 063 執行時零技師 → skill/auth 全空（test_cr_0060/0114 恆 fail）→ 新增 `SQL/seeds/zz_technician_skills.sql`（zz_ 前綴 seed glob 最後補跑）。1 live 測試 Vertex 429 配額耗盡非迴歸（CI 自動 skip；確定性守門為 K8 forbidden gate）。M1 engineering 1.1-1.6 全數綠燈。
 
 ### Added
