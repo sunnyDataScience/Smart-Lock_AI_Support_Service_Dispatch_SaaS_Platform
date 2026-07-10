@@ -3,7 +3,7 @@ title: "ADR-031: 契約工件三分層——前端型別 SoT＝FastAPI runtime e
 version: 1.0
 status: active
 owner: 業主
-last-updated: 2026-07-09
+last-updated: 2026-07-10
 refines:
   - ./ADR-022_API_SURFACE單體多面塑形.md   # 補「契約工件如何生成與守門」的工具鏈層
   - ./ADR-028_web檔案層拆分_四站獨立專案.md # api.generated.ts 四份同步的上游來源改定
@@ -67,3 +67,7 @@ export → openapi-typescript」；web 拆分 rewire 時誤把生成來源接到
 - ⚠️ `api.local.ts` 是顯性技債清單：後端逐步補 response_model 時應同步縮減。
 - 重評觸發：若未來設計稿與 runtime 收斂為單一 spec（如改用 spec-first 工作流），
   開新 ADR 重審本分層。
+
+## Status 附註
+
+- 勘誤：§2 例證 `/internal/requote-requests` 當時實際僅載於 16_API_Spec 導讀層，`api/openapi.yaml` 於 2026-07-10 本輪回補（連同 role-assignments）。

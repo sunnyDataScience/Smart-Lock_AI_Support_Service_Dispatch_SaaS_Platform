@@ -121,7 +121,7 @@ services:
 
   # knowledge-refinery 審核服務（WBS 2.3.2/CR-0140；ADR-018 License 附加系統）。
   # profile 隔離：平時 up 不啟動；開通品牌用
-  #   docker compose --profile refinery up -d refinery   → UI 在 :8002
+  #   docker compose --profile refinery up -d refinery   → UI 在 :8004（CR-0141 2026-07-10 順修埠位）
   # auth interim＝與 api 共驗 API_JWT_SECRET_KEY（.env）；Casdoor OIDC 隨 2.1.1 替換。
   refinery:
     build:

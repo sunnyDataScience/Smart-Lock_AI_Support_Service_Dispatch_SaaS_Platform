@@ -3,7 +3,7 @@ title: 需求追蹤矩陣（Traceability Matrix）
 version: 1.0
 status: active
 owner: QA Lead
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/enterprise/04_SRS.md
   - smartlock-docs/enterprise/05_NFR.md
@@ -41,7 +41,7 @@ upstream:
 | FR-0026 | debounce 1.5s / dedup 24h | agent P3 C-05 / FA-05 | TC-CS-AI-08/09 | 🟡（debounce 接線 🔜 規劃中）|
 | FR-0027 | 品牌 profile resolver（多租戶配置）| ADR-P013 Agent Config Studio | `[待確認：依 04_SRS 定版]` | 🔜 規劃中 |
 | FR-0028 | Skill 驅動 agent（LockCore）| `../agent/P1/05` §4；agent ADR-001~003 | TC-CS-AI-03、`test_skills_loaded.py` | ✅ |
-| FR-0029 | 知識庫（skill references + pgvector RAG）| ADR-P001；agent ADR-004 | TC-CS-AI-03、TC-COMPLIANCE-08 | 🟡（RAG-via-MCP 🔜 規劃中）|
+| FR-0029 | 知識庫（skill references + pgvector RAG）| ADR-P001；agent ADR-004 | TC-CS-AI-03、TC-COMPLIANCE-08 | ✅（RAG-via-MCP 已落地 CR-0124/0142/0147）|
 | FR-0030 | AI 越權紅線（不報價/不折扣/不免保固）| agent P3 C-07/C-08；ADR-P013 domain-safety | TC-CS-AI-05/06、TC-QUOTE-02/03 | ✅ |
 | FR-0032 | eval / 觀測性（OPIK LLM trace）| ADR-P002 | TC-CS-AI-05 | 🟡（OPIK 接線 🔜 規劃中）|
 | FR-0034 | AI 員工憲章（永不自轉工單）| api E-04（internal ingest 只建草擬卡）| TC-WO-01 | ✅ |
@@ -97,18 +97,19 @@ upstream:
 - 20_Test_Cases 全部 TC 均標注「對應 FR」欄；無孤兒 TC。
 - TC-SEC-* 系列多數對映 FR-0019（RBAC）與 13_Security_Architecture 之安全需求；TC-PERF-* 對映 NFR（§5）。
 - 對映總表由 CI 腳本自動比對（TC 表格解析 ↔ 本矩陣），漂移即失敗（🔜 規劃中自動化，落地前每 release 人工對帳）。
+- 2026-07-10 M1/M2 對帳：6 線文件合規稽核（全 CR 逐項對 code 抽查），結果＝WBS 無虛報、缺口收 CR-0149/0150 與 C 桶業主待裁。
 
 ## 4. 覆蓋缺口清單（gap）
 
 | # | 缺口 | 影響 FR | 優先級 | 處置 |
 |---|---|---|---|---|
-| G-1 | **RBAC 授權強制（enforce）**：非授權角色寫入敏感端點須 403，全矩陣負向掃描須綠 | FR-0019 全域 | **P0（GA 退出條件，未達即 rollback）** | TC-SEC-RBAC-01/02 為 gate |
+| G-1 | **RBAC 授權強制（enforce）**：非授權角色寫入敏感端點須 403，全矩陣負向掃描須綠 | FR-0019 全域 | **P0（GA 退出條件，未達即 rollback）** | ✅ 已落地 CR-0130（2026-07-09）；TC-SEC-RBAC-01/02 為 gate |
 | G-2 | **付款 gate 控派工**：payments 主檔 + 派工前付款/報價確認檢核 | FR-0011 | P0 | 🔜 規劃中；落地前派工段以業主豁免手動跳過，E2E 整鏈標 blocked |
 | G-3 | **接單 SLA 引擎**：accept_deadline + 逾時自動改派 | FR-0005 / FR-0016 | P0 | 🔜 規劃中；TC-DISPATCH-04 為驗收 |
 | G-4 | **AI 輸出第二道防線（output guardrail）**：紅線目前由 SOP skill + eval gate 把守，程式層兜底 | FR-0030 | P1 | 🔜 規劃中；落地前以 Forbidden Eval block-deploy + 真機抽驗補償 |
 | G-5 | **Kafka 事件 schema 契約測試**（consumer-driven）| FR-0005 / FR-0039 | P1 | 🔜 規劃中（`../00_platform/P2/09` §5 R-02）|
 | G-6 | **速率限制**：api rate-limit middleware + agent webhook 頻率上限 | 橫切 | P1 | 🔜 規劃中（api C-12 / agent C-11）|
-| G-7 | 問題卡 completeness gate（完整度 ≥ 門檻才可轉工單）| FR-0002 | P1 | 🔜 規劃中，門檻值 `[待確認：依 03_PRD 定版]` |
+| G-7 | 問題卡 completeness gate（完整度 ≥ 門檻才可轉工單）| FR-0002 | P1 | ✅ 已落地 CR-0132/0138 |
 | G-8 | 消費者進度追蹤頁測試 | FR-0022 | P2 | 補 Playwright spec |
 | G-9 | 效能壓測工具鏈導入（大併發 / burst）| NFR 全域 | P1 | 🔜 規劃中（RC gate 前）|
 | G-10 | 技師工單投影表 + 對帳閘門測試 | FR-0039 / FR-0045 | P1 | 隨 ADR-P014 實作補契約 + 對帳測試 |
@@ -137,14 +138,14 @@ upstream:
 |---|---|---|---|---|
 | I-1 | LINE → agent `/callback` | webhook + `X-Line-Signature` 驗簽 | TC-CS-AI-01/02 | ✅ |
 | I-2 | agent → Vertex Gemini | LiteLLM model 字串路由 | `test_litellm_provider.py`、TC-EXC-02 | ✅ |
-| I-3 | agent → MCP-RAG → 品牌庫 pgvector | cosine + tenant ACL | TC-COMPLIANCE-08 | 🔜 規劃中（RAG-via-MCP 分階段建）|
+| I-3 | agent → MCP-RAG → 品牌庫 pgvector | cosine + tenant ACL | TC-COMPLIANCE-08 | ✅ CR-0124/0142/0147（rag 7 tests 含 MCP 整合 2）|
 | I-4 | agent → api `/internal/*` | `X-Internal-Token`（fail-closed）| TC-SEC-INT-01、TC-CS-AI-01 | ✅ |
 | I-5 | agent → 品牌庫 `agent.*` 記憶 | tenant+user_id default deny | TC-SEC-MEM-01 | ✅ |
 | I-6 | web → api | REST + WS（OIDC token）| TC-SEC-WEB-01、Playwright E2E | ✅ |
 | I-7 | api → 品牌庫 | 寫 primary / 讀 replica | TC-EXC-04 | 🟡（讀寫分離 🔜 規劃中）|
 | I-8 | api → technician-platform OHS API | 派工媒合契約 | TC-DISPATCH-01 | 🟡（契約測試 🔜 規劃中）|
 | I-9 | api ↔ Kafka ↔ technician-platform | `dispatch.assigned` / `technician.*` / `commission.accrued` 事件 | TC-DISPATCH-03、TC-EXC-06、TC-SETTLE-01 | 🟡（schema registry + 契約測試 🔜 規劃中）|
-| I-10 | web / api → Casdoor | OIDC 授權碼流 + 角色 claim | TC-SEC-RBAC-02/04 | 🔜 規劃中（Casdoor 導入 Phase）|
+| I-10 | web / api → Casdoor | OIDC 授權碼流 + 角色 claim | TC-SEC-RBAC-02/04 | 🟡 R1/R2 已落地 CR-0141/0146（R3 業主排程）|
 | I-11 | knowledge-refinery → 品牌庫 / agent | 事實 chunk+embed 灌語料；行為 → skill | TC-COMPLIANCE-05/08 | 🟡 |
 | I-12 | Agent Config Registry → agent | 受保護層 + 客製層合成配置 | UAT S5 + config 套件 | 🔜 規劃中 |
 | I-13 | api / agent → SigNoz | OTel trace/metric | 監控 SLI 驗證（見 [./25_Monitoring_Spec.md](./25_Monitoring_Spec.md)）| 🔜 規劃中 |

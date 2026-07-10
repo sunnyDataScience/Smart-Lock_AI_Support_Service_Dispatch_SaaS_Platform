@@ -3,7 +3,7 @@ title: 產品推進 Roadmap 與 WBS（瀑布式）— Smart Lock AI 客服與派
 version: 1.0
 status: active
 owner: PM
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/enterprise/02_BRD.md §9.3（技術分期 Phase 1-4）
   - smartlock-docs/enterprise/03_PRD.md §7-§10（FR 全集與優先級）
@@ -90,12 +90,12 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 1.1.2 | ✅ 2026-07-09（CR-0127） | 角色收斂：`_STAFF_ROLES` 4 值、`rolePolicy` 移除死角色、`_MATRIX` 補 `operations_manager` 行、Schema 註解同步 | BE+FE | — | SA-06；13_Security §3.1 正典一致 |
 | 1.1.3 | ✅ 2026-07-09（CR-0131：金流/派工終局 20 端點 fail-closed＋surface 剔除測試 6 項） | fail-closed 白名單 + API_SURFACE 剔除清單測試 | BE | 1.1.1 | SA-03 / SA-05 |
 | 1.2.1 | ✅ 2026-07-09（CR-0128） | 工單狀態機對齊「報價先行＋現場修正輪」（flow gate + 轉移表）| BE | — | 02_BRD §5.7；TC-WO-*、TC-ONSITE-07 |
-| 1.2.2 | ✅ 2026-07-09（CR-0129；加價額 1500 已定案） | 急件事後補審引擎（timer + 補審佇列 + 事後 LIFF/紙本 + 逾時升級）| BE+FE | 1.2.1 | FR-API-19；15_SDS §4.5；TC-DISPATCH-08；急件加價額 `[待確認]` 業主定案 |
+| 1.2.2 | ✅ 2026-07-09（CR-0129；加價額 1500 已定案） | 急件事後補審引擎（timer + 補審佇列 + 事後 LIFF/紙本 + 逾時升級）| BE+FE | 1.2.1 | FR-API-19；15_SDS §4.5；TC-DISPATCH-08；急件加價額 1500 已定案（CR-0129 D1a）|
 | 1.2.3 | ✅ 2026-07-09（CR-0132 schema/引擎）＋2026-07-10（CR-0138 前端 UI：診斷雙 gate 編輯 modal＋待補知識佇列頁；Gate① enforce 現可開啟）| 問題卡雙 gate schema（CIA + migration：雙完整度 / 分流欄 / RMA spine / knowledge_ready / tenant_id）| BE+DT | CIA 裁決 | 15_SDS §4.6；18_DB §4.3 目標欄位 |
 | 1.2.4 | ✅ 2026-07-09（CR-0133：三方存檔驗證測試＋失敗 ERROR 告警＋spool 補送零缺漏） | 對話三方全量存檔驗證（接管期間零缺漏 + 寫入失敗告警）| AG+BE | — | FR-A11 / BR-CONV-03；FR-AGT-09 驗收 |
 | 1.3.1 | ✅ 2026-07-09（CR-0134：Redis 橋 opt-in＋PG advisory 領導者選舉掛滿 11 worker；多實例 e2e 隨 SIT） | 即時通道：WS hub 遷 Redis pub-sub + cron 分散式鎖 | BE+OPS | — | SA-02；多實例不遺失、cron 不重跑 |
 | 1.4.1 | 🔶 code 基線 ✅ 2026-07-09（CR-0136：OTel OTLP opt-in 埋點；SigNoz 叢集/OPIK 線＝部署面 OPS） | 可觀測性：SigNoz（metrics/logs/traces/alerts）+ OPIK（LLM 品質）基線 | OPS+AG | — | ADR-007；25_Monitoring_Spec |
-| 1.5.1 | ✅ 2026-07-09（CR-0135：200 題 corpus＋judge 七分類＋dry/live gate runner＋CI；live 全量掛 nightly） | AI 禁區 200 題 Eval pipeline 常態化（每 deploy 跑，<95% block）| AG | — | FR-A10 / K8 |
+| 1.5.1 | ✅ 2026-07-09（CR-0135：200 題 corpus＋judge 七分類＋dry/live gate runner＋CI；live 全量 nightly 待掛（LLM 憑證=1.6.1 OPS 配置，CR-0135 遺留）） | AI 禁區 200 題 Eval pipeline 常態化（每 deploy 跑，<95% block）| AG | — | FR-A10 / K8 |
 | 1.6.1 | 🔶 drift-check ✅ 2026-07-09（CR-0136：migration 檔案層守門 CI＋12 支波次補登；Cloud Run CD 觸發器＝OPS） | 基礎 CD：3 Cloud Run 自動部署 + migration drift-check CI | OPS | — | ADR-P012（G-12 / G-10）|
 | 1.7.1 | ✅ 2026-07-09（CR-0137：api 1719 passed 全綠＋修 seed 順序 bug/測試污染/legacy 斷言；1 live 測試 Vertex 429 非迴歸） | SIT：M1 範圍 TC 全綠 + 回歸 | QA | 1.1–1.6 | SIT 報告 |
 | 1.7.2 | ⬜ | UAT：合約紅線（K1 ≥ 80% / K3 ≥ 95% / K8 ≥ 95%）+ 業主驗收 | QA+PM | 1.7.1 | 22_UAT 報告；**M1 Release gate** |
@@ -115,6 +115,8 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 2.4.3 | ✅ 2026-07-10（CR-0144：/internal/requote-requests＋冪等回放/409＋v+1 supersedes 串鏈＋cs_fallback 降級＋TC-DISPATCH-07 測試 4/4。技師 UI 入口＋cs_fallback 代發起已補（scope-change 舊頁原地改造去定價）；多品牌路由隨 AI-2/AI-3） | OHS requote command 通道（tenant 路由 + 冪等 + 降級）| BE | 2.4.1 / 1.2.1 | ADR-027；FR-TEC-07；TC-DISPATCH-07 |
 | 2.5.1 | 🔶 Gate-1 凍結 enforced 2026-07-10（CR-0145：baseline 195 ops＋CI 守門——新增 v1 即紅）。遷移/移除受三項業主待決阻擋（auth 定位/platform v2/5-gate 名實，CR-0145 §8），依 ADR-003 排 M3 | v1 API 收斂：凍結 → 遷移 ~42 caller → 移除（5-gate）| BE+FE | M1 | ADR-P012（G-09）|
 | 2.6.1 | 🔶 SIT ✅ 2026-07-10（CR-0147：api 1738＋agent 162＋rag 7（含新 MCP 整合）＋refinery 12 全綠；五項 live 實證含 refinery 真 LLM 煉製與 OIDC 瀏覽器全流程）。**UAT=業主**（M1 1.7.2＋M2 驗收，合約紅線 K1/K3/K8） | M2 SIT + UAT（含跨系統整合場景）| QA | 2.1–2.5 | **M2 Release gate = 階段一完成** |
+
+> 註（2026-07-10 文件同步輪）：2.4.1／2.4.3 所引「AI-2/AI-3」＝階段二批次代號，正典定義待補；業主 0703 口頭裁決，原文查 git 歷史（CR-0114 輪）。
 
 ---
 
@@ -194,4 +196,4 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 
 ---
 
-*27_Product_Roadmap_WBS v1.0 — 2026-07-07*
+*27_Product_Roadmap_WBS v1.0 — 2026-07-10*

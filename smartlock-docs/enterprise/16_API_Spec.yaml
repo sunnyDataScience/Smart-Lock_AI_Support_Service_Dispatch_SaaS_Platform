@@ -3,7 +3,7 @@
 # version: 1.0
 # status: active
 # owner: 平台架構師
-# last-updated: 2026-07-08
+# last-updated: 2026-07-10
 # canonical: api/openapi.yaml
 #   ↑ 端點/schema 細節以機讀 SSOT（api/openapi.yaml，schemathesis/spec-lint/
 #     prism mock/前端型別生成之依據）為準；本檔為架構導讀視圖（領域分群、
@@ -342,6 +342,73 @@ paths:
       responses:
         "202": { description: 已受理, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
 
+  # ── 角色指派 SoD 雙簽（4 端點，✅ 已落地 2026-07-10 CR-0143）──────────────
+  # guard=admin（FULL_ACCESS 角色集）+ path tenantId 與 token tenant 比對（403 TENANT_MISMATCH）。
+  # SoD 以兩次呼叫的登入者為準（proposer/approver 分屬兩個 request，非 X-Initiator/X-Approver header）；
+  # 同人核准 → 403 SOD_VIOLATION_RBAC（service 層 + DB CHECK 雙防）。細節見 api/openapi.yaml。
+  /tenants/{tenantId}/role-assignments:
+    parameters:
+      - { $ref: "#/components/parameters/tenantId" }
+      - { $ref: "#/components/parameters/xTenantId" }
+    post:
+      tags: [governance]
+      summary: 提案角色變更（SoD step-1；提案人=當前 admin；can_grant 階層強制）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [target_user_id, to_role]
+              properties:
+                target_user_id: { type: string, description: 目標使用者（users.id） }
+                to_role: { type: string, description: 7 角色正典白名單（13_Security §3.1）；can_grant 階層強制 }
+                reason: { type: string, maxLength: 500, description: 提案事由（選填） }
+      responses:
+        "201": { description: 已建立提案（status=proposed）, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { description: 同 target user 已有未結提案（STATE_CONFLICT） }
+    get:
+      tags: [governance]
+      summary: 角色變更提案清單（?status=proposed 為待核佇列；時間倒序）
+      parameters:
+        - { name: status, in: query, schema: { type: string }, description: "proposed / approved / applied / rejected / cancelled（空 = 全部）" }
+      responses:
+        "200": { description: 提案清單, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+  /tenants/{tenantId}/role-assignments/{assignmentId}:approve:
+    post:
+      tags: [governance]
+      summary: 核准並套用（SoD step-2+3；同人核准 403 SOD_VIOLATION_RBAC；核准即套用 users.role）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { name: assignmentId, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/xTenantId" }
+      responses:
+        "200": { description: 已核准並套用（status=applied）, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "403": { description: 同人核准（SOD_VIOLATION_RBAC）/ 非 admin / 階層不足（RBAC_HIERARCHY_VIOLATION） }
+        "409": { description: 狀態非 proposed / 併發已決（STATE_CONFLICT） }
+        "422": { description: 技師帳號角色不可經此流程變更（雙庫不變量） }
+  /tenants/{tenantId}/role-assignments/{assignmentId}:reject:
+    post:
+      tags: [governance]
+      summary: 拒絕提案（擋壞提案不需雙人；reason 覆寫提案 reason）
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { name: assignmentId, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/xTenantId" }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: { type: string, maxLength: 500, description: 審核備註（選填） }
+      responses:
+        "200": { description: 已拒絕（status=rejected）, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { description: 狀態非 proposed / 併發已決（STATE_CONFLICT） }
+
   # ── L. /internal/* 服務間契約（agent → api，4 端點完整）────────────────
   /internal/conversations/ingest:
     post:
@@ -391,11 +458,13 @@ paths:
   /internal/requote-requests:
     post:
       tags: [internal]
-      summary: 技師平台發起現場報價修正 command（ADR-027——技師只提交 diff 不定價，品牌報價引擎為唯一權威）🔜 規劃中
+      summary: 技師平台發起現場報價修正 command（ADR-027——技師只提交 diff 不定價，品牌報價引擎為唯一權威）✅ 已落地 2026-07-10 CR-0144
       description: >
         technician-platform 經 OHS 同步反向呼叫（tenant 路由 + service-to-service 認證）。
         品牌 api 驗 assignee_ref 與工單狀態（on_site / in_progress）後由定價引擎建 quote v+1
         （supersedes_quote_id 串鏈 + 新 snapshot_hash），再走分層核可與客戶 LIFF 確認。
+        分層核可（501-2000/>2000）與保固建案 403 = CR-0150 落地範圍（遺留）。
+        同 request_id 重送回放既有結果（200 非 201）。
       security: [{ internalToken: [] }]
       requestBody:
         required: true
@@ -410,10 +479,46 @@ paths:
                 technician_id: { type: string, description: 須等於工單 assignee_ref }
                 reason: { type: string, enum: [estimate_error, scope_add, scope_change], description: 事由分類 }
                 item_diffs: { type: array, items: { type: object }, description: 項目/料件異動草稿（不含金額——金額由品牌定價引擎計算） }
+                initiated_via: { type: string, enum: [technician_command, cs_fallback], description: "選填（預設 technician_command）；cs_fallback=客服代發起降級標記（ADR-027 Consequences）" }
+                tenant_id: { type: string, description: "選填；單品牌 stack 可省略（服務端退 AGENT_TENANT_ID）" }
       responses:
         "201": { description: quote v+1 已建立（回報價 id 與核可層級）, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
         "403": { description: 非 assignee / 工單狀態不符 / 保固建案禁自動送出 }
         "409": { description: 已有進行中的修正請求（冪等衝突） }
+  # ↳ 同一 requote command 的 browser 入口（OIDC twin，✅ 已落地 2026-07-10 CR-0144）
+  /tenants/{tenantId}/work-orders/{workOrderId}/requote-requests:
+    post:
+      tags: [quote-pricing, work-order]
+      summary: 現場報價修正 browser 入口（TECH_ACTION_ROLES；technician=本人 assignee、後台角色=cs_fallback 代發起）✅ 已落地 2026-07-10 CR-0144
+      description: >
+        與 /internal/requote-requests 走同一 service。technician 以 users.id →
+        technicians.id 反查本人並驗 assignee（initiated_via=technician_command）；
+        後台角色代發起時 technician_id 取工單 assignee（無 assignee 422），
+        initiated_via=cs_fallback 降級標記（ADR-027 Consequences）。
+        冪等鍵優先序：body.request_id → Idempotency-Key header → 伺服端生成；
+        同鍵重送回放 200。
+      parameters:
+        - { $ref: "#/components/parameters/tenantId" }
+        - { $ref: "#/components/parameters/workOrderId" }
+        - { $ref: "#/components/parameters/xTenantId" }
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, enum: [estimate_error, scope_add, scope_change], description: 事由分類 }
+                item_diffs: { type: array, items: { type: object }, description: 項目/料件異動草稿（不含金額） }
+                request_id: { type: string, description: 選填冪等鍵（未帶=以 Idempotency-Key 為冪等鍵） }
+      responses:
+        "201": { description: quote v+1 已建立, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "200": { description: 冪等回放（非新建）, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
 
   # ── N. 維運 ───────────────────────────────────────────────────────────
   /health:

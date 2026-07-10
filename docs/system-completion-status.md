@@ -3,7 +3,15 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**M2 SIT 全綠（WBS 2.6.1，CR-0147）**，branch `test/m2-sit` — api 1738＋agent 162＋rag 7（含新 MCP 整合）＋refinery 12；五項 live 實證（含 refinery 真 LLM 煉製、OIDC 瀏覽器全流程）。**M2 工程全數完結，剩 UAT 業主驗收**。）
+**最後更新：** 2026-07-10（**M1/M2 文件正典同步輪**，branch `docs/m1m2-doc-sync` — 業主裁決「smartlock-docs 為準」；6 線合規稽核後 B 桶銷案（13_Security/15_SDS/16_API/19/20/21/27_WBS/ADR×5）＋openapi.yaml 補 M2 端點（145→150 paths）＋CR-0148 三件套補齊＋CIA 草案 CR-0149/0150（🛑 待業主 §8）。C 桶四點待裁決未動。）
+
+**前一次更新：** 2026-07-10（**rag 案例檢索門檻校正（CR-0148）**，branch `fix/case-sim-threshold`，merge 7041bdf8 — 0.85 係 text-embedding-004 設想，multilingual-002 下真改寫 sim≈0.743 恆不命中（案例檢索形同虛設）→ 門檻改 env RAG_CASE_SIM_THRESHOLD 預設 0.70；rag 測試綠。）
+
+**前一次更新：** 2026-07-10（**品牌後台登入頁左右分欄改版**，merge c77f7d45 — 純 UI 改版，無 contract/行為變更。）
+
+**前一次更新：** 2026-07-10（**師傅站登入頁左右分欄改版**，merge eab6e137 — 純 UI 改版，無 contract/行為變更。）
+
+**前一次更新：** 2026-07-10（**M2 SIT 全綠（WBS 2.6.1，CR-0147）**，branch `test/m2-sit` — api 1738＋agent 162＋rag 7（含新 MCP 整合）＋refinery 12；五項 live 實證（含 refinery 真 LLM 煉製、OIDC 瀏覽器全流程）。**M2 工程全數完結，剩 UAT 業主驗收**。）
 
 **前一次更新：** 2026-07-10（**OIDC 授權碼流 web 接線＝2.1.1-R2（CR-0146）**，branch `feat/casdoor-oidc-web-r2` — 薄回調＋httpOnly cookie 雙寫＋SSO 按鈕；live E2E 全通（真 Casdoor→cookie→映射→dashboard）。R3=ACT-01 退場＋三站複製（業主排程）。）
 
