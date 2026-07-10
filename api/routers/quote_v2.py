@@ -188,8 +188,10 @@ async def delete_quote_v2(
 
 async def _transition(tenantId: str, id: str, action: str, user: CurrentUser, comment: str | None = None) -> dict:
     _xt(user, tenantId)
+    # actor_role 供 CR-0150 requote 分層核可（send 時 delta>2000 限主管角色）
     return {"data": await qe.transition(
-        tenant_id=tenantId, quote_id=id, action=action, actor_id=user.user_id, comment=comment)}
+        tenant_id=tenantId, quote_id=id, action=action, actor_id=user.user_id,
+        comment=comment, actor_role=user.role)}
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:submit", operation_id="submitQuoteV2", summary="送審 v2", tags=["M04 Quote"])

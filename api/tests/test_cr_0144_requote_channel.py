@@ -162,14 +162,16 @@ async def test_tech_browser_entry_and_cs_fallback(client, monkeypatch):
     wid2, _ = await _mk_wo()
     try:
         url = f"/tenants/{TID}/work-orders/{wid2}/requote-requests"
-        # 後台客服代發起 → cs_fallback 降級標記
-        r = await client.post(url, json={"reason": "estimate_error", "item_diffs": []},
+        # 後台客服代發起 → cs_fallback 降級標記(item_diffs 自 CR-0150 必填非空)
+        r = await client.post(url, json={"reason": "estimate_error",
+                                         "item_diffs": [{"item": "面板", "quantity": 1}]},
                               headers=_bearer(str(uuid.uuid4()), "customer_service"))
         assert r.status_code == 201, r.text
         assert r.json()["data"]["initiated_via"] == "cs_fallback"
 
         # vendor 不可打(TECH_ACTION 白名單外)
-        r = await client.post(url, json={"reason": "scope_add", "item_diffs": []},
+        r = await client.post(url, json={"reason": "scope_add",
+                                         "item_diffs": [{"item": "鎖芯", "quantity": 1}]},
                               headers=_bearer(str(uuid.uuid4()), "vendor"))
         assert r.status_code == 403
     finally:

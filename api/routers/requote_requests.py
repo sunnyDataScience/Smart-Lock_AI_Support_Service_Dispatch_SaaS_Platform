@@ -24,7 +24,8 @@ class RequoteBody(BaseModel):
     work_order_id: str
     technician_id: str
     reason: str
-    item_diffs: list = Field(default_factory=list)
+    # CR-0150:收緊為必填非空(16_API required;空修正單無語意)
+    item_diffs: list = Field(min_length=1)
     initiated_via: str = "technician_command"
     tenant_id: str | None = None  # 單品牌 stack 可省略(退 AGENT_TENANT_ID)
 
@@ -50,7 +51,8 @@ async def submit_requote_request(body: RequoteBody, response: Response) -> dict:
 
 class TechRequoteBody(BaseModel):
     reason: str
-    item_diffs: list = Field(default_factory=list)
+    # CR-0150:收緊為必填非空(同 internal 入口)
+    item_diffs: list = Field(min_length=1)
     request_id: str | None = None  # 未帶=以 Idempotency-Key 為冪等鍵
 
 
