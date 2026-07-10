@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **改約／範圍變更 LINE postback 轉發橋（branch `feat/line-ops-postback-bridge`，2026-07-10，CIA CR-0155／ADR-011 缺口）**：LINE 單一 webhook 指向 agent gateway，api 端 CR-0017 handler（r:c／r:r／s:a／s:r，CAS 冪等＋推播確認）早已完整但 postback 到不了——gateway 現對 ops postback **原封轉發 body＋X-Line-Signature** 至 `/api/v1/line/webhook`（api 同 secret 重驗簽，零重複業務邏輯）；成功靜默（api 推確認避免雙訊息）、失敗友善話術 fail-soft。q:* 報價旁路不變。**同輪立案 CR-0154（DB 連線池 CIA）**：盤點 660 呼叫點＋交易綁定連線（FOR UPDATE），🛑 設計裁決待業主（A. request-scoped ContextVar 池／B. pgbouncer／C. 降級），不硬上。驗證：新測試 4＋agent 全套 175 綠。遺留：binding postback、live LINE 實測隨 UAT。
+
 - **三庫 URI 啟動守衛（branch `feat/db-uri-strict-guard`，2026-07-10，CIA CR-0153／ADR-020 補課）**：`DB_URI_STRICT=1`（opt-in）時依 API_SURFACE 斷言必要庫 URI——漏設 RuntimeError 拒啟，不得靜默 fallback 單庫；prod deploy 腳本與三站 compose 一律帶上；**預設關閉**保 pytest／本機單庫 fallback 語意（收斂 ADR-020「須有」vs 附註「規劃中」的自相矛盾）。驗證：新測試 4＋unit 347＋main import＋compose YAML／腳本語法全過。
 
 - **ADR-025 報價 AI 雙閘＋出口 guard 落地（branch `feat/adr025-ai-quote-gate`，2026-07-10，CIA CR-0152 done）**：憲章「server-side enforce，不依賴 prompt」自此有 runtime 落點。①**api 雙閘**（`transition(send)` service 層，縱深防禦）：`actor_role=ai_agent` → 403 `AI_FORBIDDEN_FINAL_QUOTE`；保固案件（warranty_claims 關聯）非人類 staff（fail-closed 含未帶角色）→ 403 `AI_FORBIDDEN_WARRANTY_PROJECT`。②**agent 出口 guard**（`lockcore/agent/reply_guard.py`＋`loop._guard_reply`）：價格 utterance（金額數字未轉真人）／未溯源型號（客戶沒提過的型號代碼＝幻覺）→ **修正重生 1 次 → 仍違規改 server-generated 轉真人話術＋記 escalation**（可稽核）；guard 失敗絕不癱瘓 turn。openapi `:send-to-customer` 宣告以標注收斂（不另實作）。驗證：api 測試 3＋agent 純函式 9＋agent 全套 171＋quote/warranty 迴歸 141＋K8 dry gate 全綠。遺留：streaming stream-gate／建案判定／情緒分類器／高額閾值。
