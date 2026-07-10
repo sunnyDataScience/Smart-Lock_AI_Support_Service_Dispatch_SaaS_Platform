@@ -58,6 +58,7 @@ services:
       # 技師身分權威庫(方案 B;拿掉此行 = 單庫 fallback)
       TECH_POSTGRES_URI: "postgresql://lock:0000@tech-db:5432/lock_tech"
       API_SURFACE: tech           # 技師精簡面:只掛技師 app 路由、停用背景 worker(api/main.py CR-0112)
+      DB_URI_STRICT: "1"          # CR-0153:三庫 URI 啟動守衛(漏設拒啟,ADR-020)
       CORS_ORIGINS: "${CORS_ORIGINS:-http://localhost:3001 http://localhost:3000}"
       MEDIA_ROOT: /app/api/data/media
       # CR-0115 KYC PII 加密金鑰:tech-api 是註冊加密寫入端,必須與 platform-api

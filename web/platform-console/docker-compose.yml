@@ -61,6 +61,7 @@ services:
       # 平台庫(拿掉此行 = 單庫 fallback,platform 資料落主連線 —— 僅測試用)
       PLATFORM_POSTGRES_URI: "postgresql://lock:${PLATFORM_DB_PASSWORD:-0000}@platform-db:5432/lock_platform"
       API_SURFACE: platform       # 只掛 /api/v1/platform、停用背景 worker(api/main.py CR-0114)
+      DB_URI_STRICT: "1"          # CR-0153:三庫 URI 啟動守衛(漏設拒啟,ADR-020)
       # ⚠️ 必填且必須與品牌/師傅 stack 不同值(token 密碼學隔離)。
       #   未設 → compose 直接拒起(:?);main.py 對 platform surface 另有啟動守衛
       #   (拒絕過短/含 dev 標記的密鑰)。絕不提供 repo 內預設值 —— 這是簽發
