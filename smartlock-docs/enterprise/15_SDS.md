@@ -218,6 +218,8 @@ on_site → quoted → approved → in_progress                              ←
 （任一非終態 → cancelled；created 前置＝線上報價已客戶確認或急件，BR-WO-01）
 ```
 
+〔標注 2026-07-10 業主裁決——階段一 as-built 對映：本節 flow DSL 值域（dispatched／on_site／quoted／approved／settled）依 18_DB「status 值域由 flow DSL 定義」與 WBS 4.1，屬 **M4 flow DSL 引擎 to-be**；階段一實作值域＝created／assigned／accepted／in_progress／completed／confirmed／cancelled（api/services/work_order_service.py），全值域切換隨 M4 落地。現行對映：on_site≡in_progress（現場作業）、quoted→approved 修正輪發生在 **quote 層狀態機**（工單停留 in_progress，CR-0144／ADR-027）、settled≡confirmed＋月結鏈。〕
+
 `status` 不是資料庫 enum——引擎依 pack flow DSL 驗證每次轉移的 `on` 事件、`guard` 與 block preconditions；換 pack 即換值域，核心 code 不改。
 
 ### 4.2 locksmith Vertical Pack 狀態細化

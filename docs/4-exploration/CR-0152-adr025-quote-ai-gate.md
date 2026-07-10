@@ -1,7 +1,7 @@
 # CR-0152 — ADR-025 報價外送 AI 雙閘落地(openapi 宣告 vs runtime 缺口)
 
 - **日期**:2026-07-10
-- **狀態**:CIA 草案 —— 🛑 等 §8 業主裁決後實作
+- **狀態**:已裁決(2026-07-10)——實作中
 - **觸發面向**:API contract(端點存廢)、Architecture boundary(AI 憲章 enforce 落點)
 - **依據**:ADR-025(Accepted 憲章級:「Server-side enforce,不依賴 prompt」)、api/openapi.yaml:424-474(機讀 SSOT 已宣告)、2026-07-10 架構稽核 #1
 
@@ -28,3 +28,7 @@
 ## §9 實作順序(裁決後)
 
 1. quote 送出服務層 AI 雙閘+403 錯誤碼+測試 → 2. grounding_guard 接 loop(agent 側,CS_TOOL_ALLOWLIST 不變)+K8 eval 迴歸 → 3. openapi/16_API 標注收斂 → 4. 治理三件套+ADR-025 附註銷案。
+
+### §8 裁決記錄（2026-07-10）
+
+業主「開工」＝**採方案 A 補實作**（解讀可否決）：①雙閘掛既有 quote_v2 `:send`（openapi 以標注收斂，不開新端點）；②grounding_guard 接 loop＝攔截 regen 1 次後 transfer_to_human；③情緒分類器/高額閾值兩規則排後續輪（記遺留）；④排 **M2 收尾**。

@@ -317,7 +317,7 @@ AI 客服的安全邊界採「**物理限制優先於行為約束**」：
 | 授權 enforce | SA-01：資源級 `role_required` 逐端點落地（先金流/派工）| 未授權角色寫入回 403；矩陣對帳無殘留偏差 |
 | agent 健康檢查 | FA-01：`GET /health` 路由 | deploy health gate 通過 |
 | 記憶持久化 | FA-02：生產 `backend="postgres"` | 實例重啟記憶不流失；PII 落 Cloud SQL 加密層 |
-| token 安全儲存 | ACT-01：httpOnly cookie + server 端驗簽（隨 Casdoor 授權碼流）| localStorage 不再存 token |
+| token 安全儲存 | ACT-01：httpOnly cookie + server 端驗簽（隨 Casdoor 授權碼流）| localStorage 不再存 token 〔標注 2026-07-10 業主裁決：ACT-01 統一標 **Phase 2**（與 §2.1／§7 T-3／§8.3 一致，本表 Phase 1 歸類作廢）；退場＝2.1.1 R3 業主排程。CR-0141 §8-3／CR-0146 遺留#1 銷案〕|
 | 前端 deny-by-default | ACT-02：rolePolicy catch-all 拒絕 + CI 漏登記檢查 | 未登記敏感頁預設拒絕 |
 | 死角色清理 | SA-06：`rolePolicy` FULL_ACCESS 移除 `tenant_admin` / `super_admin` 放行；`users.role` 欄位註解與 seed 同步角色正典（§3.1）；`_STAFF_ROLES` 移除 `dispatcher`（保留角色不開通）；`_MATRIX` 補 `operations_manager` 行（轉 enforce 前必補否則該角色全鎖）| ✅ **本項完成（2026-07-09，CR-0127）**：死角色 token 不再全放行；DB 註解與正典一致；ops_manager 矩陣行齊備（核准權依 SoD 歸 admin/reviewer）|
 | 租戶 fallback | ACT-03：無有效 tenant 導登入 | 不再退回預設租戶 |

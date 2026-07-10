@@ -1,7 +1,7 @@
 # CR-0149 — 報價快照 hash-chain 落地(ADR-026 補課)
 
 - **日期**:2026-07-10
-- **狀態**:CIA 草案 —— 🛑 等 §8 業主裁決後實作
+- **狀態**:已裁決(2026-07-10)——實作中
 - **觸發面向**:DB schema(pricing_rule_snapshot 重建+migration)、Domain model(quote 不變式)
 - **依據**:ADR-026(Accepted 2026-07-07,content-addressable snapshot+append-only)、2026-07-10 業主裁決「smartlock-docs 為準」、文件合規稽核(6 線 workflow)查實 ADR-026 零落地
 
@@ -35,3 +35,7 @@ ADR-026 已 Accepted 但 **schema 完全未落地**——現行仍是 migration 
 ## §9 實作順序(裁決後)
 
 1. migration 098(新表+REVOKE+quote FK)→ 2. `_freeze_snapshot` 改寫+寫入點接線 → 3. append-only/dedup/回歸測試 → 4. ADR-026 附註+24_Runbook+18_DB 同步 → 5. CHANGELOG/WBS/completion-status。
+
+### §8 裁決記錄（2026-07-10）
+
+業主「開工」＝**採建議案**（解讀可否決，回退成本低）：①存量豁免（NOT NULL 只 enforce 新 quote，舊資料標 legacy）；②舊表更名 `pricing_rule_snapshot_legacy` 保留查證，新表全新開始；③purge 流程記遺留；④排 **M2 收尾（UAT 前）**。
