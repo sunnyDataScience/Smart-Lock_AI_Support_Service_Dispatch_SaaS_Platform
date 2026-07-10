@@ -1363,12 +1363,91 @@ class AgentLoop:
             pending_queue=ctx.pending_queue,
         )
         final_content, tools_used, all_msgs, stop_reason, had_injections = result
+        # [lock-cs-agent] CR-0152（ADR-025 server-side enforce）：出口 guard——
+        # 價格 utterance／未溯源型號 → 修正重生 1 次，仍違規改轉真人話術＋記
+        # escalation。guard 內部失敗絕不癱瘓 turn（保留原回覆）。
+        try:
+            final_content, tools_used, all_msgs = await self._guard_reply(
+                ctx, final_content, tools_used, all_msgs
+            )
+        except Exception:
+            logger.exception("[reply-guard] guard 內部失敗（照出原回覆）")
         ctx.final_content = final_content
         ctx.tools_used = tools_used
         ctx.all_messages = all_msgs
         ctx.stop_reason = stop_reason
         ctx.had_injections = had_injections
         return "ok"
+
+    async def _guard_reply(
+        self,
+        ctx: TurnContext,
+        final_content: str | None,
+        tools_used: list[str],
+        all_msgs: list[dict],
+    ) -> tuple[str | None, list[str], list[dict]]:
+        """ADR-025／CR-0152 出口 guard：違規 → 修正重生 1 次 → 仍違規轉真人。
+
+        已知限制（記 CR-0152 遺留）：streaming 通道（websocket）違規草稿可能已
+        流出部分內容——LINE 主通道為整則出站不受影響；stream-gate 另議。
+        """
+        from .reply_guard import (
+            CORRECTIVE_INSTRUCTION, TRANSFER_FALLBACK, guard_violations,
+        )
+
+        def _customer_text() -> str:
+            parts = [ctx.msg.content or ""]
+            for m in ctx.history or []:
+                try:
+                    if (m.get("role") or "") == "user":
+                        c = m.get("content")
+                        parts.append(c if isinstance(c, str) else str(c))
+                except AttributeError:
+                    continue
+            return "\n".join(parts)
+
+        customer_text = _customer_text()
+        escalated = "transfer_to_human" in (tools_used or [])
+        violations = guard_violations(
+            final_content or "", customer_text, escalated=escalated
+        )
+        if not violations:
+            return final_content, tools_used, all_msgs
+
+        logger.warning("[reply-guard] 違規 {} → 修正重生 1 次", violations)
+        regen_messages = list(all_msgs or ctx.initial_messages) + [
+            {"role": "user", "content": CORRECTIVE_INSTRUCTION}
+        ]
+        # 重生不串流（違規草稿不再外流；LINE 為整則出站本就無此問題）
+        new_content, new_tools, new_msgs, _stop, _inj = await self._run_agent_loop(
+            regen_messages,
+            on_progress=ctx.on_progress,
+            session=ctx.session,
+            channel=ctx.msg.channel,
+            chat_id=ctx.msg.chat_id,
+            message_id=ctx.msg.metadata.get("message_id"),
+            metadata=ctx.msg.metadata,
+            session_key=ctx.session_key,
+        )
+        merged_tools = list(dict.fromkeys((tools_used or []) + (new_tools or [])))
+        escalated2 = "transfer_to_human" in merged_tools
+        if not guard_violations(new_content or "", customer_text, escalated=escalated2):
+            return new_content, merged_tools, new_msgs
+
+        # regen 仍違規 → server-generated 轉真人話術＋記 escalation（可稽核）
+        logger.error("[reply-guard] regen 仍違規 {} → 轉真人話術", violations)
+        if self._escalation_store is not None and ctx.msg.sender_id:
+            try:
+                self._escalation_store.log(
+                    self._memory_tenant,
+                    ctx.msg.sender_id,
+                    "reply_guard:" + ";".join(violations),
+                    False,
+                    {"turn_id": ctx.turn_id},
+                )
+            except Exception:
+                logger.exception("[reply-guard] escalation 記錄失敗（不阻斷）")
+        return TRANSFER_FALLBACK, merged_tools, new_msgs
 
     async def _state_save(self, ctx: TurnContext) -> str:
         if ctx.final_content is None or not ctx.final_content.strip():

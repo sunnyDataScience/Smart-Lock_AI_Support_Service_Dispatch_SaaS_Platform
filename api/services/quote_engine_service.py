@@ -415,6 +415,8 @@ async def list_quotes(*, tenant_id: str, limit: int = 100) -> list[dict]:
 # 即核可，身分由 router RBAC 保證）；>2000 主管覆核（僅下列角色可執行送出）。
 _REQUOTE_TIER_EDITOR_MAX = 2000.0
 _REQUOTE_SUPERVISOR_ROLES = ("operations_manager", "admin")
+# CR-0152（ADR-025）：保固案件送出的人類 staff 白名單（AI/未知角色 fail-closed）
+_HUMAN_STAFF_SEND_ROLES = ("customer_service", "operations_manager", "admin")
 
 
 async def transition(
@@ -447,6 +449,29 @@ async def transition(
                 "audit_complete 僅限急件補審報價——一般報價須客戶 LIFF 確認（accept）",
                 409,
             )
+
+    # CR-0152（ADR-025 憲章，server-side enforce）：AI 雙閘——
+    # ①ai_agent 永不可對客戶送出最終報價；②保固案件（warranty_claims 關聯）
+    # 僅人類 staff 角色可送（fail-closed：未知/未帶角色一律擋；建案判定記遺留）。
+    if action == "send":
+        if (actor_role or "") == "ai_agent":
+            raise ApiError(
+                "AI_FORBIDDEN_FINAL_QUOTE",
+                "AI 不得對客戶送出最終報價（ADR-025 話術邊界憲章）",
+                403,
+            )
+        wo_row = await (await conn.execute(
+            "SELECT work_order_id FROM quote WHERE id = %s::uuid", (quote_id,))).fetchone()
+        if wo_row and wo_row[0]:
+            wc = await (await conn.execute(
+                "SELECT 1 FROM warranty_claims WHERE work_order_id = %s::uuid LIMIT 1",
+                (wo_row[0],))).fetchone()
+            if wc and (actor_role or "") not in _HUMAN_STAFF_SEND_ROLES:
+                raise ApiError(
+                    "AI_FORBIDDEN_WARRANTY_PROJECT",
+                    "保固／建案案件僅人類客服／主管可送出報價（BR-QUOTE-03／ADR-025）",
+                    403,
+                )
 
     # CR-0150：requote v+1（supersedes 串鏈）送出分層核可——delta 超過小編層
     # 上限時，僅主管角色可執行送出。legacy 呼叫端未帶 actor_role → fail-closed。
