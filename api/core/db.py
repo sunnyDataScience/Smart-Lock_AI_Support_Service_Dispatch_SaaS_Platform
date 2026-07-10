@@ -59,6 +59,31 @@ async def _ensure_conn() -> bool:
         return False
 
 
+def assert_uri_strict() -> None:
+    """三庫 URI 啟動守衛(ADR-020 Consequences/CR-0153,opt-in)。
+
+    `DB_URI_STRICT=1` 時依 API_SURFACE 斷言該面必要的庫 URI 已配置——
+    漏設直接 RuntimeError 拒啟,不得靜默 fallback 單庫(prod 三庫部署防
+    「以為在打技師庫其實寫進品牌庫」)。預設關閉:本機/pytest 單庫
+    fallback 行為完全不變。
+    """
+    if os.getenv("DB_URI_STRICT", "").strip() != "1":
+        return
+    surface = os.getenv("API_SURFACE", "all").strip().lower() or "all"
+    missing: list[str] = []
+    if not os.getenv(_uri_env):
+        missing.append(_uri_env)
+    if surface == "tech" and not os.getenv(_TECH_URI_ENV):
+        missing.append(_TECH_URI_ENV)
+    if surface == "platform" and not os.getenv(_PLATFORM_URI_ENV):
+        missing.append(_PLATFORM_URI_ENV)
+    if missing:
+        raise RuntimeError(
+            f"DB_URI_STRICT=1 拒絕啟動(API_SURFACE={surface}):缺 {', '.join(missing)}"
+            "——三庫部署禁止靜默 fallback 單庫(ADR-020)"
+        )
+
+
 def tech_db_enabled() -> bool:
     """TECH_POSTGRES_URI 是否已配置（真雙庫模式）。"""
     return bool(os.getenv(_TECH_URI_ENV))

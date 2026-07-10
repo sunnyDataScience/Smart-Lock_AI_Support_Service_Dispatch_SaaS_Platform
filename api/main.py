@@ -162,6 +162,12 @@ if _API_SURFACE == "platform":
         )
 
 
+# CR-0153:三庫 URI 啟動守衛(DB_URI_STRICT=1 時 enforce;ADR-020)。
+from core.db import assert_uri_strict as _assert_uri_strict
+
+_assert_uri_strict()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifecycle: 連線 DB → 啟動 monitors → 關閉。"""
