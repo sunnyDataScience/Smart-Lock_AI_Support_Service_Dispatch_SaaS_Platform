@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**Cloud Run api 擴縮護欄修正（架構稽核 #2）**，branch `fix/deploy-scale-guard` — api.sh min=1/max=1（23_Deployment §3 單實例硬約束；原 max=3 無決議依據）。）
+**最後更新：** 2026-07-10（**OTel PII scrubbing 落地（架構稽核 #3）**，branch `feat/otel-pii-scrub` — 25_Monitoring §3 硬性：scrub_text 純函式＋出站包裝器（電話/email/地址遮蔽、LINE uid 雜湊化、token 遮蔽）；單測 9＋unit 343 綠。）
+
+**前一次更新：** 2026-07-10（**Cloud Run api 擴縮護欄修正（架構稽核 #2）**，branch `fix/deploy-scale-guard` — api.sh min=1/max=1（23_Deployment §3 單實例硬約束；原 max=3 無決議依據）。）
 
 **前一次更新：** 2026-07-10（**E2E 主流程掛 CI＋多實例 WS e2e（CR-0151）**，branch `test/e2e-ci-gate` — e2e-main-flows.yml：全新 bootstrap＋雙 api 共 Redis＋跨實例廣播實證（含負向對照）＋Playwright 5 spec；順修 5 處 spec 腐化。本機 15/15＋2 passed 全綠；CI 首跑隨 push。）
 
