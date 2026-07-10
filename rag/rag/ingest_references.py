@@ -1,4 +1,4 @@
-"""灌注 CLI（二）— lockcore references/{Brand}/{Model}.md → manual_chunks。
+"""灌注 CLI（二）— lockcore references/{Brand}/{Model}.md → rag_manual_chunks。
 
 WBS 2.2.2「語料灌注：型號事實 chunk 遷移」：references 是**專家驗證過的精選事實層**
 （bronze 溯源 + 2026-04 起多輪專家更正），把它遷入 RAG 語料讓語義檢索涵蓋

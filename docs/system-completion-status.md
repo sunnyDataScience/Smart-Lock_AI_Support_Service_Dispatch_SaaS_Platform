@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**Casdoor 統一 IdP R1（WBS 2.1.1 R1，CR-0141）**，branch `feat/casdoor-idp` — platform compose profile `idp`（casdoor :8005）＋bootstrap 冪等同步（org=品牌租戶/7 角色/users bcrypt hash 遷移/application/cert 匯出；tenant_id 權威=品牌庫 saas.tenant）＋api OIDC 雙驗（opt-in 零行為變化；claims 走 properties 映射回 users.id；A2/A3 對 OIDC token 同樣生效）＋cookie fallback（ACT-01 地基）。**live E2E 實證**（bcrypt 遷移密碼→真 token→api 映射全對）；新測試 10；api 全套 **1729 passed 0 failed**。R2=四站授權碼流＋ACT-01 cutover；License gate 隨 ADR-002。順修 refinery 埠 8004。）
+**最後更新：** 2026-07-10（**rag_manual_chunks 撞名修復＋2.2.2 收案（CR-0142）**，branch `fix/rag-manual-chunks-collision` — RAG 主表原名撞 kb 表恆 no-op（從未真正存在）→ 096 改名自持；UAT live 灌注 249 chunk＋檢索基準 83%（ADR-030：輔助指標非切換開關）；2.2.2 依 ADR-030 重定義收案。**M2 知識線（2.2.x/2.3.x）全數完結**。）
+
+**前一次更新：** 2026-07-10（**Casdoor 統一 IdP R1（WBS 2.1.1 R1，CR-0141）**，branch `feat/casdoor-idp` — platform compose profile `idp`（casdoor :8005）＋bootstrap 冪等同步（org=品牌租戶/7 角色/users bcrypt hash 遷移/application/cert 匯出；tenant_id 權威=品牌庫 saas.tenant）＋api OIDC 雙驗（opt-in 零行為變化；claims 走 properties 映射回 users.id；A2/A3 對 OIDC token 同樣生效）＋cookie fallback（ACT-01 地基）。**live E2E 實證**（bcrypt 遷移密碼→真 token→api 映射全對）；新測試 10；api 全套 **1729 passed 0 failed**。R2=四站授權碼流＋ACT-01 cutover；License gate 隨 ADR-002。順修 refinery 埠 8004。）
 
 **前一次更新：** 2026-07-10（**knowledge-refinery HITL 審核服務＋case_entries 併形（WBS 2.3.2，CR-0140）**，branch `feat/kr-hitl-review` — 精煉迴路閉環：併形 095（業主裁決 §8-1→B）＋rag 案例查詢修復（實證 sim=1.00 命中，修 CR-0124 潛在缺陷）；FastAPI 審核服務＋靜態 UI（:8002，JWT 共驗 interim、Casdoor 隨 2.1.1）；Publisher 核可才落地（事實軌→embed+case_entries；行為軌→patch+apply CLI 人審 git）。12 tests、095 冪等、drift-check 93、rag 迴歸 5、image build 綠。**M2 知識線 2.3.x 完結**（2.2.2 驗收重定義除外）。）
 

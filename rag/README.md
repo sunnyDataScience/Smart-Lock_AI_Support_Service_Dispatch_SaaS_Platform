@@ -9,10 +9,10 @@ per-brand bundle 元件（ADR-002）：查詢必帶 `tenant_id`（default deny�
 
 | 檔案 | 職責 |
 |---|---|
-| `SQL/Schema_rag.sql`（repo 根） | `manual_chunks`（手冊事實語料）+ `case_entries`（案例史）；768 維 HNSW cosine |
+| `SQL/Schema_rag.sql`（repo 根） | `rag_manual_chunks`（手冊事實語料；原名撞 kb 表，CR-0142 改名）+ `case_entries`（案例史）；768 維 HNSW cosine |
 | `rag/embedding.py` | `embed()` — LiteLLM，`vertex_ai/text-multilingual-embedding-002` |
 | `rag/store.py` | upsert / cosine 檢索（tenant + 品牌/型號 gating；case 閾值 ≥ 0.85） |
-| `rag/ingest.py` | 灌注 CLI：knowledge-pipeline `facts.jsonl` → `manual_chunks`（冪等 upsert） |
+| `rag/ingest.py` | 灌注 CLI：knowledge-pipeline `facts.jsonl` → `rag_manual_chunks`（冪等 upsert） |
 | `rag/server.py` | MCP server（stdio）：`search_product_manual` / `search_similar_cases` |
 
 > ⚠️ embedding 模型勘誤（CR-0124）：ADR-010 原訂 `text-embedding-004`，實測對中文短文本

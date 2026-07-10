@@ -371,7 +371,7 @@ agent 為單一 Python 進程（aiohttp），核心引擎 LockCore 採「三層�
 | EscalationStore | `lockcore/agent/user_memory/escalation.py` | 轉真人稽核紀錄（含 facts_snapshot JSON）|
 | SkillsLoader + 2 builtin skills | `lockcore/skills/` | Agent Skills 標準（SKILL.md + references）：`locksmith-product-knowledge`（事實層）+ `locksmith-cs-sop`（行為層，紅線決策樹）|
 
-長尾逐型號事實檢索走 **RAG-via-MCP** 查 pgvector 唯一事實語料（`manual_chunks` / `case_entries`）；skill 只留行為 + 精選事實（🔜 規劃中，語義層依 agent ADR-004 分階段建置，filesystem references 於品質 gate 通過前為 fallback）。
+長尾逐型號事實檢索走 **RAG-via-MCP** 查 pgvector 唯一事實語料（`rag_manual_chunks` / `case_entries`；manual 表原名撞 kb-v2 表，CR-0142 改名自持）；skill 只留行為 + 精選事實（🔜 規劃中，語義層依 agent ADR-004 分階段建置，filesystem references 於品質 gate 通過前為 fallback）。
 
 ### 5.2 Turn 狀態機
 
@@ -612,9 +612,9 @@ License 開通的附加系統（集中共用，非 per-brand bundle）：長駐�
 | 提煉分流器 | LLM 依第一性原則分流：「定義 agent 怎麼行為」→ 行為/精選；「被查找的事實」→ 事實 |
 | Draft Queue | 提煉產物落地前的審核佇列（事實 draft + provenance；行為 draft + diff vs 既有 skill）。落地＝品牌庫 `knowledge_drafts` 表（migration 094，CR-0139 D2）：兩軌分流 + `UNIQUE(tenant_id, draft_key)` 冪等 + 狀態機欄 |
 | 審核 UI backend | draft 狀態機（§9.2）+ diff 呈現；與 AI Onboarding Compiler 共用 HITL 審核骨架（ADR-P011 孿生）|
-| Publisher | 核可後才落地：事實 → `embed()`（text-embedding-004，768 維）chunk+embed 灌 pgvector `manual_chunks` / `case_entries`（帶 tenant/brand 過濾欄）；行為 → append-only git 寫入 lockcore `references/{Brand}/{Model}.md` + SKILL.md |
+| Publisher | 核可後才落地：事實 → `embed()`（text-embedding-004，768 維）chunk+embed 灌 pgvector `rag_manual_chunks` / `case_entries`（帶 tenant/brand 過濾欄）；行為 → append-only git 寫入 lockcore `references/{Brand}/{Model}.md` + SKILL.md |
 
-`manual_chunks` / `case_entries` 的 schema 由 api 資料層擁有；本系統僅為寫入方。
+`rag_manual_chunks`（rag 擁有）/ `case_entries`（api 資料層擁有，095 併形）的 schema 各歸其主；本系統僅為寫入方。
 
 ### 9.2 審核狀態機
 
