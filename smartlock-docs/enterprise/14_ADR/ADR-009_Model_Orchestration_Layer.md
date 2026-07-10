@@ -3,7 +3,7 @@ title: "ADR-009: Model Orchestration Layer（供應商無關，LiteLLM 實作）
 version: 1.0
 status: active
 owner: 平台架構團隊
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P008_Model_Orchestration_Layer_供應商無關.md
   - smartlock-docs/agent/P2/04_adr/ADR-002_LiteLLM_統一供應商.md
@@ -55,3 +55,4 @@ upstream:
 ## Status 附註
 
 - 🔜 規劃中：`FallbackProvider` 接線（多供應商 failover）、調用效率能力（快取/批次/平行工具）收斂至本層、per-industry 編排配方納入 Vertical Pack。
+- 2026-07-10：`FallbackProvider` 類別已存在（`lockcore/providers/fallback_provider.py`）唯 `build_provider` 未接線——接線排程待業主。

@@ -4,7 +4,7 @@ version: 1.0
 status: superseded
 superseded_by: ./ADR-028_web檔案層拆分_四站獨立專案.md
 owner: web 系統 tech lead
-last-updated: 2026-07-08
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/web/P2/04_adr/ADR-001_單一codebase_APP_MODE_多portal.md
 ---
@@ -50,3 +50,4 @@ upstream:
 ## Status 附註
 
 - 🔜 規劃中：`crossModeRedirect` 4 mode × 邊界路徑單元測試；runtime env 注入評估。
+- 2026-07-10：本檔殘留之未結 to-do（`crossModeRedirect` 單測／runtime env 注入評估）隨 supersede 移轉 [ADR-028](./ADR-028_web檔案層拆分_四站獨立專案.md) 考量，本檔不再追蹤。

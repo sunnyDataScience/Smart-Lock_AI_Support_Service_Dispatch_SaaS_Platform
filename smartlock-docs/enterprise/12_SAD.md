@@ -3,7 +3,7 @@ title: 系統架構設計文件（SAD）— Smart Lock AI 客服與派工 SaaS �
 version: 1.0
 status: active
 owner: 平台架構師
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P1/05_platform_architecture_L1.md
   - smartlock-docs/00_platform/P2/09_integration_data_flow.md
@@ -127,7 +127,7 @@ flowchart TB
     KAFKA -.->|"事件消費"| SIGNOZ
 ```
 
-**圖例**：實線 `-->` = 已定案整合路徑；虛線 `-.->` = 監控 / 開通旁路。其中 Casdoor OIDC 全面導入、Redis/Kafka、MCP-RAG 語義層、Agent Config Registry、per-brand provisioning 為 **🔜 規劃中**（分期見 §13）。
+**圖例**：實線 `-->` = 已定案整合路徑；虛線 `-.->` = 監控 / 開通旁路。其中 Casdoor OIDC 全面導入、Redis/Kafka、MCP-RAG 語義層、Agent Config Registry、per-brand provisioning 為 **🔜 規劃中**（分期見 §13）。〔標注 2026-07-10：Agent Config Registry 於 §13 未排入、WBS 亦無條目——排程斷鏈待業主裁決（依 0707 裁決推定階段二）。〕
 
 ---
 
@@ -161,11 +161,11 @@ flowchart TB
 | 技師權威庫 tech-db | 5434 | 技師身分域 |
 | 平台庫 platform-db | 5435 | 管理員 / 品牌申請 |
 
-進程內元件：ws_hub（WS 10 頻道；🔜 規劃中遷 Redis pub/sub，ADR-P007 Phase 1）、11 個 cron worker（🔜 規劃中加分散式鎖）、中介層鏈（CORS → RequestId → Deprecation）。
+進程內元件：ws_hub（WS 10 頻道；🔜 規劃中遷 Redis pub/sub，ADR-P007 Phase 1）、11 個 cron worker（🔜 規劃中加分散式鎖）、中介層鏈（CORS → RequestId → Deprecation）。〔標注 2026-07-10：CR-0134（2026-07-09）已落地 Redis pub/sub 橋（opt-in）＋ PG advisory lock 領導者選舉（cron 分散式鎖）；殘項＝部署面 `REDIS_URL` 設定（OPS）與 DB 連線池（排程待業主）。〕
 
 ### 4.3 web（Next.js 多站前端）
 
-單一 codebase 以 `APP_MODE` 建置為多 portal（web ADR-001）：
+單一 codebase 以 `APP_MODE` 建置為多 portal（web ADR-001）：〔標注 2026-07-10：ADR-028（2026-07-09）已改為四站完全獨立專案——`web/{brand-portal,tech-portal,landing,platform-console}` 各自 lockfile／Dockerfile／docker-compose，supersedes ADR-023；本段「單一 codebase 多 portal」描述已成歷史。〕
 
 | Portal | Host Port | APP_MODE | REST base |
 |---|---|---|---|
@@ -181,7 +181,7 @@ flowchart TB
 | Container | 說明 |
 |---|---|
 | 精煉服務 API/worker | 長駐服務 + 佇列 worker 🔜 規劃中（Phase 2）|
-| 審核 web UI | Next.js，Casdoor OIDC，共用 HITL 審核骨架（ADR-P011）🔜 規劃中 |
+| 審核 web UI | Next.js，Casdoor OIDC，共用 HITL 審核骨架（ADR-P011）🔜 規劃中〔標注 2026-07-10：as-built＝FastAPI 內嵌審核 UI（:8004）；interim auth＝HS256 共驗（CR-0140 D4），Casdoor 化隨 2.1.1 R3。〕|
 | raw_to_bronze / bronze_to_silver 汲取模組 | Python + Whisper ASR / Vision LLM / bs4 / Drive API |
 | 提煉分流器（refiner）→ Draft Queue → Publisher | silver → 事實（灌 pgvector）+ 行為（更新 skill）🔜 規劃中 |
 | storage/（raw/bronze/silver）| Medallion 檔案系統（bronze 約 115 檔）|
@@ -202,9 +202,9 @@ flowchart TB
 
 | 單元 | 說明 |
 |---|---|
-| `data/pipeline/{source_to_raw,raw_to_bronze,bronze_to_silver}/` | CLI batch（yt-dlp / Whisper / LLM 語意 chunking）|
+| `data/pipeline/{source_to_raw,raw_to_bronze,bronze_to_silver}/` | CLI batch（yt-dlp / Whisper / LLM 語意 chunking）〔標注 2026-07-10：ADR-029（2026-07-09）已將 `data/` 改名為 `knowledge-pipeline/`。〕|
 | `data/llms/` | LLM provider factory（vertexai/openai/anthropic/ollama）|
-| `SQL/Schema*.sql` + `SQL/migrations/*.sql` | 基底 schema（22 表 + 9 擴充）+ 87 個 forward-only migration |
+| `SQL/Schema*.sql` + `SQL/migrations/*.sql` | 基底 schema（22 表 + 9 擴充）+ 87 個 forward-only migration〔標注 2026-07-10：migration 現已累計至 097。〕|
 | `SQL/platform/Schema_platform.sql` | 平台庫獨立 schema（3 表）|
 
 ---
@@ -236,7 +236,7 @@ graph LR
 
 **關係模式**：PL 發布語言 · CS 客戶-供應 · ACL 防腐層 · CF 遵循者 · SK 共享核心 · OHS 開放主機服務。
 
-- **KnowledgeContext**（agent ADR-004）：**Skill = 行為驅動**（HOW/WHEN 怎麼想、何時查）、**RAG = 檢索能力**（WHAT 事實，經 MCP 隨查隨取），兩者**從屬非收斂**。pgvector（`manual_chunks` / `case_entries`）為**唯一事實語料**，agent 經 RAG-via-MCP 取、後台 web/api 查同一份。語義層（`embed()` + cosine query + MCP server）🔜 規劃中（Phase 2）；建成前 filesystem references 為 fallback。
+- **KnowledgeContext**（agent ADR-004）：**Skill = 行為驅動**（HOW/WHEN 怎麼想、何時查）、**RAG = 檢索能力**（WHAT 事實，經 MCP 隨查隨取），兩者**從屬非收斂**。pgvector（`manual_chunks` / `case_entries`）為**唯一事實語料**，agent 經 RAG-via-MCP 取、後台 web/api 查同一份。語義層（`embed()` + cosine query + MCP server）🔜 規劃中（Phase 2）；建成前 filesystem references 為 fallback。〔標注 2026-07-10：語義層已由 CR-0124／CR-0125／CR-0142 建成（`rag/` 全鏈，249 chunk 可檢索）；主表已改名 `rag_manual_chunks`（CR-0142）。〕
 - **TechnicianContext**（ADR-P004 / ADR-P014）：技師是**跨品牌身分**，獨立共享池系統；派工平台經 **OHS API + Kafka 事件**串接（非直連技師庫）。佣金採 **Billing（品牌計費）/ Settlement（技師平台結算主體）分離**；技師工單可見性採 **Kafka-fed read-model（CQRS 投影，欄位最小化）**。
 - **IdentityContext**（ADR-P003）：Casdoor = IdP（OAuth2/OIDC）+ 租戶 org + 角色 claim + License 訂閱，身分/租戶/角色/授權的單一真相源。🔜 規劃中（Phase 2 導入）。
 
@@ -417,7 +417,7 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 
 | 品質屬性 | 關鍵目標 | 主要策略 |
 |---|---|---|
-| **可用性** | LINE 每則訊息必有回覆（含友善錯誤話術）；WS 斷線靜默降級不阻塞頁面 | sentinel 攔截 + `_FALLBACK_REPLY`；旁路整合 fail-soft；Cloud Run min-instances=1；多供應商 failover（FallbackProvider）🔜 規劃中 |
+| **可用性** | LINE 每則訊息必有回覆（含友善錯誤話術）；WS 斷線靜默降級不阻塞頁面 | sentinel 攔截 + `_FALLBACK_REPLY`；旁路整合 fail-soft；Cloud Run min-instances=1；多供應商 failover（FallbackProvider）🔜 規劃中〔標注 2026-07-10：FallbackProvider 類別已存在（`lockcore/providers/fallback_provider.py`），唯 `build_provider` 尚未接線（ADR-009 附註）。〕|
 | **可靠性** | 需轉真人案子 100% 進後台；跨 user / 跨 tenant 記憶零洩漏 | `transfer_to_human` 唯一出口 + deterministic 兜底補 escalation；記憶讀寫必帶 tenant+user_id（default deny）|
 | **效能** | api 讀取 p95 < 300ms `[待確認]`；WS 推播 < 1s（同實例）；OHS 媒合 p95 < 300ms `[待確認]`；師傅派工推播 < 2s | pgvector HNSW（m=16, ef=64）；GET 30s cache；讀寫分離 🔜 規劃中；LLM 逾時上限 300s |
 | **可擴展性** | 新增品牌 = 新增 bundle + OHS 消費者，技師平台不需 per-brand 複製 | per-brand 物理隔離線性擴展；Redis pub/sub + Kafka 解耦 🔜 規劃中（水平擴展前提）|
@@ -443,7 +443,7 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 |---|---|---|
 | R-01 | Casdoor / 集中共用元件為跨品牌單點 | HA + 備份；per-brand bundle 對集中元件 fail-soft |
 | R-02 | 跨系統事件（Kafka）schema 治理 | schema registry + consumer-driven 契約測試 |
-| R-03 | pgvector 語義層尚未建成，事實灌注價值待兌現 | 依 agent ADR-004 分階段建 RAG-via-MCP；references 為 fallback |
+| R-03 | pgvector 語義層尚未建成，事實灌注價值待兌現 | 依 agent ADR-004 分階段建 RAG-via-MCP；references 為 fallback〔標注 2026-07-10：CR-0124／CR-0125／CR-0142 已翻新 `rag/` 全鏈，249 chunk 可檢索，本風險已解除。〕|
 | R-04 | 品牌自服務配置擴大攻擊面 / 品質風險 | 分層保護 + eval gate + 版本回滾 + audit（ADR-P013）|
 | R-05 | flow DSL 為皇冠寶石，設計錯全鏈歪 | DSL-first（ADR-P010）：先穩引擎再疊 UI/AI |
 | R-06 | 技師平台為派工關鍵依賴（可用性/延遲）| OHS API SLA + Kafka 事件降級；契約測試 |
@@ -452,7 +452,7 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 
 | 系統 | 風險 | 嚴重性 | 緩解 |
 |---|---|---|---|
-| api | WS hub 與 cron 為進程內狀態，水平擴展會事件遺失 / cron 重跑 | 高 | Redis pub/sub + 分散式鎖（Phase 1）；擴展前 min-instances=1 |
+| api | WS hub 與 cron 為進程內狀態，水平擴展會事件遺失 / cron 重跑 | 高 | Redis pub/sub + 分散式鎖（Phase 1）；擴展前 min-instances=1〔標注 2026-07-10：CR-0134（2026-07-09）已落 Redis 橋 opt-in＋PG advisory 領導者選舉；殘項＝部署面 `REDIS_URL`（OPS）與 DB 連線池（排程待業主）。〕|
 | api | 單一共享 AsyncConnection 非池，高併發序列化瓶頸 | 低-中 | 連線池（隨 ADR-P007 Phase 1）|
 | agent | 主 LLM 供應商中斷時降級為友善話術 | 中 | FallbackProvider + fallback presets（Phase 1）|
 | agent | LLM tool-calling 不可靠（生成轉接話術卻不呼叫工具）| 低機率高影響 | deterministic 兜底補 escalation（既有控制）|
@@ -462,10 +462,10 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 
 **as-is grounded 技術債座標**（保留自 subsystem P1/05 + P4 稽核；原文封存 git `238f6fce`，各系統 P1–P4 已整併進本組合）：
 
-- **api**（P1/05 R-01–R-07）：RBAC shadow-mode 80+ 寫端點只檢租戶（`deps.py:189-192,225-264`）；in-memory `ws_hub` + 11 cron（`ws_hub.py:1-6`、`main.py:139-141`）；單一共享 `AsyncConnection` 非池（`db.py:27,53`）；auth fail-open（`deps.py:69-73`、`auth.py:108-131`）；`API_SURFACE` 非安全邊界（`main.py:136-143`）。
+- **api**（P1/05 R-01–R-07）：RBAC shadow-mode 80+ 寫端點只檢租戶（`deps.py:189-192,225-264`）〔標注 2026-07-10：已由 CR-0127／CR-0130／CR-0131 清償（WBS 1.1.x ✅ 2026-07-09）〕；in-memory `ws_hub` + 11 cron（`ws_hub.py:1-6`、`main.py:139-141`）；單一共享 `AsyncConnection` 非池（`db.py:27,53`）；auth fail-open（`deps.py:69-73`、`auth.py:108-131`）；`API_SURFACE` 非安全邊界（`main.py:136-143`）。
 - **web**：role 由 `atob` 讀**未驗簽** JWT（`api.ts:196-206`）；fallback-tenant 資料外洩 TODO（`api.ts:130`）；`rolePolicy` 未列路由 fail-open（`rolePolicy.ts:24-82`）；94 個 `page.tsx` 全 `"use client"`。
 - **data-pipeline**：唯一產出鏈**已斷**（`silver→skill` 死目標 `agent/skills/data/` 不存在）；87 migrations / bronze ~115 檔；死目錄/superseded 盤點見（原）P4/08 §4。
-- **knowledge-refinery**：pgvector 語義層 greenfield——`case_service.py:285` 僅關鍵字 stub、`<=>`/`vector_cosine` 零 query、`manual_chunks` 從未被查、無 `embed()`、MCP server 待建（「灌了也查不到」）。
+- **knowledge-refinery**：pgvector 語義層 greenfield——`case_service.py:285` 僅關鍵字 stub、`<=>`/`vector_cosine` 零 query、`manual_chunks` 從未被查、無 `embed()`、MCP server 待建（「灌了也查不到」）。〔標注 2026-07-10：CR-0124／CR-0125／CR-0142 已翻新——`rag/` 全鏈（embed＋cosine 檢索＋MCP server）建成，249 個 chunk 可檢索；主表已改名 `rag_manual_chunks`（CR-0142）。〕
 
 ---
 
@@ -502,7 +502,7 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 | **四方 RBAC** | Super Admin（跨租戶）/ 租戶 Admin（自助開帳）/ 派工小編（租戶內操作）/ 技師（跨租戶身分）（ADR-P006）|
 | **Skill 行為驅動** | agent 策略層：定義怎麼想、依什麼規範、何時查什麼；承載 SOP + 精選事實（agent ADR-004）|
 | **RAG-via-MCP** | agent 檢索能力：pgvector 語義查找經 MCP server 暴露為工具，DB 耦合封在 server 後保住可攜性 |
-| **唯一事實語料** | pgvector `manual_chunks` / `case_entries`（768 維 HNSW cosine），agent 與後台共用的單一事實來源 |
+| **唯一事實語料** | pgvector `manual_chunks` / `case_entries`（768 維 HNSW cosine），agent 與後台共用的單一事實來源〔標注 2026-07-10：主表已改名 `rag_manual_chunks`（CR-0142）；語義檢索鏈已由 CR-0124／CR-0125／CR-0142 建成。〕|
 | **knowledge-refinery** | License 附加系統 + 獨立 web：診斷 + 素材 → 事實（灌 pgvector）+ 行為（更新 skill），HITL 審核（ADR-P001）|
 | **License 開通** | 商業模式核心：品牌以 License 授權開通「基礎 bundle + 綁 LINE」及各附加模組，經 Casdoor 訂閱管理 |
 | **Agent Configuration Studio** | 品牌 dispatch web 自服務調校介面 + 集中 Agent Config Registry；分層保護（受保護層不可 override）+ RBAC + eval + 選配 HITL（ADR-P013）|

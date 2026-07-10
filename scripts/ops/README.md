@@ -123,7 +123,7 @@ uv run python scripts/ops/load_test_phase_ii.py \
   --concurrency 50 --duration 30 --output loadtest.json
 ```
 
-對接 `docs/_ops/slo-baseline-phase-ii.md` 1.5× threshold 判斷。
+對接壓測 SLO baseline 1.5× threshold 判斷（原 `docs/_ops/slo-baseline-phase-ii.md` 已於 0708 大掃除移除，查 git 歷史；SLO 正典見 `smartlock-docs/enterprise/25_Monitoring_Spec.md`）。
 
 ---
 
@@ -169,7 +169,7 @@ uv run python scripts/ops/p4_stage7_delete_v1_dry_run.py \
 
 純 read-only — 給 ops review 後走真實 PR。
 
-完整流程見 `docs/_ops/p4-stage7-readiness-runbook.md`。
+完整流程原載 `docs/_ops/p4-stage7-readiness-runbook.md`（已於 0708 大掃除移除，查 git 歷史）。
 
 ---
 
@@ -181,10 +181,13 @@ Backend FastAPI schema → JSON 給 web codegen。
 
 ```bash
 uv run python scripts/ops/export_openapi.py \
-  --output docs/architecture/api/openapi-runtime.json --pretty
+  --output api/openapi-runtime.json --pretty
 ```
 
 對接：web `npx openapi-typescript` 自動 gen TS types。
+
+> 原範例輸出目錄 `docs/architecture/api/` 已於 0708 大掃除移除（查 git 歷史）；script 預設輸出
+> `api/openapi-runtime.json`，OpenAPI 機讀 SSOT = `api/openapi.yaml`。
 
 ### `sync-technicians-roster.sh`
 
@@ -224,12 +227,15 @@ uv run python scripts/ops/export_openapi.py \
 
 ## 7. 對齊文件
 
-- `docs/_ops/background-monitors-runbook.md` — lifespan + cron 維運
-- `docs/_ops/alert-receivers-comparison.md` — PD vs Slack 設定指南
-- `docs/_ops/p4-stage7-readiness-runbook.md` — P4 Stage 7 流程
-- `docs/_ops/slo-baseline-phase-ii.md` — 壓測 SLO baseline
-- `docs/_ops/wbs-100-closeout-plan.md` — WBS 100% 收尾路徑
-- `docs/architecture/adr/ADR-0109-p4-stage7-tooling-chain.md` — tooling chain ADR
+> 原 `docs/_ops/*.md` 五篇（background-monitors-runbook / alert-receivers-comparison /
+> p4-stage7-readiness-runbook / slo-baseline-phase-ii / wbs-100-closeout-plan）與
+> `docs/architecture/adr/ADR-0109-p4-stage7-tooling-chain.md` 已於 0708 大掃除移除，查 git 歷史。
+
+現行維運文件正典：
+
+- `smartlock-docs/enterprise/24_Runbook.md` — 故障診斷與止血手冊（含告警升級鏈）
+- `smartlock-docs/enterprise/25_Monitoring_Spec.md` — 監控、SLI/SLO 與告警分層
+- `smartlock-docs/enterprise/23_Deployment_Guide.md` — 部署與 smoke test
 
 ## 8. CI 整合
 

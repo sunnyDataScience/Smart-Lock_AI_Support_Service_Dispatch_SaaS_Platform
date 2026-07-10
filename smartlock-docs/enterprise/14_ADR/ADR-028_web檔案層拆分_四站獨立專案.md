@@ -3,7 +3,7 @@ title: "ADR-028: web 檔案層拆分 — 四站台完全獨立專案（複製分
 version: 1.1
 status: active
 owner: web 系統 tech lead
-last-updated: 2026-07-09
+last-updated: 2026-07-10
 supersedes:
   - ./ADR-023_單一codebase_APP_MODE多portal.md
 ---
@@ -56,3 +56,7 @@ repo/
 
 - 跨站同步修復頻率高到不可忍受 → 重評共用套件（回 workspaces）或抽 npm registry 私包
 - 某站搬離 repo → 該站 compose/CI 條目隨遷
+
+## Status 附註
+
+- 2026-07-10 勘誤標注：Decision 首句「compose 集中 `compose/`」與 Consequences「根目錄僅增 `web/`、`compose/`」為 v1.0 殘句——依業主 07-09 三次追加裁決，as-built = 各站 `docker-compose.yml` 與站台同住，根目錄無 `compose/`（見同文 tree 註解）。

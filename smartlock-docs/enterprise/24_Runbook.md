@@ -3,7 +3,7 @@ title: 維運手冊（Runbook）
 version: 1.0
 status: active
 owner: 平台維運（DevOps / SRE / on-call）
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/api/P2/04_adr/ADR-003_in-memory_WS_hub_與_cron_worker.md
   - smartlock-docs/api/P2/04_adr/ADR-002_psycopg3_raw_SQL_與純SQL_migration.md
@@ -42,7 +42,7 @@ upstream:
 | 技術升級 | Tech Lead（隨時可升）|
 | 合規升級 | PM + 法務 + DPO（涉 PII / 合約時）|
 
-升級鏈：**on-call → Tech Lead →（業務影響擴大）PM →（合規）法務/DPO**。告警與通報工具 `[待確認]`（升級以角色與流程定義，不綁定特定工具）；通知模板骨架見 26 §5。
+升級鏈：**on-call → Tech Lead →（業務影響擴大）PM →（合規）法務/DPO**。告警與通報工具 `[待確認]`（升級以角色與流程定義，不綁定特定工具）；通知模板骨架見 26 §5。〔標注 2026-07-10：過渡告警鏈已實作——`scripts/ops/` check_monitors_health → classify_severity → PagerDuty / Slack，由 `monitors-health.yml` CI cron 驅動；正式收編（工具定案）待業主〕
 
 ---
 
@@ -59,7 +59,7 @@ upstream:
 - **緩解**：
   1. 短期：降低併發來源（暫停批次匯入 / 重跑類操作）；確認 Cloud Run 未意外開多實例（多實例會引發 RB-02/03，不能靠加實例解此瓶頸）。
   2. 慢查詢：補 index（走 migration 流程，[23_Deployment_Guide.md](./23_Deployment_Guide.md) §6）。
-  3. 根本解 🔜 規劃中：psycopg `AsyncConnectionPool` 連線池 + 交易邊界（ADR-P007 Phase 1）。
+  3. 根本解 🔜 規劃中：psycopg `AsyncConnectionPool` 連線池 + 交易邊界（ADR-P007 Phase 1）。〔標注 2026-07-10：連線池仍待排程；同屬 ADR-P007 的 Redis 橋 + PG advisory 鎖 code 面已落（CR-0134，CI 雙實例 e2e＝CR-0151），殘=部署面 `REDIS_URL`（OPS）〕
 - **驗證**：SigNoz DB P95 回落至 baseline；`/health` = ok。
 - **升級**：p95 超標 > 30 min 且無明確慢查詢 → Tech Lead。
 
@@ -74,7 +74,7 @@ upstream:
 - **緩解**：
   1. 實例數收斂回 1（`max-instances=1`）。
   2. 前端輪詢兜底已內建；重大營運時段可提示使用者重整。
-  3. 根本解 🔜 規劃中：WS hub 遷 Redis pub/sub 跨實例廣播（ADR-P007），之後方可放寬 max-instances。
+  3. 根本解 🔜 規劃中：WS hub 遷 Redis pub/sub 跨實例廣播（ADR-P007），之後方可放寬 max-instances。〔標注 2026-07-10：code 面已落——Redis 橋（CR-0134）+ CI 雙實例 e2e（CR-0151）；殘=部署面 `REDIS_URL` 未設（OPS），未設時仍為單機 in-memory 模式；api.sh 已鎖 min=1/max=1（2026-07-10 fix/deploy-scale-guard）〕
 - **驗證**：建一筆測試工單 → 訂閱頁 < 1s 收到（NFR-PERF-02，同實例）。
 - **升級**：單實例下仍全面斷線 → Tech Lead（可能為 hub 例外回收 bug）。
 
@@ -88,7 +88,7 @@ upstream:
 - **緩解**：
   1. 重複：實例收斂回 1；清理重複副作用（重複推播向客戶致意、重複告警關閉）。
   2. 未執行：確認 surface 設定後重啟；緊急可手動補跑對應 service 邏輯。
-  3. 根本解 🔜 規劃中：分散式排程 + Redis 分散式鎖（ADR-P007）。
+  3. 根本解 🔜 規劃中：分散式排程 + Redis 分散式鎖（ADR-P007）。〔標注 2026-07-10：code 面已落——PG advisory 鎖防 cron 重複執行（CR-0134），CI 雙實例 e2e 驗證（CR-0151）；api.sh 已鎖 min=1/max=1（2026-07-10 fix/deploy-scale-guard）〕
 - **驗證**：SigNoz「派工事件 lag」SLI 回落；LINE push outbox 消化正常。
 - **升級**：涉及重複「GDPR 硬刪」→ 立即升 P1 並通報 DPO（資料不可逆）。
 
@@ -119,7 +119,7 @@ upstream:
   1. Cloud SQL 資源不足：垂直擴容（需短暫維護窗）。
   2. 連線 hang：重啟 api（懶連線會自動重建）。
   3. 認證副作用注意：DB 抖動期間認證 fail-open（見 RB-07）。
-  4. 根本解 🔜 規劃中：連線池 + 讀寫分離（ADR-P007）。
+  4. 根本解 🔜 規劃中：連線池 + 讀寫分離（ADR-P007）。〔標注 2026-07-10：連線池與讀寫分離仍待排程；同屬 ADR-P007 的 Redis 橋 + PG advisory 鎖 code 面已落（CR-0134 / CR-0151），殘=部署面 `REDIS_URL`（OPS）〕
 - **驗證**：`/health` = ok；DB P95 回 baseline。
 - **升級**：DB 不可用 > 15 min → P1 → Tech Lead；資料損毀疑慮 → 啟動備份還原（§5）。
 
@@ -168,7 +168,7 @@ SELECT * FROM public.schema_migrations ORDER BY 1;
   2. 多庫（品牌×N + tech + platform）逐庫比對，不可只修一庫。
 - **驗證**：報錯端點恢復 200；相關 pytest 綠。
 - **升級**：漂移涉及資料回填（非純 DDL）→ Tech Lead + DBA 評估。
-- **預防 🔜 規劃中**：CI drift-check fresh-apply 比對（ADR-P012 優先序 1）。
+- **預防 🔜 規劃中**：CI drift-check fresh-apply 比對（ADR-P012 優先序 1）。〔標注 2026-07-10：已上線——`migration-drift-check.yml`，91 支 migration fresh-apply 全綠（CR-0136，2026-07-09）〕
 
 ### RB-09 agent escalation 轉真人失效
 
