@@ -1,7 +1,7 @@
 # CR-0152 — ADR-025 報價外送 AI 雙閘落地(openapi 宣告 vs runtime 缺口)
 
 - **日期**:2026-07-10
-- **狀態**:已裁決(2026-07-10)——實作中
+- **狀態**:done(2026-07-10)
 - **觸發面向**:API contract(端點存廢)、Architecture boundary(AI 憲章 enforce 落點)
 - **依據**:ADR-025(Accepted 憲章級:「Server-side enforce,不依賴 prompt」)、api/openapi.yaml:424-474(機讀 SSOT 已宣告)、2026-07-10 架構稽核 #1
 
@@ -32,3 +32,7 @@
 ### §8 裁決記錄（2026-07-10）
 
 業主「開工」＝**採方案 A 補實作**（解讀可否決）：①雙閘掛既有 quote_v2 `:send`（openapi 以標注收斂，不開新端點）；②grounding_guard 接 loop＝攔截 regen 1 次後 transfer_to_human；③情緒分類器/高額閾值兩規則排後續輪（記遺留）；④排 **M2 收尾**。
+
+### 進度
+
+- ✅ done(branch `feat/adr025-ai-quote-gate`,2026-07-10):①api 雙閘落 `transition(send)` service 層——ai_agent → 403 AI_FORBIDDEN_FINAL_QUOTE;保固案件(warranty_claims 關聯)非人類 staff(fail-closed 含未帶角色)→ 403 AI_FORBIDDEN_WARRANTY_PROJECT;②agent 出口 guard `lockcore/agent/reply_guard.py`+`loop._guard_reply`——價格 utterance/未溯源型號 → 修正重生 1 次 → 仍違規改 server-generated 轉真人話術+記 escalation(reason=reply_guard:*)。測試:api 3+agent 純函式 9+agent 全套 171+quote/warranty 迴歸 141+K8 dry gate 全綠。遺留:①streaming 通道(websocket)違規草稿可能已部分流出(LINE 整則出站不受影響)——stream-gate 另議;②建案判定、情緒分類器/高額閾值兩硬規則(§8-3)後續輪;③openapi :send-to-customer 宣告以標注收斂(不另實作)。

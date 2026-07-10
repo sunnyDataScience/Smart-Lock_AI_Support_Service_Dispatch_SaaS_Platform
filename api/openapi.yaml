@@ -421,6 +421,11 @@ paths:
           description: QUOTE_STATE_INVALID — quote is not in `draft` state
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
+  # 標注 2026-07-10(CR-0152,業主裁決):本宣告端點不另實作——AI 雙閘
+  # (AI_FORBIDDEN_FINAL_QUOTE/AI_FORBIDDEN_WARRANTY_PROJECT)已落於
+  # quote_v2 POST /tenants/{tid}/quotes/{id}:send 的 service 層
+  # (quote_engine_service.transition,fail-closed);本段保留為設計參考
+  # (internal_approved/customer_sent 為舊 FSM 詞彙,見 15_SDS §4.1 標注)。
   /quotes/{id}:send-to-customer:
     parameters: [{ name: id, in: path, required: true, schema: { type: string } }]
     post:
