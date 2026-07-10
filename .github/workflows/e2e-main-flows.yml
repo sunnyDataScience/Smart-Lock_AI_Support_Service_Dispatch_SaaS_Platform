@@ -1,0 +1,126 @@
+name: E2E Main Flows (Playwright + 多實例 WS)
+
+# 19_Test_Plan §7「E2E 主流程 ≥4 條 Playwright CI」＋ CR-0134 遺留「多實例
+# e2e」落地（CIA CR-0151）。真 stack：pgvector 全新 bootstrap（compose-db-init
+# 正規順序＋seed）→ 雙 api 實例共 Redis → 跨實例 WS 廣播實證 → Playwright
+# 主流程（品牌登入→dashboard／5 角色 route gate／工單 v2／派工佇列 v2／技師
+# 登入→home→工單走查）。
+on:
+  push:
+    branches: [dev, main, dev-ding]
+    paths:
+      - 'api/**'
+      - 'SQL/**'
+      - 'web/brand-portal/**'
+      - 'web/tech-portal/**'
+      - 'scripts/ci/e2e_multi_instance_ws.py'
+      - 'scripts/dev/compose-db-init.sh'
+      - '.github/workflows/e2e-main-flows.yml'
+  workflow_dispatch:
+
+jobs:
+  e2e-main-flows:
+    name: 主流程 e2e（Playwright ×5 spec＋跨實例 WS）
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: lock
+          POSTGRES_PASSWORD: "0000"
+          POSTGRES_DB: lock_AI_data
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U lock -d lock_AI_data"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      POSTGRES_URI: postgresql://lock:0000@localhost:5432/lock_AI_data
+      API_JWT_SECRET_KEY: test-secret-ci-e2e
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      - name: Set up Python 3.11
+        run: uv python install 3.11
+      - name: Install python deps
+        run: uv sync --group test
+
+      - name: Bootstrap DB（正規順序：Schema → Schema_* → migrations → SEED_ORDER seeds）
+        env:
+          SQL_DIR: ${{ github.workspace }}/SQL
+          PGHOST: localhost
+          PGPORT: "5432"
+          PGUSER: lock
+          PGPASSWORD: "0000"
+          PGDATABASE: lock_AI_data
+        run: bash scripts/dev/compose-db-init.sh
+
+      - name: Start api ×2（共 DB＋Redis；A=:8001 供 web、B=:8002 供跨實例驗證）
+        env:
+          REDIS_URL: redis://localhost:6379/0
+          API_SURFACE: dispatch
+        run: |
+          cd api
+          nohup uv run uvicorn main:app --port 8001 > /tmp/api-a.log 2>&1 &
+          nohup uv run uvicorn main:app --port 8002 > /tmp/api-b.log 2>&1 &
+          for p in 8001 8002; do
+            for i in $(seq 1 60); do
+              if curl -sf "http://localhost:$p/health" | grep -q '"db": *"ok"'; then
+                echo ":$p health db=ok"; break
+              fi
+              [ "$i" = 60 ] && { echo "::error::api :$p 起不來"; tail -50 /tmp/api-*.log; exit 1; }
+              sleep 2
+            done
+          done
+
+      - name: 跨實例 WS 廣播 e2e（CR-0134 遺留／WBS 1.3.1）
+        run: cd api && uv run python ../scripts/ci/e2e_multi_instance_ws.py --a http://localhost:8001 --b http://localhost:8002
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: brand-portal 主流程 ×4 spec（登入 smoke／5 角色 route gate／工單 v2／派工佇列 v2）
+        working-directory: web/brand-portal
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npx playwright test \
+            admin/login.spec.ts \
+            admin/role-ui-isolation.spec.ts \
+            admin/work-orders-v2.spec.ts \
+            admin/dispatch-queue.spec.ts \
+            --reporter=line
+
+      - name: tech-portal 主流程（技師登入→home→pool/工單/簽章走查）
+        working-directory: web/tech-portal
+        run: |
+          npm ci
+          npx playwright install chromium
+          npx playwright test tech/tech-flow.spec.ts --reporter=line
+
+      - name: Upload playwright 報告（失敗時）
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-reports
+          path: |
+            web/brand-portal/playwright-report
+            web/brand-portal/test-results
+            web/tech-portal/playwright-report
+            web/tech-portal/test-results
+            /tmp/api-a.log
+            /tmp/api-b.log
+          if-no-files-found: ignore
+          retention-days: 14

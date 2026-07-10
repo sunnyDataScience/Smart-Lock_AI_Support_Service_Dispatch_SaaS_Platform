@@ -33,9 +33,9 @@ test.describe('Login Page Smoke', () => {
   test('submit button is present; disabled on empty form, enabled once filled', async ({ page }) => {
     await page.goto('/login');
 
-    const submitButton = page.locator(
-      'button[type="submit"], button:has-text("登入"), button:has-text("Sign in"), button:has-text("Login")'
-    ).first();
+    // 精確鎖 type=submit（2026-07-10 修）：登入/註冊 tab 切換鈕（type=button）
+    // 也含「登入」字樣，逗號選擇器 .first() 會抓到 tab 鈕（恆 enabled）而非 submit。
+    const submitButton = page.locator('button[type="submit"]').first();
 
     // submit 存在
     await expect(submitButton).toBeVisible({ timeout: 10_000 });

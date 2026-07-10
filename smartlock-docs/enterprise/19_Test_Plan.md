@@ -131,7 +131,7 @@ upstream:
 | Unit 覆蓋率（Alpha 階段目標）| ≥ 70%（過渡目標，GA 前須達 80%）| 同上 |
 | P0 FR 覆蓋 | 100%（每條至少 1 happy + 1 alt）| 21_Traceability_Matrix 對帳 |
 | P1 FR 覆蓋 | ≥ 90% | 同上 |
-| E2E 主流程 | ≥ 4 條（LINE→AI→問題卡→工單→結案 等）| Playwright CI |
+| E2E 主流程 | ≥ 4 條（LINE→AI→問題卡→工單→結案 等）| Playwright CI 〔標注 2026-07-10：已掛 `e2e-main-flows.yml`——品牌登入/5 角色 gate/工單 v2/派工佇列 v2/技師 flow ×5 spec＋跨實例 WS（CR-0151）；LINE→AI 入口段屬 agent 面另議〕|
 | Forbidden Eval | 每次 deploy pass ≥ 95% + 改寫題 ≥ 90%（**block-deploy**）| eval pipeline |
 | 未結 P0 / P1 缺陷 | 0 / 0 | 缺陷追蹤系統 |
 | KPI 驗收門檻 | 依 [./03_PRD.md](./03_PRD.md) KPI 定版（負面情緒 ≥90%、家族覆核 100%、影像禁用 violation=0、GDPR forget ≤7d 等合約紅線 100% pass）| eval + 人工 UAT |

@@ -152,11 +152,12 @@ test.describe("技師手機端 — S2 接案→到場→完工 flow", () => {
     // 送出登入（submit button 文字為「登入」，disabled 條件已隨 fill 解除）
     await page.locator('button[type="submit"]').click();
 
-    // 登入成功 → 導向技師首頁 /pool（page.tsx: router.replace("/pool")）
-    await expect(page).toHaveURL(/\/pool(\?|$)/, { timeout: 15_000 });
+    // 登入成功 → 導向技師首頁 /home（2026-07-10 修：師傅站首頁改版後
+    // tech-login page.tsx 為 router.replace("/home")，原 /pool 斷言過時）
+    await expect(page).toHaveURL(/\/home(\?|$)/, { timeout: 15_000 });
 
-    // 案件池標題渲染，證明確實進到技師端（帶有效 token）
-    await expect(page.getByRole("heading", { name: "案件池" })).toBeVisible({
+    // 首頁「今日行程」區塊渲染，證明確實進到技師端（帶有效 token）
+    await expect(page.getByText("今日行程")).toBeVisible({
       timeout: 10_000,
     });
 
