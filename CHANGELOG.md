@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **師傅站登入頁左右分欄改版（branch `feat/tech-login-split-redesign`，2026-07-10）**：比照品牌後台同輪改版——左側資訊面板（深 teal 漸層，對齊 `.tech-soft` 主題：品牌識別＋標語＋接單搶單/現場回報/收入對帳三特色，lg 以上顯示；行動版收合為精簡品牌列）＋右側登入表單；**移除「回上一頁」按鈕**（`/` 一律導 `/tech-login`，無上一頁可回）。表單邏輯零變更（loginTechnician、註冊分離連結、忘記密碼皆保留）；輸入/按鈕 40→44px。i18n 新增 techPortal.techLogin.hero* 等 12 鍵（zh/en parity 過）。驗證：tsc 0、image rebuild 後 Playwright 實機截圖確認。
+
 - **品牌後台登入頁左右分欄改版（branch `feat/brand-login-split-redesign`，2026-07-10）**：`/` 已一律導 `/login`（3000 不渲染 landing），登入頁即品牌後台首頁——改為左側品牌資訊面板（深藍漸層：品牌識別＋標語＋AI 客服/派工單/報價對帳三特色，lg 以上顯示；行動版收合為精簡品牌列）＋右側登入/註冊表單；**移除「回上一頁」按鈕**（無上一頁可回）。表單邏輯零變更（admin→vendor 退試、員工申請 tab、SSO 按鈕、`?tab=register` 深連結皆保留）；輸入/按鈕高度 40→44px（觸控最低標）。i18n 新增 login.hero* 10 鍵（zh/en parity 過）。驗證：tsc 0、image rebuild 後 Playwright 桌機/行動/register tab 實機截圖確認。
 
 - **RBAC 轉 enforce R2——非核心寫入端點全數收斂（WBS 1.1.1 完結，branch `feat/rbac-enforce-sa01-r2`，2026-07-09，CIA CR-0130 續）**：R1 對帳表 43 個殘餘 require_tenant 寫入端點收斂 37 個——kb（cases→BACKOFFICE、manuals/documents/export→OPS）、sop（起草→BACKOFFICE、review/adopt/dual/family→REVIEW、技師回饋→TECH_ACTION）、conversations 代開/接管/交接→BACKOFFICE、sentiment ack→BACKOFFICE、media×2→TECH_ACTION（技師完工照不誤鎖）、resolution→BACKOFFICE、family_reviews→REVIEW、rma/ai-governance→OPS、notifications 手動推播→OPS。**定案保留 7**：自身通知操作×6（使用者管自己的通知，技師亦需）＋客戶綁定 generate-token（客戶 web/track 流程，掛後台角色會鎖死客戶——隨 vendor/客戶身分定位 CR 再議）。R2 sweep 測試（technician/vendor 寫 10 樣本 403、技師白名單、自身通知不擋）；component 888 passed 零波及、unit 331、四站 tsc 0。WBS 1.1.1 ✅ 完結；13_Security §3.2 SA-01 銷案。

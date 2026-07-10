@@ -2475,7 +2475,17 @@
       "tabRegister": "註冊",
       "brandEntryLink": "我是品牌 / 經銷 / 鎖店 →",
       "noAccount": "還沒有帳號？",
-      "applyLink": "申請成為師傅 →"
+      "applyLink": "申請成為師傅 →",
+      "entrySubtitle": "登入以查看派單與工單進度",
+      "heroTitle": "接單、回報、對帳，一支手機完成",
+      "heroSubtitle": "加入 Smart Lock 服務網，工單即時派到你手上；現場進度回報、報價修正、月結對帳全程線上。",
+      "heroFeature1Title": "接單搶單",
+      "heroFeature1Desc": "師傅池搶單、指定派單，即時通知不漏接",
+      "heroFeature2Title": "現場回報",
+      "heroFeature2Desc": "進度更新、完工照上傳、報價修正線上送出",
+      "heroFeature3Title": "收入對帳",
+      "heroFeature3Desc": "完工工單月結對帳，收入一目瞭然",
+      "heroFootnote": "© 2026 Smart Lock — 技師工作台"
     },
     "pool": {
       "title": "案件池",
