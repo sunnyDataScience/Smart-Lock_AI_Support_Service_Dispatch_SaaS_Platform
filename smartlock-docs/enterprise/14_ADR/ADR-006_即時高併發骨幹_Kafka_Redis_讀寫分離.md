@@ -56,3 +56,4 @@ upstream:
 - Phase 1（Redis + 連線池 + 分散式鎖）→ Phase 1/2（read replica + 讀路由）→ Phase 2（Kafka 事件骨幹 + 解耦消費者 + 接 SigNoz）。
 - 🔜 規劃中：全部三 Phase；Phase 1 為水平擴展（NFR-SCAL）前置硬條件。
 - 2026-07-10：Phase 1 之 Redis fanout + cron 互斥已落地（CR-0134；去重鎖 as-built = PG advisory 領導者選舉而非 Redis 鎖，零新增基礎設施）+ CI 雙實例 e2e（CR-0151）；Phase 1 餘項 DB 連線池／熱讀 cache 無 WBS 工作包對映（排程斷鏈待業主，架構稽核 #5）；讀寫分離／Kafka 依 WBS 屬 M3+。
+- **2026-07-10 落地（CR-0154，業主裁決選項 A）**：DB 連線池已落——request-scoped `psycopg_pool.AsyncConnectionPool`（http 請求各借一條入 ContextVar，`_conn` scoped 優先解析＝660 呼叫點零改動、交易同 task 同連線；WS／cron 維持共享連線；kill-switch `DB_POOL_DISABLED=1`；min=1/max=10 env 可調）。驗證：全套 api SIT 1767 綠＋雙實例 live（池開＋跨實例廣播）。Phase 1 餘項＝熱讀 cache（待排程）。
