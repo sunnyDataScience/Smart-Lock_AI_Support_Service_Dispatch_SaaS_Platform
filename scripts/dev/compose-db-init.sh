@@ -10,7 +10,8 @@
 # 冪等防護:偵測 users 表已有資料 → 視為已初始化,直接跳過(FORCE_INIT=1 可強套)。
 set -euo pipefail
 
-SQL_DIR="/init/SQL"
+# 預設容器內掛載路徑;CI/主機直跑可用 SQL_DIR env 覆寫(e2e-main-flows.yml)
+SQL_DIR="${SQL_DIR:-/init/SQL}"
 
 log() { echo "[db-init] $*"; }
 

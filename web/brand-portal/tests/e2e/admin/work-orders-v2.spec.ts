@@ -26,7 +26,10 @@ import { test, expect, Page } from "@playwright/test";
 const TENANT_ID = "00000000-0000-0000-0000-000000000001";
 const WORK_ORDER_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
-const LIST_PATH = "**/tenants/*/work-orders";
+// 尾端 * 涵蓋 query string（2026-07-10 修）：頁面實際請求帶 ?limit=…，
+// 無尾綴的 glob 永不命中 → mock 失效（500 案例對真實 stack 跑必炸）。
+// * 不跨 /，不會誤攔 detail 路徑。
+const LIST_PATH = "**/tenants/*/work-orders*";
 const DETAIL_PATH = `**/tenants/*/work-orders/${WORK_ORDER_ID}`;
 
 const SAMPLE_WORK_ORDER = {
@@ -61,28 +64,30 @@ const SAMPLE_DETAIL = {
 };
 
 async function injectAdminSession(page: Page) {
-  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payloadObj = {
-    sub: "00000000-0000-0000-0000-000000000099",
-    role: "admin",
-    tenant_id: TENANT_ID,
-    type: "access",
-    jti: "test-jti-work-orders",
-  };
-  const payload = btoa(
-    JSON.stringify(payloadObj)
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_"),
-  );
-  const fakeToken = `${header}.${payload}.signature`;
+  // 真實登入取 token（2026-07-10 修）：原假簽 token 會讓未 mock 的背景呼叫
+  // 打真 api 401 → refresh 失敗 → 清 token → AuthGuard 踢回 /login（race，
+  // 「error banner on 500」案例對真實 stack 跑必炸）。真 token 背景呼叫全過，
+  // route mock 仍攔截目標端點，測試語意不變。
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
+  const resp = await page.request.post(`${apiBase}/api/v1/auth/login`, {
+    data: { email: "test@lock-ai.com", password: "changeme123" },
+  });
+  if (!resp.ok()) {
+    throw new Error(`admin 登入失敗（${resp.status()}）——api/seed 未就緒？`);
+  }
+  const body = await resp.json();
   await page.addInitScript(
-    ({ token, tenantId }: { token: string; tenantId: string }) => {
+    ({ token, refresh, tenantId }: { token: string; refresh: string; tenantId: string }) => {
       window.localStorage.setItem("smartlock.access_token", token);
-      window.localStorage.setItem("smartlock.refresh_token", "fake-refresh");
+      window.localStorage.setItem("smartlock.refresh_token", refresh);
       window.localStorage.setItem("smartlock.tenant_id", tenantId);
       window.localStorage.setItem("smartlock.email", "test@lock-ai.com");
     },
-    { token: fakeToken, tenantId: TENANT_ID },
+    {
+      token: body.data.access_token as string,
+      refresh: (body.data.refresh_token ?? "") as string,
+      tenantId: TENANT_ID,
+    },
   );
 }
 

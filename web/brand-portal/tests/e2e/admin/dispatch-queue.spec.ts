@@ -100,28 +100,28 @@ const SAMPLE_AUTO_MATCH = {
 };
 
 async function injectAdminSession(page: Page) {
-  const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const payloadObj = {
-    sub: "00000000-0000-0000-0000-000000000099",
-    role: "admin",
-    tenant_id: TENANT_ID,
-    type: "access",
-    jti: "test-jti-dispatch-queue",
-  };
-  const payload = btoa(
-    JSON.stringify(payloadObj)
-      .replace(/\+/g, "-")
-      .replace(/\//g, "_"),
-  );
-  const fakeToken = `${header}.${payload}.signature`;
+  // 真實登入取 token（2026-07-10 修，同 work-orders-v2.spec.ts）：假簽 token
+  // 會讓未 mock 的背景呼叫 401 → refresh 失敗 → 清 token → 踢回 /login（race）。
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
+  const resp = await page.request.post(`${apiBase}/api/v1/auth/login`, {
+    data: { email: "test@lock-ai.com", password: "changeme123" },
+  });
+  if (!resp.ok()) {
+    throw new Error(`admin 登入失敗（${resp.status()}）——api/seed 未就緒？`);
+  }
+  const body = await resp.json();
   await page.addInitScript(
-    ({ token, tenantId }: { token: string; tenantId: string }) => {
+    ({ token, refresh, tenantId }: { token: string; refresh: string; tenantId: string }) => {
       window.localStorage.setItem("smartlock.access_token", token);
-      window.localStorage.setItem("smartlock.refresh_token", "fake-refresh");
+      window.localStorage.setItem("smartlock.refresh_token", refresh);
       window.localStorage.setItem("smartlock.tenant_id", tenantId);
       window.localStorage.setItem("smartlock.email", "test@lock-ai.com");
     },
-    { token: fakeToken, tenantId: TENANT_ID },
+    {
+      token: body.data.access_token as string,
+      refresh: (body.data.refresh_token ?? "") as string,
+      tenantId: TENANT_ID,
+    },
   );
 }
 

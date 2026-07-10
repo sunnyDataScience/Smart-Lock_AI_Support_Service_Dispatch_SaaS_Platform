@@ -69,5 +69,9 @@ test("admin：full access，敏感頁皆可進 + sidebar 有完整 nav", async (
   // admin sidebar 應含會計 / 管理(稽核) 頂層 nav（dispatcher 看不到的）
   await page.goto("/dashboard");
   await expect(page.locator('nav a[href="/accounting"]')).toHaveCount(1);
+  // 稽核群組為收合子選單（父項 href=/admin/roles，Sidebar 僅 active 群組渲染
+  // children，2026-07-10 修）：先驗父項在 nav，點開後子項 audit-events 才入 DOM。
+  await expect(page.locator('nav a[href="/admin/roles"]')).toHaveCount(1);
+  await page.click('nav a[href="/admin/roles"]');
   await expect(page.locator('nav a[href="/admin/audit-events"]')).toHaveCount(1);
 });

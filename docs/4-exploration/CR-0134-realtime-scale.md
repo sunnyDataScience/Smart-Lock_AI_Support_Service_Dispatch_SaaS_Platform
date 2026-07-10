@@ -22,7 +22,7 @@
 
 - 新測試 5：advisory 互斥（他 session 持鎖不重跑）／failover 接手／冪等／
   Redis 信封與自跳過（stub）／未設 REDIS_URL 單機不變／Redis 故障本地照送。
-- component **907 passed**、unit 331。真實多實例 e2e（兩容器共 Redis）屬部署驗證，
+- component **907 passed**、unit 331。真實多實例 e2e（兩容器共 Redis）屬部署驗證，〔2026-07-10 銷案：CI 內雙 uvicorn 實例共 Redis 跨實例廣播 e2e 已落（CR-0151，含負向對照）；部署面 REDIS_URL=OPS 不變〕
   隨 1.6.1 CD/SIT 環境補跑——記遺留。
 
 ## 遺留
