@@ -43,7 +43,7 @@ def upsert_manual_chunks(rows: list[dict], *, embed_model: str) -> int:
         for r in rows:
             cur.execute(
                 """
-                INSERT INTO manual_chunks
+                INSERT INTO rag_manual_chunks
                     (tenant_id, chunk_id, brand, model, category, content,
                      embedding, embedding_model, source_type, source, provenance)
                 VALUES (%s, %s, %s, %s, %s, %s, %s::vector, %s, %s, %s, %s::jsonb)
@@ -82,7 +82,7 @@ def search_manual(query_vec: list[float], *, brand: str, model: str,
             """
             SELECT chunk_id, brand, model, category, content, source_type, source,
                    1 - (embedding <=> %s::vector) AS similarity
-            FROM manual_chunks
+            FROM rag_manual_chunks
             WHERE tenant_id = %s
               AND is_active
               AND (brand = %s OR brand = 'general')

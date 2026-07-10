@@ -1,4 +1,4 @@
-"""灌注 CLI — knowledge-pipeline facts.jsonl → manual_chunks（冪等）。
+"""灌注 CLI — knowledge-pipeline facts.jsonl → rag_manual_chunks（冪等）。
 
 前置：facts.jsonl 必須先通過 knowledge-pipeline 的 audit_corpus gate
 （provenance 完整、bronze 未漂移、紅線零違規）——本 CLI 不重驗，只信 gate。
@@ -54,7 +54,7 @@ def main() -> int:
         r["embedding"] = v
 
     written = upsert_manual_chunks(rows, embed_model=model)
-    logging.info("✅ upsert %d 筆 manual_chunks", written)
+    logging.info("✅ upsert %d 筆 rag_manual_chunks", written)
     return 0
 
 

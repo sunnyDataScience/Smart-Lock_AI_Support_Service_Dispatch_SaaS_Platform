@@ -18,10 +18,14 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ============================================================================
--- [1] manual_chunks — 手冊事實語料
+-- [1] rag_manual_chunks — 手冊事實語料
 -- ============================================================================
+-- ⚠ 原名 manual_chunks 與 Schema.sql:328 的 kb-v2 表（manuals FK 子表，PDF 章節塊）
+-- 撞名，CREATE IF NOT EXISTS 對正規 bootstrap 的庫恆 no-op —— RAG 主表從未真正
+-- 存在（CR-0142 查實，與 CR-0140 case_entries 同型事故）。兩者語意不同不可併形
+-- → 改名 rag_manual_chunks 自持；正式定義在 migrations/096（此處同步供全新庫）。
 
-CREATE TABLE IF NOT EXISTS manual_chunks (
+CREATE TABLE IF NOT EXISTS rag_manual_chunks (
     id              BIGSERIAL PRIMARY KEY,
     tenant_id       UUID NOT NULL,
     chunk_id        VARCHAR(32) NOT NULL,          -- knowledge-pipeline 冪等 id（sha256[:16]）
@@ -29,9 +33,9 @@ CREATE TABLE IF NOT EXISTS manual_chunks (
     model           VARCHAR(100) NOT NULL DEFAULT 'general',
     category        VARCHAR(50),                    -- setup / troubleshoot / specification / knowledge / manual
     content         TEXT NOT NULL,
-    embedding       vector(768) NOT NULL,           -- text-embedding-004（ADR-010）
+    embedding       vector(768) NOT NULL,           -- RAG_EMBED_MODEL（預設 multilingual-002，CR-0124 勘誤）
     embedding_model VARCHAR(100) NOT NULL,          -- 記錄產生 embedding 的模型（重嵌可辨識）
-    source_type     VARCHAR(50),                    -- youtube / video / website
+    source_type     VARCHAR(50),                    -- youtube / video / website / references
     source          TEXT,
     provenance      JSONB NOT NULL DEFAULT '{}',    -- bronze_path / bronze_sha256 / emitted_at
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,
@@ -41,15 +45,15 @@ CREATE TABLE IF NOT EXISTS manual_chunks (
 );
 
 -- 語義檢索主索引（cosine）
-CREATE INDEX IF NOT EXISTS idx_manual_chunks_hnsw
-    ON manual_chunks USING hnsw (embedding vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_rag_manual_chunks_hnsw
+    ON rag_manual_chunks USING hnsw (embedding vector_cosine_ops);
 -- 結構過濾（tenant + 品牌/型號 gating）
-CREATE INDEX IF NOT EXISTS idx_manual_chunks_scope
-    ON manual_chunks (tenant_id, brand, model) WHERE is_active;
+CREATE INDEX IF NOT EXISTS idx_rag_manual_chunks_scope
+    ON rag_manual_chunks (tenant_id, brand, model) WHERE is_active;
 
-COMMENT ON TABLE manual_chunks IS 'RAG 事實語料（ADR-010 唯一事實語料）；灌注自 knowledge-pipeline facts.jsonl，bronze-only';
-COMMENT ON COLUMN manual_chunks.chunk_id IS 'knowledge-pipeline 冪等 chunk id；(tenant_id, chunk_id) 唯一，重灌 upsert';
-COMMENT ON COLUMN manual_chunks.provenance IS 'bronze 血緣：bronze_path / bronze_sha256 / emitted_at（audit_corpus gate 保證完整）';
+COMMENT ON TABLE rag_manual_chunks IS 'RAG 事實語料（輔助語義查找，ADR-030）；灌注自 knowledge-pipeline facts.jsonl 與 lockcore references，bronze-only';
+COMMENT ON COLUMN rag_manual_chunks.chunk_id IS 'knowledge-pipeline 冪等 chunk id；(tenant_id, chunk_id) 唯一，重灌 upsert';
+COMMENT ON COLUMN rag_manual_chunks.provenance IS 'bronze 血緣：bronze_path / bronze_sha256 / emitted_at（audit_corpus gate 保證完整）';
 
 -- ============================================================================
 -- [2] case_entries — 案例史向量索引
