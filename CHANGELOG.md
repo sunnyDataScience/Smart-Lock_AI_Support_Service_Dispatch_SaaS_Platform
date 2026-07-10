@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **OTel PII scrubbing 落地（branch `feat/otel-pii-scrub`，2026-07-10，架構稽核 #3／CR-0136 遺留漏列補）**：25_Monitoring §3 硬性要求——原 OTel 管線直送 exporter，OPS 一配 endpoint 即原樣出站。`core/observability.py` 增 `scrub_text()` 純函式（台灣手機/市話/email/地址遮蔽、**LINE uid sha256 雜湊化**（前 12 碼，保留關聯不留身分）、URL token 參數遮蔽）＋ `_PIIScrubExporter` 出站包裝器（遮蔽失敗不癱瘓匯出）。opt-in 語意不變（未配置＝零行為變化）。驗證：新單測 9 項＋api unit 343 passed。
+
 - **Cloud Run api 擴縮護欄修正（branch `fix/deploy-scale-guard`，2026-07-10，架構稽核 #2）**：`scripts/deploy/api.sh` 由 min=0/max=3 改 **min=1/max=1**（env 可覆寫）——23_Deployment §3 明文「須維持單實例」：WS hub 與 11 個 cron 為進程內狀態，max=3 擴到第 2 實例＝RB-02/03（跨實例訊息遺失＋cron 重跑含 GDPR 硬刪）、min=0 scale-to-zero＝cron 停擺。查無任何決議支持原值（2026-04-28 MVP 初值沿用）。REDIS_URL 部署面掛上驗證後才調升。
 
 - **E2E 主流程掛 CI＋多實例 WS e2e（branch `test/e2e-ci-gate`，2026-07-10，CIA CR-0151）**：19_Test_Plan §7「≥4 條 Playwright CI」與 CR-0134 遺留「多實例 e2e」雙銷案。新 workflow `e2e-main-flows.yml`——pgvector 全新 bootstrap（compose-db-init 正規順序，SQL_DIR 可攜化）→ **雙 api 實例共 Redis** → `scripts/ci/e2e_multi_instance_ws.py` 跨實例 WS 廣播實證（rbac 權限原樣 PUT 觸發、零淨變化；本機正向 exit 0＋**負向對照拔 REDIS_URL 必炸**，不假綠）→ Playwright 5 spec（品牌登入 smoke／5 角色 route gate／工單 v2／派工佇列 v2／技師登入→home 走查）。順修 5 處 spec 腐化（依 testing.md「測試有誤」豁免：tab 鈕選擇器歧義／收合群組子項斷言／假簽 token 背景 401 race ×2／route glob 缺 query 尾綴／tech-flow /pool→/home 過時）。本機驗證：brand 4 spec ×2 輪 15/15、tech-flow 2 passed。landing/platform-console 零 e2e 記遺留（CR-0151 §8-2）。
