@@ -2364,7 +2364,7 @@ requires-dist = [
     { name = "smart-lock-api", virtual = "api" },
     { name = "smart-lock-knowledge-pipeline", virtual = "knowledge-pipeline" },
     { name = "smart-lock-rag", virtual = "rag" },
-    { name = "smart-lock-refinery", virtual = "refinery" },
+    { name = "smart-lock-refinery", editable = "refinery" },
 ]
 
 [package.metadata.requires-dev]
@@ -2414,12 +2414,16 @@ dev = [{ name = "pytest", specifier = ">=8.0" }]
 
 [[package]]
 name = "smart-lock-refinery"
-version = "0.1.0"
-source = { virtual = "refinery" }
+version = "0.2.0"
+source = { editable = "refinery" }
 dependencies = [
+    { name = "fastapi" },
+    { name = "httpx" },
     { name = "litellm" },
     { name = "psycopg", extra = ["binary"] },
     { name = "python-dotenv" },
+    { name = "python-jose", extra = ["cryptography"] },
+    { name = "uvicorn" },
 ]
 
 [package.dev-dependencies]
@@ -2429,9 +2433,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "litellm", specifier = ">=1.84.0" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.1" },
     { name = "python-dotenv", specifier = ">=1.0.0" },
+    { name = "python-jose", extras = ["cryptography"], specifier = ">=3.3" },
+    { name = "uvicorn", specifier = ">=0.30" },
 ]
 
 [package.metadata.requires-dev]

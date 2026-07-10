@@ -1,6 +1,7 @@
-# knowledge-refinery — 診斷對話汲取 + 提煉分流 + Draft Queue
+# knowledge-refinery — 汲取 + 提煉分流 + Draft Queue + HITL 審核
 
-WBS 2.3.1(CIA CR-0139)。ADR-018 精煉五步的 ①② 半部;審核 UI + Publisher 落地屬 2.3.2。
+WBS 2.3.1(CR-0139)+ 2.3.2(CR-0140)。ADR-018 精煉五步完整落地:
+汲取 → 分流產 draft → 審核 UI(核可/拒絕/退回)→ Publisher 落地。
 
 ```
 品牌 DB(problem_cards knowledge_ready=TRUE + conversations/messages)
@@ -34,9 +35,32 @@ REFINERY_TENANT_ID=<uuid> POSTGRES_URI=postgresql://... \
 - **re_refine 迴圈**:審核者退回 → 卡重新可撿,舊 draft 標 `superseded`(append-only,不刪列)
 - **狀態機**(15_SDS §9.2):`pending_review → approved / rejected / re_refine`(+`superseded`)
 
+## 審核服務(2.3.2)
+
+```bash
+# 本機直跑(UI 在 http://localhost:8002)
+REFINERY_TENANT_ID=<uuid> POSTGRES_URI=... API_JWT_SECRET_KEY=... \
+  LOCK_API_BASE_URL=http://localhost:8001 \
+  uv run uvicorn refinery.service:app --port 8002
+
+# compose(License 附加,profile 隔離;於 web/brand-portal/)
+docker compose --profile refinery up -d refinery
+```
+
+| 追加環境變數 | 說明 |
+|---|---|
+| `API_JWT_SECRET_KEY` | 與 api 共驗 JWT(HS256);角色白名單 admin/operations_manager/reviewer |
+| `LOCK_API_BASE_URL` | 登入代理目標(UI 登入走本服務轉發,免 CORS) |
+| `RAG_EMBED_MODEL` | Publisher embed 模型,**與 rag 檢索共用**(預設 multilingual-002/768) |
+
+審核動作:核可(事實軌→embed+寫 `case_entries`;行為軌→patch artifact)/拒絕/退回重煉。
+行為軌落檔:`uv run python -m refinery.apply_behavior`(repo 內執行,append-only,人 git commit)。
+auth 為 interim(Casdoor OIDC 隨 2.1.1 替換,CR-0140 D4)。
+
 ## 測試
 
 ```bash
 uv run pytest refinery/tests/ -q                    # 單元(無 DB)自動跑
-POSTGRES_URI=<scratch> uv run pytest refinery/tests/ # 元件測試(絕不打 UAT 5433)
+POSTGRES_URI=<scratch> API_JWT_SECRET_KEY=test \
+  uv run pytest refinery/tests/                     # 元件測試(絕不打 UAT 5433)
 ```

@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>知識精煉審核 — knowledge-refinery</title>
+<style>
+  :root {
+    --primary: #1D4ED8; --bg: #F1F5F9; --surface: #fff; --border: #E2E8F0;
+    --text: #0F172A; --muted: #64748B; --ok: #047857; --warn: #B45309; --bad: #B91C1C;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+         background: var(--bg); color: var(--text); font-size: 14px; }
+  header { background: #0F2947; color: #fff; padding: 14px 24px; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 17px; margin: 0; font-weight: 700; }
+  header .who { margin-left: auto; font-size: 12.5px; color: #CBD5E1; }
+  header button { background: none; border: 1px solid #475569; color: #CBD5E1; border-radius: 6px;
+                  padding: 4px 10px; cursor: pointer; font-size: 12.5px; }
+  main { max-width: 1200px; margin: 24px auto; padding: 0 20px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  /* 登入 */
+  #login { max-width: 380px; margin: 60px auto; }
+  #login h2 { margin: 0 0 6px; font-size: 18px; }
+  #login p { color: var(--muted); font-size: 13px; margin: 0 0 16px; }
+  #login label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
+  #login input { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; }
+  #login button { width: 100%; margin-top: 18px; padding: 10px; background: var(--primary); color: #fff;
+                  border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .err { color: var(--bad); font-size: 13px; margin-top: 10px; min-height: 18px; }
+  /* 佇列 + 詳情 */
+  #workspace { display: none; grid-template-columns: minmax(340px, 1fr) minmax(420px, 1.4fr); gap: 18px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .tabs button { border: 1px solid var(--border); background: #fff; border-radius: 999px;
+                 padding: 5px 14px; font-size: 12.5px; cursor: pointer; color: var(--muted); }
+  .tabs button.on { background: var(--primary); border-color: var(--primary); color: #fff; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; color: var(--muted); font-size: 12px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr.sel td { background: #EFF6FF; }
+  tr.row { cursor: pointer; }
+  .badge { display: inline-block; border-radius: 4px; padding: 1px 8px; font-size: 11.5px; font-weight: 700; }
+  .badge.case_entry { background: #EFF6FF; color: var(--primary); }
+  .badge.behavior { background: #FEF3C7; color: var(--warn); }
+  .badge.pending_review { background: #FEF3C7; color: var(--warn); }
+  .badge.approved { background: #ECFDF5; color: var(--ok); }
+  .badge.rejected { background: #FEF2F2; color: var(--bad); }
+  .badge.re_refine, .badge.superseded { background: #F1F5F9; color: var(--muted); }
+  /* 詳情 */
+  #detail h2 { font-size: 16px; margin: 0 0 4px; }
+  #detail .meta { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .field { margin-bottom: 12px; }
+  .field .k { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 3px; }
+  .field .v { white-space: pre-wrap; background: #F8FAFC; border: 1px solid var(--border);
+              border-radius: 6px; padding: 10px 12px; line-height: 1.65; }
+  details { margin: 14px 0; }
+  details summary { cursor: pointer; font-size: 12.5px; color: var(--muted); }
+  details pre { background: #F8FAFC; border: 1px solid var(--border); border-radius: 6px;
+                padding: 10px; font-size: 12px; overflow-x: auto; }
+  #actions { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px; }
+  #actions textarea { width: 100%; border: 1px solid var(--border); border-radius: 6px;
+                      padding: 8px 10px; font-size: 13px; min-height: 56px; font-family: inherit; }
+  .btns { display: flex; gap: 10px; margin-top: 10px; }
+  .btns button { flex: 1; padding: 9px; border-radius: 6px; border: none; font-size: 13.5px;
+                 font-weight: 700; cursor: pointer; }
+  .btns button:disabled { opacity: .5; cursor: not-allowed; }
+  #btnApprove { background: var(--ok); color: #fff; }
+  #btnReject { background: var(--bad); color: #fff; }
+  #btnRerefine { background: #fff; color: var(--text); border: 1.5px solid var(--border) !important; }
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+           background: #0F172A; color: #fff; border-radius: 8px; padding: 10px 18px;
+           font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; }
+  #toast.show { opacity: 1; }
+  .empty { color: var(--muted); text-align: center; padding: 36px 0; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>知識精煉審核</h1>
+  <span style="font-size:12px;color:#94A3B8">knowledge-refinery · HITL(核可前絕不落地)</span>
+  <span class="who" id="who"></span>
+  <button id="btnLogout" style="display:none">登出</button>
+</header>
+
+<main>
+  <div class="card" id="login">
+    <h2>審核者登入</h2>
+    <p>使用品牌後台帳號(admin / operations_manager / reviewer)。</p>
+    <label>Email</label><input id="email" type="email" autocomplete="username">
+    <label>密碼</label><input id="password" type="password" autocomplete="current-password">
+    <button id="btnLogin">登入</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+
+  <div id="workspace">
+    <div class="card">
+      <div class="tabs" id="tabs">
+        <button data-s="pending_review" class="on">待審</button>
+        <button data-s="approved">已核可</button>
+        <button data-s="rejected">已拒絕</button>
+        <button data-s="re_refine">退回重煉</button>
+        <button data-s="">全部</button>
+      </div>
+      <table>
+        <thead><tr><th>草稿</th><th>軌</th><th>品牌/型號</th><th>信心</th><th>狀態</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <div class="empty" id="emptyMsg" style="display:none">此狀態下沒有草稿。</div>
+    </div>
+
+    <div class="card" id="detail"><div class="empty">← 點選左側草稿檢視內容</div></div>
+  </div>
+</main>
+
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let token = sessionStorage.getItem("kr_token") || "";
+let curStatus = "pending_review", curId = null, curDraft = null;
+
+function toast(msg) {
+  const t = $("toast"); t.textContent = msg; t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+async function api(path, opts = {}) {
+  const resp = await fetch(path, {
+    ...opts,
+    headers: { "Content-Type": "application/json",
+               ...(token ? { Authorization: "Bearer " + token } : {}) },
+  });
+  const body = await resp.json().catch(() => ({}));
+  if (resp.status === 401) { logout(); throw new Error("登入已過期,請重新登入"); }
+  if (!resp.ok) {
+    const d = body.detail || body;
+    throw new Error((d && (d.message || d.error_code)) || `HTTP ${resp.status}`);
+  }
+  return body;
+}
+
+// ── 登入 ──
+$("btnLogin").onclick = async () => {
+  $("loginErr").textContent = "";
+  try {
+    const resp = await fetch("/auth/login", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: $("email").value.trim(), password: $("password").value }),
+    });
+    const body = await resp.json();
+    const tok = body?.data?.access_token;
+    if (!resp.ok || !tok) throw new Error(body?.detail?.message || body?.message || "登入失敗");
+    token = tok; sessionStorage.setItem("kr_token", tok);
+    enter($("email").value.trim());
+  } catch (e) { $("loginErr").textContent = e.message; }
+};
+$("password").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btnLogin").click(); });
+
+function logout() {
+  token = ""; sessionStorage.removeItem("kr_token");
+  $("workspace").style.display = "none"; $("login").style.display = "block";
+  $("btnLogout").style.display = "none"; $("who").textContent = "";
+}
+$("btnLogout").onclick = logout;
+
+function enter(email) {
+  $("login").style.display = "none"; $("workspace").style.display = "grid";
+  $("btnLogout").style.display = "inline-block";
+  $("who").textContent = email || "";
+  loadList();
+}
+
+// ── 佇列 ──
+$("tabs").onclick = (e) => {
+  if (e.target.tagName !== "BUTTON") return;
+  [...$("tabs").children].forEach((b) => b.classList.remove("on"));
+  e.target.classList.add("on");
+  curStatus = e.target.dataset.s; loadList();
+};
+
+async function loadList() {
+  try {
+    const body = await api("/api/drafts?status=" + encodeURIComponent(curStatus));
+    const rows = body.data || [];
+    $("rows").innerHTML = rows.map((d) => `
+      <tr class="row ${d.id === curId ? "sel" : ""}" data-id="${d.id}">
+        <td><strong>${esc(d.title)}</strong><br><span style="color:var(--muted);font-size:11.5px">#${d.id} · ${esc((d.created_at || "").slice(0, 16).replace("T", " "))}</span></td>
+        <td><span class="badge ${d.draft_type}">${d.draft_type === "case_entry" ? "事實" : "行為"}</span></td>
+        <td>${esc([d.brand, d.model].filter(Boolean).join(" ") || "—")}</td>
+        <td>${d.confidence == null ? "—" : Math.round(d.confidence * 100) + "%"}</td>
+        <td><span class="badge ${d.status}">${statusLabel(d.status)}</span></td>
+      </tr>`).join("");
+    $("emptyMsg").style.display = rows.length ? "none" : "block";
+    [...$("rows").querySelectorAll("tr")].forEach((tr) => {
+      tr.onclick = () => loadDetail(Number(tr.dataset.id));
+    });
+  } catch (e) { toast(e.message); }
+}
+
+function statusLabel(s) {
+  return { pending_review: "待審", approved: "已核可", rejected: "已拒絕",
+           re_refine: "退回重煉", superseded: "已被取代" }[s] || s;
+}
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, (c) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+// ── 詳情 ──
+async function loadDetail(id) {
+  curId = id; loadList();
+  try {
+    const body = await api("/api/drafts/" + id);
+    curDraft = body.data; renderDetail(curDraft);
+  } catch (e) { toast(e.message); }
+}
+
+function renderDetail(d) {
+  const p = d.payload || {}, prov = d.provenance || {};
+  const fields = d.draft_type === "case_entry"
+    ? [["症狀(客戶視角)", p.symptom], ["解法(技術視角)", p.resolution]]
+    : [["SOP 提案", p.proposal], ["目標 skill", p.target_skill], ["依據", p.rationale]];
+  const published = prov.published
+    ? `<div class="field"><div class="k">落地結果</div><div class="v">${esc(JSON.stringify(prov.published, null, 1))}</div></div>` : "";
+  $("detail").innerHTML = `
+    <h2>${esc(d.title)} <span class="badge ${d.draft_type}">${d.draft_type === "case_entry" ? "事實軌" : "行為軌"}</span>
+        <span class="badge ${d.status}">${statusLabel(d.status)}</span></h2>
+    <div class="meta">#${d.id} · ${esc([d.brand, d.model].filter(Boolean).join(" ") || "—")}
+      · 信心 ${d.confidence == null ? "—" : Math.round(d.confidence * 100) + "%"}
+      · 來源卡 ${esc((d.source_problem_card_id || "—").slice(0, 8))}</div>
+    ${fields.map(([k, v]) => `<div class="field"><div class="k">${k}</div><div class="v">${esc(v || "—")}</div></div>`).join("")}
+    ${published}
+    <details><summary>溯源 provenance(spine 快照 / 對話 ${esc(prov.message_count ?? "—")} 則 / 模型 ${esc(prov.llm_model || "—")})</summary>
+      <pre>${esc(JSON.stringify(prov, null, 2))}</pre></details>
+    ${d.review_comment ? `<div class="field"><div class="k">審核意見</div><div class="v">${esc(d.review_comment)}</div></div>` : ""}
+    <div id="actions" ${d.status !== "pending_review" ? 'style="display:none"' : ""}>
+      <textarea id="comment" placeholder="審核意見(核可可留空;拒絕/退回建議填寫原因)"></textarea>
+      <div class="btns">
+        <button id="btnApprove">✓ 核可${d.draft_type === "case_entry" ? "並落地語料" : "(產出 patch)"}</button>
+        <button id="btnRerefine">↺ 退回重煉</button>
+        <button id="btnReject">✕ 拒絕</button>
+      </div>
+      <p style="font-size:11.5px;color:var(--muted);margin:8px 0 0">
+        ${d.draft_type === "case_entry"
+          ? "核可後立即 embed 並寫入 case_entries(rag 案例檢索即可命中,亦出現於知識庫)。"
+          : "核可後產出 patch artifact;實際寫入 skill 需在 repo 執行 python -m refinery.apply_behavior 並由人提交 git。"}
+      </p>
+    </div>`;
+  if (d.status === "pending_review") {
+    $("btnApprove").onclick = () => act("approve", "已核可並落地");
+    $("btnReject").onclick = () => act("reject", "已拒絕");
+    $("btnRerefine").onclick = () => act("re-refine", "已退回重煉");
+  }
+}
+
+async function act(kind, okMsg) {
+  ["btnApprove", "btnReject", "btnRerefine"].forEach((b) => { const el = $(b); if (el) el.disabled = true; });
+  try {
+    await api(`/api/drafts/${curId}/${kind}`, {
+      method: "POST", body: JSON.stringify({ comment: $("comment").value || null }),
+    });
+    toast(okMsg); loadDetail(curId);
+  } catch (e) {
+    toast(e.message);
+    ["btnApprove", "btnReject", "btnRerefine"].forEach((b) => { const el = $(b); if (el) el.disabled = false; });
+  }
+}
+
+// ── 進場 ──
+if (token) enter("(已登入)");
+</script>
+</body>
+</html>

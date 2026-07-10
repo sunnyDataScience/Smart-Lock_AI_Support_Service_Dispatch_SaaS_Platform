@@ -99,15 +99,23 @@ def search_manual(query_vec: list[float], *, brand: str, model: str,
 
 def search_cases(query_vec: list[float], *, brand: str | None = None,
                  model: str | None = None, top_k: int = DEFAULT_TOP_K) -> list[dict]:
-    """案例史 cosine 檢索；similarity ≥ 0.85（ADR-010），brand/model 可選過濾。"""
+    """案例史 cosine 檢索；similarity ≥ 0.85（ADR-010），brand/model 可選過濾。
+
+    表為 kb-v2 形狀（Schema.sql）＋095 併形欄（CR-0140）：欄名 problem_description /
+    solution，以別名輸出 symptom / resolution 維持 MCP 工具契約不變。
+    embedding IS NOT NULL：api 端寫入的案例（sop adopt / 手動）不帶向量，
+    只有 refinery Publisher 灌入的列可被語義檢索。
+    """
     tid = tenant_id()
     with psycopg.connect(_conninfo()) as conn, conn.cursor() as cur:
         cur.execute(
             """
-            SELECT id, brand, model, symptom, resolution,
+            SELECT id::text AS id, brand, model,
+                   problem_description AS symptom, solution AS resolution,
                    1 - (embedding <=> %s::vector) AS similarity
             FROM case_entries
             WHERE tenant_id = %s
+              AND embedding IS NOT NULL
               AND is_active
               AND deleted_at IS NULL
               AND (%s::varchar IS NULL OR brand = %s OR brand = 'general')
