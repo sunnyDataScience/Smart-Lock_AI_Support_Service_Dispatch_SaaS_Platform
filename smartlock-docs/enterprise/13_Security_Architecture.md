@@ -321,7 +321,7 @@ AI 客服的安全邊界採「**物理限制優先於行為約束**」：
 | 前端 deny-by-default | ACT-02：rolePolicy catch-all 拒絕 + CI 漏登記檢查 | 未登記敏感頁預設拒絕 |
 | 死角色清理 | SA-06：`rolePolicy` FULL_ACCESS 移除 `tenant_admin` / `super_admin` 放行；`users.role` 欄位註解與 seed 同步角色正典（§3.1）；`_STAFF_ROLES` 移除 `dispatcher`（保留角色不開通）；`_MATRIX` 補 `operations_manager` 行（轉 enforce 前必補否則該角色全鎖）| ✅ **本項完成（2026-07-09，CR-0127）**：死角色 token 不再全放行；DB 註解與正典一致；ops_manager 矩陣行齊備（核准權依 SoD 歸 admin/reviewer）|
 | 租戶 fallback | ACT-03：無有效 tenant 導登入 | 不再退回預設租戶 |
-| 三庫守衛 | SA-04 / DA-04：URI 啟動斷言 | 缺 URI 啟動失敗非靜默退化 |
+| 三庫守衛 | SA-04 / DA-04：URI 啟動斷言 | 缺 URI 啟動失敗非靜默退化 〔標注 2026-07-10：✅ 已落地（CR-0153）——`DB_URI_STRICT=1` opt-in，prod deploy／三站 compose 帶上；pytest／本機預設關閉〕|
 | 備份還原 | DA-02：三庫備份 SOP + RTO/RPO + 還原演練 | 至少一次還原演練記錄 |
 | 即時通道 | SA-02：ws_hub 遷 Redis + cron 分散式鎖 | 多實例 WS 不遺失、cron 不重跑 |
 | 供應商韌性 | FA-03：FallbackProvider failover | 主模型中斷自動切備援 |

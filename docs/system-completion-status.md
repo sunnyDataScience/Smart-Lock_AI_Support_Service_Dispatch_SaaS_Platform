@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**ADR-025 報價 AI 雙閘＋出口 guard（CR-0152 done）**，branch `feat/adr025-ai-quote-gate` — api service 層雙閘（fail-closed）＋agent loop 出口 guard（regen 1 次→轉真人＋escalation）。api 3＋agent 180＋迴歸 141＋K8 dry 全綠。）
+**最後更新：** 2026-07-10（**三庫 URI 啟動守衛（CR-0153／ADR-020 補課）**，branch `feat/db-uri-strict-guard` — DB_URI_STRICT=1 opt-in 拒啟守衛＋prod deploy／三站 compose 接線；測試 4＋unit 347 綠。）
+
+**前一次更新：** 2026-07-10（**ADR-025 報價 AI 雙閘＋出口 guard（CR-0152 done）**，branch `feat/adr025-ai-quote-gate` — api service 層雙閘（fail-closed）＋agent loop 出口 guard（regen 1 次→轉真人＋escalation）。api 3＋agent 180＋迴歸 141＋K8 dry 全綠。）
 
 **前一次更新：** 2026-07-10（**報價快照 hash-chain 落地（CR-0149 done／ADR-026 補課）**，branch `feat/pricing-snapshot-hashchain` — migration 098 content-addressable＋append-only trigger＋FK NOT VALID 存量豁免；_freeze_snapshot 改寫。測試 4＋迴歸 81＋drift-check 96 綠。）
 
