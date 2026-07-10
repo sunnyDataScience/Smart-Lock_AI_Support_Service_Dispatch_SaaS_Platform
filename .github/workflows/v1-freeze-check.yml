@@ -1,0 +1,31 @@
+name: V1 API Freeze Check
+
+# CR-0145 / WBS 2.5.1 Gate-1 / ADR-003：v1 端點凍結守門——runtime openapi 的
+# /api/v1 操作集不得超出 baseline（新面一律 v2/tenant-scoped）。
+# 需要 import api.main:app → 裝 api deps（uv workspace）。
+on:
+  push:
+    branches: [dev, main, dev-ding]
+    paths:
+      - 'api/**'
+      - 'scripts/ci/v1-freeze-check.py'
+      - 'scripts/ci/v1-freeze-baseline.json'
+      - '.github/workflows/v1-freeze-check.yml'
+  pull_request:
+    paths:
+      - 'api/**'
+
+jobs:
+  v1-freeze:
+    name: v1 端點凍結守門
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Sync deps
+        run: uv sync --frozen
+      - name: Run v1 freeze check
+        env:
+          API_JWT_SECRET_KEY: ci-freeze-check-dummy
+        run: uv run python scripts/ci/v1-freeze-check.py
