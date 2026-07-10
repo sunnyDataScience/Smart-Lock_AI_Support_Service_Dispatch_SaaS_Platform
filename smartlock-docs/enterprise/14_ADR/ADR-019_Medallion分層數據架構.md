@@ -3,7 +3,7 @@ title: "ADR-019: Medallion 分層數據架構（raw → bronze → silver → re
 version: 1.0
 status: active
 owner: data 系統 tech lead
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/data-pipeline/P2/04_adr/ADR-001_Medallion_分層數據架構.md
 ---
@@ -52,3 +52,4 @@ upstream:
 ## Status 附註
 
 - 🔜 規劃中：silver → refinery 的自動化銜接（draft 產生 → 審核佇列），隨 [ADR-018](./ADR-018_知識精煉獨立服務.md) 服務落地。
+- 標注 2026-07-10：本文所引 `data/` 路徑（`data/pipeline/*`、`data/storage/{raw,bronze,silver}/`、`data/config.toml`）已依 ADR-029（2026-07-09）改名為 `knowledge-pipeline/`；分層設計本身不變。

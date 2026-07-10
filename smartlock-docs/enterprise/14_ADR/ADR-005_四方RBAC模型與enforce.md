@@ -3,7 +3,7 @@ title: "ADR-005: 四方 RBAC 模型 + enforce（deny-by-default）"
 version: 1.0
 status: active
 owner: 平台架構團隊
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P006_四方RBAC模型_enforce.md
 ---
@@ -52,3 +52,4 @@ upstream:
 ## Status 附註
 
 - 🔜 規劃中：全端點 `role_required` 盤點補掛的灰度時程（高風險端點先行）。
+- 2026-07-10：全端點 `role_required` 盤點已由 CR-0130/CR-0131 完成（WBS 1.1.1–1.1.3 ✅ 2026-07-09，195 條對帳 + fail-closed 白名單）；web gate 改讀 OIDC claim = WBS 2.1.1 R3 待做。

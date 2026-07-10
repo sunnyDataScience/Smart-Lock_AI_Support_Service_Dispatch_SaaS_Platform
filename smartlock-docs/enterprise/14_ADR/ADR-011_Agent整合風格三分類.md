@@ -3,7 +3,7 @@ title: "ADR-011: Agent 整合風格三分類（MCP / HTTP-internal / 不暴露�
 version: 1.0
 status: active
 owner: agent 系統 tech lead
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/agent/P2/04_adr/ADR-005_agent整合風格分類_MCP_vs_HTTP_vs_不暴露.md
 ---
@@ -65,3 +65,4 @@ agent 調用後台功能模組 / 外部能力時，若無統一裁決依據，�
 ## Status 附註
 
 - 🔜 規劃中：改約 / 範圍變更 / binding 的 `/internal/*` 端點補齊（延用 quote 旁路先例）。
+- 2026-07-10：`q:*`（報價同意／拒絕）postback 旁路已接；`r:*`／`s:*`／binding 未接（`line_gateway.py` 自注走網頁 fallback），未入 WBS——排程待業主；`/internal/requote-requests` 已落地（CR-0144）。

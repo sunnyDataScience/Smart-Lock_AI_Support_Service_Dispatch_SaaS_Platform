@@ -3,7 +3,7 @@ title: 資料庫設計（DB Design）— Smart Lock AI 客服與派工 SaaS 平�
 version: 1.0
 status: active
 owner: 平台架構師 / api 子系統（schema 擁有者）
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - ../data-pipeline/P1/05_architecture_and_design.md（§4 Medallion、§8 DB Schema 專章）
   - ../data-pipeline/P2/06_api_design_specification.md（§3 migration 契約、§4 pgvector 契約、§5 三庫連線契約）
@@ -45,7 +45,7 @@ upstream:
 |---|---|---|---|---|---|
 | **品牌庫（派工 / 營運）** | `lock_AI_data` | :5433 | `POSTGRES_URI` | `SQL/Schema.sql` + `SQL/Schema_*.sql` + `SQL/migrations/*` 全套 | 完整業務 schema（~100 表）：客服 / 派工 / 工單 / 金流 / 知識 / 治理；**一品牌一庫** |
 | **技師庫（權威）** | `lock_tech` | :5434 | `TECH_POSTGRES_URI` | 品牌庫的技師身分域**子集**（6–7 表）| `users`(role=technician)、`technicians` 及技師技能 / 認證 / 排班表（見 §8.1）|
-| **平台庫** | `lock_platform` | :5435 | `PLATFORM_POSTGRES_URI` | **獨立 schema** `SQL/platform/Schema_platform.sql`（3 表）| `users`(platform_admin)、`revoked_jti`、`brand_applications` |
+| **平台庫** | `lock_platform` | :5435 | `PLATFORM_POSTGRES_URI` | **獨立 schema** `SQL/platform/Schema_platform.sql`（3 表）| `users`(platform_admin)、`revoked_jti`、`brand_applications`〔標注 2026-07-10：現為 5 表（＋`monitor_target`／`tenant`，維運監控輪）。〕 |
 
 建庫腳本：品牌庫 `scripts/db/apply-schema-prod.sh`、技師庫 `scripts/db/split-tech-db.sh`（含 `--verify` 對帳）、平台庫 `scripts/db/init-platform-db.sh`。
 
@@ -143,7 +143,7 @@ technicians ──< reconciliations ──< settlements
 
 **現況 cardinality**：非嚴格 1:1——CR-0096（migration 077）以 partial unique index `uniq_pc_conversation_active`（`WHERE status NOT IN ('resolved','escalated') AND converted_at IS NULL`）改為「**一 conversation 同時至多一張 active 卡**」，歷史卡不限，支援同客人跨時間多議題各自成卡。
 
-**目標欄位設計（🔜 規劃中，對齊 [15_SDS §4.6](./15_SDS.md) 漸進式雙 gate，須走 CIA + migration）**：問題卡採「漸進式、分角色、分時間」收集，兩道 gate 分管「能否派工」與「能否沉澱知識」，schema 需下列調整：
+**目標欄位設計（🔜 規劃中，對齊 [15_SDS §4.6](./15_SDS.md) 漸進式雙 gate，須走 CIA + migration）**：問題卡採「漸進式、分角色、分時間」收集，兩道 gate 分管「能否派工」與「能否沉澱知識」，schema 需下列調整：〔標注 2026-07-10：本節欄位已全數落地——migration `093-pc-dual-gate.sql`（CR-0132，2026-07-09），「🔜 規劃中」銷案。〕
 
 | 類別 | 欄位 | 說明 |
 |---|---|---|
@@ -266,7 +266,7 @@ LIMIT :k;
 
 ### 8.2 平台庫 `lock_platform`
 
-獨立 3 表：`users`(platform_admin)、`revoked_jti`、`brand_applications`（品牌申請導入）。`users` 欄位對齊品牌庫 `users` 子集（含帳號安全欄），認證邏輯跨庫共用。
+獨立 3 表：`users`(platform_admin)、`revoked_jti`、`brand_applications`（品牌申請導入）。〔標注 2026-07-10：現為 5 表（＋`monitor_target`／`tenant`，維運監控輪）。〕`users` 欄位對齊品牌庫 `users` 子集（含帳號安全欄），認證邏輯跨庫共用。
 
 ### 8.3 技師身分投影與雙寫鏡射
 
@@ -294,12 +294,12 @@ LIMIT :k;
 
 - api 用 psycopg3 raw SQL、無 ORM model，Alembic autogenerate 無用武之地；純 SQL 檔以 `psql -f` 套用，與工具鏈一致。
 - **forward-only**：無 down migration；**idempotent**：`ADD COLUMN IF NOT EXISTS`、`DO $$ 查 pg_constraint $$`、`ON CONFLICT DO NOTHING`，同一檔可對多庫、多環境安全重套。
-- 現行規模：`SQL/migrations/000..089`（87 檔，含預留缺號）。
+- 現行規模：`SQL/migrations/000..089`（87 檔，含預留缺號）。〔標注 2026-07-10：現至 097（95 檔）。〕
 
 ### 9.2 命名與編號認領
 
 - 檔名：**`NNN-domain-feature.sql`**（三位數編號 + kebab 描述）。
-- 平行 worktree 開發前**先在 `SQL/MIGRATION_REGISTRY.md` 認領編號**再開檔（防撞號）。REGISTRY 的定位是**編號認領登記簿（人工意圖）**，不是套用狀態真相。
+- 平行 worktree 開發前**先在 `SQL/MIGRATION_REGISTRY.md` 認領編號**再開檔（防撞號）。〔標注 2026-07-10：registry 實位於 `SQL/migrations/MIGRATION_REGISTRY.md`。〕REGISTRY 的定位是**編號認領登記簿（人工意圖）**，不是套用狀態真相。
 
 ### 9.3 套用順序
 
@@ -382,7 +382,7 @@ SELECT version, applied_at, note FROM schema_migrations ORDER BY version;
 
 ## 12. 離線數據分層（Medallion 檔案系統，非 DB）
 
-知識原料的離線加工採 **Medallion 檔案分層**（`data/storage/`，../data-pipeline/P2/04_adr/ADR-001_Medallion_分層數據架構.md（封存於 git 238f6fce））：
+知識原料的離線加工採 **Medallion 檔案分層**（`data/storage/`，../data-pipeline/P2/04_adr/ADR-001_Medallion_分層數據架構.md（封存於 git 238f6fce））：〔標注 2026-07-10：`data/` 已依 ADR-029（2026-07-09）改名 `knowledge-pipeline/`，本節目錄現為 `knowledge-pipeline/storage/…`。〕
 
 | 層 | 目錄 | 內容 | 品質承諾 |
 |---|---|---|---|
@@ -441,11 +441,11 @@ field_metadata (pack, pack_version, entity, key, label, type, required,
 |---|---|
 | 基底 schema | `SQL/Schema.sql`（1013 行，22 表）|
 | 擴充 schema（9 檔）| `SQL/Schema_{v2_extensions,api_phase1,media,rbac_dynamic,tech_schedule,work_order_events,doc_numbering,harness_migration,cr0001_integration_gaps}.sql` |
-| Migrations | `SQL/migrations/000..089-*.sql`（87 檔）+ `SQL/MIGRATION_REGISTRY.md` |
+| Migrations | `SQL/migrations/000..089-*.sql`（87 檔）+ `SQL/MIGRATION_REGISTRY.md`〔標注 2026-07-10：現至 097（95 檔）；registry 實位於 `SQL/migrations/MIGRATION_REGISTRY.md`。〕 |
 | 平台庫 schema | `SQL/platform/Schema_platform.sql`（91 行，3 表）|
 | 種子 | `SQL/seeds/*.sql`（20 檔）+ `scripts/seed/*.py` |
 | DB 腳本 | `scripts/db/{apply-schema-prod,init-platform-db,split-tech-db}.sh` |
-| Medallion 資料 | `data/storage/{raw,bronze,silver}/{youtube,video,website,gdrive,line_chat}/` |
+| Medallion 資料 | `data/storage/{raw,bronze,silver}/{youtube,video,website,gdrive,line_chat}/`〔標注 2026-07-10：`data/` 已依 ADR-029（2026-07-09）改名 `knowledge-pipeline/`。〕 |
 | agent 記憶模組 | `agent/lockcore/agent/user_memory/{manager,store,postgres_store,llm_extractor,escalation}.py` |
 
 ### 14.2 量級速查
@@ -454,8 +454,8 @@ field_metadata (pack, pack_version, entity, key, label, type, required,
 |---|---|
 | 品牌庫表數 | ~100（public ~60+、saas ~34、agent 2）|
 | 技師庫表數 | 6–7（技師身分域子集）|
-| 平台庫表數 | 3 |
-| Migration 檔數 | 87（編號 000..089，含預留缺號）|
+| 平台庫表數 | 3〔標注 2026-07-10：現為 5（＋`monitor_target`／`tenant`，維運監控輪）。〕 |
+| Migration 檔數 | 87（編號 000..089，含預留缺號）〔標注 2026-07-10：現至 097（95 檔）。〕|
 | 向量欄位 | 2（`manual_chunks.embedding` / `case_entries.embedding`，皆 VECTOR(768)）|
 | `work_orders` 被 FK 引用 | ~10 表 |
 | 技師投影相關品牌表 | 35 表 FK 指向 `users` / `technicians` |

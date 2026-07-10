@@ -5,7 +5,7 @@
   - publish(channel, payload) → 對該 channel 所有連線 send_json，失敗自動斷線回收
   - 多進程 / 多 worker 部署時需改用 Redis pub-sub（後續迭代）
 
-頻道命名（對齊 docs/02-design/specs/asyncapi.yaml）：
+頻道命名（對齊 smartlock-docs/enterprise/17_AsyncAPI.yaml）：
   /realtime/notifications/{user_id}
   /realtime/work-orders/{id}
   /realtime/dispatch-queue

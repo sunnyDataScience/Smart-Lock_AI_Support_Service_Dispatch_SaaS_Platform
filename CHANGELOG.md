@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **架構文件標注輪（branch `docs/arch-docs-annotation`，2026-07-10，架構稽核收尾）**：依「smartlock-docs 僅新增標注」規則批次銷案 17 檔——12_SAD 14 處（ADR-028 四站分家、CR-0134 Redis 橋/PG advisory、RBAC 債清償、rag 全鏈翻新＋rag_manual_chunks 改名、knowledge-pipeline 路徑、refinery as-built、FallbackProvider 現況、Registry 排程斷鏈）；17_AsyncAPI 5 處註解（PG advisory as-built、單一廣播頻道 envelope 定址、linePushOutbox 定案、upstream 死鏈；YAML 驗證過）；18_DB 8 處（雙 gate 落地、平台庫 5 表、migration 097、registry 路徑、Medallion 改名）；23/24/25 共 14 處（compose 四站各持、drift-check 上線、RB-01/02/03/05 as-built、告警鏈收編待裁、PII scrubbing 落地、agent /health 誤報）；ADR-005/006/009/011/019/020/023/025/028 Status 附註 append。code 側順修：ws_hub docstring 指向 17_AsyncAPI、scripts/ops/README 死鏈。**驗證**：逐行 diff 比對（標注剝除後原文逐字還原）＋YAML/ast 解析。**新增 CIA 草案 CR-0152**（ADR-025 報價 AI 雙閘：openapi 宣告端點 runtime 不存在＋guard 未接 loop——🛑 補實作 vs spec 降版待業主）。
+
 - **OTel PII scrubbing 落地（branch `feat/otel-pii-scrub`，2026-07-10，架構稽核 #3／CR-0136 遺留漏列補）**：25_Monitoring §3 硬性要求——原 OTel 管線直送 exporter，OPS 一配 endpoint 即原樣出站。`core/observability.py` 增 `scrub_text()` 純函式（台灣手機/市話/email/地址遮蔽、**LINE uid sha256 雜湊化**（前 12 碼，保留關聯不留身分）、URL token 參數遮蔽）＋ `_PIIScrubExporter` 出站包裝器（遮蔽失敗不癱瘓匯出）。opt-in 語意不變（未配置＝零行為變化）。驗證：新單測 9 項＋api unit 343 passed。
 
 - **Cloud Run api 擴縮護欄修正（branch `fix/deploy-scale-guard`，2026-07-10，架構稽核 #2）**：`scripts/deploy/api.sh` 由 min=0/max=3 改 **min=1/max=1**（env 可覆寫）——23_Deployment §3 明文「須維持單實例」：WS hub 與 11 個 cron 為進程內狀態，max=3 擴到第 2 實例＝RB-02/03（跨實例訊息遺失＋cron 重跑含 GDPR 硬刪）、min=0 scale-to-zero＝cron 停擺。查無任何決議支持原值（2026-04-28 MVP 初值沿用）。REDIS_URL 部署面掛上驗證後才調升。

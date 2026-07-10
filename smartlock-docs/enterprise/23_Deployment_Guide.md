@@ -3,7 +3,7 @@ title: 部署指南（Deployment Guide）
 version: 1.0
 status: active
 owner: 平台維運（DevOps / FDE）
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P005_per-brand授權部署_大單體內部容器.md
   - smartlock-docs/00_platform/P2/04_adr/ADR-P012_執行債清償排程_cutover_migration_CD.md
@@ -36,8 +36,8 @@ upstream:
 | web | 8080 | 品牌營運後台（`APP_MODE=dispatch`）；不含師傅端 |
 | api | 8080 | FastAPI 派工控制平面（`API_SURFACE=dispatch`）|
 | agent | 8080 | LockCore LINE Bot（`POST /callback` 唯一入站門）|
-| MCP RAG server | （內部）| `search_product_manual` / `similar_cases` 🔜 規劃中 |
-| Redis | 6379 | WS pub/sub fanout + cache 🔜 規劃中（ADR-P007 Phase 1）|
+| MCP RAG server | （內部）| `search_product_manual` / `similar_cases` 🔜 規劃中〔標注 2026-07-10：已落地（CR-0124/CR-0125，WBS 2.2.1 ✅）〕|
+| Redis | 6379 | WS pub/sub fanout + cache 🔜 規劃中（ADR-P007 Phase 1）〔標注 2026-07-10：code 面已落——Redis 橋 + PG advisory 鎖（CR-0134）、CI 雙實例 e2e（CR-0151）；殘餘=部署面 `REDIS_URL`（OPS）與連線池（待排程）〕|
 | 品牌庫 pgvector | 5432 | 業務資料 + 唯一事實語料（primary + read replica 🔜 規劃中）|
 
 **師傅端不在 bundle 內**（屬集中共用的 technician-platform），因此品牌不依賴任何共享元件即可獨立上線。
@@ -59,7 +59,7 @@ upstream:
 
 ## 2. 本機開發拓撲（docker compose 三 surface bundle）
 
-本機以三份 compose 檔起三個 bundle（`docker-compose.{dispatch,tech,platform}.yml`），同一份 api image 靠 `API_SURFACE` 塑形：
+本機以三份 compose 檔起三個 bundle（`docker-compose.{dispatch,tech,platform}.yml`），同一份 api image 靠 `API_SURFACE` 塑形：〔標注 2026-07-10：ADR-028（2026-07-09）後 compose 檔已改為 `web/<站台>/docker-compose.yml` 四站各持（brand-portal / tech-portal / landing / platform-console），根目錄已無 `docker-compose.*.yml`〕
 
 | Bundle | 服務 | Host Port | 說明 |
 |---|---|---|---|
@@ -99,7 +99,7 @@ docker compose down
 | Cloud Run 服務 | 內容 | 關鍵配置 |
 |---|---|---|
 | `smart-lock-api` | FastAPI（`API_SURFACE=all` 預設，全路由 + 背景 worker）| 容器內 :8080 |
-| `smart-lock-web` | Next.js 多站前端 | 容器內 :8080 |
+| `smart-lock-web` | Next.js 多站前端 | 容器內 :8080〔標注 2026-07-10：ADR-028 後 web.sh 以 `WEB_APP` 參數部署單站，預設 brand-portal〕|
 | `smart-lock-agent` | LockCore LINE gateway | 2Gi / 2CPU / gen2 / cpu-boost / min=1 max=3 / timeout 300s / `--allow-unauthenticated` / :8080 |
 
 | 基礎設施 | 用途 |
@@ -119,7 +119,7 @@ docker compose down
 
 **品牌參數化**：`BRAND=<name>` 載入 `scripts/deploy/brands/<name>.env`，一品牌一 GCP 專案——此即 per-brand 物理隔離在雲端的落點。
 
-> **擴縮約束**：api 的 WS hub 與 11 個 cron worker 為進程內 in-memory 設計，**Cloud Run 須維持單實例（min-instances=1、不開多實例）**，直到 Redis pub/sub + 分散式鎖上線（ADR-P007，🔜 規劃中）。詳見 [24_Runbook.md](./24_Runbook.md) RB-02/RB-03。
+> **擴縮約束**：api 的 WS hub 與 11 個 cron worker 為進程內 in-memory 設計，**Cloud Run 須維持單實例（min-instances=1、不開多實例）**，直到 Redis pub/sub + 分散式鎖上線（ADR-P007，🔜 規劃中）。詳見 [24_Runbook.md](./24_Runbook.md) RB-02/RB-03。〔標注 2026-07-10：code 面已落——Redis 橋 + PG advisory 鎖（CR-0134）、CI 雙實例 e2e（CR-0151）；殘餘=部署面 `REDIS_URL`（OPS）與連線池（待排程）；api.sh 已鎖 min-instances=1 / max-instances=1（2026-07-10 fix/deploy-scale-guard）〕
 
 ---
 
@@ -208,8 +208,8 @@ gcloud sql backups create --instance=lock-ai
 
 ### 6.3 Drift 防護 🔜 規劃中（ADR-P012 優先序 1）
 
-- CI drift-check：對 migration 檔 fresh-apply + 比對 `schema_migrations`，漂移即 fail（`.github/workflows/` 新 job）。
-- 一次性 reconcile：028–032 / 036–044 補登 backlog。
+- CI drift-check：對 migration 檔 fresh-apply + 比對 `schema_migrations`，漂移即 fail（`.github/workflows/` 新 job）。〔標注 2026-07-10：已上線——`migration-drift-check.yml`，91 支 migration fresh-apply 全綠（CR-0136，2026-07-09）〕
+- 一次性 reconcile：028–032 / 036–044 補登 backlog。〔標注 2026-07-10：已隨 `migration-drift-check.yml` 上線銷案——91 支 migration 全綠驗證涵蓋（CR-0136，2026-07-09）〕
 - 漂移症狀與診斷見 [24_Runbook.md](./24_Runbook.md) RB-08。
 
 ---
@@ -218,7 +218,7 @@ gcloud sql backups create --instance=lock-ai
 
 ### 7.1 CI（現行）
 
-`.github/workflows/` 共 13 個 CI workflow，涵蓋 test / lint / smoke / loadtest；主測試入口 `cd agent && pytest` 與 api pytest（203 test 檔）。commit 前防線：pre-commit lint + secret scan。
+`.github/workflows/` 共 13 個 CI workflow，涵蓋 test / lint / smoke / loadtest；主測試入口 `cd agent && pytest` 與 api pytest（203 test 檔）。〔標注 2026-07-10：現為 18 個（新增含 `migration-drift-check` / `component-nightly` / `forbidden-eval-gate`（含 nightly）/ `e2e-main-flows` 等）〕commit 前防線：pre-commit lint + secret scan。
 
 ### 7.2 基礎 CD 🔜 規劃中（ADR-P012 優先序 3）
 
@@ -281,7 +281,7 @@ curl -s https://<api-url>/health
 agent 服務鏈 = Gateway（:8000 本機 / :8080 容器）→ api（:8001）→ Postgres，缺一則「LINE 有回但後台無對話/工單」：
 
 1. **啟動 banner 驗證**：`模型:vertex_ai/gemini-3.1-flash-lite`、`記憶後端:postgres`（生產）、`API 橋接:✅ 啟用`——看到「⚠️ 停用」代表缺 `LOCK_API_BASE_URL` / `INTERNAL_API_TOKEN`。
-2. **webhook 存活**：agent 對外僅註冊 `POST /callback`；以無簽章 POST 打 `/callback` 期望 400（驗簽拒絕）即代表存活。`GET /health` 輕量路由 🔜 規劃中（部署腳本 health gate 將對齊此路由）。
+2. **webhook 存活**：agent 對外僅註冊 `POST /callback`；以無簽章 POST 打 `/callback` 期望 400（驗簽拒絕）即代表存活。`GET /health` 輕量路由 🔜 規劃中（部署腳本 health gate 將對齊此路由）。〔標注 2026-07-10：agent.sh health gate 現打 `/health` 必 404 誤報（agent 僅註冊 `POST /callback`），部署成敗以 Cloud Run STARTUP probe 為準——腳本對齊仍待〕
 3. **ingest 貫通驗證**（不經 LINE 直驗旁路，會真實寫 DB）：
 
 ```bash

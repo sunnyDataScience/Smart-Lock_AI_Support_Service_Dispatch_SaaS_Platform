@@ -3,7 +3,7 @@ title: "ADR-025: AI 話術邊界與「永不自轉工單」紅線憲章"
 version: 1.0
 status: active
 owner: 平台架構團隊 + 法務
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - docs/architecture/adr/ADR-0047-ai-forbidden-list-as-charter.md
   - docs/architecture/adr/ADR-0048-ai-human-handoff-rules.md
@@ -86,3 +86,4 @@ ai_forbidden:
 
 - 本憲章由 [ADR-012](./ADR-012_Agent_Configuration_Studio.md) 受保護層承載——品牌自服務調校**不可移除 / override** 本憲章任何條目。
 - 🔜 規劃中：200 題 eval set 建置 + CI eval gate；情緒分類器準確率 ≥ 90% 驗收；BI「handoff by trigger」分布監控。
+- 2026-07-10：200 題 eval + CI gate 已完成（CR-0135，WBS 1.5.1 ✅；nightly live 已掛 2026-07-10）；稽核查實兩缺口——openapi 宣告之 `:send-to-customer` AI 雙閘端點 runtime 不存在、生成後 guard 未接 agent loop（僅 CI 層）→ 立案 CR-0152 待業主裁決（補實作 vs spec 降版）。

@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**OTel PII scrubbing 落地（架構稽核 #3）**，branch `feat/otel-pii-scrub` — 25_Monitoring §3 硬性：scrub_text 純函式＋出站包裝器（電話/email/地址遮蔽、LINE uid 雜湊化、token 遮蔽）；單測 9＋unit 343 綠。）
+**最後更新：** 2026-07-10（**架構文件標注輪**，branch `docs/arch-docs-annotation` — 12_SAD/17_AsyncAPI/18_DB/23/24/25/ADR×9 共 41 處標注銷案（僅新增不改寫，逐行 diff 驗證）＋CR-0152 CIA 草案（ADR-025 AI 雙閘，🛑 待業主）。）
+
+**前一次更新：** 2026-07-10（**OTel PII scrubbing 落地（架構稽核 #3）**，branch `feat/otel-pii-scrub` — 25_Monitoring §3 硬性：scrub_text 純函式＋出站包裝器（電話/email/地址遮蔽、LINE uid 雜湊化、token 遮蔽）；單測 9＋unit 343 綠。）
 
 **前一次更新：** 2026-07-10（**Cloud Run api 擴縮護欄修正（架構稽核 #2）**，branch `fix/deploy-scale-guard` — api.sh min=1/max=1（23_Deployment §3 單實例硬約束；原 max=3 無決議依據）。）
 

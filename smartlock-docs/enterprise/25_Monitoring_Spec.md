@@ -3,7 +3,7 @@ title: 監控規格（Monitoring Spec）
 version: 1.0
 status: active
 owner: 平台維運（SRE / DevOps）
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P002_SigNoz_單一可觀測性平台.md
   - smartlock-docs/00_platform/P1/05_platform_architecture_L1.md
@@ -55,7 +55,7 @@ upstream:
 | **Logs** | 結構化 JSON + `request_id`（api `RequestIdMiddleware` 注入）；等級：ERROR 進告警評估、INFO 供查案；保留期 `[待確認]` |
 | **Traces** | 分散式追蹤關鍵鏈：LINE webhook → agent turn → `/internal/*` → api service → DB；WS publish 鏈；LINE push outbox 鏈 |
 
-**PII scrubbing（硬性）**：trace / log 進 SigNoz 前必須遮蔽 PII（電話、地址、LINE user id 雜湊化）；OPIK 的 prompt / trace 含對話原文，屬 PII 敏感面——dev 環境使用測試資料，prod 開啟 OPIK 前須先過 PII 遮蔽評估（詳見 [13_Security_Architecture.md](./13_Security_Architecture.md)）。
+**PII scrubbing（硬性）**：trace / log 進 SigNoz 前必須遮蔽 PII（電話、地址、LINE user id 雜湊化）；OPIK 的 prompt / trace 含對話原文，屬 PII 敏感面——dev 環境使用測試資料，prod 開啟 OPIK 前須先過 PII 遮蔽評估（詳見 [13_Security_Architecture.md](./13_Security_Architecture.md)）。〔標注 2026-07-10：api 面已落地——feat/otel-pii-scrub 之 `scrub_text` + 出站包裝器（2026-07-10）；agent / OPIK 面仍待（排程待業主）〕
 
 ## 4. 系統層 SLI dashboard（SigNoz）
 
@@ -105,7 +105,7 @@ upstream:
 | **Warning** | SLO burn 中速、單一 SLI 持續超標（如 Vertex P99 > 門檻 10min）、cron lag、drift 偵測 | 團隊通道 | 上班 ≤ 15 min / 非上班 ≤ 30 min |
 | **Info** | budget 50% 標記、每週 SLI 回顧、部署後觀察正常 | 儀表板 / 週會 | 週期性檢視 |
 
-規則設計原則：**每條告警必可動作**——附 Runbook 劇本連結（RB-01~09）+ first responder 動作；不設無人處理的 vanity alert。告警發送工具 `[待確認]`（SigNoz alert channel 對接目標待定；升級鏈以角色定義，見 [26](./26_Incident_Postmortem.md) §4）。
+規則設計原則：**每條告警必可動作**——附 Runbook 劇本連結（RB-01~09）+ first responder 動作；不設無人處理的 vanity alert。告警發送工具 `[待確認]`（SigNoz alert channel 對接目標待定；升級鏈以角色定義，見 [26](./26_Incident_Postmortem.md) §4）。〔標注 2026-07-10：過渡告警鏈已實作——`scripts/ops/` check_monitors_health → classify_severity → PagerDuty / Slack + `monitors-health.yml` CI cron；正式收編（工具定案）待業主〕
 
 範例規則（SigNoz alert）：
 

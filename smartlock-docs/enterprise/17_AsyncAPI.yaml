@@ -13,6 +13,8 @@
 #   - ../api/P2/06_api_design_specification.md                             # §5 WS 頻道（fanout 對應）
 #   - ../agent/P2/06_api_design_specification.md                           # §5 LINE Push outbox 歸屬
 #   - ../00_platform/P2/09_integration_data_flow.md                        # 跨系統事件路徑 / schema 治理
+# 標注 2026-07-10：上列 upstream 所指文件樹已於 2026-07-08 大掃除移除（查 git 歷史），僅存為出處紀錄。
+# 標注 2026-07-10：本檔以註解行補 as-built 標注（CR-0134 等），原文未動。
 # 相關文件：./12_SAD.md ./16_API_Spec.yaml ./25_Monitoring_Spec.md
 # =============================================================================
 asyncapi: 3.0.0
@@ -35,6 +37,7 @@ info:
     - producer 走 outbox 模式（品牌 api 沿用 outbox 發事件，ADR-P014 §4）。
     - ordering：partition key 以 tenant_id + work_order_id 組合 [待確認 精確 key 組成]。
     - 消費冪等：以事件信封 event_id 去重；cron 類消費者以 Redis 分散式鎖去重（ADR-P007 §4）。
+    # 標注 2026-07-10：as-built＝PG advisory lock 領導者選舉（api/core/distributed_lock.py，CR-0134「零新增基礎設施」裁決），未用 Redis 鎖，功能等價。
     - retry / DLQ：消費失敗重試後入 DLQ 🔜 規劃中 [待確認 重試次數與 DLQ topic 命名]。
     - schema 治理：schema registry + consumer-driven 契約測試（00_platform/P2/09 §5 R-02），
       事件 schema 版本走信封 schema_version。
@@ -119,6 +122,8 @@ channels:
       dispatchEvent: { $ref: "#/components/messages/DispatchEvent" }
 
   # ── Redis pub/sub 即時 fanout（對應 WS 頻道，詳見 16_API_Spec x-websocket-channels）──
+  # 標注 2026-07-10：as-built＝單一 Redis 廣播頻道 lockai:ws:broadcast，envelope 內帶原 channel 欄位供各實例路由
+  # （api/core/ws_hub.py，CR-0134），非本節 per-channel Redis 定址；WS 面向的頻道路徑則與本節相符。
   realtimeNotifications:
     address: realtime.notifications.{userId}
     servers: [{ $ref: "#/servers/redis-pubsub" }]
@@ -162,10 +167,12 @@ channels:
   linePushOutbox:
     address: line.push-outbox
     servers: [{ $ref: "#/servers/redis-pubsub" }]   # [待確認] outbox 佇列實體（DB outbox 表 vs broker）
+    # 標注 2026-07-10：已定案＝DB 表輪詢（line_push_outbox 表＋line_push_outbox_worker），非 broker；上行 [待確認] 銷案。
     description: |
       LINE 主動推播出站佇列：api `line_push_outbox_worker` 消費 outbox → LINE Push API
       （agent 主走 Reply；Push 屬平台層 api 職責，見 ../agent/P2/06 §5）。
       worker 以分散式鎖去重（ADR-P007 §4），避免多實例重複推播。
+      # 標注 2026-07-10：as-built＝PG advisory lock 領導者選舉（api/core/distributed_lock.py，CR-0134），非 Redis 鎖，功能等價。
     messages:
       linePushMessage: { $ref: "#/components/messages/LinePushMessage" }
 

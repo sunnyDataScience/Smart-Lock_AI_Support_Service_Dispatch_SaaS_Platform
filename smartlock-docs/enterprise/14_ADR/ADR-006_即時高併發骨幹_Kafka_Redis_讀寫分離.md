@@ -3,7 +3,7 @@ title: "ADR-006: 即時高併發骨幹（Kafka 事件 + Redis fanout + 讀寫分
 version: 1.0
 status: active
 owner: 平台架構團隊
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P007_即時高併發_Kafka_Redis_讀寫分離.md
   - smartlock-docs/api/P2/04_adr/ADR-003_in-memory_WS_hub_與_cron_worker.md
@@ -55,3 +55,4 @@ upstream:
 
 - Phase 1（Redis + 連線池 + 分散式鎖）→ Phase 1/2（read replica + 讀路由）→ Phase 2（Kafka 事件骨幹 + 解耦消費者 + 接 SigNoz）。
 - 🔜 規劃中：全部三 Phase；Phase 1 為水平擴展（NFR-SCAL）前置硬條件。
+- 2026-07-10：Phase 1 之 Redis fanout + cron 互斥已落地（CR-0134；去重鎖 as-built = PG advisory 領導者選舉而非 Redis 鎖，零新增基礎設施）+ CI 雙實例 e2e（CR-0151）；Phase 1 餘項 DB 連線池／熱讀 cache 無 WBS 工作包對映（排程斷鏈待業主，架構稽核 #5）；讀寫分離／Kafka 依 WBS 屬 M3+。
