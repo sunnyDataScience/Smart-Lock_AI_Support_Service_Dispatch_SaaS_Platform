@@ -108,7 +108,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 2.1.2 | ⬜ | 租戶自助開帳：員工申請 tab + Admin 審核指派（4 角色）+ SoD 雙簽 | FE+BE | 2.1.1 | 13_Security §3.1 開通權矩陣 |
 | 2.2.1 | ✅ 2026-07-09（CR-0124/0125，提前於 M1 期完成） | RAG 語義層：`embed()` + pgvector 語料 + MCP server | AG+DT | — | agent ADR-004；FR-A03 / FR-AGT-07 |
 | 2.2.2 | 🔶 語料灌注 ✅（references 249 chunk）；Skill 重切與引用率 ≥90% gate 依 ADR-030 取消/轉輔助指標——驗收待依 ADR-030 重定義 | 語料灌注：型號事實 chunk 遷移 + Skill 重切（行為留 skill、事實入 RAG）| AG | 2.2.1 | RAG 引用率 ≥ 90% 品質 gate |
-| 2.3.1 | ⬜ | knowledge-refinery 服務：診斷對話輸入汲取（吃 `knowledge_ready` 卡）+ 提煉分流 | DT | 1.2.3 / 1.2.4 | ADR-018；KR P1/05 |
+| 2.3.1 | ✅ 2026-07-10（CR-0139：`refinery/` member——DB 直連汲取 default-deny＋LLM 兩軌分流＋migration 094 Draft Queue 狀態機；7 tests；live LLM 煉製隨 2.3.2 驗。case_entries 表名衝突落 §8-1 待業主，阻 2.3.2） | knowledge-refinery 服務：診斷對話輸入汲取（吃 `knowledge_ready` 卡）+ 提煉分流 | DT | 1.2.3 / 1.2.4 | ADR-018；KR P1/05（已整併 15_SDS §9） |
 | 2.3.2 | ⬜ | HITL 審核 UI（draft → 人審 diff → 核可落地 pgvector + skill）| FE+DT | 2.3.1 | ADR-018 §審核層 |
 | 2.4.1 | ⬜ | technician-platform 獨立系統：技師庫 + tech-api + 師傅 web 拆出 | BE+FE | M1 | ADR-016；跨租戶單一身分 |
 | 2.4.2 | ⬜ | 技師 KYC 註冊三層（登入/註冊分離 + 敏感 PII + 文件上傳）| BE+FE | 2.4.1 | CR-0115（七項設計裁決依 §8）|

@@ -606,11 +606,11 @@ License 開通的附加系統（集中共用，非 per-brand bundle）：長駐�
 
 | 元件 | 職責 |
 |---|---|
-| 汲取層 | 兩類輸入：診斷對話（`line_chat` / `problem_cards`，汲取機制 [待確認：api 唯讀端點 / 批次匯出 / 事件]）+ 產品素材（YouTube / 影片 / 官網 / 手冊）|
+| 汲取層 | 兩類輸入：診斷對話（`line_chat` / `problem_cards`，汲取機制＝**直連品牌 DB 唯讀輪詢**——只撿 `knowledge_ready=TRUE` 的卡，`REFINERY_TENANT_ID` default-deny，比照 rag 服務治理；2026-07-10 CR-0139 D1 裁決銷案，實作 `refinery/`）+ 產品素材（YouTube / 影片 / 官網 / 手冊）|
 | raw_to_bronze | ASR（Whisper）/ Vision LLM / bs4+markdownify 清洗轉錄 |
 | bronze_to_silver | 冪等性檢查 → LLM 語音糾錯 + 去冗 + 語意切塊 → 產 JSON array → **Python 強制覆寫 `source`/`source_type`（provenance 防幻覺）** |
 | 提煉分流器 | LLM 依第一性原則分流：「定義 agent 怎麼行為」→ 行為/精選；「被查找的事實」→ 事實 |
-| Draft Queue | 提煉產物落地前的審核佇列（事實 draft + provenance；行為 draft + diff vs 既有 skill）|
+| Draft Queue | 提煉產物落地前的審核佇列（事實 draft + provenance；行為 draft + diff vs 既有 skill）。落地＝品牌庫 `knowledge_drafts` 表（migration 094，CR-0139 D2）：兩軌分流 + `UNIQUE(tenant_id, draft_key)` 冪等 + 狀態機欄 |
 | 審核 UI backend | draft 狀態機（§9.2）+ diff 呈現；與 AI Onboarding Compiler 共用 HITL 審核骨架（ADR-P011 孿生）|
 | Publisher | 核可後才落地：事實 → `embed()`（text-embedding-004，768 維）chunk+embed 灌 pgvector `manual_chunks` / `case_entries`（帶 tenant/brand 過濾欄）；行為 → append-only git 寫入 lockcore `references/{Brand}/{Model}.md` + SKILL.md |
 

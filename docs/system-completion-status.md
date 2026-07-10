@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**問題卡雙 gate 前端 UI（WBS 1.2.3 補完，CR-0138）**，branch `feat/pc-dual-gate-ui` — 詳情頁診斷雙 gate 進度區塊＋編輯 modal（分流 Gate①＋RMA spine Gate②，L3 條件欄）＋新頁 /admin/knowledge-queue 待補知識佇列＋Sidebar/rolePolicy/i18n 接線。Gate① enforce 現可開啟。四站 tsc 0、build 綠、i18n 平衡。）
+**最後更新：** 2026-07-10（**knowledge-refinery 汲取＋提煉分流＋Draft Queue（WBS 2.3.1，M2 知識線首包，CR-0139）**，branch `feat/knowledge-refinery` — 新 workspace member `refinery/`：直連品牌 DB 汲取 knowledge_ready 卡＋三方逐字稿（default-deny）；LLM 兩軌分流（case_entry 事實／behavior SOP 候選）產 draft，不得編造、provenance 可溯；migration 094 `knowledge_drafts` 佇列表（冪等＋狀態機＋re_refine 重煉 supersede）。**HITL 硬 gate：只產 draft 不落地**（Publisher＝2.3.2）。7 tests、094 冪等、drift-check 92 支綠。查實 CR-0124 潛在缺陷：case_entries 表名衝突（kb-v2 vs rag 形狀）→ CR-0139 §8-1 待業主，阻 2.3.2 非 2.3.1。）
+
+**前一次更新：** 2026-07-10（**問題卡雙 gate 前端 UI（WBS 1.2.3 補完，CR-0138）**，branch `feat/pc-dual-gate-ui` — 詳情頁診斷雙 gate 進度區塊＋編輯 modal（分流 Gate①＋RMA spine Gate②，L3 條件欄）＋新頁 /admin/knowledge-queue 待補知識佇列＋Sidebar/rolePolicy/i18n 接線。Gate① enforce 現可開啟。四站 tsc 0、build 綠、i18n 平衡。）
 
 **前一次更新：** 2026-07-09（**M1 SIT 全綠（WBS 1.7.1，CR-0137）**，branch `test/m1-sit` — api 1719 passed 0 failed（合跑）、agent 161、rag 5。SIT 修三缺陷：0111 legacy 斷言→7 角色正典、matrix 測試污染→_flatten_matrix、**seed 順序 bug**（技師技能/授權 seed 早於 technicians→新增 zz_ seed 補跑）。1 live 測試 Vertex 429 非迴歸。**M1 工程 1.1-1.7.1 全完，剩 1.7.2 UAT 業主驗收。**）
 
