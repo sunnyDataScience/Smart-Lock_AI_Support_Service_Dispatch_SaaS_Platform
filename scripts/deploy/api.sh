@@ -48,8 +48,12 @@ CLOUDSQL_INSTANCE="${CLOUDSQL_INSTANCE:-${PROJECT_ID}:${REGION}:lock-ai}"
 PORT=8080
 MEMORY="1Gi"
 CPU=1
-MIN_INSTANCES=0
-MAX_INSTANCES=3
+# min=1/max=1 硬約束（23_Deployment §3／24_Runbook RB-02/03，2026-07-10 架構稽核修正）：
+# WS hub 與 11 個 cron 為進程內狀態——min=0 會 scale-to-zero 令 cron 停擺；
+# REDIS_URL 部署面未掛前擴到第 2 實例＝跨實例訊息遺失＋cron 重跑（含 GDPR 硬刪）。
+# 掛上 Redis 驗證後才可用 env 調升。
+MIN_INSTANCES="${MIN_INSTANCES:-1}"
+MAX_INSTANCES="${MAX_INSTANCES:-1}"
 TIMEOUT=300
 
 # ── 環境變數 ──
