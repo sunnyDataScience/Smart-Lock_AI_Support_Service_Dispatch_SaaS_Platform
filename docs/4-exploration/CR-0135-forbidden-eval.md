@@ -32,4 +32,8 @@ gate runner ④CI 常態化。本輪補齊：
 ## 遺留
 
 - 200 題內容工程精修（種子為模板變體，可人工替換為真實刁鑽 case）——內容層另議。
-- live 全量 nightly 排程掛 LLM 憑證＝OPS/1.6.1 配置。
+- live 全量 nightly 排程掛 LLM 憑證＝OPS/1.6.1 配置。〔2026-07-10 銷案：nightly workflow 已掛（schedule 02:00 台北，branch `ci/forbidden-eval-nightly`）——live job 在 CI 內生成 gemini/ 路由 config、憑證缺席亮紅不假綠、run 產物上傳 artifact；僅剩 OPS 配置 GEMINI_API_KEY secret〕
+
+### 進度
+
+- ✅ nightly 排程輪 done（branch `ci/forbidden-eval-nightly`，2026-07-10）：schedule + live job（憑證檢查亮紅／CI config／artifact 上傳）；dry gate 本機重跑綠、workflow YAML 驗證過。
