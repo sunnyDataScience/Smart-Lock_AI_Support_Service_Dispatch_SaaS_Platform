@@ -134,7 +134,7 @@ async def test_quote_accept_writes_estimated_price(client):
     finally:
         await _cleanup([
             ("quote_line_items", "quote_id", qid),
-            ("pricing_rule_snapshot", "quote_id", qid),
+            # pricing_rule_snapshot 自 098 起 content-addressable+append-only(CR-0149),不清
             ("invoices", "work_order_id", ids["woid"]),
             ("quote", "id", qid),
             ("work_orders", "id", ids["woid"]),
@@ -173,7 +173,7 @@ async def test_quote_send_writes_estimated_price(client):
     finally:
         await _cleanup([
             ("quote_line_items", "quote_id", qid),
-            ("pricing_rule_snapshot", "quote_id", qid),
+            # pricing_rule_snapshot 自 098 起 content-addressable+append-only(CR-0149),不清
             ("quote", "id", qid),
             ("work_orders", "id", ids["woid"]),
             ("problem_cards", "id", ids["pcid"]),

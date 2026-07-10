@@ -1,7 +1,7 @@
 # CR-0149 — 報價快照 hash-chain 落地(ADR-026 補課)
 
 - **日期**:2026-07-10
-- **狀態**:已裁決(2026-07-10)——實作中
+- **狀態**:done(2026-07-10)
 - **觸發面向**:DB schema(pricing_rule_snapshot 重建+migration)、Domain model(quote 不變式)
 - **依據**:ADR-026(Accepted 2026-07-07,content-addressable snapshot+append-only)、2026-07-10 業主裁決「smartlock-docs 為準」、文件合規稽核(6 線 workflow)查實 ADR-026 零落地
 
@@ -39,3 +39,7 @@ ADR-026 已 Accepted 但 **schema 完全未落地**——現行仍是 migration 
 ### §8 裁決記錄（2026-07-10）
 
 業主「開工」＝**採建議案**（解讀可否決，回退成本低）：①存量豁免（NOT NULL 只 enforce 新 quote，舊資料標 legacy）；②舊表更名 `pricing_rule_snapshot_legacy` 保留查證，新表全新開始；③purge 流程記遺留；④排 **M2 收尾（UAT 前）**。
+
+### 進度
+
+- ✅ done(branch `feat/pricing-snapshot-hashchain`,2026-07-10):migration 098(舊表更名 legacy+新表 content-addressable+append-only trigger(owner 亦擋)+quote FK NOT VALID 存量豁免)+`_freeze_snapshot` 改寫(payload 含 lines+discount_policy+tenant_id,sha256 定址,ON CONFLICT 冪等)。測試 4(凍結/去重/append-only/legacy 保留)+舊測試 cleanup 修 2 檔+quote 迴歸 81+drift-check 96 全綠(scratch 5465,098 冪等重套)。遺留:purge 流程(連動 PII 治理)、24_Runbook 兩條追溯路徑正文化(現以標注)。
