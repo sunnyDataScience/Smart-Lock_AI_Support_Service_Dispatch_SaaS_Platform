@@ -120,6 +120,7 @@
 | 095 | `095-case-entries-merge-shape.sql` | CR-0140 | 🟢 idempotent（scratch 5457 驗證 2026-07-10） | case_entries 併形（WBS 2.3.2；業主裁決 CR-0139 §8-1→B）：kb-v2 表 ADD `source_problem_card_id`（FK problem_cards，Phase D 溯源）＋`embedding_model`＋partial index；`source` 值域註釋層加 `'refinery'`。ADD COLUMN/CREATE INDEX IF NOT EXISTS 可重套 |
 | 096 | `096-rag-manual-chunks.sql` | CR-0142 | 🟢 idempotent（scratch 5459 驗證 2026-07-10） | RAG 事實語料表改名自持（WBS 2.2.2 收尾）：`rag_manual_chunks`（原 Schema_rag 的 manual_chunks 與 kb-v2 表撞名恆 no-op——RAG 主表從未真正存在）；HNSW＋scope index；kb manual_chunks 不動（語意不同不併形）。CREATE TABLE/INDEX IF NOT EXISTS 可重套 |
 | 097 | `097-requote-requests.sql` | CR-0144 | 🟢 idempotent（scratch 5461 驗證 2026-07-10） | OHS 現場報價修正 command 通道（WBS 2.4.3/ADR-027）：`requote_requests` 表——UNIQUE(tenant_id, request_id) 冪等回放＋reason/initiated_via CHECK＋open 修正 partial index（409 判定）＋created_quote_id（v+1 串鏈）。CREATE TABLE/INDEX IF NOT EXISTS 可重套 |
+| 098 | `098-pricing-snapshot-hashchain.sql` | CR-0149 | 🟢 idempotent（scratch 5465 驗證 2026-07-10） | ADR-026 content-addressable 報價快照：舊制 041 表更名 `pricing_rule_snapshot_legacy` 保留查證；新表 snapshot_hash(sha256) PK＋engine_type/version_id/policy_hash＋append-only trigger（owner 亦擋）＋quote.snapshot_hash FK NOT VALID（存量豁免）。DO $$ 判欄更名/IF NOT EXISTS 可重套 |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

@@ -694,16 +694,40 @@ async def customer_respond_to_quote(
     return {"quote_id": result["id"], "state": result["state"], "decision": decision}
 
 
+_SNAPSHOT_ENGINE_TYPE = "quote_line_items_v1"
+
+
 async def _freeze_snapshot(quote_id: str, tenant_id: str) -> None:
-    """送客戶當下凍結價格規則 + 算 hash（報價快照不可變）。"""
+    """送客戶當下凍結定價規則 payload → content-addressable 快照（ADR-026/CR-0149）。
+
+    snapshot_hash = sha256(canonical payload，含 tenant_id → 去重範圍=租戶內)；
+    同 payload 去重（ON CONFLICT DO NOTHING，insert 冪等）；append-only 由 DB
+    trigger enforce（migration 098）；quote.snapshot_hash 為 reference pointer
+    （業務 audit 與財務憑證分流）。舊制 041 表已更名 pricing_rule_snapshot_legacy。
+    """
     conn = await _conn()
     lines = await (await conn.execute(
         "SELECT item_name, category, customer_price, quantity FROM quote_line_items "
         "WHERE quote_id = %s::uuid ORDER BY created_at", (quote_id,))).fetchall()
-    snap = {"lines": [{"name": l[0], "cat": l[1], "price": _dec(l[2]), "qty": int(l[3])} for l in lines]}
-    blob = json.dumps(snap, ensure_ascii=False, sort_keys=True)
+    from services import config_m18_service
+
+    policy = await config_m18_service.read_global_value(namespace="discount_policy")
+    policy = policy if isinstance(policy, dict) else {}
+    policy_blob = json.dumps(policy, ensure_ascii=False, sort_keys=True)
+    payload = {
+        "engine_type": _SNAPSHOT_ENGINE_TYPE,
+        "tenant_id": tenant_id,
+        "lines": [{"name": l[0], "cat": l[1], "price": _dec(l[2]), "qty": int(l[3])} for l in lines],
+        "discount_policy": policy,
+    }
+    blob = json.dumps(payload, ensure_ascii=False, sort_keys=True)
     h = hashlib.sha256(blob.encode("utf-8")).hexdigest()
+    # 先插快照再回寫 quote（FK 順序；同 hash 重送=冪等 no-op）
     await conn.execute(
-        "INSERT INTO pricing_rule_snapshot (quote_id, rules_json, hash) VALUES (%s::uuid, %s::jsonb, %s)",
-        (quote_id, blob, h))
+        "INSERT INTO pricing_rule_snapshot "
+        "(snapshot_hash, tenant_id, engine_type, version_id, policy_hash, payload) "
+        "VALUES (%s, %s::uuid, %s, %s, %s, %s::jsonb) "
+        "ON CONFLICT (snapshot_hash) DO NOTHING",
+        (h, tenant_id, _SNAPSHOT_ENGINE_TYPE, None,
+         hashlib.sha256(policy_blob.encode("utf-8")).hexdigest(), blob))
     await conn.execute("UPDATE quote SET snapshot_hash = %s, updated_at = NOW() WHERE id = %s::uuid", (h, quote_id))

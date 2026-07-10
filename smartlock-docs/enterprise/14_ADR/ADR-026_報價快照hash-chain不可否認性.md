@@ -3,7 +3,7 @@ title: "ADR-026: 報價快照 hash-chain 不可否認性"
 version: 1.0
 status: active
 owner: api 系統 tech lead + DBA
-last-updated: 2026-07-07
+last-updated: 2026-07-10
 upstream:
   - docs/architecture/adr/ADR-0064-quote-pricing-snapshot-hash-chain.md
 ---
@@ -75,3 +75,4 @@ REVOKE UPDATE, DELETE ON pricing_rule_snapshot FROM application_role;  -- append
 ## Status 附註
 
 - 「業務 audit 與財務憑證分流」為永久原則；snapshot retention 期為可調參數（連動 PII purge 治理）。
+- **2026-07-10 落地（CR-0149，業主裁決採建議案）**：migration 098——舊制 041 表更名 `pricing_rule_snapshot_legacy` 保留查證、新表 content-addressable（sha256 PK＋engine_type/version_id/policy_hash＋dedup ON CONFLICT）、append-only 以 trigger enforce（REVOKE 對表 owner 無效故用 trigger，符合本文「非物理不可變」）、`quote.snapshot_hash` FK NOT VALID（存量 quote 豁免——evidence 鏈自 2026-07-10 起算）。payload 含 tenant_id（去重範圍＝租戶內）。purge 流程記遺留。

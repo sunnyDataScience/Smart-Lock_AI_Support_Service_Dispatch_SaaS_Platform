@@ -104,7 +104,7 @@ async def _make_quote(wid: str, pid: str, state: str) -> str:
 async def _cleanup(uid: str, pid: str) -> None:
     sub = "(SELECT id FROM work_orders WHERE problem_card_id=%s::uuid)"
     await db_module._conn.execute(f"DELETE FROM invoices WHERE quote_id IN (SELECT id FROM quote WHERE work_order_id IN {sub})", (pid,))
-    await db_module._conn.execute(f"DELETE FROM pricing_rule_snapshot WHERE quote_id IN (SELECT id FROM quote WHERE work_order_id IN {sub})", (pid,))
+    # pricing_rule_snapshot 自 098 起 content-addressable+append-only(CR-0149),不清
     await db_module._conn.execute(f"DELETE FROM quote_approval WHERE quote_id IN (SELECT id FROM quote WHERE work_order_id IN {sub})", (pid,))
     await db_module._conn.execute(f"DELETE FROM quote_line_items WHERE work_order_id IN {sub}", (pid,))
     await db_module._conn.execute(f"DELETE FROM quote WHERE work_order_id IN {sub}", (pid,))

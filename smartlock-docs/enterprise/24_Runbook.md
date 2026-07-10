@@ -236,3 +236,9 @@ per-brand provisioning（License → 部署 → 建庫 → 綁 LINE → 健康�
 ---
 
 *SLI/SLO 完整定義不在本手冊，見 [25_Monitoring_Spec.md](./25_Monitoring_Spec.md)；業務治理型事件（GDPR / 憑證 / SoD / 證據鏈）歸 [13_Security_Architecture.md](./13_Security_Architecture.md) 與各系統 P3 安全清單。*
+
+---
+
+〔標注 2026-07-10（ADR-026/CR-0149 落地補記）——報價快照兩條追溯路徑：
+①**業務 audit**：`quote.snapshot_hash` → `pricing_rule_snapshot`（content-addressable，098 起 append-only trigger enforce；UPDATE/DELETE 一律 RAISE）；
+②**財務憑證**：invoice/對帳鏈不依賴快照表（分流原則）。存量（2026-07-10 前）quote 的 hash 屬 `pricing_rule_snapshot_legacy`（041 舊制，僅查證用）。〕

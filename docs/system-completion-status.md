@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-10（**requote 分層核可＋item_diffs 收緊（CR-0150 done）**，branch `feat/requote-tiered-approval` — service 層 delta>2000 限主管 gate（fail-closed）＋兩入口 item_diffs 必填非空；quote 相關 78 測全綠。小編層待 RBAC 擴權另案。）
+**最後更新：** 2026-07-10（**報價快照 hash-chain 落地（CR-0149 done／ADR-026 補課）**，branch `feat/pricing-snapshot-hashchain` — migration 098 content-addressable＋append-only trigger＋FK NOT VALID 存量豁免；_freeze_snapshot 改寫。測試 4＋迴歸 81＋drift-check 96 綠。）
+
+**前一次更新：** 2026-07-10（**requote 分層核可＋item_diffs 收緊（CR-0150 done）**，branch `feat/requote-tiered-approval` — service 層 delta>2000 限主管 gate（fail-closed）＋兩入口 item_diffs 必填非空；quote 相關 78 測全綠。小編層待 RBAC 擴權另案。）
 
 **前一次更新：** 2026-07-10（**架構文件標注輪**，branch `docs/arch-docs-annotation` — 12_SAD/17_AsyncAPI/18_DB/23/24/25/ADR×9 共 41 處標注銷案（僅新增不改寫，逐行 diff 驗證）＋CR-0152 CIA 草案（ADR-025 AI 雙閘，🛑 待業主）。）
 
