@@ -104,7 +104,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 
 | WBS | 狀態 | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
 |---|---|---|---|---|---|
-| 2.1.1 | 🔶 R1 ✅ 2026-07-10（CR-0141：Casdoor 部署 profile idp＋org/角色/users bcrypt 遷移同步＋api OIDC 雙驗 opt-in＋cookie 地基；live E2E 實證；api 1729 綠。**R2 待做：四站授權碼流＋ACT-01 localStorage 退場**；License gate 依 ADR-004 隨 ADR-002） | Casdoor 統一 IdP：org（租戶）/ OIDC 授權碼流 / License 訂閱管理 | BE+OPS | M1 | ADR-004（Casdoor）；web token 改 httpOnly（ACT-01）|
+| 2.1.1 | 🔶 R1 ✅ 2026-07-10（CR-0141：Casdoor 部署 profile idp＋org/角色/users bcrypt 遷移同步＋api OIDC 雙驗 opt-in＋cookie 地基；live E2E 實證；api 1729 綠。R2 ✅ 2026-07-10（CR-0146：授權碼流 brand-portal 參考實作＋httpOnly cookie 雙寫，live E2E 全通）。**R3 待做：ACT-01 localStorage 退場（30+ 頁同步改造）＋三站複製接線**——業主排程；License gate 依 ADR-004 隨 ADR-002） | Casdoor 統一 IdP：org（租戶）/ OIDC 授權碼流 / License 訂閱管理 | BE+OPS | M1 | ADR-004（Casdoor）；web token 改 httpOnly（ACT-01）|
 | 2.1.2 | ✅ 2026-07-10（CR-0143：申請/審核/直建早已落地（088/CR-0114 R5）；本輪補 SoD 雙簽生產接線——4 端點＋UI（同人核准 403），13_Security §3.1 銷案。api 1733 綠） | 租戶自助開帳：員工申請 tab + Admin 審核指派（4 角色）+ SoD 雙簽 | FE+BE | 2.1.1 | 13_Security §3.1 開通權矩陣 |
 | 2.2.1 | ✅ 2026-07-09（CR-0124/0125，提前於 M1 期完成） | RAG 語義層：`embed()` + pgvector 語料 + MCP server | AG+DT | — | agent ADR-004；FR-A03 / FR-AGT-07 |
 | 2.2.2 | ✅ 2026-07-10（CR-0142 收案：驗收依 ADR-030 重定義——語料灌注 ✅＋引用率轉輔助品質指標（live 基準 83%）＋Skill 重切取消。**同輪修撞名事故**：RAG 主表原名撞 kb manual_chunks 恆 no-op → 096 改名 rag_manual_chunks 自持，UAT live 灌注 249 chunk 首次真正可檢索） | 語料灌注：型號事實 chunk 遷移 + Skill 重切（行為留 skill、事實入 RAG）| AG | 2.2.1 | ADR-030 重定義：語料灌注＋引用率輔助指標（原 ≥90% cutover gate 取消） |
