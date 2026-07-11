@@ -34,6 +34,7 @@ from models.generated import (
     FamilyReviewAction,
     FamilyReviewCreateRequest,
     SopDraft,
+    SopDraftCreateRequest,
     SopDraftEnvelope,
     SopDraftReviewRequest,
 )
@@ -272,21 +273,29 @@ async def get_sop_draft_v2(
     tags=["SOP Drafts"],
 )
 async def create_sop_draft_v2(
-    body: dict[str, Any],
+    body: SopDraftCreateRequest,
     tenantId: str = Path(...),
     user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
+    # CR-0164 F#5：原呼叫傳 title/steps/source_problem_card_id，與 create_draft
+    # 簽章（source_case_id/source_type/draft_content/model_version）完全不符 →
+    # TypeError 500（端點 100% 壞）。改對齊 v1 sop_drafts.createSopDraft 契約。
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError("CROSS_TENANT_WRITE", "Path tenantId mismatch", 403)
-    if not isinstance(body, dict):
-        raise ApiError("VALIDATION_ERROR", "body must be a JSON object", 422)
 
-    draft = await sop_draft_service.create_draft(
+    source_type = (
+        body.source_type.value
+        if hasattr(body.source_type, "value")
+        else str(body.source_type)
+    )
+    draft, created = await sop_draft_service.create_draft(
         tenant_id=tenantId,
-        title=body.get("title", ""),
-        steps=body.get("steps", []),
-        source_problem_card_id=body.get("source_problem_card_id"),
+        source_case_id=str(body.source_case_id),
+        source_type=source_type,
+        draft_content=body.draft_content,
+        model_version=body.model_version,
+        confidence_score=body.confidence_score,
     )
     await _write_sop_audit_log(
         tenant_id=tenantId,
