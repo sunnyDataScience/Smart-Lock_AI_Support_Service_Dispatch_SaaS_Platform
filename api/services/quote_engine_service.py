@@ -253,6 +253,15 @@ async def bind_quotes_to_work_order(*, tenant_id: str, problem_card_id: str, wor
         "WHERE problem_card_id = %s::uuid AND tenant_id = %s::uuid AND work_order_id IS NULL",
         (work_order_id, problem_card_id, tenant_id),
     )
+    # CR-0161：卡階段品項的 quote_line_items.work_order_id 也回填——工單文件
+    # （work_order_document_service）與技師佣金（technician_commission_service）
+    # 靠此欄關聯，開單後未回填會讀不到品項。
+    await conn.execute(
+        "UPDATE quote_line_items SET work_order_id = %s::uuid, updated_at = NOW() "
+        "WHERE work_order_id IS NULL AND quote_id IN "
+        "(SELECT id FROM quote WHERE problem_card_id = %s::uuid AND tenant_id = %s::uuid)",
+        (work_order_id, problem_card_id, tenant_id),
+    )
     return cur.rowcount or 0
 
 
