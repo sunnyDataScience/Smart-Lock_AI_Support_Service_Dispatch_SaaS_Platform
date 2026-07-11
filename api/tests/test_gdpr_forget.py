@@ -10,9 +10,10 @@ from services import gdpr_forget_service as svc
 
 
 class FakeCur:
-    def __init__(self, row=None, rows=None):
+    def __init__(self, row=None, rows=None, rowcount=1):
         self._row = row
         self._rows = rows or []
+        self.rowcount = rowcount  # CR-0164 D：hard_delete 讀 del_cur.rowcount 判實刪
 
     async def fetchone(self):
         return self._row
@@ -33,6 +34,22 @@ class FakeConn:
         )
         self._idx += 1
         return result
+
+
+@pytest.fixture(autouse=True)
+def _isolate_crosscutting(monkeypatch):
+    """CR-0164 D：本檔為 mock 單元測試，隔離新增的橫切關注（audit / legal-hold
+    前置查詢）——它們有各自的 component 測試（test_cr_0164_gdpr_forget.py）。
+    否則新 DB 操作會打亂各測試精確的 FakeConn mock 序列。
+    """
+    async def _noop_audit(**_kw):
+        return None
+
+    async def _no_hold(_subject):
+        return False
+
+    monkeypatch.setattr(svc, "_forget_audit", _noop_audit)
+    monkeypatch.setattr(svc, "_has_active_legal_hold", _no_hold)
 
 
 # ----------------------------- create_forget_request -----------------------------

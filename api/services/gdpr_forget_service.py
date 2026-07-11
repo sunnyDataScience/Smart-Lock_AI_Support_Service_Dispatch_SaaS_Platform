@@ -22,11 +22,40 @@ import core.db as db_module
 from core.tech_mirror import mirror_rows
 from core.db import _ensure_conn
 from core.errors import ApiError
+from services import audit_log_service
 
 logger = logging.getLogger("api.gdpr_forget_service")
 
 # GDPR cooldown 30 天硬刪 (BR-PII-001)
 HARD_DELETE_COOLDOWN_DAYS = 30
+
+
+async def _forget_audit(
+    *, action: str, tenant_id: str, subject_user_id: str,
+    actor_user_id: str | None, request_id: str, extra: dict | None = None,
+) -> None:
+    """CR-0164 D：GDPR forget 全流程 append-only audit（原全程零稽核，違 FR-API-16/
+    NFR-Priv-005）。audit_events 無 tenant_id 欄 → tenant_id 入 payload。target_id
+    取 subject（actor_id FK ON DELETE SET NULL、target_id 無 FK，subject 被刪後稽核仍存活）。
+    best-effort（log_event 內部吞錯不 raise），但**不再靜默掩蓋業務失敗**。
+    """
+    payload = {"tenant_id": tenant_id, "subject_user_id": subject_user_id,
+               "forget_request_id": request_id}
+    if extra:
+        payload.update(extra)
+    await audit_log_service.log_event(
+        event_type="compliance", actor_id=actor_user_id, actor_role="admin",
+        action=action, target_type="user", target_id=subject_user_id, payload=payload)
+
+
+async def _has_active_legal_hold(subject_user_id: str) -> bool:
+    """CR-0164 D2：subject 名下有 legal_hold=true 且未刪的 media → forget 須擋（423）。"""
+    cur = await db_module._conn.execute(
+        "SELECT 1 FROM media_files "
+        "WHERE uploader_user_id = %s::uuid AND legal_hold = TRUE AND deleted_at IS NULL "
+        "LIMIT 1",
+        (subject_user_id,))
+    return (await cur.fetchone()) is not None
 
 
 async def create_forget_request(
@@ -90,6 +119,10 @@ async def create_forget_request(
         "forget_request created: user=%s id=%s by=%s",
         subject_user_id[:8], request_id[:8], requested_by,
     )
+    await _forget_audit(
+        action="gdpr_forget_received", tenant_id=tenant_id,
+        subject_user_id=subject_user_id, actor_user_id=actor_user_id,
+        request_id=request_id, extra={"requested_by": requested_by})
     return await _get_request(request_id)
 
 
@@ -160,7 +193,12 @@ async def deny_legal_hold(
             "request not in 'received' state for legal_hold_denied",
             409,
         )
-    return await _get_request(request_id)
+    _r = await _get_request(request_id)
+    await _forget_audit(
+        action="gdpr_forget_legal_hold_denied", tenant_id=_r["tenant_id"],
+        subject_user_id=_r["subject_user_id"], actor_user_id=actor_user_id,
+        request_id=request_id, extra={"legal_hold_reason": legal_hold_reason.strip()[:200]})
+    return _r
 
 
 async def soft_delete(
@@ -183,34 +221,44 @@ async def soft_delete(
         )
 
     subject_user_id = req["subject_user_id"]
+
+    # CR-0164 D2：legal-hold 前置擋——subject 名下有 legal_hold media → 423 拒絕
+    # （TC-COMPLIANCE-02 P0；不再靠 admin 手動先 deny 的順序相依）。
+    if await _has_active_legal_hold(subject_user_id):
+        await _forget_audit(
+            action="gdpr_forget_blocked", tenant_id=req["tenant_id"],
+            subject_user_id=subject_user_id, actor_user_id=actor_user_id,
+            request_id=request_id, extra={"reason": "legal_hold_active"})
+        raise ApiError(
+            "LEGAL_HOLD_ACTIVE",
+            "subject 名下有 legal-hold 中的證據，forget 暫不可執行（須先解除 legal-hold）",
+            423,
+        )
+
     eligible_at = datetime.now(timezone.utc) + timedelta(
         days=HARD_DELETE_COOLDOWN_DAYS,
     )
 
     # 1. clear PII on users(CR-0112:技師列須改權威庫 + 鏡射,否則權威庫留 PII)
-    try:
-        _is_tech = False
-        if db_module.tech_db_enabled():  # fallback 模式免探查(不擾動單庫行為/測試)
-            rcur = await db_module._conn.execute(
-                "SELECT role FROM users WHERE id = %s::uuid", (subject_user_id,))
-            rrow = await rcur.fetchone()
-            _is_tech = bool(rrow) and rrow[0] == "technician"
-        _conn = await db_module.require_tech_conn() if _is_tech else db_module._conn
-        await _conn.execute(
-            "UPDATE users SET "
-            "  display_name = '[REDACTED]', "
-            "  email = '[REDACTED-' || id::text || ']', "
-            "  phone = NULL, "
-            "  updated_at = NOW() "
-            "WHERE id = %s::uuid",
-            (subject_user_id,),
-        )
-        if _is_tech:
-            await mirror_rows("users", [subject_user_id])
-    except Exception:  # noqa: BLE001
-        logger.exception(
-            "soft_delete users PII clear failed user=%s", subject_user_id[:8],
-        )
+    # CR-0164 D：PII 清除失敗屬硬失敗——不再靜默吞例外後仍標 soft_deleted（假性合規）。
+    _is_tech = False
+    if db_module.tech_db_enabled():  # fallback 模式免探查(不擾動單庫行為/測試)
+        rcur = await db_module._conn.execute(
+            "SELECT role FROM users WHERE id = %s::uuid", (subject_user_id,))
+        rrow = await rcur.fetchone()
+        _is_tech = bool(rrow) and rrow[0] == "technician"
+    _conn = await db_module.require_tech_conn() if _is_tech else db_module._conn
+    await _conn.execute(
+        "UPDATE users SET "
+        "  display_name = '[REDACTED]', "
+        "  email = '[REDACTED-' || id::text || ']', "
+        "  phone = NULL, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (subject_user_id,),
+    )
+    if _is_tech:
+        await mirror_rows("users", [subject_user_id])
 
     # 2. UPDATE forget_request status
     upd = await db_module._conn.execute(
@@ -226,6 +274,10 @@ async def soft_delete(
     )
     if not await upd.fetchone():
         raise ApiError("STATE_CONFLICT", "concurrent state change", 409)
+    await _forget_audit(
+        action="gdpr_forget_soft_deleted", tenant_id=req["tenant_id"],
+        subject_user_id=subject_user_id, actor_user_id=actor_user_id,
+        request_id=request_id, extra={"hard_delete_eligible_at": eligible_at.isoformat()})
     return await _get_request(request_id)
 
 
@@ -262,29 +314,39 @@ async def hard_delete(
             409,
         )
 
-    # 1. DELETE users row (CASCADE 由 FK 處理；audit 保留)
-    # CR-0112:技師列先刪權威庫,再以鏡射刪投影(mirror_rows 對權威已無的 id 執行投影 DELETE)
+    subject_user_id = req["subject_user_id"]
+
+    # 1. 嘗試實體 DELETE users row。CR-0164 D1（方案 A）：soft_delete 已把 PII 匿名化
+    # （GDPR Art.17 承認匿名化等同抹除）；若 FK（complaints/disputes/refund_requests/
+    # warranty_claims/… NO ACTION）阻擋實體刪除，**匿名化即終態**，不再靜默吞例外後
+    # 假性標記成功——改如實記錄 physical_deleted 真值於 audit。非 FK 的例外照拋（不掩蓋）。
+    physical_deleted = False
     try:
         _is_tech = False
         if db_module.tech_db_enabled():
             rcur = await db_module._conn.execute(
-                "SELECT role FROM users WHERE id = %s::uuid", (req["subject_user_id"],))
+                "SELECT role FROM users WHERE id = %s::uuid", (subject_user_id,))
             rrow = await rcur.fetchone()
             _is_tech = bool(rrow) and rrow[0] == "technician"
         _conn = await db_module.require_tech_conn() if _is_tech else db_module._conn
-        await _conn.execute(
-            "DELETE FROM users WHERE id = %s::uuid",
-            (req["subject_user_id"],),
-        )
+        del_cur = await _conn.execute(
+            "DELETE FROM users WHERE id = %s::uuid", (subject_user_id,))
+        physical_deleted = (del_cur.rowcount or 0) > 0
         if _is_tech:
-            await mirror_rows("users", [req["subject_user_id"]])
-    except Exception:  # noqa: BLE001
-        logger.exception(
-            "hard_delete users row failed user=%s",
-            req["subject_user_id"][:8],
-        )
+            await mirror_rows("users", [subject_user_id])
+    except Exception as exc:  # noqa: BLE001
+        # FK 阻擋 → 匿名化保留終態（方案 A）；其他 DB 錯誤照拋，不掩蓋
+        msg = str(exc).lower()
+        if "foreign key" in msg or "violates" in msg or "referenced" in msg:
+            await db_module._conn.execute("ROLLBACK")
+            physical_deleted = False
+            logger.info(
+                "hard_delete FK-blocked → anonymized-retained (方案A) user=%s",
+                subject_user_id[:8])
+        else:
+            raise
 
-    # 2. UPDATE forget_request → hard_deleted
+    # 2. UPDATE forget_request → hard_deleted（匿名化即終態，physical 真值記 audit）
     upd = await db_module._conn.execute(
         "UPDATE saas.forget_request SET "
         "  status = 'hard_deleted', "
@@ -297,6 +359,12 @@ async def hard_delete(
     )
     if not await upd.fetchone():
         raise ApiError("STATE_CONFLICT", "concurrent state change", 409)
+    await _forget_audit(
+        action="gdpr_forget_hard_deleted", tenant_id=req["tenant_id"],
+        subject_user_id=subject_user_id, actor_user_id=actor_user_id,
+        request_id=request_id,
+        extra={"physical_deleted": physical_deleted,
+               "disposition": "physical_delete" if physical_deleted else "anonymized_retained_fk"})
     return await _get_request(request_id)
 
 
@@ -320,7 +388,12 @@ async def cancel_request(
         raise ApiError(
             "STATE_CONFLICT", "only 'received' state can be cancelled", 409,
         )
-    return await _get_request(request_id)
+    _r = await _get_request(request_id)
+    await _forget_audit(
+        action="gdpr_forget_cancelled", tenant_id=_r["tenant_id"],
+        subject_user_id=_r["subject_user_id"], actor_user_id=actor_user_id,
+        request_id=request_id)
+    return _r
 
 
 async def list_forget_requests(
