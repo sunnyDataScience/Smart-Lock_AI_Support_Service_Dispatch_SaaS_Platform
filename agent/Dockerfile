@@ -36,8 +36,10 @@ COPY knowledge-pipeline/pyproject.toml ./knowledge-pipeline/pyproject.toml
 COPY agent/rag/pyproject.toml ./agent/rag/pyproject.toml
 COPY knowledge-pipeline/refinery/pyproject.toml ./knowledge-pipeline/refinery/pyproject.toml
 
+# --extra otel：CR-0156 OTel/OPIK opt-in——容器 env 常配 OPIK_API_KEY，缺套件只會
+# 降級 warning（fail-soft），裝上才真的追蹤 LLM call
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --package lock-cs-agent --extra line --extra vertex
+    uv sync --frozen --no-dev --package lock-cs-agent --extra line --extra vertex --extra otel
 
 COPY agent/ ./agent/
 

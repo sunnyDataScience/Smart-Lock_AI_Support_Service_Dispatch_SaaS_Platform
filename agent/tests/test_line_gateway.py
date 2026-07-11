@@ -721,3 +721,46 @@ def test_spool_cap_drops_oldest(tmp_path, monkeypatch):
         asyncio.run(gw._spool_append({"user_text": f"m{i}"}))
     rows = [_json.loads(x) for x in spool.read_text(encoding="utf-8").splitlines()]
     assert [r["user_text"] for r in rows] == ["m2", "m3", "m4"], "超限應丟最舊"
+
+
+# ── CR-0125 回歸:MCP startup hook 必須用 aiohttp on_startup ──────────────────
+# 原寫法 app.add_event_handler(FastAPI API)在 aiohttp Application 上直接
+# AttributeError → gateway 容器 crash loop(2026-07-11 實故障)。
+
+
+def test_mcp_startup_hook_registered_via_on_startup():
+    """有 _connect_mcp 的 loop → build_webapp 註冊 on_startup 且 hook 可 await。"""
+    import asyncio
+
+    import lockcore.channels.line_gateway as gw
+
+    calls: list[bool] = []
+
+    class _Loop:
+        async def _connect_mcp(self):
+            calls.append(True)
+
+    app = gw.build_webapp(_Loop(), "locksmart", "secret", "dummy-token")
+    assert not hasattr(app, "add_event_handler"), "aiohttp Application 無 FastAPI API"
+    assert len(app.on_startup) >= 1, "MCP startup hook 未註冊"
+    asyncio.run(app.on_startup[-1](app))
+    assert calls == [True], "startup hook 應實際呼叫 _connect_mcp"
+
+
+def test_mcp_startup_hook_skipped_without_connect_mcp():
+    """無 _connect_mcp 的 loop(測試 fake)→ 不多註冊、不炸。
+
+    aiohttp Application 內建 1 個 CleanupContext startup hook,故用相對比較。
+    """
+    import lockcore.channels.line_gateway as gw
+
+    class _Bare:
+        pass
+
+    class _WithMcp:
+        async def _connect_mcp(self):
+            pass
+
+    bare = gw.build_webapp(_Bare(), "locksmart", "secret", "dummy-token")
+    with_mcp = gw.build_webapp(_WithMcp(), "locksmart", "secret", "dummy-token")
+    assert len(with_mcp.on_startup) == len(bare.on_startup) + 1

@@ -960,4 +960,16 @@ def build_webapp(
 
     app = web.Application()
     app.router.add_post("/callback", callback)
+
+    # RAG-via-MCP(ADR-010/CR-0125):gateway 直呼 _process_message 繞過 loop.run(),
+    # MCP 懶連線點不會觸發 → 於 webapp startup 連線(同一事件迴圈)。
+    # 連線失敗只 warning(fail-soft),agent 以 references 繼續服務。
+    # aiohttp 用 on_startup.append——不是 FastAPI 的 add_event_handler
+    # (CR-0125 原掛在 scripts/ 端且誤用 FastAPI API,容器 crash loop,2026-07-11 修正移入此處)。
+    if hasattr(loop, "_connect_mcp"):
+        async def _mcp_startup(_app: web.Application) -> None:
+            await loop._connect_mcp()
+
+        app.on_startup.append(_mcp_startup)
+
     return app
