@@ -174,3 +174,4 @@
 - ✅ S3 done（branch fix/cr0164-gdpr-forget）：D GDPR forget 三修（全流程 audit + legal-hold 423 + 匿名化即終態不假性成功）；GDPR+audit 28 tests 全綠。
 - ✅ S4 done（branch fix/cr0164-family-gate）：C 家族覆核硬 gate（adopt 無 action='approved' 覆核 → 425；衝突①裁定硬 gate）；新測 3＋sop/family 迴歸綠。
 - ✅ S5 done（branch fix/cr0164-tech-mirror-pii）：B tech_mirror users 投影白名單（不含憑證/PII）+ 技師登入 lookup 改讀權威庫 + 防呆回填腳本（非 migration，防單庫誤清）；217 auth/mirror 迴歸綠 + live 拆庫技師登入 200。
+- ✅ S6 done（branch fix/cr0164-orphan-wo）：E 停權/終止孤兒工單偵測+阻擋（suspend 軟阻擋可 force、terminate 硬阻擋，復用 reassign）；新測 4＋lifecycle 迴歸 21 綠。
