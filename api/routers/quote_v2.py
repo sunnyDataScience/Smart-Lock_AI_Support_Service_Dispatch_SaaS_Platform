@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
+from core.idempotency import IdempotencyContext, idempotency_guard
 from services import quote_engine_service as qe
 
 router = APIRouter()
@@ -186,44 +187,62 @@ async def delete_quote_v2(
     return {"data": {"deleted": True, "id": id}}
 
 
-async def _transition(tenantId: str, id: str, action: str, user: CurrentUser, comment: str | None = None) -> dict:
+async def _transition(
+    tenantId: str, id: str, action: str, user: CurrentUser,
+    comment: str | None = None, idem: IdempotencyContext | None = None,
+) -> dict:
     _xt(user, tenantId)
     # actor_role 供 CR-0150 requote 分層核可（send 時 delta>2000 限主管角色）
-    return {"data": await qe.transition(
+    result = {"data": await qe.transition(
         tenant_id=tenantId, quote_id=id, action=action, actor_id=user.user_id,
         comment=comment, actor_role=user.role)}
+    # 狀態機動作掛冪等：同 Idempotency-Key 重試回放原 200，不再因狀態已推進回 409。
+    # 對齊系統其他 POST 寫端點（work_order accept / exceptions approve 等皆強制 key）。
+    # 依存順序 user→idem：未授權角色先由 role_required 回 403（早於缺 key 的 400）。
+    if idem is not None:
+        await idem.save(200, result)
+    return result
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:submit", operation_id="submitQuoteV2", summary="送審 v2", tags=["M04 Quote"])
-async def submit_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(role_required(*OPS_ROLES))) -> dict:
-    return await _transition(tenantId, id, "submit", user)
+async def submit_quote_v2(tenantId: str = Path(...), id: str = Path(...),
+                          user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+                          idem: IdempotencyContext | None = Depends(idempotency_guard)) -> dict:
+    return await _transition(tenantId, id, "submit", user, idem=idem)
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:send", operation_id="sendQuoteV2", summary="送客戶 v2（凍結 snapshot）", tags=["M04 Quote"])
-async def send_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(role_required(*OPS_ROLES))) -> dict:
-    return await _transition(tenantId, id, "send", user)
+async def send_quote_v2(tenantId: str = Path(...), id: str = Path(...),
+                        user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+                        idem: IdempotencyContext | None = Depends(idempotency_guard)) -> dict:
+    return await _transition(tenantId, id, "send", user, idem=idem)
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:accept", operation_id="acceptQuoteV2", summary="客戶接受 v2", tags=["M04 Quote"])
-async def accept_quote_v2(tenantId: str = Path(...), id: str = Path(...), user: CurrentUser = Depends(role_required(*OPS_ROLES))) -> dict:
-    return await _transition(tenantId, id, "accept", user)
+async def accept_quote_v2(tenantId: str = Path(...), id: str = Path(...),
+                          user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+                          idem: IdempotencyContext | None = Depends(idempotency_guard)) -> dict:
+    return await _transition(tenantId, id, "accept", user, idem=idem)
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:approve", operation_id="approveQuoteV2", summary="核准報價 v2（管理角色）", tags=["M04 Quote"])
 async def approve_quote_v2(body: _DecisionBody, tenantId: str = Path(...), id: str = Path(...),
-                           user: CurrentUser = Depends(role_required(*_APPROVE_ROLES))) -> dict:
-    return await _transition(tenantId, id, "approve", user, body.comment)
+                           user: CurrentUser = Depends(role_required(*_APPROVE_ROLES)),
+                           idem: IdempotencyContext | None = Depends(idempotency_guard)) -> dict:
+    return await _transition(tenantId, id, "approve", user, body.comment, idem=idem)
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:reject", operation_id="rejectQuoteV2", summary="駁回報價 v2（管理角色）", tags=["M04 Quote"])
 async def reject_quote_v2(body: _DecisionBody, tenantId: str = Path(...), id: str = Path(...),
-                          user: CurrentUser = Depends(role_required(*_APPROVE_ROLES))) -> dict:
-    return await _transition(tenantId, id, "reject", user, body.comment)
+                          user: CurrentUser = Depends(role_required(*_APPROVE_ROLES)),
+                          idem: IdempotencyContext | None = Depends(idempotency_guard)) -> dict:
+    return await _transition(tenantId, id, "reject", user, body.comment, idem=idem)
 
 
 @router.post("/tenants/{tenantId}/quotes/{id}:audit-complete", operation_id="auditCompleteQuoteV2",
              summary="急件補審完成（紙本/現場簽認，CR-0129；限急件補審單）", tags=["M04 Quote"])
 async def audit_complete_quote_v2(body: _DecisionBody, tenantId: str = Path(...), id: str = Path(...),
-                                  user: CurrentUser = Depends(role_required(*OPS_ROLES))) -> dict:
+                                  user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+                                  idem: IdempotencyContext | None = Depends(idempotency_guard)) -> dict:
     """LIFF 事後確認走既有 :send → 客戶 accept；本端點為紙本簽認路徑（comment 記佐證）。"""
-    return await _transition(tenantId, id, "audit_complete", user, body.comment)
+    return await _transition(tenantId, id, "audit_complete", user, body.comment, idem=idem)

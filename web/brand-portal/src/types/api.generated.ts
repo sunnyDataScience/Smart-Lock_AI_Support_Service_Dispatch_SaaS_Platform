@@ -10033,7 +10033,7 @@ export interface components {
             /** Reason */
             reason: string;
             /** Item Diffs */
-            item_diffs?: unknown[];
+            item_diffs: unknown[];
             /**
              * Initiated Via
              * @default technician_command
@@ -10666,7 +10666,7 @@ export interface components {
             /** Reason */
             reason: string;
             /** Item Diffs */
-            item_diffs?: unknown[];
+            item_diffs: unknown[];
             /** Request Id */
             request_id?: string | null;
         };
@@ -22433,6 +22433,7 @@ export interface operations {
             header?: {
                 Authorization?: string | null;
                 "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
             };
             path: {
                 tenantId: string;
@@ -22470,6 +22471,7 @@ export interface operations {
             header?: {
                 Authorization?: string | null;
                 "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
             };
             path: {
                 tenantId: string;
@@ -22507,6 +22509,7 @@ export interface operations {
             header?: {
                 Authorization?: string | null;
                 "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
             };
             path: {
                 tenantId: string;
@@ -22544,6 +22547,7 @@ export interface operations {
             header?: {
                 Authorization?: string | null;
                 "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
             };
             path: {
                 tenantId: string;
@@ -22585,6 +22589,7 @@ export interface operations {
             header?: {
                 Authorization?: string | null;
                 "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
             };
             path: {
                 tenantId: string;
@@ -22626,6 +22631,7 @@ export interface operations {
             header?: {
                 Authorization?: string | null;
                 "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
             };
             path: {
                 tenantId: string;

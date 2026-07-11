@@ -107,7 +107,7 @@ async def _seed_accepted_quote(pid: str, wid: str) -> None:
 @pytest.mark.asyncio
 async def test_assign_blocks_brand_unauthorized_tech():
     """品牌有授權名單但技師不在 → assign 403 TECHNICIAN_BRAND_NOT_AUTHORIZED。"""
-    brand = "Yale"
+    brand = "TestBrandF9"
     wid, pid, uid = await _mk_wo(brand=brand, status="created", technician_id=None)
     try:
         await _seed_accepted_quote(pid, wid)
@@ -115,7 +115,7 @@ async def test_assign_blocks_brand_unauthorized_tech():
         other = "77777777-aaaa-4aaa-aaaa-aaaaaaaaaa02"
         await db_module._conn.execute(
             "INSERT INTO technician_brand_authorization (technician_id, brand, authorized) "
-            "VALUES (%s::uuid, %s, TRUE)", (other, brand))
+            "VALUES (%s::uuid, %s, TRUE) ON CONFLICT DO NOTHING", (other, brand))
         with pytest.raises(ApiError) as exc:
             await wo_svc.assign_order(
                 tenant_id=TID, wo_id=wid, technician_id=SEED_TECH,
@@ -130,14 +130,14 @@ async def test_assign_blocks_brand_unauthorized_tech():
 @pytest.mark.asyncio
 async def test_assign_allows_with_supervisor_override():
     """未授權技師 + 主管帶 override_reason → 放行（安全閥，稽核由 router 記）。"""
-    brand = "Yale"
+    brand = "TestBrandF9"
     wid, pid, uid = await _mk_wo(brand=brand, status="created", technician_id=None)
     try:
         await _seed_accepted_quote(pid, wid)
         other = "77777777-aaaa-4aaa-aaaa-aaaaaaaaaa02"
         await db_module._conn.execute(
             "INSERT INTO technician_brand_authorization (technician_id, brand, authorized) "
-            "VALUES (%s::uuid, %s, TRUE)", (other, brand))
+            "VALUES (%s::uuid, %s, TRUE) ON CONFLICT DO NOTHING", (other, brand))
         out = await wo_svc.assign_order(
             tenant_id=TID, wo_id=wid, technician_id=SEED_TECH,
             reason_code="manual", actor_role="admin",
@@ -162,6 +162,46 @@ async def test_assign_allows_when_brand_has_no_auth_data():
     finally:
         await _cleanup(wid, pid, uid)
 
-# 註：F5（quote 狀態機冪等）已評估後緩修——修法需把 Idempotency-Key 變成 6 個
-# transition 端點的強制契約（config idempotency.applies_to 含 POST），對低嚴重度
-# 問題（狀態機本已擋重複執行、無副作用）不成比例，另立獨立變更審慎處理。
+
+# ── F5：quote 狀態機冪等（feat/quote-transition-idempotency）───────────────────
+
+@pytest.mark.asyncio
+async def test_quote_send_idempotent_replay(client, admin_headers):
+    """同 Idempotency-Key 重打 :send → 回放原 200，不再因狀態已推進回 409。"""
+    wid, pid, uid = await _mk_wo(status="created", technician_id=None)
+    qid = None
+    try:
+        q = await qe.create_quote(tenant_id=TID, problem_card_id=pid, created_by=None)
+        qid = q["id"]
+        await qe.add_line(tenant_id=TID, quote_id=qid, service_code="SVC-CAR-002", quantity=1)
+        await qe.transition(tenant_id=TID, quote_id=qid, action="submit")
+        await qe.transition(tenant_id=TID, quote_id=qid, action="approve")
+
+        key = str(uuid.uuid4())
+        url = f"/tenants/{TID}/quotes/{qid}:send"
+        r1 = await client.post(url, headers={**admin_headers, "Idempotency-Key": key})
+        assert r1.status_code == 200, r1.text
+        # 同 key 重放 → 200 回放（原行為：狀態已 sent → 409）
+        r2 = await client.post(url, headers={**admin_headers, "Idempotency-Key": key})
+        assert r2.status_code == 200, f"冪等重放應回 200，實得 {r2.status_code}: {r2.text}"
+        assert r2.json()["data"]["id"] == r1.json()["data"]["id"]
+    finally:
+        await _cleanup(wid, pid, uid)
+
+
+@pytest.mark.asyncio
+async def test_quote_send_missing_key_400(client, admin_headers):
+    """缺 Idempotency-Key → 400 MISSING_IDEMPOTENCY_KEY（對齊系統寫端點強制契約）。"""
+    wid, pid, uid = await _mk_wo(status="created", technician_id=None)
+    qid = None
+    try:
+        q = await qe.create_quote(tenant_id=TID, problem_card_id=pid, created_by=None)
+        qid = q["id"]
+        await qe.add_line(tenant_id=TID, quote_id=qid, service_code="SVC-CAR-002", quantity=1)
+        await qe.transition(tenant_id=TID, quote_id=qid, action="submit")
+        await qe.transition(tenant_id=TID, quote_id=qid, action="approve")
+        r = await client.post(f"/tenants/{TID}/quotes/{qid}:send", headers=admin_headers)
+        assert r.status_code == 400
+        assert r.json().get("error_code") == "MISSING_IDEMPOTENCY_KEY"
+    finally:
+        await _cleanup(wid, pid, uid)

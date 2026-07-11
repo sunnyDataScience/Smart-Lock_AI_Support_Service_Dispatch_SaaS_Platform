@@ -89,8 +89,9 @@ async def test_delta_over_2000_editor_403_supervisor_ok(
         assert ei2.value.error_code == "REQUOTE_SUPERVISOR_REQUIRED"
 
         # API 面:主管(operations_manager)可送
-        r = await client.post(f"/tenants/{TID}/quotes/{q2}:send",
-                              headers=secondary_admin_headers)
+        r = await client.post(
+            f"/tenants/{TID}/quotes/{q2}:send",
+            headers={**secondary_admin_headers, "Idempotency-Key": str(uuid.uuid4())})
         assert r.status_code == 200, r.text
         assert r.json()["data"]["state"] == "sent"
     finally:
@@ -122,8 +123,9 @@ async def test_non_requote_send_unaffected(client, secondary_admin_headers):
             "INSERT INTO quote (id, tenant_id, problem_card_id, work_order_id, state, version, total_amount) "
             "VALUES (%s::uuid, %s::uuid, %s::uuid, %s::uuid, 'draft', 1, 9000)",
             (q, TID, pid, wid))
-        r = await client.post(f"/tenants/{TID}/quotes/{q}:send",
-                              headers=secondary_admin_headers)
+        r = await client.post(
+            f"/tenants/{TID}/quotes/{q}:send",
+            headers={**secondary_admin_headers, "Idempotency-Key": str(uuid.uuid4())})
         assert r.status_code == 200, r.text
     finally:
         await _cleanup(wid, pid)
