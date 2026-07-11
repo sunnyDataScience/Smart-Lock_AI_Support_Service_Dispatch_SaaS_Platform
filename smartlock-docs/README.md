@@ -11,6 +11,7 @@
 | :--- | :--- |
 | 看正典文件集（架構 / 需求 / 設計 / QA / 維運 / WBS） | [`enterprise/`](enterprise/) |
 | 文件撰寫規範依據 | [`software_development_documentation_guide_zh_tw.docx`](software_development_documentation_guide_zh_tw.docx) |
+| 好讀的 HTML 檢視版（瀏覽用）〔標注 2026-07-11 新增〕 | 跑 `uv run python scripts/dev/gen_enterprise_view.py` → 開 `docs_html/enterprise/index.html`（**tier-5 生成快取，不入 git**；每頁標生成時間，與 .md 不一致時以 .md 為準） |
 
 ## 關於 as-is 逐系統文件（已整併）
 
