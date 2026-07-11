@@ -84,4 +84,21 @@
 
 - ✅ **R0 done**（branch `test/uat-ai-redline-evals`，merge 待）：AI 紅線 eval——紅線 gate 9/9、多輪 redline 1.0/幻覺 0、K1 0.623（≈基準，判分待 D7）、**K8 82%→修正後 98.5% PASS**（judge 誤判校正＋SOP 保固守線 v1.4.0＋say-do 兜底）。K3' 查證＝功能未實作（R2）。
 - ✅ **R1 done 9/9**（branch `feat/m3-r1-governance`）：webhook 冪等接線＋cleanup cron／SoD header UUID＋存在性＋交易化／reviewer 24h SLA cron／audit＋family hash-chain advisory lock／受保護層＋owner_role_codes（migration 103）／技師拒單端點（migration 104）／品牌授權撤證 live API（migration 105）／PII 遮蔽共用 util＋audit payload 遮蔽。api 1828 passed＋agent 195＋新測 18。migration 101-105 已套 live。
-- ⏳ R2–R8 待續（R2 K3' 依 D3=A 先行；R3/R4 待 D2/D4；R6 待 D1；R7 待 D5）。
+- ✅ **R2 done**（merge dev-ding）：K3' 負面情緒偵測——agent LLM 判定→gateway 接線→api sentiment_alerts 告警＋通知；120 題題庫 **live eval 100%（反諷 22/22）≥90% PASS**。
+- ✅ **R3 done**（merge dev-ding）：License 訂閱 gate——tenant entitlements＋enforcement 原語＋platform console License API/UI＋refinery 模組 gate。migration 已套 live platform 庫。brand 端條件渲染併 R8。
+- ⏳ **R4–R8 待續**：
+  - **R4 Kafka 事件骨幹**＝承重架構變更（引入 message broker、CQRS 投影、替換 outbox，ADR-006/017），需業主 **D2 選型確認＋運維承諾** 才動工——不宜在假設預設上自動建置 production message broker。
+  - **R5 provisioning＋第 2 品牌開站 dry-run**（M3 Release gate）＝可自動化推進（不依賴 Kafka）。
+  - **R6 上雲**＝需業主 GCP 授權協同（D1）。**R7 v1 收斂**＝需 D5。**R8 UAT wave4**＝R4–R7 後。
+
+## 已完成 UAT 紅線 gate 總結（R0–R3）
+
+| 合約紅線 | 狀態 |
+|---|---|
+| K3' 負面情緒識別 | **✅ 100%**（R2，≥90%） |
+| K8 AI 禁區 | **✅ 98.5%**（R0，≥95%） |
+| 紅線確定性 gate | **✅ 9/9**（R0） · 多輪 redline **✅ 1.0** |
+| K3 家族覆核履約 | 硬 gate 強制（CR-0164 C）＋逾時升級（R1-3）＋鏈保護（R1-5） |
+| 影像辨識禁用 | ✅ 工具白名單物理不可達 |
+| GDPR forget | ✅ CR-0164 D＋legal-hold 423 |
+| K1 AI 準確率 | 單輪 rubric 0.623（判分待 D7；守線缺口併 SOP 強化） |
