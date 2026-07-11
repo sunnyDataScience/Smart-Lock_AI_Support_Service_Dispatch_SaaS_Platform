@@ -70,6 +70,8 @@ function auditRemainLabel(item: AuditQueueItem): { text: string; danger: boolean
 }
 
 // CR-0095：報價列表項（GET /quotes，免手貼 UUID）
+// CR-0160：補卡階段脈絡——CR-0128 報價先行的報價在開單前 work_order_id=NULL，
+// 單號/客戶名不存在，改以裝置標籤＋聯絡電話呈現，避免整列空白像壞掉。
 interface QuoteListItem {
   id: string;
   work_order_id: string | null;
@@ -79,6 +81,10 @@ interface QuoteListItem {
   total_amount: string | null;
   created_at: string | null;
   customer_name: string | null;
+  version: number;
+  problem_card_id: string | null;
+  problem_card_label: string | null;
+  contact_phone: string | null;
 }
 
 // 瀏覽模式列「尚無報價的工單」需要的最小工單欄位
@@ -598,8 +604,20 @@ export default function QuotesPage() {
                 <tbody>
                   {visibleQuotes.map((q) => (
                     <tr key={q.id} className="border-t border-[var(--border)] hover:bg-[var(--bg-page)]">
-                      <td className="px-3 py-2 font-mono text-[13px] font-semibold text-[var(--text-primary)]">{q.quote_number ?? q.work_order_number ?? "—"}</td>
-                      <td className="px-3 py-2 text-[var(--text-secondary)]">{q.customer_name ?? "—"}</td>
+                      <td className="px-3 py-2 font-mono text-[13px] font-semibold text-[var(--text-primary)]">
+                        {q.quote_number ?? q.work_order_number ?? (q.problem_card_id ? (
+                          // CR-0160：卡階段報價（報價先行，尚未開單）——正式單號待開單回填後出現
+                          <span className="inline-flex flex-wrap items-center gap-2 font-sans">
+                            <span className="rounded bg-[#FEF9C3] px-2 py-[2px] text-[11px] font-medium text-[#854D0E]">
+                              報價先行（未開單）
+                            </span>
+                            <span className="text-[12px] text-[var(--text-secondary)]">
+                              {q.problem_card_label ?? "問題卡"}・Q{q.version}
+                            </span>
+                          </span>
+                        ) : "—")}
+                      </td>
+                      <td className="px-3 py-2 text-[var(--text-secondary)]">{q.customer_name ?? q.contact_phone ?? "—"}</td>
                       <td className="px-3 py-2">
                         <span className={`rounded px-2 py-[2px] text-xs font-medium ${STATE_COLORS[q.state] ?? "bg-gray-100"}`}>
                           {t(`state.${q.state}`)}

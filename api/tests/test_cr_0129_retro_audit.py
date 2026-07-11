@@ -58,6 +58,9 @@ async def _cleanup(uid: str, pid: str) -> None:
     await db_module._conn.execute("DELETE FROM quote WHERE problem_card_id=%s::uuid", (pid,))
     await db_module._conn.execute(
         f"DELETE FROM work_order_events WHERE work_order_id IN {sub}", (pid,))
+    # CR-0160 後 LIFF 測試帶總額結案 → 自動開發票，先刪 invoices 才能刪工單（FK）
+    await db_module._conn.execute(
+        f"DELETE FROM invoices WHERE work_order_id IN {sub}", (pid,))
     await db_module._conn.execute("DELETE FROM work_orders WHERE problem_card_id=%s::uuid", (pid,))
     await db_module._conn.execute("DELETE FROM problem_cards WHERE id=%s::uuid", (pid,))
     await db_module._conn.execute("DELETE FROM conversations WHERE user_id=%s::uuid", (uid,))
@@ -92,7 +95,9 @@ async def test_completion_starts_audit_window_and_close_blocked(monkeypatch):
         row = await _placeholder(wid)
         assert row[2] is not None, "完工回報應起算補審窗"
         remain = (row[2] - datetime.now(timezone.utc)).total_seconds()
-        assert 3.5 * 3600 < remain <= 4.0 * 3600, f"窗長應 ≈4h（實際 {remain}s）"
+        # 上界 +5s 容差：audit_due_at 由 DB 時鐘計，容器與主機毫秒級偏移曾致
+        # 14400.014s > 14400 的假紅（flaky 邊界）
+        assert 3.5 * 3600 < remain <= 4.0 * 3600 + 5, f"窗長應 ≈4h（實際 {remain}s）"
 
         with pytest.raises(ApiError) as ei:
             await svc.confirm_order(tenant_id=TID, wo_id=wid, rating=5)
@@ -118,6 +123,9 @@ async def test_liff_path_send_then_accept(monkeypatch):
     try:
         await _complete(wid)
         row = await _placeholder(wid)
+        # CR-0160：空白報價不可送——模擬客服補明細完成（設總額）後才走 LIFF send
+        await db_module._conn.execute(
+            "UPDATE quote SET total_amount = 800 WHERE id = %s::uuid", (str(row[0]),))
         out = await qe.transition(tenant_id=TID, quote_id=str(row[0]), action="send")
         assert out["state"] == "sent"
         out = await qe.transition(tenant_id=TID, quote_id=str(row[0]), action="accept")

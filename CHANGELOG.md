@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **報價列表卡階段脈絡缺失＋空白報價可送客戶（branch `fix/quote-list-pc-context`，2026-07-11，CIA CR-0160）**：業主 UAT 實測回報 `/admin/quotes` 出現「只剩狀態徽章、其餘全空」的列。Root cause 兩層：①CR-0128 報價先行的卡階段報價（`work_order_id=NULL`，開單後回填）設計正確，但 CR-0095 列表查詢只 JOIN work_orders → 單號/客戶名全 NULL 呈空列；②0 品項且無總額的報價可一路 `:send`／`accept`（UAT 庫實測 3 筆全 0 品項，含 1 sent 1 accepted）。修：`list_quotes` 補 JOIN problem_cards＋新增欄位（problem_card_id/label、contact_phone、version，additive）；前端卡階段列改「報價先行（未開單）」徽章＋裝置標籤＋Q 版號、客戶欄退回聯絡電話；transition 新 guard `submit`/`send` 空單 → **422 QUOTE_NO_LINES**（品項或總額擇一放行——急件補審佔位單補明細後不受影響）。驗證：報價相關 10 檔 **58 tests 全綠**（scratch 5468）＋brand tsc 0＋api/web 容器重建 live 驗證。順修 0129 測試兩處（LIFF fixture 補總額對齊新規則、補審窗斷言 +5s 容差修時鐘偏移假紅）。
+
 - **agent gateway 容器 crash loop（branch `fix/agent-gateway-startup-hook`，2026-07-11）**：CR-0125 掛 MCP startup hook 時誤用 FastAPI 的 `add_event_handler` 於 aiohttp `Application` → `line_gateway` 啟動即 `AttributeError` 無限重啟（容器 image 7/10 11:48 重建後生效；當日 live 實測走本機 gateway 未經容器故漏抓）。Root cause＝API 風格誤植＋測試只蓋 `build_webapp` 未蓋 startup 註冊路徑。修：hook 移入 lockcore `build_webapp` 以 `on_startup.append` 正確註冊（`hasattr` 防呆相容測試 fake loop）＋回歸測試 2（含「aiohttp 無 add_event_handler」斷言）；agent **188** 全綠；容器重建實證穩定監聽。**順修**：agent Dockerfile 補 `--extra otel`——容器 env 已配 OPIK_API_KEY 但套件未裝致降級警告，補裝後「OPIK LLM 追蹤已啟用」實證。⚠️ 若雲端 agent 於 7/9 之後重新部署過，同 bug 會在 Cloud Run 發生（health check 對 webhook 服務誤報的既知雷會遮蔽），下次部署本修正時留意 STARTUP probe。
 
 - **rag 案例檢索門檻校正（branch `fix/case-sim-threshold`，2026-07-10，CIA CR-0148）**：0.85 係 text-embedding-004 設想，multilingual-002 下真改寫 sim≈0.743 恆不命中（案例檢索形同虛設）→ 門檻改 env `RAG_CASE_SIM_THRESHOLD` 預設 0.70；rag 測試通過（merge 7041bdf8）。

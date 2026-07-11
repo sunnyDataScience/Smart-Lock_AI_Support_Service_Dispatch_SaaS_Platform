@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-11（**agent gateway crash loop 修復**，branch `fix/agent-gateway-startup-hook` — CR-0125 誤用 FastAPI `add_event_handler` 於 aiohttp app，容器 7/10 重建後啟動即炸無限重啟（業主回報抓到）；hook 移入 lockcore `build_webapp` 以 `on_startup` 正確註冊＋回歸測試 2；agent 188 綠＋容器重建實證穩定。順修 Dockerfile `--extra otel`（OPIK 追蹤從降級警告→實際啟用）。）
+**最後更新：** 2026-07-11（**報價列表卡階段脈絡＋空單送出防線（CR-0160）**，branch `fix/quote-list-pc-context` — 業主 UAT 回報列表空列；①list_quotes 補 JOIN problem_cards（CR-0128 卡階段報價原單號/客戶全 NULL）＋前端「報價先行（未開單）」徽章；②空單（0 品項且無總額）`submit`/`send` → 422 QUOTE_NO_LINES（原可一路 sent/accepted）。報價 10 檔 58 tests 綠＋tsc 0＋容器重建 live 驗證。順修 0129 測試時鐘偏移假紅。）
+
+**前一次更新：** 2026-07-11（**agent gateway crash loop 修復**，branch `fix/agent-gateway-startup-hook` — CR-0125 誤用 FastAPI `add_event_handler` 於 aiohttp app，容器 7/10 重建後啟動即炸無限重啟（業主回報抓到）；hook 移入 lockcore `build_webapp` 以 `on_startup` 正確註冊＋回歸測試 2；agent 188 綠＋容器重建實證穩定。順修 Dockerfile `--extra otel`（OPIK 追蹤從降級警告→實際啟用）。）
 
 **前一次更新：** 2026-07-11（**UAT 準備完成（M1 1.7.2＋M2 2.6.1 併驗）**，branch `docs/uat-acceptance-checklist`＋`docs/uat-ruling-annotations` — ①驗收清單 `docs/uat/UAT-M1M2-acceptance-checklist.md`：合約紅線 8 條（K1／K3 雙義／K8／影像／跨租戶／GDPR／redline gate）＋18 條端到端場景（全掛 UF/TC/I 編號）＋環境前置 9 項＋自動化工具對照＋裁定規則；②三項規格衝突業主裁決落地（K3＝兩義並列驗收、K1＝80 題制、22_UAT §5 門檻照清單定版），標注 02_BRD／04_SRS／05_NFR／22_UAT 四檔（僅新增）。UAT 排程＝業主。）
 
