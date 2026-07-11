@@ -87,6 +87,103 @@ async def get_tenant(tenant_id: str) -> dict:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# License / entitlement（CR-0166 R3 / ADR-002 / ADR-018）
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 已知附加模組（core 恆有；其餘走 License 開通）
+KNOWN_MODULES = ("core", "refinery", "studio", "compiler")
+_VALID_PLAN_TIERS = ("free", "standard", "pro", "enterprise")
+
+
+async def get_license(tenant_id: str) -> dict:
+    """回租戶 License：plan_tier / entitled_modules / license_expires_at / is_expired。"""
+    conn = await _conn()
+    cur = await conn.execute(
+        "SELECT plan_tier, entitled_modules, license_expires_at, status "
+        "FROM tenant WHERE id = %s::uuid", (tenant_id,))
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "租戶不存在", 404)
+    import datetime as _dt
+    expires = row[2]
+    is_expired = bool(expires and expires < _dt.datetime.now(_dt.timezone.utc))
+    return {
+        "data": {
+            "tenant_id": tenant_id,
+            "plan_tier": row[0],
+            "entitled_modules": list(row[1] or ["core"]),
+            "license_expires_at": expires.isoformat() if expires else None,
+            "is_expired": is_expired,
+            "tenant_status": row[3],
+        },
+        "message": None,
+    }
+
+
+async def update_license(
+    *, tenant_id: str, plan_tier: str | None = None,
+    entitled_modules: list[str] | None = None,
+    license_expires_at: str | None = None, actor_user_id: str | None = None,
+) -> dict:
+    """更新租戶 License（平台管理員）。core 模組強制保留；未知模組 422。"""
+    import json as _json
+    conn = await _conn()
+    # 讀現況
+    cur = await conn.execute(
+        "SELECT plan_tier, entitled_modules, license_expires_at FROM tenant WHERE id=%s::uuid",
+        (tenant_id,))
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "租戶不存在", 404)
+
+    new_tier = plan_tier if plan_tier is not None else row[0]
+    if new_tier not in _VALID_PLAN_TIERS:
+        raise ApiError("VALIDATION_ERROR",
+                       f"plan_tier 須為 {', '.join(_VALID_PLAN_TIERS)}", 422)
+
+    if entitled_modules is not None:
+        mods = list(dict.fromkeys(["core"] + [str(m).strip() for m in entitled_modules if str(m).strip()]))
+        unknown = [m for m in mods if m not in KNOWN_MODULES]
+        if unknown:
+            raise ApiError("VALIDATION_ERROR",
+                           f"未知模組：{', '.join(unknown)}（合法：{', '.join(KNOWN_MODULES)}）", 422)
+    else:
+        mods = list(row[1] or ["core"])
+
+    new_expires = license_expires_at if license_expires_at is not None else (
+        row[2].isoformat() if row[2] else None)
+
+    await conn.execute(
+        "UPDATE tenant SET plan_tier=%s, entitled_modules=%s::jsonb, "
+        "  license_expires_at=%s, updated_at=NOW() WHERE id=%s::uuid",
+        (new_tier, _json.dumps(mods), new_expires or None, tenant_id))
+    logger.info("license updated tenant=%s tier=%s modules=%s by=%s",
+                tenant_id[:8], new_tier, mods, (actor_user_id or "?")[:8])
+    return await get_license(tenant_id)
+
+
+async def is_module_entitled(tenant_id: str, module: str) -> bool:
+    """租戶是否開通某模組且未過期（core 恆 True）。查無租戶/DB 失敗 → False（fail-closed）。"""
+    if module == "core":
+        return True
+    try:
+        lic = (await get_license(tenant_id))["data"]
+    except ApiError:
+        return False
+    if lic["is_expired"]:
+        return False
+    return module in lic["entitled_modules"]
+
+
+async def assert_module_entitled(tenant_id: str, module: str) -> None:
+    """未開通/過期 → 403 MODULE_NOT_ENTITLED（供模組入口 gate）。"""
+    if not await is_module_entitled(tenant_id, module):
+        raise ApiError(
+            "MODULE_NOT_ENTITLED",
+            f"模組「{module}」未開通或 License 已過期，請洽平台開通訂閱", 403)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # 核准品牌申請連動(登錄租戶)
 # ─────────────────────────────────────────────────────────────────────────────
 

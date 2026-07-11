@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
+import LicenseModal from "@/components/platform/LicenseModal";
 
 type Status = "active" | "suspended" | "terminated";
 
@@ -83,6 +84,8 @@ export default function TenantsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [healthByBrand, setHealthByBrand] = useState<Record<string, HealthResult[]>>({});
+  // CR-0166 R3：License 管理 modal 目標租戶
+  const [licenseTenant, setLicenseTenant] = useState<Tenant | null>(null);
   const healthPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -240,6 +243,13 @@ export default function TenantsPanel() {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLicenseTenant(t)}
+                    className="rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)]"
+                  >
+                    License
+                  </button>
                   {t.status === "active" && (
                     <button
                       type="button"
@@ -265,6 +275,15 @@ export default function TenantsPanel() {
             </div>
           ))}
         </div>
+      )}
+
+      {licenseTenant && (
+        <LicenseModal
+          tenantId={licenseTenant.id}
+          tenantName={licenseTenant.company_name}
+          onClose={() => setLicenseTenant(null)}
+          onSaved={load}
+        />
       )}
     </div>
   );
