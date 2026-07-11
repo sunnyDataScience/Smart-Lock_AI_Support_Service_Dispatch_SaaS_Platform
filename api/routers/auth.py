@@ -8,11 +8,18 @@ from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFil
 from pydantic import BaseModel, EmailStr, Field
 
 from core.deps import CurrentUser, get_current_user, role_required
-from core.idempotency import idempotency_guard, IdempotencyContext
+from core.idempotency import (
+    IdempotencyContext,
+    PUBLIC_TENANT_NAMESPACE,
+    make_idempotency_guard,
+)
 from services import auth_service, password_reset_service, technician_kyc_service
 
 logger = logging.getLogger("api.routers.auth")
 router = APIRouter()
+
+# CR-0165 F12：公開無登入註冊端點——缺 X-Tenant-ID 時 fallback 公共命名空間去重
+_public_register_idem = make_idempotency_guard(default_tenant=PUBLIC_TENANT_NAMESPACE)
 
 
 class LoginBody(BaseModel):
@@ -277,7 +284,7 @@ async def confirm_password_reset(body: ConfirmPasswordResetBody) -> Response:
 async def register_technician(
     request: Request,
     body: TechnicianRegisterBody,
-    idem: IdempotencyContext | None = Depends(idempotency_guard),
+    idem: IdempotencyContext | None = Depends(_public_register_idem),
 ) -> dict:
     payload = await auth_service.register_technician(body.model_dump())
     if idem is not None:
@@ -353,7 +360,7 @@ class VendorRegisterBody(BaseModel):
 async def register_vendor(
     request: Request,
     body: VendorRegisterBody,
-    idem: IdempotencyContext | None = Depends(idempotency_guard),
+    idem: IdempotencyContext | None = Depends(_public_register_idem),
 ) -> dict:
     payload = await auth_service.register_vendor(body.model_dump())
     if idem is not None:

@@ -15,6 +15,21 @@
 
 ---
 
+## 0b. 自動驗收記錄（2026-07-11/12 補注；勾選簽核仍＝業主）
+
+> 兩波多 agent 自動驗收（wave1＝F2/F3/F5/F6/F7/F8/F9/F10/F12/F14、wave2＝F4/F11/F13/F15/F16/F17/F18）
+> ＋主 agent 抽驗去偽。詳細 findings：`.claude/context/quality/uat-wave{1,2}-2026-07-11-findings.md`。
+
+- **wave1**：90 checks / 82 pass。真實缺口已修：F7 requote 稽核漏記＋F9 品牌授權 fail-open（450a04b1）、
+  F5 報價 transition 冪等（獨立變更）。打磨項六件（F6 缺地址錯誤訊息/完整度 fallback、F2 emergency_class
+  DB CHECK、F9 派工歷程斷鏈、SEED-1 兩庫 seed 漂移、F12 註冊冪等 fail-open）＝ **CR-0165 全數修復**（2026-07-12）。
+- **wave2**：42 checks / 28 pass。合約紅線缺口七件＝ **CR-0164 全數修復**（audit_events append-only＋verify、
+  GDPR forget 三缺口、SOP adopt 家族覆核硬 gate（K3 依此恢復可驗）、tech_mirror 投影最小化（F15）、
+  孤兒工單阻擋、RMA 3 年（F18）、createSopDraftV2 500）。其餘 MEDIUM 依業主裁決延 M3（CR-0164 §8）。
+- **F1**：業主 2026-07-11 手動實測通過（E2E 主鏈）。**F13**：自動驗 8/8 乾淨無 bug。
+- **尚未驗**：§1 合約紅線的 AI eval 面（K1／K3'／K8／紅線 9/9／影像禁用）需 Vertex 憑證跑
+  `run_forbidden_gate --live` 等工具＝下一波；跨日 cron／真實 LINE 推播／WS 斷線重連＝需業主或排程手段。
+
 ## 1. 合約紅線（必過；任一未過＝Fail，block release）
 
 | # | 紅線 | 門檻 | 量測方式 | 工具 |

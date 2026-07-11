@@ -163,6 +163,42 @@ async def test_assign_allows_when_brand_has_no_auth_data():
         await _cleanup(wid, pid, uid)
 
 
+# ── CR-0165 F9：手動派工補 dispatch_logs + work_order_events ─────────────────
+
+@pytest.mark.asyncio
+async def test_assign_writes_dispatch_log_and_event():
+    """assign 成功後應留派工歷程：dispatch_logs action='assign' + work_order_events。
+
+    原缺口：只有 reassign 寫 dispatch_logs，四條手動派工入口全斷鏈。
+    """
+    wid, pid, uid = await _mk_wo(status="created", technician_id=None)
+    try:
+        await _seed_accepted_quote(pid, wid)
+        await wo_svc.assign_order(
+            tenant_id=TID, wo_id=wid, technician_id=SEED_TECH,
+            reason_code="manual", reason_text="UAT F9 歷程驗證",
+            actor_role="dispatcher", actor_user_id=SEED_TECH_USER)
+
+        dl = await (await db_module._conn.execute(
+            "SELECT action, technician_id::text, notes, match_score "
+            "FROM dispatch_logs WHERE work_order_id=%s::uuid", (wid,))).fetchone()
+        assert dl is not None, "assign 後 dispatch_logs 應有一筆（原完全不寫）"
+        assert dl[0] == "assign"
+        assert dl[1] == SEED_TECH
+        assert "[ASSIGNED:manual]" in dl[2] and "UAT F9 歷程驗證" in dl[2]
+        assert dl[3] is None  # 手動派工無演算法分數
+
+        ev = await (await db_module._conn.execute(
+            "SELECT event_type, actor_user_id::text, payload->>'technician_id' "
+            "FROM work_order_events WHERE work_order_id=%s::uuid AND event_type='assign'",
+            (wid,))).fetchone()
+        assert ev is not None, "assign 後 work_order_events 應有 'assign' 事件（對齊 reassign）"
+        assert ev[1] == SEED_TECH_USER
+        assert ev[2] == SEED_TECH
+    finally:
+        await _cleanup(wid, pid, uid)
+
+
 # ── F5：quote 狀態機冪等（feat/quote-transition-idempotency）───────────────────
 
 @pytest.mark.asyncio

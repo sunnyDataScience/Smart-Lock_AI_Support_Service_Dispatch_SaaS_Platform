@@ -508,9 +508,16 @@ async def assert_completeness(
     key_fields = policy.get("key_fields") or _COMPLETENESS_DEFAULTS["key_fields"]
     min_c = float(policy.get("min_completeness", 0.8))
 
+    # CR-0165 F6b：LEFT JOIN 取 user profile 地址——閘門 fallback 與下游建單
+    # create_from_problem_card 的 `customer_address or user_address` 完全鏡射，
+    # 避免「閘門 422 擋掉一筆實際建單能成功的轉換」。
     cur = await db_module._conn.execute(
-        "SELECT brand, model, symptoms, symptom_summary, urgency "
-        "FROM problem_cards WHERE id = %s::uuid",
+        "SELECT pc.brand, pc.model, pc.symptoms, pc.symptom_summary, pc.urgency, "
+        "       u.address "
+        "FROM problem_cards pc "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid",
         (pc_id,),
     )
     row = await cur.fetchone()
@@ -522,7 +529,7 @@ async def assert_completeness(
         "model": row[1],
         "symptom": "x" if symptom_ok else None,
         "urgency": row[4],
-        "customer_address": customer_address,
+        "customer_address": customer_address or row[5],
     }
     missing = [f for f in key_fields if not _field_filled(values.get(f))]
     score = round((len(key_fields) - len(missing)) / max(len(key_fields), 1), 2)

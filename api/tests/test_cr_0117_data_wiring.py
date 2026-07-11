@@ -435,6 +435,8 @@ async def test_assign_blocks_circuit_breaker_open_tech(client):
     finally:
         await _cleanup([
             ("quote", "id", qid),
+            # CR-0165 F9：assign_order 現會寫 dispatch_logs（FK 無 CASCADE）→ 先刪子列
+            ("dispatch_logs", "work_order_id", ids["woid"]),
             ("work_orders", "id", ids["woid"]),
             ("problem_cards", "id", ids["pcid"]),
             ("conversations", "id", ids["cid"]),

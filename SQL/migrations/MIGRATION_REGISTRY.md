@@ -123,6 +123,8 @@
 | 098 | `098-pricing-snapshot-hashchain.sql` | CR-0149 | 🟢 idempotent（scratch 5465 驗證 2026-07-10） | ADR-026 content-addressable 報價快照：舊制 041 表更名 `pricing_rule_snapshot_legacy` 保留查證；新表 snapshot_hash(sha256) PK＋engine_type/version_id/policy_hash＋append-only trigger（owner 亦擋）＋quote.snapshot_hash FK NOT VALID（存量豁免）。DO $$ 判欄更名/IF NOT EXISTS 可重套 |
 | 099 | `099-quote-line-items-nullable-wo.sql` | CR-0161 | 🟢 idempotent（DROP NOT NULL 可重套，scratch 5468 驗證 2026-07-11） | 報價先行（CR-0128）卡階段加品項撞 `quote_line_items.work_order_id NOT NULL` 500 修復（UAT 實測）：DROP NOT NULL（FK 保留，NULL 免檢查）；開單由 `bind_quotes_to_work_order` 補回填 lines |
 | 100 | `100-audit-events-append-only.sql` | CR-0164 | 🟢 idempotent（CREATE OR REPLACE FUNCTION + DROP/CREATE TRIGGER 可重套，scratch 5472 驗證 2026-07-11） | audit_events 補 append-only trigger（NFR-Aud-001 合約下限）：BEFORE UPDATE OR DELETE 一律 RAISE（owner 亦擋），複用 098/004 pattern；特權繞過走 `session_replication_role='replica'`（測試/未來 retention purge） |
+| 101 | `101-emergency-class-check.sql` | CR-0165 F2 | 🟢 idempotent（DO $$ 判存在 + NOT VALID/VALIDATE 分離，scratch 5473 驗證 2026-07-11） | problem_cards.emergency_class 補 DB CHECK（急件四類，NULL=非急件）：091 只加欄無約束，消費端只判 IS NOT NULL——非法值繞過 API 入庫即被當急件跳過報價 gate。套用前預檢違規存量（見檔頭 SQL；prod 違規列處置依 CR-0165 §8-4 屆時裁決） |
+| 102 | `102-wo-events-assign-supply.sql` | CR-0165 F9 | 🟢 idempotent（DROP/ADD CONSTRAINT 可重套，scratch 5473 驗證 2026-07-11） | work_order_events CHECK 補 'assign'（F9 手動派工 timeline 事件）＋'supply_arrived'（查證途中發現：mark_supply_arrived 端點寫入值未列於 059 CHECK → 該端點自建置必 500，live 0 筆佐證）。同 050/059 同類 bug |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

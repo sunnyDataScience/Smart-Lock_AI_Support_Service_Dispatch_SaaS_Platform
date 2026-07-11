@@ -208,7 +208,10 @@ async def test_convert_missing_address_422(
         json={},
     )
     assert res.status_code == 422
-    assert res.json()["error_code"] == "VALIDATION_ERROR"
+    # CR-0165 F6a：缺地址改回專用碼（原泛用 VALIDATION_ERROR）
+    body = res.json()
+    assert body["error_code"] == "ADDRESS_REQUIRED_FOR_CONVERT"
+    assert "地址" in body["message"]
 
 
 # ============================================================================

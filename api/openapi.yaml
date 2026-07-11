@@ -4806,6 +4806,7 @@ components:
             - CONTRACT_VERSION_CONFLICT
             - SCOPE_OVERLAP
             - ADDRESS_REQUIRED_FOR_CLOSE
+            - ADDRESS_REQUIRED_FOR_CONVERT
             - PC_UNIQUE_VIOLATION
             - AI_FORBIDDEN_ACTION
             - DGS_LEGAL_HOLD_ACTIVE
@@ -4891,6 +4892,7 @@ components:
             - CONTRACT_VERSION_CONFLICT
             - SCOPE_OVERLAP
             - ADDRESS_REQUIRED_FOR_CLOSE
+            - ADDRESS_REQUIRED_FOR_CONVERT
             - PC_UNIQUE_VIOLATION
             - AI_FORBIDDEN_ACTION
             - DGS_LEGAL_HOLD_ACTIVE

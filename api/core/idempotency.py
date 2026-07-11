@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import uuid as uuid_lib
 from typing import Any
 
 from fastapi import Header, Request
@@ -100,17 +101,26 @@ class IdempotencyContext:
         await _store(self.tenant_id, self.key, self.method, self.path, self.request_hash, status_code, payload)
 
 
-async def idempotency_guard(
-    request: Request,
-    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
-    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
-) -> IdempotencyContext | None:
-    """寫操作建議套用此 dependency。
+# CR-0165 F12：公開無登入端點（技師/廠商註冊）client 無從得知 tenant，
+# 缺 X-Tenant-ID 時 fallback 到公共命名空間（zero-UUID）而非靜默 no-op。
+PUBLIC_TENANT_NAMESPACE = "00000000-0000-0000-0000-000000000000"
 
-    - 缺 key → 回 None（呼叫方決定是否強制要求）
-    - 命中 → 拋 ApiError(replay) 攜帶已存 response
-    - 未命中 → 回 IdempotencyContext，handler 完成後手動 save()
-    """
+
+def _is_valid_uuid(value: str) -> bool:
+    try:
+        uuid_lib.UUID(value)
+        return True
+    except (ValueError, TypeError):
+        return False
+
+
+async def _guard_impl(
+    request: Request,
+    idempotency_key: str | None,
+    x_tenant_id: str | None,
+    *,
+    default_tenant: str | None,
+) -> IdempotencyContext | None:
     cfg = load_config().idempotency
     if not idempotency_key:
         # 強制策略：寫操作必填
@@ -122,9 +132,20 @@ async def idempotency_guard(
             )
         return None
 
+    if x_tenant_id and not _is_valid_uuid(x_tenant_id):
+        # CR-0165 F12：原 %s::uuid cast 遇非 UUID 直接 psycopg 錯誤 → 500；改 400
+        raise ApiError(
+            error_code="VALIDATION_ERROR",
+            message="X-Tenant-ID 須為合法 UUID",
+            status_code=400,
+        )
+
     if not x_tenant_id:
-        # 沒 tenant 就無法 dedup（auth 端點不會走到這）
-        return None
+        if default_tenant is None:
+            # 沒 tenant 就無法 dedup（一般已登入端點前端恆帶 header）
+            return None
+        # CR-0165 F12：公開註冊端點 opt-in fallback（原本靜默 fail-open 不去重）
+        x_tenant_id = default_tenant
 
     body = await request.body()
     request_hash = _hash_request(request.method, request.url.path, body)
@@ -147,6 +168,41 @@ async def idempotency_guard(
         path=request.url.path,
         request_hash=request_hash,
     )
+
+
+async def idempotency_guard(
+    request: Request,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+) -> IdempotencyContext | None:
+    """寫操作建議套用此 dependency。
+
+    - 缺 key → 回 None（呼叫方決定是否強制要求）
+    - 命中 → 拋 ApiError(replay) 攜帶已存 response
+    - 未命中 → 回 IdempotencyContext，handler 完成後手動 save()
+    """
+    return await _guard_impl(
+        request, idempotency_key, x_tenant_id, default_tenant=None
+    )
+
+
+def make_idempotency_guard(*, default_tenant: str):
+    """CR-0165 F12：帶預設命名空間的 guard 工廠——公開無登入端點專用。
+
+    缺 X-Tenant-ID 時以 default_tenant 作為 (tenant_id, key) 命名空間，
+    使 curl/外部整合方只帶 Idempotency-Key 也能正常去重回放。
+    """
+
+    async def _dep(
+        request: Request,
+        idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+        x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
+    ) -> IdempotencyContext | None:
+        return await _guard_impl(
+            request, idempotency_key, x_tenant_id, default_tenant=default_tenant
+        )
+
+    return _dep
 
 
 class IdempotencyReplay(Exception):

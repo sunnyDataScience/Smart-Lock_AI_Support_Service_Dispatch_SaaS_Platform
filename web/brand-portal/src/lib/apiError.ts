@@ -76,6 +76,7 @@ const CODE_MESSAGES: Record<string, string> = {
   SIGNATURE_REQUIRED: "請先完成簽名。",
   SIGNATURE_INVALID: "簽名驗證失敗，請重新簽署。",
   ADDRESS_REQUIRED_FOR_CLOSE: "請先填寫地址才能結案。",
+  ADDRESS_REQUIRED_FOR_CONVERT: "請先填寫服務地址才能轉工單。",
 
   // 請求層
   MISSING_IDEMPOTENCY_KEY: "請求逾時或重複，請重新整理後再試一次。",
