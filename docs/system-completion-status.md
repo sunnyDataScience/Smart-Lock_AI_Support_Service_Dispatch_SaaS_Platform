@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-11（**文件檢視快取化＋tier-4 清理**，branch `chore/docs-view-cleanup` — docs_html/ 轉純生成快取（.gitignore；沿用 0708「正典無鏡像」決議不重建鏡像）＋新 `scripts/dev/gen_enterprise_view.py` 一鍵渲染 smartlock-docs 60 頁 HTML view（每頁標生成時間＋「以 .md 為準」警語；Playwright 驗渲染）；`docs/4-exploration/` 依 0707 決議清 30 份已收案 CR（git 歷史保留；留 CR-0145 待決／CR-0157 引用源／CR-0158/0159 backlog）；completion-status 本檔與 docs/20260709 素材保留。）
+**最後更新：** 2026-07-11（**UAT 準備完成（M1 1.7.2＋M2 2.6.1 併驗）**，branch `docs/uat-acceptance-checklist`＋`docs/uat-ruling-annotations` — ①驗收清單 `docs/uat/UAT-M1M2-acceptance-checklist.md`：合約紅線 8 條（K1／K3 雙義／K8／影像／跨租戶／GDPR／redline gate）＋18 條端到端場景（全掛 UF/TC/I 編號）＋環境前置 9 項＋自動化工具對照＋裁定規則；②三項規格衝突業主裁決落地（K3＝兩義並列驗收、K1＝80 題制、22_UAT §5 門檻照清單定版），標注 02_BRD／04_SRS／05_NFR／22_UAT 四檔（僅新增）。UAT 排程＝業主。）
+
+**前一次更新：** 2026-07-11（**文件檢視快取化＋tier-4 清理**，branch `chore/docs-view-cleanup` — docs_html/ 轉純生成快取（.gitignore；沿用 0708「正典無鏡像」決議不重建鏡像）＋新 `scripts/dev/gen_enterprise_view.py` 一鍵渲染 smartlock-docs 60 頁 HTML view（每頁標生成時間＋「以 .md 為準」警語；Playwright 驗渲染）；`docs/4-exploration/` 依 0707 決議清 30 份已收案 CR（git 歷史保留；留 CR-0145 待決／CR-0157 引用源／CR-0158/0159 backlog）；completion-status 本檔與 docs/20260709 素材保留。）
 
 **前一次更新：** 2026-07-11（**repo 佈局重整（CR-0157）**，branch `refactor/knowledge-domain-relayout` — 業主裁決三案：①api 四拆選 **C 不拆**（API_SURFACE 三實例＋三庫分離已達成部署分離；調查實證 5 個 brand↔tech 共用 router 恰為工單核心、49 個 router 無站台使用、landing 零 API 消費；v1 cutover／domain 邊界顯式化排 roadmap 前置）②rag→`agent/rag/`＋refinery→`knowledge-pipeline/refinery/` 原子搬遷（workspace＋uv.lock＋三 Dockerfile＋compose＋MCP cwd；**7 支 parents[2]→[3]** 修靜默錯位）③CI 缺口補強（uv-lock-check／docker-build-smoke 補 refinery、component-nightly 納 rag+refinery 測試）＋stale dev 腳本清理。驗證：agent 186＋rag 7＋refinery 23＋三 image build＋MCP 冒煙全綠。另立 CR-0158/0159 兩既有 bug 待排程。）
 
