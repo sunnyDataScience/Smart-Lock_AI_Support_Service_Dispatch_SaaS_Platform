@@ -29,6 +29,20 @@ logger = logging.getLogger("api.audit_log_service")
 # 竄改任一列內容 → 其 entry_hash 對不上 → verify_audit_chain 偵測得到。
 _AUDIT_GENESIS = "GENESIS"
 
+# CR-0166 R1-5：hash-chain prev_hash 讀寫並發競態——兩筆同時讀同一 prev_hash
+# → 鏈分叉，verify 誤報。全域 advisory xact-lock 序列化「讀末 hash → INSERT」臨界區。
+# xact-scoped（commit/abort 自動釋放，與連線池相容；嚴禁 session 級）。key 為固定
+# 常數（單一全域鏈）。lock_timeout 2s 兜底，逾時走 fail-soft（log_event 本 best-effort）。
+_AUDIT_CHAIN_LOCK_KEY = 0x10C_A0D17  # "lock audit" 諧音固定鍵
+
+
+async def _acquire_chain_lock() -> None:
+    """取全域稽核鏈 advisory xact-lock（須在顯式交易內呼叫）。"""
+    await db_module._conn.execute("SET LOCAL lock_timeout = '2s'")
+    await db_module._conn.execute(
+        "SELECT pg_advisory_xact_lock(%s)", (_AUDIT_CHAIN_LOCK_KEY,)
+    )
+
 
 def _canonical_audit_content(
     event_type: str | None, actor_id: str | None, actor_role: str | None,
@@ -400,24 +414,27 @@ async def log_event(
         "VALUES (%s, %s::uuid, %s, %s, %s, %s::uuid, %s::jsonb, %s, %s, %s)"
     )
     try:
-        prev_hash, entry_hash, payload_json = await _chain_fields(
-            event_type, actor_id, actor_role, action, target_type, target_id, payload
-        )
-        await db_module._conn.execute(
-            sql,
-            [
-                event_type,
-                actor_id,
-                actor_role,
-                action,
-                target_type,
-                target_id,
-                payload_json,
-                ip_address,
-                prev_hash,
-                entry_hash,
-            ],
-        )
+        # CR-0166 R1-5：advisory lock 序列化讀末 hash → INSERT（防鏈分叉並發競態）
+        async with db_module._conn.transaction():
+            await _acquire_chain_lock()
+            prev_hash, entry_hash, payload_json = await _chain_fields(
+                event_type, actor_id, actor_role, action, target_type, target_id, payload
+            )
+            await db_module._conn.execute(
+                sql,
+                [
+                    event_type,
+                    actor_id,
+                    actor_role,
+                    action,
+                    target_type,
+                    target_id,
+                    payload_json,
+                    ip_address,
+                    prev_hash,
+                    entry_hash,
+                ],
+            )
     except Exception as exc:  # noqa: BLE001 — pragma: no cover; best-effort logging, must not fail caller
         logger.warning("audit log_event failed: %s", exc)
 
@@ -447,23 +464,27 @@ async def log_event_returning_id(
         "VALUES (%s, %s::uuid, %s, %s, %s, %s::uuid, %s::jsonb, %s, %s, %s) "
         "RETURNING id"
     )
-    prev_hash, entry_hash, payload_json = await _chain_fields(
-        event_type, actor_id, actor_role, action, target_type, target_id, payload
-    )
-    cur = await db_module._conn.execute(
-        sql,
-        [
-            event_type,
-            actor_id,
-            actor_role,
-            action,
-            target_type,
-            target_id,
-            payload_json,
-            ip_address,
-            prev_hash,
-            entry_hash,
-        ],
-    )
-    row = await cur.fetchone()
+    # CR-0166 R1-5：advisory lock 序列化（同 log_event）。caller 已在交易內時
+    # transaction() 退化為 savepoint，鎖持有延至外層 commit（lock_timeout 2s 兜底）。
+    async with db_module._conn.transaction():
+        await _acquire_chain_lock()
+        prev_hash, entry_hash, payload_json = await _chain_fields(
+            event_type, actor_id, actor_role, action, target_type, target_id, payload
+        )
+        cur = await db_module._conn.execute(
+            sql,
+            [
+                event_type,
+                actor_id,
+                actor_role,
+                action,
+                target_type,
+                target_id,
+                payload_json,
+                ip_address,
+                prev_hash,
+                entry_hash,
+            ],
+        )
+        row = await cur.fetchone()
     return str(row[0])

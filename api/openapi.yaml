@@ -4807,6 +4807,10 @@ components:
             - SCOPE_OVERLAP
             - ADDRESS_REQUIRED_FOR_CLOSE
             - ADDRESS_REQUIRED_FOR_CONVERT
+            - INITIATOR_NOT_FOUND
+            - APPROVER_NOT_FOUND
+            - CONFIG_PROTECTED_OVERRIDE
+            - CONFIG_OWNER_ROLE_REQUIRED
             - PC_UNIQUE_VIOLATION
             - AI_FORBIDDEN_ACTION
             - DGS_LEGAL_HOLD_ACTIVE
@@ -4893,6 +4897,10 @@ components:
             - SCOPE_OVERLAP
             - ADDRESS_REQUIRED_FOR_CLOSE
             - ADDRESS_REQUIRED_FOR_CONVERT
+            - INITIATOR_NOT_FOUND
+            - APPROVER_NOT_FOUND
+            - CONFIG_PROTECTED_OVERRIDE
+            - CONFIG_OWNER_ROLE_REQUIRED
             - PC_UNIQUE_VIOLATION
             - AI_FORBIDDEN_ACTION
             - DGS_LEGAL_HOLD_ACTIVE

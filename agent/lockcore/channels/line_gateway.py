@@ -740,10 +740,13 @@ def build_webapp(
     channel_secret: str,
     channel_access_token: str,
     escalation_store: Any = None,
+    idempotency_store: Any = None,
 ):
     """組 aiohttp app:POST /callback 收 LINE webhook。需要 line-bot-sdk(extra: line)。
 
     escalation_store:傳入則 CR-0022 啟用 —— 本輪 agent 轉真人時旁路建 AI 草擬問題卡。
+    idempotency_store:傳入則 CR-0166 R1 啟用 —— LINE webhook 重送以 webhookEventId
+      去重（mark-first / at-most-once，跨實例/重啟防護）；None 則不去重（行為同前）。
     """
     from aiohttp import web
     from linebot.v3 import WebhookParser
@@ -875,6 +878,14 @@ def build_webapp(
         async with AsyncApiClient(config) as api_client:
             line_api = AsyncMessagingApi(api_client)
             for event in events:
+                # CR-0166 R1：webhook 重送去重（mark-first）——同 webhookEventId 已見過
+                # 就整個 event 跳過（不重跑 turn、不重複回覆/持久化）。放在任何業務分派
+                # （含 _forward_ops_postback_safe）之前；api 端不寫此表避免互相誤判。
+                if idempotency_store is not None:
+                    eid = getattr(event, "webhook_event_id", None)
+                    if eid and idempotency_store.mark_seen(eid, tenant):
+                        logger.info("LINE webhook 重送 event %s 已去重跳過", eid)
+                        continue
                 # CR-0095：客戶在 LINE 點報價「同意/拒絕」（postback）→ 旁路呼 api
                 # 走報價狀態機，並用 reply_token 即時回覆確認（不阻塞、fail-soft）。
                 if isinstance(event, PostbackEvent):

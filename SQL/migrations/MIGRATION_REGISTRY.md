@@ -125,6 +125,8 @@
 | 100 | `100-audit-events-append-only.sql` | CR-0164 | 🟢 idempotent（CREATE OR REPLACE FUNCTION + DROP/CREATE TRIGGER 可重套，scratch 5472 驗證 2026-07-11） | audit_events 補 append-only trigger（NFR-Aud-001 合約下限）：BEFORE UPDATE OR DELETE 一律 RAISE（owner 亦擋），複用 098/004 pattern；特權繞過走 `session_replication_role='replica'`（測試/未來 retention purge） |
 | 101 | `101-emergency-class-check.sql` | CR-0165 F2 | 🟢 idempotent（DO $$ 判存在 + NOT VALID/VALIDATE 分離，scratch 5473 驗證 2026-07-11） | problem_cards.emergency_class 補 DB CHECK（急件四類，NULL=非急件）：091 只加欄無約束，消費端只判 IS NOT NULL——非法值繞過 API 入庫即被當急件跳過報價 gate。套用前預檢違規存量（見檔頭 SQL；prod 違規列處置依 CR-0165 §8-4 屆時裁決） |
 | 102 | `102-wo-events-assign-supply.sql` | CR-0165 F9 | 🟢 idempotent（DROP/ADD CONSTRAINT 可重套，scratch 5473 驗證 2026-07-11） | work_order_events CHECK 補 'assign'（F9 手動派工 timeline 事件）＋'supply_arrived'（查證途中發現：mark_supply_arrived 端點寫入值未列於 059 CHECK → 該端點自建置必 500，live 0 筆佐證）。同 050/059 同類 bug |
+| 103 | `103-config-namespace-owner-protected.sql` | CR-0166 R1-6/R1-7 | 🟢 idempotent（ADD COLUMN IF NOT EXISTS＋具名 UPDATE，scratch 5474 驗證 2026-07-12） | saas.config_namespace 加 is_protected 欄＋回填 owner_role_codes（19 namespace=operations_manager，payment_gate=admin-only＋protected）。受保護層＋per-namespace owner 治理落地 |
+| 104 | `104-wo-events-reject.sql` | CR-0166 R1-9 | 🟢 idempotent（DROP/ADD CONSTRAINT 可重套，scratch 5474 驗證 2026-07-12） | work_order_events CHECK 補 'reject'（技師拒單 timeline 事件）。同 050/059/102 同類 |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

@@ -692,7 +692,7 @@ async def reopen_order(
 # 新增/修改轉移時兩邊必須同步（測試 test_cr_0128 對帳）。
 _WO_TRANSITIONS: dict[str, set[str]] = {
     "created":     {"assigned", "accepted", "cancelled"},                 # 派工／技師搶單 claim／取消
-    "assigned":    {"assigned", "accepted", "cancelled"},                 # 重派換人／接單／取消
+    "assigned":    {"assigned", "accepted", "created", "cancelled"},      # 重派換人／接單／技師拒單回池／取消
     "accepted":    {"assigned", "in_progress", "completed", "cancelled"}, # 改派／開工／完工／取消
     "in_progress": {"assigned", "completed", "cancelled"},                # 改派／完工／取消
     "completed":   {"confirmed"},                                         # 客戶確認結案
@@ -701,6 +701,7 @@ _WO_TRANSITIONS: dict[str, set[str]] = {
 }
 
 _ACCEPT_FROM = {"assigned"}
+_REJECT_FROM = {"assigned"}  # CR-0166 R1：技師拒單（assigned → created 回池擴大候選）
 _COMPLETE_FROM = {"accepted", "in_progress"}
 _CANCEL_FROM = {"created", "assigned", "accepted", "in_progress"}
 _ASSIGN_FROM = {"created", "assigned"}  # 允許重派（assigned → assigned 換人）
@@ -952,6 +953,94 @@ async def accept_order(
         logger.exception("outbox enqueue work_order_accepted failed (non-fatal)")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.accepted"
+    )
+
+
+async def reject_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    reason: str,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
+) -> dict:
+    """技師拒單（CR-0166 R1 / UF-04 / TC-DISPATCH-02）：assigned → created 回池。
+
+    技師本人才能拒本人被派的單；拒單後清 technician_id、回 'created'（全技師 pool
+    可搶、小編可重派），寫 dispatch_logs(action='reject')＋work_order_events＋通知小編。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    reason = (reason or "").strip()
+    if len(reason) < 2:
+        raise ApiError("VALIDATION_ERROR", "拒單原因必填（至少 2 字）", 422)
+
+    tech_ctx = await _fetch_technician_for_user(actor_user_id)
+    if not tech_ctx:
+        raise ApiError("TECHNICIAN_NOT_FOUND", "找不到對應技師帳號", 404)
+
+    current = await _fetch_status_for_update(wo_id, tenant_id)
+    if current not in _REJECT_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot reject work order in status '{current}'; expected one of {sorted(_REJECT_FROM)}",
+            409,
+        )
+    cur = await db_module._conn.execute(
+        "SELECT technician_id, created_by FROM work_orders WHERE id = %s::uuid",
+        (wo_id,),
+    )
+    row = await cur.fetchone()
+    tech_id = str(row[0]) if row and row[0] else None
+    created_by = str(row[1]) if row and row[1] else None
+    if tech_id != tech_ctx["id"]:
+        raise ApiError("STATE_CONFLICT", "只能拒絕指派給本人的工單", 409)
+
+    note = f"[REJECTED] {tech_ctx['id']}: {reason}"
+    await db_module._conn.execute(
+        "UPDATE work_orders SET status = 'created', technician_id = NULL, "
+        "  status_reason = %s, updated_at = NOW() WHERE id = %s::uuid",
+        (reason, wo_id),
+    )
+    await db_module._conn.execute(
+        "INSERT INTO dispatch_logs (work_order_id, action, technician_id, rejection_reason, notes) "
+        "VALUES (%s::uuid, 'reject', %s::uuid, %s, %s)",
+        (wo_id, tech_ctx["id"], reason, note),
+    )
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, 'reject', %s::jsonb)",
+        (
+            wo_id, tenant_id, actor_user_id,
+            json.dumps(
+                {"technician_id": tech_ctx["id"], "reason": reason, "from_status": current},
+                ensure_ascii=False,
+            ),
+        ),
+    )
+    # 拒單技師個人 pool 列表移除該單（已回無主 created，非其負責）
+    await _publish_pool_change(
+        tenant_id=tenant_id, wo_id=wo_id, technician_id=tech_ctx["id"], event="taken",
+    )
+    # 通知派工小編（best-effort）＋稽核
+    try:
+        if created_by:
+            await _auto_notify(
+                tenant_id, created_by, "work_order_rejected",
+                "技師拒接工單", f"工單已被技師退回派工池，原因：{reason}",
+            )
+        from services import audit_log_service
+        await audit_log_service.log_event(
+            event_type="dispatch_decision", actor_id=actor_user_id, actor_role=actor_role,
+            action="technician_reject", target_type="work_order", target_id=wo_id,
+            payload={"technician_id": tech_ctx["id"], "reason": reason},
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("reject_order notify/audit failed (non-fatal)")
+    return await _publish_and_return(
+        tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.rejected"
     )
 
 

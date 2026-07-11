@@ -153,6 +153,18 @@ def build_escalation_store(cfg: AppConfig):
     return EscalationStore(cfg.db_path)
 
 
+def build_webhook_idempotency_store(cfg: AppConfig):
+    """LINE webhook 重送去重（CR-0166 R1）。postgres 後端才有跨實例防護；
+    非 postgres（本機 sqlite）回 None＝不去重（單實例 burst 已由 _TurnDebouncer 處理）。"""
+    if cfg.backend == "postgres":
+        from lockcore.agent.user_memory.postgres_store import (
+            PostgresWebhookIdempotencyStore,
+        )
+
+        return PostgresWebhookIdempotencyStore(_pg_uri(cfg))
+    return None
+
+
 # ── MCP servers（RAG-via-MCP，ADR-010/CR-0125）────────────────────────────
 # config.toml [mcp_servers.<name>] → lockcore MCPServerConfig。
 # env 值支援 ${VAR} 展開（機密不入 toml）；任一 ${VAR} 解不到值 → 跳過該 server

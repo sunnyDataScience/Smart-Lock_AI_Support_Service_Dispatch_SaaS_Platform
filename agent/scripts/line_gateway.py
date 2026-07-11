@@ -27,6 +27,7 @@ from lockcore.app_config import (
     build_escalation_store,
     build_memory_manager,
     build_provider,
+    build_webhook_idempotency_store,
     load_config,
 )
 from lockcore.bus.queue import MessageBus
@@ -61,7 +62,10 @@ def main() -> None:
     )
 
     # RAG-via-MCP startup 連線已由 build_webapp 內建(on_startup;2026-07-11 修 CR-0125 誤用 FastAPI API)
-    app = build_webapp(loop, cfg.tenant, secret, token, escalation_store=esc)
+    # CR-0166 R1：webhook 重送去重（postgres 後端才有跨實例防護，sqlite 回 None＝不去重）
+    idem = build_webhook_idempotency_store(cfg)
+    app = build_webapp(loop, cfg.tenant, secret, token, escalation_store=esc,
+                       idempotency_store=idem)
     port = int(os.environ.get("PORT", "8000"))
     print(f"模型:{cfg.model}  租戶:{cfg.tenant}  記憶後端:{cfg.backend}", flush=True)
     # 方案 A / CR-0022 旁路橋接狀態 —— 明示開/關,避免「對話/工單沒進 DB」被靜默略過害人 debug。

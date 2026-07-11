@@ -139,6 +139,54 @@ async def _get_namespace_schema(namespace: str) -> dict:
     return row[0]
 
 
+# CR-0166 R1-6/R1-7：admin 永遠可寫（全權治理角色；owner_role_codes 語意＝
+# 「除 admin 外的授權 owner」）。
+_ADMIN_BYPASS_ROLES = frozenset({"admin", "super_admin"})
+
+
+async def _assert_namespace_writable(
+    namespace: str, *, actor_role: str | None, tenant_id: str | None
+) -> None:
+    """CR-0166 R1-6（受保護層）＋R1-7（owner 治理）統一寫入 gate。
+
+    - is_protected 且租戶層 override（tenant_id 非 NULL）→ 403 CONFIG_PROTECTED_OVERRIDE。
+    - owner_role_codes 非空 → actor_role 須 ∈ 其中或 admin；否則 403 CONFIG_OWNER_ROLE_REQUIRED。
+    - owner_role_codes 空 → admin-only fallback（未回填的 namespace 零行為變化）。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT is_protected, owner_role_codes FROM saas.config_namespace WHERE code = %s",
+        (namespace,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("CONFIG_NOT_FOUND", f"namespace '{namespace}' 不存在", 404)
+    is_protected, owner_roles = bool(row[0]), list(row[1] or [])
+    role = (actor_role or "").lower()
+
+    if is_protected and tenant_id is not None:
+        raise ApiError(
+            "CONFIG_PROTECTED_OVERRIDE",
+            f"namespace '{namespace}' 為受保護配置，租戶層不可覆寫（僅平台級可改）",
+            403,
+        )
+    if role in _ADMIN_BYPASS_ROLES:
+        return
+    allowed = set(owner_roles) if owner_roles else set()
+    if not allowed:
+        # 未回填：admin-only fallback（admin 已於上方 return）
+        raise ApiError(
+            "CONFIG_OWNER_ROLE_REQUIRED",
+            f"namespace '{namespace}' 僅管理員可修改",
+            403,
+        )
+    if role not in allowed:
+        raise ApiError(
+            "CONFIG_OWNER_ROLE_REQUIRED",
+            f"namespace '{namespace}' 僅 {', '.join(sorted(allowed))} 或管理員可修改",
+            403,
+        )
+
+
 async def _append_audit(
     *,
     tenant_id: str | None,
@@ -162,6 +210,16 @@ async def _append_audit(
             json.dumps(diff) if diff is not None else None,
         ),
     )
+
+
+async def _assert_user_exists(user_id: str, error_code: str, label: str) -> None:
+    """CR-0166 R1：SoD 操作者存在性驗證——格式合法但不存在的 UUID＝審計斷鏈。
+    users 與 saas.* 同庫同連線（品牌庫）。"""
+    cur = await db_module._conn.execute(
+        "SELECT 1 FROM users WHERE id = %s::uuid", (user_id,)
+    )
+    if await cur.fetchone() is None:
+        raise ApiError(error_code, f"{label} 對應的使用者不存在", 422)
 
 
 async def _dethrone_active(
@@ -280,6 +338,7 @@ async def create_draft(
     reason: str,
     change_request_id: str | None,
     initiator_user_id: str,
+    actor_role: str | None = None,
 ) -> dict:
     """Create a config_version in state='draft'. Validates against namespace json_schema.
 
@@ -288,9 +347,15 @@ async def create_draft(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
+    # CR-0166 R1-6/R1-7：受保護層＋owner 治理 gate（draft 也擋——不讓無權者建 draft）
+    await _assert_namespace_writable(namespace, actor_role=actor_role, tenant_id=tenant_id)
+
     # Fetch and validate schema
     schema = await _get_namespace_schema(namespace)
     _validate_against_schema(proposed_value, schema)
+
+    # CR-0166 R1：initiator 存在性驗證（防格式合法的假 UUID 入 created_by）
+    await _assert_user_exists(initiator_user_id, "INITIATOR_NOT_FOUND", "X-Initiator")
 
     cur = await db_module._conn.execute(
         """
@@ -331,6 +396,7 @@ async def start_rollout(
     observation_minutes: int,
     initiator_user_id: str,
     approver_user_id: str,
+    actor_role: str | None = None,
 ) -> dict:
     """Start a rollout for a draft config_version.
 
@@ -346,6 +412,9 @@ async def start_rollout(
 
     if strategy not in ("canary_5_50_100", "instant"):
         raise ApiError("VALIDATION_ERROR", "strategy 必須為 canary_5_50_100 或 instant", 422)
+
+    # CR-0166 R1-6/R1-7：受保護層＋owner 治理 gate
+    await _assert_namespace_writable(namespace, actor_role=actor_role, tenant_id=tenant_id)
 
     # Clamp observation_minutes ≥ 10 (HD-01 hard floor)
     if observation_minutes < 10:
@@ -372,58 +441,65 @@ async def start_rollout(
     if ver[2] != namespace or ver[3] != key:
         raise ApiError("VALIDATION_ERROR", "version namespace/key 與 path 不符", 422)
 
+    # CR-0166 R1：SoD 操作者須存在於品牌庫 users（審計可追溯，防格式合法的假 UUID）
+    await _assert_user_exists(initiator_user_id, "INITIATOR_NOT_FOUND", "X-Initiator")
+    await _assert_user_exists(approver_user_id, "APPROVER_NOT_FOUND", "X-Approver")
+
     now = datetime.now(timezone.utc)
 
     if strategy == "instant":
-        # Dethrone previous active（→ retired）; 記其 id 作為本版 parent，
-        # 讓 rollback 能重啟前一版（ADR-0067 rollback ≤ 1min RTO restore previous）。
-        dethroned_id = await _dethrone_active(tenant_id, namespace, key)
+        # CR-0166 R1：instant rollout 五語句包同一交易——原 autocommit 各自 commit，
+        # 中途失敗留部分狀態（config 已切但零 rollout 記錄／該 key 無 active）。
+        async with db_module._conn.transaction():
+            # Dethrone previous active（→ retired）; 記其 id 作為本版 parent，
+            # 讓 rollback 能重啟前一版（ADR-0067 rollback ≤ 1min RTO restore previous）。
+            dethroned_id = await _dethrone_active(tenant_id, namespace, key)
 
-        # Activate this version；parent_version_id 指向被 dethrone 的前一 active
-        # （COALESCE：不覆寫既有 parent；首版無前任時保持 NULL）。
-        await db_module._conn.execute(
-            """
-            UPDATE saas.config_version
-            SET state = 'active',
-                activated_at = %s,
-                parent_version_id = COALESCE(parent_version_id, %s::uuid)
-            WHERE id = %s::uuid
-            """,
-            (now, dethroned_id, version_id),
-        )
+            # Activate this version；parent_version_id 指向被 dethrone 的前一 active
+            # （COALESCE：不覆寫既有 parent；首版無前任時保持 NULL）。
+            await db_module._conn.execute(
+                """
+                UPDATE saas.config_version
+                SET state = 'active',
+                    activated_at = %s,
+                    parent_version_id = COALESCE(parent_version_id, %s::uuid)
+                WHERE id = %s::uuid
+                """,
+                (now, dethroned_id, version_id),
+            )
 
-        # Create rollout record with stage='100%'
-        instant_stage = "100%"
-        cur = await db_module._conn.execute(
-            """
-            INSERT INTO saas.config_rollout
-                (config_version_id, strategy, current_stage, stage_started_at,
-                 next_stage_eta, initiator_user_id, approver_user_id)
-            VALUES (%s::uuid, 'instant', %s, %s, NULL, %s::uuid, %s::uuid)
-            RETURNING id
-            """,
-            (version_id, instant_stage, now, initiator_user_id, approver_user_id),
-        )
-        rollout_row = await cur.fetchone()
-        rollout_id = str(rollout_row[0])
+            # Create rollout record with stage='100%'
+            instant_stage = "100%"
+            cur = await db_module._conn.execute(
+                """
+                INSERT INTO saas.config_rollout
+                    (config_version_id, strategy, current_stage, stage_started_at,
+                     next_stage_eta, initiator_user_id, approver_user_id)
+                VALUES (%s::uuid, 'instant', %s, %s, NULL, %s::uuid, %s::uuid)
+                RETURNING id
+                """,
+                (version_id, instant_stage, now, initiator_user_id, approver_user_id),
+            )
+            rollout_row = await cur.fetchone()
+            rollout_id = str(rollout_row[0])
 
-        # Audit: rollout_started + activated
-        await _append_audit(
-            tenant_id=tenant_id,
-            config_version_id=version_id,
-            actor_user_id=initiator_user_id,
-            action="rollout_started",
-            diff={"strategy": "instant", "approver": approver_user_id},
-        )
-        await _append_audit(
-            tenant_id=tenant_id,
-            config_version_id=version_id,
-            actor_user_id=approver_user_id,
-            action="activated",
-            diff={"rollout_id": rollout_id},
-        )
+            # Audit: rollout_started + activated
+            await _append_audit(
+                tenant_id=tenant_id,
+                config_version_id=version_id,
+                actor_user_id=initiator_user_id,
+                action="rollout_started",
+                diff={"strategy": "instant", "approver": approver_user_id},
+            )
+            await _append_audit(
+                tenant_id=tenant_id,
+                config_version_id=version_id,
+                actor_user_id=approver_user_id,
+                action="activated",
+                diff={"rollout_id": rollout_id},
+            )
 
-        # Invalidate ACL read cache
+        # Invalidate ACL read cache（交易 commit 後）
         _cache_invalidate(tenant_id, namespace, key)
 
         return {
@@ -436,43 +512,46 @@ async def start_rollout(
     else:  # canary_5_50_100
         next_stage_eta = now + timedelta(minutes=observation_minutes)
 
-        # Set version to rolling_out (NOT yet active — conservative)
-        await db_module._conn.execute(
-            """
-            UPDATE saas.config_version
-            SET state = 'rolling_out'
-            WHERE id = %s::uuid
-            """,
-            (version_id,),
-        )
+        # CR-0166 R1：canary UPDATE→INSERT→audit 包同一交易（原部分狀態：版本卡
+        # rolling_out 但無 rollout row → 不能重 rollout 也不能 rollback）。
+        async with db_module._conn.transaction():
+            # Set version to rolling_out (NOT yet active — conservative)
+            await db_module._conn.execute(
+                """
+                UPDATE saas.config_version
+                SET state = 'rolling_out'
+                WHERE id = %s::uuid
+                """,
+                (version_id,),
+            )
 
-        canary_stage = "5%"
-        cur = await db_module._conn.execute(
-            """
-            INSERT INTO saas.config_rollout
-                (config_version_id, strategy, current_stage, stage_started_at,
-                 next_stage_eta, initiator_user_id, approver_user_id)
-            VALUES (%s::uuid, 'canary_5_50_100', %s, %s, %s, %s::uuid, %s::uuid)
-            RETURNING id
-            """,
-            (version_id, canary_stage, now, next_stage_eta, initiator_user_id, approver_user_id),
-        )
-        rollout_row = await cur.fetchone()
-        rollout_id = str(rollout_row[0])
+            canary_stage = "5%"
+            cur = await db_module._conn.execute(
+                """
+                INSERT INTO saas.config_rollout
+                    (config_version_id, strategy, current_stage, stage_started_at,
+                     next_stage_eta, initiator_user_id, approver_user_id)
+                VALUES (%s::uuid, 'canary_5_50_100', %s, %s, %s, %s::uuid, %s::uuid)
+                RETURNING id
+                """,
+                (version_id, canary_stage, now, next_stage_eta, initiator_user_id, approver_user_id),
+            )
+            rollout_row = await cur.fetchone()
+            rollout_id = str(rollout_row[0])
 
-        await _append_audit(
-            tenant_id=tenant_id,
-            config_version_id=version_id,
-            actor_user_id=initiator_user_id,
-            action="rollout_started",
-            diff={
-                "strategy": "canary_5_50_100",
-                "approver": approver_user_id,
-                "current_stage": "5%",
-                "next_stage_eta": next_stage_eta.isoformat(),
-                "observation_minutes": observation_minutes,
-            },
-        )
+            await _append_audit(
+                tenant_id=tenant_id,
+                config_version_id=version_id,
+                actor_user_id=initiator_user_id,
+                action="rollout_started",
+                diff={
+                    "strategy": "canary_5_50_100",
+                    "approver": approver_user_id,
+                    "current_stage": "5%",
+                    "next_stage_eta": next_stage_eta.isoformat(),
+                    "observation_minutes": observation_minutes,
+                },
+            )
 
         # Phase II deferred log (MUST NOT be silent per spec)
         logger.info(

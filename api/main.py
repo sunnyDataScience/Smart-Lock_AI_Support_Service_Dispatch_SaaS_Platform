@@ -188,6 +188,8 @@ async def lifespan(app: FastAPI):
     from realtime.sla_monitor import monitor as sla_monitor
     from realtime.statement_auto_approval_cron import worker as statement_auto_approval
     from realtime.statement_generate_cron import worker as statement_generate
+    from realtime.webhook_idempotency_cleanup_cron import worker as webhook_idem_cleanup
+    from realtime.family_review_sla_cron import worker as family_review_sla
 
     # CR-0134 / SA-02：REDIS_URL 設定時啟動 WS 跨實例橋（未設定＝單機行為不變）
     from realtime.ws_hub import hub as _ws_hub
@@ -205,12 +207,16 @@ async def lifespan(app: FastAPI):
         gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
         media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
         auto_confirm_cron.start()  # CR-0038 桶4/Q063: 客戶未回 48h 自動結案（排除 hold/異常）
+        webhook_idem_cleanup.start()  # CR-0166 R1: 每日清 webhook_idempotency 過期列（7d TTL）
+        family_review_sla.start()  # CR-0166 R1: 家族覆核逾 24h 未審升級（合約 4.4d）
     else:
         logger.info("API_SURFACE=%s → 背景 worker 全部停用（由派工方 stack 執行）", _API_SURFACE)  # tech/platform 面共用此訊息
     logger.info("API service ready (port=%s, surface=%s)", cfg.system["port"], _API_SURFACE)
     yield
     await _ws_hub.stop_redis()
     if _RUN_BACKGROUND_WORKERS:
+        await family_review_sla.stop()
+        await webhook_idem_cleanup.stop()
         await auto_confirm_cron.stop()
         await media_retention_cron.stop()
         await gdpr_hard_delete.stop()
