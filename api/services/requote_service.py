@@ -93,9 +93,10 @@ async def submit_requote(
     cur = await db_module._conn.execute(
         "SELECT user_id FROM technicians WHERE id=%s::uuid", (technician_id,))
     urow = await cur.fetchone()
+    tech_user_id = str(urow[0]) if urow and urow[0] else None
     quote = await quote_engine_service.create_quote(
         tenant_id=tenant, work_order_id=work_order_id,
-        created_by=str(urow[0]) if urow and urow[0] else None)
+        created_by=tech_user_id)
     new_quote_id = str(quote["id"])
     if prev_quote_id:
         await db_module._conn.execute(
@@ -115,12 +116,16 @@ async def submit_requote(
     out["supersedes_quote_id"] = prev_quote_id
 
     try:
+        # CR：actor_id 須為 users.id（audit_events.actor_id FK→users）——原傳
+        # technicians.id 撞 FK → 稽核靜默漏記。改用已反查的 tech_user_id；
+        # technician_id（技師主檔 id）移入 payload 保留追溯。
         await audit_log_service.log_event(
-            event_type="quote", actor_id=technician_id, actor_role="technician",
+            event_type="quote", actor_id=tech_user_id, actor_role="technician",
             action="requote.command_received", target_type="work_orders",
             target_id=work_order_id,
             payload={"request_id": request_id, "reason": reason,
-                     "initiated_via": initiated_via, "quote_id": new_quote_id})
+                     "initiated_via": initiated_via, "quote_id": new_quote_id,
+                     "technician_id": technician_id})
     except Exception as exc:  # noqa: BLE001
         logger.warning("requote audit failed: %s", exc)
     return out, False

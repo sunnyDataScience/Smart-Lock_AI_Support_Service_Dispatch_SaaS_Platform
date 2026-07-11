@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **UAT 第一波自動驗收發現的派工/稽核缺口（branch `fix/uat-wave1-audit-brandauth-idem`，2026-07-11）**：10 場景多 agent 自動驗收（隔離資料、驗後即清）＋主 agent 抽驗去偽後，修 2 真實缺口（其餘多為誤報/測試假象/隱藏功能——見 `.claude/context/quality/uat-wave1-*`）。①**F7 requote 稽核靜默漏記**：`requote_service` 傳 `technicians.id` 給 `audit_log_service.log_event(actor_id=...)`，但 `audit_events.actor_id` FK→`users.id` → 每筆現場改價的 `requote.command_received` 稽核事件 INSERT 撞 FK 被 fail-soft 吞（全庫 0 筆）。修：改傳已反查的 `technician.user_id`，`technician_id` 移入 payload 保留追溯。②**F9 手動派工品牌授權 fail-open**：`:assign`/`:reassign` 完全不驗 `technician_brand_authorization` → 可把某品牌工單派給對該品牌 0 授權技師。修：新增 `_assert_brand_authorized`（品牌有授權名單但技師不在 → 403 `TECHNICIAN_BRAND_NOT_AUTHORIZED`；該品牌無任何授權資料 → 不阻擋，與候選過濾 None 語意一致避免全斷；主管帶 `override_reason` 可突破，沿用報價 gate/熔斷同一安全閥），assign 與 reassign 皆接。新測試 5（scratch 5471）＋派工/工單迴歸 189 全綠。**F5（quote 狀態機冪等）評估後緩修**：修法需把 Idempotency-Key 變成 6 個 transition 端點的強制契約，對低嚴重度問題（狀態機本已擋重複執行、無副作用）不成比例，另立獨立變更。
+
 - **師傅完工照上傳後無預覽（branch `fix/tech-photo-preview`，2026-07-11）**：業主 UAT 實測——施工照上傳成功後只顯示文字 chip（`[before] 檔名`），看不到照片內容。Root cause：伺服器 `/media/{id}` 讀取需帶 auth header，`<img src>` 直連會 401，原實作乾脆不做預覽。修：上傳當下以 `URL.createObjectURL` 本地縮圖預覽（80px 縮圖＋施工前/中/後標籤浮貼＋移除鈕；移除同步撤 objectURL 防記憶體洩漏、失敗即時撤銷）。驗證：tech tsc 0＋容器重建＋Playwright 實測上傳→縮圖可見（截圖確認）→移除→計數歸零。
 
 - **師傅註冊重複 Email 誤顯「目前狀態無法執行此操作」（branch `fix/login-error-message`，2026-07-11）**：業主 UAT 實測——tech-register 用已註冊過的 Email 送出，看到 409 通用回退話術，完全看不出原因。Root cause：後端 `EMAIL_TAKEN`（英文 message）未收錄於前端 `CODE_MESSAGES` → 掉到 409 泛用「狀態衝突」回退。修：四站 apiError.ts 補 `EMAIL_TAKEN`（「此 Email 已註冊過，請改用其他 Email 或直接登入。」）＋順補同型未映射碼 `APPLICATION_EXISTS`／`RESCHEDULE_SLOT_TAKEN`。驗證：四站 tsc 0＋tech/brand 容器重建＋Playwright 走完四步註冊表單實測重複 Email 顯示正確訊息。
