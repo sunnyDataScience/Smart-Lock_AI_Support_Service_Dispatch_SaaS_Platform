@@ -781,6 +781,28 @@ async def _publish_and_return(
         )
     except Exception:  # noqa: BLE001
         logger.exception("ws publish work_order state failed (non-fatal)")
+    # CR-0166 R4：dual-write 工單生命週期事件到 Kafka（KAFKA_BOOTSTRAP 未設=no-op；
+    # 失敗 fail-soft，WS＋DB 為即時/保底路徑）。餵技師平台 CQRS 投影＋SigNoz（ADR-017）。
+    # 欄位最小化（隱私）：不整包送敏感資料，只送投影所需摘要。
+    try:
+        from core.event_bus import TOPIC_WORKORDER_LIFECYCLE, publish_event
+        await publish_event(
+            TOPIC_WORKORDER_LIFECYCLE,
+            {
+                "tenant_id": tenant_id,
+                "work_order_id": wo_id,
+                "status": order.get("status"),
+                "event_type": event_type,
+                "technician_id": order.get("technician_id"),
+                "document_number": order.get("document_number"),
+                "district": order.get("district"),
+                "scheduled_time": order.get("scheduled_time"),
+                "occurred_at": order.get("updated_at"),
+            },
+            key=wo_id,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("event publish work_order lifecycle failed (non-fatal)")
     return order
 
 

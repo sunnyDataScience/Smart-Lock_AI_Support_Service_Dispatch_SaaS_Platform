@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
     "redis>=5.0",  # CR-0134/SA-02：WS 跨實例 fanout（REDIS_URL opt-in）
+    "aiokafka>=0.11",  # CR-0166 R4：Kafka/Redpanda 事件骨幹（KAFKA_BOOTSTRAP opt-in，未設=no-op）
     # 資安全修(2026-07-07,CVE-2026-53538/53539/53540 檔案上傳解析)
     "python-multipart>=0.0.31",
     # === Schema / Validation ===

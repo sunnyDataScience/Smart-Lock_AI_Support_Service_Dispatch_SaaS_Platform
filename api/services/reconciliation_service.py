@@ -216,4 +216,24 @@ async def approve_reconciliation(
     r_row = await cur.fetchone()
     reconciliation = _row_to_dict(r_row)
 
+    # CR-0166 R4：dual-write commission.accrued 事件（ADR-017：品牌 Billing 算佣金→
+    # 發事件→技師平台 Settlement 訂閱做跨品牌對帳）。fail-soft；settlement 表為保底。
+    try:
+        from core.event_bus import TOPIC_COMMISSION_ACCRUED, publish_event
+        await publish_event(
+            TOPIC_COMMISSION_ACCRUED,
+            {
+                "tenant_id": tenant_id,
+                "reconciliation_id": recon_id,
+                "settlement_id": settlement["id"],
+                "technician_id": technician_id,
+                "amount": settlement["amount"],
+                "currency": settlement["currency"],
+                "accrued_at": settlement.get("created_at"),
+            },
+            key=technician_id,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("event publish commission.accrued failed (non-fatal)")
+
     return {"reconciliation": reconciliation, "settlement": settlement}
