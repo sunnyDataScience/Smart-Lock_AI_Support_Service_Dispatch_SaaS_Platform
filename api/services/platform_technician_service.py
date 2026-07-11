@@ -103,11 +103,12 @@ async def reject_onboarding(
     )
 
 
-async def suspend(*, tech_id: str, actor_user_id: str, reason: str, notes: str | None = None) -> dict:
+async def suspend(*, tech_id: str, actor_user_id: str, reason: str,
+                  notes: str | None = None, force: bool = False) -> dict:
     tenant_id = await _resolve_tenant_id(tech_id)
     return await lifecycle_svc.suspend(
         tenant_id=tenant_id, tech_id=tech_id, actor_user_id=actor_user_id,
-        actor_role=_ACTOR_ROLE, reason=reason, notes=notes,
+        actor_role=_ACTOR_ROLE, reason=reason, notes=notes, force=force,
     )
 
 

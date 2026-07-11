@@ -175,3 +175,5 @@
 - ✅ S4 done（branch fix/cr0164-family-gate）：C 家族覆核硬 gate（adopt 無 action='approved' 覆核 → 425；衝突①裁定硬 gate）；新測 3＋sop/family 迴歸綠。
 - ✅ S5 done（branch fix/cr0164-tech-mirror-pii）：B tech_mirror users 投影白名單（不含憑證/PII）+ 技師登入 lookup 改讀權威庫 + 防呆回填腳本（非 migration，防單庫誤清）；217 auth/mirror 迴歸綠 + live 拆庫技師登入 200。
 - ✅ S6 done（branch fix/cr0164-orphan-wo）：E 停權/終止孤兒工單偵測+阻擋（suspend 軟阻擋可 force、terminate 硬阻擋，復用 reassign）；新測 4＋lifecycle 迴歸 21 綠。
+- ✅ S7 done（branch fix/cr0164-rma-retention）：F#6 RMA 證據保留 2y→3y（衝突②裁定 NFR 為正典，推翻 Q027）；新測 2＋media/retention 迴歸 51 綠。
+- ✅ CR-0164 本輪紅線範圍全數完成（S1–S7）。F 群其餘（webhook 去重/owner_role_codes/保護層/header-JWT/PII 遮蔽）＋F#7（F4 3-strike 文件銷案）＋refinery publisher 第二軌 gate＋audit 並發競態＋品牌授權撤證 live API 依裁決延 M3。
