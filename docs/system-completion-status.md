@@ -3,7 +3,9 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-11（**repo 佈局重整（CR-0157）**，branch `refactor/knowledge-domain-relayout` — 業主裁決三案：①api 四拆選 **C 不拆**（API_SURFACE 三實例＋三庫分離已達成部署分離；調查實證 5 個 brand↔tech 共用 router 恰為工單核心、49 個 router 無站台使用、landing 零 API 消費；v1 cutover／domain 邊界顯式化排 roadmap 前置）②rag→`agent/rag/`＋refinery→`knowledge-pipeline/refinery/` 原子搬遷（workspace＋uv.lock＋三 Dockerfile＋compose＋MCP cwd；**7 支 parents[2]→[3]** 修靜默錯位）③CI 缺口補強（uv-lock-check／docker-build-smoke 補 refinery、component-nightly 納 rag+refinery 測試）＋stale dev 腳本清理。驗證：agent 186＋rag 7＋refinery 23＋三 image build＋MCP 冒煙全綠。另立 CR-0158/0159 兩既有 bug 待排程。）
+**最後更新：** 2026-07-11（**文件檢視快取化＋tier-4 清理**，branch `chore/docs-view-cleanup` — docs_html/ 轉純生成快取（.gitignore；沿用 0708「正典無鏡像」決議不重建鏡像）＋新 `scripts/dev/gen_enterprise_view.py` 一鍵渲染 smartlock-docs 60 頁 HTML view（每頁標生成時間＋「以 .md 為準」警語；Playwright 驗渲染）；`docs/4-exploration/` 依 0707 決議清 30 份已收案 CR（git 歷史保留；留 CR-0145 待決／CR-0157 引用源／CR-0158/0159 backlog）；completion-status 本檔與 docs/20260709 素材保留。）
+
+**前一次更新：** 2026-07-11（**repo 佈局重整（CR-0157）**，branch `refactor/knowledge-domain-relayout` — 業主裁決三案：①api 四拆選 **C 不拆**（API_SURFACE 三實例＋三庫分離已達成部署分離；調查實證 5 個 brand↔tech 共用 router 恰為工單核心、49 個 router 無站台使用、landing 零 API 消費；v1 cutover／domain 邊界顯式化排 roadmap 前置）②rag→`agent/rag/`＋refinery→`knowledge-pipeline/refinery/` 原子搬遷（workspace＋uv.lock＋三 Dockerfile＋compose＋MCP cwd；**7 支 parents[2]→[3]** 修靜默錯位）③CI 缺口補強（uv-lock-check／docker-build-smoke 補 refinery、component-nightly 納 rag+refinery 測試）＋stale dev 腳本清理。驗證：agent 186＋rag 7＋refinery 23＋三 image build＋MCP 冒煙全綠。另立 CR-0158/0159 兩既有 bug 待排程。）
 
 **前一次更新：** 2026-07-10（**DB 連線池落地（CR-0154 選項 A）**，branch `feat/db-connection-pool` — request-scoped ContextVar 池＋property 攔截（660 呼叫點零改動、交易語意保留）＋kill-switch；SIT 1767 綠＋live 雙實例實證。順修 compose-db-init seed 漏項。）
 
