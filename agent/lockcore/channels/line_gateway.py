@@ -218,14 +218,37 @@ def _encode_media_for_persist(media_paths: list[str] | None) -> dict:
         return {}
 
 
+async def _classify_sentiment_safe(loop: Any, customer_text: str) -> dict | None:
+    """CR-0166 R2：turn 內判定客戶情緒（K3'）。失敗回 None（絕不影響回覆/持久化）。
+    只在偵測到「負面」時回 payload（節省——中性/正面無需告警）。"""
+    if not (customer_text or "").strip():
+        return None
+    try:
+        from lockcore.agent.sentiment import classify_sentiment
+        provider = getattr(loop, "provider", None)
+        model = getattr(loop, "model", None)
+        if provider is None:
+            return None
+        res = await classify_sentiment(provider, customer_text, model=model)
+        if not res.is_negative:
+            return None
+        return {"label": res.label, "confidence": res.confidence, "keywords": res.keywords}
+    except Exception:  # noqa: BLE001
+        logger.warning("sentiment 判定失敗（略過告警）", exc_info=True)
+        return None
+
+
 async def _persist_turn_safe(
     tenant: str, user_id: str, user_text: str, assistant_text: str,
     media_paths: list[str] | None = None,
+    sentiment: dict | None = None,
 ) -> None:
     """Fire-and-forget 旁路持久化一輪對話到 API。任何失敗只 log,不 raise。
 
     media_paths(CR-0119):本輪客人照片的本機路徑 → base64 隨 payload 送 API 落地
     media_service,讓對話管理頁能顯示照片(agent 本機檔案雲端重啟即失,不能只留路徑)。
+    sentiment(CR-0166 R2):agent 於 turn 內判定的客戶情緒(label/confidence/keywords),
+    負面時 API 端寫 sentiment_alerts + 通知管理層(K3'/合約 4.4a)。
     """
     base_url = os.environ.get("LOCK_API_BASE_URL")
     # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 會留 \n），
@@ -241,6 +264,10 @@ async def _persist_turn_safe(
         "assistant_text": assistant_text or "",
         **_encode_media_for_persist(media_paths),
     }
+    if sentiment:
+        payload["sentiment_label"] = sentiment.get("label")
+        payload["sentiment_confidence"] = sentiment.get("confidence")
+        payload["sentiment_keywords"] = sentiment.get("keywords")
     await _flush_persist_spool(base_url, token)  # 先補送歷史失敗（best-effort）
     ok = await _post_ingest(base_url, token, payload)
     if not ok:
@@ -807,15 +834,18 @@ def build_webapp(
         )
         all_media = [p for i in items for p in (i.get("media") or [])]
 
-        async def _persist_items(assistant_text: str) -> None:
+        async def _persist_items(assistant_text: str, sentiment: dict | None = None) -> None:
             for idx, it in enumerate(items):
                 text_i = (it.get("text") or "").strip() or (
                     "[照片]" if it.get("media") else ""
                 )
+                last = idx == len(items) - 1
                 await _persist_turn_safe(
                     tenant, user_id, text_i,
-                    assistant_text if idx == len(items) - 1 else "",
+                    assistant_text if last else "",
                     media_paths=it.get("media") or None,
+                    # 情緒只掛最後一則（避免同 turn 多則重複告警）
+                    sentiment=sentiment if last else None,
                 )
 
         # CR-0024:接管中 → 不跑 turn,逐則持久化 + 節流「請稍候」安撫
@@ -846,10 +876,13 @@ def build_webapp(
                 await _send_text(user_id, reply_token, reply)
             except Exception:  # noqa: BLE001 — 回覆失敗仍要持久化,客服才看得到斷點
                 logger.exception("LINE 回覆送出失敗(reply+push 皆敗)")
+        # CR-0166 R2:turn 內判定客戶情緒(K3'/合約 4.4a),負面隨持久化送 API 告警。
+        # best-effort:失敗回 None,不影響持久化。
+        sentiment_payload = await _classify_sentiment_safe(loop, merged_text)
         # 回覆送出後再旁路(皆 fail-soft):(1) 方案 A 對話持久化 (2) CR-0097
         # 兜底:AI 承諾轉接卻沒呼叫工具 → 補 escalation (3) CR-0022 轉真人
         # → 建 AI 草擬問題卡(以合併文字為快照)。
-        await _persist_items(reply)
+        await _persist_items(reply, sentiment=sentiment_payload)
         merged_persist = merged_text or ("[照片]" if all_media else "")
         _apply_handoff_fallback_safe(
             escalation_store, tenant, user_id, merged_persist, reply, esc_before

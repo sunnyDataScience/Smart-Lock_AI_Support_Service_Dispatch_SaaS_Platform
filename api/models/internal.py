@@ -38,6 +38,11 @@ class IngestTurnRequest(BaseModel):
     # base64 原檔（解碼後上限沿用 media_service 20 MiB）；mime 由 gateway magic bytes 判定。
     media_base64: str | None = Field(default=None)
     media_mime: str | None = Field(default=None, max_length=100)
+    # CR-0166 R2：agent 於 turn 內判定的客戶情緒（K3'/合約 4.4a）。負面 → api 寫
+    # sentiment_alerts + 通知管理層。選填 additive —— 未帶時不告警。
+    sentiment_label: str | None = Field(default=None, max_length=20)
+    sentiment_confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    sentiment_keywords: list[str] | None = Field(default=None)
 
 
 class EscalationIngestRequest(BaseModel):
