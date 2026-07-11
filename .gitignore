@@ -19,6 +19,10 @@ venv/
 agent/rag/uv.lock
 knowledge-pipeline/refinery/uv.lock
 
+# 生成的文件檢視快取（tier-5 view；正典=smartlock-docs/*.md 與 docs/ 報告素材）
+# 重生：scripts/dev/gen_enterprise_view.py（企業文件）/ gen_docs_html.py（報告素材）
+docs_html/
+
 # Node
 node_modules/
 .next/
