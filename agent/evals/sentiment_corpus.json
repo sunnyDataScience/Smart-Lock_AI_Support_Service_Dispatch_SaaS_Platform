@@ -1,0 +1,729 @@
+{
+ "_meta": {
+  "purpose": "K3' 負面情緒識別驗收（合約4.4a，≥90%）",
+  "source": "CR-0166 R2 workflow-generated 2026-07-12",
+  "total": 120
+ },
+ "cases": [
+  {
+   "text": "門鎖又當機了！我人在外面進不去家門，你們這什麼爛產品啊",
+   "label": "negative",
+   "group": "anger",
+   "note": "產品故障被鎖門外，直白憤怒抱怨"
+  },
+  {
+   "text": "師傅約兩點結果現在三點半人咧？我特地請假在家等，是在搞什麼",
+   "label": "negative",
+   "group": "anger",
+   "note": "師傅遲到、浪費客戶請假時間的不滿"
+  },
+  {
+   "text": "換個電池模組要收3500？搶劫喔！外面隨便找都不用這個價",
+   "label": "negative",
+   "group": "anger",
+   "note": "報價過高罵人，比價後的憤怒"
+  },
+  {
+   "text": "上禮拜才來修過，今天又鎖不起來，到底有沒有修好啊，一直來一直壞是怎樣",
+   "label": "negative",
+   "group": "anger",
+   "note": "維修後復發，重複故障的抱怨"
+  },
+  {
+   "text": "你們那個師傅態度有夠差，問他問題還嗆我，這什麼服務態度",
+   "label": "negative",
+   "group": "anger",
+   "note": "抱怨技師服務態度差"
+  },
+  {
+   "text": "我不要再修了，直接退費！不退我就找消保官投訴，你們自己看著辦",
+   "label": "very_negative",
+   "group": "anger",
+   "note": "要求退費＋威脅消保官投訴"
+  },
+  {
+   "text": "再處理不好我就PO爆料公社跟找記者，讓大家看看你們什麼爛公司",
+   "label": "very_negative",
+   "group": "anger",
+   "note": "威脅公開爆料、找媒體"
+  },
+  {
+   "text": "靠北欸，指紋感應又失靈，一家老小站在門口吹風十分鐘",
+   "label": "negative",
+   "group": "anger",
+   "note": "台語借音「靠北」，指紋失靈全家被擋門外"
+  },
+  {
+   "text": "是在哈囉？密碼明明對的一直說錯誤，氣死ㄌ",
+   "label": "negative",
+   "group": "anger",
+   "note": "口語「是在哈囉」＋注音文，密碼驗證失靈"
+  },
+  {
+   "text": "才換電池不到一個月又沒電，你們電池是裝飾用的喔",
+   "label": "negative",
+   "group": "anger",
+   "note": "電池品質差，反諷式抱怨"
+  },
+  {
+   "text": "APP又連不上，遠端開鎖根本不能用，當初業務吹得多厲害，結果咧",
+   "label": "negative",
+   "group": "anger",
+   "note": "App 功能失效，抱怨業務誇大不實"
+  },
+  {
+   "text": "小孩被鎖在門外一小時你們知道多危險嗎？我已經找律師了，等著收存證信函吧",
+   "label": "very_negative",
+   "group": "anger",
+   "note": "涉及孩童安全＋明確法律威脅（存證信函）"
+  },
+  {
+   "text": "傳訊息給你們三天了都沒人回，這客服是死了嗎",
+   "label": "negative",
+   "group": "anger",
+   "note": "客服已讀不回，粗話式憤怒"
+  },
+  {
+   "text": "半夜十二點門鎖一直嗶嗶叫吵到鄰居報警，到底什麼鬼產品",
+   "label": "negative",
+   "group": "anger",
+   "note": "產品異常警報擾鄰，強烈抱怨"
+  },
+  {
+   "text": "限你們三天內全額退費，不然我直接告到底，我朋友是律師",
+   "label": "very_negative",
+   "group": "anger",
+   "note": "限期退費＋提告威脅"
+  },
+  {
+   "text": "明明還在保固內卻跟我收維修費？你們是詐騙集團嗎",
+   "label": "negative",
+   "group": "anger",
+   "note": "保固糾紛，指控詐騙的憤怒質問"
+  },
+  {
+   "text": "第二次放我鴿子了欸，約好時間人不來電話也不接，當客人塑膠喔",
+   "label": "negative",
+   "group": "anger",
+   "note": "重複爽約，台式口語「當塑膠」"
+  },
+  {
+   "text": "有夠機掰，門打不開還叫我自己爬窗，這是客服會講的話？",
+   "label": "negative",
+   "group": "anger",
+   "note": "髒話代稱「機掰」，抱怨客服離譜回應"
+  },
+  {
+   "text": "今天不給我個交代，我就每個平台都給一星，再寄信給蘋果新聞爆料",
+   "label": "very_negative",
+   "group": "anger",
+   "note": "威脅負評轟炸＋向媒體爆料"
+  },
+  {
+   "text": "師傅裝鎖把我整片門鑽壞，現在推說不關他的事？誰要賠？",
+   "label": "negative",
+   "group": "anger",
+   "note": "施工損壞財物又推責，要求賠償的憤怒"
+  },
+  {
+   "text": "外面下大雨我抱著小孩刷了十幾次都開不了，你們產品到底行不行",
+   "label": "negative",
+   "group": "anger",
+   "note": "惡劣情境下產品失靈，質疑產品可靠度"
+  },
+  {
+   "text": "當初說舊鎖折抵五千，帳單根本沒折，把我當盤子？",
+   "label": "negative",
+   "group": "anger",
+   "note": "促銷承諾未兌現，「當盤子」台式口語"
+  },
+  {
+   "text": "已經跟1950消保專線申訴了，你們等公文吧，爛公司",
+   "label": "very_negative",
+   "group": "anger",
+   "note": "已實際向消保單位申訴＋辱罵"
+  },
+  {
+   "text": "打客服電話轉了四個人沒一個能處理，是要我講幾遍一樣的話",
+   "label": "negative",
+   "group": "anger",
+   "note": "客服流程踢皮球的不滿"
+  },
+  {
+   "text": "傻眼，預約系統顯示成功結果師傅根本沒收到單，我白等一個下午",
+   "label": "negative",
+   "group": "anger",
+   "note": "系統派單失誤浪費客戶時間"
+  },
+  {
+   "text": "什麼？遠端開鎖功能還要另外月租費？賣的時候怎麼不講，坑人啊",
+   "label": "negative",
+   "group": "anger",
+   "note": "隱藏收費爭議，指控坑人"
+  },
+  {
+   "text": "門被你們修到整組不能用，全額退費加賠償，不然法院見",
+   "label": "very_negative",
+   "group": "anger",
+   "note": "越修越壞，要求退費賠償＋法院威脅"
+  },
+  {
+   "text": "恁這服務有夠瞎，報修等一個禮拜是要人怎麼住？",
+   "label": "negative",
+   "group": "anger",
+   "note": "台語語感「恁」「有夠瞎」，抱怨報修排程過久"
+  },
+  {
+   "text": "鎖自己打開是怎樣？家裡遭小偷誰負責？我快氣炸了",
+   "label": "negative",
+   "group": "anger",
+   "note": "安全性重大疑慮引發的憤怒與追責"
+  },
+  {
+   "text": "這鎖用三個月壞四次，我要退貨退錢，不處理我直接找電視台記者來拍",
+   "label": "very_negative",
+   "group": "anger",
+   "note": "要求退貨退款＋威脅找電視媒體"
+  },
+  {
+   "text": "我跟你們說最後一次，今天下午五點前沒人來處理，我直接找律師發存證信函，大家法院見",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "最後通牒＋律師威脅＋提告"
+  },
+  {
+   "text": "這什麼爛鎖啊裝三個月壞兩次，我要退費！全額退！不然我天天去你們粉專留言",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "辱罵產品＋退費要求＋公開鬧場威脅"
+  },
+  {
+   "text": "我已經打給消保官檢舉了，你們自己看著辦",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "已實際向消保官申訴"
+  },
+  {
+   "text": "靠北欸 門打不開害我全家站在外面兩個小時 這條損失誰要賠？講清楚",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "台語粗話＋求償追責"
+  },
+  {
+   "text": "昨天師傅來裝完今天就故障，是在哈囉？叫你們主管出來講",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "強烈不滿＋要求上級出面"
+  },
+  {
+   "text": "我朋友是記者，再擺爛我就請他寫一篇智慧鎖把人鎖在門外的報導，附上你們品牌名字",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "媒體爆料威脅點名品牌"
+  },
+  {
+   "text": "Google評論我已經給一星了，寫得很詳細，包含你們客服已讀不回的截圖",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "已付諸行動的一星負評＋公開截圖"
+  },
+  {
+   "text": "請問這個瑕疵品要找誰負責？我需要一個正式的說法，不然只好走消基會申訴",
+   "label": "negative",
+   "group": "complaint",
+   "note": "語氣仍克制的追責，申訴僅為備案"
+  },
+  {
+   "text": "機掰勒 花兩萬多買的鎖用不到半年 主機板燒掉還要我自費換？想錢想瘋了吧 我要申訴到底",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "髒話＋控訴收費不當＋申訴到底"
+  },
+  {
+   "text": "已經第四次報修了喔，同一個問題，你們是要修到我po上爆料公社才會認真嗎",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "重複故障累積怒氣＋爆料威脅"
+  },
+  {
+   "text": "我先生說直接提告了，維修紀錄、對話截圖我們都留著，你們法務可以準備一下",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "明確提告意圖＋已蒐證"
+  },
+  {
+   "text": "退貨退款流程給我，今天就要，不要再叫我等工程師回報，我等三天了",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "強硬退款要求＋不耐煩已達頂點"
+  },
+  {
+   "text": "這樣的服務品質收這種價錢？我會在公司行號的採購群組通知大家別踩雷",
+   "label": "negative",
+   "group": "complaint",
+   "note": "不滿＋口碑抵制，但無提告求償等升級"
+  },
+  {
+   "text": "小孩被鎖在家裡出不來你們知道多危險嗎？？我一定追究到底，該賠的一毛都跑不掉",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "涉及孩童安全＋強烈求償"
+  },
+  {
+   "text": "你們官網寫終身保固，現在跟我說要收檢測費2500？這是詐欺吧，我要去公平會檢舉不實廣告",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "指控詐欺＋公平會檢舉威脅"
+  },
+  {
+   "text": "ㄍㄢˋ 半夜門鎖自己一直嗶嗶叫吵到鄰居報警 這精神損失誰賠 我跟你們沒完",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "注音髒話＋精神求償＋沒完沒了"
+  },
+  {
+   "text": "不用再道歉了，我要的是書面的賠償方案，今天沒有我就寄存證信函",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "拒絕安撫＋限期賠償＋存證信函"
+  },
+  {
+   "text": "當初業務講得天花亂墜，現在出事一個推一個，到底誰要負責？給我一個窗口",
+   "label": "negative",
+   "group": "complaint",
+   "note": "抱怨互踢皮球要窗口，未升級到法律行動"
+  },
+  {
+   "text": "我家被小偷光顧就是因為你們的鎖被打開，警察都來過了，報案三聯單在我手上，準備收律師函吧",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "重大損失＋已報案＋律師函威脅"
+  },
+  {
+   "text": "一星評論加PTT加Dcard我都發了，文章連結要嗎？寫得很清楚你們怎麼處理客訴的",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "多平台負評已發文，公開施壓"
+  },
+  {
+   "text": "今天不給我全額退費，明天我就帶著鎖去你們公司門口舉牌，順便開直播",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "退費最後通牒＋舉牌直播威脅"
+  },
+  {
+   "text": "消保法七天鑑賞期你們不會不知道吧？裝了才三天就要求退貨被拒絕，我已經填好1950申訴表單了",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "引用消保法＋已提交1950申訴"
+  },
+  {
+   "text": "維修師傅遲到兩小時還把我門框刮花，這條要算誰的？拍照存證了，給個說法",
+   "label": "negative",
+   "group": "complaint",
+   "note": "財損追責＋存證，語氣不滿但尚未威脅升級"
+  },
+  {
+   "text": "別再罐頭回覆了好嗎，轉真人，我要客訴你們家的安裝師傅態度差還亂收費",
+   "label": "negative",
+   "group": "complaint",
+   "note": "明確客訴意圖＋不耐，未涉法律威脅"
+  },
+  {
+   "text": "我是替我媽處理的，老人家被你們搞到睡不著，再拖下去我直接找議員服務處陳情",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "家人受害＋民代陳情威脅"
+  },
+  {
+   "text": "同一批貨我們社區裝了十幾戶，壞了六戶，管委會已經決議要集體求償，你們最好正面回應",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "集體求償已決議，事態嚴重"
+  },
+  {
+   "text": "呵呵 保固內壞掉說人為損壞不保 證據呢？拿不出鑑定報告我就法院見",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "冷嘲＋質疑判定＋提告威脅"
+  },
+  {
+   "text": "上次來的工程師弄壞我的門還不承認，這次再派他來我直接錄影存證告毀損",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "指控毀損＋預告提告蒐證"
+  },
+  {
+   "text": "客訴單號 #38271 兩個禮拜沒人理，是要我找媒體爆料才有人動作嗎",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "長期未處理＋媒體爆料威脅"
+  },
+  {
+   "text": "換貨換到第三顆還是會斷線，我合理懷疑整批都瑕疵，要嘛退錢要嘛換別的型號，不然就消保官見",
+   "label": "very_negative",
+   "group": "complaint",
+   "note": "重複瑕疵＋退款要求＋消保官威脅"
+  },
+  {
+   "text": "師傅不是說下午兩點會到嗎?現在都三點半了,連通電話都沒有,是不是忘記我這單了?",
+   "label": "negative",
+   "group": "mild",
+   "note": "催促＋質疑被遺忘，語氣不耐但未罵人"
+  },
+  {
+   "text": "上禮拜才修過,今天又開始嗶嗶叫,有點傻眼欸,到底有沒有修好啊",
+   "label": "negative",
+   "group": "mild",
+   "note": "維修復發的質疑，「有點傻眼」屬輕度不滿"
+  },
+  {
+   "text": "我昨天就傳訊息問報價了,到現在都沒人回,你們客服都這麼慢嗎?",
+   "label": "negative",
+   "group": "mild",
+   "note": "回覆慢的催促與抱怨，無攻擊性字眼"
+  },
+  {
+   "text": "指紋辨識十次有八次失敗,每天站在門口按半天,真的有點累了…",
+   "label": "negative",
+   "group": "mild",
+   "note": "產品體驗差的無奈疲憊感"
+  },
+  {
+   "text": "說好零件三天到,現在第五天了還沒消息,全家只能走側門,麻煩幫我催一下好嗎",
+   "label": "negative",
+   "group": "mild",
+   "note": "延遲造成不便的催促，仍保持禮貌"
+  },
+  {
+   "text": "換了新電池還是一直跳低電量警告,不太懂為什麼,這樣正常嗎?感覺怪怪的",
+   "label": "negative",
+   "group": "mild",
+   "note": "困惑帶輕微質疑，情緒低度負面"
+  },
+  {
+   "text": "安裝完師傅走了才發現門關起來卡卡的,要用力推才鎖得上,做工是不是有點隨便?",
+   "label": "negative",
+   "group": "mild",
+   "note": "質疑施工品質，措辭保留但明顯不滿"
+  },
+  {
+   "text": "App又斷線了,這個月第三次,老實說我有點失望,當初就是看廣告說很穩才買的",
+   "label": "negative",
+   "group": "mild",
+   "note": "明講「有點失望」，期待落差"
+  },
+  {
+   "text": "等等,怎麼維修費比當初報價多了八百?可以跟我解釋一下多在哪嗎",
+   "label": "negative",
+   "group": "mild",
+   "note": "對費用落差的質疑，要求說明"
+  },
+  {
+   "text": "ㄟ我約的是今天早上耶,怎麼變成明天?我特地請假在家等的說…",
+   "label": "negative",
+   "group": "mild",
+   "note": "改期造成損失的無奈，注音口語"
+  },
+  {
+   "text": "已讀不回是怎樣= = 我只是想問保固到什麼時候而已",
+   "label": "negative",
+   "group": "mild",
+   "note": "已讀不回的輕度不耐，顏文字口語"
+  },
+  {
+   "text": "密碼鎖有時候按了沒反應,要按兩三次才行,才裝半年就這樣,品質好像沒有想像中好",
+   "label": "negative",
+   "group": "mild",
+   "note": "委婉的品質失望，無怒罵"
+  },
+  {
+   "text": "你們電話都打不通,LINE回又慢,想報修一個門鎖搞了兩天,流程可以簡單一點嗎",
+   "label": "negative",
+   "group": "mild",
+   "note": "抱怨流程繁瑣、聯繫困難的無奈"
+  },
+  {
+   "text": "師傅來看了一下說要回報公司就走了,然後呢?已經過三天都沒下文,我門還是鎖不緊欸",
+   "label": "negative",
+   "group": "mild",
+   "note": "追蹤無下文的催促與不滿"
+  },
+  {
+   "text": "這台不是說防水嗎?下大雨面板就怪怪的,跟門市講的不太一樣吧",
+   "label": "negative",
+   "group": "mild",
+   "note": "質疑宣稱與實際不符，語氣克制"
+  },
+  {
+   "text": "好吧…又要再等一週喔,你們的處理速度真的讓人有點無言",
+   "label": "negative",
+   "group": "mild",
+   "note": "接受但表達無奈，「有點無言」輕度負面"
+  },
+  {
+   "text": "遠端開門常常延遲十幾秒,客人站在門口等超尷尬,這樣我民宿是要怎麼用",
+   "label": "negative",
+   "group": "mild",
+   "note": "功能不穩影響營業的不滿與質疑"
+  },
+  {
+   "text": "上次客服說會有專人回電,結果等了兩天什麼都沒有,你們內部是不是沒交接啊?",
+   "label": "negative",
+   "group": "mild",
+   "note": "承諾跳票的質疑，未升級成怒罵"
+  },
+  {
+   "text": "電子鎖半夜自己嗶幾聲把小孩吵醒,問了兩次都說再觀察看看,到底要觀察到什麼時候",
+   "label": "negative",
+   "group": "mild",
+   "note": "問題拖延未解的無奈催促"
+  },
+  {
+   "text": "花快兩萬買的鎖用起來跟幾千塊的沒差多少,說真的有點小後悔",
+   "label": "negative",
+   "group": "mild",
+   "note": "價格與價值落差的失望，「小後悔」屬輕度"
+  },
+  {
+   "text": "你們服務真的好棒棒，指紋鎖裝三天就罷工，我都想頒獎給你們了",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "表面稱讚服務，實則抱怨產品三天就故障（反諷）"
+  },
+  {
+   "text": "效率超高的啦，報修到現在兩個禮拜了，師傅是用走的從高雄走上來嗎",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「效率超高」反話，實際抱怨維修等兩週"
+  },
+  {
+   "text": "太感謝了，半夜被鎖在門外吹風，多虧你們的智慧鎖讓我體驗露宿街頭",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「太感謝」實為控訴被鎖門外的嚴重故障"
+  },
+  {
+   "text": "品質真的沒話說，沒話說是因為壞到我不知道要從哪裡開始講",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "前半像稱讚，後半揭露是抱怨品質差的雙關反諷"
+  },
+  {
+   "text": "你們家電子鎖真聰明，聰明到連主人的指紋都不認得",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「聰明」反話，實際抱怨指紋辨識失效"
+  },
+  {
+   "text": "客服回覆速度一流喔，上禮拜問的問題到現在還沒人理，很可以",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「一流」「很可以」皆反話，抱怨客服已讀不回"
+  },
+  {
+   "text": "裝得真好，門鎖比我還會休息，三天兩頭就給我當機",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「裝得真好」反諷，實指鎖頻繁當機"
+  },
+  {
+   "text": "哇賽真是佛心企業，換個電池要收八百，搶劫都沒你們專業",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「佛心」「專業」反話，抱怨收費過高"
+  },
+  {
+   "text": "太厲害了，APP更新完直接開不了門，這波操作我給滿分",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「給滿分」是挖苦，實際抱怨更新導致無法開門"
+  },
+  {
+   "text": "師傅技術一流，裝完當天晚上就鎖不上，還好我家不怕小偷",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「技術一流」反諷安裝品質差、留下安全風險"
+  },
+  {
+   "text": "你們的保固真的很有誠意，什麼都不保，收錢倒是很準時",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「有誠意」反話，抱怨保固形同虛設"
+  },
+  {
+   "text": "感恩你們的智慧鎖，讓我全家學會爬窗戶，技能都點滿了",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「感恩」實為控訴常被鎖在門外只能爬窗"
+  },
+  {
+   "text": "回覆真快呢，已讀三天，是要我在門口搭帳篷等嗎 :)",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「真快」加笑臉符號的挖苦，抱怨已讀不回"
+  },
+  {
+   "text": "這鎖真的很安全，安全到連我自己都進不去，小偷看了都佩服",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「很安全」反諷，實指主人自己被拒於門外"
+  },
+  {
+   "text": "ㄏㄏ你們SOP真棒，轉了四個客服還在問我一樣的問題，很會",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「真棒」「很會」加注音文冷笑，抱怨客服流程鬼打牆"
+  },
+  {
+   "text": "密碼鎖超靈敏的，下雨天直接失靈，原來是晴天限定版喔，賺到了",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「超靈敏」「賺到了」反話，抱怨產品遇雨故障"
+  },
+  {
+   "text": "真的謝謝你們喔，說好今天到的師傅根本沒出現，我特地請假在家納涼",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「謝謝」反諷師傅放鳥、浪費請假"
+  },
+  {
+   "text": "機器人客服有夠聰明，問A答B，跟它聊天比開鎖還費力，笑死",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「有夠聰明」「笑死」是挖苦AI客服答非所問"
+  },
+  {
+   "text": "你們的產品體驗做得真好，好到我想直接換回傳統鑰匙，返璞歸真",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「做得真好」反話，寧願退回傳統鑰匙表達失望"
+  },
+  {
+   "text": "不得不說你們售後真的頂，門鎖壞第五次還能面不改色跟我說是正常磨合，我都想幫你們寫推薦文了",
+   "label": "negative",
+   "group": "sarcasm",
+   "note": "「真的頂」「寫推薦文」反諷，抱怨反覆故障且售後推託"
+  },
+  {
+   "text": "請問你們有做舊換新嗎？我家現在是傳統喇叭鎖，想換成電子鎖",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "一般換鎖詢問，無情緒詞彙，純粹想了解服務內容"
+  },
+  {
+   "text": "YDM4109想改密碼要怎麼用？說明書找不到了",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "產品操作詢問，語氣平淡，只是遺失說明書求教學"
+  },
+  {
+   "text": "你們有到台中嗎 我在北屯區",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "服務範圍確認，口語無標點，中性提問"
+  },
+  {
+   "text": "請問一下營業時間到幾點？想說下班後過去看實體",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "詢問營業時間並說明目的，無任何情緒"
+  },
+  {
+   "text": "想問報價流程～是要先約師傅來看現場嗎？還是拍照給你們就可以",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "報價流程詢問，語氣輕鬆友善偏中性"
+  },
+  {
+   "text": "三星跟Yale的電子鎖差在哪啊？預算大概一萬五左右",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "品牌比較與預算諮詢，購買前的一般資訊蒐集"
+  },
+  {
+   "text": "電子鎖沒電的話是不是可以用行動電源？我看網路上有人這樣講",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "功能求證型詢問，好奇確認資訊，無情緒"
+  },
+  {
+   "text": "請問安裝要多久時間？我禮拜六早上有空 可以約嗎",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "預約安裝的行程詢問，事務性訊息"
+  },
+  {
+   "text": "保固是幾年？如果之後搬家鎖要拆走可以嗎",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "保固條款與搬遷詢問，購前常見中性問題"
+  },
+  {
+   "text": "想加一張感應卡片要怎麼設定？家裡多一個人要用",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "新增卡片的操作教學需求，敘述家庭需求無情緒"
+  },
+  {
+   "text": "我們家門是那種舊式鐵門 也可以裝電子鎖嗎？門大概4公分厚",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "安裝相容性詢問，提供門的規格資訊，中性"
+  },
+  {
+   "text": "hi 想問一下你們過年有開嗎？初三左右想約換鎖",
+   "label": "neutral",
+   "group": "neutral",
+   "note": "節日營業與預約詢問，開頭打招呼語氣平和"
+  },
+  {
+   "text": "師傅今天超專業的！門鎖裝好還順便教我們全家設定指紋，真的揪甘心，大推👍",
+   "label": "positive",
+   "group": "positive",
+   "note": "真誠稱讚師傅專業＋台語借音「揪甘心」，無反諷語氣"
+  },
+  {
+   "text": "謝謝你們啦～昨天晚上才回報鎖卡卡的，今天一早就派人來修好了，速度有夠快",
+   "label": "positive",
+   "group": "positive",
+   "note": "感謝維修速度快，語氣輕鬆真心，是滿意非挖苦"
+  },
+  {
+   "text": "剛剛用新密碼開門成功了！設定比我想的簡單很多，客服解說得很清楚，感謝🙏",
+   "label": "positive",
+   "group": "positive",
+   "note": "問題解決後的真誠道謝，稱讚客服解說清楚"
+  },
+  {
+   "text": "阿姨我啦，上次來我們家裝鎖的那個年輕師傅很細心，進門還自己脫鞋，幫我跟他說聲辛苦了",
+   "label": "positive",
+   "group": "positive",
+   "note": "長輩口吻的真心稱讚與慰勞，情感正面"
+  },
+  {
+   "text": "解決了解決了！原來是電池接觸不良，照你們教的重新裝一次就好，省了一趟到府費，真的很感謝",
+   "label": "positive",
+   "group": "positive",
+   "note": "遠端排除故障成功，感謝中帶省錢的喜悅"
+  },
+  {
+   "text": "我妹家也想換電子鎖，我直接把你們官方LINE推給她了，你們服務真的沒話說",
+   "label": "positive",
+   "group": "positive",
+   "note": "主動推薦親友是高滿意度的典型訊號"
+  },
+  {
+   "text": "新鎖用兩個禮拜了都很順，之前半夜被鎖在門外的惡夢終於結束哈哈，謝謝你們",
+   "label": "positive",
+   "group": "positive",
+   "note": "使用一段時間後回報滿意，自嘲過去經驗但情緒是感謝"
+  },
+  {
+   "text": "師傅冒著大雨還準時過來處理，真的很不好意思，辛苦了！門鎖現在超好用，給你們五星⭐",
+   "label": "positive",
+   "group": "positive",
+   "note": "體恤師傅辛勞＋明確給五星好評，真心無挖苦"
+  }
+ ]
+}

@@ -297,6 +297,48 @@ async def _store_ingest_media(
         return None
 
 
+async def _maybe_write_sentiment_alert(
+    *, tenant_id: str, conv_id: str, user_text: str,
+    sentiment_label: str | None, sentiment_confidence: float | None,
+    sentiment_keywords: list[str] | None,
+) -> None:
+    """CR-0166 R2：負面情緒 → 寫 sentiment_alerts + 通知管理層（K3'/合約 4.4a）。
+    best-effort：任何失敗只 log，不阻斷對話持久化。"""
+    if sentiment_label not in ("negative", "very_negative"):
+        return
+    try:
+        cur = await db_module._conn.execute(
+            "INSERT INTO sentiment_alerts "
+            "  (conversation_id, consumer_message, sentiment_label, confidence, detected_keywords) "
+            "VALUES (%s::uuid, %s, %s, %s, %s) RETURNING id",
+            (conv_id, (user_text or "")[:500], sentiment_label,
+             max(0.0, min(1.0, sentiment_confidence or 0.6)),
+             sentiment_keywords or []),
+        )
+        row = await cur.fetchone()
+        alert_id = str(row[0]) if row else None
+        # 通知該租戶管理層（best-effort）
+        ncur = await db_module._conn.execute(
+            "SELECT id FROM users WHERE tenant_id = %s::uuid "
+            "AND role = ANY(%s) AND is_active = TRUE",
+            (tenant_id, ["admin", "super_admin", "operations_manager"]),
+        )
+        from services import notification_service
+        for (uid,) in await ncur.fetchall():
+            await notification_service.push_notification(
+                {
+                    "target_type": "user", "target_id": str(uid),
+                    "kind": "sentiment_alert",
+                    "title": "負面情緒告警",
+                    "body": f"客戶對話出現負面情緒（{sentiment_label}），請關注並適時介入。",
+                },
+                tenant_id=tenant_id,
+            )
+        logger.info("sentiment alert %s written (label=%s)", (alert_id or "?")[:8], sentiment_label)
+    except Exception:  # noqa: BLE001
+        logger.exception("sentiment alert 寫入失敗（non-fatal）")
+
+
 async def ingest_turn(
     *,
     tenant_id: str,
@@ -307,6 +349,9 @@ async def ingest_turn(
     display_name: str | None = None,
     media_base64: str | None = None,
     media_mime: str | None = None,
+    sentiment_label: str | None = None,
+    sentiment_confidence: float | None = None,
+    sentiment_keywords: list[str] | None = None,
 ) -> dict:
     """旁路持久化一輪 LINE 對話（方案 A，由 agent gateway 經 internal token 呼叫）。
 
@@ -362,6 +407,13 @@ async def ingest_turn(
             "WHERE id = %s::uuid",
             (appended, conv_id),
         )
+
+    # CR-0166 R2：agent 於 turn 內判定的情緒隨 ingest 傳來 → 負面則告警（K3'）
+    await _maybe_write_sentiment_alert(
+        tenant_id=tenant_id, conv_id=conv_id, user_text=user_text,
+        sentiment_label=sentiment_label, sentiment_confidence=sentiment_confidence,
+        sentiment_keywords=sentiment_keywords,
+    )
 
     return {"conversation_id": conv_id, "messages_appended": appended}
 
