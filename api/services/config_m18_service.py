@@ -141,7 +141,9 @@ async def _get_namespace_schema(namespace: str) -> dict:
 
 # CR-0166 R1-6/R1-7：admin 永遠可寫（全權治理角色；owner_role_codes 語意＝
 # 「除 admin 外的授權 owner」）。
-_ADMIN_BYPASS_ROLES = frozenset({"admin", "super_admin"})
+# UAT wave4 校正：移除死角色 super_admin（SA-01/CR-0130 已全面移除）——殘存死角色
+# token 不應在任何守衛被放行，與裁決文字對齊（router 靜態 gate 本就不含它，此為 defense-in-depth）。
+_ADMIN_BYPASS_ROLES = frozenset({"admin"})
 
 
 async def _assert_namespace_writable(
