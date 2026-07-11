@@ -2565,6 +2565,7 @@
         "photoBefore": "+ Before",
         "photoDuring": "+ During",
         "photoAfter": "+ After",
+        "photoRemove": "Remove photo",
         "errorSummaryShort": "Please enter a completion summary (at least 5 characters)",
         "submit": "Submit completion",
         "submitting": "Submitting…",

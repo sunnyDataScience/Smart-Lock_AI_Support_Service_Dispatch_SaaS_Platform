@@ -82,7 +82,15 @@ export default function MyOrderDetailPage() {
   const [arriving, setArriving] = useState(false);
   const [arriveError, setArriveError] = useState<string | null>(null);
   const [completionPhotos, setCompletionPhotos] = useState<
-    { section: "before" | "during" | "after"; id: string; url: string; filename: string }[]
+    {
+      section: "before" | "during" | "after";
+      id: string;
+      url: string;
+      filename: string;
+      // 本地縮圖預覽（URL.createObjectURL）——伺服器 /media/{id} 讀取需帶
+      // auth header，<img src> 直連會 401，故預覽用上傳當下的本地檔案。
+      previewUrl: string;
+    }[]
   >([]);
   const [photoUploading, setPhotoUploading] = useState<
     "before" | "during" | "after" | null
@@ -146,6 +154,7 @@ export default function MyOrderDetailPage() {
     if (!wo) return;
     setPhotoUploading(section);
     setSubmitError(null);
+    const previewUrl = URL.createObjectURL(file);
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -163,13 +172,23 @@ export default function MyOrderDetailPage() {
           id: res.id,
           url: res.url,
           filename: res.filename,
+          previewUrl,
         },
       ]);
     } catch (e) {
+      URL.revokeObjectURL(previewUrl);
       setSubmitError(formatErr(e));
     } finally {
       setPhotoUploading(null);
     }
+  }
+
+  function removeCompletionPhoto(photoId: string) {
+    setCompletionPhotos((prev) => {
+      const target = prev.find((p) => p.id === photoId);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.id !== photoId);
+    });
   }
 
   async function submitCompletion() {
@@ -610,14 +629,39 @@ export default function MyOrderDetailPage() {
                   ))}
                 </div>
                 {completionPhotos.length > 0 && (
-                  <div className="flex flex-wrap gap-1 text-[11px] text-[var(--text-secondary)]">
+                  <div className="flex flex-wrap gap-2">
                     {completionPhotos.map((p) => (
-                      <span
-                        key={p.id}
-                        className="rounded-full bg-[var(--surface-strong)] px-2 py-[2px]"
-                      >
-                        [{p.section}] {p.filename.slice(0, 16)}
-                      </span>
+                      <div key={p.id} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- 本地 objectURL 預覽，非遠端資源 */}
+                        <img
+                          src={p.previewUrl}
+                          alt={`${tForm(
+                            p.section === "before"
+                              ? "photoBefore"
+                              : p.section === "during"
+                                ? "photoDuring"
+                                : "photoAfter",
+                          )} — ${p.filename}`}
+                          className="h-20 w-20 rounded-md border border-[var(--border)] object-cover"
+                        />
+                        <span className="absolute bottom-0 left-0 rounded-tr-md rounded-bl-md bg-black/55 px-1.5 py-[1px] text-[10px] text-white">
+                          {tForm(
+                            p.section === "before"
+                              ? "photoBefore"
+                              : p.section === "during"
+                                ? "photoDuring"
+                                : "photoAfter",
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeCompletionPhoto(p.id)}
+                          aria-label={tForm("photoRemove")}
+                          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--text-primary)] text-[11px] leading-none text-[var(--bg-surface)] shadow"
+                        >
+                          ×
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}

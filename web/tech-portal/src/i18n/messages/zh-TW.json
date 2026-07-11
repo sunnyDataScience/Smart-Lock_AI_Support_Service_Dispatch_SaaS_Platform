@@ -2565,6 +2565,7 @@
         "photoBefore": "+ 施工前",
         "photoDuring": "+ 施工中",
         "photoAfter": "+ 施工後",
+        "photoRemove": "移除照片",
         "errorSummaryShort": "請輸入完工摘要（至少 5 字）",
         "submit": "提交完工",
         "submitting": "提交中…",

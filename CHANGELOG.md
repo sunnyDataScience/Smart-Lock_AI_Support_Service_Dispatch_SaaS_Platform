@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **師傅完工照上傳後無預覽（branch `fix/tech-photo-preview`，2026-07-11）**：業主 UAT 實測——施工照上傳成功後只顯示文字 chip（`[before] 檔名`），看不到照片內容。Root cause：伺服器 `/media/{id}` 讀取需帶 auth header，`<img src>` 直連會 401，原實作乾脆不做預覽。修：上傳當下以 `URL.createObjectURL` 本地縮圖預覽（80px 縮圖＋施工前/中/後標籤浮貼＋移除鈕；移除同步撤 objectURL 防記憶體洩漏、失敗即時撤銷）。驗證：tech tsc 0＋容器重建＋Playwright 實測上傳→縮圖可見（截圖確認）→移除→計數歸零。
+
 - **師傅註冊重複 Email 誤顯「目前狀態無法執行此操作」（branch `fix/login-error-message`，2026-07-11）**：業主 UAT 實測——tech-register 用已註冊過的 Email 送出，看到 409 通用回退話術，完全看不出原因。Root cause：後端 `EMAIL_TAKEN`（英文 message）未收錄於前端 `CODE_MESSAGES` → 掉到 409 泛用「狀態衝突」回退。修：四站 apiError.ts 補 `EMAIL_TAKEN`（「此 Email 已註冊過，請改用其他 Email 或直接登入。」）＋順補同型未映射碼 `APPLICATION_EXISTS`／`RESCHEDULE_SLOT_TAKEN`。驗證：四站 tsc 0＋tech/brand 容器重建＋Playwright 走完四步註冊表單實測重複 Email 顯示正確訊息。
 
 - **登入頁帳密錯誤誤顯「登入已逾時」（branch `fix/login-error-message`，2026-07-11）**：業主 UAT 實測——用未註冊帳號登入師傅站，錯誤訊息顯示「登入已逾時，請重新登入」。Root cause：`apiError.ts` 的通用 `friendlyError` 把 401/UNAUTHENTICATED 一律翻成「登入已逾時」（對已登入頁 token 過期正確，用在登入表單則誤導——尚未登入何來逾時）。修：三站（tech/brand/platform，landing 無登入頁）各加登入情境專用 `friendlyLoginError`——401 → 「帳號或密碼錯誤，請重新輸入。」，帳號鎖定/停用等具體碼維持原映射；三個登入頁改用之（vendor-login 為純轉址頁不涉及）。驗證：三站 tsc 0＋容器重建＋Playwright live 實測錯誤帳密顯示正確訊息。
