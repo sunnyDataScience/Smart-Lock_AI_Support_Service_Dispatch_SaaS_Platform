@@ -60,11 +60,8 @@ def main() -> None:
         mcp_servers=load_mcp_servers(),
     )
 
+    # RAG-via-MCP startup 連線已由 build_webapp 內建(on_startup;2026-07-11 修 CR-0125 誤用 FastAPI API)
     app = build_webapp(loop, cfg.tenant, secret, token, escalation_store=esc)
-    # RAG-via-MCP(ADR-010):gateway 直呼 _process_message 繞過 loop.run(),
-    # MCP 懶連線點不會觸發 → 於 webapp startup 連線(同一事件迴圈)。
-    # 連線失敗只 warning(fail-soft),agent 以 references 繼續服務。
-    app.add_event_handler("startup", loop._connect_mcp)
     port = int(os.environ.get("PORT", "8000"))
     print(f"模型:{cfg.model}  租戶:{cfg.tenant}  記憶後端:{cfg.backend}", flush=True)
     # 方案 A / CR-0022 旁路橋接狀態 —— 明示開/關,避免「對話/工單沒進 DB」被靜默略過害人 debug。

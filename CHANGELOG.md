@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **agent gateway 容器 crash loop（branch `fix/agent-gateway-startup-hook`，2026-07-11）**：CR-0125 掛 MCP startup hook 時誤用 FastAPI 的 `add_event_handler` 於 aiohttp `Application` → `line_gateway` 啟動即 `AttributeError` 無限重啟（容器 image 7/10 11:48 重建後生效；當日 live 實測走本機 gateway 未經容器故漏抓）。Root cause＝API 風格誤植＋測試只蓋 `build_webapp` 未蓋 startup 註冊路徑。修：hook 移入 lockcore `build_webapp` 以 `on_startup.append` 正確註冊（`hasattr` 防呆相容測試 fake loop）＋回歸測試 2（含「aiohttp 無 add_event_handler」斷言）；agent **188** 全綠；容器重建實證穩定監聽。**順修**：agent Dockerfile 補 `--extra otel`——容器 env 已配 OPIK_API_KEY 但套件未裝致降級警告，補裝後「OPIK LLM 追蹤已啟用」實證。⚠️ 若雲端 agent 於 7/9 之後重新部署過，同 bug 會在 Cloud Run 發生（health check 對 webhook 服務誤報的既知雷會遮蔽），下次部署本修正時留意 STARTUP probe。
+
 - **rag 案例檢索門檻校正（branch `fix/case-sim-threshold`，2026-07-10，CIA CR-0148）**：0.85 係 text-embedding-004 設想，multilingual-002 下真改寫 sim≈0.743 恆不命中（案例檢索形同虛設）→ 門檻改 env `RAG_CASE_SIM_THRESHOLD` 預設 0.70；rag 測試通過（merge 7041bdf8）。
 
 - **Dockerfile 對齊 knowledge-pipeline 改名＋rag workspace member（branch `fix/dockerfile-knowledge-pipeline-rename`，2026-07-10）**：2026-07-09 `data/`→`knowledge-pipeline/` 改名與 Phase B 新增 rag member 時，api/agent Dockerfile 的 workspace pyproject COPY 清單與 `.dockerignore` 未同步 → **docker build（本機 compose 與雲端 deploy 腳本共用同兩支 Dockerfile）自改名起即壞**；`redeploy-local.sh` 本機重建實測抓到。同輪順修 redeploy smoke 過時期望（四站拆分後 `/tech-login` 屬 tech-portal，dispatch build 404 屬預期）與待補知識佇列頁殘留 markdown 星號字面值。
