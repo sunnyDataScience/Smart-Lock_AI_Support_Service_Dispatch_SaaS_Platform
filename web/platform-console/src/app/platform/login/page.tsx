@@ -8,7 +8,7 @@ import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { loginPlatformAdmin } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import { friendlyLoginError } from "@/lib/apiError";
 
 const inputCls =
   "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
@@ -28,7 +28,7 @@ export default function PlatformLoginPage() {
       await loginPlatformAdmin(email.trim(), password);
       router.replace("/platform");
     } catch (err) {
-      setError(friendlyError(err));
+      setError(friendlyLoginError(err));
     } finally {
       setLoading(false);
     }

@@ -562,6 +562,7 @@ async def reassign_work_order_v2(
         new_technician_id=body.technician_id,
         reason=body.reason,
         actor_user_id=user.user_id,
+        actor_role=user.role,
     )
     # bypass role 留 audit 軌跡（同 assign 路徑）
     if user.role in _BYPASS_ROLES:

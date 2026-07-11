@@ -155,8 +155,10 @@ async def upload_media(
     sha256 = hashlib.sha256(file_bytes).hexdigest()
     safe_filename = filename[:500] if filename else f"upload{_EXT_BY_CT.get(ct, '')}"
 
-    # CR-0040 保存期（Q027）：客訴(dispute) 2 年；保固案（warranty WO）2 年；其餘 1 年。
-    ret_years = 2 if purpose.startswith("dispute_evidence") else 1
+    # 保存期：RMA 證據（客訴 dispute / 保固 warranty WO）3 年；其餘 1 年。
+    # CR-0164 F#6（衝突②裁定）：NFR-Priv-003/Aud-003（合約下限）+ R-F4 紅線＝RMA +3 年
+    # 為正典，推翻 Q027 的 2 年（Q027 無文件出處）。
+    ret_years = 3 if purpose.startswith("dispute_evidence") else 1
     if ret_years == 1 and work_order_id:
         wcur = await db_module._conn.execute(
             "SELECT 1 FROM work_orders WHERE id = %s::uuid "
@@ -164,7 +166,7 @@ async def upload_media(
             (work_order_id,),
         )
         if await wcur.fetchone():
-            ret_years = 2
+            ret_years = 3
 
     # CR-0064 / TI-M09-01：sha256 去重 — 同 WO 同檔二次上傳回既有，不重複入庫（idempotent）。
     if work_order_id:

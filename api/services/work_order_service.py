@@ -480,6 +480,26 @@ async def create_from_problem_card(
     if pc_emergency_class is None:
         await _qe.bind_quotes_to_work_order(
             tenant_id=tenant_id, problem_card_id=pc_id, work_order_id=new_wo_id)
+        # CR-0163：補開延後的應收發票——卡階段 accept 時 transition 記
+        # 「invoice deferred until convert」並承諾由本流程補開，但承諾從未被
+        # 實作 → 報價先行主路徑每張工單都靜默漏開發票（金流斷層）。
+        # best-effort 比照 accept 即開票路徑：失敗 ERROR log（人工 from-quote
+        # 補開），不阻斷開單；invoices.work_order_id UNIQUE 天然冪等。
+        try:
+            arow = await (await db_module._conn.execute(
+                "SELECT id FROM quote "
+                "WHERE work_order_id = %s::uuid AND tenant_id = %s::uuid "
+                "  AND state = 'accepted' "
+                "ORDER BY updated_at DESC LIMIT 1", (new_wo_id, tenant_id))).fetchone()
+            if arow:
+                from services import invoice_service
+                inv = await invoice_service.create_from_quote(
+                    tenant_id=tenant_id, quote_id=str(arow[0]))
+                logger.info("convert 補開延後發票 wo=%s invoice=%s", new_wo_id, inv.get("id"))
+        except Exception as exc:  # noqa: BLE001 — 開票失敗不阻斷開單（帳務下游解耦）
+            logger.error(
+                "wo %s created but deferred invoice creation FAILED (manual from-quote needed): %s",
+                new_wo_id, exc)
     else:
         await _qe.create_quote(
             tenant_id=tenant_id, work_order_id=new_wo_id, created_by=created_by,
@@ -1494,6 +1514,46 @@ async def _assert_quote_accepted(
         )
 
 
+async def _assert_brand_authorized(
+    wo_id: str, technician_id: str, actor_role: str | None, override_reason: str | None,
+) -> None:
+    """手動派工品牌授權 fail-closed（UAT 缺口修補）：工單品牌若有授權名單，
+    被指派技師須在名單內，否則 403。
+
+    語意對齊 dispatch_service._brand_authorized_ids：該品牌「無任何授權資料」
+    → 無從判斷、不阻擋（避免未建授權的品牌全面無法派工）；有授權資料但技師
+    不在名單 → fail-closed 擋下。主管（admin/ops）帶 override_reason 可強制
+    派工（沿用報價 gate / 熔斷同一安全閥；稽核由 router 記）。
+    """
+    if (
+        actor_role in _QUOTE_GATE_OVERRIDE_ROLES
+        and override_reason
+        and override_reason.strip()
+    ):
+        logger.info("assign brand-auth overridden by %s for wo=%s", actor_role, wo_id[:8])
+        return
+    brow = await (await db_module._conn.execute(
+        "SELECT brand FROM work_orders WHERE id = %s::uuid", (wo_id,))).fetchone()
+    brand = brow[0] if brow else None
+    if not brand:
+        return  # 無品牌資訊無從判斷（_assert_dispatch_ready 另有品牌必填 gate）
+    conn = await db_module.require_tech_conn()
+    auth = await (await conn.execute(
+        "SELECT technician_id FROM technician_brand_authorization "
+        "WHERE brand = %s AND authorized = TRUE "
+        "  AND (cert_expires_at IS NULL OR cert_expires_at >= CURRENT_DATE)",
+        (brand,))).fetchall()
+    if not auth:
+        return  # 該品牌無授權資料 → 不阻擋（與候選過濾 None 語意一致）
+    authorized_ids = {str(r[0]) for r in auth}
+    if technician_id not in authorized_ids:
+        raise ApiError(
+            "TECHNICIAN_BRAND_NOT_AUTHORIZED",
+            f"技師未取得品牌「{brand}」授權，不可派工；主管可帶 override_reason 強制派工",
+            403,
+        )
+
+
 async def assign_order(
     *,
     tenant_id: str,
@@ -1564,6 +1624,8 @@ async def assign_order(
             "技師目前熔斷中（circuit_breaker_open），不可派工；主管可帶 override_reason 強制派工",
             409,
         )
+    # 品牌授權 fail-closed（UAT 缺口）：手動派工亦須驗品牌授權，主管可 override
+    await _assert_brand_authorized(wo_id, technician_id, actor_role, override_reason)
 
     note = f"[ASSIGNED:{reason_code}]"
     if reason_text:
@@ -1638,6 +1700,7 @@ async def reassign_order(
     new_technician_id: str,
     reason: str,
     actor_user_id: str | None = None,
+    actor_role: str | None = None,
 ) -> dict:
     """Flow 8 二次派工 — admin 強制改派（不破壞 wo_id / events / customer history）。
 
@@ -1706,6 +1769,10 @@ async def reassign_order(
             f"new technician status is '{tech_row[1]}'; only 'active' can be reassigned",
             409,
         )
+    # 品牌授權 fail-closed（同 assign）：改派亦驗新技師品牌授權。reassign 必填
+    # reason，故對主管（admin/ops）等同帶 override_reason 放行；非 override 角色
+    # （如 dispatcher）改派未授權技師則擋。
+    await _assert_brand_authorized(wo_id, str(new_technician_id), actor_role, reason)
 
     note = f"[REASSIGN] {old_technician_id or 'unassigned'} → {new_technician_id}: {reason}"
     await db_module._conn.execute(

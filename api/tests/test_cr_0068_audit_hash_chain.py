@@ -13,6 +13,7 @@ import uuid
 import pytest
 import core.db as db_module
 from services import audit_log_service as als
+from tests.conftest import audit_privileged_exec  # CR-0164：audit append-only 後特權繞過
 
 pytestmark = pytest.mark.component
 TID = "00000000-0000-0000-0000-000000000001"
@@ -60,7 +61,7 @@ async def test_audit_chain_builds_and_links():
         assert _recompute(r1) == r1["entry_hash"]
         assert _recompute(r2) == r2["entry_hash"]
     finally:
-        await db_module._conn.execute(
+        await audit_privileged_exec(
             "DELETE FROM audit_events WHERE target_id=%s::uuid", (tgt,))
 
 
@@ -75,13 +76,13 @@ async def test_audit_chain_detects_payload_tampering():
         before = await _read_chain_row(eid)
         assert _recompute(before) == before["entry_hash"]   # 篡改前：一致
         # 直接竄改 payload（模擬攻擊者改數字），entry_hash 不動
-        await db_module._conn.execute(
+        await audit_privileged_exec(
             "UPDATE audit_events SET payload=%s::jsonb WHERE id=%s::uuid",
             (json.dumps({"amount": 999}), eid))
         after = await _read_chain_row(eid)
         assert _recompute(after) != after["entry_hash"]     # 篡改後：重算對不上 → 偵測到
     finally:
-        await db_module._conn.execute(
+        await audit_privileged_exec(
             "DELETE FROM audit_events WHERE target_id=%s::uuid", (tgt,))
 
 

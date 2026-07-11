@@ -13,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 import core.db as db_module
+from tests.conftest import audit_privileged_exec  # CR-0164
 from core.errors import ApiError
 from services import quote_engine_service as qe
 from services import work_order_service as svc
@@ -262,6 +263,6 @@ async def test_emergency_bypass_audit_logged():
             (wid,))).fetchone()
         assert row, "急件開單應寫 emergency_bypass audit"
     finally:
-        await db_module._conn.execute(
+        await audit_privileged_exec(
             "DELETE FROM audit_events WHERE action='emergency_bypass' AND target_id=%s", (wid,))
         await _cleanup(uid, pid)

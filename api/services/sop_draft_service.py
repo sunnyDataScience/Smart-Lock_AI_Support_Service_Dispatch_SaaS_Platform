@@ -402,6 +402,20 @@ async def adopt_draft(
             409,
         )
 
+    # CR-0164 C（合約 4.4d 紅線，衝突①裁定＝硬 gate）：adopt 進 KB/RAG 前須有
+    # action='approved' 的家族覆核（不可只判「存在」——rejected 不退回 status，
+    # 判存在會讓被退件草稿仍可 adopt）。缺 → 425 TOO_EARLY，導流先完成家族覆核。
+    fr = await (await db_module._conn.execute(
+        "SELECT 1 FROM family_reviews "
+        "WHERE sop_draft_id = %s::uuid AND action = 'approved' LIMIT 1",
+        (draft_id,))).fetchone()
+    if not fr:
+        raise ApiError(
+            "FAMILY_REVIEW_REQUIRED",
+            "採納前須先完成家族覆核（family review approved）——合約 4.4(d) 紅線",
+            425,
+        )
+
     title: str = row[1] or ""
     conditions: str = row[2] or ""
     raw_steps = row[3]

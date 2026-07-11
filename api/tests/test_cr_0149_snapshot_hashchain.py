@@ -54,7 +54,9 @@ async def _cleanup(wid: str, pid: str) -> None:
 
 
 async def _send(client, headers, qid: str) -> dict:
-    r = await client.post(f"/tenants/{TID}/quotes/{qid}:send", headers=headers)
+    r = await client.post(
+        f"/tenants/{TID}/quotes/{qid}:send",
+        headers={**headers, "Idempotency-Key": str(uuid.uuid4())})
     assert r.status_code == 200, r.text
     return r.json()["data"]
 

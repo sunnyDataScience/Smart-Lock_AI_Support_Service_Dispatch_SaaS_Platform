@@ -52,6 +52,11 @@ const CODE_MESSAGES: Record<string, string> = {
   RESET_TOKEN_INVALID: "重設連結無效，請重新申請。",
   RESET_TOKEN_EXPIRED: "重設連結已過期，請重新申請。",
 
+  // 註冊 / 改約（UAT 實測：EMAIL_TAKEN 未映射 → 誤顯「目前狀態無法執行此操作」）
+  EMAIL_TAKEN: "此 Email 已註冊過，請改用其他 Email 或直接登入。",
+  APPLICATION_EXISTS: "此 Email 已有待審核的申請，請耐心等候或聯絡管理員。",
+  RESCHEDULE_SLOT_TAKEN: "此時段已被其他工單占用，請改選其他時段。",
+
   // 設定 / 主檔
   CONFIG_NOT_FOUND: "找不到對應的設定。",
   ITEM_INACTIVE: "此項目已停用，無法選用。",
@@ -114,4 +119,21 @@ export function friendlyError(e: unknown): string {
     if (looksUserFriendly(e.message)) return e.message;
   }
   return "操作失敗，請稍後再試。";
+}
+
+/**
+ * 登入頁專用：登入端點的 401 是「帳號或密碼錯誤」，不是 session 逾時——
+ * 通用 friendlyError 把 401/UNAUTHENTICATED 一律翻成「登入已逾時」，
+ * 用在登入表單會誤導使用者（尚未登入何來逾時，UAT 實測回報）。
+ * 帳號鎖定／停用等具體錯誤碼仍走原映射。
+ */
+export function friendlyLoginError(e: unknown): string {
+  if (e instanceof ApiError && e.status === 401) {
+    const mapped = CODE_MESSAGES[e.errorCode];
+    if (mapped && e.errorCode !== "UNAUTHENTICATED" && e.errorCode !== "TOKEN_STALE") {
+      return mapped;
+    }
+    return "帳號或密碼錯誤，請重新輸入。";
+  }
+  return friendlyError(e);
 }

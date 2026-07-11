@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clock, MapPin, RefreshCw } from "lucide-react";
+import { ChevronRight, Clock, MapPin, RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
+import { api, getCurrentSession, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
@@ -15,7 +15,6 @@ import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderPage = components["schemas"]["WorkOrderPage"];
-type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
 
 function formatErr(e: unknown): string {
   return friendlyError(e);
@@ -27,8 +26,6 @@ export default function PoolPage() {
   const [items, setItems] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accepting, setAccepting] = useState<string | null>(null);
-  const [conflictMsg, setConflictMsg] = useState<string | null>(null);
 
   const fetchPool = useCallback(async () => {
     setLoading(true);
@@ -78,31 +75,10 @@ export default function PoolPage() {
     },
   });
 
-  async function acceptOrder(wo: WorkOrder) {
-    if (accepting) return;
-    setAccepting(wo.id);
-    setError(null);
-    setConflictMsg(null);
-    try {
-      const res = await api.post<WorkOrderEnvelope>(
-        tenantPath(`/work-orders/${encodeURIComponent(wo.id)}:accept`),
-      );
-      const accepted = res.data;
-      if (accepted) {
-        router.push(`/my-orders/${accepted.id}`);
-      } else {
-        router.push(`/my-orders/${wo.id}`);
-      }
-    } catch (e) {
-      if (e instanceof ApiError && e.status === 409) {
-        setConflictMsg(t("conflictTaken"));
-        setItems((prev) => prev.filter((x) => x.id !== wo.id));
-      } else {
-        setError(formatErr(e));
-      }
-    } finally {
-      setAccepting(null);
-    }
+  // 業主 UAT 裁決（2026-07-11）：案件池不再一鍵接單——點卡片進 /pool/{id}
+  // 詳情頁看清楚後，於詳情頁按「接受工單」＋確認視窗二次確認才真的接。
+  function openDetail(wo: WorkOrder) {
+    router.push(`/pool/${wo.id}`);
   }
 
   return (
@@ -135,11 +111,6 @@ export default function PoolPage() {
           {error}
         </div>
       )}
-      {conflictMsg && (
-        <div className="m-4 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-[13px] text-amber-800">
-          {conflictMsg}
-        </div>
-      )}
 
       {/* List — 手機單欄、桌面多欄網格 */}
       <div className="grid grid-cols-1 gap-3 px-4 py-4 md:grid-cols-2 xl:grid-cols-3">
@@ -166,7 +137,13 @@ export default function PoolPage() {
             return (
               <article
                 key={wo.id}
-                className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]"
+                role="link"
+                tabIndex={0}
+                onClick={() => openDetail(wo)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") openDetail(wo);
+                }}
+                className="flex cursor-pointer flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))] transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
                 style={{ borderLeftColor: urgencyBorder, borderLeftWidth: 4 }}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -199,11 +176,14 @@ export default function PoolPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => acceptOrder(wo)}
-                  disabled={!!accepting}
-                  className="mt-2 h-12 rounded-full bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openDetail(wo);
+                  }}
+                  className="mt-2 flex h-12 items-center justify-center gap-1 rounded-full border border-[var(--primary)] text-[15px] font-semibold text-[var(--primary)] hover:bg-[var(--primary-light)]"
                 >
-                  {accepting === wo.id ? t("accepting") : t("accept")}
+                  {t("viewDetail")}
+                  <ChevronRight className="h-4 w-4" />
                 </button>
               </article>
             );

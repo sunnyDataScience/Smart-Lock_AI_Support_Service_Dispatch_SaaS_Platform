@@ -51,7 +51,9 @@ const TYPE_TONE: Record<
     bg: "#FEF3C7",
     border: "#FCD34D",
     color: "#92400E",
-    href: (id) => `/work-orders/${id}`,
+    // CR-0163：target_id 改為報價 id（報價先行的卡階段報價無工單），
+    // 深連結改報價列表 ?open= —— 卡階段/工單階段皆可開啟
+    href: (id) => `/admin/quotes?open=${id}`,
   },
   dispatch_delay: {
     Icon: Zap,

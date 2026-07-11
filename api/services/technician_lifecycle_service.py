@@ -184,11 +184,46 @@ async def reject_onboarding(
     )
 
 
+_ORPHAN_WO_STATUSES = ("assigned", "accepted", "in_progress")
+
+
+async def _active_work_orders(tech_id: str) -> list[str]:
+    """CR-0164 E：查該技師名下進行中工單（品牌庫）——停權/終止前的孤兒偵測。
+
+    work_orders 在品牌庫（db_module._conn）；technician_id 指品牌庫投影 id。回工單 id 清單。
+    """
+    if not await _ensure_conn():
+        return []
+    cur = await db_module._conn.execute(
+        "SELECT id FROM work_orders WHERE technician_id = %s::uuid "
+        "AND status = ANY(%s)",
+        (tech_id, list(_ORPHAN_WO_STATUSES)),
+    )
+    return [str(r[0]) for r in await cur.fetchall()]
+
+
+def _orphan_conflict(orphans: list[str], op: str) -> ApiError:
+    return ApiError(
+        "TECHNICIAN_HAS_ACTIVE_WORK_ORDERS",
+        f"技師名下有 {len(orphans)} 張進行中工單，{op}前須先改派"
+        f"（reassignWorkOrderV2）；工單：{', '.join(o[:8] for o in orphans[:5])}"
+        + ("…" if len(orphans) > 5 else ""),
+        409,
+        details=[{"field": "work_order_id", "issue": o} for o in orphans],
+    )
+
+
 async def suspend(
     *, tenant_id: str, tech_id: str, actor_user_id: str,
     reason: str, actor_role: str = "operations_manager",
-    notes: str | None = None,
+    notes: str | None = None, force: bool = False,
 ) -> dict:
+    # CR-0164 E：孤兒工單軟阻擋——名下有進行中工單須先改派；主管帶 force 可越過
+    # （緊急停權安全閥，孤兒仍在但已停權，須事後補改派）。
+    if not force:
+        orphans = await _active_work_orders(tech_id)
+        if orphans:
+            raise _orphan_conflict(orphans, "停權")
     return await _change_status_and_audit(
         tenant_id=tenant_id, tech_id=tech_id,
         target_status="suspended", event_type="suspended",
@@ -216,6 +251,10 @@ async def terminate(
     notes: str | None = None,
 ) -> dict:
     """從任何 status → terminated 終態。"""
+    # CR-0164 E：終止為終態、不可留孤兒——硬阻擋（無 force），名下進行中工單須先改派。
+    orphans = await _active_work_orders(tech_id)
+    if orphans:
+        raise _orphan_conflict(orphans, "終止")
     return await _change_status_and_audit(
         tenant_id=tenant_id, tech_id=tech_id,
         target_status="terminated", event_type="terminated",

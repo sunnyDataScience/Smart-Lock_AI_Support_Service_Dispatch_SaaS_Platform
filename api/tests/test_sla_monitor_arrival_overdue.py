@@ -25,7 +25,7 @@ from unittest.mock import patch
 import pytest
 import pytest_asyncio
 
-from tests.conftest import ADMIN_USER_ID
+from tests.conftest import ADMIN_USER_ID, audit_privileged_exec
 
 pytestmark = pytest.mark.component
 
@@ -91,7 +91,7 @@ async def make_work_order():
 
         await _ensure_conn()
         for wo_id, pc_id, conv_id in created:
-            await db_module._conn.execute(
+            await audit_privileged_exec(
                 "DELETE FROM audit_events WHERE target_id = %s::uuid",
                 (wo_id,),
             )

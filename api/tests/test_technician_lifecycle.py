@@ -9,6 +9,17 @@ import pytest
 from services import technician_lifecycle_service as svc
 
 
+@pytest.fixture(autouse=True)
+def _isolate_orphan_check(monkeypatch):
+    """CR-0164 E：本檔為 mock 單元測試，隔離新增的孤兒工單查詢（品牌庫 work_orders）——
+    其行為由 component 測試 test_cr_0164_orphan_work_orders.py 覆蓋。否則 _active_work_orders
+    的 DB 查詢會打亂各測試的 FakeConn mock 序列。"""
+    async def _no_orphan(_tech_id):
+        return []
+
+    monkeypatch.setattr(svc, "_active_work_orders", _no_orphan)
+
+
 # ----------------------------- 狀態機 -----------------------------
 
 def test_allowed_transitions_pending_approval():

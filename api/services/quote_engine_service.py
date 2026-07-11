@@ -253,6 +253,31 @@ async def bind_quotes_to_work_order(*, tenant_id: str, problem_card_id: str, wor
         "WHERE problem_card_id = %s::uuid AND tenant_id = %s::uuid AND work_order_id IS NULL",
         (work_order_id, problem_card_id, tenant_id),
     )
+    # CR-0161：卡階段品項的 quote_line_items.work_order_id 也回填——工單文件
+    # （work_order_document_service）與技師佣金（technician_commission_service）
+    # 靠此欄關聯，開單後未回填會讀不到品項。
+    await conn.execute(
+        "UPDATE quote_line_items SET work_order_id = %s::uuid, updated_at = NOW() "
+        "WHERE work_order_id IS NULL AND quote_id IN "
+        "(SELECT id FROM quote WHERE problem_card_id = %s::uuid AND tenant_id = %s::uuid)",
+        (work_order_id, problem_card_id, tenant_id),
+    )
+    # CR-0163：綁定時補寫 work_orders.estimated_price——CR-0117 的 send/accept
+    # 回寫要求 quote 已綁工單，報價先行主路徑上兩者都發生在開單前而恆 no-op：
+    # 師傅端預估收入 SUM 恆 0、取消費/範圍變更快照以 0 為基準。取最新 accepted
+    # 報價總額（gate 保證存在）。fail-soft 比照 CR-0117：派生欄位失敗不阻斷開單。
+    try:
+        await conn.execute(
+            "UPDATE work_orders wo SET estimated_price = q.total_amount, updated_at = NOW() "
+            "FROM (SELECT total_amount FROM quote "
+            "      WHERE work_order_id = %s::uuid AND tenant_id = %s::uuid "
+            "        AND state = 'accepted' AND total_amount IS NOT NULL "
+            "      ORDER BY updated_at DESC LIMIT 1) q "
+            "WHERE wo.id = %s::uuid AND wo.tenant_id = %s::uuid",
+            (work_order_id, tenant_id, work_order_id, tenant_id),
+        )
+    except Exception:  # noqa: BLE001 — 派生欄位回寫失敗不可卡死開單
+        logger.exception("bind 後 estimated_price 回填失敗（可回填修復，不阻斷）wo=%s", work_order_id)
     return cur.rowcount or 0
 
 
@@ -638,12 +663,16 @@ async def transition(
 
 
 async def _resolve_conversation_id(quote_id: str) -> str | None:
-    """quote → work_order → problem_card → conversation_id（同步報價事件到對話用）。"""
+    """quote → problem_card → conversation_id（同步報價事件到對話用）。
+
+    CR-0163：改 problem_card 直連——原經 work_orders INNER JOIN，CR-0128
+    報價先行的卡階段報價（work_order_id=NULL）查無 → send/accept/decline
+    事件從不寫入對話管理。problem_card_id 卡/工單階段恆有值。
+    """
     conn = await _conn()
     row = await (await conn.execute(
         "SELECT pc.conversation_id FROM quote q "
-        "JOIN work_orders wo ON q.work_order_id = wo.id "
-        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN problem_cards pc ON q.problem_card_id = pc.id "
         "WHERE q.id = %s::uuid", (quote_id,))).fetchone()
     return str(row[0]) if row and row[0] else None
 
@@ -703,16 +732,18 @@ async def mint_view_token(*, tenant_id: str, quote_id: str) -> dict:
 
 
 async def resolve_customer_line_uid(*, tenant_id: str, quote_id: str) -> str | None:
-    """反查此報價對應客戶的 LINE userId（quote→work_order→problem_card→conversation→user）。
+    """反查此報價對應客戶的 LINE userId（quote→problem_card→conversation→user）。
 
+    CR-0162：走 quote.problem_card_id 直連——CR-0128 報價先行的卡階段報價
+    work_order_id=NULL，原經 work_orders 的 INNER JOIN 查無 → 客人 LINE 同意
+    回 404「報價或已失效」。problem_card_id 對卡階段/工單階段報價恆有值，
     與 line_push_outbox_worker._resolve_line_uid 的 quote 路徑一致；查無回 None。
     """
     conn = await _conn()
     row = await (await conn.execute(
         "SELECT u.line_user_id "
         "FROM quote q "
-        "JOIN work_orders wo ON q.work_order_id = wo.id "
-        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN problem_cards pc ON q.problem_card_id = pc.id "
         "JOIN conversations c ON pc.conversation_id = c.id "
         "JOIN users u ON c.user_id = u.id "
         "WHERE q.id = %s::uuid AND (q.tenant_id = %s::uuid OR q.tenant_id IS NULL)",

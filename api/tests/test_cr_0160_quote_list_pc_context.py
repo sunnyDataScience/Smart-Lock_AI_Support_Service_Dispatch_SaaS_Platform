@@ -64,7 +64,8 @@ async def test_empty_quote_send_and_submit_blocked(client, admin_headers):
     try:
         for action in ("send", "submit"):
             r = await client.post(
-                f"/tenants/{TID}/quotes/{qid}:{action}", json={}, headers=admin_headers)
+                f"/tenants/{TID}/quotes/{qid}:{action}", json={},
+                headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())})
             assert r.status_code == 422, f"{action} 應 422，得 {r.status_code}"
             assert r.json().get("error_code") == "QUOTE_NO_LINES"
     finally:
@@ -77,7 +78,8 @@ async def test_quote_with_total_still_sendable(client, admin_headers):
     pid, qid = await _mk_pc_quote(total=800)
     try:
         r = await client.post(
-            f"/tenants/{TID}/quotes/{qid}:send", json={}, headers=admin_headers)
+            f"/tenants/{TID}/quotes/{qid}:send", json={},
+            headers={**admin_headers, "Idempotency-Key": str(uuid.uuid4())})
         assert r.status_code == 200, r.text
         assert r.json()["data"]["state"] == "sent"
     finally:

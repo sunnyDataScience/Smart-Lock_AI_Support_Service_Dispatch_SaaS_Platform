@@ -34,6 +34,8 @@ class ApproveBody(BaseModel):
 class ReasonBody(BaseModel):
     reason: str
     notes: str | None = None
+    # CR-0164 E：停權時名下有進行中工單預設軟阻擋（409）；主管確認後帶 force 越過
+    force: bool = False
 
 
 class TechnicianCreateBody(BaseModel):
@@ -134,7 +136,7 @@ async def suspend(
 ) -> dict:
     result = await svc.suspend(
         tech_id=technicianId, actor_user_id=user.user_id,
-        reason=body.reason, notes=body.notes,
+        reason=body.reason, notes=body.notes, force=body.force,
     )
     return {"data": result}
 

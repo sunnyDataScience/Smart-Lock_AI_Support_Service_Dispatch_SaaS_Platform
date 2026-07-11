@@ -8,6 +8,8 @@ import {
   Navigation,
   CheckCircle2,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
   MapPin,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
@@ -21,6 +23,8 @@ import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
+type ProblemCard = components["schemas"]["ProblemCard"];
+type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 
 const TERMINAL_STATUSES: WorkOrder["status"][] = [
   "completed",
@@ -67,6 +71,9 @@ export default function MyOrderDetailPage() {
   const [wo, setWo] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 問題診斷摘要（設計規格 12_tech problem_card_section）：best-effort 讀取，預設收合
+  const [pc, setPc] = useState<ProblemCard | null>(null);
+  const [pcOpen, setPcOpen] = useState(false);
 
   // Completion form state
   const [showForm, setShowForm] = useState(false);
@@ -75,7 +82,15 @@ export default function MyOrderDetailPage() {
   const [arriving, setArriving] = useState(false);
   const [arriveError, setArriveError] = useState<string | null>(null);
   const [completionPhotos, setCompletionPhotos] = useState<
-    { section: "before" | "during" | "after"; id: string; url: string; filename: string }[]
+    {
+      section: "before" | "during" | "after";
+      id: string;
+      url: string;
+      filename: string;
+      // 本地縮圖預覽（URL.createObjectURL）——伺服器 /media/{id} 讀取需帶
+      // auth header，<img src> 直連會 401，故預覽用上傳當下的本地檔案。
+      previewUrl: string;
+    }[]
   >([]);
   const [photoUploading, setPhotoUploading] = useState<
     "before" | "during" | "after" | null
@@ -112,6 +127,26 @@ export default function MyOrderDetailPage() {
     fetchOrder();
   }, [fetchOrder]);
 
+  // 問題診斷摘要：工單載入後補抓問題卡（失敗只隱藏摘要區，不影響工單操作）
+  const pcId = wo?.problem_card_id;
+  useEffect(() => {
+    if (!pcId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<ProblemCardEnvelope>(
+          tenantPath(`/problem-cards/${encodeURIComponent(pcId)}`),
+        );
+        if (!cancelled) setPc(res.data ?? null);
+      } catch {
+        if (!cancelled) setPc(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pcId]);
+
   async function uploadCompletionPhoto(
     section: "before" | "during" | "after",
     file: File,
@@ -119,6 +154,7 @@ export default function MyOrderDetailPage() {
     if (!wo) return;
     setPhotoUploading(section);
     setSubmitError(null);
+    const previewUrl = URL.createObjectURL(file);
     try {
       const fd = new FormData();
       fd.append("file", file);
@@ -136,13 +172,23 @@ export default function MyOrderDetailPage() {
           id: res.id,
           url: res.url,
           filename: res.filename,
+          previewUrl,
         },
       ]);
     } catch (e) {
+      URL.revokeObjectURL(previewUrl);
       setSubmitError(formatErr(e));
     } finally {
       setPhotoUploading(null);
     }
+  }
+
+  function removeCompletionPhoto(photoId: string) {
+    setCompletionPhotos((prev) => {
+      const target = prev.find((p) => p.id === photoId);
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((p) => p.id !== photoId);
+    });
   }
 
   async function submitCompletion() {
@@ -330,6 +376,54 @@ export default function MyOrderDetailPage() {
             </div>
           </section>
 
+          {/* problem_card_section（設計規格 12_tech：問題診斷摘要，預設收合）*/}
+          {pc && (
+            <section className="flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
+              <button
+                type="button"
+                onClick={() => setPcOpen((v) => !v)}
+                aria-expanded={pcOpen}
+                className="flex min-h-[44px] items-center justify-between gap-2 text-left"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-[15px] font-semibold text-[var(--text-primary)]">
+                    {t("pcSummaryTitle")}
+                  </span>
+                  {typeof pc.confidence_score === "number" && (
+                    <span className="rounded-full bg-[#DBEAFE] px-2 py-[2px] text-[11px] font-medium text-[#1D4ED8]">
+                      {t("pcConfidence", {
+                        percent: Math.round(
+                          pc.confidence_score <= 1
+                            ? pc.confidence_score * 100
+                            : pc.confidence_score,
+                        ),
+                      })}
+                    </span>
+                  )}
+                </span>
+                {pcOpen ? (
+                  <ChevronUp className="h-5 w-5 shrink-0 text-[var(--text-secondary)]" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 shrink-0 text-[var(--text-secondary)]" />
+                )}
+              </button>
+              {pcOpen && (
+                <div className="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-3">
+                  <p className="text-[14px] text-[var(--text-primary)]">
+                    <span className="font-medium">{t("pcSymptom")}</span>
+                    {pc.symptom || "—"}
+                  </p>
+                  <p className="text-[14px] text-[var(--text-secondary)]">
+                    <span className="font-medium">{t("pcDiagnosis")}</span>
+                    {[pc.failure_mode, pc.root_cause].filter(Boolean).join("；") ||
+                      pc.category ||
+                      "—"}
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* service_info_section */}
           <section className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
@@ -387,12 +481,6 @@ export default function MyOrderDetailPage() {
                 {wo.customer_name}
               </span>
             )}
-            <Link
-              href={`/problem-cards/${wo.problem_card_id}`}
-              className="text-[13px] text-[var(--primary)] hover:underline"
-            >
-              {t("viewProblemCard")}
-            </Link>
             {wo.customer_phone && (
               <a
                 href={`tel:${wo.customer_phone}`}
@@ -541,14 +629,39 @@ export default function MyOrderDetailPage() {
                   ))}
                 </div>
                 {completionPhotos.length > 0 && (
-                  <div className="flex flex-wrap gap-1 text-[11px] text-[var(--text-secondary)]">
+                  <div className="flex flex-wrap gap-2">
                     {completionPhotos.map((p) => (
-                      <span
-                        key={p.id}
-                        className="rounded-full bg-[var(--surface-strong)] px-2 py-[2px]"
-                      >
-                        [{p.section}] {p.filename.slice(0, 16)}
-                      </span>
+                      <div key={p.id} className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- 本地 objectURL 預覽，非遠端資源 */}
+                        <img
+                          src={p.previewUrl}
+                          alt={`${tForm(
+                            p.section === "before"
+                              ? "photoBefore"
+                              : p.section === "during"
+                                ? "photoDuring"
+                                : "photoAfter",
+                          )} — ${p.filename}`}
+                          className="h-20 w-20 rounded-md border border-[var(--border)] object-cover"
+                        />
+                        <span className="absolute bottom-0 left-0 rounded-tr-md rounded-bl-md bg-black/55 px-1.5 py-[1px] text-[10px] text-white">
+                          {tForm(
+                            p.section === "before"
+                              ? "photoBefore"
+                              : p.section === "during"
+                                ? "photoDuring"
+                                : "photoAfter",
+                          )}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeCompletionPhoto(p.id)}
+                          aria-label={tForm("photoRemove")}
+                          className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[var(--text-primary)] text-[11px] leading-none text-[var(--bg-surface)] shadow"
+                        >
+                          ×
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}

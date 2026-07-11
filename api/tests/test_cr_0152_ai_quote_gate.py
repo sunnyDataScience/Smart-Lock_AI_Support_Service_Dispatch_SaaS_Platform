@@ -96,8 +96,9 @@ async def test_warranty_case_fail_closed_for_non_staff():
 async def test_warranty_case_human_staff_can_send(client, secondary_admin_headers):
     wid, pid, qid = await _mk_quote(warranty=True)
     try:
-        r = await client.post(f"/tenants/{TID}/quotes/{qid}:send",
-                              headers=secondary_admin_headers)
+        r = await client.post(
+            f"/tenants/{TID}/quotes/{qid}:send",
+            headers={**secondary_admin_headers, "Idempotency-Key": str(uuid.uuid4())})
         assert r.status_code == 200, r.text
         assert r.json()["data"]["state"] == "sent"
     finally:
