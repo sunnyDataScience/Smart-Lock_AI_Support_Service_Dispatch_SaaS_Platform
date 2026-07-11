@@ -127,7 +127,7 @@ services:
   refinery:
     build:
       context: ../..
-      dockerfile: refinery/Dockerfile
+      dockerfile: knowledge-pipeline/refinery/Dockerfile
     profiles: ["refinery"]
     ports:
       # 8004:8002 已被師傅 stack tech-api 占用(埠位表見 docker-compose.platform.yml 檔頭)

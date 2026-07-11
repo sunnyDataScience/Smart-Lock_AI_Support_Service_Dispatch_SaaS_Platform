@@ -10,7 +10,9 @@ from pathlib import Path
 EMBED_DIM = 768
 DEFAULT_MODEL = "vertex_ai/text-multilingual-embedding-002"
 
-_ROOT = Path(__file__).resolve().parents[2]
+# parents[3] = 專案根（本檔位於 knowledge-pipeline/refinery/refinery/，CR-0157 搬遷後）；
+# 容器內同樣成立（源碼在 /app/knowledge-pipeline/refinery/ → parents[3] = /app）。
+_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _ensure_credentials() -> None:

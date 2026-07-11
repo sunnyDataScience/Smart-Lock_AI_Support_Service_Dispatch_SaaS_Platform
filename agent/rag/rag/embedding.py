@@ -15,7 +15,9 @@ EMBED_DIM = 768
 # 相似度全 1.0——它是英文為主模型）。改用同 768 維的 multilingual 版（CR-0124 勘誤）。
 DEFAULT_MODEL = "vertex_ai/text-multilingual-embedding-002"
 
-_ROOT = Path(__file__).resolve().parents[2]
+# parents[3] = 專案根（本檔位於 agent/rag/rag/，CR-0157 起 rag 宿主於 agent/ 之下）；
+# 誤用 parents[2] 會靜默改讀 agent/.env（環境錯連），維護時勿回退。
+_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _ensure_credentials() -> None:

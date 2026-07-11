@@ -43,7 +43,7 @@ test = [
 # 三個 module 各為獨立 package，但共用同一個 .venv 與 uv.lock
 # 預設：`uv sync --all-packages` 同時裝 agent / api / knowledge-pipeline 所有 deps
 [tool.uv.workspace]
-members = ["agent", "api", "knowledge-pipeline", "rag", "refinery"]
+members = ["agent", "api", "knowledge-pipeline", "agent/rag", "knowledge-pipeline/refinery"]
 
 [tool.uv.sources]
 lock-cs-agent = { workspace = true }

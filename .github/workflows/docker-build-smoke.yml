@@ -14,6 +14,7 @@ on:
       - 'api/**'
       - 'web/**'
       - 'knowledge-pipeline/pyproject.toml'
+      - 'knowledge-pipeline/refinery/**'
       - 'pyproject.toml'
       - 'uv.lock'
       - '.dockerignore'
@@ -24,9 +25,12 @@ on:
     paths:
       - 'agent/Dockerfile'
       - 'api/Dockerfile'
+      - 'knowledge-pipeline/refinery/Dockerfile'
       - 'web/*/Dockerfile'
       - 'agent/pyproject.toml'
       - 'api/pyproject.toml'
+      - 'agent/rag/pyproject.toml'
+      - 'knowledge-pipeline/refinery/pyproject.toml'
       - 'pyproject.toml'
       - 'uv.lock'
       - 'web/*/package.json'
@@ -64,6 +68,16 @@ jobs:
               except ImportError:
                   pass
               print(f'fastapi={fastapi.__version__} reportlab={md.version("reportlab")}')
+          # CR-0157：refinery 搬入 knowledge-pipeline/ 並補進 smoke matrix（原本 build 壞了 CI 看不到）
+          - module: knowledge-pipeline/refinery
+            kind: python
+            tag: refinery
+            healthcheck: |
+              import fastapi, litellm, psycopg, httpx, jose
+              import refinery
+              # 驗證 editable install 的 .pth 指向 stage-2 保留的同絕對路徑
+              assert "/app/knowledge-pipeline/refinery" in refinery.__file__, refinery.__file__
+              print(f'refinery import OK: {refinery.__file__}')
           - module: web/brand-portal
             kind: web
             tag: web-brand-portal

@@ -70,8 +70,9 @@ test-e2e-smoke:
 	else \
 		bash scripts/ci/smoke-api.sh; \
 	fi
-	@echo "→ Playwright e2e (web/tests/e2e/admin)"
-	cd web && npm run test:e2e
+	@echo "→ Playwright e2e (brand-portal + tech-portal；e2e 隨站走)"
+	cd web/brand-portal && npm run test:e2e
+	cd web/tech-portal && npm run test:e2e
 
 # ── AI agent eval mini：5 題 smoke（需 agent 跑） ─────────────────
 # ── 整套（不含 e2e-smoke，因需真 services） ──────────

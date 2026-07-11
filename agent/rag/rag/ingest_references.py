@@ -10,7 +10,7 @@ WBS 2.2.2「語料灌注：型號事實 chunk 遷移」：references 是**專家
   - 切塊 = 每個 `## ` 章節一塊（保留標題作為語義錨）
   - provenance = references 檔相對路徑 + sha256 + 章節標題
 
-用法（於 rag/ 目錄）：
+用法（於 agent/rag/ 目錄）：
   RAG_TENANT_ID=<uuid> POSTGRES_URI=<uri> uv run python -m rag.ingest_references [--limit N]
 """
 
@@ -27,7 +27,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rag.embedding import embed_model, embed_texts  # noqa: E402
 from rag.store import upsert_manual_chunks  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
+# parents[3] = 專案根（本檔位於 agent/rag/rag/，CR-0157 起 rag 宿主於 agent/ 之下）
+ROOT = Path(__file__).resolve().parents[3]
 REFERENCES_DIR = ROOT / "agent" / "lockcore" / "skills" / "locksmith-product-knowledge" / "references"
 
 MIN_SECTION_CHARS = 40

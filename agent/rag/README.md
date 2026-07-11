@@ -22,11 +22,11 @@ per-brand bundle 元件（ADR-002）：查詢必帶 `tenant_id`（default deny�
 ## 用法
 
 ```bash
-# 1. 建表（品牌庫 image 已內建 pgvector）
+# 1. 建表（品牌庫 image 已內建 pgvector；於專案根目錄執行）
 psql "$POSTGRES_URI" -f SQL/Schema_rag.sql
 
 # 2. 灌注（前置：knowledge-pipeline emit_corpus + audit_corpus 全綠）
-cd rag
+cd agent/rag    # CR-0157 起 rag 宿主於 agent/ 之下
 RAG_TENANT_ID=<uuid> POSTGRES_URI=<uri> uv run python -m rag.ingest [--limit N]
 
 # 3. MCP server（stdio；Phase C 由 lockcore mcp_servers 接線）

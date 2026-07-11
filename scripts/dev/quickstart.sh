@@ -199,11 +199,12 @@ API_PID=$(cat "$LOG_DIR/backend.pid" 2>/dev/null || echo "")
 # ── 7. Frontend ────────────────────────────────────────────────────────────
 WEB_PID=""
 if [ "$BACKEND_ONLY" -ne 1 ]; then
-  if [ ! -d "$PROJECT_ROOT/web/node_modules" ]; then
-    log "首次啟動：npm install (web)"
-    (cd "$PROJECT_ROOT/web" && npm install >>"$LOG_DIR/npm-install.log" 2>&1)
+  # 2026-07-09 web 四站拆分後各站獨立專案；本腳本啟品牌後台（brand-portal）
+  if [ ! -d "$PROJECT_ROOT/web/brand-portal/node_modules" ]; then
+    log "首次啟動：npm install (web/brand-portal)"
+    (cd "$PROJECT_ROOT/web/brand-portal" && npm install >>"$LOG_DIR/npm-install.log" 2>&1)
   fi
-  start_bg frontend "cd '$PROJECT_ROOT/web' && npm run dev -- --port $WEB_PORT" "$WEB_PORT" || true
+  start_bg frontend "cd '$PROJECT_ROOT/web/brand-portal' && npm run dev -- --port $WEB_PORT" "$WEB_PORT" || true
   WEB_PID=$(cat "$LOG_DIR/frontend.pid" 2>/dev/null || echo "")
 fi
 

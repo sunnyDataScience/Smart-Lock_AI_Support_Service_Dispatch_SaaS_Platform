@@ -19,7 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rag.embedding import embed_model, embed_texts  # noqa: E402
 from rag.store import upsert_manual_chunks  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
+# parents[3] = 專案根（本檔位於 agent/rag/rag/，CR-0157 起 rag 宿主於 agent/ 之下）
+ROOT = Path(__file__).resolve().parents[3]
 DEFAULT_CORPUS = ROOT / "knowledge-pipeline" / "storage" / "corpus" / "facts.jsonl"
 
 

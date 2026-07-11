@@ -33,8 +33,8 @@ COPY pyproject.toml uv.lock .python-version ./
 COPY agent/pyproject.toml ./agent/pyproject.toml
 COPY api/pyproject.toml ./api/pyproject.toml
 COPY knowledge-pipeline/pyproject.toml ./knowledge-pipeline/pyproject.toml
-COPY rag/pyproject.toml ./rag/pyproject.toml
-COPY refinery/pyproject.toml ./refinery/pyproject.toml
+COPY agent/rag/pyproject.toml ./agent/rag/pyproject.toml
+COPY knowledge-pipeline/refinery/pyproject.toml ./knowledge-pipeline/refinery/pyproject.toml
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --package lock-cs-agent --extra line --extra vertex

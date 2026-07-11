@@ -183,12 +183,13 @@ fi
 # ── Step 5: web (port 3000) ───────────────────────────────────────────
 if [ "$NO_WEB" -ne 1 ]; then
   log "step 5: 啟 web (next.js dev) on :$WEB_PORT"
-  if [ ! -d "$PROJECT_ROOT/web/node_modules" ]; then
+  # 2026-07-09 web 四站拆分後各站獨立專案；本腳本啟品牌後台（brand-portal）
+  if [ ! -d "$PROJECT_ROOT/web/brand-portal/node_modules" ]; then
     log "  no node_modules — running 'npm install'..."
-    (cd "$PROJECT_ROOT/web" && npm install) || { err "npm install failed"; exit 1; }
+    (cd "$PROJECT_ROOT/web/brand-portal" && npm install) || { err "npm install failed"; exit 1; }
   fi
   (
-    cd "$PROJECT_ROOT/web"
+    cd "$PROJECT_ROOT/web/brand-portal"
     nohup npm run dev > "$LOG_DIR/web.log" 2>&1 &
     echo $! > "$LOG_DIR/web.pid"
   )
