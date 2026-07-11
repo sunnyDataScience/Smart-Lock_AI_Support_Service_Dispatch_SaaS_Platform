@@ -80,3 +80,22 @@ jobs:
           POSTGRES_URI: "postgresql://lock:0000@localhost:5432/lock_AI_data"
           API_JWT_SECRET_KEY: "test-secret-ci-component"
         run: cd api && uv run pytest -m component -v --tb=short
+
+      # ── CR-0157：rag / refinery 測試納管（此前零 CI 覆蓋）──────────────
+      # 兩者皆吃同一顆 pgvector service DB（Schema_rag.sql / migrations 已在 bootstrap 套過）。
+      # 一律從 repo 根以 workspace 環境跑：在巢狀 member 目錄內 uv run 會被當獨立專案
+      # （自建 .venv/uv.lock、繞過 root lock），CR-0157 實測踩到。
+      - name: Run rag tests (pgvector real DB)
+        if: always()      # api component 紅時仍跑，避免互相遮蔽
+        env:
+          POSTGRES_URI: "postgresql://lock:0000@localhost:5432/lock_AI_data"
+          RAG_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+        run: uv run pytest agent/rag/tests -v --tb=short
+
+      - name: Run refinery tests
+        if: always()
+        env:
+          POSTGRES_URI: "postgresql://lock:0000@localhost:5432/lock_AI_data"
+          REFINERY_TENANT_ID: "00000000-0000-0000-0000-000000000001"
+          API_JWT_SECRET_KEY: "test-secret-ci-component"
+        run: uv run pytest knowledge-pipeline/refinery/tests -v --tb=short
