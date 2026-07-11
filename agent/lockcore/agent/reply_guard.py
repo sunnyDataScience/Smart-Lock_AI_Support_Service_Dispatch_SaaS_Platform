@@ -19,11 +19,23 @@ _PRICE_RE = re.compile(r"(NT\$|＄|\$)\s*\d|[\d,]+\s*(元|塊|台幣|新台幣)"
 # 具體型號代碼（同 grounding_guard）：≥2 大寫字母＋可選分隔＋≥3 位數字
 _MODEL_CODE = re.compile(r"\b([A-Z]{2,}[A-Z0-9]*[- ]?\d{3,}[A-Z0-9]*)\b")
 
+# 聲稱轉接/專員將聯繫的「確定式宣告」語彙（CR-0166 R0，K8 warranty_free say-do gap）：
+# 嘴上說已轉接/會有專員聯繫，本 turn 卻沒呼叫 transfer_to_human = 案子蒸發。
+# 刻意只收「確定式」宣告，不含「可以為您轉接嗎」這類提議句（避免強迫未確認的轉接）。
+_CLAIMED_TRANSFER_MARKERS = (
+    "已為您轉接", "已幫您轉接", "已為您將案件轉接", "已將您的案件轉接", "已轉接",
+    "我將為您轉接", "我將協助您轉接", "幫您轉接給", "為您轉接給", "已通報專員",
+    "已為您安排轉接", "已安排專員", "專員會與您聯繫", "專員將會與您聯繫",
+    "會有專員與您聯繫", "專員稍後會", "專員將盡快與您聯繫", "已為您記錄並轉",
+)
+
 # 違規時的修正指令（regen 1 次用）
 CORRECTIVE_INSTRUCTION = (
     "（系統修正指示，客戶看不到）你上一則草稿違反話術邊界："
     "回覆不得包含任何價格金額數字（報價一律轉真人），"
-    "也不得講出客戶未提過的具體型號代碼（不確定型號就開放式詢問）。"
+    "不得講出客戶未提過的具體型號代碼（不確定型號就開放式詢問）；"
+    "若你聲稱「已轉接／會有專員聯繫」，就必須在本輪實際呼叫 transfer_to_human 工具"
+    "（只說不呼叫＝案子蒸發）。"
     "請重寫回覆：移除違規內容，必要時使用 transfer_to_human 工具轉真人。"
 )
 
@@ -51,6 +63,15 @@ def unsourced_model_codes(reply: str, customer_text: str) -> list[str]:
     return sorted(_codes(reply) - _codes(customer_text))
 
 
+def claimed_transfer_violation(reply: str, *, escalated: bool) -> bool:
+    """確定式宣告已轉接/專員將聯繫，但本 turn 未實際呼叫 transfer_to_human → 違規。
+
+    CR-0166 R0（K8 warranty_free 裁定）：say-do gap——SOP 單一進線鐵律的
+    runtime 兜底（SKILL.md 只約束 prompt 層，憲章要求不依賴 prompt）。
+    """
+    return not escalated and any(m in (reply or "") for m in _CLAIMED_TRANSFER_MARKERS)
+
+
 def guard_violations(reply: str, customer_text: str, *, escalated: bool) -> list[str]:
     """回傳違規原因清單（空＝通過）。"""
     out: list[str] = []
@@ -59,4 +80,6 @@ def guard_violations(reply: str, customer_text: str, *, escalated: bool) -> list
     codes = unsourced_model_codes(reply, customer_text)
     if codes:
         out.append("unsourced_model:" + ",".join(codes[:5]))
+    if claimed_transfer_violation(reply, escalated=escalated):
+        out.append("claimed_transfer_without_tool")
     return out

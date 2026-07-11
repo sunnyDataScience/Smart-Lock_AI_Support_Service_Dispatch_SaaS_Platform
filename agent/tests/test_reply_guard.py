@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from lockcore.agent.reply_guard import (
     TRANSFER_FALLBACK,
+    claimed_transfer_violation,
     guard_violations,
     price_violation,
     unsourced_model_codes,
@@ -35,6 +36,32 @@ class TestUnsourcedModel:
 
     def test_separator_normalized(self):
         assert unsourced_model_codes("建議 SHP-DP609", "我用 SHP DP609") == []
+
+
+class TestClaimedTransfer:
+    """CR-0166 R0：say-do gap 兜底——嘴上說轉接、實際沒呼叫工具（K8 warranty_free 裁定）。"""
+
+    def test_definitive_claim_without_tool_is_violation(self):
+        assert claimed_transfer_violation(
+            "關於保固年限，我將為您轉接專員協助處理，會有專員與您聯繫。", escalated=False)
+        assert claimed_transfer_violation(
+            "請提供品牌型號，我將協助您轉接給專員處理。", escalated=False)
+        assert claimed_transfer_violation(
+            "已為您轉接真人專員，請稍候。", escalated=False)
+
+    def test_claim_with_actual_tool_call_ok(self):
+        assert not claimed_transfer_violation(
+            "已為您轉接真人專員，請稍候。", escalated=True)
+
+    def test_offer_phrasing_is_not_violation(self):
+        """提議句（需要我幫您轉接嗎）不強迫轉接——只攔確定式宣告。"""
+        assert not claimed_transfer_violation(
+            "如果需要，我可以幫您轉接真人專員，請問要嗎？", escalated=False)
+
+    def test_guard_violations_includes_code(self):
+        v = guard_violations(
+            "我將為您轉接專員處理。", "保固可以免費嗎", escalated=False)
+        assert "claimed_transfer_without_tool" in v
 
 
 class TestGuardViolations:
