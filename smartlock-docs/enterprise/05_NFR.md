@@ -149,6 +149,8 @@ NFR 不是「越高越好」，而是「目標 tier 與產品 tier 對齊」。�
 
 **KPI metrics（週期量測）**：`ai_accuracy_50qa`（K1, weekly）、`self_service_rate_pc_unit`（K2, weekly）、`sentiment_negative_detection_rate`（K3, weekly N=100 + monthly audit）、`pc_completeness_rate`（K4, daily）、`acceptance_sla_compliance`（K5, daily）、`ai_first_response_p95`（K6）、`uptime_30d`（K7）、`forbidden_eval_pass_rate`（K8, every deploy）、`concurrent_users_max`（K9, weekly）、`ai_proactive_human_transfer_rate`、`k1_k2_drift_7d`（AI gaming trip-wire, daily）、`abandon_rate_pc_unit`（daily）、`gdpr_forget_completion_time`（monthly）。
 
+〔標注 2026-07-11（業主裁決，UAT 定案）：`ai_accuracy_50qa` 為每週回歸營運指標；UAT 的 K1 判分採 80 題制（標準 50＋OOD 20＋對抗 10，19_Test_Plan）。`sentiment_negative_detection_rate` 所掛之 K3 義項與 02_BRD「家族覆核履約」義並存——兩者皆合約紅線，UAT 並列驗收。〕
+
 監控告警細節見 [./25_Monitoring_Spec.md](./25_Monitoring_Spec.md)。
 
 ## §7 Auditability 稽核性
