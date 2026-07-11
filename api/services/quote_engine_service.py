@@ -394,10 +394,14 @@ async def list_quotes(*, tenant_id: str, limit: int = 100) -> list[dict]:
     供 /admin/quotes 報價列表 dashboard 用，免手貼 UUID。不含明細/成本（列表輕量）。
     """
     conn = await _conn()
+    # CR-0160：補 JOIN problem_cards——CR-0128 卡階段報價（work_order_id=NULL）
+    # 原本單號/客戶全 NULL，列表呈全空列。卡階段以裝置標籤＋聯絡電話呈現脈絡。
     rows = await (await conn.execute(
         "SELECT q.id, q.work_order_id, wo.document_number, q.state, q.total_amount, "
-        "       q.created_at, wo.customer_name, q.version "
+        "       q.created_at, wo.customer_name, q.version, "
+        "       q.problem_card_id, pc.brand, pc.model, pc.contact_phone "
         "FROM quote q LEFT JOIN work_orders wo ON q.work_order_id = wo.id "
+        "LEFT JOIN problem_cards pc ON q.problem_card_id = pc.id "
         "WHERE q.tenant_id = %s::uuid "
         "ORDER BY q.created_at DESC LIMIT %s",
         (tenant_id, limit))).fetchall()
@@ -405,7 +409,11 @@ async def list_quotes(*, tenant_id: str, limit: int = 100) -> list[dict]:
         {"id": str(x[0]), "work_order_id": str(x[1]) if x[1] else None,
          "work_order_number": x[2], "state": x[3], "total_amount": _dec(x[4]),
          "created_at": x[5].isoformat() if x[5] else None, "customer_name": x[6],
-         "quote_number": _quote_number(x[2], x[7])}  # CR-0095 可讀編號
+         "quote_number": _quote_number(x[2], x[7]),  # CR-0095 可讀編號
+         "version": x[7],
+         "problem_card_id": str(x[8]) if x[8] else None,
+         "problem_card_label": " ".join(v for v in (x[9], x[10]) if v) or None,
+         "contact_phone": x[11]}
         for x in rows
     ]
 
@@ -433,6 +441,22 @@ async def transition(
         raise ApiError("NOT_FOUND", "quote not found", 404)
     if cur[0] not in from_states:
         raise ApiError("STATE_CONFLICT", f"cannot {action} quote in '{cur[0]}'", 409)
+
+    # CR-0160（UAT 實測缺口）：空白報價不得送審/送客戶——0 品項且無總額的快照
+    # 凍結無意義，客戶會收到一張空單。品項或總額擇一即放行：急件補審佔位單
+    # 補完明細才會走到 send；直插 total_amount 的既有路徑不受影響。
+    if action in ("submit", "send"):
+        empty = await (await conn.execute(
+            "SELECT 1 FROM quote q WHERE q.id = %s::uuid "
+            "AND COALESCE(q.total_amount, 0) <= 0 "
+            "AND NOT EXISTS (SELECT 1 FROM quote_line_items l WHERE l.quote_id = q.id)",
+            (quote_id,))).fetchone()
+        if empty:
+            raise ApiError(
+                "QUOTE_NO_LINES",
+                "報價單尚無任何品項，不可送審／送客戶（請先加入品項）",
+                422,
+            )
 
     # CR-0129：audit_complete 僅限急件補審單——佔位態（retrospective_audit_only）天然急件；
     # sent 起點須為急件補審（曾為佔位/已起算 audit_due_at 或急件 PC），防一般 sent 報價
