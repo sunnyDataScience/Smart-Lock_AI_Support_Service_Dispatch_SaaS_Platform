@@ -480,6 +480,26 @@ async def create_from_problem_card(
     if pc_emergency_class is None:
         await _qe.bind_quotes_to_work_order(
             tenant_id=tenant_id, problem_card_id=pc_id, work_order_id=new_wo_id)
+        # CR-0163：補開延後的應收發票——卡階段 accept 時 transition 記
+        # 「invoice deferred until convert」並承諾由本流程補開，但承諾從未被
+        # 實作 → 報價先行主路徑每張工單都靜默漏開發票（金流斷層）。
+        # best-effort 比照 accept 即開票路徑：失敗 ERROR log（人工 from-quote
+        # 補開），不阻斷開單；invoices.work_order_id UNIQUE 天然冪等。
+        try:
+            arow = await (await db_module._conn.execute(
+                "SELECT id FROM quote "
+                "WHERE work_order_id = %s::uuid AND tenant_id = %s::uuid "
+                "  AND state = 'accepted' "
+                "ORDER BY updated_at DESC LIMIT 1", (new_wo_id, tenant_id))).fetchone()
+            if arow:
+                from services import invoice_service
+                inv = await invoice_service.create_from_quote(
+                    tenant_id=tenant_id, quote_id=str(arow[0]))
+                logger.info("convert 補開延後發票 wo=%s invoice=%s", new_wo_id, inv.get("id"))
+        except Exception as exc:  # noqa: BLE001 — 開票失敗不阻斷開單（帳務下游解耦）
+            logger.error(
+                "wo %s created but deferred invoice creation FAILED (manual from-quote needed): %s",
+                new_wo_id, exc)
     else:
         await _qe.create_quote(
             tenant_id=tenant_id, work_order_id=new_wo_id, created_by=created_by,

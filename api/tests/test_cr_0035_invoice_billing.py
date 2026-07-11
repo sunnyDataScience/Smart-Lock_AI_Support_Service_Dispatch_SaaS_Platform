@@ -108,9 +108,12 @@ async def test_create_from_quote_empty_quote_422(client):
     woid, ids = await _seed_wo()
     try:
         q = await qe.create_quote(tenant_id=DEFAULT_TENANT_ID, work_order_id=woid, created_by=ADMIN_USER_ID)
-        # 不加任何 line → total_amount NULL；send（0 在門檻內）→ accept
-        await qe.transition(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], action="send", actor_id=ADMIN_USER_ID)
-        await qe.transition(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"], action="accept")
+        # CR-0160 後空單已被狀態機擋在 submit/send（QUOTE_NO_LINES 422），
+        # 走不到 accepted——直接 SQL 塞 accepted 模擬存量髒資料，
+        # 驗證 create_from_quote 的空額 422 仍為縱深防禦。
+        await db_module._conn.execute(
+            "UPDATE quote SET state = 'accepted', updated_at = NOW() WHERE id = %s::uuid",
+            (q["id"],))
         with pytest.raises(ApiError) as ei:
             await invoice_service.create_from_quote(tenant_id=DEFAULT_TENANT_ID, quote_id=q["id"])
         assert ei.value.status_code == 422

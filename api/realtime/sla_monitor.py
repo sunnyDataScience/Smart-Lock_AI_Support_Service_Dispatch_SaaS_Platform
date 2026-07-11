@@ -124,16 +124,20 @@ class SLAMonitor:
         new_alerts: list[dict] = []
 
         # ─── quote_expiring ───────────────────────────────────────────
-        # CR-0117：estimated_price 以前無寫入點，本告警實為死邏輯；接上後修正語意 ——
-        # 計時基準改「報價送出」（quote.state='sent' 的 updated_at ≈ 送出時刻），
-        # 而非工單 created_at（單子可能建立多日後才報價 → 一報價即誤告警）；
-        # 且 join quote 天然排除已同意/已拒絕（state 已離開 sent → 不再誤報「待確認」）。
+        # CR-0117：計時基準=「報價送出」（quote.state='sent' 的 updated_at ≈ 送出時刻）。
+        # CR-0163：錨定從 work_orders 改 quote 本身（與 audit_overdue 同型）——
+        # CR-0128 報價先行主路徑上 sent 報價尚無工單（accept 後才 convert 綁定），
+        # 原 INNER JOIN work_orders 讓本告警對卡階段報價永不觸發（二度死邏輯）。
+        # target_id=quote.id（前端深連結 /admin/quotes?open=）；急件補審報價
+        # （audit_due_at 非空）由 audit_overdue 專責，排除以免雙告警。
         cur = await db_module._conn.execute(
-            "SELECT wo.id, wo.created_at "
-            "FROM work_orders wo "
-            "JOIN quote q ON q.work_order_id = wo.id AND q.state = 'sent' "
-            "WHERE wo.status = 'created' "
-            "  AND wo.estimated_price IS NOT NULL "
+            "SELECT q.id, q.work_order_id "
+            "FROM quote q "
+            "LEFT JOIN work_orders wo ON wo.id = q.work_order_id "
+            "WHERE q.state = 'sent' "
+            "  AND q.total_amount IS NOT NULL "
+            "  AND q.audit_due_at IS NULL "
+            "  AND (q.work_order_id IS NULL OR wo.status = 'created') "
             "  AND q.updated_at < NOW() - (INTERVAL '1 minute' * %s)",
             (QUOTE_EXPIRING_MINUTES,),
         )
@@ -147,6 +151,8 @@ class SLAMonitor:
                         "alert_type": "quote_expiring",
                         "target_id": target_id,
                         "threshold_minutes": QUOTE_EXPIRING_MINUTES,
+                        # 額外 context：已綁單者前端可另連工單
+                        "work_order_id": str(r[1]) if r[1] else None,
                     }
                 )
 
