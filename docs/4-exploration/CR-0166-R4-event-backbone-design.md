@@ -1,7 +1,24 @@
 # CR-0166 R4 — Kafka 事件骨幹設計（待業主 D2 選型後實作）
 
 - **日期**：2026-07-12
-- **狀態**：**設計備妥，待業主裁決 D2（Redpanda vs Kafka）＋運維承諾後動工**。
+- **狀態**：✅ **已實作**（業主 2026-07-12 裁決 D2=Redpanda）。branch `feat/m3-r4-kafka`。
+
+## §0 as-built（2026-07-12 實作）
+
+| WBS | 交付 | 檔案 |
+|---|---|---|
+| S1 | Kafka client（opt-in／fail-soft，KAFKA_BOOTSTRAP 未設=no-op）＋Redpanda compose（profile events）＋main.py producer 生命週期 | `api/core/event_bus.py`、`web/brand-portal/docker-compose.yml`、`api/pyproject.toml`（aiokafka） |
+| S2 | dual-write producer：`workorder.lifecycle`（_publish_and_return，全生命週期轉移共用點）＋`commission.accrued`（reconciliation approve→settlement 建立點） | `api/services/work_order_service.py`、`api/services/reconciliation_service.py` |
+| S3 | 技師平台 CQRS 投影 consumer（欄位最小化＋event_id 冪等）＋投影 schema | `api/realtime/event_consumer.py`、`SQL/tech_authority/Schema_cqrs_projection.sql` |
+| S4 | Settlement consumer（commission.accrued→佣金投影） | `api/realtime/event_consumer.py`（handle_commission_accrued） |
+| S5 | 期末對帳閘門（品牌 settlements vs 技師佣金投影對平，C4 mismatch=0）＋ops 端點 | `api/services/event_reconcile_service.py`、`api/routers/reconciliations_v2.py`（commissionReconcileGateV2） |
+| S6 | 單測 7＋**真 Redpanda E2E**（producer→broker→consumer→兩投影寫入驗證）＋api 全套 1847 綠 | `api/tests/test_cr_0166_event_backbone.py` |
+
+**驗證**：真 Redpanda broker E2E——2 事件發送→consumer 處理→WO 投影（status=assigned/
+district）＋佣金投影（1500.00）正確寫入；冪等（同 event_id skip）；api 1847 passed（no-op
+預設路徑零回歸）。**outbox 保底仍在**（雙寫過渡：DB 路徑不變，Kafka 為新增解耦路徑）。
+
+> outbox 退役（§3 步驟 3）＝Kafka prod 穩定運行＋對帳閘門零異常後執行——列後續輪，本輪保留雙寫。
 - **依據**：ADR-006（即時高併發骨幹）、ADR-017（技師平台佣金邊界＋工單 CQRS 投影）、17_AsyncAPI.yaml。
 - **範圍**：WBS 3.1.1（事件骨幹）／3.1.2（技師工作台 CQRS 投影）／3.2.1（期末對帳閘門）。
 

@@ -195,6 +195,10 @@ async def lifespan(app: FastAPI):
     from realtime.ws_hub import hub as _ws_hub
     await _ws_hub.start_redis()
 
+    # CR-0166 R4：Kafka/Redpanda 事件骨幹 producer（KAFKA_BOOTSTRAP 未設＝no-op）
+    from core.event_bus import producer as _event_producer
+    await _event_producer.start()
+
     if _RUN_BACKGROUND_WORKERS:
         inventory_monitor.start()
         sla_monitor.start()
@@ -211,8 +215,16 @@ async def lifespan(app: FastAPI):
         family_review_sla.start()  # CR-0166 R1: 家族覆核逾 24h 未審升級（合約 4.4d）
     else:
         logger.info("API_SURFACE=%s → 背景 worker 全部停用（由派工方 stack 執行）", _API_SURFACE)  # tech/platform 面共用此訊息
+    # CR-0166 R4：技師平台 CQRS 投影 consumer——跑在技師面（tech/all），與 producer
+    # （品牌 dispatch 面）分離；KAFKA_BOOTSTRAP 未設＝no-op。獨立於一般 worker pool 閘。
+    from realtime.event_consumer import worker as _event_consumer
+    if _API_SURFACE in ("tech", "all") and _event_consumer:
+        _event_consumer.start()
     logger.info("API service ready (port=%s, surface=%s)", cfg.system["port"], _API_SURFACE)
     yield
+    await _event_producer.stop()
+    if _API_SURFACE in ("tech", "all") and _event_consumer:
+        await _event_consumer.stop()
     await _ws_hub.stop_redis()
     if _RUN_BACKGROUND_WORKERS:
         await family_review_sla.stop()

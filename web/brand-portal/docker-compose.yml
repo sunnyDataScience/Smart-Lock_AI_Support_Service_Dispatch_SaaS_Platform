@@ -86,6 +86,9 @@ services:
       MEDIA_ROOT: /app/api/data/media
       INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-dev-internal-token}"
       AGENT_TENANT_ID: "${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+      # CR-0166 R4：Kafka/Redpanda 事件骨幹（opt-in；未設=no-op，outbox 保底）。
+      # 起 broker 用 --profile events；集中共用（非 per-brand，ADR-006）。
+      KAFKA_BOOTSTRAP: "${KAFKA_BOOTSTRAP:-}"
     volumes:
       # 證據照片/簽名檔實體與師傅 stack 的 tech-api 共用(named volume 跨 stack external 掛載)
       - media:/app/api/data/media
@@ -158,6 +161,32 @@ services:
         NEXT_PUBLIC_PEER_PORTAL_URL: "${TECH_PORTAL_URL:-http://localhost:3001}"
     ports:
       - "${WEB_PORT:-3000}:8080"
+    restart: unless-stopped
+
+  # CR-0166 R4：Redpanda 事件骨幹（Kafka 協定相容）。預設不啟動；
+  # 起 broker：`docker compose --profile events up -d redpanda` 並設
+  # KAFKA_BOOTSTRAP=redpanda:9092 重起 api。集中共用（ADR-006，非 per-brand）。
+  redpanda:
+    image: redpandadata/redpanda:v24.2.7
+    profiles: ["events"]
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp=1
+      - --memory=512M
+      - --reserve-memory=0M
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr=PLAINTEXT://redpanda:9092
+    ports:
+      - "${REDPANDA_PORT:-9092}:9092"
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     restart: unless-stopped
 
 networks:

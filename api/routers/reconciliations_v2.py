@@ -193,3 +193,23 @@ async def co_sign_reconciliation_v2(
     if idem is not None:
         await idem.save(200, payload)
     return payload
+
+
+# ── CR-0166 R4：期末對帳閘門（品牌 settlements vs 技師佣金投影對平，C4 mismatch=0）──
+@router.get(
+    "/tenants/{tenantId}/accounting/reconciliation-gate",
+    operation_id="commissionReconcileGateV2",
+    summary="期末對帳閘門：品牌佣金 vs 技師平台投影對平（CR-0166 R4）",
+    tags=["M09 Accounting"],
+)
+async def commission_reconcile_gate_v2(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    """回 {checked, matched, mismatched, missing, gate_pass}。
+    Kafka 未啟用時 skipped=true（無投影不誤報）；mismatch>0 → gate_pass=false 應阻結算。"""
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_READ", "Path tenantId does not match authenticated tenant", 403)
+    from services import event_reconcile_service
+    result = await event_reconcile_service.reconcile_commission(tenant_id=tenantId)
+    return {"data": result}
