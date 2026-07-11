@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **案件池接單改「詳情頁＋二次確認」流程（branch `feat/pool-detail-confirm`，2026-07-11，業主 UAT 裁決）**：原案件池卡片一鍵接單，業主裁決改為：點卡片 → 進 `/pool/{id}` 詳情頁看清楚（地址/設備/問題/門型/預估報酬/建立時間）→ 按「接受工單」→ 確認視窗（含工單摘要）二次確認 → 才真的 accept。隱私最小揭露：接單前不顯示客戶姓名/電話（詳情頁明示「接單後顯示」）。純前端變更（getWorkOrder 本就開放同租戶讀取）；pool 卡片改「查看詳情」次要按鈕＋整卡可點（鍵盤可達）；409 被搶顯示「已被接走」＋返回案件池。i18n zh/en 各 +17 鍵 parity 通過。驗證：tech tsc 0＋容器重建＋Playwright 全流程 live 實測（登入→案件池→詳情→確認視窗→accepted→跳轉我的工單，DB 實查技師正確指派）。
+
 - **M2 SIT 全綠（WBS 2.6.1，branch `test/m2-sit`，2026-07-10，CIA CR-0147）**：scratch 全新 bootstrap 合跑——api **1738**＋agent **162**＋rag **7**（含新增 agent→MCP→RAG 整合測試 2，SIT 缺口銷案）＋refinery **12**（修測試密鑰跟隨 env 的合跑假紅）。五項 live 實證：Casdoor 同步/映射、OIDC 瀏覽器全流程、**refinery 真 LLM 煉製**（UAT knowledge_ready 卡→1 case+2 behavior 草稿，CR-0139/0140 遺留銷案）、RAG 灌注+基準 83%、requote TC-DISPATCH-07。**M2 工程全數完結**；UAT（M1 1.7.2＋M2，合約紅線）=業主。
 
 - **OIDC 授權碼流 web 接線（WBS 2.1.1-R2，branch `feat/casdoor-oidc-web-r2`，2026-07-10，CIA CR-0146 / ADR-024）**：brand-portal 參考實作——`/auth/callback` 薄回調（server-side code→token、寫 httpOnly cookie `smartlock_access_token`＝api R1 cookie 來源）＋`/auth/sso-complete` 過渡雙寫（localStorage，既有同步 getCurrentSession 依賴）＋登入頁 SSO 按鈕（redirect_uri client 端組——SSR 空值 bug 由 live E2E 抓到並修）。**live E2E 全通**（Playwright＋真 Casdoor）：SSO→授權→bcrypt 遷移密碼登入→cookie 已設（JS 不可讀）→RS256 角色/租戶映射→dashboard。R3（業主排程）：ACT-01 localStorage 退場（30+ 頁同步→非同步改造）＋三站複製＋prod cookie 網域。
