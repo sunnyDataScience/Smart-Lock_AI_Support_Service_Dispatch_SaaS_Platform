@@ -2543,7 +2543,10 @@
       "scheduledTime": "預約時間",
       "completionTime": "完工時間",
       "customer": "客戶資訊",
-      "viewProblemCard": "查看問題卡 →",
+      "pcSummaryTitle": "問題診斷摘要",
+      "pcSymptom": "症狀：",
+      "pcDiagnosis": "AI 診斷：",
+      "pcConfidence": "信心度 {percent}%",
       "callCustomer": "撥打客戶電話（待補）",
       "completeCta": "完工回報",
       "subflows": {

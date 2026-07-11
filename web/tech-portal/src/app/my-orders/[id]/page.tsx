@@ -8,6 +8,8 @@ import {
   Navigation,
   CheckCircle2,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
   MapPin,
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
@@ -21,6 +23,8 @@ import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
+type ProblemCard = components["schemas"]["ProblemCard"];
+type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 
 const TERMINAL_STATUSES: WorkOrder["status"][] = [
   "completed",
@@ -67,6 +71,9 @@ export default function MyOrderDetailPage() {
   const [wo, setWo] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 問題診斷摘要（設計規格 12_tech problem_card_section）：best-effort 讀取，預設收合
+  const [pc, setPc] = useState<ProblemCard | null>(null);
+  const [pcOpen, setPcOpen] = useState(false);
 
   // Completion form state
   const [showForm, setShowForm] = useState(false);
@@ -111,6 +118,26 @@ export default function MyOrderDetailPage() {
   useEffect(() => {
     fetchOrder();
   }, [fetchOrder]);
+
+  // 問題診斷摘要：工單載入後補抓問題卡（失敗只隱藏摘要區，不影響工單操作）
+  const pcId = wo?.problem_card_id;
+  useEffect(() => {
+    if (!pcId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get<ProblemCardEnvelope>(
+          tenantPath(`/problem-cards/${encodeURIComponent(pcId)}`),
+        );
+        if (!cancelled) setPc(res.data ?? null);
+      } catch {
+        if (!cancelled) setPc(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pcId]);
 
   async function uploadCompletionPhoto(
     section: "before" | "during" | "after",
@@ -330,6 +357,54 @@ export default function MyOrderDetailPage() {
             </div>
           </section>
 
+          {/* problem_card_section（設計規格 12_tech：問題診斷摘要，預設收合）*/}
+          {pc && (
+            <section className="flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
+              <button
+                type="button"
+                onClick={() => setPcOpen((v) => !v)}
+                aria-expanded={pcOpen}
+                className="flex min-h-[44px] items-center justify-between gap-2 text-left"
+              >
+                <span className="flex items-center gap-2">
+                  <span className="text-[15px] font-semibold text-[var(--text-primary)]">
+                    {t("pcSummaryTitle")}
+                  </span>
+                  {typeof pc.confidence_score === "number" && (
+                    <span className="rounded-full bg-[#DBEAFE] px-2 py-[2px] text-[11px] font-medium text-[#1D4ED8]">
+                      {t("pcConfidence", {
+                        percent: Math.round(
+                          pc.confidence_score <= 1
+                            ? pc.confidence_score * 100
+                            : pc.confidence_score,
+                        ),
+                      })}
+                    </span>
+                  )}
+                </span>
+                {pcOpen ? (
+                  <ChevronUp className="h-5 w-5 shrink-0 text-[var(--text-secondary)]" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 shrink-0 text-[var(--text-secondary)]" />
+                )}
+              </button>
+              {pcOpen && (
+                <div className="mt-2 flex flex-col gap-2 border-t border-[var(--border)] pt-3">
+                  <p className="text-[14px] text-[var(--text-primary)]">
+                    <span className="font-medium">{t("pcSymptom")}</span>
+                    {pc.symptom || "—"}
+                  </p>
+                  <p className="text-[14px] text-[var(--text-secondary)]">
+                    <span className="font-medium">{t("pcDiagnosis")}</span>
+                    {[pc.failure_mode, pc.root_cause].filter(Boolean).join("；") ||
+                      pc.category ||
+                      "—"}
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* service_info_section */}
           <section className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
             <span className="text-[11px] font-medium text-[var(--text-secondary)]">
@@ -387,12 +462,6 @@ export default function MyOrderDetailPage() {
                 {wo.customer_name}
               </span>
             )}
-            <Link
-              href={`/problem-cards/${wo.problem_card_id}`}
-              className="text-[13px] text-[var(--primary)] hover:underline"
-            >
-              {t("viewProblemCard")}
-            </Link>
             {wo.customer_phone && (
               <a
                 href={`tel:${wo.customer_phone}`}

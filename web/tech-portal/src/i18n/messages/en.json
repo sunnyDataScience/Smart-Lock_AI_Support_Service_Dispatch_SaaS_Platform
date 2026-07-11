@@ -2543,7 +2543,10 @@
       "scheduledTime": "Scheduled time",
       "completionTime": "Completion time",
       "customer": "Customer info",
-      "viewProblemCard": "View problem card →",
+      "pcSummaryTitle": "Problem diagnosis summary",
+      "pcSymptom": "Symptom: ",
+      "pcDiagnosis": "AI diagnosis: ",
+      "pcConfidence": "Confidence {percent}%",
       "callCustomer": "Call customer (TBD)",
       "completeCta": "Complete order",
       "subflows": {

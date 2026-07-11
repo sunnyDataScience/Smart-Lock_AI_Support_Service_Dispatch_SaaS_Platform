@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **師傅工單詳情內嵌「問題診斷摘要」取代跳品牌後台死連結（branch `feat/tech-problem-card-summary`，2026-07-11，業主 UAT 裁決依原規格補正）**：業主 UAT 發現「查看問題卡」點了跳品牌後台（:3000）。考據：連結為 5/5 技師 MVP 單一 codebase 時代的簡化實作，7/9 拆站後 `/problem-cards` 路由只在品牌後台 → 未知路由被跨站導流丟到 :3000，真實師傅無品牌帳號＝死路；原設計規格（`12_tech_my_orders` problem_card_section）要求的是**頁面內嵌折疊區塊**（症狀＋AI 診斷＋信心度，預設收合）。修正：照規格實作——工單詳情鎖具區後新增「問題診斷摘要」collapsible（symptom＋failure_mode/root_cause 回退 category＋confidence_score 徽章），問題卡 best-effort 讀取（失敗只隱藏不擋操作）；移除死連結。i18n zh/en 換鍵 parity 過。驗證：tech tsc 0＋容器重建＋Playwright 於業主真實 UAT 工單 live 實測（展開顯示 LINE 回報症狀）。
+
 - **案件池接單改「詳情頁＋二次確認」流程（branch `feat/pool-detail-confirm`，2026-07-11，業主 UAT 裁決）**：原案件池卡片一鍵接單，業主裁決改為：點卡片 → 進 `/pool/{id}` 詳情頁看清楚（地址/設備/問題/門型/預估報酬/建立時間）→ 按「接受工單」→ 確認視窗（含工單摘要）二次確認 → 才真的 accept。隱私最小揭露：接單前不顯示客戶姓名/電話（詳情頁明示「接單後顯示」）。純前端變更（getWorkOrder 本就開放同租戶讀取）；pool 卡片改「查看詳情」次要按鈕＋整卡可點（鍵盤可達）；409 被搶顯示「已被接走」＋返回案件池。i18n zh/en 各 +17 鍵 parity 通過。驗證：tech tsc 0＋容器重建＋Playwright 全流程 live 實測（登入→案件池→詳情→確認視窗→accepted→跳轉我的工單，DB 實查技師正確指派）。
 
 - **M2 SIT 全綠（WBS 2.6.1，branch `test/m2-sit`，2026-07-10，CIA CR-0147）**：scratch 全新 bootstrap 合跑——api **1738**＋agent **162**＋rag **7**（含新增 agent→MCP→RAG 整合測試 2，SIT 缺口銷案）＋refinery **12**（修測試密鑰跟隨 env 的合跑假紅）。五項 live 實證：Casdoor 同步/映射、OIDC 瀏覽器全流程、**refinery 真 LLM 煉製**（UAT knowledge_ready 卡→1 case+2 behavior 草稿，CR-0139/0140 遺留銷案）、RAG 灌注+基準 83%、requote TC-DISPATCH-07。**M2 工程全數完結**；UAT（M1 1.7.2＋M2，合約紅線）=業主。
