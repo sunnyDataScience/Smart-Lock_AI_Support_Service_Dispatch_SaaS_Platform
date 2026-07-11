@@ -97,7 +97,9 @@
   - **R4 Kafka 事件骨幹**＝承重架構變更（引入 message broker、CQRS 投影、替換 outbox，ADR-006/017），需業主 **D2 選型確認＋運維承諾** 才動工——不宜在假設預設上自動建置 production message broker。
   - **R5 provisioning＋第 2 品牌開站 dry-run**（M3 Release gate）＝可自動化推進（不依賴 Kafka）。
   - **R6 上雲**＝需業主 GCP 授權協同（D1）。**R7 v1 收斂**＝需 D5。
-- ✅ **R4 設計備妥**（`CR-0166-R4-event-backbone-design.md`）：D2 選型建議 Redpanda＋topic schema＋outbox→Kafka 遷移路徑＋對帳閘門＋實作 WBS；待業主 D2 拍板後實作。
+- ✅ **R4 done**（業主 D2=Redpanda，merge dev-ding）：event_bus producer（opt-in/fail-soft）＋dual-write（workorder.lifecycle／commission.accrued，outbox 保底）＋技師平台 CQRS 投影 consumer（欄位最小化＋冪等）＋期末對帳閘門（commissionReconcileGateV2）。**真 Redpanda broker E2E 驗證**＋api 1847 綠。outbox 退役俟 prod 穩定（本輪雙寫過渡）。
+- ✅ **R7 done（治理定案）**（業主 D5，merge dev-ding）：auth v1 永久例外／platform v1 長期承諾／ADR-003 三步；凍結維持。**實際端點移除 metrics-gated**（collector 未部署，延後至 R6 上雲＋OTel）。D8 SSO 三站複製＝大型 owner-scheduled 前端重構（localStorage 退場 30+ 頁）另排。
+- ✅ **R6 runbook 備妥**（`R6-cloud-topology-runbook-20260712.md`）：tech/platform 面上雲＋技師庫上雲 checklist＋事件骨幹上雲＋GCP 多專案 view；**GCP 執行需業主授權協同**（D1）。
 - ✅ **R8 UAT wave4 done（已建範圍）**（merge dev-ding）：6 面向多 agent 去偽驗收——R0 AI eval／R1 治理 9/9／R2 K3'／R3 License／R5 provisioning 全 **PASS 零功能回歸**（`uat-wave4-m3-report-20260712.md`）。回歸守門 2 非功能項已修（CHANGELOG 補登＋死角色 super_admin 移除）。UAT 驗收清單 §1 合約紅線 AI 面全綠回填。**M3 全項總驗收俟 R4/R6/R7 落地。**
 
 ## 已完成 UAT 紅線 gate 總結（R0–R3）
