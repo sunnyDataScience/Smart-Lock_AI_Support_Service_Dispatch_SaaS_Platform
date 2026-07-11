@@ -15,6 +15,9 @@ dist/
 build/
 .venv/
 venv/
+# 巢狀 workspace member 目錄內誤跑 uv run 會自建獨立 lock（正典=root uv.lock；CR-0157）
+agent/rag/uv.lock
+knowledge-pipeline/refinery/uv.lock
 
 # Node
 node_modules/

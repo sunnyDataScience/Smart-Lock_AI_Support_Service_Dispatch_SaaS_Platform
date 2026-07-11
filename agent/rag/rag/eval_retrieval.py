@@ -5,7 +5,7 @@
 輔助語義查找；引用率不再是切換開關，**轉為衡量輔助工具品質的指標**。
 --gate 保留供 CI 當品質水位告警（低於水位=語料/檢索退化訊號，非 block 開關）。
 
-用法（於 rag/ 目錄）：
+用法（於 agent/rag/ 目錄）：
   RAG_TENANT_ID=<uuid> POSTGRES_URI=<uri> uv run python -m rag.eval_retrieval [--gate 0.9] [--top-k 5]
 """
 
@@ -19,7 +19,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from rag.embedding import embed_one  # noqa: E402
 from rag.store import search_manual  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[2]
+# parents[3] = 專案根（本檔位於 agent/rag/rag/，CR-0157 起 rag 宿主於 agent/ 之下）
+ROOT = Path(__file__).resolve().parents[3]
 GOLDEN = ROOT / "knowledge-pipeline" / "eval" / "golden_qa.jsonl"
 
 

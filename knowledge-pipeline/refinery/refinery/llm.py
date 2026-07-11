@@ -22,7 +22,8 @@ def _ensure_credentials() -> None:
     try:
         from dotenv import load_dotenv
 
-        root = Path(__file__).resolve().parents[2]
+        # parents[3] = 專案根（本檔位於 knowledge-pipeline/refinery/refinery/，CR-0157 搬遷後）
+        root = Path(__file__).resolve().parents[3]
         load_dotenv(root / ".env")
         cred = root / "credentials.json"
         if cred.exists() and not os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):

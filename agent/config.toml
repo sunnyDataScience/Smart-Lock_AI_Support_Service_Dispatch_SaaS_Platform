@@ -36,10 +36,11 @@ extractor = "llm"
 # RAG-via-MCP(ADR-010/WBS 2.2.2):語義檢索兩工具(search_product_manual/search_similar_cases)。
 # 啟用條件:RAG_TENANT_ID 與 POSTGRES_URI 環境變數皆有值;缺任一 → 本 server 跳過,
 # agent 完全維持既有行為(references 為主路徑;cutover 依 ADR-010 待引用率 gate ≥ 90%)。
-# 本機 stdio 直起 rag/(需 uv);容器化部署改 streamableHttp url 指 rag sidecar(cutover 輪處理)。
+# 本機 stdio 直起 agent/rag/(需 uv;CR-0157 起 rag 宿主於 agent/ 之下);
+# 容器化部署改 streamableHttp url 指 rag sidecar(cutover 輪處理)。
 command = "uv"
 args = ["run", "python", "-m", "rag.server"]
-cwd = "../rag"
+cwd = "rag"
 tool_timeout = 20
 
 [mcp_servers.locksmith-rag.env]

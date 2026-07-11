@@ -2495,8 +2495,8 @@ requires-dist = [
     { name = "lock-cs-agent", extras = ["eval"], editable = "agent" },
     { name = "smart-lock-api", virtual = "api" },
     { name = "smart-lock-knowledge-pipeline", virtual = "knowledge-pipeline" },
-    { name = "smart-lock-rag", virtual = "rag" },
-    { name = "smart-lock-refinery", editable = "refinery" },
+    { name = "smart-lock-rag", virtual = "agent/rag" },
+    { name = "smart-lock-refinery", editable = "knowledge-pipeline/refinery" },
 ]
 
 [package.metadata.requires-dev]
@@ -2520,7 +2520,7 @@ test = [
 [[package]]
 name = "smart-lock-rag"
 version = "0.1.0"
-source = { virtual = "rag" }
+source = { virtual = "agent/rag" }
 dependencies = [
     { name = "litellm" },
     { name = "mcp" },
@@ -2547,7 +2547,7 @@ dev = [{ name = "pytest", specifier = ">=8.0" }]
 [[package]]
 name = "smart-lock-refinery"
 version = "0.2.0"
-source = { editable = "refinery" }
+source = { editable = "knowledge-pipeline/refinery" }
 dependencies = [
     { name = "fastapi" },
     { name = "httpx" },

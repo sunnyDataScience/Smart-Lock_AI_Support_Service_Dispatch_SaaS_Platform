@@ -26,7 +26,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     tenant = db.tenant_id()
-    repo_root = Path(args.root) if args.root else Path(__file__).resolve().parents[2]
+    # parents[3] = 專案根（本檔位於 knowledge-pipeline/refinery/refinery/，CR-0157 搬遷後）
+    repo_root = Path(args.root) if args.root else Path(__file__).resolve().parents[3]
     applied = skipped = 0
 
     with db.connect() as conn, conn.cursor() as cur:
