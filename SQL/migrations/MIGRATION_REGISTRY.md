@@ -127,6 +127,7 @@
 | 102 | `102-wo-events-assign-supply.sql` | CR-0165 F9 | 🟢 idempotent（DROP/ADD CONSTRAINT 可重套，scratch 5473 驗證 2026-07-11） | work_order_events CHECK 補 'assign'（F9 手動派工 timeline 事件）＋'supply_arrived'（查證途中發現：mark_supply_arrived 端點寫入值未列於 059 CHECK → 該端點自建置必 500，live 0 筆佐證）。同 050/059 同類 bug |
 | 103 | `103-config-namespace-owner-protected.sql` | CR-0166 R1-6/R1-7 | 🟢 idempotent（ADD COLUMN IF NOT EXISTS＋具名 UPDATE，scratch 5474 驗證 2026-07-12） | saas.config_namespace 加 is_protected 欄＋回填 owner_role_codes（19 namespace=operations_manager，payment_gate=admin-only＋protected）。受保護層＋per-namespace owner 治理落地 |
 | 104 | `104-wo-events-reject.sql` | CR-0166 R1-9 | 🟢 idempotent（DROP/ADD CONSTRAINT 可重套，scratch 5474 驗證 2026-07-12） | work_order_events CHECK 補 'reject'（技師拒單 timeline 事件）。同 050/059/102 同類 |
+| 105 | `105-tech-lifecycle-brand-auth-events.sql` | CR-0166 R1-4 | 🟢 idempotent（DROP/ADD CONSTRAINT 可重套，scratch 5474 驗證 2026-07-12） | saas.technician_lifecycle_event event_type CHECK 補 'brand_auth_granted'/'brand_auth_revoked'（品牌授權撤證 API audit）。⚠️ 須同時套品牌庫投影與技師權威庫兩邊。同 020/090 同類 |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

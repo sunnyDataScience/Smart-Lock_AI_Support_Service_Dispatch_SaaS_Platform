@@ -14,45 +14,17 @@
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import os
-import re
 
 logger = logging.getLogger("api.observability")
 
 _enabled = False
 
-# ── PII scrubbing（純函式，無 otel 依賴，可單測）─────────────────────────────
-# 順序有意義：LINE uid 先於 token（U 開頭 33 字元）；電話先於地址（門牌數字）。
-_LINE_UID_RE = re.compile(r"\bU[0-9a-f]{32}\b")
-_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
-# 台灣手機（09xxxxxxxx / +8869xxxxxxxx，容忍 - 或空白分隔）與市話（0x-xxxxxxxx）
-_PHONE_RE = re.compile(
-    r"(?:\+886[-\s]?9\d{2}|09\d{2})[-\s]?\d{3}[-\s]?\d{3}"
-    r"|\b0\d{1,2}-\d{6,8}\b"
-)
-# 台灣地址啟發式：縣市 …（區鄉鎮）… 路/街/大道/巷/弄 … 號（保守，寧漏勿誤殺）
-_ADDR_RE = re.compile(
-    r"\S{1,6}[縣市]\S{0,12}?[區鄉鎮市]?\S{0,20}?(?:路|街|大道|巷|弄)[\S]{0,12}?號?"
-)
-# URL query 內的憑證參數（FastAPI 埋點的 http.url/http.target 可能帶）
-_TOKEN_PARAM_RE = re.compile(r"((?:access_|refresh_)?token=)[^&\s]+")
-
-
-def _hash_line_uid(m: re.Match) -> str:
-    return "U#" + hashlib.sha256(m.group(0).encode()).hexdigest()[:12]
-
-
-def scrub_text(value: str) -> str:
-    """遮蔽字串中的 PII（25_Monitoring §3）：LINE uid 雜湊化、電話/email/地址/
-    token 以占位符取代。非 PII 內容原樣保留。"""
-    value = _LINE_UID_RE.sub(_hash_line_uid, value)
-    value = _TOKEN_PARAM_RE.sub(r"\1[TOKEN]", value)
-    value = _EMAIL_RE.sub("[EMAIL]", value)
-    value = _PHONE_RE.sub("[PHONE]", value)
-    value = _ADDR_RE.sub("[ADDR]", value)
-    return value
+# ── PII scrubbing ─────────────────────────────────────────────────────────
+# CR-0166 R1-8：regex 與 scrub_text 昇格至 core/pii_scrub.py（共用），此處 re-export
+# 保持既有 import 相容（OTel span 遮蔽仍用全遮蔽版 scrub_text）。
+from core.pii_scrub import scrub_text  # noqa: E402,F401 — re-export 相容
 
 
 def _scrub_span_attributes(span) -> None:

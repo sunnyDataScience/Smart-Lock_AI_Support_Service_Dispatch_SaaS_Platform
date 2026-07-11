@@ -395,8 +395,11 @@ ALTER TABLE llm_usage_log ADD COLUMN IF NOT EXISTS ai_reply      TEXT;
 COMMENT ON TABLE  llm_usage_log IS 'LLM 呼叫度量資料（取代 Opik token + latency 紀錄角色）';
 COMMENT ON COLUMN llm_usage_log.turn_id IS '同一 user turn 內多次 LLM 呼叫的關聯鍵（例如 ReAct 多 step）';
 COMMENT ON COLUMN llm_usage_log.call_site IS '呼叫情境，用於分桶聚合成本';
-COMMENT ON COLUMN llm_usage_log.user_question IS '使用者問題原文，不截斷不遮罩（與 audit_log.content 一致）';
-COMMENT ON COLUMN llm_usage_log.ai_reply IS 'AI 回覆原文，不截斷不遮罩；對外展示前再呼叫 _mask_pii()';
+-- CR-0166 R1-8：目前無任何 runtime 寫入者（_mask_pii 已不存在）。未來若恢復 usage
+-- logging，user_question/ai_reply 寫入前一律過 core/pii_scrub.scrub_text（或改用
+-- core/pii_crypto Fernet 欄位加密，KYC 已有現成模式）——不得再存明文 PII。
+COMMENT ON COLUMN llm_usage_log.user_question IS '使用者問題原文；CR-0166 R1-8：未來寫入者必經 pii_scrub.scrub_text（現無寫入者）';
+COMMENT ON COLUMN llm_usage_log.ai_reply IS 'AI 回覆原文；CR-0166 R1-8：未來寫入者必經 pii_scrub.scrub_text（現無寫入者）';
 COMMENT ON COLUMN llm_usage_log.metadata IS '結構化擴充欄位；禁止寫入訊息原文以避免 PII 洩漏';
 
 CREATE INDEX IF NOT EXISTS idx_llm_usage_timestamp ON llm_usage_log (timestamp DESC);

@@ -75,6 +75,12 @@ async def _chain_fields(
     event_type, actor_id, actor_role, action, target_type, target_id, payload,
 ) -> tuple[str, str, str | None]:
     """算 (prev_hash, entry_hash, payload_json)；payload_json 同時用於 INSERT 與 hash 內容。"""
+    # CR-0166 R1-8：payload 自由文字欄（reason/notes/email 等）入庫＋入 hash 前先
+    # 遮蔽高置信 PII（email/電話/身分證/LINE uid，不含地址啟發式以保稽核證據力）。
+    # 在 json.dumps 與 hash 之前——hash 鏈事後不可改。
+    if payload:
+        from core.pii_scrub import scrub_audit_payload
+        payload = scrub_audit_payload(payload)
     payload_json = json.dumps(payload, ensure_ascii=False) if payload else None
     payload_canon = (
         json.dumps(payload, ensure_ascii=False, sort_keys=True) if payload else None
