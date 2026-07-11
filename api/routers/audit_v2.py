@@ -76,6 +76,32 @@ async def list_audit_events_v2(
     }
 
 
+@router.get(
+    "/tenants/{tenantId}/audit/verify",
+    operation_id="verifyAuditChainV2",
+    summary="稽核 hash-chain 完整性驗證（NFR-Aud-001；偵測竄改/斷鏈）",
+)
+async def verify_audit_chain_v2(
+    tenantId: str = Path(...),
+    limit: int = Query(default=1000, ge=1, le=10000),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
+) -> dict:
+    """CR-0164 A：把既有 audit_log_service.verify_audit_chain 接上 API（原為死機制）。
+
+    audit_events 為部署層級事件（無 tenant_id），鏈為全域——tenant path 僅供
+    授權對齊（admin gate + ADR-0030 cross-tenant guard）；驗的是整條部署鏈。
+    回 {checked, valid, broken_at}；valid=False 時 broken_at 為第一個竄改/斷鏈列 id。
+    """
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    result = await audit_log_service.verify_audit_chain(limit=limit)
+    return {"data": result}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # POST /tenants/{tenantId}/audit/exports
 # ─────────────────────────────────────────────────────────────────────────────

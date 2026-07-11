@@ -3213,6 +3213,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenants/{tenantId}/audit/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 稽核 hash-chain 完整性驗證（NFR-Aud-001；偵測竄改/斷鏈）
+         * @description CR-0164 A：把既有 audit_log_service.verify_audit_chain 接上 API（原為死機制）。
+         *
+         *     audit_events 為部署層級事件（無 tenant_id），鏈為全域——tenant path 僅供
+         *     授權對齊（admin gate + ADR-0030 cross-tenant guard）；驗的是整條部署鏈。
+         *     回 {checked, valid, broken_at}；valid=False 時 broken_at 為第一個竄改/斷鏈列 id。
+         */
+        get: operations["verifyAuditChainV2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tenants/{tenantId}/audit/exports": {
         parameters: {
             query?: never;
@@ -20605,6 +20629,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AuditLogPage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verifyAuditChainV2: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

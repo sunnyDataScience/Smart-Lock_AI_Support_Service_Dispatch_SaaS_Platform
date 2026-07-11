@@ -190,3 +190,19 @@ async def seed_accepted_quote(pc_id: str, tenant_id: str = DEFAULT_TENANT_ID) ->
         (pc_id, tenant_id, pc_id),
     )).fetchone()
     return str(row[0])
+
+
+async def audit_privileged_exec(sql: str, params: tuple = ()) -> None:
+    """CR-0164：audit_events 加 append-only trigger（migration 100）後，測試的
+    清理/竄改注入需 session_replication_role='replica' 特權繞過（ORIGIN 觸發器
+    於 replica 模式不觸發——模擬 DBA/retention purge 特權路徑）。
+    """
+    import core.db as db_module
+    from core.db import _ensure_conn
+
+    await _ensure_conn()
+    await db_module._conn.execute("SET session_replication_role = 'replica'")
+    try:
+        await db_module._conn.execute(sql, params)
+    finally:
+        await db_module._conn.execute("SET session_replication_role = 'origin'")

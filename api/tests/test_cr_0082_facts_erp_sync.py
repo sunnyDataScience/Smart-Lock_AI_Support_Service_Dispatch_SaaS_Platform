@@ -6,6 +6,7 @@ from __future__ import annotations
 import uuid
 import pytest
 import core.db as db_module
+from tests.conftest import audit_privileged_exec  # CR-0164
 from services.facts_erp_sync_service import (
     ErpSnapshot, reconcile_facts, sync_user_facts, sync_from_client,
 )
@@ -68,7 +69,7 @@ async def test_sync_writes_scd2_and_audit():
         assert (await acur.fetchone())[0] >= 1
     finally:
         await db_module._conn.execute("DELETE FROM user_facts WHERE user_id=%s", (uid,))
-        await db_module._conn.execute(
+        await audit_privileged_exec(
             "DELETE FROM audit_events WHERE action='facts.erp_sync' AND payload->>'user_id'=%s", (uid,))
 
 
@@ -90,5 +91,5 @@ async def test_sync_idempotent_no_churn():
         assert r2["applied"] == 0                 # 第二次：一致 → 0 變更
     finally:
         await db_module._conn.execute("DELETE FROM user_facts WHERE user_id=%s", (uid,))
-        await db_module._conn.execute(
+        await audit_privileged_exec(
             "DELETE FROM audit_events WHERE action='facts.erp_sync' AND payload->>'user_id'=%s", (uid,))

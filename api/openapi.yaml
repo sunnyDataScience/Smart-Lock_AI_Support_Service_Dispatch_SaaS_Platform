@@ -1647,6 +1647,32 @@ paths:
         '202':
           description: 'Export job queued'
           content: { application/json: { schema: { $ref: '#/components/schemas/ExportJobRef' } } }
+  /tenants/{tenantId}/audit/verify:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    get:
+      tags: [M17 RBAC / Audit]
+      summary: Verify audit hash-chain integrity (NFR-Aud-001；CR-0164)
+      description: >-
+        偵測 audit_events 竄改/斷鏈。audit_events 為部署層級（無 tenant_id），
+        驗的是整條部署鏈；tenant path 僅供 admin 授權對齊。
+      operationId: verifyAuditChain
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      checked: { type: integer }
+                      valid: { type: boolean }
+                      broken_at: { type: string, nullable: true }
+                    required: [checked, valid, broken_at]
 
   # M18 Config Governance (ADR-0067)
   /tenants/{tenantId}/m18/configs:

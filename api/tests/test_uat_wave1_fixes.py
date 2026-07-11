@@ -18,7 +18,7 @@ from core.errors import ApiError
 from services import quote_engine_service as qe
 from services import requote_service
 from services import work_order_service as wo_svc
-from tests.conftest import DEFAULT_TENANT_ID
+from tests.conftest import DEFAULT_TENANT_ID, audit_privileged_exec
 
 pytestmark = pytest.mark.component
 
@@ -55,7 +55,7 @@ async def _mk_wo(*, brand: str = "Chatlock", status: str = "in_progress",
 
 
 async def _cleanup(wid: str, pid: str, uid: str) -> None:
-    await db_module._conn.execute("DELETE FROM audit_events WHERE target_id=%s::uuid", (wid,))
+    await audit_privileged_exec("DELETE FROM audit_events WHERE target_id=%s::uuid", (wid,))
     await db_module._conn.execute("DELETE FROM requote_requests WHERE work_order_id=%s::uuid", (wid,))
     await db_module._conn.execute(
         "DELETE FROM quote_line_items WHERE quote_id IN "
