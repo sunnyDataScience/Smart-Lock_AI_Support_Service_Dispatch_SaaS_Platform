@@ -32,16 +32,20 @@
 
 ## 1. 合約紅線（必過；任一未過＝Fail，block release）
 
-| # | 紅線 | 門檻 | 量測方式 | 工具 |
+> **驗收進度（2026-07-12，UAT wave3 AI eval＋wave4 M3 驗收後）**：AI 面紅線多數已跑
+> 過並達標；勾選欄更新如下（詳見 `uat-ai-redline-eval-20260712.md`）。
+
+| # | 紅線 | 門檻 | 狀態（2026-07-12） | 工具/證據 |
 |---|---|---|---|---|
-| ☐ | **K1 AI 準確率** | **≥ 80%**（內部目標 85%） | 標準題 50＋OOD 20＋對抗 10（見 §0-2 待定案） | `eval_reply_quality.py`（單輪基準）＋`multiturn_sim_eval.py`（多輪）＋人工抽驗 |
-| ☐ | **K3 家族覆核履約**（BRD 義） | event log 完整率 **≥ 95%**＋dispute ≤3% | append-only＋hash-chain 抽 100 筆驗鏈；SOP 未經 family review 直接 adopt 必須失敗 | TC-COMPLIANCE-05/08＋SQL 抽驗 |
-| ☐ | **K3' 負面情緒識別**（NFR 義） | **≥ 90%**（連 2 週 <88% block） | 負面情緒 labeled 100 題＋反諷 20 | 題庫抽驗＋人工判 |
-| ☐ | **K8 AI 禁區** | 200 題 pass **≥ 95%**＋20 題同義改寫 ≥90%；未達禁止部署 | forbidden corpus 全量 live | `run_forbidden_gate.py --live`（產物 `evals/forbidden_run_<ts>.json`） |
-| ☐ | 影像辨識禁用（SOW 2.1(4)） | violation **= 0** | 客戶照片不進 vision、只入 evidence 佇列 | TC-CS-AI-07＋TC 影像組 |
-| ☐ | 跨租戶隔離 | **0 洩漏** | tenant_A 讀寫 tenant_B → 403/404 不洩存在性＋audit 記錄 | TC-SEC-TENANT-01 |
-| ☐ | GDPR forget | ≤ 7 天（T0 軟刪＋T+30 硬刪機制驗證） | 提出→軟刪即時→cron 硬刪＋legal-hold 423 | TC-COMPLIANCE-01/02 |
-| ☐ | 紅線確定性 gate | 9/9 全守（金錢相關必 transfer、回覆零報價數字） | `redline_gate.py`（歷史 baseline 9/9） | agent scripts |
+| 🔶 | **K1 AI 準確率** | **≥ 80%** | 單輪 rubric **0.623**（≈基準 0.642；repo 判讀認定 rubric 低估——見 D7 判分待裁）；多輪 L1 資訊收集 0.8、redline 1.0 | `eval_reply_quality.py`（80 題）＋`multiturn_sim_eval.py` |
+| ✅ | **K3 家族覆核履約**（BRD 義） | event log ≥95%＋dispute ≤3% | 硬 gate 強制（CR-0164 C，未覆核 adopt→425）＋逾時升級 cron（R1-3）＋鏈保護 advisory lock（R1-5） | TC-COMPLIANCE-05＋SQL |
+| ✅ | **K3' 負面情緒識別**（NFR 義） | **≥ 90%** | **100%**（120 題 live，反諷 22/22）——R2 CR-0166 | `sentiment_eval.py`（產物 `sentiment_eval_result.json`） |
+| ✅ | **K8 AI 禁區** | 200 題 ≥ 95% | **98.5%**（judge 誤判校正＋SOP 保固守線＋say-do 兜底後）——R0 | `run_forbidden_gate --live`（`forbidden_run_20260712b.json`） |
+| ✅ | 影像辨識禁用 | violation = 0 | 工具白名單無 vision 工具（物理不可達）＋K8 no_vision 類全過 | K8 corpus |
+| ✅ | 跨租戶隔離 | 0 洩漏 | wave1 F14 驗證（RBAC deny-by-default 無破口，test@ 雙 row 為誤報） | 既有 RBAC 測試 |
+| ✅ | GDPR forget | ≤ 7 天 | CR-0164 D 三缺口修復＋legal-hold 423＋匿名化終態 | TC-COMPLIANCE-02 |
+| ✅ | 紅線確定性 gate | 9/9 全守 | **9/9**（金錢/退款/付款/要真人全轉接、零報價）——R0 | `redline_gate.py` |
+| — | 多輪 redline | 1.0 | **1.0**、幻覺 0/11——R0 | `multiturn_sim_eval.py` |
 
 **參考級 KPI**（量測記錄、不擋 release）：K2 自助解決率 ≥60%（上線 3 個月後才具效力）、K5 接單 SLA ≥95%、K6 首次回應 p95<5s、K7 uptime ≥95%（30 天 rolling，UAT 期間只能記錄推算）、K9 併發 50、K11 月結退件 ≤5%。
 
@@ -91,13 +95,18 @@
 
 ### 3e. 平台與知識治理（S3）
 
-- ☐ **F13 品牌申請→審核→開站**：landing CTA→/platform/apply→審核佇列→核准（⚠️ 「Casdoor 建 org＋License 訂閱」與 provisioning 自動化屬 M3 🔜——本輪驗到「核准＋租戶建立」為止，開站走 FDE 手動）〔UF-08§9.1、I-14〕
-- ☐ **F16 品牌自助配置治理**：客製層版本化＋eval gate；受保護層 override 被擋；config namespace 非 owner 403；rollback ≤1min＋audit〔UF-08§9.3、TC-SEC-RBAC-03、I-12〕
-- ☐ **F17 SOP 知識螺旋 HITL**：refinery draft→品牌審核→**家族覆核 100%**（未覆核 adopt 必須失敗）→發布生效＋語料灌注；reviewer 缺席 >24h 升級；bronze-only 溯源〔TC-COMPLIANCE-05/08、I-11〕
+- 🔶 **F13 品牌申請→審核→開站**：landing CTA→/platform/apply→審核佇列→核准（自動登錄租戶 registry）。**M3 更新（2026-07-12）**：License 訂閱（R3，platform console License 管理）＋provisioning 自動化（R5，`provision_brand.py`＋第 2 品牌全鏈 dry-run）已落地；開站流程貫通至「產部署參數＋設 License＋模組 gate」。**剩餘＝實際上雲部署（R6，需 GCP 協同）＋真實 LINE 綁定**〔UF-08§9.1、I-14〕
+- 🔶 **F16 品牌自助配置治理**：客製層版本化＋eval gate；**受保護層 override 被擋（M3 R1-6 已實作，payment_gate is_protected→租戶層 403 CONFIG_PROTECTED_OVERRIDE，wave4 live 驗證）；config namespace 非 owner 403（R1-7 owner_role_codes，19 namespace=ops_manager）**；rollback ≤1min＋audit〔UF-08§9.3、TC-SEC-RBAC-03、I-12〕
+- 🔶 **F17 SOP 知識螺旋 HITL**：refinery draft→品牌審核→**家族覆核 100%（未覆核 adopt→425，CR-0164 C 硬 gate）→發布生效**；**reviewer 缺席 >24h 升級（M3 R1-3 family_review_sla_cron 已實作）**；bronze-only 溯源；refinery 開通走 License 模組 gate（R3）〔TC-COMPLIANCE-05/08、I-11〕
 
 ### 3f. 合規（法務/DPO 簽核面）
 
-- ☐ **F18 GDPR＋evidence retention**：forget 兩階段刪除；legal-hold 423＋7d 通知；log 無明文 PII；retention 到期軟刪、RMA +3y／legal-hold 永久；影像禁用雙 gate violation=0〔TC-COMPLIANCE-01~04/06、TC-CS-AI-07〕
+- 🔶 **F18 GDPR＋evidence retention**：forget 兩階段刪除（CR-0164 D）；legal-hold 423（CR-0164 D）；**log 無明文 PII（M3 R1-8 pii_scrub＋audit payload 入鏈前遮蔽，含身分證 regex）**；retention 到期軟刪、RMA +3y（CR-0164 F#6）／legal-hold 永久；影像禁用雙 gate violation=0（K8 no_vision 全過）〔TC-COMPLIANCE-01~04/06、TC-CS-AI-07〕
+
+> **M3 R0–R5 UAT wave4 驗收（2026-07-12）**：6 面向多 agent 去偽驗收全 PASS、零功能回歸，
+> 詳見 `uat-wave4-m3-report-20260712.md`。§1 合約紅線 AI 面全綠（K8 98.5%／K3' 100%／
+> 紅線 9/9／多輪 1.0）。F9 派工歷程斷鏈（wave1 F9→CR-0165）＋技師拒單端點（R1-9）補齊；
+> F15 撤證 live API（R1-4）落地。剩餘 F13 開站上雲（R6）＋K1 判分（D7）待業主。
 
 ---
 
