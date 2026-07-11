@@ -172,3 +172,4 @@
 - ✅ S1 done（`50b7bfa7` branch fix/create-sop-draft-500）：F#5 createSopDraftV2 500 修復（對齊 v1 契約、typed body）；新測 2＋v1 迴歸 5。
 - ✅ S2 done（`8b1b26cb` branch fix/cr0164-audit-immutable）：A audit_events append-only trigger（migration 100）+ verify 端點接線 + 5 測試檔特權繞過；audit 87 tests 全綠。競態延 M3。
 - ✅ S3 done（branch fix/cr0164-gdpr-forget）：D GDPR forget 三修（全流程 audit + legal-hold 423 + 匿名化即終態不假性成功）；GDPR+audit 28 tests 全綠。
+- ✅ S4 done（branch fix/cr0164-family-gate）：C 家族覆核硬 gate（adopt 無 action='approved' 覆核 → 425；衝突①裁定硬 gate）；新測 3＋sop/family 迴歸綠。
