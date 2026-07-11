@@ -34,6 +34,20 @@ tq()  { dex psql "$TECH_URI"  -tAc "$1"; }   # 技師庫查詢
 
 docker inspect "$TECH_CONTAINER" >/dev/null 2>&1 || { err "找不到容器 $TECH_CONTAINER —— 先起 web/tech-portal/docker-compose.yml"; exit 1; }
 
+# ── 權威庫 seed（CR-0165 SEED-1）─────────────────────────────────────────
+# 品牌庫重灌 seed 不會傳播到權威庫（冪等防護「非空即跳過」）→ 每次執行本腳本
+# 都補套權威庫 seed（ON CONFLICT DO NOTHING 冪等，不覆蓋既有/真實註冊資料），
+# 杜絕投影-only 技師（鏡射觸發 DELETE+CASCADE 連鎖刪資料的根源）。
+AUTHORITY_SEED="$(cd "$(dirname "$0")/../.." && pwd)/SQL/seeds/tech_authority/technicians.sql"
+apply_authority_seed() {
+  if [ -f "$AUTHORITY_SEED" ]; then
+    log "套用權威庫 seed（tech_authority/technicians.sql，冪等）…"
+    dex psql "$TECH_URI" -q -v ON_ERROR_STOP=0 < "$AUTHORITY_SEED" >/dev/null || true
+  else
+    err "找不到 $AUTHORITY_SEED —— 跳過權威庫 seed"
+  fi
+}
+
 # ── verify 模式 ──────────────────────────────────────────────────────────
 verify() {
   log "比對兩庫技師域資料(品牌庫=投影,技師庫=權威)…"
@@ -60,7 +74,8 @@ if [ "${1:-}" = "--verify" ]; then verify; exit 0; fi
 if [ "${1:-}" != "--force" ]; then
   existing=$(tq "SELECT count(*) FROM technicians" 2>/dev/null || echo "")
   if [ -n "$existing" ] && [ "$existing" -gt 0 ]; then
-    log "技師庫已有 $existing 筆 technicians → 跳過(--force 以品牌庫為準重搬)"
+    log "技師庫已有 $existing 筆 technicians → 跳過搬遷(--force 以品牌庫為準重搬)"
+    apply_authority_seed  # CR-0165 SEED-1：跳過搬遷仍補套 seed（防品牌重灌後漂移）
     verify
     exit 0
   fi
@@ -112,6 +127,8 @@ done
 log "搬 saas.technician_lifecycle_event…"
 dex bash -c "psql '$BRAND_URI' -c '\\copy (SELECT * FROM saas.technician_lifecycle_event) TO stdout' \
   | psql '$TECH_URI' -c '\\copy saas.technician_lifecycle_event FROM stdin'"
+
+apply_authority_seed  # CR-0165 SEED-1
 
 verify
 ok "拆分完成。接著讓兩個 api 都帶 TECH_POSTGRES_URI 重起(見 web/tech-portal/docker-compose.yml 檔頭)。"

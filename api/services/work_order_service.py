@@ -441,11 +441,12 @@ async def create_from_problem_card(
         await _qe.assert_pc_quote_confirmed(tenant_id=tenant_id, problem_card_id=pc_id)
 
     # 3. Resolve customer info（caller override > user profile fallback）
+    #    CR-0165 F6a：專用碼取代泛用 VALIDATION_ERROR（比照結案 ADDRESS_REQUIRED_FOR_CLOSE）
     final_address = customer_address or user_address
     if not final_address:
         raise ApiError(
-            "VALIDATION_ERROR",
-            "customer_address required: not found in user profile and not provided",
+            "ADDRESS_REQUIRED_FOR_CONVERT",
+            "開單前須有服務地址——客戶資料無地址時請於轉工單時填寫",
             422,
         )
     final_name = customer_name or user_name
@@ -1562,6 +1563,7 @@ async def assign_order(
     reason_code: str,
     reason_text: str | None = None,
     actor_role: str | None = None,
+    actor_user_id: str | None = None,
     override_reason: str | None = None,
 ) -> dict:
     """created | assigned → assigned。
@@ -1646,6 +1648,34 @@ async def assign_order(
         "  updated_at = NOW() "
         "WHERE id = %s::uuid",
         (technician_id, _via, note, wo_id),
+    )
+    # CR-0165 F9：手動派工補 dispatch_logs（原僅 reassign 寫，四條手動入口全斷鏈）。
+    # action='assign' 對齊 API enum / seeds 慣例；match_score/factors 留 NULL（人工派無演算法分數）。
+    await db_module._conn.execute(
+        "INSERT INTO dispatch_logs "
+        "  (work_order_id, action, technician_id, notes) "
+        "VALUES (%s::uuid, 'assign', %s::uuid, %s)",
+        (wo_id, technician_id, note),
+    )
+    # 也寫一筆 work_order_events 對齊 reassign 的 timeline 觀感
+    await db_module._conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, 'assign', %s::jsonb)",
+        (
+            wo_id,
+            tenant_id,
+            actor_user_id,
+            json.dumps(
+                {
+                    "technician_id": str(technician_id),
+                    "reason_code": reason_code,
+                    "reason_text": reason_text,
+                    "from_status": current,
+                },
+                ensure_ascii=False,
+            ),
+        ),
     )
     # Flow 14 排班衝突軟偵測（best-effort，不阻擋 assign）
     await _detect_schedule_conflict_and_publish(

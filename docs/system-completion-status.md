@@ -3,7 +3,11 @@
 > 跨前端 / 後端 / Realtime / Workflow / 架構遷移的整體進度盤點。
 > 每次開發完成後更新本文件，保持與 CR-0004 §8 進度區、CHANGELOG `[Unreleased]` 同步。
 
-**最後更新：** 2026-07-11（**報價列表卡階段脈絡＋空單送出防線（CR-0160）**，branch `fix/quote-list-pc-context` — 業主 UAT 回報列表空列；①list_quotes 補 JOIN problem_cards（CR-0128 卡階段報價原單號/客戶全 NULL）＋前端「報價先行（未開單）」徽章；②空單（0 品項且無總額）`submit`/`send` → 422 QUOTE_NO_LINES（原可一路 sent/accepted）。報價 10 檔 58 tests 綠＋tsc 0＋容器重建 live 驗證。順修 0129 測試時鐘偏移假紅。）
+**最後更新：** 2026-07-12（**UAT wave1 打磨項六件合批（CR-0165）**，branch `fix/uat-wave1-polish`，業主裁決「照建議」— ①F6a 轉工單缺地址專用碼 `ADDRESS_REQUIRED_FOR_CONVERT`（繁中，四站映射）②F6b 完整度閘 fallback user.address（與建單層鏡射）③F2 migration 101 emergency_class DB CHECK（防繞過 API 的非法值被當急件跳過報價 gate）④F9 assign 補 dispatch_logs＋work_order_events（四條手動派工入口歷程斷鏈銷案）＋migration 102 順修 mark_supply_arrived CHECK 漏列必 500 潛在 bug ⑤SEED-1 技師權威庫 seed 制度化（`SQL/seeds/tech_authority/`＋split-tech-db.sh 自動補套）＋live 兩庫補齊 → verify 無漂移（鏡射 DELETE+CASCADE 連鎖刪資料根源銷案）⑥F12 公開註冊冪等 fallback 公共命名空間（缺 X-Tenant-ID 不再 fail-open）。api 全套 **1811 passed**（scratch 5473）＋四站 tsc 0＋兩 api 容器重建＋F12 live 四情境實測。）
+
+**前一次更新：** 2026-07-11（**UAT 第一天修復輪總記錄（補登）**— 業主實測回報修復：CR-0161 卡階段加品項 NOT NULL 500（migration 099）、CR-0162 卡階段報價 LINE 同意 404（反查改 problem_card_id 直連）、CR-0163 SLA 報價過期告警深連結、登入/註冊錯誤訊息三站修正、師傅完工照本地縮圖預覽、案件池詳情頁＋二次確認、工單詳情內嵌問題診斷摘要；**兩波自動驗收**（17 場景多 agent＋主 agent 抽驗去偽，findings 於 `.claude/context/quality/uat-wave*-2026-07-11-findings.md`）；**CR-0164 稽核治理紅線七件**（audit_events append-only trigger＋verify 端點、GDPR forget 三缺口、SOP adopt 家族覆核硬 gate、tech_mirror 投影最小化、停權/終止孤兒工單阻擋、RMA 證據保留 3 年、createSopDraftV2 500）；報價 transition 六端點掛冪等。全數 merge dev-ding（ee52b501）並推送。）
+
+**前一次更新：** 2026-07-11（**報價列表卡階段脈絡＋空單送出防線（CR-0160）**，branch `fix/quote-list-pc-context` — 業主 UAT 回報列表空列；①list_quotes 補 JOIN problem_cards（CR-0128 卡階段報價原單號/客戶全 NULL）＋前端「報價先行（未開單）」徽章；②空單（0 品項且無總額）`submit`/`send` → 422 QUOTE_NO_LINES（原可一路 sent/accepted）。報價 10 檔 58 tests 綠＋tsc 0＋容器重建 live 驗證。順修 0129 測試時鐘偏移假紅。）
 
 **前一次更新：** 2026-07-11（**agent gateway crash loop 修復**，branch `fix/agent-gateway-startup-hook` — CR-0125 誤用 FastAPI `add_event_handler` 於 aiohttp app，容器 7/10 重建後啟動即炸無限重啟（業主回報抓到）；hook 移入 lockcore `build_webapp` 以 `on_startup` 正確註冊＋回歸測試 2；agent 188 綠＋容器重建實證穩定。順修 Dockerfile `--extra otel`（OPIK 追蹤從降級警告→實際啟用）。）
 

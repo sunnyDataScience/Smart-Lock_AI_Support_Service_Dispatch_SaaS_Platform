@@ -73,6 +73,8 @@ async def _seed_wo_and_tech() -> tuple[str, str, list]:
 
 async def _cleanup(ids: list) -> None:
     woid, pcid, cid, uid, tid, tuid = ids
+    # CR-0165 F9：assign_order 現會寫 dispatch_logs（FK 無 CASCADE）→ 先刪子列
+    await db_module._conn.execute("DELETE FROM dispatch_logs WHERE work_order_id = %s::uuid", (woid,))
     await db_module._conn.execute("DELETE FROM work_orders WHERE id = %s::uuid", (woid,))
     await db_module._conn.execute("DELETE FROM problem_cards WHERE id = %s::uuid", (pcid,))
     await db_module._conn.execute("DELETE FROM conversations WHERE id = %s::uuid", (cid,))

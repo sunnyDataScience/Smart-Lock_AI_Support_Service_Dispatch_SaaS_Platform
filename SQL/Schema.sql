@@ -807,7 +807,7 @@ CREATE TRIGGER trg_disputes_updated_at
 CREATE TABLE dispatch_logs (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     work_order_id       UUID NOT NULL REFERENCES work_orders(id),
-    action              VARCHAR(50) NOT NULL,           -- 動作: 'auto_match','manual_assign','rejection','timeout','reassign','cascade'
+    action              VARCHAR(50) NOT NULL,           -- 動作（實際慣例=API enum：'assign','accept','reject','timeout','reassign','cancel'；舊註解 auto_match/manual_assign 已廢，CR-0165 標注）
     technician_id       UUID REFERENCES technicians(id),-- 相關技師
     match_score         FLOAT,                          -- 匹配總分
     match_factors       JSONB,                          -- 匹配因子: {brand_score, distance_score, rating_score, availability_score}

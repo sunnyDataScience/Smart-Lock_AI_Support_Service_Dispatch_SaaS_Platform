@@ -95,6 +95,66 @@ async def test_completeness_override_by_technician_ignored_422():
         await _del_pc(pc)
 
 
+# ── CR-0165 F6b：閘門 fallback user.address（與建單層鏡射） ─────────────────
+async def _insert_pc_with_user(pc_id: str, *, user_address: str | None,
+                               model="") -> tuple[str, str]:
+    """user(address 可選) → conversation → PC（缺 model）chain；回 (user_id, conv_id)。"""
+    user_id = str(uuid.uuid4())
+    conv_id = str(uuid.uuid4())
+    await db_module._conn.execute(
+        "INSERT INTO users (id, tenant_id, line_user_id, display_name, address, role) "
+        "VALUES (%s::uuid, %s::uuid, %s, %s, %s, 'line_user')",
+        (user_id, TID, f"U{user_id.replace('-', '')}", "fallback測試客", user_address),
+    )
+    await db_module._conn.execute(
+        "INSERT INTO conversations (id, user_id, status, session_id) "
+        "VALUES (%s::uuid, %s::uuid, 'active', %s)",
+        (conv_id, user_id, f"test-cr0165-{conv_id[:8]}"),
+    )
+    await db_module._conn.execute(
+        "INSERT INTO problem_cards (id, conversation_id, brand, model, symptoms, urgency, status) "
+        "VALUES (%s::uuid, %s::uuid, 'Yale', %s, '[\"電池故障\"]'::jsonb, 'normal', 'incomplete')",
+        (pc_id, conv_id, model),
+    )
+    return user_id, conv_id
+
+
+async def _del_pc_chain(pc_id: str, user_id: str, conv_id: str) -> None:
+    await db_module._conn.execute("DELETE FROM problem_cards WHERE id = %s::uuid", (pc_id,))
+    await db_module._conn.execute("DELETE FROM conversations WHERE id = %s::uuid", (conv_id,))
+    await db_module._conn.execute("DELETE FROM users WHERE id = %s::uuid", (user_id,))
+
+
+@pytest.mark.asyncio
+async def test_completeness_fallback_profile_address():
+    """body 未帶地址但 user profile 有 → 閘門視為已填（缺項只剩 model，score 0.8 放行）。"""
+    assert await db_module._ensure_conn()
+    pc = str(uuid.uuid4())
+    user_id, conv_id = await _insert_pc_with_user(pc, user_address="台北市中山區南京東路2號")
+    try:
+        r = await pcs.assert_completeness(tenant_id=TID, pc_id=pc, customer_address=None)
+        assert "customer_address" not in r["missing"]
+        assert r["missing"] == ["model"]
+        assert r["score"] == 0.8
+    finally:
+        await _del_pc_chain(pc, user_id, conv_id)
+
+
+@pytest.mark.asyncio
+async def test_completeness_no_profile_address_still_blocked():
+    """user profile 也無地址 → customer_address 仍列缺項，0.6 < 0.8 照擋（對照組）。"""
+    assert await db_module._ensure_conn()
+    pc = str(uuid.uuid4())
+    user_id, conv_id = await _insert_pc_with_user(pc, user_address=None)
+    try:
+        with pytest.raises(ApiError) as ei:
+            await pcs.assert_completeness(tenant_id=TID, pc_id=pc, customer_address=None)
+        assert ei.value.error_code == "INCOMPLETE_PROBLEM_CARD"
+        assert any(d["field"] == "customer_address" for d in ei.value.details)
+    finally:
+        await _del_pc_chain(pc, user_id, conv_id)
+
+
 # ── phone 去重 ──────────────────────────────────────────────────────────────
 @pytest.mark.asyncio
 async def test_phone_dedup_422():

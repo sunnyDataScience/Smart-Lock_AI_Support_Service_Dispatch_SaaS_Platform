@@ -385,6 +385,7 @@ async def assign_work_order_v2(
         reason_code=reason_code,
         reason_text=body.reason_text,
         actor_role=user.role,
+        actor_user_id=user.user_id,
         override_reason=override_reason,
     )
     # CR-0095：主管 override 報價同意 gate → 留稽核軌跡
