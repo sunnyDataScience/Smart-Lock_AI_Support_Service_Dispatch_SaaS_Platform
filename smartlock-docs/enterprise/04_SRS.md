@@ -512,6 +512,7 @@ REST 契約（信封 `ApiResponseGeneric{data, error}` / CursorPage / RFC7807 �
 
 1. **FR 驗收**：§3 每條 FR 的「後置條件與驗收」欄為驗收基準；測試案例映射見 [./20_Test_Cases.md](./20_Test_Cases.md)。
 2. **KPI 驗收**：K1 AI 準確率（200 題）、K3 負面情緒（100 題/月）、K8 forbidden eval（200 題，每次 deploy block gate）、K4 PC 完整率（daily）、K5 接單 SLA 達成率（daily）、K6 AI 首回應 p95、K7 uptime 30d、K9 併發峰值——量化目標見 [./05_NFR.md](./05_NFR.md)。
+   〔標注 2026-07-11（業主裁決）：K1 判分採 **80 題制**（標準 50＋OOD 20＋對抗 10，依 19_Test_Plan UAT 題庫）——本條「200 題」為筆誤（200 題屬 K8 forbidden corpus）。K3 於 02_BRD 為「家族覆核履約」義；本條之負面情緒識別同屬合約紅線，UAT 兩者並列驗收。〕
 3. **合約紅線 100% pass**（違反 = block release）：GDPR forget 流程（FR-API-16）、影像辨識禁用（SOW 2.1(4)）、Family Reviewer 覆核（BR-SOP-002）、BR-PII-001a~d、負面情緒 ≥ 90%（BR-Conv-003）。
 4. **系統級 exit criteria**：per-brand bundle 可獨立部署上線；技師平台 OHS + Kafka 契約測試通過；RBAC enforce 未授權寫入 100% 回 403。
 
