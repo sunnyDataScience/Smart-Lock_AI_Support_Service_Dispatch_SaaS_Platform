@@ -82,4 +82,6 @@
 
 ### 進度
 
-- R0 進行中（K8 背景執行）。
+- ✅ **R0 done**（branch `test/uat-ai-redline-evals`，merge 待）：AI 紅線 eval——紅線 gate 9/9、多輪 redline 1.0/幻覺 0、K1 0.623（≈基準，判分待 D7）、**K8 82%→修正後 98.5% PASS**（judge 誤判校正＋SOP 保固守線 v1.4.0＋say-do 兜底）。K3' 查證＝功能未實作（R2）。
+- ✅ **R1 done 9/9**（branch `feat/m3-r1-governance`）：webhook 冪等接線＋cleanup cron／SoD header UUID＋存在性＋交易化／reviewer 24h SLA cron／audit＋family hash-chain advisory lock／受保護層＋owner_role_codes（migration 103）／技師拒單端點（migration 104）／品牌授權撤證 live API（migration 105）／PII 遮蔽共用 util＋audit payload 遮蔽。api 1828 passed＋agent 195＋新測 18。migration 101-105 已套 live。
+- ⏳ R2–R8 待續（R2 K3' 依 D3=A 先行；R3/R4 待 D2/D4；R6 待 D1；R7 待 D5）。
