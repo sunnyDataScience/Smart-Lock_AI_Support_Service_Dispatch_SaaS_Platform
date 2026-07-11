@@ -30,7 +30,7 @@
 
 ### 後端／前端
 - **API**：FastAPI（Python 3.11+，psycopg3 raw SQL），單體多面部署（`API_SURFACE` 過濾：dispatch / tech / platform）。
-- **Web**：Next.js 15 單 codebase 多入口（`NEXT_PUBLIC_APP_MODE`：品牌後台 / 師傅站 / 導流站 / 平台 Console）。
+- **Web**：Next.js 15 × 4 個完全獨立站台（品牌後台 / 師傅站 / 導流站 / 平台 Console；2026-07-09 檔案層拆分，各自 codebase）。
 - **資料庫**：PostgreSQL 17 + pgvector；品牌庫、師傅庫、平台庫實體隔離。
 
 ### 基礎設施
@@ -40,20 +40,44 @@
 
 ## 目錄結構 (Directory Structure)
 
-- `agent/`：LINE Bot AI 客服 — LockCore 核心（`agent/lockcore/`）＋ LINE gateway（`agent/scripts/line_gateway.py`）。見 `agent/README.md`。
-- `api/`：FastAPI 營運後台 API（工單、派工、報價、帳務、平台 Console）。
-- `web/`：四個完全獨立的 Next.js 站台（各自 package.json／lockfile／Dockerfile／docker-compose）：
+> 2026-07-11 CR-0157 佈局重整後：每個頂層資料夾＝一個清楚的域；`rag/` 已併入 `agent/`、`refinery/` 已併入 `knowledge-pipeline/`。
+
+### 可部署服務
+
+- `agent/`：LINE Bot AI 客服 — LockCore 核心（`agent/lockcore/`，fork 自 nanobot）＋ LINE gateway（`agent/scripts/line_gateway.py`）。見 `agent/README.md`。
+  - `agent/rag/`：RAG 語義層 — pgvector 事實語料 + MCP server（`search_product_manual`／`search_similar_cases`）。唯一 runtime 消費者是 agent（MCP stdio 接線），故宿主於此；依 ADR-030 定位＝品牌客戶自建知識庫的外接介面兼參考實作。
+- `api/`：FastAPI 營運後台 API（工單、派工、報價、帳務、平台 Console）。單 codebase 以 `API_SURFACE` env 分流三個部署實例：dispatch :8001／tech :8002／platform :8003（「分開啟用」機制，見 CR-0157 裁決）。
+- `web/`：四個完全獨立的 Next.js 站台（2026-07-09 檔案層拆分，各自 package.json／lockfile／Dockerfile／docker-compose）：
   - `web/brand-portal/`：品牌後台（派工/工單/帳務，:3000）
   - `web/tech-portal/`：師傅站（接單工作台，:3001）
   - `web/landing/`：導流站（行銷一頁式，:3002）
   - `web/platform-console/`：平台維運後台（Lock AI 自用，:3003）
-- `knowledge-pipeline/`：知識產線（原 `data/`，0707 決議去混淆命名）— Medallion（Raw → Bronze → Silver）雙軌產出：事實語料（RAG）+ 行為 Skill 草稿。
-- `rag/`：RAG 語義層 — pgvector 事實語料 + MCP server（`search_product_manual`／`search_similar_cases`），per-brand bundle 元件。
-- `SQL/`：資料庫 Schema 與 forward-only migrations。
-- `scripts/`：部署（Cloud Run）、DB、環境切換腳本。
-- `api/openapi.yaml`：OpenAPI 契約 SSOT（機讀，供 mock / lint / 型別生成 / schemathesis）。
-- `smartlock-docs/`：企業文件集正典（平台級 ADR、各子系統 SAD、Roadmap/WBS；歷史細粒度 ADR 查 git）。
+- `knowledge-pipeline/`：知識產線（原 `data/`）— Medallion（Raw → Bronze → Silver）雙軌產出：事實語料（RAG）+ 行為 Skill 草稿；`storage/bronze/` 是產品知識唯一可信源（bronze-only 鐵律）。
+  - `knowledge-pipeline/refinery/`：knowledge-refinery 迴路二獨立服務（客服對話汲取 → HITL 審核 UI → Publisher 落地；ADR-018）。自有 Dockerfile 與 compose profile `refinery`（:8004，License 附加模組）。
+
+### 資料與基礎設施
+
+- `SQL/`：資料庫 schema 正典 — `Schema*.sql`＋forward-only `migrations/`（單一線性序列＋REGISTRY）＋`seeds/`。三個 Python 服務共用；schema 跟著 DB 走、不跟服務走，故集中不拆。
+- `infra/`：平台級共用底座配置 — 目前為 Casdoor 統一 IdP（`app.conf` 入 git；`casdoor_cert.pem` 為各環境自簽憑證，gitignored）。未來 SigNoz 等平台元件配置亦歸此。
+- `scripts/`：統一腳本，全部從專案根執行 — `deploy/`（Cloud Run：agent/api/web＋brands 品牌參數化）、`dev/`（本機 compose/quickstart/檢視快取產生器）、`ci/`（契約與型別生成鏈）、`db/`、`env/`（use-local/use-gcp 一鍵切換）、`idp/`、`line/`、`ops/`、`security/`、`seed/`。
+- `loadtest/`：Locust 壓測（100 技師併發＋SLA 門檻），標的為 api。
+
+### 文件與素材
+
+- `smartlock-docs/`：企業文件正典（enterprise 00–27＋ADR 群；業主規格）。**只可新增標注，不可改寫原文**。
+- `docs/`：工作文件 — `system-completion-status.md`（每輪完成度滾動記錄）＋`4-exploration/`（進行中／待決的 CR/CIA；已收案者依 0707 決議清除，歷史查 git）。
+- `docs_html/`：**生成的檢視快取，不入 git**（.gitignore）— `scripts/dev/gen_enterprise_view.py` 由 smartlock-docs 渲染而成，每頁標生成時間；與 .md 不一致時以 .md 為準。
 - `drawio/`：架構圖生成工程（14 張平台圖）。
+- `meetings/`：會議紀錄與業主提供素材。
+- `api/openapi.yaml`：OpenAPI 契約 SSOT（機讀，供 mock / lint / 型別生成 / schemathesis）。
+
+### 根目錄檔案
+
+- `pyproject.toml`＋`uv.lock`＋`.python-version`：uv workspace 根（members＝agent、api、knowledge-pipeline、agent/rag、knowledge-pipeline/refinery）。`uv.lock` 是唯一正典 lock——**勿在成員目錄內跑 `uv run`**（會自建巢狀 lock 繞過正典，一律從根執行）。
+- `Makefile`：測試入口捷徑（test-unit / test-component / test-contract / test-e2e-smoke）。
+- `.env.example`／`.env.local.example`／`.env.gcp.example`：環境樣板——根 `.env` 是 api 與 compose 共用機密面；local/gcp 兩份供 `scripts/env/use-*.sh` 一鍵切換同一個 `.env` 槽位；agent 另有 `agent/.env.example`（LLM／LINE 機密面）。原則＝一個部署單元一個機密面；真 `.env` 永不入 git。
+- `CHANGELOG.md`：Keep a Changelog 格式的變更記錄；`CLAUDE.md`：AI 協作工作指引與治理規則。
+- 隱藏目錄：`.github/`（CI workflows）、`.claude/`（開發規則與 context）、`.dev-logs/`（本機 log/pid）、`.venv/`（uv 共用虛擬環境）。
 
 ## 本機四 stack (Docker Compose)
 
@@ -82,7 +106,7 @@
    ```bash
    # 安裝 uv（任一方式）
    pip install --user uv         # 或 pipx install uv
-   # 一行裝齊 agent + api + data 所有 deps + dev 工具
+   # 一行裝齊全部 workspace member（agent/api/knowledge-pipeline/rag/refinery）deps + dev 工具
    uv sync
    ```
    uv 依 `.python-version` 自動下載 Python 3.11、依 `uv.lock` 固版重現。
