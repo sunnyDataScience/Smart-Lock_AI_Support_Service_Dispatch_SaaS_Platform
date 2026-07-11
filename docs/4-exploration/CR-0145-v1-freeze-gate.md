@@ -18,9 +18,20 @@
 
 ## §8 Human Decisions Required(移除 gate 的三個業主待決)
 
-1. **auth 端點定位**:舊盤點判 user-scoped auth「永久保留」與「caller 歸零後移除 v1」矛盾——要 auth 扁平化(v1 剝離)還是宣告 auth 為永久 v1 例外?(2.1.1-R2 Casdoor 授權碼流落地後 auth 面天然重構,建議併 R2 後決)
-2. **platform_* 系列**:整組無 v2;要開 v2 平面還是宣告 platform 面為 v1 長期承諾?
-3. **「5-gate」名實**:ADR-003 僅一句、實為 8 stage(正式計畫在已刪 docs/_audit,git 歷史)——建議業主確認以 ADR-003 三步(凍結/遷移/移除)為準,棄 8-stage 舊稱
+> ✅ **業主裁決（2026-07-12，CR-0166 R7 D5「照建議」）——三待決全數定案：**
+> 1. **auth ＝ v1 永久例外**：user-scoped auth 端點宣告為 v1 長期承諾，**不剝離、不列入移除清單**（Casdoor 授權碼流 2.1.1-R2 已落地，auth 面已天然重構，v1 端點作為相容承諾保留）。
+> 2. **platform_* ＝ v1 長期承諾**：**不開 v2 平面**；platform console 面以 v1 為長期正典。
+> 3. **5-gate 名實 ＝ 以 ADR-003 三步（凍結／遷移／移除）為準**，棄 8-stage 舊稱。
+>
+> **R7 收斂範圍（依裁決）**：freeze gate 已 enforced（Gate-1，本 CR）；auth/platform 保留 →
+> 移除清單 = 「有 v2 對等且 caller 歸零」的非 auth/非 platform v1 端點。**移除須先過 30 天
+> deprecation-metrics 零命中窗**（CR-0159 鐵律：server 端產生的 URL 消費 grep 不到，不可只憑
+> 靜態掃描移除）——**該 metrics collector 尚未部署，故本輪只定案 + 排程，不實際移除端點**。
+> 詳見 `CR-0166-R7-v1-convergence-plan.md`。
+
+1. ~~auth 端點定位~~ → **定案：v1 永久例外**（見上）。
+2. ~~platform_* 系列~~ → **定案：v1 長期承諾不開 v2**（見上）。
+3. ~~「5-gate」名實~~ → **定案：ADR-003 三步為準**（見上）。
 
 ## 驗收狀態
 
