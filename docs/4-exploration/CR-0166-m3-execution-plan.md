@@ -89,7 +89,9 @@
 - ⏳ **R4–R8 待續**：
   - **R4 Kafka 事件骨幹**＝承重架構變更（引入 message broker、CQRS 投影、替換 outbox，ADR-006/017），需業主 **D2 選型確認＋運維承諾** 才動工——不宜在假設預設上自動建置 production message broker。
   - **R5 provisioning＋第 2 品牌開站 dry-run**（M3 Release gate）＝可自動化推進（不依賴 Kafka）。
-  - **R6 上雲**＝需業主 GCP 授權協同（D1）。**R7 v1 收斂**＝需 D5。**R8 UAT wave4**＝R4–R7 後。
+  - **R6 上雲**＝需業主 GCP 授權協同（D1）。**R7 v1 收斂**＝需 D5。
+- ✅ **R4 設計備妥**（`CR-0166-R4-event-backbone-design.md`）：D2 選型建議 Redpanda＋topic schema＋outbox→Kafka 遷移路徑＋對帳閘門＋實作 WBS；待業主 D2 拍板後實作。
+- ✅ **R8 UAT wave4 done（已建範圍）**（merge dev-ding）：6 面向多 agent 去偽驗收——R0 AI eval／R1 治理 9/9／R2 K3'／R3 License／R5 provisioning 全 **PASS 零功能回歸**（`uat-wave4-m3-report-20260712.md`）。回歸守門 2 非功能項已修（CHANGELOG 補登＋死角色 super_admin 移除）。UAT 驗收清單 §1 合約紅線 AI 面全綠回填。**M3 全項總驗收俟 R4/R6/R7 落地。**
 
 ## 已完成 UAT 紅線 gate 總結（R0–R3）
 
