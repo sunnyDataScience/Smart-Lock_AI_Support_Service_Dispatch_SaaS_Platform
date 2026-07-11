@@ -35,3 +35,4 @@ supersedes-partial:
 - 專家知識更正的正確落點＝**references（skill 側）**，RAG 語料隨 `ingest_references` 同步
 - 已建的 `rag/` 服務與 agent MCP 接線保留（opt-in；同一介面未來服務外接場景）
 - 對外接入規格（品牌自建 RAG 需暴露的 MCP 工具形狀）＝後續 CR 定義 `[待議]`
+- 〔標注 2026-07-11（CR-0157）：rag 參考實作目錄由 `rag/` 遷至 `agent/rag/`（宿主於 agent 之下；唯一 runtime 消費者＝agent 經 MCP stdio）。本 ADR「對外開放介面」定位不變——MCP 介面契約、per-brand default-deny 治理、opt-in 啟用條件照舊。〕

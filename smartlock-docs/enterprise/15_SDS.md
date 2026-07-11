@@ -608,7 +608,7 @@ License 開通的附加系統（集中共用，非 per-brand bundle）：長駐�
 
 | 元件 | 職責 |
 |---|---|
-| 汲取層 | 兩類輸入：診斷對話（`line_chat` / `problem_cards`，汲取機制＝**直連品牌 DB 唯讀輪詢**——只撿 `knowledge_ready=TRUE` 的卡，`REFINERY_TENANT_ID` default-deny，比照 rag 服務治理；2026-07-10 CR-0139 D1 裁決銷案，實作 `refinery/`）+ 產品素材（YouTube / 影片 / 官網 / 手冊）|
+| 汲取層 | 兩類輸入：診斷對話（`line_chat` / `problem_cards`，汲取機制＝**直連品牌 DB 唯讀輪詢**——只撿 `knowledge_ready=TRUE` 的卡，`REFINERY_TENANT_ID` default-deny，比照 rag 服務治理；2026-07-10 CR-0139 D1 裁決銷案，實作 `refinery/`）+ 產品素材（YouTube / 影片 / 官網 / 手冊）〔標注 2026-07-11：CR-0157 佈局重整，實作目錄遷至 `knowledge-pipeline/refinery/`〕|
 | raw_to_bronze | ASR（Whisper）/ Vision LLM / bs4+markdownify 清洗轉錄 |
 | bronze_to_silver | 冪等性檢查 → LLM 語音糾錯 + 去冗 + 語意切塊 → 產 JSON array → **Python 強制覆寫 `source`/`source_type`（provenance 防幻覺）** |
 | 提煉分流器 | LLM 依第一性原則分流：「定義 agent 怎麼行為」→ 行為/精選；「被查找的事實」→ 事實 |
@@ -734,7 +734,7 @@ draft → pending → approved（Publisher 落地）
 | web | gate 層 | `web/src/components/layout/AuthGuard.tsx` · `web/src/lib/{appMode,rolePolicy}.ts` |
 | web | 消費層 | `web/src/lib/{api,cache,realtime,sse}.ts` · `web/types/api.generated.ts` |
 | knowledge-refinery | Medallion pipeline | `knowledge-pipeline/pipeline/{raw_to_bronze,bronze_to_silver}/` · `knowledge-pipeline/llms/` · `knowledge-pipeline/storage/{raw,bronze,silver}/`（原 `data/`，2026-07-09 ADR-029 改名）|
-| knowledge-refinery | 精煉服務 / 審核 UI / Publisher | `refinery/`（uv workspace member，2026-07-10 CR-0139/0140 落地）|
+| knowledge-refinery | 精煉服務 / 審核 UI / Publisher | `refinery/`（uv workspace member，2026-07-10 CR-0139/0140 落地）〔標注 2026-07-11：CR-0157 遷至 `knowledge-pipeline/refinery/`，member 路徑同步更新，服務性質不變〕|
 | technician-platform | OHS API / 事件層 / 投影 | 獨立服務 codebase [待確認：P4 結構指南待建] |
 
 深度參考：各系統 as-is 逐系統設計（P1/05、P2/06、P3/13、P4/08）已整併進本 enterprise 組合，原文封存於 git baseline `238f6fce`（`git show 238f6fce:smartlock-docs/{system}/P1/05_architecture_and_design.md`）。grounded 技術債座標見 [12_SAD](./12_SAD.md) §12 附錄，安全發現見 [13_Security_Architecture](./13_Security_Architecture.md) §8.6。
