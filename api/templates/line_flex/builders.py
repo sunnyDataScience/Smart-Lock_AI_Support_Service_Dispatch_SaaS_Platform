@@ -548,8 +548,10 @@ def render_quote_proposal(payload: dict) -> list[dict]:
         },
     }
 
+    # CR-0162：卡階段報價（報價先行）無工單號，alt_text 比照 header 省略括號
     return [_make_flex_message(
-        alt_text=f"維修報價單（{wo_id[:8]}） 總額 {total}",
+        alt_text=(f"維修報價單（{wo_id[:8]}） 總額 {total}" if wo_id
+                  else f"維修報價單 總額 {total}"),
         contents=bubble,
     )]
 

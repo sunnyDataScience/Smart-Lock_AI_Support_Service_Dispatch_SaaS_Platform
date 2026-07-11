@@ -712,16 +712,18 @@ async def mint_view_token(*, tenant_id: str, quote_id: str) -> dict:
 
 
 async def resolve_customer_line_uid(*, tenant_id: str, quote_id: str) -> str | None:
-    """反查此報價對應客戶的 LINE userId（quote→work_order→problem_card→conversation→user）。
+    """反查此報價對應客戶的 LINE userId（quote→problem_card→conversation→user）。
 
+    CR-0162：走 quote.problem_card_id 直連——CR-0128 報價先行的卡階段報價
+    work_order_id=NULL，原經 work_orders 的 INNER JOIN 查無 → 客人 LINE 同意
+    回 404「報價或已失效」。problem_card_id 對卡階段/工單階段報價恆有值，
     與 line_push_outbox_worker._resolve_line_uid 的 quote 路徑一致；查無回 None。
     """
     conn = await _conn()
     row = await (await conn.execute(
         "SELECT u.line_user_id "
         "FROM quote q "
-        "JOIN work_orders wo ON q.work_order_id = wo.id "
-        "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+        "JOIN problem_cards pc ON q.problem_card_id = pc.id "
         "JOIN conversations c ON pc.conversation_id = c.id "
         "JOIN users u ON c.user_id = u.id "
         "WHERE q.id = %s::uuid AND (q.tenant_id = %s::uuid OR q.tenant_id IS NULL)",
