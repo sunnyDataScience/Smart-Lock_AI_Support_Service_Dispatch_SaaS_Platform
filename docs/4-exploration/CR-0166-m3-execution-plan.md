@@ -69,6 +69,13 @@
 
 （D1–D8 待業主回覆）
 
+#### 業主追加裁決（2026-07-12「Redpanda＋照建議」）
+
+- **D2＝Redpanda**（Kafka 協定相容、單容器、可換）；集中共用（非 per-brand）；初期低量不叢集化。
+- **D5＝照建議**：①auth 宣告 v1 永久例外 ②platform 面 v1 長期承諾不開 v2 ③以 ADR-003 三步為準棄 8-stage → R7 只做 caller 歸零的 v1 遷移/移除。
+- **D7＝照建議**：K1 判分改「多輪 L1＋紅線 gate＋人工抽驗」綜合判（標注 19_Test_Plan）。
+- **D1＝照建議**：R6 上雲列業主協同待辦（腳本/checklist 備妥，一起跑）。
+
 #### R1 子裁決（查證後之實作層選項——依建議值先行實作，業主回覆可覆寫）
 
 1. webhook 冪等：**mark-first**（照 CR-0001 §8 Q5 原規格，at-most-once）；cleanup 放 **api realtime cron**（7 天 TTL 已裁決值）。
