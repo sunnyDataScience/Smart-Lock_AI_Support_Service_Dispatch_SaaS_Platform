@@ -43,6 +43,25 @@ _MIRRORED_TABLES = {
     "technician_certification",
 }
 
+# CR-0164 B：users 投影欄位白名單——**不鏡射 password_hash/email/phone/address 等
+# 憑證/PII**（原 SELECT * 全 24 欄鏡射，抵銷 CR-0112「憑證集中權威庫」目的、品牌庫
+# 外洩即洩全體技師登入憑證）。品牌側對技師 users 投影的剛性依賴僅：per-request A2/A3
+# （is_active/password_changed_at）+ A1 lockout（failed_login_attempts/locked_until）
+# + FK 目標（id/tenant_id/role）。技師登入 lookup（email/password_hash 驗證）改讀權威庫
+# （auth_service._find_user_by_email/_find_users_by_phone 對 role=['technician'] 路由）。
+# 技師顯示名/電話品牌側一律讀 technicians 表非本投影。
+_USERS_PROJECTION_COLS = [
+    "id", "tenant_id", "role", "is_active",
+    "failed_login_attempts", "locked_until", "password_changed_at",
+]
+
+
+def _select_cols(table: str) -> str:
+    """鏡射 SELECT 欄位：users 走最小白名單（不含憑證/PII），其餘表全欄。"""
+    if table == "users":
+        return ", ".join(_USERS_PROJECTION_COLS)
+    return "*"
+
 
 def _check_table(table: str) -> None:
     if table not in _MIRRORED_TABLES:
@@ -60,7 +79,8 @@ async def mirror_rows(table: str, pk_vals: Sequence) -> None:
     ids = list(pk_vals)
     try:
         tech = await db.require_tech_conn()
-        cur = await tech.execute(f"SELECT * FROM {table} WHERE id = ANY(%s)", (ids,))
+        cur = await tech.execute(
+            f"SELECT {_select_cols(table)} FROM {table} WHERE id = ANY(%s)", (ids,))
         rows = await cur.fetchall()
         cols = [d.name for d in cur.description]
         async with db.get_conn() as brand:

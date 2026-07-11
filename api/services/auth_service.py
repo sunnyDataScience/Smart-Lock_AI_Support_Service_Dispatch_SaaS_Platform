@@ -30,13 +30,26 @@ from core.pii_crypto import encrypt_pii, last_n
 logger = logging.getLogger("api.auth_service")
 
 
-async def _find_user_by_email(email: str, role_in: list[str]) -> dict | None:
-    """依角色清單查使用者。"""
+async def _login_lookup_conn(role_in: list[str]):
+    """CR-0164 B：技師登入 lookup（email/phone→password_hash 驗證）改讀權威庫。
+
+    品牌投影已不含技師 email/password_hash（tech_mirror 最小化白名單）→ 技師專用
+    登入（role_in==['technician']）須查權威庫。其餘角色（admin/vendor 等）維持主庫。
+    登入端點的 allowed_roles 不混用技師與其他角色（auth.py:130/143/372），故路由無歧義。
+    """
+    if role_in == ["technician"]:
+        return await db_module.require_tech_conn()
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    return db_module._conn
+
+
+async def _find_user_by_email(email: str, role_in: list[str]) -> dict | None:
+    """依角色清單查使用者。"""
+    conn = await _login_lookup_conn(role_in)
 
     placeholders = ",".join(["%s"] * len(role_in))
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         f"SELECT id, email, password_hash, role, tenant_id, is_active, locked_until "
         f"FROM users "
         f"WHERE email = %s AND role IN ({placeholders}) "
@@ -164,11 +177,11 @@ _TW_MOBILE_RE = re.compile(r"^09\d{8}$")
 
 async def _find_users_by_phone(phone: str, role_in: list[str]) -> list[dict]:
     """依手機 + 角色查使用者。phone 無唯一約束 → 回全部相符以偵測歧義（CR-0099 §8.1）。"""
-    if not await _ensure_conn():
-        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    # CR-0164 B：技師手機登入亦查權威庫（投影已無 phone/password_hash）
+    conn = await _login_lookup_conn(role_in)
 
     placeholders = ",".join(["%s"] * len(role_in))
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         f"SELECT id, email, password_hash, role, tenant_id, is_active, locked_until "
         f"FROM users "
         f"WHERE phone = %s AND role IN ({placeholders})",
