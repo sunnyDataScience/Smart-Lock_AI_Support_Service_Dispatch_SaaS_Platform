@@ -115,3 +115,20 @@ export function friendlyError(e: unknown): string {
   }
   return "操作失敗，請稍後再試。";
 }
+
+/**
+ * 登入頁專用：登入端點的 401 是「帳號或密碼錯誤」，不是 session 逾時——
+ * 通用 friendlyError 把 401/UNAUTHENTICATED 一律翻成「登入已逾時」，
+ * 用在登入表單會誤導使用者（尚未登入何來逾時，UAT 實測回報）。
+ * 帳號鎖定／停用等具體錯誤碼仍走原映射。
+ */
+export function friendlyLoginError(e: unknown): string {
+  if (e instanceof ApiError && e.status === 401) {
+    const mapped = CODE_MESSAGES[e.errorCode];
+    if (mapped && e.errorCode !== "UNAUTHENTICATED" && e.errorCode !== "TOKEN_STALE") {
+      return mapped;
+    }
+    return "帳號或密碼錯誤，請重新輸入。";
+  }
+  return friendlyError(e);
+}

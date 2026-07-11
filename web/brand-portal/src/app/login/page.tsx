@@ -7,7 +7,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { ApiError, getCurrentSession, login, loginVendor } from "@/lib/api";
 import StaffRegisterForm from "@/components/auth/StaffRegisterForm";
 import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
-import { friendlyError } from "@/lib/apiError";
+import { friendlyLoginError } from "@/lib/apiError";
 import { fallbackRouteForRole } from "@/lib/rolePolicy";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -196,7 +196,7 @@ function BrandLoginForm({
       }
       onDone(fallbackRouteForRole(getCurrentSession()?.role ?? null));
     } catch (e) {
-      setError(friendlyError(e));
+      setError(friendlyLoginError(e));
       setLoading(false);
     }
   }
