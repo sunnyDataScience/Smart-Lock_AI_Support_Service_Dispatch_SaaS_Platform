@@ -17,12 +17,21 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, Depends, Path
+from pydantic import BaseModel, Field
 
 from core.deps import CurrentUser, require_platform_admin
 from services import platform_tenant_service as svc
 
 logger = logging.getLogger("api.routers.platform_tenants")
 router = APIRouter()
+
+
+class LicenseUpdateBody(BaseModel):
+    """CR-0166 R3：租戶 License 更新（平台管理員）。全欄選填，未帶＝不變。"""
+    plan_tier: str | None = Field(default=None, description="free/standard/pro/enterprise")
+    entitled_modules: list[str] | None = Field(
+        default=None, description="開通模組（core 自動保留）：refinery/studio/compiler")
+    license_expires_at: str | None = Field(default=None, description="到期 ISO 時間（null=無期限）")
 
 
 @router.get(
@@ -75,3 +84,34 @@ async def reactivate_tenant(
     user: CurrentUser = Depends(require_platform_admin),
 ) -> dict:
     return await svc.reactivate(tenant_id=tenantId, actor_user_id=user.user_id)
+
+
+# ── CR-0166 R3：License / 模組開通管理 ───────────────────────────────────────
+@router.get(
+    "/platform/tenants/{tenantId}/license",
+    operation_id="getPlatformTenantLicense",
+    summary="租戶 License 與已開通模組",
+    status_code=200,
+)
+async def get_tenant_license(
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    return await svc.get_license(tenantId)
+
+
+@router.put(
+    "/platform/tenants/{tenantId}/license",
+    operation_id="updatePlatformTenantLicense",
+    summary="更新租戶 License（訂閱級距／模組開通／到期日）",
+    status_code=200,
+)
+async def update_tenant_license(
+    body: LicenseUpdateBody,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    return await svc.update_license(
+        tenant_id=tenantId, plan_tier=body.plan_tier,
+        entitled_modules=body.entitled_modules,
+        license_expires_at=body.license_expires_at, actor_user_id=user.user_id)

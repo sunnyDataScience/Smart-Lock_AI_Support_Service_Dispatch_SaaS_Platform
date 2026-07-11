@@ -26,6 +26,14 @@ def main(argv: list[str] | None = None) -> int:
 
     tenant = db.tenant_id()  # default deny:未設 REFINERY_TENANT_ID 直接 raise
 
+    # CR-0166 R3：refinery 為 License 附加模組——租戶須開通 'refinery' 才可煉製。
+    from .entitlement import ModuleNotEntitledError, assert_refinery_entitled
+    try:
+        assert_refinery_entitled(tenant)
+    except ModuleNotEntitledError as e:
+        print(f"[refinery] {e}", file=sys.stderr)
+        return 2  # 未開通：明確退出碼（≠0 gate 未過，≠1 執行錯誤）
+
     from .llm import generate_json  # 延後 import:--help 不需要 litellm
 
     llm_model = os.getenv("REFINERY_LLM_MODEL", "vertex_ai/gemini-2.5-flash")
