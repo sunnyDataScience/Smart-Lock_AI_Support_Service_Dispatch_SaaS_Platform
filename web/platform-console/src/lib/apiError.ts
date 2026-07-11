@@ -52,6 +52,11 @@ const CODE_MESSAGES: Record<string, string> = {
   RESET_TOKEN_INVALID: "重設連結無效，請重新申請。",
   RESET_TOKEN_EXPIRED: "重設連結已過期，請重新申請。",
 
+  // 註冊 / 改約（UAT 實測：EMAIL_TAKEN 未映射 → 誤顯「目前狀態無法執行此操作」）
+  EMAIL_TAKEN: "此 Email 已註冊過，請改用其他 Email 或直接登入。",
+  APPLICATION_EXISTS: "此 Email 已有待審核的申請，請耐心等候或聯絡管理員。",
+  RESCHEDULE_SLOT_TAKEN: "此時段已被其他工單占用，請改選其他時段。",
+
   // 設定 / 主檔
   CONFIG_NOT_FOUND: "找不到對應的設定。",
   ITEM_INACTIVE: "此項目已停用，無法選用。",
