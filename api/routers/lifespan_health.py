@@ -70,6 +70,8 @@ def _collect_monitors() -> dict[str, Any]:
         ("config_canary_advance", "realtime.config_canary_advance_cron", "worker"),
         ("statement_auto_approval", "realtime.statement_auto_approval_cron", "worker"),
         ("gdpr_hard_delete", "realtime.gdpr_hard_delete_cron", "worker"),
+        ("webhook_idem_cleanup", "realtime.webhook_idempotency_cleanup_cron", "worker"),
+        ("family_review_sla", "realtime.family_review_sla_cron", "worker"),
     ]
 
     result: dict[str, Any] = {}

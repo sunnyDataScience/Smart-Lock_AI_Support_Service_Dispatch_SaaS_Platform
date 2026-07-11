@@ -15,6 +15,7 @@ EscalationRecord),讓上層 MemoryProvider 無感切換。
 from __future__ import annotations
 
 import json
+import logging
 import os
 import time
 
@@ -25,6 +26,7 @@ from .escalation import EscalationRecord
 from .store import VALID_KINDS, MemoryEntry
 
 _SCHEMA = "agent"
+logger = logging.getLogger("lockcore.webhook_idempotency")
 
 
 def _require_scope(tenant: str, user_id: str) -> None:
@@ -155,6 +157,38 @@ class PostgresMemoryStore:
             created_at=r["created_at"],
             updated_at=r["updated_at"],
         )
+
+
+class PostgresWebhookIdempotencyStore:
+    """LINE webhook 重送去重（CR-0166 R1，跨實例/重啟防護）。
+
+    表 public.webhook_idempotency（event_id PK）由 SQL/Schema_cr0001_integration_gaps.sql
+    建立。mark_seen 用 INSERT ON CONFLICT DO NOTHING 原子操作——rowcount==0 即重複
+    （優於 SELECT-then-INSERT，跨實例 race-safe）。mark-first 語意（入口即寫）＝
+    at-most-once（CR-0001 §8 Q5 規格）。任何 DB 例外 → fail-open 回 False（不擋 webhook，
+    與 gateway 全檔 fail-soft 哲學一致）。
+    """
+
+    def __init__(self, uri: str | None = None):
+        self._db = _PgConn(uri or os.getenv("POSTGRES_URI", ""))
+
+    def mark_seen(self, event_id: str, tenant: str = "default", source: str = "line") -> bool:
+        """回 True＝已見過（重複，caller 應 skip）；False＝首見（放行）或 DB 失敗（fail-open）。"""
+        if not event_id:
+            return False
+        try:
+            cur = self._db.conn().execute(
+                "INSERT INTO webhook_idempotency (event_id, tenant_id, source) "
+                "VALUES (%s, %s, %s) ON CONFLICT (event_id) DO NOTHING",
+                (event_id, tenant, source),
+            )
+            return cur.rowcount == 0
+        except Exception:  # noqa: BLE001 — fail-open：去重失效退回無防護，不擋 webhook
+            logger.warning("webhook idempotency mark_seen 失敗（fail-open）", exc_info=True)
+            return False
+
+    def close(self) -> None:
+        self._db.close()
 
 
 class PostgresEscalationStore:

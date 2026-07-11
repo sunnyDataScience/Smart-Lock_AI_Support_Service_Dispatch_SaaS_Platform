@@ -391,3 +391,65 @@ async def delete_certification(
 ) -> dict:
     await svc.delete_certification(tech_id=technicianId, cert_id=certId)
     return {"data": None}
+
+
+# ── CR-0166 R1-4：品牌授權 grant/revoke（執行期授/撤，原僅 seed）──────────────
+class BrandAuthGrantBody(BaseModel):
+    cert_expires_at: str | None = Field(default=None, description="認證到期日（YYYY-MM-DD，可選）")
+    reason: str | None = None
+
+
+class BrandAuthRevokeBody(BaseModel):
+    reason: str | None = None
+
+
+@router.get(
+    "/platform/technicians/{technicianId}/brand-authorizations",
+    operation_id="listPlatformTechnicianBrandAuthorizations",
+    summary="師傅品牌授權列表",
+    status_code=200,
+)
+async def list_brand_authorizations(
+    technicianId: str = Path(...),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    items = await svc.list_brand_authorizations(tech_id=technicianId)
+    return {"data": items}
+
+
+@router.put(
+    "/platform/technicians/{technicianId}/brand-authorizations/{brand}",
+    operation_id="platformGrantTechnicianBrandAuthorization",
+    summary="授權師傅某品牌（冪等 upsert）",
+    status_code=200,
+)
+async def grant_brand_authorization(
+    body: BrandAuthGrantBody,
+    technicianId: str = Path(...),
+    brand: str = Path(...),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    result = await svc.grant_brand_authorization(
+        tech_id=technicianId, brand=brand, cert_expires_at=body.cert_expires_at,
+        actor_user_id=user.user_id, reason=body.reason or "platform grant",
+    )
+    return {"data": result}
+
+
+@router.delete(
+    "/platform/technicians/{technicianId}/brand-authorizations/{brand}",
+    operation_id="platformRevokeTechnicianBrandAuthorization",
+    summary="撤銷師傅某品牌授權（軟撤，保留歷史）",
+    status_code=200,
+)
+async def revoke_brand_authorization(
+    technicianId: str = Path(...),
+    brand: str = Path(...),
+    reason: str | None = Query(default=None),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    result = await svc.revoke_brand_authorization(
+        tech_id=technicianId, brand=brand,
+        actor_user_id=user.user_id, reason=reason or "platform revoke",
+    )
+    return {"data": result}

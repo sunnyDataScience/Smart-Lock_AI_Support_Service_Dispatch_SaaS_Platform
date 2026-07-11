@@ -76,14 +76,15 @@ def test_interval_exposed():
 
 # ----------------------------- _collect_monitors -----------------------------
 
-def test_collect_monitors_covers_8():
-    """涵蓋 8 個 monitor name。"""
+def test_collect_monitors_covers_all():
+    """涵蓋所有 monitor name（CR-0166 R1 加 webhook_idem_cleanup / family_review_sla）。"""
     result = _collect_monitors()
     expected = {
         "inventory", "sla", "line_push_outbox",
         "reconciliation_exception", "dispute_escalation",
         "config_canary_advance", "statement_auto_approval",
         "gdpr_hard_delete",
+        "webhook_idem_cleanup", "family_review_sla",
     }
     assert set(result.keys()) == expected
 

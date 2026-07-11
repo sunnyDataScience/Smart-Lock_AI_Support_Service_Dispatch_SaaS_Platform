@@ -9,6 +9,7 @@
 --
 -- WHAT：DROP + ADD work_order_events_event_type_check，補 'assign' / 'supply_arrived'。idempotent。
 
+-- 註：'reject' 於 104-wo-events-reject.sql（CR-0166 R1 技師拒單）再追加。
 ALTER TABLE work_order_events DROP CONSTRAINT IF EXISTS work_order_events_event_type_check;
 ALTER TABLE work_order_events ADD CONSTRAINT work_order_events_event_type_check
   CHECK (event_type IN (

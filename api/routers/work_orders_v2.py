@@ -355,6 +355,38 @@ async def accept_work_order_v2(
     return payload
 
 
+class WorkOrderRejectRequest(BaseModel):
+    reason: str = Field(min_length=2, max_length=500, description="拒單原因（必填）")
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders/{id}:reject",
+    operation_id="rejectWorkOrderV2",
+    summary="技師拒單 v2（tenant-scoped，assigned → created 回派工池）",
+    response_model=WorkOrderEnvelope,
+    tags=["M06 WorkOrder"],
+)
+async def reject_work_order_v2(
+    body: WorkOrderRejectRequest,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(role_required("technician")),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """技師拒絕本人被派的工單 → 回 created 池，擴大候選（UF-04/TC-DISPATCH-02）。
+    後台改派走 :reassign（不混用）。"""
+    _cross_tenant_write(user, tenantId)
+
+    order = await work_order_service.reject_order(
+        tenant_id=tenantId, wo_id=id, reason=body.reason,
+        actor_user_id=user.user_id, actor_role=user.role,
+    )
+    payload = {"data": WorkOrder(**order).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
 @router.post(
     "/tenants/{tenantId}/work-orders/{id}:assign",
     operation_id="assignWorkOrderV2",

@@ -243,3 +243,33 @@ async def delete_certification(*, tech_id: str, cert_id: str) -> None:
     await cert_service.delete_certification(
         tenant_id=tenant_id, technician_id=tech_id, cert_id=cert_id
     )
+
+
+# ── CR-0166 R1-4：品牌授權 grant/revoke（平台方營運）─────────────────────────
+async def list_brand_authorizations(*, tech_id: str) -> list[dict]:
+    from services import technician_brand_auth_service as ba_service
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await ba_service.list_brand_authorizations(
+        tenant_id=tenant_id, technician_id=tech_id)
+
+
+async def grant_brand_authorization(
+    *, tech_id: str, brand: str, cert_expires_at: str | None = None,
+    actor_user_id: str | None = None, reason: str = "platform grant",
+) -> dict:
+    from services import technician_brand_auth_service as ba_service
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await ba_service.grant_brand_authorization(
+        tenant_id=tenant_id, technician_id=tech_id, brand=brand,
+        cert_expires_at=cert_expires_at, actor_user_id=actor_user_id, reason=reason)
+
+
+async def revoke_brand_authorization(
+    *, tech_id: str, brand: str, actor_user_id: str | None = None,
+    reason: str = "platform revoke",
+) -> dict:
+    from services import technician_brand_auth_service as ba_service
+    tenant_id = await _resolve_tenant_id(tech_id)
+    return await ba_service.revoke_brand_authorization(
+        tenant_id=tenant_id, technician_id=tech_id, brand=brand,
+        actor_user_id=actor_user_id, reason=reason)

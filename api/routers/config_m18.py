@@ -20,15 +20,32 @@ MVP scoping notes:
 from __future__ import annotations
 
 import logging
+import uuid as _uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Path, Query, Response
 from pydantic import BaseModel, Field
 
-from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import (
+    FULL_ACCESS_ROLES,
+    OPS_ROLES,
+    CurrentUser,
+    require_tenant,
+    role_required,
+)
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import config_m18_service as svc
+
+
+def _validate_uuid(value: str, header_name: str) -> str:
+    """CR-0166 R1：SoD header 須為合法 UUID（原不驗 → 假值入庫＝審計斷鏈；
+    非 UUID 更會在 %s::uuid cast 爆 500）。錯誤碼統一 422（repo header 驗證慣例）。"""
+    try:
+        _uuid.UUID(value)
+    except (ValueError, TypeError):
+        raise ApiError("VALIDATION_ERROR", f"{header_name} 必須為合法 UUID", 422)
+    return value
 
 logger = logging.getLogger("api.config_m18")
 
@@ -68,7 +85,7 @@ async def _require_initiator(
 ) -> str:
     if not x_initiator:
         raise ApiError("VALIDATION_ERROR", "Missing required header X-Initiator", 422)
-    return x_initiator
+    return _validate_uuid(x_initiator, "X-Initiator")
 
 
 async def _require_sod_two(
@@ -85,7 +102,7 @@ async def _require_sod_two(
             "Separation of Duties violated: X-Initiator 與 X-Approver 必須不同",
             403,
         )
-    return x_initiator, x_approver
+    return _validate_uuid(x_initiator, "X-Initiator"), _validate_uuid(x_approver, "X-Approver")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -149,7 +166,7 @@ async def create_config_draft(
     tenantId: str = Path(...),
     namespace: str = Path(...),
     key: str = Path(...),
-    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     initiator: str = Depends(_require_initiator),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -157,6 +174,7 @@ async def create_config_draft(
 
     header X-Initiator required（draft 只需發起人，不強制雙簽）。
     proposed_value 先經 namespace.json_schema 驗證（422 CONFIG_SCHEMA_INVALID on fail）。
+    CR-0166 R1：靜態 gate 放寬 OPS_ROLES，service 依 namespace owner_role_codes 動態縮權。
     """
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError("CROSS_TENANT_WRITE", "Path tenantId 與 token claim 不符", 403)
@@ -169,6 +187,7 @@ async def create_config_draft(
         reason=body.reason,
         change_request_id=body.change_request_id,
         initiator_user_id=initiator,
+        actor_role=user.role,
     )
 
     payload = result
@@ -194,7 +213,7 @@ async def start_config_rollout(
     namespace: str = Path(...),
     key: str = Path(...),
     versionId: str = Path(...),
-    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
     sod: tuple[str, str] = Depends(_require_sod_two),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
@@ -220,6 +239,7 @@ async def start_config_rollout(
         observation_minutes=body.observation_minutes_per_stage,
         initiator_user_id=initiator_uid,
         approver_user_id=approver_uid,
+        actor_role=user.role,
     )
 
     payload = result

@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS work_order_events (
                                 'reassign',           -- migration 059 (CR-0053)
                                 'assign',             -- migration 102 (CR-0165)
                                 'supply_arrived',     -- migration 102 (CR-0165)
+                                'reject',             -- migration 104 (CR-0166 R1)
                                 'other'
                             )
                         ),

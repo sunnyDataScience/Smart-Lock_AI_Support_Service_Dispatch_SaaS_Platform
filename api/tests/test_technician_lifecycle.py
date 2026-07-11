@@ -312,4 +312,12 @@ def test_platform_router_has_lifecycle_write_endpoints():
         "revealPlatformTechnicianKyc",
         "getPlatformTechnicianDocument",
     }
-    assert ids == lifecycle_expected | management_expected | kyc_expected
+    # CR-0166 R1-4：品牌授權 grant/revoke live API（原僅 seed，執行期不可授/撤）
+    brand_auth_expected = {
+        "listPlatformTechnicianBrandAuthorizations",
+        "platformGrantTechnicianBrandAuthorization",
+        "platformRevokeTechnicianBrandAuthorization",
+    }
+    assert ids == (
+        lifecycle_expected | management_expected | kyc_expected | brand_auth_expected
+    )

@@ -25,6 +25,8 @@ from core.pagination import decode_cursor, encode_cursor
 
 # ── TI-A10-02：家族覆核不可篡改 ledger hash chain（合約 4.4d）──
 _FR_GENESIS = "GENESIS"
+# CR-0166 R1-5：家族覆核鏈的 advisory xact-lock key（獨立於 audit_events 鏈）
+_FR_CHAIN_LOCK_KEY = 0x10C_FA317
 
 
 def _fr_canonical(sop_draft_id: str, action: str, reviewer_id: str, comment: str | None) -> str:
@@ -229,20 +231,25 @@ async def create_review(
         )
 
     # TI-A10-02：不可篡改 ledger —— 計 hash chain（接前一列 entry_hash）
-    prev_hash = await _fr_latest_hash()
-    entry_hash = _fr_entry_hash(
-        prev_hash, _fr_canonical(sop_draft_id, action, reviewer_id, comment))
-
-    # Insert (uniq on sop_draft_id will reject dup)
+    # CR-0166 R1-5：advisory xact-lock 序列化「讀末 hash → INSERT」，防不同 draft
+    # 並發插入時讀同一 prev_hash 造成鏈分叉（同 draft 由 uniq 擋，跨 draft 靠此鎖）。
     try:
-        cur = await db_module._conn.execute(
-            f"INSERT INTO family_reviews "
-            f"  (tenant_id, sop_draft_id, action, reviewer_id, comment, prev_hash, entry_hash) "
-            f"VALUES (%s::uuid, %s::uuid, %s, %s::uuid, %s, %s, %s) "
-            f"RETURNING {_REVIEW_COLUMNS}",
-            (tenant_id, sop_draft_id, action, reviewer_id, comment, prev_hash, entry_hash),
-        )
-        inserted = await cur.fetchone()
+        async with db_module._conn.transaction():
+            await db_module._conn.execute("SET LOCAL lock_timeout = '2s'")
+            await db_module._conn.execute(
+                "SELECT pg_advisory_xact_lock(%s)", (_FR_CHAIN_LOCK_KEY,)
+            )
+            prev_hash = await _fr_latest_hash()
+            entry_hash = _fr_entry_hash(
+                prev_hash, _fr_canonical(sop_draft_id, action, reviewer_id, comment))
+            cur = await db_module._conn.execute(
+                f"INSERT INTO family_reviews "
+                f"  (tenant_id, sop_draft_id, action, reviewer_id, comment, prev_hash, entry_hash) "
+                f"VALUES (%s::uuid, %s::uuid, %s, %s::uuid, %s, %s, %s) "
+                f"RETURNING {_REVIEW_COLUMNS}",
+                (tenant_id, sop_draft_id, action, reviewer_id, comment, prev_hash, entry_hash),
+            )
+            inserted = await cur.fetchone()
     except psycopg.Error as e:
         msg = str(e).lower()
         if "uniq_family_review_draft" in msg or "unique" in msg:

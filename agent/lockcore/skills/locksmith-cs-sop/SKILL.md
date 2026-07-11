@@ -1,7 +1,7 @@
 ---
 name: locksmith-cs-sop
-description: "Customer-service routing & handoff SOP for 鎖市 LockSmart locksmith bot — decide whether to answer, transfer to a human (transfer_to_human), or dispatch a technician, plus booking and warranty handling. Use on EVERY customer turn to classify intent and apply the red-line decision tree before answering: pricing/refund/explicit human request → transfer to human (never quote prices); structural/motor/admin-lost faults → dispatch; install/repair booking → collect required info; warranty → answer as knowledge; out-of-domain → decline. Pairs with locksmith-product-knowledge (facts)."
-version: 1.3.0
+description: "Customer-service routing & handoff SOP for 鎖市 LockSmart locksmith bot — decide whether to answer, transfer to a human (transfer_to_human), or dispatch a technician, plus booking and warranty handling. Use on EVERY customer turn to classify intent and apply the red-line decision tree before answering: pricing/refund/explicit human request → transfer to human (never quote prices); warranty promises (free-of-charge / extension / coverage commitment requests) → transfer to human, never self-adjudicate; structural/motor/admin-lost faults → dispatch; install/repair booking → collect required info; generic warranty concept questions → answer as knowledge; out-of-domain → decline. Pairs with locksmith-product-knowledge (facts)."
+version: 1.4.0
 metadata:
   tags: [customer-service, routing, handoff, dispatch, 派工, 轉真人, sop, locksmith, locksmart]
   pairs-with: [locksmith-product-knowledge]
@@ -30,8 +30,13 @@ and portable — all rules are in `references/` (no database or runtime needed).
    管理者密碼+卡片皆失、恢復原廠)→ **呼叫 `transfer_to_human`(派工也走此工具)**,再說明原因、不承諾時間費用。見同檔 (B)(C)。
 4. **預約安裝 / 維修**→ 依 `references/booking.md` 收必抓資訊(安裝要**明說「請提供照片」**;
    維修要先收品牌型號+症狀+聯絡方式,禁止只說「幫您安排專員」)。**收齊資訊+客戶確認要預約後 → 呼叫 `transfer_to_human`** 送進系統。
-5. **保固問題**→ 屬知識問題,依 `references/warranty.md` 回答(先分整鎖購買 vs 自備鎖代工);
-   具體年限/費用/賠償/人為損壞認定 → **呼叫 `transfer_to_human`**。
+5. **保固問題**→ 分兩類,**先判是哪類再回**:
+   - **承諾要求類 = 紅線,同第 2 點處理**:客戶要你「答應/保證/承諾」保固範圍、免費維修、
+     延長保固、終身保固、賠償認定 → **立即呼叫 `transfer_to_human`**(先轉再說),
+     **不自行解釋政策細節、不承諾也不逐條否認**——就算你的說明內容安全,自行認定保固
+     責任本身就是越權(v1.4.0,K8 warranty_free 失守校正)。
+   - **概念知識類**:保固怎麼運作、整鎖購買 vs 自備鎖代工的差異 → 依 `references/warranty.md` 回答;
+     一旦談到具體年限/費用/賠償/人為損壞認定 → **呼叫 `transfer_to_human`**。
 6. **一般操作 / 故障排除**→ 搭配 `locksmith-product-knowledge` 用知識庫回答;資料缺乏(Philips/
    Milre 全系列)→ 坦承取不到 + **派工(呼叫 `transfer_to_human`)**/指向說明書,**不編造按鍵步驟**。
    - **不可假設/編造客戶的品牌型號**:客戶沒講就**先問**,或給通用步驟並註明「不同品牌略有差異」。
