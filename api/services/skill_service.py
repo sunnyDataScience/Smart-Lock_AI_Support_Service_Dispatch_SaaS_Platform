@@ -420,14 +420,48 @@ async def rollback(
     return {"skill_name": skill_name, "version": target_version, "status": "published", "published_stamp": stamp}
 
 
+async def _current_baseline_files(tenant_id: str, skill_name: str) -> dict | None:
+    """merge 用基準：現有草稿優先（累積多次汲取）→ 發佈中版本 → 最新版本；皆無回 None。"""
+    for clause in ("status = 'draft'", "status = 'published'", "TRUE"):
+        cur = await db_module._conn.execute(
+            f"SELECT files FROM saas.skill_revision "
+            f"WHERE tenant_id = %s::uuid AND skill_name = %s AND {clause} "
+            f"ORDER BY version DESC LIMIT 1",
+            (tenant_id, skill_name),
+        )
+        row = await cur.fetchone()
+        if row:
+            return row[0] or {}
+    return None
+
+
 async def ingest_revision(
     *,
     tenant_id: str,
     skill_name: str,
     files: dict,
     note: str | None = None,
+    merge: bool = False,
 ) -> dict:
-    """knowledge-pipeline 自動汲取通道（HD-2=a：一律進 draft，人工發佈）。"""
+    """knowledge-pipeline 自動汲取通道（HD-2=a：一律進 draft，人工發佈——絕不 publish，
+    故對 agent 回答品質零影響，須人工審核發佈後才生效）。
+
+    merge=True（refinery 行為軌用）：只送新增/更新的檔（如單一 refined reference），
+    後端讀現有基準（草稿>發佈>最新）併入後存草稿——**嚴格加性**，保留既有 SKILL.md 與
+    所有 references，只新增，不刪改，確保發佈後 skill 為既有內容的超集。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    validate_skill_name(skill_name)
+    if merge:
+        baseline = await _current_baseline_files(tenant_id, skill_name)
+        if baseline is None:
+            raise ApiError(
+                "SKILL_NOT_FOUND",
+                "merge 模式需 skill 已存在（先 seed 出廠範本或建立基準版本）",
+                404,
+            )
+        files = {**baseline, **files}  # 新檔覆蓋/新增，其餘一律保留（加性）
     return await save_draft(
         tenant_id=tenant_id,
         skill_name=skill_name,
