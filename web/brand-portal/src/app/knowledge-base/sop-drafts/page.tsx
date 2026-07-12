@@ -25,6 +25,7 @@ const tabs = [
   { label: "案例庫", href: "/knowledge-base/cases", key: "cases" as const },
   { label: "產品手冊", href: "/knowledge-base/manuals", key: "manuals" as const },
   { label: "SOP 草稿", href: "/knowledge-base/sop-drafts", key: "sopDrafts" as const },
+  { label: "AI 技能", href: "/knowledge-base/skills", key: "skills" as const },
 ];
 
 export default function SopDraftsPage() {
