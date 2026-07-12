@@ -117,6 +117,42 @@ function writeToken(key: string, value: string | null) {
   else window.localStorage.setItem(key, value);
 }
 
+// ── CR-0166 D8-a：localStorage 退場（業主裁決 B——可讀 claims cookie）──────────
+// getCurrentSession / getTenantId 原同步依賴 localStorage（30+ 頁）。改由非 httpOnly
+// 的 smartlock_claims cookie 提供 role/tenant/email（非機密——本就在 JWT 內、可讀）。
+// auth token 仍走 httpOnly cookie（SSO）+ Authorization header（localStorage 過渡）；
+// 本步只退場「前端 session claims 的 localStorage 依賴」。單一寫入點 = auth.setTokens。
+const CLAIMS_COOKIE = "smartlock_claims";
+
+interface ClaimsCookie {
+  userId: string | null;
+  role: string | null;
+  tenantId: string | null;
+  email: string | null;
+}
+
+function writeClaimsCookie(claims: ClaimsCookie | null) {
+  if (typeof document === "undefined") return;
+  if (claims === null) {
+    document.cookie = `${CLAIMS_COOKIE}=; path=/; max-age=0; samesite=lax`;
+    return;
+  }
+  const value = encodeURIComponent(JSON.stringify(claims));
+  const secure = window.location.protocol === "https:" ? "; secure" : "";
+  document.cookie = `${CLAIMS_COOKIE}=${value}; path=/; max-age=3600; samesite=lax${secure}`;
+}
+
+function readClaimsCookie(): ClaimsCookie | null {
+  if (typeof document === "undefined") return null;
+  const m = document.cookie.match(new RegExp(`(?:^|; )${CLAIMS_COOKIE}=([^;]*)`));
+  if (!m) return null;
+  try {
+    return JSON.parse(decodeURIComponent(m[1])) as ClaimsCookie;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 預設租戶 ID — session/JWT 無 tenant 時的退回值（local dev / 未登入情境）。
  *
@@ -132,22 +168,43 @@ export const FALLBACK_TENANT_ID = "00000000-0000-0000-0000-000000000001";
 export const auth = {
   getAccessToken: () => readToken(STORAGE_KEYS.access),
   getRefreshToken: () => readToken(STORAGE_KEYS.refresh),
-  getTenantId: () => readToken(STORAGE_KEYS.tenant) ?? FALLBACK_TENANT_ID,
-  getEmail: () => readToken(STORAGE_KEYS.email),
+  // CR-0166 D8-a：tenant 優先讀 claims cookie，退回 localStorage（過渡），再退回預設。
+  getTenantId: () =>
+    readClaimsCookie()?.tenantId ?? readToken(STORAGE_KEYS.tenant) ?? FALLBACK_TENANT_ID,
+  getEmail: () => readClaimsCookie()?.email ?? readToken(STORAGE_KEYS.email),
   setTokens(access: string, refresh: string) {
     writeToken(STORAGE_KEYS.access, access);
     writeToken(STORAGE_KEYS.refresh, refresh);
+    // CR-0166 D8-a：解 JWT 寫 claims cookie（單一寫入點——SSO 與密碼登入皆走此）
+    const payload = decodeJwtPayload(access);
+    if (payload) {
+      writeClaimsCookie({
+        userId: typeof payload.sub === "string" ? payload.sub : null,
+        role: typeof payload.role === "string" ? payload.role : null,
+        tenantId: typeof payload.tenant_id === "string" ? payload.tenant_id : null,
+        email:
+          typeof payload.email === "string"
+            ? payload.email
+            : readToken(STORAGE_KEYS.email),
+      });
+    }
   },
   setTenantId(tenantId: string) {
     writeToken(STORAGE_KEYS.tenant, tenantId);
+    // 同步更新 claims cookie 的 tenant（sso-complete 會另外呼叫此）
+    const c = readClaimsCookie();
+    if (c) writeClaimsCookie({ ...c, tenantId });
   },
   setEmail(email: string) {
     writeToken(STORAGE_KEYS.email, email);
+    const c = readClaimsCookie();
+    if (c) writeClaimsCookie({ ...c, email });
   },
   clear() {
     writeToken(STORAGE_KEYS.access, null);
     writeToken(STORAGE_KEYS.refresh, null);
     writeToken(STORAGE_KEYS.email, null);
+    writeClaimsCookie(null); // CR-0166 D8-a：登出清 claims cookie
   },
 };
 
@@ -194,6 +251,17 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
 }
 
 export function getCurrentSession(): CurrentSession | null {
+  // CR-0166 D8-a：優先讀 claims cookie（localStorage 退場目標態）；
+  // 退回 localStorage JWT 解碼（過渡：既有 session 或 cookie 缺失時）。
+  const claims = readClaimsCookie();
+  if (claims && (claims.userId || claims.role)) {
+    return {
+      userId: claims.userId,
+      role: claims.role,
+      tenantId: claims.tenantId,
+      email: claims.email,
+    };
+  }
   const token = auth.getAccessToken();
   if (!token) return null;
   const payload = decodeJwtPayload(token);
