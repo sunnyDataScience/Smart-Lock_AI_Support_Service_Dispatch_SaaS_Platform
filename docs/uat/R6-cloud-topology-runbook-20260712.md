@@ -1,8 +1,36 @@
 # R6 雲端拓撲對齊 Runbook（CR-0166 R6 / WBS 3.4.1）
 
 - **日期**：2026-07-12
-- **狀態**：**腳本/checklist 備妥；GCP 執行需業主授權協同（D1 裁決＝列協同待辦，一起跑）。**
+- **狀態**：**✅ 已執行完成（2026-07-12，業主授權協同 `gcloud auth login` 後逐階段落地）。**
 - **範圍**：tech／platform 面雲端部署＋技師庫上雲（品牌 api/web/agent 面雲端部署已有 `scripts/deploy/{api,web,agent}.sh`）。
+
+## §0 實際執行結果（2026-07-12 落地）
+
+**Cloud SQL 策略（業主裁決）**：不建獨立實例，於既有 `lock-ai` 實例加 `lock_tech`／`lock_platform`
+兩個 database（省 2 實例月費；三庫共用同一 Cloud SQL socket，僅連線字串 database 名不同）。
+
+**部署腳本補強**：`scripts/deploy/api.sh` 補 `API_SURFACE` env 傳入 ＋ 依 surface 掛對應
+`TECH_POSTGRES_URI`／`PLATFORM_POSTGRES_URI` secret（原本寫死只掛 `POSTGRES_URI`、未傳 `API_SURFACE`，
+無法部署多 surface）。品牌面雙庫以 `MOUNT_TECH_URI=1` opt-in 掛 `TECH_POSTGRES_URI`。
+
+**7 服務拓撲（全 health 綠、3 api `db:ok`）**：
+
+| 面 | api | web | 庫 |
+|---|---|---|---|
+| 品牌（all + 雙庫） | `smart-lock-api`（M3 code＋`MOUNT_TECH_URI=1`） | `smart-lock-web`（brand-portal） | `lock-ai-db` |
+| 師傅（tech） | `lock-tech-api`（`API_SURFACE=tech`） | `lock-tech-web`（tech-portal） | `lock_tech` |
+| 平台（platform） | `lock-platform-api`（`API_SURFACE=platform`） | `lock-platform-web`（platform-console） | `lock_platform` |
+| LINE Bot | `smart-lock-agent`（webhook，無 `/health`＝正常） | — | — |
+
+**執行序**：建 database → 建 URI secret → 套 schema（tech：品牌庫 pg_dump 技師域 DDL＋R4 投影＋seed／
+platform：`init-platform-db.sh`＋migration 001）→ 部署 4 新服務 → CORS 補正 → 品牌庫套 M3 migration
+＋技師資料同步 `lock_tech` → 品牌 api/web/agent 更新（M3＋雙庫）。動 prod 前已建備份 `pre-r6-brand-update-*`。
+
+**Casdoor 這輪未上**：tech/platform 的 OIDC 為 opt-in（未設 `CASDOOR_ENDPOINT` 走帳密登入），
+Casdoor（Go 服務＋自有 DB）上雲另排，不擋本輪。
+
+**待驗（業主端）**：三站以真帳號登入（platform admin `test@lock-ai.com`＋Phase 3 設的密碼）
+進 dashboard；`lock_tech` 技師資料同步筆數（Phase 5 DB 腳本輸出）。
 
 > ⚠️ 本 runbook 是**執行手冊**，不含實際 GCP 操作——建 GCP 專案／Cloud SQL／Secret Manager／
 > Cloud Run 需業主帳號授權與費用權限。備妥後與業主一起逐步執行。

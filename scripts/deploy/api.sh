@@ -60,10 +60,15 @@ TIMEOUT=300
 # AGENT_TENANT_ID：把 agent 送來的別名 tenant（如 "locksmart"）對應到真實租戶 UUID
 #   （internal_ingest._resolve_tenant_id 用）。預設 seed 租戶，prod 不同需覆蓋此值。
 AGENT_TENANT_ID="${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
+# API_SURFACE（CR-0112 師傅/派工雙 stack + CR-0114 platform）：all（品牌單庫預設）/
+#   tech / platform / dispatch。R6 多面上雲：tech-api 設 API_SURFACE=tech、
+#   platform-api 設 API_SURFACE=platform（api/main.py:149 讀此值做路由過濾 + worker 停用）。
+API_SURFACE="${API_SURFACE:-all}"
 ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
 ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
 # CR-0153(ADR-020):prod 三庫守衛——漏設對應面 URI 直接拒啟,不靜默 fallback
 ENV_VARS="${ENV_VARS},DB_URI_STRICT=1"
+ENV_VARS="${ENV_VARS},API_SURFACE=${API_SURFACE}"
 
 # ── Secrets（Secret Manager → 環境變數）──
 SECRETS="POSTGRES_URI=POSTGRES_URI:latest"
@@ -72,6 +77,16 @@ SECRETS="${SECRETS},API_JWT_SECRET_KEY=API_JWT_SECRET_KEY:latest"
 SECRETS="${SECRETS},INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest"
 # LINE_CHANNEL_ACCESS_TOKEN：客服接管後 push 訊息回 LINE（CR-0024 / line_push_service）
 SECRETS="${SECRETS},LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
+# ── R6 多面上雲：依 API_SURFACE 掛對應面的 DB URI secret（db.py:assert_uri_strict 要求）──
+#   tech 面需 TECH_POSTGRES_URI；platform 面需 PLATFORM_POSTGRES_URI（皆指向共用 lock-ai
+#   實例的 lock_tech / lock_platform database）。品牌面（all/dispatch）走真雙庫（技師身分
+#   寫權威庫，tech_mirror）時設 MOUNT_TECH_URI=1 一併掛入。
+if [[ "${API_SURFACE}" == "tech" || "${MOUNT_TECH_URI:-}" == "1" ]]; then
+    SECRETS="${SECRETS},TECH_POSTGRES_URI=TECH_POSTGRES_URI:latest"
+fi
+if [[ "${API_SURFACE}" == "platform" ]]; then
+    SECRETS="${SECRETS},PLATFORM_POSTGRES_URI=PLATFORM_POSTGRES_URI:latest"
+fi
 
 # ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
 # 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
@@ -135,6 +150,13 @@ preflight_checks() {
     fi
 
     local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY" "INTERNAL_API_TOKEN" "LINE_CHANNEL_ACCESS_TOKEN")
+    # R6：依 API_SURFACE 追加對應面 DB URI secret 的存在性檢查（與上方 SECRETS 掛載一致）
+    if [[ "${API_SURFACE}" == "tech" || "${MOUNT_TECH_URI:-}" == "1" ]]; then
+        required_secrets+=("TECH_POSTGRES_URI")
+    fi
+    if [[ "${API_SURFACE}" == "platform" ]]; then
+        required_secrets+=("PLATFORM_POSTGRES_URI")
+    fi
     for secret in "${required_secrets[@]}"; do
         if gcloud secrets describe "${secret}" &>/dev/null; then
             echo "  OK: Secret ${secret}"
