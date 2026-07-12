@@ -139,7 +139,7 @@ CREATE TABLE saas.skill_audit_log ( ... 對齊 saas.kb_audit_log 樣式 ... );
 ### 5.7 治理對齊
 
 - **Architecture Lock 條目 2**（skill 不出 lockcore/skills/）：builtin 留在原位不動；
-  `workspace/skills/` 是上游標準 overlay 機制非新發明——落地時新開 **ADR-031** 明文化雙層架構，
+  `workspace/skills/` 是上游標準 overlay 機制非新發明——落地時新開 **ADR-032** 明文化雙層架構（ADR-031 已被契約工件三分層占用），
   並於 CLAUDE.md 該條加註 overlay 說明（catch-up，不是推翻）。
 - **bronze-only**：平台產品知識 references 仍僅由 pipeline 從 bronze 產出（自動 ingest 通道），
   品牌方對其唯讀或需審核（HD-1）；品牌自建 skill 來源=品牌方、責任歸屬品牌方，於 UI 標示區隔。
@@ -184,8 +184,12 @@ CREATE TABLE saas.skill_audit_log ( ... 對齊 saas.kb_audit_log 樣式 ... );
 1. **S1 DB + API**：schema（migration）＋ `/knowledge-base/skills/*` CRUD/publish/驗證閘 ＋ pytest ＋ openapi.yaml。
 2. **S2 agent SkillSync**：`skill_sync.py` ＋ gateway 接線 ＋ fail-soft ＋ tests（本機 docker 驗 overlay 生效）。
 3. **S3 品牌後台 UI**：Skills 分頁（列表/編輯器/diff/歷史/發佈/回滾）＋ Playwright。
-4. **S4 自動通道＋治理收尾**：pipeline ingest ＋ ADR-031 ＋ CLAUDE.md 加註 ＋ CHANGELOG/completion-status ＋ agent 重佈一次（此後 skill 更新不再重佈）。
+4. **S4 自動通道＋治理收尾**：pipeline ingest ＋ ADR-032 ＋ CLAUDE.md 加註 ＋ CHANGELOG/completion-status ＋ agent 重佈一次（此後 skill 更新不再重佈）。
 
 ### 進度
 
-（待 §8 裁決後開工）
+- ✅ **S1 DB+API done**（merge `b8fd000f`）：migration 106（`skill_revision`/`skill_bundle`/`skill_audit_log`）＋`skill_service` publish/rollback 狀態機＋發佈驗證閘＋`skills_v2` router；8 pytest 綠（scratch 5490）。
+- ✅ **S2 agent SkillSync done**（merge `8889856c`）：`skill_sync.py`（60s 輪詢→物化 workspace overlay，原子 symlink＋fail-soft，lockcore 核心零改動）＋gateway 接線＋`seed_builtin_skills.py`；5 pytest 綠含 DB 往返。
+- ✅ **S3 品牌後台 UI done**（merge `cb9f6b33`）：知識庫「AI 技能」分頁（列表/編輯器/版本歷史/發佈/回滾）；i18n parity＋tsc 0。
+- ✅ **對抗式 review + 修正 done**（merge `20aad757`）：6 維度 review 16 raw→8 confirmed 全修（並發雙 draft/publish 競態→advisory lock＋draft unique index＋409；skill_name traversal 錨定 version_dir；path collision 拒發＋per-skill 隔離；`$`→`\Z`；poll clamp；前端唯讀非草稿版本＋防多餘發佈）；測試增至 api 11＋agent 8。
+- ⏳ **S4 收尾**：ADR-032＋CLAUDE.md 加註＋CHANGELOG/completion-status done；**pipeline ingest 接線＋agent 重佈一次＋Playwright/UAT 端到端待辦**（agent 重佈由使用者執行）。

@@ -28,6 +28,7 @@ Smart Lock AI Support & Service Dispatch SaaS Platform —— LINE Bot 智慧鎖
 
 1. **不准 fork lockcore 之外另寫 agent 核心** —— LockCore 是 fork 自 nanobot 的單一核心套件（見 `lockcore/VENDOR.md`），所有 agent 行為走 `lockcore/agent/runner.py` + `loop.py` + `context.py`。
 2. **不准把 skill 拉到 lockcore/skills/ 之外** —— 兩個 builtin skill (`locksmith-product-knowledge`、`locksmith-cs-sop`) 必須留在 `lockcore/skills/`，且**只用 Agent Skills 標準 frontmatter**（name / description / version / metadata），不綁框架專屬欄位，以保可攜性（複製到 Claude Code / Cursor / nanobot / hermes 直接可用）。
+   > **CR-0167 / ADR-032 補充（2026-07-12）**：skill 的**日常迭代 SSOT 已移到品牌庫**（`saas.skill_revision`），由 `SkillSync`（`lockcore/agent/skill_sync.py`）60s 輪詢物化到 `workspace/skills/`，走上游既有 overlay（workspace 優先於 builtin），發佈後 ≤60s 生效**不重佈**。這**不違反本條**：`lockcore/skills/` 的 builtin 原封不動，僅定位改為「出廠範本＋離線保底」（DB 全掛時 fail-soft 回退）。品牌後台「知識庫 > AI 技能」分頁編輯、admin 發佈；落盤仍是標準 SKILL.md + references/，可攜性不變。
 3. **不准在 lockcore 外再造 LLM provider** —— 多家統一走 `LiteLLMProvider` 用 model 字串路由（`gemini/` / `vertex_ai/` / `ollama_chat/` / `claude-*` / `gpt-4o` 等），不要把 anthropic / google-genai SDK 直接 import 回 agent code。
 4. **工具白名單只能在 `lockcore/app_config.py:CS_TOOL_ALLOWLIST` 統一控** —— 目前客服只開 `read_file / list_dir / find_files / grep / web_search / transfer_to_human`。新增工具屬 architecture change，須走 CIA。
 
