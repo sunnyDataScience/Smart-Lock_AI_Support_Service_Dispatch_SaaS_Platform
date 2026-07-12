@@ -106,6 +106,58 @@ async def test_disabled_when_unconfigured(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_builtin_roundtrip_byte_identical(tmp_path):
+    """品質保證（CR-0167）：builtin skill 走 DB→SkillSync→SkillsLoader 後位元組級不變。
+
+    防未來改動（seed/物化/loader）悄悄掉檔或改內容，害 agent 回答依據漂移。
+    需 POSTGRES_URI（含 migration 106 的 scratch 庫）；未設則 skip。
+    """
+    uri = os.environ.get("POSTGRES_URI")
+    if not uri:
+        pytest.skip("需 POSTGRES_URI 指向 scratch 庫（含 migration 106）")
+
+    import json
+    import psycopg
+    from lockcore.agent.skills import BUILTIN_SKILLS_DIR
+
+    def _files(d):
+        return {p.relative_to(d).as_posix(): p.read_bytes()
+                for p in sorted(d.rglob("*")) if p.is_file()}
+
+    tenant_id = str(uuid.uuid4())
+    names = [d.name for d in sorted(BUILTIN_SKILLS_DIR.iterdir())
+             if d.is_dir() and (d / "SKILL.md").exists()]
+    assert names, "找不到 builtin skill"
+
+    # seed builtin → DB（published）
+    with psycopg.connect(uri, autocommit=True) as conn, conn.cursor() as cur:
+        for name in names:
+            files = {rel: b.decode("utf-8") for rel, b in _files(BUILTIN_SKILLS_DIR / name).items()}
+            cur.execute(
+                "INSERT INTO saas.skill_revision "
+                "(tenant_id, skill_name, version, files, status, source) "
+                "VALUES (%s::uuid,%s,1,%s::jsonb,'published','factory_seed')",
+                (tenant_id, name, json.dumps(files, ensure_ascii=False)),
+            )
+        cur.execute("INSERT INTO saas.skill_bundle(tenant_id, published_stamp) VALUES (%s::uuid, 1)", (tenant_id,))
+
+    sync = SkillSync(workspace=tmp_path, uri=uri, tenant_id=tenant_id, poll_interval=999)
+    assert await sync._sync_once() is True
+
+    # 逐檔位元組級比對 + SkillsLoader 內容等價
+    mat_root = tmp_path / "skills"
+    cb = ContextBuilder(workspace=tmp_path)
+    for name in names:
+        builtin = _files(BUILTIN_SKILLS_DIR / name)
+        materialized = _files(mat_root / name)
+        assert set(builtin) == set(materialized), f"{name} 物化檔集不一致（掉檔/多檔）"
+        for rel in builtin:
+            assert builtin[rel] == materialized[rel], f"{name}/{rel} 內容位元組不一致"
+        # SkillsLoader 讀物化版 == builtin 原文
+        assert cb.skills.load_skill(name) == (BUILTIN_SKILLS_DIR / name / "SKILL.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.asyncio
 async def test_db_roundtrip_publish_then_sync(tmp_path):
     """DB 往返：直接寫 published revision + bump stamp，SkillSync 拉取物化。
 
