@@ -28,6 +28,7 @@ from routers import system_config as system_config_router
 from routers import kb_cases as kb_cases_router
 from routers import kb_manuals as kb_manuals_router
 from routers import sop_drafts as sop_drafts_router
+from routers import skills_v2 as skills_v2_router  # CR-0167：skill 熱更新與品牌後台版控
 from routers import audit_logs as audit_logs_router
 from routers import conversations as conversations_router
 from routers import dashboard as dashboard_router
@@ -328,6 +329,7 @@ app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_ma
 app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])
 app.include_router(kb_manuals_router.router, prefix="/api/v1", tags=["knowledge_base"])
 app.include_router(sop_drafts_router.router, prefix="/api/v1", tags=["knowledge_base"])
+app.include_router(skills_v2_router.router, prefix="/api/v1", tags=["knowledge_base"])  # CR-0167：skill 熱更新版控
 app.include_router(family_reviews_router.router, prefix="/api/v1", tags=["knowledge_base"])
 app.include_router(audit_logs_router.router, prefix="/api/v1", tags=["observability"])
 app.include_router(data_corrections_router.router, prefix="/api/v1", tags=["knowledge_base"])

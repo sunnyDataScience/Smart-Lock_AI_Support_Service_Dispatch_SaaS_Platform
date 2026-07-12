@@ -129,5 +129,7 @@
 | 104 | `104-wo-events-reject.sql` | CR-0166 R1-9 | 🟢 idempotent（DROP/ADD CONSTRAINT 可重套，scratch 5474 驗證 2026-07-12） | work_order_events CHECK 補 'reject'（技師拒單 timeline 事件）。同 050/059/102 同類 |
 | 105 | `105-tech-lifecycle-brand-auth-events.sql` | CR-0166 R1-4 | 🟢 idempotent（DROP/ADD CONSTRAINT 可重套，scratch 5474 驗證 2026-07-12） | saas.technician_lifecycle_event event_type CHECK 補 'brand_auth_granted'/'brand_auth_revoked'（品牌授權撤證 API audit）。⚠️ 須同時套品牌庫投影與技師權威庫兩邊。同 020/090 同類 |
 
+| 106 | `106-skill-revisions.sql` | CR-0167 S1 | 🟢 idempotent（全 CREATE TABLE/INDEX IF NOT EXISTS，scratch 5490 驗證 2026-07-12） | skill 熱更新版控：saas.skill_revision（版本快照 append-only，files jsonb={rel_path:content}）＋saas.skill_bundle（published_stamp，SkillSync 輪詢對象）＋saas.skill_audit_log。partial unique index uq_skill_revision_published 保證至多一個 published/(tenant,skill)。品牌庫 only（dispatch surface） |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
