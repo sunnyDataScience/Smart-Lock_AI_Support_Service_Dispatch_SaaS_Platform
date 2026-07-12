@@ -21,6 +21,7 @@ from pathlib import Path
 from aiohttp import web
 
 from lockcore.agent.loop import AgentLoop
+from lockcore.agent.skill_sync import SkillSync
 from lockcore.app_config import (
     CS_TOOL_ALLOWLIST,
     load_mcp_servers,
@@ -66,6 +67,30 @@ def main() -> None:
     idem = build_webhook_idempotency_store(cfg)
     app = build_webapp(loop, cfg.tenant, secret, token, escalation_store=esc,
                        idempotency_store=idem)
+
+    # CR-0167 SkillSync：品牌庫 published skill → workspace/skills overlay（不重佈更新知識）。
+    # HD-3 DB 直讀（POSTGRES_URI）；tenant UUID 沿用 AGENT_TENANT_ID（品牌庫租戶）。
+    # 未配置（缺 URI 或 tenant）→ enabled=False，行為與現況完全一致（builtin skills）。
+    skill_sync = SkillSync(
+        workspace=workspace,
+        uri=os.environ.get("POSTGRES_URI"),
+        tenant_id=(
+            os.environ.get("SKILL_SYNC_TENANT_ID")
+            or os.environ.get("AGENT_TENANT_ID")
+            or os.environ.get("RAG_TENANT_ID")
+        ),
+        poll_interval=int(os.environ.get("SKILL_SYNC_POLL_SECONDS", "60")),
+    )
+
+    async def _skill_sync_startup(_app: web.Application) -> None:
+        await skill_sync.start()
+
+    async def _skill_sync_cleanup(_app: web.Application) -> None:
+        await skill_sync.stop()
+
+    app.on_startup.append(_skill_sync_startup)
+    app.on_cleanup.append(_skill_sync_cleanup)
+
     port = int(os.environ.get("PORT", "8000"))
     print(f"模型:{cfg.model}  租戶:{cfg.tenant}  記憶後端:{cfg.backend}", flush=True)
     # 方案 A / CR-0022 旁路橋接狀態 —— 明示開/關,避免「對話/工單沒進 DB」被靜默略過害人 debug。
