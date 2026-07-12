@@ -256,3 +256,79 @@ async def test_double_publish_conflict(client):
 def _admin_headers() -> dict:
     tok = _make_token(user_id=str(uuid.uuid4()), role="admin")
     return {"Authorization": f"Bearer {tok}", "X-Tenant-ID": DEFAULT_TENANT_ID}
+
+
+# ── internal ingest merge（refinery 行為軌用；CR-0168）──────────────────────────
+
+INTERNAL_HEADERS = {"X-Internal-Token": "test-internal-token"}
+
+
+def _internal_ready() -> bool:
+    import os
+    return os.environ.get("INTERNAL_API_TOKEN") == "test-internal-token"
+
+
+async def test_ingest_merge_is_additive(client):
+    """merge：只送一個 refined reference → 基準所有檔保留、SKILL.md 不動、只多那一檔。"""
+    if not _internal_ready():
+        pytest.skip("需 INTERNAL_API_TOKEN=test-internal-token")
+    name = _unique_name()
+    ops, admin = _ops_headers(), _admin_headers()
+    # 建立並發佈基準（SKILL.md + 一個既有 reference）
+    base_md = _skill_md(name, body="基準 SOP")
+    r = await client.put(
+        f"/api/v1/knowledge-base/skills/{name}",
+        json={"files": {"SKILL.md": base_md, "references/a.md": "既有參考"}}, headers=ops,
+    )
+    v = r.json()["data"]["version"]
+    await client.post(f"/api/v1/knowledge-base/skills/{name}/publish", json={"version": v}, headers=admin)
+
+    # refinery merge 汲取一個 refined reference
+    r = await client.post(
+        "/api/v1/internal/skills/ingest",
+        json={"tenant_id": DEFAULT_TENANT_ID, "skill_name": name,
+              "files": {"references/refined/x.md": "新淬鍊話術"}, "merge": True},
+        headers=INTERNAL_HEADERS,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["status"] == "draft"  # 只進 draft，未 publish（品質零影響）
+
+    # 草稿＝基準 ∪ 新檔（加性）：SKILL.md 原封、既有 reference 保留、新增 refined
+    draft = (await client.get(f"/api/v1/knowledge-base/skills/{name}", headers=ops)).json()["data"]
+    assert draft["status"] == "draft"
+    assert draft["files"]["SKILL.md"] == base_md            # SKILL.md 不動
+    assert draft["files"]["references/a.md"] == "既有參考"  # 既有保留
+    assert draft["files"]["references/refined/x.md"] == "新淬鍊話術"  # 新增
+
+    # 發佈中版本仍是基準（draft 未發佈前 agent 用的還是舊的）
+    revs = (await client.get(f"/api/v1/knowledge-base/skills/{name}/revisions", headers=ops)).json()["data"]["items"]
+    assert next(x for x in revs if x["version"] == v)["status"] == "published"
+
+
+async def test_ingest_merge_requires_existing_skill(client):
+    """merge 無基準（skill 不存在）→ 404，不憑空產不完整 skill。"""
+    if not _internal_ready():
+        pytest.skip("需 INTERNAL_API_TOKEN=test-internal-token")
+    r = await client.post(
+        "/api/v1/internal/skills/ingest",
+        json={"tenant_id": DEFAULT_TENANT_ID, "skill_name": _unique_name(),
+              "files": {"references/refined/x.md": "孤兒"}, "merge": True},
+        headers=INTERNAL_HEADERS,
+    )
+    assert r.status_code == 404
+    assert r.json()["error_code"] == "SKILL_NOT_FOUND"
+
+
+async def test_ingest_no_merge_replaces(client):
+    """merge=false（預設）：整包取代語意不變。"""
+    if not _internal_ready():
+        pytest.skip("需 INTERNAL_API_TOKEN=test-internal-token")
+    name = _unique_name()
+    r = await client.post(
+        "/api/v1/internal/skills/ingest",
+        json={"tenant_id": DEFAULT_TENANT_ID, "skill_name": name,
+              "files": {"SKILL.md": _skill_md(name)}},
+        headers=INTERNAL_HEADERS,
+    )
+    assert r.status_code == 200
+    assert r.json()["data"]["status"] == "draft"

@@ -210,3 +210,73 @@ def test_approve_behavior_creates_patch_and_apply(client, conn, tmp_path):
         assert target.read_text() == before
     finally:
         _cleanup(conn)
+
+
+# ── CR-0168：行為軌走 LiveSkill DB 汲取（merge draft）而非 git ──────────────────
+
+
+def test_parse_skill_target():
+    """target_path → (skill_name, rel_path)；非 skill 路徑回 None。"""
+    from refinery.apply_behavior import _parse_skill_target
+
+    assert _parse_skill_target(
+        "agent/lockcore/skills/locksmith-cs-sop/references/refined/x.md"
+    ) == ("locksmith-cs-sop", "references/refined/x.md")
+    assert _parse_skill_target("some/other/path.md") is None
+    assert _parse_skill_target("agent/lockcore/skills/only-skill-no-file") is None
+
+
+def test_apply_behavior_via_ingest(client, conn, monkeypatch):
+    """設 API 環境 → 走 /internal/skills/ingest（merge draft），不寫檔；標 channel=skill_ingest。"""
+    from refinery import apply_behavior
+
+    calls = []
+
+    class _FakeResp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": {"version": 7, "status": "draft"}}
+
+    def _fake_post(url, headers=None, json=None, timeout=None):
+        calls.append({"url": url, "headers": headers, "json": json})
+        return _FakeResp()
+
+    monkeypatch.setenv("LOCK_API_BASE_URL", "http://api:8001")
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "tok-xyz")
+    monkeypatch.setattr(apply_behavior.httpx, "post", _fake_post)
+
+    reviewer = _mk_reviewer(conn)
+    hdr = {"Authorization": "Bearer " + _token(sub=reviewer)}
+    draft_id = _mk_draft(conn, draft_type="behavior")
+    try:
+        assert client.post(f"/api/drafts/{draft_id}/approve", headers=hdr, json={}).status_code == 200
+
+        assert apply_behavior.main([]) == 0
+
+        # 走了 ingest，且 merge=true、skill_name/rel_path 正確、帶 internal token
+        assert len(calls) == 1
+        c = calls[0]
+        assert c["url"].endswith("/api/v1/internal/skills/ingest")
+        assert c["headers"]["X-Internal-Token"] == "tok-xyz"
+        assert c["json"]["merge"] is True
+        assert c["json"]["skill_name"] == "locksmith-cs-sop"
+        assert list(c["json"]["files"].keys())[0].startswith("references/refined/")
+
+        # provenance 標 applied + channel=skill_ingest + draft_version（保留原 kind/content）
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT provenance->'published' FROM knowledge_drafts WHERE id=%s", (draft_id,))
+            pub = cur.fetchone()[0]
+        assert pub["applied"] is True
+        assert pub["channel"] == "skill_ingest"
+        assert pub["draft_version"] == 7
+        assert pub["kind"] == "behavior_patch"  # 原溯源保留
+        assert "content" in pub
+
+        # 已 applied → 再跑不重複呼叫
+        assert apply_behavior.main([]) == 0
+        assert len(calls) == 1
+    finally:
+        _cleanup(conn)

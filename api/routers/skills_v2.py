@@ -51,6 +51,8 @@ class IngestRequest(BaseModel):
     skill_name: str = Field(..., description="skill 目錄名（kebab-case）")
     files: dict[str, str]
     note: str | None = None
+    # merge=True：只送新增/更新檔，後端讀現有基準併入（refinery 行為軌加單一 refined reference）
+    merge: bool = Field(default=False, description="加性合併進現有 skill（保留既有檔，只新增/更新）")
 
 
 def _envelope(data: dict) -> dict:
@@ -194,5 +196,6 @@ async def ingest_skill_revision(
         skill_name=body.skill_name,
         files=body.files,
         note=body.note,
+        merge=body.merge,
     )
     return _envelope(result)
