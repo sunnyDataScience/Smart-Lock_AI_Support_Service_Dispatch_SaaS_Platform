@@ -60,6 +60,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_skill_revision_published
     ON saas.skill_revision (tenant_id, skill_name)
     WHERE status = 'published';
 
+-- 至多一個 draft/(tenant,skill)——save_draft 的核心不變式（CR-0167 review：原僅靠
+-- app 層 check-then-insert，pool 啟用下並發存草稿無 gap lock 會產生雙 draft/裸 500；
+-- 此 index 把靜默雙 draft 轉為約束衝突，service 層再以 advisory lock 序列化＋translate 409）
+CREATE UNIQUE INDEX IF NOT EXISTS uq_skill_revision_draft
+    ON saas.skill_revision (tenant_id, skill_name)
+    WHERE status = 'draft';
+
 -- SkillSync 拉取路徑：WHERE tenant_id=? AND status='published'
 CREATE INDEX IF NOT EXISTS idx_skill_revision_published
     ON saas.skill_revision (tenant_id, status)

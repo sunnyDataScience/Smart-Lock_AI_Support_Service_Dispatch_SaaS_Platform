@@ -34,10 +34,14 @@ export default function SkillEditor({ skillName }: Props) {
   const [viewingStatus, setViewingStatus] = useState<SkillStatus>("draft");
   const [draftVersion, setDraftVersion] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
+  const [forked, setForked] = useState(false); // 從非草稿版本明確「建立草稿」後可編輯
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [historyKey, setHistoryKey] = useState(0); // 觸發歷史面板重載
   const [newPath, setNewPath] = useState("");
+
+  // 只有「草稿」或明確 fork 才可編輯——避免檢視舊版本時誤存覆蓋現有草稿（review finding 7）
+  const editable = viewingStatus === "draft" || forked;
 
   const applyDetail = useCallback((d: SkillDetail) => {
     setFiles(d.files ?? {});
@@ -45,6 +49,7 @@ export default function SkillEditor({ skillName }: Props) {
     setViewingStatus(d.status);
     setDraftVersion(d.status === "draft" ? d.version : null);
     setDirty(false);
+    setForked(false);
     setSelected((prev) => (d.files && prev in d.files ? prev : SKILL_MD));
   }, []);
 
@@ -75,11 +80,20 @@ export default function SkillEditor({ skillName }: Props) {
   }, [files]);
 
   const onEdit = (value: string) => {
+    if (!editable) return;
     setFiles((prev) => ({ ...prev, [selected]: value }));
     setDirty(true);
   };
 
+  // 從檢視中的（發佈中）版本 fork 出可編輯草稿。此時 latest=published＝無現存草稿，
+  // 存檔會 INSERT 新草稿，不會覆蓋他人草稿（若有草稿，mount 會載入草稿而非走此路徑）。
+  const forkToDraft = () => {
+    setForked(true);
+    setDirty(true);
+  };
+
   const addFile = () => {
+    if (!editable) return;
     const path = newPath.trim();
     if (!path) return;
     if (path in files) {
@@ -93,7 +107,7 @@ export default function SkillEditor({ skillName }: Props) {
   };
 
   const removeFile = (path: string) => {
-    if (path === SKILL_MD) return;
+    if (path === SKILL_MD || !editable) return;
     setFiles((prev) => {
       const next = { ...prev };
       delete next[path];
@@ -123,6 +137,11 @@ export default function SkillEditor({ skillName }: Props) {
   };
 
   const handlePublish = async () => {
+    // 無可發佈內容（檢視發佈中版本、無編輯、無草稿）→ 不製造多餘版本＋agent 重同步（finding 8）
+    if (!dirty && draftVersion == null) {
+      toast({ title: "目前無草稿可發佈（此為發佈中版本）", variant: "warning" });
+      return;
+    }
     // 有未存變更 → 先存草稿再發佈
     let version = draftVersion;
     if (dirty || version == null) {
@@ -163,22 +182,34 @@ export default function SkillEditor({ skillName }: Props) {
           </span>
           <span className="text-[var(--text-tertiary)]">·</span>
           <span>{STATUS_LABEL[viewingStatus]}</span>
+          {!editable && <span className="text-[var(--text-tertiary)]">· 唯讀</span>}
           {dirty && <span className="text-[var(--warning)]">· 未儲存變更</span>}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={busy || !dirty}
-            className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            存草稿
-          </button>
+          {!editable && viewingStatus === "published" && (
+            <button
+              type="button"
+              onClick={forkToDraft}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-page)]"
+            >
+              以此版本建立草稿
+            </button>
+          )}
+          {editable && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={busy || !dirty}
+              className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-sm font-medium text-[var(--text-primary)] transition-colors hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              存草稿
+            </button>
+          )}
           {isAdmin && (
             <button
               type="button"
               onClick={handlePublish}
-              disabled={busy}
+              disabled={busy || (!dirty && draftVersion == null)}
               className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[var(--primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               發佈
@@ -247,8 +278,9 @@ export default function SkillEditor({ skillName }: Props) {
           <textarea
             value={files[selected] ?? ""}
             onChange={(e) => onEdit(e.target.value)}
+            readOnly={!editable}
             spellCheck={false}
-            className="flex-1 resize-none bg-[var(--bg-page)] p-4 font-mono text-[13px] leading-relaxed text-[var(--text-primary)] focus:outline-none"
+            className="flex-1 resize-none bg-[var(--bg-page)] p-4 font-mono text-[13px] leading-relaxed text-[var(--text-primary)] focus:outline-none read-only:opacity-70"
             placeholder={
               selected === SKILL_MD
                 ? "# SKILL.md 需 YAML frontmatter（name / description）開頭"

@@ -188,6 +188,52 @@ async def test_role_gate_technician_cannot_edit(client):
     assert r.status_code == 403
 
 
+async def test_publish_gate_rejects_path_collision(client):
+    """一路徑是另一路徑祖先（會 wedge SkillSync 物化）→ 發佈閘擋。"""
+    name = _unique_name()
+    ops, admin = _ops_headers(), _admin_headers()
+    r = await client.put(
+        f"/api/v1/knowledge-base/skills/{name}",
+        json={"files": {"SKILL.md": _skill_md(name), "references": "x",
+                        "references/a.md": "y"}}, headers=ops,
+    )
+    v = r.json()["data"]["version"]
+    r = await client.post(
+        f"/api/v1/knowledge-base/skills/{name}/publish", json={"version": v}, headers=admin,
+    )
+    assert r.status_code == 422
+    assert r.json()["error_code"] == "PATH_COLLISION"
+
+
+async def test_skill_name_trailing_newline_rejected(client):
+    """\\Z（非 $）：結尾換行不得被放行（正規化繞過）。"""
+    ops = _ops_headers()
+    r = await client.put(
+        "/api/v1/knowledge-base/skills/ok-name%0a",  # url-encoded trailing \n
+        json={"files": {"SKILL.md": _skill_md("x")}}, headers=ops,
+    )
+    assert r.status_code == 422
+    assert r.json()["error_code"] == "INVALID_SKILL_NAME"
+
+
+async def test_save_draft_is_single_draft(client):
+    """存兩次草稿（無中間發佈）→ 仍只有一個 draft（覆蓋，不新增版本）。"""
+    name = _unique_name()
+    ops = _ops_headers()
+    r1 = await client.put(
+        f"/api/v1/knowledge-base/skills/{name}",
+        json={"files": {"SKILL.md": _skill_md(name, body="A")}}, headers=ops,
+    )
+    r2 = await client.put(
+        f"/api/v1/knowledge-base/skills/{name}",
+        json={"files": {"SKILL.md": _skill_md(name, body="B")}}, headers=ops,
+    )
+    assert r1.json()["data"]["version"] == r2.json()["data"]["version"]  # 同版本覆蓋
+    r = await client.get(f"/api/v1/knowledge-base/skills/{name}/revisions", headers=ops)
+    drafts = [x for x in r.json()["data"]["items"] if x["status"] == "draft"]
+    assert len(drafts) == 1
+
+
 async def test_double_publish_conflict(client):
     name = _unique_name()
     ops, admin = _ops_headers(), _admin_headers()

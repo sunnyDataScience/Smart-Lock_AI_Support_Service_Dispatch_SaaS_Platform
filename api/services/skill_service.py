@@ -20,6 +20,7 @@ import json as _json
 import logging
 import re
 
+import psycopg
 import yaml
 
 import core.db as db_module
@@ -28,14 +29,30 @@ from core.errors import ApiError
 
 logger = logging.getLogger("api.skill_service")
 
+
+async def _acquire_skill_lock(tenant_id: str, skill_name: str) -> None:
+    """取 per-(tenant,skill) advisory xact-lock，序列化 save_draft/publish/rollback。
+
+    CR-0167 review：check-then-insert 與 retire→publish 在 pool 啟用 + READ COMMITTED
+    下並發會產生雙 draft、丟失發佈、或撞 unique index 裸 500。比照 audit_log_service
+    的 hash-chain 鎖，用 xact-scoped advisory lock（commit/abort 自動釋放、與連線池相容）
+    把同一 skill 的臨界區序列化。two-int 形式＝per-(tenant,skill) 粒度，不同 skill 不互擋。
+    """
+    await db_module._conn.execute("SET LOCAL lock_timeout = '3s'")
+    await db_module._conn.execute(
+        "SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+        (tenant_id, skill_name),
+    )
+
 # ── 發佈驗證閘常數 ───────────────────────────────────────────────────────────
 # SKILL.md 進 system prompt（每 turn），設大小預算避免 prompt 膨脹（references 走
 # read_file 按需讀、不受此限）。16KB ≈ 5-6k 中文字，足夠一份 SOP。
 _SKILL_MD_MAX_BYTES = 16 * 1024
 # skill 目錄名＝ workspace/skills/<name>/：Agent Skills 標準 kebab-case，擋 path traversal
-_SKILL_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+# \Z（非 $）：$ 會匹配結尾換行前，"foo\n" 會漏放行——用 \Z 鎖真正字串結尾（CR-0167 review）
+_SKILL_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
 # 檔案相對路徑：禁絕對路徑 / .. / 反斜線 / NUL，元件限白名單字元
-_REL_PATH_SEG_RE = re.compile(r"^[A-Za-z0-9._-][A-Za-z0-9._ -]*$")
+_REL_PATH_SEG_RE = re.compile(r"^[A-Za-z0-9._-][A-Za-z0-9._ -]*\Z")
 
 
 def validate_skill_name(skill_name: str) -> None:
@@ -68,6 +85,8 @@ def validate_publishable(skill_name: str, files: dict) -> None:
         if not isinstance(content, str):
             raise ApiError("INVALID_FILE_CONTENT", f"檔案內容須為字串：{rel_path!r}", 422)
 
+    _reject_path_collisions(files)
+
     skill_md = files.get("SKILL.md")
     if skill_md is None:
         raise ApiError("MISSING_SKILL_MD", "缺 SKILL.md（skill 進入點）", 422)
@@ -78,6 +97,25 @@ def validate_publishable(skill_name: str, files: dict) -> None:
             422,
         )
     _validate_frontmatter(skill_md)
+
+
+def _reject_path_collisions(files: dict) -> None:
+    """擋「一個路徑是另一個路徑的祖先」——如 files={"references":..., "references/x.md":...}。
+
+    SkillSync 落盤時會先把 "references" 當檔案寫，再對 "references/x.md" mkdir("references/")
+    → FileExistsError，卡死該 skill 的物化（CR-0167 review finding 5）。發佈前擋掉。
+    """
+    keys = list(files.keys())
+    prefixes = {tuple(k.split("/")) for k in keys}
+    for k in keys:
+        parts = k.split("/")
+        for i in range(1, len(parts)):
+            if tuple(parts[:i]) in prefixes:
+                raise ApiError(
+                    "PATH_COLLISION",
+                    f"檔案路徑衝突：{'/'.join(parts[:i])!r} 同時是檔案與目錄前綴",
+                    422,
+                )
 
 
 def _validate_frontmatter(skill_md: str) -> None:
@@ -236,33 +274,40 @@ async def save_draft(
             raise ApiError("INVALID_FILE_CONTENT", f"檔案內容須為字串：{rel_path!r}", 422)
 
     files_json = _json.dumps(files, ensure_ascii=False)
-    async with db_module._conn.transaction():
-        cur = await db_module._conn.execute(
-            "SELECT version FROM saas.skill_revision "
-            "WHERE tenant_id = %s::uuid AND skill_name = %s AND status = 'draft' "
-            "ORDER BY version DESC LIMIT 1 FOR UPDATE",
-            (tenant_id, skill_name),
-        )
-        existing = await cur.fetchone()
-        if existing:
-            version = existing[0]
-            await db_module._conn.execute(
-                "UPDATE saas.skill_revision "
-                "SET files = %s::jsonb, note = %s, source = %s, created_at = NOW(), "
-                "    created_by = %s::uuid "
-                "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s",
-                (files_json, note, source, actor_user_id, tenant_id, skill_name, version),
+    try:
+        async with db_module._conn.transaction():
+            # advisory lock 序列化同一 skill 的 check-then-insert（pool + READ COMMITTED
+            # 下無 gap lock，兩並發都讀「無 draft」會產生雙 draft/version 撞 unique）
+            await _acquire_skill_lock(tenant_id, skill_name)
+            cur = await db_module._conn.execute(
+                "SELECT version FROM saas.skill_revision "
+                "WHERE tenant_id = %s::uuid AND skill_name = %s AND status = 'draft' "
+                "ORDER BY version DESC LIMIT 1 FOR UPDATE",
+                (tenant_id, skill_name),
             )
-            action = "update_draft"
-        else:
-            version = await _next_version(tenant_id, skill_name)
-            await db_module._conn.execute(
-                "INSERT INTO saas.skill_revision "
-                "  (tenant_id, skill_name, version, files, status, source, note, created_by) "
-                "VALUES (%s::uuid, %s, %s, %s::jsonb, 'draft', %s, %s, %s::uuid)",
-                (tenant_id, skill_name, version, files_json, source, note, actor_user_id),
-            )
-            action = "create_draft"
+            existing = await cur.fetchone()
+            if existing:
+                version = existing[0]
+                await db_module._conn.execute(
+                    "UPDATE saas.skill_revision "
+                    "SET files = %s::jsonb, note = %s, source = %s, created_at = NOW(), "
+                    "    created_by = %s::uuid "
+                    "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s",
+                    (files_json, note, source, actor_user_id, tenant_id, skill_name, version),
+                )
+                action = "update_draft"
+            else:
+                version = await _next_version(tenant_id, skill_name)
+                await db_module._conn.execute(
+                    "INSERT INTO saas.skill_revision "
+                    "  (tenant_id, skill_name, version, files, status, source, note, created_by) "
+                    "VALUES (%s::uuid, %s, %s, %s::jsonb, 'draft', %s, %s, %s::uuid)",
+                    (tenant_id, skill_name, version, files_json, source, note, actor_user_id),
+                )
+                action = "create_draft"
+    except psycopg.errors.UniqueViolation:
+        # advisory lock 已序列化正常路徑；仍撞 unique＝極端並發殘餘 → 乾淨 409 非裸 500
+        raise ApiError("DRAFT_CONFLICT", "草稿並發衝突，請重新載入後再存", 409) from None
 
     await _write_audit(
         tenant_id, skill_name, action, version, None,
@@ -284,33 +329,39 @@ async def publish(
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     validate_skill_name(skill_name)
 
-    async with db_module._conn.transaction():
-        cur = await db_module._conn.execute(
-            "SELECT files, status FROM saas.skill_revision "
-            "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s FOR UPDATE",
-            (tenant_id, skill_name, version),
-        )
-        row = await cur.fetchone()
-        if not row:
-            raise ApiError("NOT_FOUND", "Skill revision not found", 404)
-        files, status = row[0], row[1]
-        if status == "published":
-            raise ApiError("ALREADY_PUBLISHED", "此版本已是發佈中版本", 409)
+    try:
+        async with db_module._conn.transaction():
+            # 序列化同一 skill 的 publish/rollback：並發發佈兩個不同版本會在 retire→publish
+            # 之間各自漏 retire、撞 uq_skill_revision_published 裸 500（CR-0167 review finding 2）
+            await _acquire_skill_lock(tenant_id, skill_name)
+            cur = await db_module._conn.execute(
+                "SELECT files, status FROM saas.skill_revision "
+                "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s FOR UPDATE",
+                (tenant_id, skill_name, version),
+            )
+            row = await cur.fetchone()
+            if not row:
+                raise ApiError("NOT_FOUND", "Skill revision not found", 404)
+            files, status = row[0], row[1]
+            if status == "published":
+                raise ApiError("ALREADY_PUBLISHED", "此版本已是發佈中版本", 409)
 
-        validate_publishable(skill_name, files)  # 發佈閘（在交易內，失敗自動 rollback）
+            validate_publishable(skill_name, files)  # 發佈閘（在交易內，失敗自動 rollback）
 
-        # 先 retire 當前 published，避免撞 partial unique index
-        await db_module._conn.execute(
-            "UPDATE saas.skill_revision SET status = 'retired' "
-            "WHERE tenant_id = %s::uuid AND skill_name = %s AND status = 'published'",
-            (tenant_id, skill_name),
-        )
-        await db_module._conn.execute(
-            "UPDATE saas.skill_revision SET status = 'published', published_at = NOW() "
-            "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s",
-            (tenant_id, skill_name, version),
-        )
-        stamp = await _bump_stamp(tenant_id)
+            # 先 retire 當前 published，避免撞 partial unique index
+            await db_module._conn.execute(
+                "UPDATE saas.skill_revision SET status = 'retired' "
+                "WHERE tenant_id = %s::uuid AND skill_name = %s AND status = 'published'",
+                (tenant_id, skill_name),
+            )
+            await db_module._conn.execute(
+                "UPDATE saas.skill_revision SET status = 'published', published_at = NOW() "
+                "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s",
+                (tenant_id, skill_name, version),
+            )
+            stamp = await _bump_stamp(tenant_id)
+    except psycopg.errors.UniqueViolation:
+        raise ApiError("PUBLISH_CONFLICT", "並發發佈衝突，請重試", 409) from None
 
     await _write_audit(
         tenant_id, skill_name, "publish", version, None,
@@ -332,31 +383,35 @@ async def rollback(
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     validate_skill_name(skill_name)
 
-    async with db_module._conn.transaction():
-        cur = await db_module._conn.execute(
-            "SELECT files, status FROM saas.skill_revision "
-            "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s FOR UPDATE",
-            (tenant_id, skill_name, target_version),
-        )
-        row = await cur.fetchone()
-        if not row:
-            raise ApiError("NOT_FOUND", "Skill revision not found", 404)
-        files, status = row[0], row[1]
-        if status == "published":
-            raise ApiError("ALREADY_PUBLISHED", "此版本已是發佈中版本", 409)
-        validate_publishable(skill_name, files)
+    try:
+        async with db_module._conn.transaction():
+            await _acquire_skill_lock(tenant_id, skill_name)
+            cur = await db_module._conn.execute(
+                "SELECT files, status FROM saas.skill_revision "
+                "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s FOR UPDATE",
+                (tenant_id, skill_name, target_version),
+            )
+            row = await cur.fetchone()
+            if not row:
+                raise ApiError("NOT_FOUND", "Skill revision not found", 404)
+            files, status = row[0], row[1]
+            if status == "published":
+                raise ApiError("ALREADY_PUBLISHED", "此版本已是發佈中版本", 409)
+            validate_publishable(skill_name, files)
 
-        await db_module._conn.execute(
-            "UPDATE saas.skill_revision SET status = 'retired' "
-            "WHERE tenant_id = %s::uuid AND skill_name = %s AND status = 'published'",
-            (tenant_id, skill_name),
-        )
-        await db_module._conn.execute(
-            "UPDATE saas.skill_revision SET status = 'published', published_at = NOW() "
-            "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s",
-            (tenant_id, skill_name, target_version),
-        )
-        stamp = await _bump_stamp(tenant_id)
+            await db_module._conn.execute(
+                "UPDATE saas.skill_revision SET status = 'retired' "
+                "WHERE tenant_id = %s::uuid AND skill_name = %s AND status = 'published'",
+                (tenant_id, skill_name),
+            )
+            await db_module._conn.execute(
+                "UPDATE saas.skill_revision SET status = 'published', published_at = NOW() "
+                "WHERE tenant_id = %s::uuid AND skill_name = %s AND version = %s",
+                (tenant_id, skill_name, target_version),
+            )
+            stamp = await _bump_stamp(tenant_id)
+    except psycopg.errors.UniqueViolation:
+        raise ApiError("PUBLISH_CONFLICT", "並發發佈衝突，請重試", 409) from None
 
     await _write_audit(
         tenant_id, skill_name, "rollback", target_version, None,

@@ -69,6 +69,34 @@ async def test_materialize_rejects_path_traversal(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_materialize_rejects_skill_name_traversal(tmp_path):
+    """skill_name 含 traversal（DB 讀回不盡信）→ 不落盤到 version_dir 之外。"""
+    sync = SkillSync(workspace=tmp_path, uri="x", tenant_id=str(uuid.uuid4()))
+    sync._materialize({"../evil": {"SKILL.md": "pwned"}})
+    assert not (tmp_path.parent / "evil").exists()
+    assert not (tmp_path.parent / "SKILL.md").exists()
+
+
+@pytest.mark.asyncio
+async def test_materialize_bad_skill_does_not_wedge_others(tmp_path):
+    """單一壞 skill（路徑衝突）不得 wedge 整批——其餘 skill 照物化。"""
+    sync = SkillSync(workspace=tmp_path, uri="x", tenant_id=str(uuid.uuid4()))
+    sync._materialize({
+        "bad": {"references": "x", "references/a.md": "y"},  # 檔案/目錄衝突
+        "good": _skill_files("good", "OK"),
+    })
+    cb = ContextBuilder(workspace=tmp_path)
+    assert "品牌覆蓋內容 OK" in cb.skills.load_skill("good")
+
+
+@pytest.mark.asyncio
+async def test_poll_interval_clamped(tmp_path):
+    """poll_interval=0/負值 → clamp 到 ≥1（防連線風暴）。"""
+    assert SkillSync(workspace=tmp_path, uri="x", tenant_id="t", poll_interval=0).poll_interval == 1
+    assert SkillSync(workspace=tmp_path, uri="x", tenant_id="t", poll_interval=-5).poll_interval == 1
+
+
+@pytest.mark.asyncio
 async def test_disabled_when_unconfigured(tmp_path):
     """未配置 → enabled=False；start() fail-soft 不 raise、不建立 overlay。"""
     sync = SkillSync(workspace=tmp_path, uri=None, tenant_id=None)
