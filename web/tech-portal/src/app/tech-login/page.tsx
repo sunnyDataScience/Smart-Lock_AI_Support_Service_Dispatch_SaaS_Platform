@@ -214,6 +214,23 @@ function TechLoginForm({
       >
         {t("forgotPassword")}
       </Link>
+
+      {/* CR-0166 D8：SSO 三站複製——OIDC 授權碼流（2.1.1-R3，複製自 brand-portal）。
+          NEXT_PUBLIC_CASDOOR_ENDPOINT 配置時顯示；redirect_uri client 端組（SSR 無 window）。 */}
+      {process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT && (
+        <button
+          type="button"
+          onClick={() => {
+            const ep = (process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT ?? "").replace(/\/$/, "");
+            const cid = process.env.NEXT_PUBLIC_CASDOOR_CLIENT_ID ?? "smartlock-portal-client";
+            const uri = encodeURIComponent(`${window.location.origin}/auth/callback`);
+            window.location.href = `${ep}/login/oauth/authorize?client_id=${encodeURIComponent(cid)}&response_type=code&redirect_uri=${uri}&scope=read&state=smartlock`;
+          }}
+          className="flex h-11 items-center justify-center rounded-full border border-[var(--border)] text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-page)]"
+        >
+          以單一登入（SSO）繼續
+        </button>
+      )}
     </form>
   );
 }
