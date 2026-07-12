@@ -7,6 +7,7 @@ export interface KbCounts {
   cases: number | undefined;
   manuals: number | undefined;
   sopDrafts: number | undefined;
+  skills: number | undefined;
 }
 
 /**
@@ -23,6 +24,7 @@ export function useKbCounts(): KbCounts {
     cases: undefined,
     manuals: undefined,
     sopDrafts: undefined,
+    skills: undefined,
   });
 
   useEffect(() => {
@@ -36,12 +38,24 @@ export function useKbCounts(): KbCounts {
           return undefined; // 取不到不阻斷頁面，badge 退回 "—"
         }
       };
-      const [cases, manuals, sopDrafts] = await Promise.all([
+      // skills 端點回 {data:{items}} 無 total_count → 另讀並取 items 長度
+      const readSkills = async (): Promise<number | undefined> => {
+        try {
+          const res = await api.get<{ data?: { items?: unknown[] } }>(
+            "/api/v1/knowledge-base/skills",
+          );
+          return Array.isArray(res.data?.items) ? res.data!.items!.length : undefined;
+        } catch {
+          return undefined;
+        }
+      };
+      const [cases, manuals, sopDrafts, skills] = await Promise.all([
         read("/kb/documents?doc_type=case&limit=1"),
         read("/kb/documents?doc_type=manual&limit=1"),
         read(`${tenantPath("/sops/drafts")}?limit=1`),
+        readSkills(),
       ]);
-      if (!cancelled) setCounts({ cases, manuals, sopDrafts });
+      if (!cancelled) setCounts({ cases, manuals, sopDrafts, skills });
     })();
     return () => {
       cancelled = true;

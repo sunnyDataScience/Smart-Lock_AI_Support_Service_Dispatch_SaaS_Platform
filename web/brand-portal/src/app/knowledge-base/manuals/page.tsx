@@ -40,6 +40,7 @@ export default function ManualsPage() {
       { label: tTabs("cases"), href: "/knowledge-base/cases", count: kbCounts.cases },
       { label: tTabs("manuals"), href: "/knowledge-base/manuals", count: kbCounts.manuals },
       { label: tTabs("sopDrafts"), href: "/knowledge-base/sop-drafts", count: kbCounts.sopDrafts },
+      { label: tTabs("skills"), href: "/knowledge-base/skills", count: kbCounts.skills },
     ],
     [tTabs, kbCounts],
   );
