@@ -18,7 +18,24 @@ brand-portal 的 OIDC 授權碼流複製到 tech-portal 與 platform-console：
 路徑差異）——correctness 承 CR-0146 brand-portal live E2E。SSO 鈕 env-gated
 （NEXT_PUBLIC_CASDOOR_ENDPOINT 設才顯示，opt-in）。
 
-## §2 localStorage 退場（ACT-01）— 需架構裁決，未在本輪執行
+## §2b localStorage 退場（ACT-01）— ✅ 業主裁決 B 已實作（2026-07-12）
+
+業主裁決 **B（可讀 claims cookie）**。三站 `api.ts` 實作：
+- 非 httpOnly `smartlock_claims` cookie（JSON: userId/role/tenantId/email，samesite=lax，
+  https 加 secure，1h）——非機密（本就在 JWT 內可讀）。
+- **單一寫入點 `auth.setTokens`**：解 JWT payload → 寫 claims cookie（SSO sso-complete
+  與密碼登入皆走此，一處覆蓋兩路徑）；`setTenantId`/`setEmail` 同步更新；`clear` 清除。
+- `getCurrentSession()`：**優先讀 claims cookie**（退場目標態），退回 localStorage JWT
+  解碼（過渡：既有 session／cookie 缺失時，零破壞）。
+- `auth.getTenantId()`/`getEmail()`：優先 claims cookie，退回 localStorage。
+
+**過渡安全**：claims cookie 缺失／parse 失敗 → 自動退回 localStorage，既有登入不破。
+auth token 仍走 httpOnly cookie（SSO）＋Authorization header（localStorage 過渡）——
+本步只退場「前端 session claims 的 localStorage 依賴」（30+ 頁 getCurrentSession/getTenantId），
+token 傳輸層的 localStorage→cookie 遷移屬更後續（需 fetch credentials:include＋密碼登入
+設 cookie，較大改動面，另排）。
+
+## §2 localStorage 退場（ACT-01）— 架構選項（B 已採用）
 
 **現況（dual-write）**：SSO callback 已寫 **httpOnly cookie**（`smartlock_access_token`，
 api 端 R1 cookie 來源支援）＋fragment→localStorage（既有 `getCurrentSession()` 依賴）。
