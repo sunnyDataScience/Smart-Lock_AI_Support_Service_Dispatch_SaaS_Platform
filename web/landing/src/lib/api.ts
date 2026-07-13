@@ -21,7 +21,7 @@
  *   cacheInvalidate("GET:");
  */
 
-import { cacheGet, cacheClear } from "./cache";
+import { cacheGet, cacheClear, cacheInvalidate } from "./cache";
 
 // 用 || 而非 ??：Docker build-arg 未傳時 ENV 會是空字串 ""（非 undefined），
 // 需讓空字串也 fallback 到本機預設（?? 只攔 null/undefined，會放過 ""）。
@@ -350,7 +350,12 @@ async function request<T>(
   const isCacheable =
     method === "GET" && !options.signal && !options.skipAuth;
   if (!isCacheable) {
-    return rawRequest<T>(method, path, options);
+    const result = await rawRequest<T>(method, path, options);
+    // 寫入成功後清 GET 快取：mutate→refetch 是常見模式，不清則 30s staleTime 內的
+    // refetch 會讀到 mutate 前的舊資料（如 admin/staff 核准後畫面不更新）。此處自動化
+    // 既有慣例（原各頁須手動 cacheInvalidate("GET:")），杜絕漏清 footgun。
+    if (method !== "GET") cacheInvalidate("GET:");
+    return result;
   }
 
   const tenant = auth.getTenantId();
