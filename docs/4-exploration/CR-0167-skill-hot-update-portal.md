@@ -192,4 +192,7 @@ CREATE TABLE saas.skill_audit_log ( ... 對齊 saas.kb_audit_log 樣式 ... );
 - ✅ **S2 agent SkillSync done**（merge `8889856c`）：`skill_sync.py`（60s 輪詢→物化 workspace overlay，原子 symlink＋fail-soft，lockcore 核心零改動）＋gateway 接線＋`seed_builtin_skills.py`；5 pytest 綠含 DB 往返。
 - ✅ **S3 品牌後台 UI done**（merge `cb9f6b33`）：知識庫「AI 技能」分頁（列表/編輯器/版本歷史/發佈/回滾）；i18n parity＋tsc 0。
 - ✅ **對抗式 review + 修正 done**（merge `20aad757`）：6 維度 review 16 raw→8 confirmed 全修（並發雙 draft/publish 競態→advisory lock＋draft unique index＋409；skill_name traversal 錨定 version_dir；path collision 拒發＋per-skill 隔離；`$`→`\Z`；poll clamp；前端唯讀非草稿版本＋防多餘發佈）；測試增至 api 11＋agent 8。
-- ⏳ **S4 收尾**：ADR-032＋CLAUDE.md 加註＋CHANGELOG/completion-status done；**pipeline ingest 接線＋agent 重佈一次＋Playwright/UAT 端到端待辦**（agent 重佈由使用者執行）。
+- ✅ **pipeline ingest 接線 done**（CR-0168，merge `e29c18cb`）：refinery 行為軌改走 `/internal/skills/ingest`（merge draft）取代 git+重佈；後端 ingest merge 加性模式＋refinery 雙路徑（`LOCK_API_BASE_URL`+`INTERNAL_API_TOKEN`→ingest／否則 git fallback）；api 14＋refinery 7 綠。
+- ✅ **品質保證回歸測試 done**（merge `9161601e`）：`test_builtin_roundtrip_byte_identical`——builtin 走 DB→SkillSync→SkillsLoader 後位元組級不變（sha256 逐檔＋`load_skill` 等價），鎖死「回答依據不因搬進 Postgres 而漂移」；agent 測試增至 9。
+- ✅ **UAT UI 驗證 done**（本機 5433 重建 stack）：套 migration 106＋seed 兩 builtin（cs-sop 4 檔／product-knowledge 46 檔，draft/出廠範本）→ 品牌後台『知識庫 > AI 技能』列表＋編輯器＋版本歷史＋發佈鈕 live 實測（登入→分頁→編輯器渲染真實 SKILL.md）；api `/api/v1/knowledge-base/skills` 回真資料。
+- ⏳ **S4 剩餘**：ADR-032＋CLAUDE.md＋CHANGELOG/completion-status/WBS done；**僅剩 agent 重佈一次**（使用者執行 `./scripts/deploy/agent.sh`＋帶 `LOCK_API_BASE_URL`+`INTERNAL_API_TOKEN`，此後 skill 更新不重佈）＋**全鏈 UAT**（品牌後台改 FAQ→LINE 問→60s 新答，需重佈後）。
