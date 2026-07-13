@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
@@ -23,23 +23,35 @@ export default function SkillsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      try {
-        const rows = await listSkills();
-        if (!cancelled) setItems(rows);
-      } catch (e) {
-        if (!cancelled) setError(friendlyError(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  // 抓列表：可重複呼叫（初次載入 + 回到本頁時刷新）。不重置 loading，避免刷新時整表閃「載入中」。
+  const fetchSkills = useCallback(async () => {
+    try {
+      const rows = await listSkills();
+      setItems(rows);
+      setError(null);
+    } catch (e) {
+      setError(friendlyError(e));
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  // 初次載入 + 視窗重新聚焦 / 分頁重新可見時刷新。
+  // 修 CR-0167 UAT 回報：從編輯頁「發佈」後以瀏覽器上一頁（bfcache）回列表，
+  // useEffect(mount-only) 不重跑 → 狀態顯示 stale。監聽 focus / visibilitychange
+  // 涵蓋瀏覽器返回、切分頁、bfcache 還原，不論以何種方式回到本頁都取最新發佈狀態。
+  useEffect(() => {
+    void fetchSkills();
+    const refetch = () => {
+      if (document.visibilityState !== "hidden") void fetchSkills();
+    };
+    window.addEventListener("focus", refetch);
+    document.addEventListener("visibilitychange", refetch);
+    return () => {
+      window.removeEventListener("focus", refetch);
+      document.removeEventListener("visibilitychange", refetch);
+    };
+  }, [fetchSkills]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
