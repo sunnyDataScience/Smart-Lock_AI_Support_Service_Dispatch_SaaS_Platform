@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { ApiError, getCurrentSession, login, loginVendor } from "@/lib/api";
 import StaffRegisterForm from "@/components/auth/StaffRegisterForm";
+import IdleLogoutNotice from "@/components/auth/IdleLogoutNotice";
 import { APP_MODE, PEER_PORTAL_URL } from "@/lib/appMode";
 import { friendlyLoginError } from "@/lib/apiError";
 import { fallbackRouteForRole } from "@/lib/rolePolicy";
@@ -121,6 +122,8 @@ export default function BrandEntryPage() {
             </h1>
             <p className="text-sm text-[var(--text-secondary)]">{t("entrySubtitle")}</p>
           </div>
+
+          <IdleLogoutNotice />
 
           {/* 登入/註冊同框切換(仿 Google) */}
           <div className="mb-6 flex rounded-lg border border-[var(--border)] p-1">
