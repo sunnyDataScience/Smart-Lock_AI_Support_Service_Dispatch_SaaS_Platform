@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { loginPlatformAdmin } from "@/lib/api";
 import { friendlyLoginError } from "@/lib/apiError";
+import IdleLogoutNotice from "@/components/auth/IdleLogoutNotice";
 
 const inputCls =
   "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
@@ -50,6 +51,8 @@ export default function PlatformLoginPage() {
             </p>
           </div>
         </div>
+
+        <IdleLogoutNotice />
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
           <label className="flex flex-col gap-1.5">

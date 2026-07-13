@@ -7,6 +7,7 @@ import { crossModeRedirect } from "@/lib/appMode";
 import { canAccessRoute, fallbackRouteForRole } from "@/lib/rolePolicy";
 import { SidebarProvider } from "./SidebarContext";
 import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
+import IdleLogoutGuard from "./IdleLogoutGuard";
 
 // 完整公開頁清單（AuthGuard 掛在 root layout 包整個 app，漏列就會被踢去 /login）：
 //  - /                 角色導向 landing 主頁（未登入也要看得到，否則一進站就被踢 admin 登入）
@@ -119,6 +120,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <RbacChangedBanner />
+      <IdleLogoutGuard />
       {children}
     </SidebarProvider>
   );
