@@ -1,7 +1,6 @@
 "use client";
 
 import { Search } from "lucide-react";
-import NotificationBell from "./NotificationBell";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
@@ -55,7 +54,8 @@ export default function Header({ title, subtitle }: HeaderProps) {
 
         <LocaleToggle />
         <ThemeToggle />
-        <NotificationBell />
+        {/* 通知中心只保留 Sidebar 底部那一顆（全站唯一入口）；此處原本的重複鈴鐺已移除，
+            避免 dashboard 同時出現兩個通知中心按鈕。 */}
       </div>
     </header>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Bell,
   X,
@@ -223,9 +224,12 @@ export default function NotificationDrawer({
     }
   }
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  // 用 portal 掛到 <body>：Sidebar 的 <aside> 永遠帶 transform（md:translate-x-0＋
+  // 手機側滑），會讓 position:fixed 的抽屜改以 sidebar（240px 寬）為定位基準而被擠爆跑版。
+  // 掛到 body 逃離該 containing block，fixed 才真正對齊視窗、正常從右側全高滑出。
+  return createPortal(
     <>
       <button
         type="button"
@@ -397,6 +401,7 @@ export default function NotificationDrawer({
           </Link>
         </div>
       </aside>
-    </>
+    </>,
+    document.body,
   );
 }
