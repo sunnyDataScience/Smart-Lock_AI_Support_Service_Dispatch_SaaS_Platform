@@ -87,9 +87,19 @@ cloud-sql-proxy
 # Playwright MCP local cache（瀏覽器自動化工具的本地暫存）
 .playwright-mcp/
 
+# UAT 驗證指南（本地教學產物，含測試帳密，不進版控）
+uat-guides/
+
 # Python 測試與 property-based 測試暫存（本地產物）
 .hypothesis/
 .pytest_cache/
+
+# Eval 跑分產物（run 輸出，可由 agent/scripts/*eval*.py 重新產生，不進版控；
+# 沿用 2026-07-08 evals/README 清理慣例。保留輸入語料 *_corpus.json 與 README.md）
+agent/evals/forbidden_run_*.json
+agent/evals/sentiment_eval_result.json
+agent/evals/reply_quality*.csv
+agent/evals/sim_transcripts.json
 
 # Debug screenshots（根目錄除錯截圖，不入庫）
 /dashboard-*.png
