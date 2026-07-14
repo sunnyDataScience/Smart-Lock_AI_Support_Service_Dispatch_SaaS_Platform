@@ -95,6 +95,19 @@ function formatTime(iso: string): string {
   return d.toLocaleString("zh-TW", { hour12: false });
 }
 
+// 缺料急迫度／延遲通知對象的機器值中文化（原本直接插值 now/customer_only 等原始碼）
+const MATERIAL_URGENCY_LABEL: Record<string, string> = {
+  now: "立即",
+  today: "今日內",
+  tomorrow: "明日前",
+};
+
+const DELAY_NOTIFY_LABEL: Record<string, string> = {
+  customer_only: "僅通知客戶",
+  customer_and_admin: "通知客戶與後台",
+  none: "不通知",
+};
+
 function PayloadPreview({
   type,
   payload,
@@ -138,7 +151,7 @@ function PayloadPreview({
         : [];
       return (
         <div className="text-[12px] text-[var(--text-secondary)]">
-          <p>{t("urgencyLabel", { value: String(payload.urgency ?? "—") })}</p>
+          <p>{t("urgencyLabel", { value: MATERIAL_URGENCY_LABEL[String(payload.urgency)] ?? String(payload.urgency ?? "—") })}</p>
           {items.length > 0 && (
             <ul className="mt-1 list-disc pl-4">
               {items.map((it, i) => (
@@ -166,7 +179,7 @@ function PayloadPreview({
           {payload.reason_text ? (
             <p>{t("delayExtra", { value: String(payload.reason_text) })}</p>
           ) : null}
-          <p>{t("notify", { value: String(payload.notify ?? "—") })}</p>
+          <p>{t("notify", { value: DELAY_NOTIFY_LABEL[String(payload.notify)] ?? String(payload.notify ?? "—") })}</p>
         </div>
       );
     }

@@ -40,15 +40,26 @@ export interface CreateWorkOrderModalProps {
 const URGENCY_LABEL: Record<string, string> = {
   low: "低",
   normal: "一般",
+  medium: "中", // 問題卡 API 值域為 low/medium/high（_DB_URGENCY_TO_API），原缺 medium 直漏原始碼
   high: "高",
+  urgent: "緊急",
   critical: "緊急",
 };
 
 const URGENCY_COLOR: Record<string, string> = {
   low: "#94A3B8",
   normal: "#2563EB",
+  medium: "#2563EB",
   high: "#EA580C",
+  urgent: "#DC2626",
   critical: "#DC2626",
+};
+
+// 問題卡狀態中文標籤（draft/confirmed/resolved；原本 {c.status} 直出英文原始碼）
+const PC_STATUS_LABEL: Record<string, string> = {
+  draft: "草稿",
+  confirmed: "已確認",
+  resolved: "已解決",
 };
 
 export default function CreateWorkOrderModal({
@@ -249,7 +260,7 @@ export default function CreateWorkOrderModal({
                           {c.brand} {c.model}
                         </span>
                         <span className="ml-auto text-[11px] text-gray-500">
-                          {c.status}
+                          {PC_STATUS_LABEL[c.status] ?? c.status}
                         </span>
                       </div>
                       <span className="text-[12px] text-gray-600 line-clamp-2">

@@ -21,6 +21,15 @@ const ATTEMPT_TONE: Record<number, { bg: string; text: string }> = {
 
 const TECH_PALETTE = ["#2563EB", "#8B5CF6", "#10B981", "#F59E0B", "#6366F1", "#EC4899"];
 
+// 手動派工 reason_code 中文標籤（models.ReasonCode enum）
+const ASSIGN_REASON_LABEL: Record<string, string> = {
+  auto_dispatch_exhausted: "自動派工無人接單",
+  customer_requested_specific_tech: "客戶指定技師",
+  skill_shortage_override: "技能缺口調度",
+  sla_rescue: "SLA 救援",
+  other: "其他",
+};
+
 function techColor(name: string | null | undefined): string {
   if (!name) return "#94A3B8";
   let hash = 0;
@@ -100,6 +109,15 @@ export default function DispatchQueueTable({ items, loading }: Props) {
     [t],
   );
 
+  // 手動派工留痕 notes 為機器格式 "[ASSIGNED:<reason_code>] <補充文字>"（work_order_service.assign_order），
+  // 解析成人話；非此格式（自由文字/拒單原因）原樣。
+  function humanizeNotes(raw: string): string {
+    const m = raw.match(/^\[ASSIGNED:([\w-]+)\]\s*([\s\S]*)$/);
+    if (!m) return raw;
+    const reasonLabel = ASSIGN_REASON_LABEL[m[1]] ?? m[1];
+    return m[2] ? `手動派工・${reasonLabel}：${m[2]}` : `手動派工・${reasonLabel}`;
+  }
+
   function formatRelativeRemaining(
     createdIso: string | null | undefined,
     timeoutSec: number | null | undefined,
@@ -156,7 +174,7 @@ export default function DispatchQueueTable({ items, loading }: Props) {
           const techName = log.technician_name ?? t("techUnassigned");
           const reasonText =
             log.rejection_reason ??
-            log.notes ??
+            (log.notes != null ? humanizeNotes(log.notes) : null) ??
             (log.action === "accept" ? t("reason.accepted") : "—");
           const remaining =
             log.action === "assign"

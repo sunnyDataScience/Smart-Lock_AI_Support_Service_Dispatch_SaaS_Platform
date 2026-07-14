@@ -8,6 +8,17 @@ import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 
+// 工單狀態中文標籤（v2 七態；原本下拉每列 {wo.status} 直出英文原始碼）
+const WO_STATUS_LABEL: Record<string, string> = {
+  created: "已建立",
+  assigned: "已派工",
+  accepted: "已接單",
+  in_progress: "服務中",
+  completed: "已完工",
+  confirmed: "客戶已確認",
+  cancelled: "已取消",
+};
+
 interface Props {
   /** 已選工單 UUID（受控）；空字串代表未選 */
   value: string;
@@ -151,7 +162,7 @@ export default function WorkOrderPicker({ value, onChange }: Props) {
                 </span>
                 <span className="flex-1 truncate text-[var(--text-secondary)]">{wo.customer_name ?? "—"}</span>
                 <span className="shrink-0 rounded bg-[var(--bg-page)] px-2 py-[1px] text-xs text-[var(--text-secondary)]">
-                  {wo.status}
+                  {WO_STATUS_LABEL[wo.status] ?? wo.status}
                 </span>
               </button>
             ))}

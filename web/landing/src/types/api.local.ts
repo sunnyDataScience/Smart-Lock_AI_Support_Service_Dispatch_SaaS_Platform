@@ -19,7 +19,18 @@ export type NotificationType =
   | "inventory"
   | "sla"
   | "system"
-  | "mention";
+  | "mention"
+  // work_order_service._auto_notify 實際寫入的三個工單事件 type
+  | "work_order_assigned"
+  | "work_order_completed"
+  | "work_order_rejected"
+  // notification_template_service._VALID_TYPES（migration 071 CHECK 值域）
+  | "quote"
+  | "payment"
+  | "dispatch"
+  | "delay"
+  | "completion"
+  | "rma";
 
 export type NotificationSeverity = "info" | "warning" | "critical";
 

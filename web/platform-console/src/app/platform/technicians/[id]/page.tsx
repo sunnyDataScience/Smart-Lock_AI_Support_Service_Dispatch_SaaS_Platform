@@ -103,6 +103,21 @@ const CERT_STATUS: Record<Certification["status"], { label: string; cls: string 
 
 const LEVELS = ["S", "A", "B", "C"];
 
+// lifecycle 事件 reason 的機器句翻譯（technician_lifecycle_service 寫入
+// "onboarding approved by <actor_role>" 英文機器句；其餘 reason 為自由文字原樣）
+const ACTOR_ROLE_LABEL: Record<string, string> = {
+  admin: "系統管理員",
+  platform_admin: "平台管理員",
+  operations_manager: "營運主管",
+  reviewer: "審核員",
+};
+
+function humanizeEventReason(raw: string): string {
+  const m = raw.match(/^onboarding approved by (\S+)$/);
+  if (m) return `入職審核通過（${ACTOR_ROLE_LABEL[m[1]] ?? m[1]} 核准）`;
+  return raw;
+}
+
 function fmtDate(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "—";
 }
@@ -292,7 +307,7 @@ export default function PlatformTechnicianDetailPage({
                           {STATUS_LABEL[ev.previous_status ?? ""] ?? ev.previous_status ?? "—"} → {STATUS_LABEL[ev.new_status ?? ""] ?? ev.new_status}
                         </span>
                       )}
-                      {ev.reason && <span className="text-[var(--text-secondary)]">　原因：{ev.reason}</span>}
+                      {ev.reason && <span className="text-[var(--text-secondary)]">　原因：{humanizeEventReason(ev.reason)}</span>}
                     </div>
                     <span className="whitespace-nowrap text-xs text-[var(--text-secondary)]">
                       {ev.created_at ? ev.created_at.slice(0, 16).replace("T", " ") : "—"}

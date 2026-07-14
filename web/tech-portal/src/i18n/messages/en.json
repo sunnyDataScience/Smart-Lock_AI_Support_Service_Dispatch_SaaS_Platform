@@ -93,7 +93,10 @@
     "reviewer": "Reviewer",
     "technician": "Technician",
     "brand_oem": "Brand OEM",
-    "line_user": "LINE User"
+    "line_user": "LINE User",
+    "operations_manager": "Operations Manager",
+    "dispatcher": "Dispatcher",
+    "customer_service": "Customer Service"
   },
   "landing": {
     "tagline": "Smart Lock AI Support × Dispatch Platform",
@@ -291,7 +294,9 @@
       "billed": "Billed",
       "paid": "Paid",
       "closed": "Closed",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "created": "Created",
+      "confirmed": "Customer confirmed"
     },
     "workOrderGroup": {
       "pending": "Pending",
@@ -1241,7 +1246,16 @@
         "inventory": "Inventory",
         "sla": "SLA",
         "system": "System",
-        "mention": "Mention"
+        "mention": "Mention",
+        "work_order_assigned": "Work order assigned",
+        "work_order_completed": "Work order completed",
+        "work_order_rejected": "Order rejected",
+        "quote": "Quote",
+        "payment": "Payment",
+        "dispatch": "Dispatch",
+        "delay": "Delay",
+        "completion": "Completion",
+        "rma": "RMA"
       }
     },
     "account": {
@@ -1370,6 +1384,10 @@
         "arrival_overdue": {
           "label": "Technician arrival overdue (red alert)",
           "description": "Technician >2h late — escalated to Ops Manager"
+        },
+        "audit_overdue": {
+          "label": "Retro-audit overdue",
+          "description": "Emergency order past its post-completion audit window without customer confirmation"
         }
       }
     }
@@ -2042,7 +2060,9 @@
         "sent": "Sent",
         "accepted": "Accepted",
         "rejected": "Rejected",
-        "expired": "Expired"
+        "expired": "Expired",
+        "retrospective_audit_only": "Retro-audit pending",
+        "superseded": "Superseded"
       },
       "action": {
         "submit": "Submit",
@@ -2903,7 +2923,10 @@
           "inReview": "In review",
           "resolved": "Resolved",
           "rejected": "Rejected",
-          "closed": "Closed"
+          "closed": "Closed",
+          "mediation": "Mediation",
+          "escalated": "Escalated",
+          "closedWithdrawn": "Closed (withdrawn)"
         },
         "ref": {
           "workOrder": "Work order {id}",
@@ -3126,7 +3149,16 @@
           "inventory": "Inventory",
           "sla": "SLA",
           "system": "System",
-          "mention": "Mention"
+          "mention": "Mention",
+          "workOrderAssigned": "Work order assigned",
+          "workOrderCompleted": "Work order completed",
+          "workOrderRejected": "Order rejected",
+          "quote": "Quote",
+          "payment": "Payment",
+          "dispatch": "Dispatch",
+          "delay": "Delay",
+          "completion": "Completion",
+          "rma": "RMA"
         }
       }
     },

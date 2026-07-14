@@ -33,6 +33,7 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: "處理中",
   approved: "已核准",
   rejected: "已拒絕",
+  closed: "已結案", // _VALID_API_STATUS 含 closed（列表頁本就有 closed 分頁），原缺 → 詳情漏原始碼
 };
 
 const STATUS_TONE: Record<string, { textColor: string; bgColor: string }> = {
@@ -40,6 +41,29 @@ const STATUS_TONE: Record<string, { textColor: string; bgColor: string }> = {
   in_progress: { textColor: "#2563EB", bgColor: "#DBEAFE" },
   approved: { textColor: "#059669", bgColor: "#D1FAE5" },
   rejected: { textColor: "#DC2626", bgColor: "#FEE2E2" },
+  closed: { textColor: "#64748B", bgColor: "#F1F5F9" },
+};
+
+// 關聯工單狀態中文標籤（v1 16 態 + v2 七態聯集，防呆全放）
+const WO_STATUS_LABEL: Record<string, string> = {
+  created: "已建立",
+  inquiring: "詢價中",
+  qualified: "已評估",
+  quoted: "已報價",
+  negotiating: "議價中",
+  accepted: "已接單",
+  scheduled: "已排程",
+  dispatching: "派工中",
+  assigned: "已派工",
+  en_route: "前往中",
+  arrived: "已到場",
+  in_progress: "服務中",
+  completed: "已完工",
+  confirmed: "客戶已確認",
+  billed: "已請款",
+  paid: "已付款",
+  closed: "已結案",
+  cancelled: "已取消",
 };
 
 function formatDate(s: string | null | undefined): string {
@@ -250,7 +274,7 @@ export default function WarrantyClaimDetailPage() {
                     <Row label="工單編號">
                       <span className="font-mono">{workOrder.id.slice(0, 8)}</span>
                     </Row>
-                    <Row label="工單狀態">{workOrder.status}</Row>
+                    <Row label="工單狀態">{WO_STATUS_LABEL[workOrder.status] ?? workOrder.status}</Row>
                     <Row label="客戶名稱">{(workOrder as any).customer_name ?? "—"}</Row>
                     <Row label="服務地址">{(workOrder as any).customer_address ?? "—"}</Row>
                   </div>

@@ -174,10 +174,20 @@ export function AuditExportModal({
   );
 }
 
+// log_type 值中文化（對齊 audit-events 頁 admin.audit.logType 標籤；原本摘要直出機器碼）
+const LOG_TYPE_LABEL: Record<string, string> = {
+  api_call: "API 呼叫",
+  llm_interaction: "LLM 互動",
+  rag_retrieval: "RAG 檢索",
+  admin_action: "管理操作",
+  agent_message: "Agent 訊息",
+};
+
 function DefaultFilterSummary({ filters }: { filters: AuditExportFilters }) {
   const t = useTranslations("components.admin.auditExport");
   const items: { label: string; value: string }[] = [];
-  if (filters.log_type) items.push({ label: t("filters.logType"), value: filters.log_type });
+  if (filters.log_type)
+    items.push({ label: t("filters.logType"), value: LOG_TYPE_LABEL[filters.log_type] ?? filters.log_type });
   if (filters.from) items.push({ label: t("filters.from"), value: filters.from });
   if (filters.to) items.push({ label: t("filters.to"), value: filters.to });
   if (filters.actor_id) items.push({ label: t("filters.actor"), value: filters.actor_id });

@@ -49,6 +49,14 @@ const PAGE_LIMIT = 50;
 
 const STATUS_TAB_VALUES: StatusFilter[] = ["unread", "all", "read", "archived"];
 
+// related_entity.type 中文標籤（機器碼；未知型別 fallback 回「來源單據」通稱不漏原始碼）
+const RELATED_ENTITY_LABEL: Record<string, string> = {
+  schedule_request: "排程請求",
+  work_order: "工單",
+  quote: "報價單",
+  problem_card: "問題卡",
+};
+
 const TYPE_FILTER_VALUES: (NotificationType | "all")[] = [
   "all",
   "work_order",
@@ -602,7 +610,14 @@ export default function NotificationsPage() {
                   </span>
                   <span className="text-[var(--text-disabled)]">·</span>
                   <span className="text-[var(--text-disabled)]">
-                    {t("fromSource", { source: t(`sourceLabel.${selectedItem.source}`) })}
+                    {/* sourceLabel 只有已知四值的 i18n key；其他值直接顯示原值，避免漏出 i18n key 路徑 */}
+                    {t("fromSource", {
+                      source: ["websocket", "line_push", "email_fallback", "system"].includes(
+                        selectedItem.source,
+                      )
+                        ? t(`sourceLabel.${selectedItem.source}`)
+                        : selectedItem.source,
+                    })}
                   </span>
                 </div>
                 <h2 className="mb-2 text-[16px] font-semibold text-[var(--text-primary)]">
@@ -619,7 +634,7 @@ export default function NotificationsPage() {
                   >
                     {t("openLink")}
                     {selectedItem.related_entity.type
-                      ? ` ${selectedItem.related_entity.type}`
+                      ? ` ${RELATED_ENTITY_LABEL[selectedItem.related_entity.type] ?? t("openLinkSource")}`
                       : ` ${t("openLinkSource")}`}
                     <ExternalLink className="h-[14px] w-[14px]" />
                   </Link>

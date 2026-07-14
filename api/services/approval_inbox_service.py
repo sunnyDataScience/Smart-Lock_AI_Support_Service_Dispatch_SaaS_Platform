@@ -50,6 +50,18 @@ def _days_overdue(created_at, sla_days: int) -> int:
     return age_days - sla_days
 
 
+# summary 內嵌狀態/異常種類的中文標籤（業主 UAT：機器碼不可直出到 UI 摘要）
+_DISPUTE_STATUS_LABEL = {
+    "filed": "待處理",
+    "in_review": "審查中",
+    "mediation": "調解中",
+}
+_EXCEPTION_KIND_LABEL = {
+    "amount_mismatch": "金額不符",
+    "orphan_settlement": "孤兒入帳",
+    "missing_invoice": "缺發票",
+}
+
 # 各類 SLA（per FR-0049 對 escalation matrix 的代理；MVP 用統一預設）
 _SLA_DAYS_BY_TYPE = {
     "scope_change": 1,       # 24hr 內客戶須決定
@@ -160,10 +172,12 @@ async def list_pending_approvals(
             (tenant_id, limit),
         )
         for r in await cur.fetchall():
-            summary = (r[3] or "")[:80] if r[3] else r[2]
+            status_label = _DISPUTE_STATUS_LABEL.get(r[2], r[2])
+            # description 為空時退 status 中文（原本退原始碼 → 出現「爭議(filed)：filed」雙重漏出）
+            summary = (r[3] or "")[:80] if r[3] else status_label
             items.append(_envelope(
                 "dispute", r[0], r[1],
-                f"爭議({r[2]})：{summary}", r[4],
+                f"爭議（{status_label}）：{summary}", r[4],
             ))
             by_type["dispute"] += 1
 
@@ -197,7 +211,7 @@ async def list_pending_approvals(
         for r in await cur.fetchall():
             items.append(_envelope(
                 "recon_exception", r[0], r[1],
-                f"對帳異常({r[2]})：{(r[3] or '')[:80]}", r[4],
+                f"對帳異常（{_EXCEPTION_KIND_LABEL.get(r[2], r[2])}）：{(r[3] or '')[:80]}", r[4],
             ))
             by_type["recon_exception"] += 1
 

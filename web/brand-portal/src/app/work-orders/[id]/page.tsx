@@ -954,6 +954,30 @@ const FUNCTION_TEST_RESULT_STYLE: Record<string, { symbol: string; color: string
   na: { symbol: "—", color: "var(--text-disabled)" },
 };
 
+// M05 Q052 六段完工細狀態中文標籤（後端存 key；與 DispatchOrderView/WorkOrderDetailSidebar 對齊）
+const COMPLETION_STATUS_LABEL: Record<string, string> = {
+  pending_report: "待完工回報",
+  pending_photos: "待照片",
+  pending_customer_confirm: "待客戶確認",
+  pending_cs_review: "待客服審核",
+  completed: "已完工",
+  closed: "已結案",
+};
+
+// 歷史資料的 completion_summary 可能是機器字串（[ONSITE_COMPLETE] sig=.. photos=[..] notes=..）；
+// 解析成人話：notes 原文＋「已簽名・完工照片 N 張」註記。新完工後端已改存乾淨 notes，此為防禦。
+function parseCompletionSummary(raw: string): { text: string | null; meta: string | null } {
+  const m = raw.match(
+    /^\[ONSITE_COMPLETE\]\s+sig=(\S+)\s+photos=\[([^\]]*)\](?:\s+notes=([\s\S]*))?$/,
+  );
+  if (!m) return { text: raw, meta: null };
+  const photoCount = m[2] ? m[2].split(",").filter(Boolean).length : 0;
+  const metaParts: string[] = [];
+  if (m[1]) metaParts.push("已簽名");
+  metaParts.push(`完工照片 ${photoCount} 張`);
+  return { text: m[3]?.trim() || null, meta: metaParts.join("・") };
+}
+
 function CompletionReport({ order }: { order: WorkOrder | null }) {
   const t = useTranslations("pages.workOrderDetail.completion");
   if (!order) return null;
@@ -989,7 +1013,7 @@ function CompletionReport({ order }: { order: WorkOrder | null }) {
                 {t("statusLabel")}
               </span>
               <span className="text-[13px] text-[var(--text-primary)]">
-                {order.completion_status}
+                {COMPLETION_STATUS_LABEL[order.completion_status] ?? order.completion_status}
               </span>
             </div>
           )}
@@ -1003,17 +1027,27 @@ function CompletionReport({ order }: { order: WorkOrder | null }) {
               </span>
             </div>
           )}
-          {/* CR-0100 施工摘要（completion_summary，技師 notes 抽出） */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[13px] font-semibold text-[var(--text-secondary)]">
-              {t("summaryLabel")}
-            </span>
-            <p className="whitespace-pre-wrap text-[13px] text-[var(--text-primary)]">
-              {order.completion_summary?.trim()
-                ? order.completion_summary
-                : t("noSummary")}
-            </p>
-          </div>
+          {/* CR-0100 施工摘要（completion_summary，技師 notes 抽出；歷史機器字串前端解析） */}
+          {(() => {
+            const parsed = order.completion_summary?.trim()
+              ? parseCompletionSummary(order.completion_summary.trim())
+              : { text: null, meta: null };
+            return (
+              <div className="flex flex-col gap-1">
+                <span className="text-[13px] font-semibold text-[var(--text-secondary)]">
+                  {t("summaryLabel")}
+                </span>
+                <p className="whitespace-pre-wrap text-[13px] text-[var(--text-primary)]">
+                  {parsed.text ?? t("noSummary")}
+                </p>
+                {parsed.meta && (
+                  <span className="text-[12px] text-[var(--text-disabled)]">
+                    {parsed.meta}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
           {/* CR-0100 功能測試逐項結果 */}
           {order.function_tests && order.function_tests.length > 0 && (
             <div className="flex flex-col gap-1">
@@ -1063,6 +1097,15 @@ type ExceptionCaseItem = {
   severity: string;
   description: string | null;
   created_at: string | null;
+};
+
+// 例外案件狀態中文標籤（exception_service 值域；原本 {it.status} 直出英文原始碼）
+const EXCEPTION_STATUS_LABEL: Record<string, string> = {
+  open: "待處理",
+  investigating: "調查中",
+  escalated: "已升級",
+  resolved: "已解決",
+  closed: "已結案",
 };
 
 const EXCEPTION_TYPE_LABEL: Record<string, string> = {
@@ -1156,7 +1199,7 @@ function ExceptionRecords({ workOrderId }: { workOrderId?: string }) {
                       it.exception_type}
                   </span>
                   <span className="text-[11px] text-[var(--text-disabled)]">
-                    {it.status}
+                    {EXCEPTION_STATUS_LABEL[it.status] ?? it.status}
                   </span>
                 </div>
                 {it.description && (
