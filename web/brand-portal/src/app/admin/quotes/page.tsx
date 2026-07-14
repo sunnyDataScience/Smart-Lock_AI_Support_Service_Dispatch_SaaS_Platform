@@ -128,6 +128,9 @@ export default function QuotesPage() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 深連結 ?open=<id> 進來＝「聚焦單張報價」模式：既然是專程開這一張，就不再堆疊
+  // 建報價列 / 急件佇列 / 全部報價列表 / 待報價工單（業主回報「開了還顯示全部報價很亂」）。
+  const [openFocus, setOpenFocus] = useState(false);
 
   const [pick, setPick] = useState("");
   const [qty, setQty] = useState(1);
@@ -170,6 +173,7 @@ export default function QuotesPage() {
       const params = new URLSearchParams(window.location.search);
       const open = params.get("open"); // CR-0095：列表「開啟」新分頁深連結 → 載入該報價
       if (open) {
+        setOpenFocus(true); // 聚焦模式：只顯示這張報價，隱藏其餘瀏覽區塊
         await loadQuote(open);
         return;
       }
@@ -405,6 +409,36 @@ export default function QuotesPage() {
     }
   }
 
+  // 「拒了重估→新版本」（會議 §六「拒了重估」／CR-0032 版本鏈）：rejected/expired 是終態，
+  // 依既定版本鏈模型不就地「重開」（客戶已看過的版本為不可變紀錄），而是建立新版本 v+1
+  // draft 繼續。工單報價走 /work-orders/{wo}/quotes；報價先行（無工單）走
+  // /problem-cards/{pc}/quotes（pc 從已載入的報價列表取，get_quote 未回 problem_card_id）。
+  async function requoteNewVersion() {
+    if (!quote) return;
+    const pcId = quotes.find((q) => q.id === quote.id)?.problem_card_id ?? null;
+    const woForRequote = quote.work_order_id;
+    if (!woForRequote && !pcId) {
+      setError("找不到此報價對應的工單或問題卡，無法建立新版本（請回列表以工單重新開報價）");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    setLinkPath(null);
+    try {
+      const path = woForRequote
+        ? tenantPath(`/work-orders/${woForRequote}/quotes`)
+        : tenantPath(`/problem-cards/${pcId}/quotes`);
+      const res = await api.post<{ data: Quote }>(path, { urgent: false });
+      setQuote(res.data); // 直接切到新版本 draft 繼續編輯
+      cacheInvalidate("GET:"); // 新版本要出現在列表（清 GET /quotes 舊快取）
+      setQuotes(await fetchQuotes());
+    } catch (e) {
+      fail(e);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function fetchLink() {
     if (!quote) return;
     setBusy(true);
@@ -487,7 +521,18 @@ export default function QuotesPage() {
         <div className="flex-1 overflow-auto pl-14 pr-4 md:px-8 py-6">
           {error && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
+          {/* 聚焦模式：回到完整報價工作台的返回連結 */}
+          {openFocus && (
+            <a
+              href="/admin/quotes"
+              className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-[var(--primary)] hover:underline"
+            >
+              ← 返回報價列表
+            </a>
+          )}
+
           {/* 建報價 —— 用公單號（TP-000001）/ 客戶名選工單，免手貼 UUID */}
+          {!openFocus && (
           <div className="mb-6 flex flex-wrap items-end gap-3 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-4">
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-[var(--text-secondary)]">{t("woPickerLabel")}</span>
@@ -501,9 +546,10 @@ export default function QuotesPage() {
               {t("createDraft")}
             </button>
           </div>
+          )}
 
           {/* CR-0129 急件補審佇列（15_SDS §4.5）：完工後 4h 內須補審——LIFF 補送或紙本簽認 */}
-          {auditQueue.length > 0 && (
+          {!openFocus && auditQueue.length > 0 && (
             <div className="mb-6 rounded-lg border border-[#FDBA74] bg-[#FFF7ED] p-4">
               <div className="mb-2 flex items-center gap-2">
                 <span className="text-[14px] font-bold text-[#9A3412]">急件補審佇列</span>
@@ -580,8 +626,8 @@ export default function QuotesPage() {
             </div>
           )}
 
-          {/* CR-0095 報價列表 — 點選即開，免手貼 UUID（顯示友善公單號 TP）*/}
-          {(scoped || quotes.length > 0) && (
+          {/* CR-0095 報價列表 — 點選即開，免手貼 UUID（顯示友善公單號 TP）；聚焦模式不顯示 */}
+          {!openFocus && (scoped || quotes.length > 0) && (
             <div className="mb-6 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
               <div className="border-b border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)]">
                 {scoped ? `${woNumberLabel ?? "本工單"} 的報價` : "全部報價"}（{visibleQuotes.length}）
@@ -657,8 +703,8 @@ export default function QuotesPage() {
             </div>
           )}
 
-          {/* 瀏覽模式（未選工單）才列「尚無報價的工單」，提醒哪些工單待開報價 */}
-          {!scoped && woNoQuote.length > 0 && (
+          {/* 瀏覽模式（未選工單）才列「尚無報價的工單」，提醒哪些工單待開報價；聚焦模式不顯示 */}
+          {!openFocus && !scoped && woNoQuote.length > 0 && (
             <div className="mb-6 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
               <div className="border-b border-[var(--border)] px-4 py-2 text-sm font-medium text-[var(--text-secondary)]">
                 尚無報價的工單（{woNoQuote.length}）
@@ -844,6 +890,24 @@ export default function QuotesPage() {
                       {t(`action.${a}`)}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* 拒絕/過期＝終態，無狀態機動作可走；提供「建立新版本重估」續行（會議「拒了重估」）。
+                  不就地重開，因客戶已看過的版本為不可變紀錄，重估一律走新版本 v+1（版本鏈模型）。 */}
+              {(quote.state === "rejected" || quote.state === "expired") && (
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[#FDBA74] bg-[#FFF7ED] p-4">
+                  <div className="text-sm text-[#9A3412]">
+                    此報價已<strong>{quote.state === "rejected" ? "被拒絕" : "過期"}</strong>，屬終態不可再改。
+                    若要重新報價，請建立新版本繼續（舊版本保留為紀錄）。
+                  </div>
+                  <button
+                    onClick={requoteNewVersion}
+                    disabled={busy}
+                    className="ml-auto rounded bg-[#9A3412] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                  >
+                    建立新版本重估
+                  </button>
                 </div>
               )}
 
