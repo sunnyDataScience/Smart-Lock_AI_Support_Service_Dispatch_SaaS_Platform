@@ -18,7 +18,8 @@ type AlertType =
   | "quote_expiring"
   | "dispatch_delay"
   | "response_overdue"
-  | "arrival_overdue";
+  | "arrival_overdue"
+  | "audit_overdue"; // sla_monitor 第五類（急件補審逾時），原缺 → 顯示原始碼
 
 type Severity = "red" | "amber" | "yellow";
 
@@ -77,6 +78,14 @@ const TYPE_TONE: Record<
     border: "#DC2626",
     color: "#7F1D1D",
     href: (id) => `/admin/work-orders/${id}`,
+  },
+  audit_overdue: {
+    // CR-0129 急件補審逾時 — target 為報價，導去補審佇列所在的報價工作台
+    Icon: AlertTriangle,
+    bg: "#FFEDD5",
+    border: "#F97316",
+    color: "#9A3412",
+    href: (id) => `/admin/quotes?open=${id}`,
   },
 };
 

@@ -183,11 +183,36 @@ export function ReportExportModal({
   );
 }
 
+// 篩選摘要的 key/值中文化（四個呼叫端傳的 filters key 有限：status/period/granularity/from/to；
+// 原本 key 與 enum 值都以英文原始碼直出）
+const FILTER_KEY_LABEL: Record<string, string> = {
+  status: "狀態",
+  period: "期間",
+  granularity: "彙總粒度",
+  from: "起日",
+  to: "迄日",
+};
+
+const FILTER_VALUE_LABEL: Record<string, string> = {
+  // ReconciliationStatus
+  pending: "待對帳",
+  approved: "已核准",
+  disputed: "有爭議",
+  // Granularity
+  day: "日",
+  week: "週",
+  month: "月",
+  quarter: "季",
+};
+
 function DefaultFilterSummary({ filters }: { filters: ReportExportFilters }) {
   const t = useTranslations("components.admin.reportExport");
   const items = Object.entries(filters)
     .filter(([, v]) => v !== undefined && v !== null && String(v).length > 0)
-    .map(([k, v]) => ({ label: k, value: String(v) }));
+    .map(([k, v]) => ({
+      label: FILTER_KEY_LABEL[k] ?? k,
+      value: FILTER_VALUE_LABEL[String(v)] ?? String(v),
+    }));
 
   if (items.length === 0) {
     return (

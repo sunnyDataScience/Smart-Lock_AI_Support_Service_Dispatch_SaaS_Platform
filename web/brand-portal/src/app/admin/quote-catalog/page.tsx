@@ -47,6 +47,18 @@ interface Catalog {
   note: string;
 }
 
+// 服務類型中文標籤（DB service_catalog.service_type 現存值；編輯仍存原始碼，僅顯示翻譯）
+const SERVICE_TYPE_LABEL: Record<string, string> = {
+  repair: "維修",
+  replacement: "更換",
+  removal: "拆除",
+  inspection: "檢測",
+  emergency: "緊急救援",
+  destruction: "破壞開啟",
+  dispatch: "出勤",
+  install: "安裝",
+};
+
 // 編輯 modal 的欄位描述(依類目)
 type FieldDef = { key: string; label: string; type: "text" | "number"; required?: boolean };
 
@@ -158,7 +170,7 @@ export default function QuoteCatalogPage() {
                       <tr key={s.service_code} className="border-t border-[var(--border)]">
                         <td className="px-3 py-2 font-mono text-[12px] text-[var(--text-secondary)]">{s.service_code}</td>
                         <td className="px-3 py-2 text-[var(--text-primary)]">{s.service_name}</td>
-                        <td className="px-3 py-2 text-[var(--text-secondary)]">{s.service_type}</td>
+                        <td className="px-3 py-2 text-[var(--text-secondary)]">{SERVICE_TYPE_LABEL[s.service_type] ?? s.service_type}</td>
                         {cat.cost_visible && <td className="px-3 py-2 text-right font-mono text-[var(--text-disabled)]">{price(s.internal_base_cost)}</td>}
                         <td className="px-3 py-2 text-right font-mono font-medium text-[var(--text-primary)]">{price(s.suggested_customer_price)}</td>
                         <RowActions

@@ -322,7 +322,7 @@ export default function TechnicianRankingPage() {
                       </div>
                       <div className="flex flex-col items-center gap-[2px]">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">
-                          {t.level}
+                          {levelLabel[t.level]?.label ?? t.level}
                         </span>
                         <span className="text-[11px] text-[var(--text-secondary)]">
                           等級

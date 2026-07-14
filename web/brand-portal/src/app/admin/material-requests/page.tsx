@@ -56,6 +56,17 @@ const URGENCY_TONE: Record<Urgency, { bg: string; text: string }> = {
   other: { bg: "#E5E7EB", text: "#374151" },
 };
 
+// 工單狀態中文標籤（v2 七態；原本 {r.wo_status} 直出英文原始碼）
+const WO_STATUS_LABEL: Record<string, string> = {
+  created: "已建立",
+  assigned: "已派工",
+  accepted: "已接單",
+  in_progress: "服務中",
+  completed: "已完工",
+  confirmed: "客戶已確認",
+  cancelled: "已取消",
+};
+
 const URGENCY_ORDER: Record<Urgency, number> = {
   now: 0,
   today: 1,
@@ -273,7 +284,7 @@ export default function AdminMaterialRequestsPage() {
                           </Link>
                         </td>
                         <td className="px-4 py-3 text-[var(--text-secondary)]">
-                          {r.wo_status}
+                          {WO_STATUS_LABEL[r.wo_status] ?? r.wo_status}
                         </td>
                         <td className="px-4 py-3 text-[var(--text-secondary)]">
                           {formatDateTime(r.scheduled_at)}

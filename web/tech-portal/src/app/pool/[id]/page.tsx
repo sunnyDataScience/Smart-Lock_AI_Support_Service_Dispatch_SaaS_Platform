@@ -19,6 +19,15 @@ import {
   ModalTitle,
 } from "@/components/ui/Modal";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+
+// 服務類別中文標籤（後端 enum 白名單 install/warranty_in/warranty_out/repair；
+// 原本與 problem_type 串接直出英文原始碼）
+const SERVICE_CATEGORY_LABEL: Record<string, string> = {
+  install: "安裝",
+  repair: "維修",
+  warranty_in: "保固內維修",
+  warranty_out: "保固外維修",
+};
 import { ApiError, api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
@@ -87,7 +96,14 @@ export default function PoolOrderDetailPage() {
 
   const device = wo ? [wo.brand, wo.model].filter(Boolean).join(" ") : "";
   const problem = wo
-    ? [wo.problem_type, wo.service_category].filter(Boolean).join(" · ")
+    ? [
+        wo.problem_type,
+        wo.service_category
+          ? SERVICE_CATEGORY_LABEL[wo.service_category] ?? wo.service_category
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")
     : "";
   const door = wo
     ? [

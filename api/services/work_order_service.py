@@ -1269,6 +1269,29 @@ async def _enforce_completion_gate(
     return summary
 
 
+# v2 完工送簽 summary 的機器格式（work_orders_v2.onsite_completion_v2 組裝）：
+#   [ONSITE_COMPLETE] sig=<evidence_id> photos=[<id>,<id>,...] notes=<自由文字到行尾>
+_ONSITE_SUMMARY_RE = re.compile(
+    r"^\[ONSITE_COMPLETE\]\s+sig=\S+\s+photos=\[[^\]]*\](?:\s+notes=(?P<notes>[\s\S]*))?$"
+)
+
+
+def _extract_clean_summary(summary: str | None) -> str | None:
+    """completion_summary 的乾淨化（CR-0100 B0「技師 notes 抽出」）。
+
+    機器格式 → 只留 notes 人話（無 notes → None，前端顯示「無施工摘要」）；
+    非機器格式（admin :complete override 的自由文字等）→ 原樣保留。
+    """
+    if not summary or not summary.strip():
+        return None
+    s = summary.strip()
+    m = _ONSITE_SUMMARY_RE.match(s)
+    if m:
+        notes = (m.group("notes") or "").strip()
+        return notes or None
+    return s
+
+
 async def complete_order(
     *,
     tenant_id: str,
@@ -1299,8 +1322,10 @@ async def complete_order(
             f"Cannot complete work order in status '{current}'; expected one of {sorted(_COMPLETE_FROM)}",
             409,
         )
-    # CR-0100 B0：原始技師摘要（gate override 會在 summary 前綴稽核註記，此處留乾淨版落 completion_summary）
-    clean_summary = summary.strip() if summary and summary.strip() else None
+    # CR-0100 B0：completion_summary 應存「技師 notes 抽出」的人話（models.generated 欄位描述）。
+    # v2 完工送簽的 summary 是機器字串（[ONSITE_COMPLETE] sig=.. photos=[..] notes=..，稽核用，
+    # 原樣落 service_report）——此處抽出 notes 落 completion_summary；自由文字（admin override 等）原樣。
+    clean_summary = _extract_clean_summary(summary)
     # CR-0041 / BR-M15-03：high_risk_hold 擋完工（含 override，須先 resolve 異常解除 hold）
     await _assert_not_high_risk_hold(wo_id)
     # CR-0039 完工硬閘 — 通過回（可能被 override 註記的）summary，違反 → 422

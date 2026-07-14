@@ -94,13 +94,16 @@ interface WorkOrderLite {
   customer_name: string | null;
   status: string;
 }
-// 工單狀態中文標籤（與營運七態對齊）
+// 工單狀態中文標籤（v2 七態 created/assigned/accepted/in_progress/completed/confirmed/cancelled；
+// inquiring/closed 為 v1 值保留防禦）
 const WO_STATUS_LABEL: Record<string, string> = {
+  created: "已建立",
   inquiring: "詢價中",
   assigned: "已派工",
   accepted: "已接單",
   in_progress: "服務中",
   completed: "已完工",
+  confirmed: "客戶已確認",
   closed: "已結案",
   cancelled: "已取消",
 };
@@ -113,6 +116,9 @@ const STATE_COLORS: Record<string, string> = {
   accepted: "bg-[#DCFCE7] text-[#15803D]",
   rejected: "bg-[#FEE2E2] text-[#B91C1C]",
   expired: "bg-[#F1F5F9] text-[#94A3B8]",
+  // 急件補審佔位 / 改版作廢（原缺 → 徽章顯示 i18n key 路徑）
+  retrospective_audit_only: "bg-[#FFEDD5] text-[#9A3412]",
+  superseded: "bg-[#F1F5F9] text-[#94A3B8]",
 };
 
 function price(v?: string | null): string {

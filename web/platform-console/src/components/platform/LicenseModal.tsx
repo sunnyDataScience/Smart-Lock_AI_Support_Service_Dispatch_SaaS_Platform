@@ -9,6 +9,13 @@ import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 
 const PLAN_TIERS = ["free", "standard", "pro", "enterprise"] as const;
+// 級距顯示標籤（與下方模組選項同風格：中文＋原始碼）；原本 option 直接顯示英文原始碼
+const PLAN_TIER_LABEL: Record<string, string> = {
+  free: "免費（free）",
+  standard: "標準（standard）",
+  pro: "專業（pro）",
+  enterprise: "企業（enterprise）",
+};
 // core 恆有、不可取消；其餘為 License 附加模組
 const OPTIONAL_MODULES: { key: string; label: string }[] = [
   { key: "refinery", label: "知識精煉（refinery）" },
@@ -122,7 +129,7 @@ export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }:
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2"
               >
                 {PLAN_TIERS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p}>{PLAN_TIER_LABEL[p] ?? p}</option>
                 ))}
               </select>
             </label>

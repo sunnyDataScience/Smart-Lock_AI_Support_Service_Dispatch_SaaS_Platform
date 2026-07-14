@@ -93,7 +93,10 @@
     "reviewer": "審核員",
     "technician": "技師",
     "brand_oem": "品牌 OEM",
-    "line_user": "LINE 使用者"
+    "line_user": "LINE 使用者",
+    "operations_manager": "營運主管",
+    "dispatcher": "派工員",
+    "customer_service": "客服"
   },
   "landing": {
     "tagline": "智慧鎖 AI 客服 × 工單派工平台",
@@ -291,7 +294,9 @@
       "billed": "已開單",
       "paid": "已付款",
       "closed": "已結案",
-      "cancelled": "已取消"
+      "cancelled": "已取消",
+      "created": "已建立",
+      "confirmed": "客戶已確認"
     },
     "workOrderGroup": {
       "pending": "待處理",
@@ -1241,7 +1246,16 @@
         "inventory": "庫存",
         "sla": "SLA",
         "system": "系統",
-        "mention": "提及"
+        "mention": "提及",
+        "work_order_assigned": "工單指派",
+        "work_order_completed": "工單完工",
+        "work_order_rejected": "技師拒單",
+        "quote": "報價",
+        "payment": "付款",
+        "dispatch": "派工",
+        "delay": "延遲",
+        "completion": "完工",
+        "rma": "退換貨"
       }
     },
     "account": {
@@ -1370,6 +1384,10 @@
         "arrival_overdue": {
           "label": "技師到場逾時（紅色警報）",
           "description": "技師逾 2 小時未到場，已升級至 Ops Manager"
+        },
+        "audit_overdue": {
+          "label": "急件補審逾時",
+          "description": "急件完工後超過補審時限，仍未完成客戶確認或紙本簽認"
         }
       }
     }
@@ -2042,7 +2060,9 @@
         "sent": "已送客戶",
         "accepted": "已接受",
         "rejected": "已駁回",
-        "expired": "已過期"
+        "expired": "已過期",
+        "retrospective_audit_only": "急件補審中",
+        "superseded": "已改版作廢"
       },
       "action": {
         "submit": "送審",
@@ -2869,10 +2889,13 @@
         },
         "status": {
           "filed": "待處理",
-          "inReview": "調解中",
+          "inReview": "審查中",
           "resolved": "已結案",
           "rejected": "已駁回",
-          "closed": "已關閉"
+          "closed": "已關閉",
+          "mediation": "調解中",
+          "escalated": "已升級",
+          "closedWithdrawn": "已撤回結案"
         },
         "ref": {
           "workOrder": "工單 {id}",
@@ -3095,7 +3118,16 @@
           "inventory": "庫存",
           "sla": "SLA",
           "system": "系統",
-          "mention": "提及"
+          "mention": "提及",
+          "workOrderAssigned": "工單指派",
+          "workOrderCompleted": "工單完工",
+          "workOrderRejected": "技師拒單",
+          "quote": "報價",
+          "payment": "付款",
+          "dispatch": "派工",
+          "delay": "延遲",
+          "completion": "完工",
+          "rma": "退換貨"
         }
       }
     },

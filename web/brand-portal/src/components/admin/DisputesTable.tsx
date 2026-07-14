@@ -31,20 +31,28 @@ const TYPE_KEY: Record<DisputeType, string> = {
   settlement: "type.settlement",
 };
 
-const STATUS_TONE: Record<DisputeStatus, { textColor: string; bgColor: string }> = {
+// 註：後端 dispute_v2_service._VALID_STATUS 另有 mediation/escalated/closed_withdrawn
+// （openapi DisputeStatus enum 未同步，故 map 放寬為 string key；原本這三態直接漏原始碼）
+const STATUS_TONE: Record<string, { textColor: string; bgColor: string }> = {
   filed: { textColor: "#D97706", bgColor: "#FEF3C7" },
   in_review: { textColor: "#2563EB", bgColor: "#DBEAFE" },
+  mediation: { textColor: "#7C3AED", bgColor: "#EDE9FE" },
+  escalated: { textColor: "#DC2626", bgColor: "#FEE2E2" },
   resolved: { textColor: "#059669", bgColor: "#D1FAE5" },
   rejected: { textColor: "#64748B", bgColor: "#F1F5F9" },
   closed: { textColor: "#374151", bgColor: "#E5E7EB" },
+  closed_withdrawn: { textColor: "#374151", bgColor: "#E5E7EB" },
 };
 
-const STATUS_KEY: Record<DisputeStatus, string> = {
+const STATUS_KEY: Record<string, string> = {
   filed: "status.filed",
   in_review: "status.inReview",
+  mediation: "status.mediation",
+  escalated: "status.escalated",
   resolved: "status.resolved",
   rejected: "status.rejected",
   closed: "status.closed",
+  closed_withdrawn: "status.closedWithdrawn",
 };
 
 function formatTwd(amount: string | null | undefined): string {

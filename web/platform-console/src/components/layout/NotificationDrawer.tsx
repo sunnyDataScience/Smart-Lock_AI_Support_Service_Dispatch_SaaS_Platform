@@ -72,6 +72,16 @@ const TYPE_KEY: Record<NotificationType, string> = {
   sla: "type.sla",
   system: "type.system",
   mention: "type.mention",
+  // _auto_notify 工單事件 + notification_template 六類（原本缺 → badge 直接漏原始碼）
+  work_order_assigned: "type.workOrderAssigned",
+  work_order_completed: "type.workOrderCompleted",
+  work_order_rejected: "type.workOrderRejected",
+  quote: "type.quote",
+  payment: "type.payment",
+  dispatch: "type.dispatch",
+  delay: "type.delay",
+  completion: "type.completion",
+  rma: "type.rma",
 };
 
 function formatErr(e: unknown): string {
