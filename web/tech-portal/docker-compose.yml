@@ -64,6 +64,10 @@ services:
       # CR-0115 KYC PII 加密金鑰:tech-api 是註冊加密寫入端,必須與 platform-api
       # (解密 reveal 端)同值。未設 = 兩邊 dev fallback(僅本機/測試)。
       KYC_ENCRYPTION_KEY: "${KYC_ENCRYPTION_KEY:-}"
+      # CR-0166 R4:CQRS 投影 consumer(跨品牌工單/佣金事件)。未設=no-op;
+      # 起 dispatch stack 的 redpanda(--profile events)後傳 redpanda:9092 啟用
+      # (tech-api 掛 dispatch 網路,service 名可解析)。20260717 M3 UAT 補宣告。
+      KAFKA_BOOTSTRAP: "${KAFKA_BOOTSTRAP:-}"
     volumes:
       # 與品牌 api 共用媒體檔實體(技師上傳的施工照片/簽名,品牌後台要能讀)
       - media:/app/api/data/media
