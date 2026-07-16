@@ -115,6 +115,9 @@ services:
       INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-dev-internal-token}"
       # 容器內走 compose 網路用 service 名連 api（非 host port）。
       LOCK_API_BASE_URL: "http://api:8080"
+      # CR-0167 SkillSync:品牌庫租戶 UUID(缺=SkillSync 未啟用,LiveSkill 熱更新不生效
+      # ——20260716 生產端實測發現本機 compose 一直漏這個 env)
+      AGENT_TENANT_ID: "${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
     volumes:
       # Vertex 認證：本機用 credentials.json（雲端才走 SA ADC）。唯讀掛載，不入映像。
       - ../../agent/credentials.json:/app/agent/credentials.json:ro
