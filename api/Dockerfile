@@ -33,6 +33,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --package smart-lock-api
 
 COPY api/ ./api/
+# CR-0166 R4:CQRS 投影 schema(event_consumer 啟動時讀檔建表;缺=consumer
+# FileNotFoundError 退出,投影永遠空——20260717 M3 UAT 容器實測發現)
+COPY SQL/tech_authority/ ./SQL/tech_authority/
 
 # ────────────────────────────────────────────────────────────────────────────
 # Stage 2 — Runtime
@@ -43,6 +46,7 @@ WORKDIR /app
 
 COPY --from=builder /app/.venv /app/.venv
 COPY --from=builder /app/api /app/api
+COPY --from=builder /app/SQL /app/SQL
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1 \

@@ -75,6 +75,9 @@ knowledge-pipeline/database/
 
 # ── SQL 種子資料（DB schema 由部署流程獨立套用，不進 image）──
 SQL/
+# 例外:CQRS 投影 schema 由 event_consumer 啟動時讀檔自建(CREATE TABLE IF NOT
+# EXISTS,見 Schema_cqrs_projection.sql 檔頭)——必須進 image(20260717 M3 UAT)
+!SQL/tech_authority/
 docs/Locksmith_Preparation_Checklist/
 
 # ── 鎖匠/客服歷史對話（個資，不進 image）──
