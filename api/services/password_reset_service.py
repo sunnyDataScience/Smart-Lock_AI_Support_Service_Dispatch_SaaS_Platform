@@ -39,13 +39,36 @@ _RATE_LIMIT_WINDOW_MINUTES = 15
 _RATE_LIMIT_MAX = 3  # 同一帳號 15 分鐘內最多簽發 3 個 reset token
 
 
+def _is_tech_surface() -> bool:
+    """師傅面(:8002)的忘記密碼整條走技師權威庫(surface 分流,業主 2026-07-16 拍板)。
+
+    背景:CR-0112 拆庫後技師 user 在權威庫,且品牌投影不含技師 email/password_hash
+    (tech_mirror 最小化白名單)→ 在品牌庫查技師 email 永遠查無、安靜略過,
+    技師忘記密碼整條失效(20260715 清單 16.5.4 銷案時 live 實證)。
+    語意:在師傅站按忘記密碼=重設技師帳號;在品牌後台按=重設後台帳號,
+    同 email 兩庫皆有時不會互相誤動。與 CR-0164 B 技師登入 lookup 修復同構。
+    """
+    return os.getenv("API_SURFACE", "all").strip().lower() == "tech"
+
+
+async def _reset_conn():
+    """依 surface 選庫:tech 面=技師權威庫(單庫 fallback 時自動退主庫),其餘=主庫。"""
+    if _is_tech_surface():
+        return await db_module.require_tech_conn()
+    if not await _ensure_conn():
+        return None
+    return db_module._conn
+
+
 def _hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
 def _reset_link(raw_token: str) -> str:
-    """組重設頁連結。base 取 env PASSWORD_RESET_WEB_URL → cors_origins[0] → localhost。"""
+    """組重設頁連結。base 取 env PASSWORD_RESET_WEB_URL → 依 surface 預設站台。"""
     base = (os.getenv("PASSWORD_RESET_WEB_URL") or "").strip()
+    if not base and _is_tech_surface():
+        base = "http://localhost:3001"  # 技師的重設頁在師傅站
     if not base:
         origins = load_config().system.get("cors_origins") or ["http://localhost:3000"]
         base = origins[0] if origins else "http://localhost:3000"
@@ -53,13 +76,20 @@ def _reset_link(raw_token: str) -> str:
 
 
 async def request_reset(*, email: str, request_ip: str | None = None) -> None:
-    """簽發 reset token 並寄信。永遠安靜返回（枚舉防護）。"""
-    if not await _ensure_conn():
+    """簽發 reset token 並寄信。永遠安靜返回（枚舉防護）。
+
+    surface 分流:tech 面全走技師權威庫(users 查詢+token 表),其餘走主庫。
+    """
+    try:
+        conn = await _reset_conn()
+    except ApiError:
+        conn = None
+    if conn is None:
         # DB 不可用：仍不洩漏，但記 log（呼叫端照常回 200）
         logger.error("request_reset: DB unavailable, email=%s", email)
         return
 
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         "SELECT id, is_active FROM users WHERE email = %s ORDER BY created_at LIMIT 1",
         (email,),
     )
@@ -74,7 +104,7 @@ async def request_reset(*, email: str, request_ip: str | None = None) -> None:
 
     # rate limit：近 15 分鐘已簽發數
     window_start = datetime.now(timezone.utc) - timedelta(minutes=_RATE_LIMIT_WINDOW_MINUTES)
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         "SELECT COUNT(*) FROM password_reset_tokens WHERE user_id = %s::uuid AND created_at > %s",
         (user_id, window_start),
     )
@@ -87,7 +117,7 @@ async def request_reset(*, email: str, request_ip: str | None = None) -> None:
     token_hash = _hash_token(raw_token)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=_TOKEN_TTL_MINUTES)
 
-    await db_module._conn.execute(
+    await conn.execute(
         "INSERT INTO password_reset_tokens (user_id, token_hash, channel, expires_at, requested_ip) "
         "VALUES (%s::uuid, %s, 'email', %s, %s)",
         (user_id, token_hash, expires_at, request_ip),
@@ -109,12 +139,18 @@ async def request_reset(*, email: str, request_ip: str | None = None) -> None:
 
 
 async def confirm_reset(*, token: str, new_password: str) -> None:
-    """以 token 設新密碼。token 無效 / 過期 / 已用 → 錯誤碼。"""
-    if not await _ensure_conn():
+    """以 token 設新密碼。token 無效 / 過期 / 已用 → 錯誤碼。
+
+    surface 分流:tech 面 token 表與 users 同在技師權威庫(同庫語意,改完鏡射
+    投影);其餘 surface 維持既有邏輯(token 在主庫;user 若為技師投影列則寫
+    權威庫+鏡射——服務拆庫前遺留的品牌庫技師資料)。
+    """
+    conn = await _reset_conn()
+    if conn is None:
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     token_hash = _hash_token(token)
-    cur = await db_module._conn.execute(
+    cur = await conn.execute(
         "SELECT id, user_id, expires_at, used_at FROM password_reset_tokens "
         "WHERE token_hash = %s LIMIT 1",
         (token_hash,),
@@ -131,27 +167,34 @@ async def confirm_reset(*, token: str, new_password: str) -> None:
 
     new_hash = hash_password(new_password)
 
-    # CR-0112 方案 B:users 若為技師列須寫權威庫 + 鏡射;token 表留品牌庫。
-    # 拆庫後兩句無法同交易 —— 順序「先改密、後燒 token」:改密失敗 token 未燒可
-    # 重試;燒 token 失敗最壞情況是 token 於 TTL 內可再設一次密碼(可接受)。
-    is_tech = False
-    if db_module.tech_db_enabled():  # fallback 模式免探查(單庫行為不變)
-        rcur = await db_module._conn.execute(
-            "SELECT role FROM users WHERE id = %s::uuid LIMIT 1", (user_id,)
-        )
-        rrow = await rcur.fetchone()
-        is_tech = bool(rrow) and rrow[0] == "technician"
+    if _is_tech_surface():
+        # tech 面:token 與 users 同在權威庫 —— 先改密、後燒 token(同庫但沿用
+        # 保守順序);改完鏡射投影白名單欄位(不含 password_hash,冪等)。
+        user_conn = conn
+        mirror_after = db_module.tech_db_enabled()
+    else:
+        # CR-0112 方案 B:users 若為技師列須寫權威庫 + 鏡射;token 表留品牌庫。
+        # 拆庫後兩句無法同交易 —— 順序「先改密、後燒 token」:改密失敗 token 未燒可
+        # 重試;燒 token 失敗最壞情況是 token 於 TTL 內可再設一次密碼(可接受)。
+        is_tech = False
+        if db_module.tech_db_enabled():  # fallback 模式免探查(單庫行為不變)
+            rcur = await conn.execute(
+                "SELECT role FROM users WHERE id = %s::uuid LIMIT 1", (user_id,)
+            )
+            rrow = await rcur.fetchone()
+            is_tech = bool(rrow) and rrow[0] == "technician"
+        user_conn = await db_module.require_tech_conn() if is_tech else conn
+        mirror_after = is_tech
 
-    conn = await db_module.require_tech_conn() if is_tech else db_module._conn
     # A3：password_changed_at = NOW() → 撤銷該 user 此前所有 access/refresh token。
-    await conn.execute(
+    await user_conn.execute(
         "UPDATE users SET password_hash = %s, password_changed_at = NOW(), updated_at = NOW() "
         "WHERE id = %s::uuid",
         (new_hash, user_id),
     )
-    if is_tech:
+    if mirror_after:
         await mirror_rows("users", [user_id])
-    await db_module._conn.execute(
+    await conn.execute(
         "UPDATE password_reset_tokens SET used_at = NOW() WHERE id = %s::uuid",
         (token_id,),
     )
