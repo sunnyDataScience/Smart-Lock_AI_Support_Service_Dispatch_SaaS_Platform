@@ -94,8 +94,11 @@ export default function SkillEditor({ skillName }: Props) {
 
   const addFile = () => {
     if (!editable) return;
-    const path = newPath.trim();
+    let path = newPath.trim();
     if (!path) return;
+    // UI 只收短檔名（新增列標題已標明「參考文件」）；自動補 references/ 前綴與 .md 副檔名
+    if (!path.startsWith("references/")) path = `references/${path}`;
+    if (!path.endsWith(".md")) path = `${path}.md`;
     if (path in files) {
       toast({ title: "檔案已存在", variant: "warning" });
       return;
@@ -219,57 +222,60 @@ export default function SkillEditor({ skillName }: Props) {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        {/* File list */}
-        <aside className="flex w-48 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-surface)] md:w-56">
-          <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-[var(--text-tertiary)]">
-            檔案
-          </div>
-          <div className="flex-1 overflow-auto">
-            {fileList.map((path) => (
-              <div
+        {/* File list — 主檔 / 參考文件分組（顯示層短檔名；資料層 path 不變） */}
+        <aside className="flex w-52 shrink-0 flex-col border-r border-[var(--border)] bg-[var(--bg-surface)] md:w-60">
+          <div className="flex-1 overflow-auto py-2">
+            <div className="px-3 pb-1 pt-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+              主檔
+            </div>
+            {fileList.filter((p) => !isReferenceFile(p)).map((path) => (
+              <FileRow
                 key={path}
-                className={`group flex items-center justify-between px-3 py-2 text-[13px] ${
-                  selected === path
-                    ? "bg-[var(--primary-light)]/50 text-[var(--primary)]"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-                }`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSelected(path)}
-                  className="flex-1 truncate text-left font-mono"
-                  title={path}
-                >
-                  {path}
-                </button>
-                {isReferenceFile(path) && (
-                  <button
-                    type="button"
-                    onClick={() => removeFile(path)}
-                    className="ml-1 hidden text-[var(--text-tertiary)] hover:text-[var(--error)] group-hover:block"
-                    aria-label={`刪除 ${path}`}
-                  >
-                    ×
-                  </button>
-                )}
+                path={path}
+                label={path}
+                selected={selected === path}
+                onSelect={() => setSelected(path)}
+              />
+            ))}
+            <div className="px-3 pb-1 pt-4 text-[11px] font-semibold uppercase tracking-wider text-[var(--text-tertiary)]">
+              參考文件（references/）
+            </div>
+            {fileList.filter(isReferenceFile).length === 0 && (
+              <div className="px-3 py-1.5 text-[12px] text-[var(--text-disabled)]">
+                尚無參考文件
               </div>
+            )}
+            {fileList.filter(isReferenceFile).map((path) => (
+              <FileRow
+                key={path}
+                path={path}
+                label={path.replace(/^references\//, "")}
+                selected={selected === path}
+                onSelect={() => setSelected(path)}
+                onRemove={() => removeFile(path)}
+              />
             ))}
           </div>
-          <div className="flex gap-1 border-t border-[var(--border)] p-2">
-            <input
-              value={newPath}
-              onChange={(e) => setNewPath(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addFile()}
-              placeholder="references/…"
-              className="min-w-0 flex-1 rounded border border-[var(--border)] bg-[var(--bg-page)] px-2 py-1 text-xs text-[var(--text-primary)] focus:border-[var(--border-focus)] focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={addFile}
-              className="shrink-0 rounded border border-[var(--border)] px-2 py-1 text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
-            >
-              新增
-            </button>
+          <div className="border-t border-[var(--border)] p-2.5">
+            <div className="mb-1.5 text-[11px] font-medium text-[var(--text-tertiary)]">
+              新增參考文件
+            </div>
+            <div className="flex gap-1.5">
+              <input
+                value={newPath}
+                onChange={(e) => setNewPath(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addFile()}
+                placeholder="檔名.md"
+                className="min-w-0 flex-1 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-2 py-1.5 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:border-[var(--border-focus)] focus:outline-none focus:ring-1 focus:ring-[var(--border-focus)]"
+              />
+              <button
+                type="button"
+                onClick={addFile}
+                className="shrink-0 rounded-md bg-[var(--primary)] px-2.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-[var(--primary-hover)]"
+              >
+                新增
+              </button>
+            </div>
           </div>
         </aside>
 
@@ -301,6 +307,68 @@ export default function SkillEditor({ skillName }: Props) {
           }}
         />
       </div>
+    </div>
+  );
+}
+
+/** 檔案列表列：檔案 icon + 短檔名 + 選中左指示條 + hover 刪除（僅參考文件） */
+function FileRow({
+  path,
+  label,
+  selected,
+  onSelect,
+  onRemove,
+}: {
+  path: string;
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+  onRemove?: () => void;
+}) {
+  return (
+    <div
+      className={`group relative flex items-center gap-2 py-1.5 pl-3 pr-2 text-[13px] transition-colors ${
+        selected
+          ? "bg-[var(--primary-light)]/50 text-[var(--primary)]"
+          : "text-[var(--text-secondary)] hover:bg-[var(--bg-page)]"
+      }`}
+    >
+      {selected && (
+        <span className="absolute inset-y-1 left-0 w-[3px] rounded-r bg-[var(--primary)]" aria-hidden="true" />
+      )}
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="shrink-0 opacity-70"
+        aria-hidden="true"
+      >
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+      </svg>
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`flex-1 truncate text-left font-mono ${selected ? "font-semibold" : ""}`}
+        title={path}
+      >
+        {label}
+      </button>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          className="hidden shrink-0 rounded px-1 text-[var(--text-tertiary)] hover:bg-[var(--error)]/10 hover:text-[var(--error)] group-hover:block"
+          aria-label={`刪除 ${path}`}
+        >
+          ×
+        </button>
+      )}
     </div>
   );
 }

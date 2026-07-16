@@ -16,6 +16,11 @@
      bcrypt hash 原樣導入(CR-0141 D4),properties 寫入身分映射三鍵:
      smartlock_user_id / tenant_id / smartlock_role(api OIDC claims 映射依據,D2)
   6. 匯出 cert-built-in 公鑰 PEM → --cert-out(api 端 CASDOOR_JWT_PUBLIC_KEY_FILE 用)
+  7. (opt-in)第三方登入 provider:CASDOOR_GOOGLE_CLIENT_ID/SECRET、
+     CASDOOR_LINE_CLIENT_ID/SECRET 設定時 upsert Google / LINE provider 並掛上
+     application(20260715 會議 16.5.2:鎖匠端支援 Google / Line 第三方登入)。
+     未設=完全跳過(零行為變化)。憑證申請與 redirect 設定見
+     docs/uat/casdoor-third-party-login-runbook-20260716.md
 """
 
 from __future__ import annotations
@@ -111,9 +116,34 @@ class Casdoor:
         })
         print(f"[bootstrap] role {org}/{role} 建立")
 
-    def upsert_application(self, org: str, *, client_id: str, client_secret: str) -> None:
+    def upsert_provider(self, name: str, ptype: str, client_id: str, client_secret: str) -> None:
+        """第三方登入 provider(Google / Line)冪等 upsert(16.5.2)。"""
+        existing = self.get("/api/get-provider", id=f"admin/{name}")
+        obj = {
+            "owner": "admin", "name": name, "displayName": f"{ptype} 登入",
+            "category": "OAuth", "type": ptype,
+            "clientId": client_id, "clientSecret": client_secret,
+        }
+        if existing:
+            self.post("/api/update-provider",
+                      existing | {"clientId": client_id, "clientSecret": client_secret},
+                      id=f"admin/{name}")
+            print(f"[bootstrap] provider {name}({ptype})已存在 → 更新 credentials")
+        else:
+            self.post("/api/add-provider", obj)
+            print(f"[bootstrap] provider {name}({ptype})建立")
+
+    def upsert_application(self, org: str, *, client_id: str, client_secret: str,
+                           providers: list[str] | None = None) -> None:
         name = "smartlock-portal"
         existing = self.get("/api/get-application", id=f"admin/{name}")
+        # 第三方 provider 掛載項(canSignUp=False:第三方帳號須先綁定/由審核流程開通,
+        # 不允許純第三方自動開帳——技師仍走 KYC 註冊,第三方僅作登入方式)
+        provider_items = [
+            {"name": pn, "canSignIn": True, "canSignUp": False, "canUnlink": True,
+             "prompted": False, "alertType": "None", "rule": "None", "provider": None}
+            for pn in (providers or [])
+        ]
         obj = {
             "owner": "admin", "name": name, "displayName": "SmartLock Portal",
             "organization": org, "clientId": client_id, "clientSecret": client_secret,
@@ -121,16 +151,24 @@ class Casdoor:
             "tokenFormat": "JWT", "expireInHours": 1, "refreshExpireInHours": 720,
             "enablePassword": True, "enableSignUp": False,
             "grantTypes": ["authorization_code", "refresh_token", "password"],
+            "providers": provider_items,
         }
         if existing:
+            # provider 掛載採「合併」:保留既有其它 provider,更新/追加本次 upsert 者
+            merged_prov = [p for p in (existing.get("providers") or [])
+                           if p.get("name") not in {i["name"] for i in provider_items}]
+            merged_prov.extend(provider_items)
             self.post("/api/update-application",
                       existing | {"redirectUris": PORTAL_REDIRECT_URIS,
-                                  "clientId": client_id, "clientSecret": client_secret},
+                                  "clientId": client_id, "clientSecret": client_secret,
+                                  "providers": merged_prov},
                       id=f"admin/{name}")
-            print(f"[bootstrap] application {name} 已存在 → 更新 redirect/credentials")
+            print(f"[bootstrap] application {name} 已存在 → 更新 redirect/credentials"
+                  + (f"/providers({len(provider_items)})" if provider_items else ""))
         else:
             self.post("/api/add-application", obj)
-            print(f"[bootstrap] application {name} 建立(client_id={client_id})")
+            print(f"[bootstrap] application {name} 建立(client_id={client_id}"
+                  + (f", providers={len(provider_items)}" if provider_items else "") + ")")
 
     def upsert_user(self, org: str, u: dict) -> bool:
         """u: {id, email, display_name, role, password_hash, is_active}。回是否新建。"""
@@ -247,8 +285,25 @@ def main(argv: list[str] | None = None) -> int:
     created = sum(1 for u in users if cd.upsert_user(t["slug"], u))
     print(f"[bootstrap] org {t['slug']}:users 同步 {len(users)} 筆(新建 {created})")
 
+    # 第三方登入 provider(16.5.2,opt-in:env 有憑證才建;未設=零行為變化)
+    provider_names: list[str] = []
+    third_party = [
+        ("google-oauth", "Google",
+         os.getenv("CASDOOR_GOOGLE_CLIENT_ID"), os.getenv("CASDOOR_GOOGLE_CLIENT_SECRET")),
+        ("line-login", "Line",
+         os.getenv("CASDOOR_LINE_CLIENT_ID"), os.getenv("CASDOOR_LINE_CLIENT_SECRET")),
+    ]
+    for pname, ptype, cid, secret in third_party:
+        if cid and secret:
+            cd.upsert_provider(pname, ptype, cid, secret)
+            provider_names.append(pname)
+        else:
+            print(f"[bootstrap] provider {pname}({ptype})未設憑證 → 跳過"
+                  f"(設 CASDOOR_{ptype.upper()}_CLIENT_ID/SECRET 啟用)")
+
     cd.upsert_application(t["slug"],
-                          client_id=args.client_id, client_secret=args.client_secret)
+                          client_id=args.client_id, client_secret=args.client_secret,
+                          providers=provider_names)
     cd.export_cert(args.cert_out)
 
     print(f"[bootstrap] 完成:org={t['slug']} new_users={created}")
