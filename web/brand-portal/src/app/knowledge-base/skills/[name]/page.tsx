@@ -4,6 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import SkillEditor from "@/components/knowledge-base/SkillEditor";
+import { skillTitle, skillDesc } from "@/lib/skill-labels";
 
 export default function SkillEditPage({
   params,
@@ -38,7 +39,13 @@ export default function SkillEditPage({
             </svg>
             返回 AI 技能列表
           </Link>
-          <h1 className="font-mono text-xl font-bold text-[var(--text-primary)]">{skillName}</h1>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h1 className="text-xl font-bold text-[var(--text-primary)]">{skillTitle(skillName)}</h1>
+            {skillDesc(skillName) && (
+              <span className="text-[13px] text-[var(--text-secondary)]">{skillDesc(skillName)}</span>
+            )}
+            <span className="font-mono text-[12px] text-[var(--text-tertiary)]">{skillName}</span>
+          </div>
         </div>
 
         <SkillEditor skillName={skillName} />

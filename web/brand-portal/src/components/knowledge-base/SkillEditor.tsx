@@ -13,6 +13,7 @@ import {
   type SkillStatus,
 } from "@/lib/skills-api";
 import SkillVersionHistory from "@/components/knowledge-base/SkillVersionHistory";
+import { mdTitle } from "@/lib/skill-labels";
 
 const SKILL_MD = "SKILL.md";
 
@@ -249,7 +250,8 @@ export default function SkillEditor({ skillName }: Props) {
               <FileRow
                 key={path}
                 path={path}
-                label={path.replace(/^references\//, "")}
+                // #10 口語化:顯示 md 首個標題(如「預約安裝流程」),抽不到退檔名
+                label={mdTitle(files[path], path.replace(/^references\//, ""))}
                 selected={selected === path}
                 onSelect={() => setSelected(path)}
                 onRemove={() => removeFile(path)}

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { skillTitle, skillDesc } from "@/lib/skill-labels";
 import {
   STATUS_LABEL,
   SOURCE_LABEL,
@@ -78,9 +79,20 @@ export default function SkillsTable({ items, loading }: Props) {
               className="border-b border-[var(--border)] transition-colors hover:bg-[var(--bg-page)]"
             >
               <td className="px-4 py-3">
-                <span className="font-mono text-[13px] font-medium text-[var(--text-primary)]">
-                  {s.skill_name}
-                </span>
+                {/* #10 顯示層口語化:小編看人話標題,機器名保留小字(工程/除錯用) */}
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+                    {skillTitle(s.skill_name)}
+                  </span>
+                  {skillDesc(s.skill_name) && (
+                    <span className="text-[12px] text-[var(--text-secondary)]">
+                      {skillDesc(s.skill_name)}
+                    </span>
+                  )}
+                  <span className="font-mono text-[11px] text-[var(--text-tertiary)]">
+                    {s.skill_name}
+                  </span>
+                </div>
               </td>
               <td className="px-4 py-3 tabular-nums text-[var(--text-secondary)]">
                 {s.published_version != null ? (
