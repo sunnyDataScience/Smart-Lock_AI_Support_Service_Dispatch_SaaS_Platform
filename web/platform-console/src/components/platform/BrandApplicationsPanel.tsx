@@ -50,9 +50,9 @@ const STATUS_LABEL: Record<Status, string> = {
 };
 
 const STATUS_CLS: Record<Status, string> = {
-  pending: "bg-amber-50 text-amber-700 border-amber-200",
-  approved: "bg-green-50 text-green-700 border-green-200",
-  rejected: "bg-gray-100 text-gray-600 border-gray-200",
+  pending: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25",
+  approved: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25",
+  rejected: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)] border-[var(--border)]",
 };
 
 export default function BrandApplicationsPanel() {
@@ -152,7 +152,7 @@ export default function BrandApplicationsPanel() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-4 py-3 text-sm text-[var(--badge-danger-fg)]">
           {error}
         </div>
       )}

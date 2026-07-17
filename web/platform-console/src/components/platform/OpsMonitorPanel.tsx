@@ -46,9 +46,9 @@ interface HealthResult extends Target {
 }
 
 const STATUS_META: Record<Status, { label: string; dot: string; cls: string }> = {
-  up: { label: "正常", dot: "bg-green-500", cls: "text-green-700 bg-green-50 border-green-200" },
-  degraded: { label: "降級", dot: "bg-amber-500", cls: "text-amber-700 bg-amber-50 border-amber-200" },
-  down: { label: "異常", dot: "bg-red-500", cls: "text-red-700 bg-red-50 border-red-200" },
+  up: { label: "正常", dot: "bg-[var(--status-success)]", cls: "text-[var(--badge-success-fg)] bg-[var(--badge-success-bg)] border-[var(--badge-success-fg)]/25" },
+  degraded: { label: "降級", dot: "bg-[var(--status-warning)]", cls: "text-[var(--badge-warn-fg)] bg-[var(--badge-warn-bg)] border-[var(--badge-warn-fg)]/25" },
+  down: { label: "異常", dot: "bg-[var(--status-danger)]", cls: "text-[var(--badge-danger-fg)] bg-[var(--badge-danger-bg)] border-[var(--badge-danger-fg)]/25" },
 };
 
 export default function OpsMonitorPanel() {
@@ -160,13 +160,13 @@ export default function OpsMonitorPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-green-500" /> {summary.up} 正常
+            <span className="h-2 w-2 rounded-full bg-[var(--status-success)]" /> {summary.up} 正常
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-amber-500" /> {summary.degraded} 降級
+            <span className="h-2 w-2 rounded-full bg-[var(--status-warning)]" /> {summary.degraded} 降級
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-red-500" /> {summary.down} 異常
+            <span className="h-2 w-2 rounded-full bg-[var(--status-danger)]" /> {summary.down} 異常
           </span>
           {checkedAt && (
             <span className="text-xs">
@@ -208,7 +208,7 @@ export default function OpsMonitorPanel() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-4 py-3 text-sm text-[var(--badge-danger-fg)]">
           {error}
         </div>
       )}
@@ -242,7 +242,7 @@ export default function OpsMonitorPanel() {
                       >
                         <span
                           className={`h-2 w-2 rounded-full ${
-                            !t.enabled ? "bg-gray-300" : meta?.dot ?? "bg-gray-300 animate-pulse"
+                            !t.enabled ? "bg-[var(--text-tertiary)]" : meta?.dot ?? "bg-[var(--text-tertiary)] animate-pulse"
                           }`}
                         />
                         {!t.enabled ? "停用" : meta?.label ?? "檢查中"}
@@ -273,7 +273,7 @@ export default function OpsMonitorPanel() {
                         type="button"
                         onClick={() => removeTarget(t)}
                         aria-label="刪除"
-                        className="text-[var(--text-secondary)] hover:text-red-600"
+                        className="text-[var(--text-secondary)] hover:text-[var(--status-danger)]"
                       >
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -376,7 +376,7 @@ function TargetModal({
             啟用探測
           </label>
         </div>
-        {msg && <p className="mt-3 text-[13px] text-red-600">{msg}</p>}
+        {msg && <p className="mt-3 text-[13px] text-[var(--status-danger)]">{msg}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"

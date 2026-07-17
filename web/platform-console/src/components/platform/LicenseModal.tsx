@@ -112,7 +112,7 @@ export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }:
         <p className="mt-1 text-sm text-[var(--text-secondary)]">{tenantName}</p>
 
         {error && (
-          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="mt-3 rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-3 py-2 text-sm text-[var(--badge-danger-fg)]">
             {error}
           </div>
         )}
@@ -162,7 +162,7 @@ export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }:
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2"
               />
               {lic?.is_expired && (
-                <span className="text-xs text-red-600">目前 License 已過期，僅 core 可用</span>
+                <span className="text-xs text-[var(--status-danger)]">目前 License 已過期，僅 core 可用</span>
               )}
             </label>
           </div>

@@ -45,12 +45,12 @@ const STATUS_LABEL: Record<TechStatus, string> = {
 };
 
 const STATUS_CLS: Record<TechStatus, string> = {
-  pending_approval: "bg-amber-50 text-amber-700 border-amber-200",
-  active: "bg-green-50 text-green-700 border-green-200",
-  suspended: "bg-red-50 text-red-700 border-red-200",
-  rejected: "bg-gray-100 text-gray-600 border-gray-200",
-  terminated: "bg-gray-100 text-gray-600 border-gray-200",
-  inactive: "bg-gray-100 text-gray-600 border-gray-200",
+  pending_approval: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25",
+  active: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25",
+  suspended: "bg-[var(--badge-danger-bg)] text-[var(--badge-danger-fg)] border-[var(--badge-danger-fg)]/25",
+  rejected: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)] border-[var(--border)]",
+  terminated: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)] border-[var(--border)]",
+  inactive: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)] border-[var(--border)]",
 };
 
 // 每個狀態可執行的生命週期動作（對齊後端狀態機 _ALLOWED_TRANSITIONS）
@@ -194,7 +194,7 @@ export default function PlatformTechniciansPage() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-4 py-3 text-sm text-[var(--badge-danger-fg)]">
           {error}
         </div>
       )}
@@ -225,7 +225,7 @@ export default function PlatformTechniciansPage() {
                       {STATUS_LABEL[tech.status]}
                     </span>
                     {!tech.is_active && tech.status === "active" && (
-                      <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs text-amber-700">
+                      <span className="rounded-md border border-[var(--badge-warn-fg)]/25 bg-[var(--badge-warn-bg)] px-2 py-0.5 text-xs text-[var(--badge-warn-fg)]">
                         登入未同步
                       </span>
                     )}
@@ -342,7 +342,7 @@ function CreateTechnicianModal({
           <Field label="服務區域 *（逗號分隔）" value={form.regions} onChange={(v) => setForm((f) => ({ ...f, regions: v }))} placeholder="台北市, 新北市" />
           <Field label="專長品牌（逗號分隔，選填）" value={form.skills} onChange={(v) => setForm((f) => ({ ...f, skills: v }))} placeholder="Yale, Dormakaba" />
         </div>
-        {msg && <p className="mt-3 text-[13px] text-red-600">{msg}</p>}
+        {msg && <p className="mt-3 text-[13px] text-[var(--status-danger)]">{msg}</p>}
         <div className="mt-5 flex justify-end gap-2">
           <button
             type="button"

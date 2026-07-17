@@ -29,9 +29,9 @@ interface HealthResult {
 }
 
 const PROBE_META: Record<ProbeStatus, { label: string; dot: string; cls: string }> = {
-  up: { label: "正常", dot: "bg-green-500", cls: "text-green-700 bg-green-50 border-green-200" },
-  degraded: { label: "降級", dot: "bg-amber-500", cls: "text-amber-700 bg-amber-50 border-amber-200" },
-  down: { label: "異常", dot: "bg-red-500", cls: "text-red-700 bg-red-50 border-red-200" },
+  up: { label: "正常", dot: "bg-[var(--status-success)]", cls: "text-[var(--badge-success-fg)] bg-[var(--badge-success-bg)] border-[var(--badge-success-fg)]/25" },
+  degraded: { label: "降級", dot: "bg-[var(--status-warning)]", cls: "text-[var(--badge-warn-fg)] bg-[var(--badge-warn-bg)] border-[var(--badge-warn-fg)]/25" },
+  down: { label: "異常", dot: "bg-[var(--status-danger)]", cls: "text-[var(--badge-danger-fg)] bg-[var(--badge-danger-bg)] border-[var(--badge-danger-fg)]/25" },
 };
 
 const HEALTH_POLL_MS = 30_000;
@@ -68,9 +68,9 @@ const STATUS_LABEL: Record<Status, string> = {
 };
 
 const STATUS_CLS: Record<Status, string> = {
-  active: "bg-green-50 text-green-700 border-green-200",
-  suspended: "bg-amber-50 text-amber-700 border-amber-200",
-  terminated: "bg-gray-100 text-gray-600 border-gray-200",
+  active: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25",
+  suspended: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25",
+  terminated: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)] border-[var(--border)]",
 };
 
 function fmtDate(iso: string | null): string {
@@ -186,7 +186,7 @@ export default function TenantsPanel() {
       </div>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-4 py-3 text-sm text-[var(--badge-danger-fg)]">
           {error}
         </div>
       )}
@@ -223,7 +223,7 @@ export default function TenantsPanel() {
                     {t.contact_email && <span className="truncate">Email：{t.contact_email}</span>}
                     <span>開站於：{fmtDate(t.created_at)}</span>
                     {t.status === "suspended" && t.status_changed_at && (
-                      <span className="sm:col-span-2 text-amber-700">
+                      <span className="sm:col-span-2 text-[var(--badge-warn-fg)]">
                         停用於：{fmtDate(t.status_changed_at)}
                       </span>
                     )}
@@ -265,7 +265,7 @@ export default function TenantsPanel() {
                       type="button"
                       disabled={busyId === t.id}
                       onClick={() => transition(t, "suspend")}
-                      className="rounded-lg border border-amber-300 px-3 py-1.5 text-sm font-medium text-amber-700 transition hover:bg-amber-50 disabled:opacity-50"
+                      className="rounded-lg border border-[var(--badge-warn-fg)]/35 px-3 py-1.5 text-sm font-medium text-[var(--badge-warn-fg)] transition hover:bg-[var(--badge-warn-bg)] disabled:opacity-50"
                     >
                       {busyId === t.id ? "處理中…" : "停用"}
                     </button>
