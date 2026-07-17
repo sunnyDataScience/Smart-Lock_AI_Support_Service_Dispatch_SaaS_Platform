@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Changed
+
+- **知識庫 AI 技能「來源」欄裸文字改一致徽章（#11，branch `fix/skill-source-badge`，2026-07-17，會議「Skill 左邊入鏡方式有點難看」）**：root cause——`SkillsTable` 的「來源」欄是裸灰字（`SOURCE_LABEL` 純文字），但緊鄰的「狀態」欄是圓角彩色徽章（`StatusBadge`），兩個同類元資訊視覺語言不一致致來源顯得光禿禿。新增 `SourceBadge`：與 `StatusBadge` 同形狀 pill + 前置 stroke SVG 圖示區分三來源（出廠範本 package／自動汲取 zap／品牌編輯 pencil）；色彩刻意克制（統一中性底/邊框、不用語意色）——來源是輔助資訊不搶狀態徽章的紅綠黃注意力。純前端樣式、零邏輯/契約變更；tsc 0 + 容器重建 + Playwright live 渲染確認來源 pill 與狀態 pill 並排協調。
+
 ### Added
 
 - **師傅站 PWA 可安裝化（#18 首步中繼方案，branch `feat/tech-portal-pwa`，2026-07-17，會議 §七「師傅不能 24 小時開網頁」）**：業主 0715 會議提出師傅端要像 APP，理想終態是 React Native（月級工程、需商業決策）；本輪先落「PWA + LINE 推播」中繼方案——讓師傅把師傅站裝到手機主畫面、開啟即全螢幕無網址列，配合 CR-0169 LINE 推播點連結直達，投入小、當週可交付、且是 RN 之前的過渡不浪費。新增 `app/manifest.ts`（Next App Router `MetadataRoute.Manifest`：name/short_name/`start_url:/home`/`display:standalone`/`theme_color:#2563EB`/192・512・maskable 三 icon／案件池・我的工單 shortcuts）＋品牌化 icon 組（PIL 生成，白掛鎖於品牌藍）＋`public/sw.js`（service worker，**刻意保守**：API 與跨域一律 network-only 絕不快取即時工單/派單資料，只快取靜態 shell，導航 network-first 斷網退 `offline.html`，`_next/static`・icons cache-first）＋`components/pwa/PwaProvider.tsx`（註冊 SW＋攔截 `beforeinstallprompt` 改由自訂「加入主畫面」橫幅觸發，iOS Safari 無此事件→顯示手動加入說明，standalone/已關閉過用 localStorage 記憶不打擾）；`layout.tsx` 補 iOS 專屬 meta（`appleWebApp`/apple-touch-icon）＋`viewport` export（themeColor/viewportFit:cover）＋掛 `<PwaProvider/>`。**零後端/契約變更**（純前端漸進增強，不支援離線編輯——工單/派單為即時資料需連線）。驗證：tech tsc 0＋tech-web 容器重建＋Playwright live 實測（`/manifest.webmanifest` 欄位正確／SW `active`／icons・offline 皆 200／Chrome 觸發 `beforeinstallprompt` 且被 PwaProvider 正確攔截＝可安裝鐵證／`mobile-web-app-capable=yes`）。
