@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Noto_Sans_TC } from "next/font/google";
 import AuthGuard from "@/components/layout/AuthGuard";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import PwaProvider from "@/components/pwa/PwaProvider";
 import "./globals.css";
 
 /**
@@ -42,6 +43,25 @@ const notoSansTC = Noto_Sans_TC({
 export const metadata: Metadata = {
   title: "SmartLock 師傅站",
   description: "Smart Lock 師傅接單工作台",
+  // CR-#18 PWA:manifest 由 app/manifest.ts 自動連結;此處補 iOS 專屬 meta
+  applicationName: "師傅站",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "師傅站",
+  },
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#2563EB",
+  width: "device-width",
+  initialScale: 1,
+  // PWA 全螢幕體驗:允許放大(a11y)但預設貼合裝置
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -75,6 +95,8 @@ export default function RootLayout({
           <LocaleProvider>
             <ToastProvider>
               <AuthGuard>{children}</AuthGuard>
+              {/* CR-#18 PWA:SW 註冊 + 加入主畫面提示(登入前後皆可裝) */}
+              <PwaProvider />
             </ToastProvider>
           </LocaleProvider>
         </ThemeProvider>
