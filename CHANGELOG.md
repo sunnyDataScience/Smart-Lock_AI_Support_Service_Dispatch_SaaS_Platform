@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **平台後台告別原生瀏覽器彈窗（#12 平台後台美化，branch `fix/platform-console-dialogs`，2026-07-17，會議「平台自己的後台還沒美化」）**：查證「沒美化」的最大觀感來源——平台 console 所有審核/生命週期動作（核准品牌申請填代號、拒絕填原因、租戶停用/恢復、師傅停權/終止/復權、監控目標刪除、認證刪除）全走 `window.prompt/confirm/alert` 原生彈窗（16 處、6 檔），而 `ui/` 現成的 Radix `Modal`/`Toast` 精品元件**零消費者**。新增 `ui/ActionDialog`（imperative promise API 與原生 prompt 同形——`await actionDialog.open({...})` resolve 輸入值/true/null，每個呼叫點一行替換；confirm 與 prompt 雙模式、danger 紅鈕變體、必填 minLength **欄位下方 inline 驗證**取代二段 alert、Enter 送出、autofocus、focus trap/ESC 由 Radix Modal 承接），`ActionDialogProvider` 掛 layout 與 Toast 並存；16 處全數替換＋成功/失敗回饋改 `useToast`（原本成功靜默、失敗 alert）。tsc 0＋容器重建＋Playwright live 驗證（租戶停用 confirm 對話框渲染＋取消、師傅停權 prompt 必填欄渲染＋空值送出被 inline 驗證擋下顯示「至少需 3 個字」、ESC 關閉、DB 實查六師傅全 active 零資料異動）。
+
 - **知識庫 AI 技能「來源」欄裸文字改一致徽章（#11，branch `fix/skill-source-badge`，2026-07-17，會議「Skill 左邊入鏡方式有點難看」）**：root cause——`SkillsTable` 的「來源」欄是裸灰字（`SOURCE_LABEL` 純文字），但緊鄰的「狀態」欄是圓角彩色徽章（`StatusBadge`），兩個同類元資訊視覺語言不一致致來源顯得光禿禿。新增 `SourceBadge`：與 `StatusBadge` 同形狀 pill + 前置 stroke SVG 圖示區分三來源（出廠範本 package／自動汲取 zap／品牌編輯 pencil）；色彩刻意克制（統一中性底/邊框、不用語意色）——來源是輔助資訊不搶狀態徽章的紅綠黃注意力。純前端樣式、零邏輯/契約變更；tsc 0 + 容器重建 + Playwright live 渲染確認來源 pill 與狀態 pill 並排協調。
 
 ### Added

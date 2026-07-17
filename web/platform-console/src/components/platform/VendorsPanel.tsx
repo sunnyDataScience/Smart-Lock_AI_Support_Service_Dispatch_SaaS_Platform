@@ -9,6 +9,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
+import { useActionDialog } from "@/components/ui/ActionDialog";
+import { useToast } from "@/components/ui/Toast";
 
 type VendorStatus = "pending_approval" | "active" | "suspended" | "rejected";
 
@@ -52,6 +54,8 @@ const FILTERS: { value: string; label: string }[] = [
 ];
 
 export default function VendorsPanel() {
+  const actionDialog = useActionDialog();
+  const { toast } = useToast();
   const [filter, setFilter] = useState<string>("pending_approval");
   const [items, setItems] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,19 +81,29 @@ export default function VendorsPanel() {
   }, [load]);
 
   async function act(vendor: Vendor, action: "approve" | "reject") {
+    const display = vendor.company_name || vendor.name;
     let body: Record<string, string> = {};
     if (action === "reject") {
-      const reason = window.prompt(`拒絕「${vendor.company_name || vendor.name}」的原因（記入審核）：`, "");
+      const reason = await actionDialog.open({
+        title: `拒絕「${display}」`,
+        danger: true,
+        confirmLabel: "拒絕",
+        input: { label: "拒絕原因", hint: "記入審核紀錄" },
+      });
       if (reason === null) return;
-      body = { reason: reason.trim() };
+      body = { reason: typeof reason === "string" ? reason : "" };
     }
     setBusy(vendor.id);
     try {
       await api.post(`/api/v1/platform/vendors/${vendor.id}:${action}`, body);
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此廠商的舊清單
       await load();
+      toast({
+        title: `已${action === "approve" ? "核准" : "拒絕"}「${display}」`,
+        variant: "success",
+      });
     } catch (e) {
-      window.alert(friendlyError(e));
+      toast({ title: "操作失敗", description: friendlyError(e), variant: "error" });
     } finally {
       setBusy(null);
     }
