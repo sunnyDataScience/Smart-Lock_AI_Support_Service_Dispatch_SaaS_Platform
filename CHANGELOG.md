@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Fixed
+
+- **LiveSkill rel_path 驗證閘擋掉出廠實檔——產品知識庫在品牌後台無法存草稿/發佈（branch `fix/skill-relpath-unicode`，2026-07-18，#10 階層式前置查證時發現）**：`skill_service._REL_PATH_SEG_RE` 原為 ASCII 白名單，把三個 product-knowledge 出廠實檔擋在驗證閘外（Kaadas 兩個中文型號檔、3E `F(T7).md` 括號、Milre `7150+.md` 加號）；而 `seed_builtin_skills.py` 走直 SQL INSERT 繞過驗證入庫 → 品牌後台編輯產品知識庫任一檔（SkillEditor 整樹 PUT）或發佈原封 seed（`validate_publishable` 同跑 rel_path 驗證）**一律 422 INVALID_FILE_PATH**——CR-0167 HD-1「品牌完整編輯權」對該 skill 實質失效（cs-sop 純 ASCII 倖免，故 S3 驗證未暴露）。修法：segment 字元規則改黑名單制（禁控制字元＋跨平台危險符號 `<>:"|?*`；`.`/`..`/空段/反斜線/NUL 沿用既有檢查），路徑安全不依賴語系；`\n` 屬控制字元故 CR-0167 review 的 `\Z` 結尾繞過防護不退化。回歸測試 +2：出廠實檔名可存草稿＋可發佈、危險字元逐一仍擋；api skills 13 綠（scratch 5490）。
+
+- **corpus 品牌名大小寫正規化（branch `fix/corpus-brand-normalize`，2026-07-18）**：silver 層 LLM 抽取混出 `dormakaba`(205)/`Dormakaba`(173) 兩拼法，而 rag store brand gating 精確比對（`store.py` `brand = %s`）→ 查 `Dormakaba` 漏掉小寫列＝檢索漏資料真 bug。`emit_corpus` 加 `canon_brand()`（已知品牌 casefold 收斂正典拼法、未知含中文原樣通過；只收大小寫變體，Chainlock/Chatlock 疑似字幕誤植同品牌屬語義判斷留人工裁決）；corpus 重生 Dormakaba=364、總數 862 不變。live pgvector 需重灌才吃到（隨 agent RAG 生產啟用一併）。
+
 ### Changed
 
 - **平台 console 硬編色票收斂 semantic tokens（#12 尾巴，branch `refactor/platform-color-tokens`，2026-07-18）**：平台 console 9 檔共 **143 處** hard-coded Tailwind 色（`bg-amber-50`/`text-green-700`/`border-red-200` 等）腳本化收斂到 globals.css 既有 semantic tokens——chip 用 `--badge-{warn|success|danger|muted}-bg/fg`（雙主題對比完善的專用 token，`ui/StatusBadge` 既定慣例）、實心圓點/錯誤訊息用 `--status-{danger|success|warning}`、中性邊框用 `--border`。root cause：硬編亮色在深色模式不換色——深色卡片上刺眼亮綠/亮紅 chip、對比崩壞；收斂後隨 `data-theme` 自動切換（deep-green bg + light-green fg）。替換順序長 token 優先（防 `bg-red-500`→`bg-red-50` 誤傷）；tsc 0＋零殘留 grep 驗證＋容器重建＋Playwright 光/暗雙主題截圖對照確認。

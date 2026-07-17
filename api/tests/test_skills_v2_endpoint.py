@@ -153,6 +153,55 @@ async def test_save_rejects_path_traversal(client):
     assert r.json()["error_code"] == "INVALID_FILE_PATH"
 
 
+async def test_save_accepts_builtin_real_filenames(client):
+    """回歸:出廠 references 實檔名(中文/括號/加號)須可存草稿與發佈。
+
+    曾為 ASCII 白名單把 Kaadas 中文型號檔、3E「F(T7).md」、Milre「7150+.md」
+    擋掉;seed 直 SQL 繞過驗證入庫 → 品牌後台對產品知識庫「存草稿/發佈」全
+    422(整樹 PUT 撞驗證閘),違反 CR-0167 HD-1 品牌完整編輯權。
+    """
+    name = _unique_name()
+    ops, admin = _ops_headers(), _admin_headers()
+    files = {
+        "SKILL.md": _skill_md(name),
+        "references/Kaadas/藍寶堅尼3D人臉辨識.md": "# Kaadas 藍寶堅尼\n內容",
+        "references/3E/F(T7).md": "# 3E F(T7)\n內容",
+        "references/Milre/7150+.md": "# Milre 7150+\n內容",
+    }
+    r = await client.put(
+        f"/api/v1/knowledge-base/skills/{name}",
+        json={"files": files}, headers=ops,
+    )
+    assert r.status_code == 200, r.text
+    v = r.json()["data"]["version"]
+    # 發佈閘同樣須放行(validate_publishable 也跑 _validate_rel_path)
+    r = await client.post(
+        f"/api/v1/knowledge-base/skills/{name}/publish",
+        json={"version": v}, headers=admin,
+    )
+    assert r.status_code == 200, r.text
+
+
+async def test_save_still_rejects_dangerous_chars(client):
+    """黑名單制放寬後,控制字元與危險符號仍須擋(每個獨立驗證)。"""
+    ops = _ops_headers()
+    bad_paths = [
+        "references/a?.md",       # 萬用字元
+        "references/a*.md",       # 萬用字元
+        "references/a:b.md",      # Windows 磁碟分隔
+        "references/a\nb.md",     # 控制字元(換行,亦擋 \Z 結尾繞過)
+        "references/<a>.md",      # 重導向符
+    ]
+    for bad in bad_paths:
+        name = _unique_name()
+        r = await client.put(
+            f"/api/v1/knowledge-base/skills/{name}",
+            json={"files": {bad: "x", "SKILL.md": _skill_md(name)}}, headers=ops,
+        )
+        assert r.status_code == 422, f"{bad!r} 未被擋: {r.status_code}"
+        assert r.json()["error_code"] == "INVALID_FILE_PATH", bad
+
+
 async def test_invalid_skill_name_rejected(client):
     ops = _ops_headers()
     r = await client.put(

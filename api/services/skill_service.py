@@ -51,8 +51,13 @@ _SKILL_MD_MAX_BYTES = 16 * 1024
 # skill 目錄名＝ workspace/skills/<name>/：Agent Skills 標準 kebab-case，擋 path traversal
 # \Z（非 $）：$ 會匹配結尾換行前，"foo\n" 會漏放行——用 \Z 鎖真正字串結尾（CR-0167 review）
 _SKILL_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}\Z")
-# 檔案相對路徑：禁絕對路徑 / .. / 反斜線 / NUL，元件限白名單字元
-_REL_PATH_SEG_RE = re.compile(r"^[A-Za-z0-9._-][A-Za-z0-9._ -]*\Z")
+# 檔案相對路徑：禁絕對路徑 / .. / 反斜線 / NUL；segment 字元採黑名單制——
+# 禁控制字元與跨平台危險符號（<>:"|?*），其餘（含中文、括號、加號）放行。
+# 曾為 ASCII 白名單，把三個出廠實檔擋掉（Kaadas 中文型號檔 / 3E「F(T7).md」/
+# Milre「7150+.md」；seed 直 SQL 繞過驗證入庫）→ 品牌後台對產品知識庫存草稿
+# 與發佈全 422。路徑安全由「segment 不得為 . / .. / 空、無控制字元、無危險
+# 符號、無反斜線與 NUL（路徑層已擋）」保證，與字元語系無關。
+_REL_PATH_SEG_RE = re.compile(r'^[^<>:"|?*\x00-\x1f\x7f]+\Z')
 
 
 def validate_skill_name(skill_name: str) -> None:
