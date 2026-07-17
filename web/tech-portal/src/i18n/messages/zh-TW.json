@@ -1350,6 +1350,20 @@
           "approved": "已核准",
           "rejected": "已拒絕"
         }
+      },
+      "lineBind": {
+        "title": "LINE 接單通知",
+        "desc": "綁定平台 LINE 官方帳號後,新工單指派與搶單池新單會直接推播到你的 LINE,不用一直開網頁。",
+        "bindBtn": "產生綁定碼",
+        "regenBtn": "重新產生綁定碼",
+        "codeLabel": "你的綁定碼(10 分鐘內有效)",
+        "codeHint": "① 加平台官方帳號好友 → ② 在 LINE 對話輸入上面 6 位數字 → 完成綁定",
+        "boundAs": "已綁定 LINE({masked})",
+        "unbind": "解除綁定",
+        "unbindConfirm": "確定要解除 LINE 綁定?解除後將不再收到派單推播。",
+        "poolToggleLabel": "搶單池新單通知",
+        "poolToggleHint": "池內出現新單就推播(先接先得);太吵可關閉",
+        "notConfigured": "平台 LINE 官方帳號開通中(憑證申請中),綁定功能將於開通後生效。"
       }
     }
   },
