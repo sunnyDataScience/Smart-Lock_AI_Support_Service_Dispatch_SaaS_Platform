@@ -78,32 +78,53 @@ export default function PlatformDashboardPage() {
   );
 }
 
-// ── 概覽:待審計數卡 ──────────────────────────────────────────────────────────
+// ── 概覽:平台總覽統計 + 待審 + 租戶摘要(零新 API,複用既有 list 端點)────────
 
-interface Counts {
-  brandApps: number;
-  vendors: number;
-  technicians: number;
+interface TenantRow {
+  id: string;
+  slug: string;
+  company_name: string;
+  status: string;
+  created_at?: string | null;
 }
 
+interface Overview {
+  brandApps: number;
+  vendors: number;
+  techPending: number;
+  techActive: number;
+  techTotal: number;
+  tenants: TenantRow[];
+}
+
+const TENANT_STATUS_META: Record<string, { label: string; cls: string }> = {
+  active: { label: "營運中", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  suspended: { label: "已停用", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+};
+
 function OverviewPanel() {
-  const [counts, setCounts] = useState<Counts | null>(null);
+  const [ov, setOv] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [techRes, brandRes, vendorRes] = await Promise.all([
-          api.get<{ data: unknown[] }>("/api/v1/platform/technicians?status=pending_approval"),
+        const [techRes, brandRes, vendorRes, tenantRes] = await Promise.all([
+          api.get<{ data: { status?: string }[] }>("/api/v1/platform/technicians"),
           api.get<{ data: unknown[] }>("/api/v1/platform/brand-applications?status=pending"),
           api.get<{ items: unknown[] }>("/api/v1/platform/vendors?status=pending_approval"),
+          api.get<{ data: TenantRow[] }>("/api/v1/platform/tenants"),
         ]);
         if (cancelled) return;
-        setCounts({
-          technicians: techRes.data?.length ?? 0,
+        const techs = techRes.data ?? [];
+        setOv({
+          techPending: techs.filter((t) => t.status === "pending_approval").length,
+          techActive: techs.filter((t) => t.status === "active").length,
+          techTotal: techs.length,
           brandApps: brandRes.data?.length ?? 0,
           vendors: vendorRes.items?.length ?? 0,
+          tenants: tenantRes.data ?? [],
         });
       } catch (err) {
         if (!cancelled) setError(friendlyError(err));
@@ -114,16 +135,26 @@ function OverviewPanel() {
     };
   }, []);
 
-  const requestorPending = counts !== null ? counts.brandApps + counts.vendors : null;
-  const techPending = counts !== null ? counts.technicians : null;
+  const requestorPending = ov ? ov.brandApps + ov.vendors : null;
+  const activeTenants = ov ? ov.tenants.filter((t) => t.status === "active").length : null;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-6">
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
+
+      {/* 平台總覽統計 */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="營運中租戶" value={activeTenants} suffix={ov ? `／共 ${ov.tenants.length} 個品牌` : ""} />
+        <StatCard label="啟用中師傅" value={ov?.techActive ?? null} suffix={ov ? `／共 ${ov.techTotal} 位` : ""} />
+        <StatCard label="待審發案方" value={requestorPending} warn suffix="件" />
+        <StatCard label="待審師傅" value={ov?.techPending ?? null} warn suffix="件" />
+      </div>
+
+      {/* 待辦(點卡進審核頁) */}
       <div className="grid gap-4 sm:grid-cols-2">
         <PendingCard
           href="/platform/requestors"
@@ -131,8 +162,8 @@ function OverviewPanel() {
           title="待審發案方"
           count={requestorPending}
           subtitle={
-            counts
-              ? `品牌申請 ${counts.brandApps}　·　廠商帳號 ${counts.vendors}`
+            ov
+              ? `品牌申請 ${ov.brandApps}　·　廠商帳號 ${ov.vendors}`
               : "品牌／經銷／鎖店的平台導入申請與帳號審核"
           }
         />
@@ -140,9 +171,82 @@ function OverviewPanel() {
           href="/platform/technicians"
           icon={UserCheck}
           title="待審師傅"
-          count={techPending}
+          count={ov ? ov.techPending : null}
           subtitle="鎖匠師傅的註冊審核與生命週期管理"
         />
+      </div>
+
+      {/* 租戶摘要 */}
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]">
+        <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
+          <p className="text-sm font-semibold text-[var(--text-primary)]">品牌租戶</p>
+          <Link
+            href="/platform/tenants"
+            className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline"
+          >
+            管理租戶與 License
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+          </Link>
+        </div>
+        {ov === null ? (
+          <p className="px-6 py-6 text-sm text-[var(--text-secondary)]">載入中…</p>
+        ) : ov.tenants.length === 0 ? (
+          <p className="px-6 py-6 text-sm text-[var(--text-secondary)]">尚無已開站租戶。</p>
+        ) : (
+          <ul className="divide-y divide-[var(--border)]">
+            {ov.tenants.slice(0, 5).map((t) => {
+              const meta = TENANT_STATUS_META[t.status] ?? {
+                label: t.status,
+                cls: "bg-gray-50 text-gray-600 border-gray-200",
+              };
+              return (
+                <li key={t.id} className="flex items-center gap-3 px-6 py-3.5">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary-subtle,rgba(59,130,246,0.12))] text-sm font-bold text-[var(--primary)]">
+                    {(t.company_name || t.slug).slice(0, 1)}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-[var(--text-primary)]">
+                      {t.company_name}
+                    </p>
+                    <p className="truncate font-mono text-xs text-[var(--text-secondary)]">{t.slug}</p>
+                  </div>
+                  <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>
+                    {meta.label}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  label,
+  value,
+  suffix,
+  warn,
+}: {
+  label: string;
+  value: number | null;
+  suffix?: string;
+  warn?: boolean;
+}) {
+  const highlight = warn && value !== null && value > 0;
+  return (
+    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+      <p className="text-xs font-medium text-[var(--text-secondary)]">{label}</p>
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <span
+          className={`text-3xl font-bold leading-none tabular-nums ${
+            highlight ? "text-amber-600" : "text-[var(--text-primary)]"
+          }`}
+        >
+          {value === null ? "—" : value}
+        </span>
+        {suffix && <span className="text-xs text-[var(--text-secondary)]">{suffix}</span>}
       </div>
     </div>
   );
