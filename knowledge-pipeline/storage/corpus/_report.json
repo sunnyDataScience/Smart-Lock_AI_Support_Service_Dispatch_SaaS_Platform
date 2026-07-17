@@ -1,5 +1,5 @@
 {
-  "run_at": "2026-07-09T02:30:27+00:00",
+  "run_at": "2026-07-17T16:08:40+00:00",
   "schema_version": 1,
   "totals": {
     "facts": 862,
@@ -8,11 +8,10 @@
   },
   "by_brand": {
     "Chainlock": 5,
-    "Dormakaba": 170,
+    "Dormakaba": 364,
     "general": 131,
     "Chatlock": 193,
     "鎖市": 48,
-    "dormakaba": 194,
     "3E": 103,
     "小島": 5,
     "Kaadas": 13

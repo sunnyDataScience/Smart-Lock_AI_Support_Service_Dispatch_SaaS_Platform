@@ -72,6 +72,26 @@ def _iter_silver_chunks():
                     yield fp, doc
 
 
+# 品牌名大小寫正規化:silver 由 LLM 抽取,同品牌會混出 'dormakaba'/'Dormakaba'
+# 兩種拼法;下游 rag store 的 brand gating 是精確比對(store.py: brand = %s),
+# 不正規化會讓查 'Dormakaba' 漏掉小寫列。只收斂「大小寫變體」,不做語義合併
+# (如 Chainlock/Chatlock 疑似同品牌之字幕誤植,屬語義判斷,留人工裁決)。
+_BRAND_CANON: dict[str, str] = {
+    "dormakaba": "Dormakaba",
+    "chatlock": "Chatlock",
+    "chainlock": "Chainlock",
+    "kaadas": "Kaadas",
+    "milre": "Milre",
+    "philips": "Philips",
+    "3e": "3E",
+}
+
+
+def canon_brand(raw: str) -> str:
+    """已知品牌收斂到正典拼法;未知品牌原樣通過（中文品牌不受影響）。"""
+    return _BRAND_CANON.get(raw.casefold(), raw)
+
+
 def build_chunk(doc: dict, *, include_content: bool, run_at: str) -> dict:
     """silver Document → corpus chunk（含 provenance）。"""
     source_type = doc.get("source_type", "unknown")
@@ -83,7 +103,7 @@ def build_chunk(doc: dict, *, include_content: bool, run_at: str) -> dict:
     record = {
         "schema_version": SCHEMA_VERSION,
         "id": chunk_id(source_type, source, idx, content),
-        "brand": doc.get("brand", "general"),
+        "brand": canon_brand(doc.get("brand", "general")),
         "model": doc.get("model", "general"),
         "category": doc.get("category", "unknown"),
         "source_type": source_type,
