@@ -7,6 +7,7 @@ import {
   SOURCE_LABEL,
   type SkillSummary,
   type SkillStatus,
+  type SkillSource,
 } from "@/lib/skills-api";
 
 const STATUS_STYLE: Record<SkillStatus, string> = {
@@ -21,6 +22,41 @@ function StatusBadge({ status }: { status: SkillStatus }) {
       className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-medium ${STATUS_STYLE[status]}`}
     >
       {STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+// #11 來源徽章:原本裸灰字與相鄰的狀態徽章視覺語言不一致(難看)。
+// 改為與 StatusBadge 同形狀的 pill,靠 stroke SVG 圖示區分三種來源;
+// 色彩刻意克制(統一中性底/邊框,不搶狀態徽章的紅綠黃語意色)——來源是
+// 輔助資訊,一眼靠「形狀一致 + 圖示」辨識即可。
+const SOURCE_ICON: Record<SkillSource, string> = {
+  // package box:平台出廠範本
+  factory_seed:
+    "m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z M3.3 7 12 12l8.7-5 M12 22V12",
+  // zap:pipeline 自動汲取
+  pipeline_ingest:
+    "M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z",
+  // pencil:品牌人工編輯
+  brand_edit: "M12 20h9 M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z",
+};
+
+function SourceBadge({ source }: { source: SkillSource }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--border)] bg-[var(--bg-page)] px-2.5 py-0.5 text-xs font-medium text-[var(--text-secondary)]">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-3 w-3 shrink-0 text-[var(--text-tertiary)]"
+        aria-hidden
+      >
+        <path d={SOURCE_ICON[source]} />
+      </svg>
+      {SOURCE_LABEL[source]}
     </span>
   );
 }
@@ -105,7 +141,9 @@ export default function SkillsTable({ items, loading }: Props) {
               <td className="px-4 py-3">
                 <StatusBadge status={s.latest_status} />
               </td>
-              <td className="px-4 py-3 text-[var(--text-secondary)]">{SOURCE_LABEL[s.latest_source]}</td>
+              <td className="px-4 py-3">
+                <SourceBadge source={s.latest_source} />
+              </td>
               <td className="px-4 py-3 tabular-nums text-xs text-[var(--text-tertiary)]">
                 {fmtDate(s.updated_at)}
               </td>
