@@ -98,8 +98,8 @@ interface Overview {
 }
 
 const TENANT_STATUS_META: Record<string, { label: string; cls: string }> = {
-  active: { label: "營運中", cls: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  suspended: { label: "已停用", cls: "bg-amber-50 text-amber-700 border-amber-200" },
+  active: { label: "營運中", cls: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25" },
+  suspended: { label: "已停用", cls: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25" },
 };
 
 function OverviewPanel() {
@@ -141,7 +141,7 @@ function OverviewPanel() {
   return (
     <div className="flex flex-col gap-6">
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-4 py-3 text-sm text-[var(--badge-danger-fg)]">
           {error}
         </div>
       )}
@@ -197,7 +197,7 @@ function OverviewPanel() {
             {ov.tenants.slice(0, 5).map((t) => {
               const meta = TENANT_STATUS_META[t.status] ?? {
                 label: t.status,
-                cls: "bg-gray-50 text-gray-600 border-gray-200",
+                cls: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)] border-[var(--border)]",
               };
               return (
                 <li key={t.id} className="flex items-center gap-3 px-6 py-3.5">
@@ -241,7 +241,7 @@ function StatCard({
       <div className="mt-2 flex items-baseline gap-1.5">
         <span
           className={`text-3xl font-bold leading-none tabular-nums ${
-            highlight ? "text-amber-600" : "text-[var(--text-primary)]"
+            highlight ? "text-[var(--badge-warn-fg)]" : "text-[var(--text-primary)]"
           }`}
         >
           {value === null ? "—" : value}

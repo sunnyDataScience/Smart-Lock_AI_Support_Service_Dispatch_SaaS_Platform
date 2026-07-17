@@ -98,9 +98,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const CERT_STATUS: Record<Certification["status"], { label: string; cls: string }> = {
-  valid: { label: "有效", cls: "bg-green-50 text-green-700 border-green-200" },
-  expiring_soon: { label: "即將到期", cls: "bg-amber-50 text-amber-700 border-amber-200" },
-  expired: { label: "已過期", cls: "bg-red-50 text-red-700 border-red-200" },
+  valid: { label: "有效", cls: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25" },
+  expiring_soon: { label: "即將到期", cls: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25" },
+  expired: { label: "已過期", cls: "bg-[var(--badge-danger-bg)] text-[var(--badge-danger-fg)] border-[var(--badge-danger-fg)]/25" },
 };
 
 const LEVELS = ["S", "A", "B", "C"];
@@ -209,7 +209,7 @@ export default function PlatformTechnicianDetailPage({
       </Link>
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-4 py-3 text-sm text-[var(--badge-danger-fg)]">
           {error}
         </div>
       )}
@@ -290,7 +290,7 @@ export default function PlatformTechnicianDetailPage({
                     <button type="button" onClick={() => setCertEdit(c)} aria-label="編輯認證" className="text-[var(--text-secondary)] hover:text-[var(--primary)]">
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => deleteCert(c)} aria-label="刪除認證" className="text-[var(--text-secondary)] hover:text-red-600">
+                    <button type="button" onClick={() => deleteCert(c)} aria-label="刪除認證" className="text-[var(--text-secondary)] hover:text-[var(--status-danger)]">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -311,7 +311,7 @@ export default function PlatformTechnicianDetailPage({
                     <div>
                       {ev.event_type === "kyc_reveal" ? (
                         // CR-0115 S7:非狀態轉移的稽核事件(敏感資料揭露)
-                        <span className="font-medium text-amber-700">檢視敏感資料全值</span>
+                        <span className="font-medium text-[var(--badge-warn-fg)]">檢視敏感資料全值</span>
                       ) : (
                         <span className="font-medium text-[var(--text-primary)]">
                           {STATUS_LABEL[ev.previous_status ?? ""] ?? ev.previous_status ?? "—"} → {STATUS_LABEL[ev.new_status ?? ""] ?? ev.new_status}
@@ -466,10 +466,10 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
           </button>
         )}
         {revealed && (
-          <span className="text-xs text-amber-600">已顯示完整資料（本次揭露已寫入稽核）</span>
+          <span className="text-xs text-[var(--badge-warn-fg)]">已顯示完整資料（本次揭露已寫入稽核）</span>
         )}
       </div>
-      {revealErr && <p className="mb-3 text-[13px] text-red-600">{revealErr}</p>}
+      {revealErr && <p className="mb-3 text-[13px] text-[var(--status-danger)]">{revealErr}</p>}
 
       <div className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
         <Info label="從業年資" value={p.years_experience != null ? `${p.years_experience} 年` : "—"} />
@@ -629,7 +629,7 @@ function EditTechnicianModal({
         <ModalField label="專長品牌（逗號分隔）" value={form.skills} onChange={(v) => setForm((f) => ({ ...f, skills: v }))} placeholder="Yale, Dormakaba" />
         <ModalField label="服務區域（逗號分隔）" value={form.regions} onChange={(v) => setForm((f) => ({ ...f, regions: v }))} placeholder="台北市, 新北市" />
       </div>
-      {msg && <p className="mt-3 text-[13px] text-red-600">{msg}</p>}
+      {msg && <p className="mt-3 text-[13px] text-[var(--status-danger)]">{msg}</p>}
       <ModalActions busy={busy} onClose={onClose} onSave={save} saveLabel="儲存" />
     </ModalShell>
   );
@@ -699,7 +699,7 @@ function CertModal({
           </label>
         </div>
       </div>
-      {msg && <p className="mt-3 text-[13px] text-red-600">{msg}</p>}
+      {msg && <p className="mt-3 text-[13px] text-[var(--status-danger)]">{msg}</p>}
       <ModalActions busy={busy} onClose={onClose} onSave={save} saveLabel="儲存" />
     </ModalShell>
   );

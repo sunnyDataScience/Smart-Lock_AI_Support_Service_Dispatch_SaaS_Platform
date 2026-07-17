@@ -118,8 +118,8 @@ export default function BrandApplyPage() {
 
         {done ? (
           <div className="flex flex-col items-center gap-4 py-8">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-green-100">
-              <Check className="h-7 w-7 text-green-600" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--badge-success-bg)]">
+              <Check className="h-7 w-7 text-[var(--badge-success-fg)]" />
             </div>
             <p className="max-w-[400px] text-center text-sm text-[var(--text-primary)]">
               申請已送出！平台審核後將盡快與您聯絡。感謝您有意加入 SmartLock。
@@ -137,7 +137,7 @@ export default function BrandApplyPage() {
             {error && (
               <div
                 role="alert"
-                className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+                className="rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-3 py-2 text-sm text-[var(--badge-danger-fg)]"
               >
                 {error}
               </div>
@@ -283,7 +283,7 @@ function Field({
     <label className="flex flex-col gap-1 text-sm">
       <span className="text-[13px] font-medium text-[var(--text-primary)]">
         {label}
-        {required ? <span className="text-red-500"> *</span> : <span className="text-[var(--text-disabled)]">（選填）</span>}
+        {required ? <span className="text-[var(--status-danger)]"> *</span> : <span className="text-[var(--text-disabled)]">（選填）</span>}
       </span>
       {children}
       {hint && <span className="text-xs text-[var(--text-secondary)]">{hint}</span>}
