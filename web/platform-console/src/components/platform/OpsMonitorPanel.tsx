@@ -16,6 +16,8 @@ import { Plus, Pencil, Trash2, RefreshCw, BarChart3 } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
+import { useActionDialog } from "@/components/ui/ActionDialog";
+import { useToast } from "@/components/ui/Toast";
 
 const BASE = "/api/v1/platform/monitor-targets";
 const POLL_MS = 30_000;
@@ -50,6 +52,8 @@ const STATUS_META: Record<Status, { label: string; dot: string; cls: string }> =
 };
 
 export default function OpsMonitorPanel() {
+  const actionDialog = useActionDialog();
+  const { toast } = useToast();
   const [targets, setTargets] = useState<Target[]>([]);
   const [tenantSlugs, setTenantSlugs] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<Record<string, HealthResult>>({});
@@ -110,14 +114,21 @@ export default function OpsMonitorPanel() {
   }, [loadRegistry, loadTenantSlugs, probe]);
 
   async function removeTarget(t: Target) {
-    if (!window.confirm(`確定刪除監控目標「${t.brand} / ${t.label}」？`)) return;
+    const confirmed = await actionDialog.open({
+      title: `刪除監控目標「${t.brand} / ${t.label}」`,
+      description: "刪除後不再對此端點進行健康探測。",
+      danger: true,
+      confirmLabel: "刪除",
+    });
+    if (confirmed === null) return;
     try {
       await api.delete(`${BASE}/${encodeURIComponent(t.id)}`);
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 registry 讀到含此目標的舊清單
       await loadRegistry();
       await probe();
+      toast({ title: `已刪除「${t.brand} / ${t.label}」`, variant: "success" });
     } catch (e) {
-      window.alert(friendlyError(e));
+      toast({ title: "刪除失敗", description: friendlyError(e), variant: "error" });
     }
   }
 

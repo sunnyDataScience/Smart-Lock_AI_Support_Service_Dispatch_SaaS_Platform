@@ -8,6 +8,8 @@ import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
+import { useActionDialog } from "@/components/ui/ActionDialog";
+import { useToast } from "@/components/ui/Toast";
 
 type Status = "pending" | "approved" | "rejected";
 
@@ -54,6 +56,8 @@ const STATUS_CLS: Record<Status, string> = {
 };
 
 export default function BrandApplicationsPanel() {
+  const actionDialog = useActionDialog();
+  const { toast } = useToast();
   const [filter, setFilter] = useState<Status>("pending");
   const [rows, setRows] = useState<BrandApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -80,33 +84,47 @@ export default function BrandApplicationsPanel() {
   }, [load]);
 
   async function onApprove(app: BrandApplication) {
-    const slug = window.prompt(
-      `核准「${app.company_name}」\n請輸入品牌代號（3-30 字元，小寫英數與連字號，字母開頭；留空自動產生）：`,
-      "",
-    );
+    const slug = await actionDialog.open({
+      title: `核准「${app.company_name}」`,
+      description: "核准後產出開站指引,依指引手動部署該品牌 stack。",
+      confirmLabel: "核准",
+      input: {
+        label: "品牌代號",
+        placeholder: "留空自動產生",
+        mono: true,
+        hint: "3-30 字元,小寫英數與連字號,字母開頭",
+      },
+    });
     if (slug === null) return; // 取消
     try {
       const res = await api.post<{ data: { onboarding_guide: string } }>(
         `/api/v1/platform/brand-applications/${app.id}:approve`,
-        slug.trim() ? { slug: slug.trim() } : {},
+        typeof slug === "string" && slug ? { slug } : {},
       );
       setGuide({ company: app.company_name, text: res.data.onboarding_guide });
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此申請的舊清單
       await load();
+      toast({ title: `已核准「${app.company_name}」`, variant: "success" });
     } catch (err) {
-      window.alert(friendlyError(err));
+      toast({ title: "核准失敗", description: friendlyError(err), variant: "error" });
     }
   }
 
   async function onReject(app: BrandApplication) {
-    const reason = window.prompt(`拒絕「${app.company_name}」\n請輸入原因（至少 3 字）：`, "");
+    const reason = await actionDialog.open({
+      title: `拒絕「${app.company_name}」`,
+      danger: true,
+      confirmLabel: "拒絕",
+      input: { label: "拒絕原因", minLength: 3 },
+    });
     if (reason === null) return;
     try {
       await api.post(`/api/v1/platform/brand-applications/${app.id}:reject`, { reason });
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此申請的舊清單
       await load();
+      toast({ title: `已拒絕「${app.company_name}」`, variant: "success" });
     } catch (err) {
-      window.alert(friendlyError(err));
+      toast({ title: "拒絕失敗", description: friendlyError(err), variant: "error" });
     }
   }
 

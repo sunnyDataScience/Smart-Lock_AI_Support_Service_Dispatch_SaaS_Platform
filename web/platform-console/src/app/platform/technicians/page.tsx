@@ -11,6 +11,8 @@ import { Plus, Search } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
+import { useActionDialog } from "@/components/ui/ActionDialog";
+import { useToast } from "@/components/ui/Toast";
 
 type TechStatus =
   | "pending_approval"
@@ -82,6 +84,8 @@ const FILTERS: { value: string; label: string }[] = [
 ];
 
 export default function PlatformTechniciansPage() {
+  const actionDialog = useActionDialog();
+  const { toast } = useToast();
   const [filter, setFilter] = useState<string>("");
   const [keyword, setKeyword] = useState<string>("");
   const [rows, setRows] = useState<PlatformTechnician[]>([]);
@@ -113,24 +117,31 @@ export default function PlatformTechniciansPage() {
     load();
   }, [load]);
 
-  async function runAction(tech: PlatformTechnician, action: Action, label: string) {
+  async function runAction(
+    tech: PlatformTechnician,
+    action: Action,
+    label: string,
+    danger?: boolean,
+  ) {
     let body: Record<string, string> = {};
     if (action !== "onboard-approve") {
-      const reason = window.prompt(`「${tech.name}」${label}原因（至少 3 字，記入稽核）：`, "");
+      const reason = await actionDialog.open({
+        title: `${label}「${tech.name}」`,
+        danger,
+        confirmLabel: label,
+        input: { label: `${label}原因`, minLength: 3, hint: "至少 3 字,記入稽核" },
+      });
       if (reason === null) return;
-      if (reason.trim().length < 3) {
-        window.alert("原因至少需 3 個字");
-        return;
-      }
-      body = { reason: reason.trim() };
+      body = { reason: typeof reason === "string" ? reason : "" };
     }
     setBusyId(tech.id);
     try {
       await api.post(`/api/v1/platform/technicians/${tech.id}:${action}`, body);
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此師傅的舊清單
       await load();
+      toast({ title: `已${label}「${tech.name}」`, variant: "success" });
     } catch (err) {
-      window.alert(friendlyError(err));
+      toast({ title: `${label}失敗`, description: friendlyError(err), variant: "error" });
     } finally {
       setBusyId(null);
     }
@@ -242,7 +253,7 @@ export default function PlatformTechniciansPage() {
                       key={a.action}
                       type="button"
                       disabled={busyId === tech.id}
-                      onClick={() => runAction(tech, a.action, a.label)}
+                      onClick={() => runAction(tech, a.action, a.label, a.danger)}
                       className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition disabled:opacity-50 ${
                         a.danger
                           ? "border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))]"

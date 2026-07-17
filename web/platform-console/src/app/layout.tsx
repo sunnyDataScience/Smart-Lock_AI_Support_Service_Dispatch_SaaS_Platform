@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Noto_Sans_TC } from "next/font/google";
 import AuthGuard from "@/components/layout/AuthGuard";
 import { ToastProvider } from "@/components/ui/Toast";
+import { ActionDialogProvider } from "@/components/ui/ActionDialog";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import "./globals.css";
@@ -74,7 +75,10 @@ export default function RootLayout({
         <ThemeProvider>
           <LocaleProvider>
             <ToastProvider>
-              <AuthGuard>{children}</AuthGuard>
+              {/* #12:ActionDialog 取代 window.prompt/confirm,與 Toast 並存 */}
+              <ActionDialogProvider>
+                <AuthGuard>{children}</AuthGuard>
+              </ActionDialogProvider>
             </ToastProvider>
           </LocaleProvider>
         </ThemeProvider>

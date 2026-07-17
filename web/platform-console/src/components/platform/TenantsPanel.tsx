@@ -12,6 +12,8 @@ import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 import LicenseModal from "@/components/platform/LicenseModal";
+import { useActionDialog } from "@/components/ui/ActionDialog";
+import { useToast } from "@/components/ui/Toast";
 
 type Status = "active" | "suspended" | "terminated";
 
@@ -78,6 +80,8 @@ function fmtDate(iso: string | null): string {
 }
 
 export default function TenantsPanel() {
+  const actionDialog = useActionDialog();
+  const { toast } = useToast();
   const [filter, setFilter] = useState<Filter>("active");
   const [rows, setRows] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -133,18 +137,24 @@ export default function TenantsPanel() {
 
   async function transition(t: Tenant, action: "suspend" | "reactivate") {
     const verb = action === "suspend" ? "停用" : "恢復";
-    const extra =
-      action === "suspend"
-        ? "\n\n注意:此操作僅在平台標示為已停用,實際停站(關閉該品牌服務)需另行以維運流程處理。"
-        : "";
-    if (!window.confirm(`確定要${verb}租戶「${t.company_name}」?${extra}`)) return;
+    const confirmed = await actionDialog.open({
+      title: `${verb}租戶「${t.company_name}」`,
+      description:
+        action === "suspend"
+          ? "此操作僅在平台標示為已停用;實際停站(關閉該品牌服務)需另行以維運流程處理。"
+          : "將租戶標示恢復為營運中。",
+      danger: action === "suspend",
+      confirmLabel: verb,
+    });
+    if (confirmed === null) return;
     setBusyId(t.id);
     try {
       await api.post(`/api/v1/platform/tenants/${t.id}:${action}`, {});
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到舊清單
       await load();
+      toast({ title: `已${verb}「${t.company_name}」`, variant: "success" });
     } catch (err) {
-      window.alert(friendlyError(err));
+      toast({ title: `${verb}失敗`, description: friendlyError(err), variant: "error" });
     } finally {
       setBusyId(null);
     }

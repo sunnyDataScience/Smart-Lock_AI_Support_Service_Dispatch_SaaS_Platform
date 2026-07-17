@@ -11,6 +11,8 @@ import { ChevronLeft, Eye, FileText, Pencil, Plus, ShieldCheck, Trash2 } from "l
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
+import { useActionDialog } from "@/components/ui/ActionDialog";
+import { useToast } from "@/components/ui/Toast";
 
 interface Technician {
   id: string;
@@ -128,6 +130,8 @@ export default function PlatformTechnicianDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const actionDialog = useActionDialog();
+  const { toast } = useToast();
   const [tech, setTech] = useState<Technician | null>(null);
   const [certs, setCerts] = useState<Certification[]>([]);
   const [events, setEvents] = useState<LifecycleEvent[]>([]);
@@ -178,13 +182,19 @@ export default function PlatformTechnicianDetailPage({
   }, [load]);
 
   async function deleteCert(cert: Certification) {
-    if (!window.confirm(`確定刪除認證「${cert.cert_name}」？`)) return;
+    const confirmed = await actionDialog.open({
+      title: `刪除認證「${cert.cert_name}」`,
+      danger: true,
+      confirmLabel: "刪除",
+    });
+    if (confirmed === null) return;
     try {
       await api.delete(`${base}/certifications/${encodeURIComponent(cert.id)}`);
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此認證的舊資料
       await load();
+      toast({ title: `已刪除認證「${cert.cert_name}」`, variant: "success" });
     } catch (e) {
-      window.alert(friendlyError(e));
+      toast({ title: "刪除失敗", description: friendlyError(e), variant: "error" });
     }
   }
 
@@ -366,6 +376,7 @@ function fmtBytes(n: number): string {
 }
 
 function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
+  const { toast } = useToast();
   const [revealed, setRevealed] = useState<{ national_id: string | null; bank_account: string | null } | null>(null);
   const [revealBusy, setRevealBusy] = useState(false);
   const [revealErr, setRevealErr] = useState<string | null>(null);
@@ -415,7 +426,7 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
         label: DOC_TYPE_LABEL[doc.doc_type] ?? doc.doc_type,
       });
     } catch (e) {
-      window.alert(friendlyError(e));
+      toast({ title: "預覽失敗", description: friendlyError(e), variant: "error" });
     } finally {
       setPreviewBusy(null);
     }
