@@ -64,6 +64,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tier 3 批次②：平台儀表板做滿＋AI 技能口語化（branches `feat/platform-dashboard-polish`、`feat/kb-skills-friendly-labels`，2026-07-17）**：③**#12 平台後台美化**——實查後各管理頁已整齊，缺口在儀表板空曠；零新 API 做滿：四格總覽統計（營運中租戶/啟用中師傅/待審發案方/待審師傅，待審>0 琥珀高亮）＋待辦大卡＋品牌租戶摘要卡（avatar+slug+狀態 chip+License 入口）；租戶頁重複文案去重。Playwright live 驗證（統計對真實資料）。④**#10 AI 技能顯示層口語化**（業主拍板顯示層方案，儲存結構不動）——`lib/skill-labels.ts`（skill 口語名 map＋mdTitle 抽 md 首標題）；列表「客服話術 SOP／產品知識庫」＋說明＋機器名小字；編輯器左欄參考文件顯示「保固政策」而非 warranty.md。Playwright live 驗證。**20260715 清單 Tier 1–3 至此全數完成**。
+
 - **Tier 3 批次①：Pen POC＋團隊 onboarding（branch `chore/tier3-pen-poc-onboarding`，2026-07-17）**：①**#22 Pen（Pencil）專案管理 POC 通過**——live 實測「Markdown source of truth → Claude Code 經 Pencil MCP 程式化 CRUD 寫入 Pen page」：以 20260715 修改項目清單真實內容渲染專案 board（C）＋當場更新卡片狀態（U），截圖驗證；R/D 為 MCP 原生。**架構修正**：會議想像的「FastAPI 硬寫進資料庫」不可行（.pen 是加密檔案、唯一入口=Pencil MCP），正確路徑幾乎零開發（現成 MCP＋一支 md→pen 渲染 skill）；結論與雷區記 `docs/uat/pen-poc-20260717.md`。**引入 Ben/Luca 的 POC 前提成立**。②**#23 文件切分/onboarding**——`docs/team/onboarding-module-ownership.md`：模組所有權（Luca 維運=compose/deploy/監控、Ben FAE=Skill 內容/knowledge-pipeline/開站操作）＋三人共同禁區（lockcore、狀態機/金流 service、migrations、CI/contract、smartlock-docs）＋第一天環境/日常鐵律/文件地圖。
 
 ### Fixed
