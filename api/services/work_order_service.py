@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 
 import core.db as db_module
@@ -533,6 +534,10 @@ async def create_from_problem_card(
     wo = await _publish_and_return(
         tenant_id=tenant_id, wo_id=new_wo_id, event_type="work_order.created"
     )
+    # CR-0169:建單進搶單池 → LINE 廣播(開關過濾在 tech 端;fail-soft)
+    await _notify_tech_line("/api/v1/internal/technicians/notify-pool", {
+        "work_order": _tech_line_wo_summary(wo),
+    })
     return wo, True
 
 
@@ -1269,6 +1274,40 @@ async def _enforce_completion_gate(
     return summary
 
 
+# ── CR-0169 師傅 LINE 推播(平台官方號)──────────────────────────────────────
+# 品牌 api 不碰平台 LINE 憑證:派單/建池單後 service-to-service 呼叫 tech api
+# internal 端點(TECH_API_BASE_URL+INTERNAL_API_TOKEN env-gated;未配置=no-op)。
+# fail-soft:推播失敗絕不阻斷派單主流程(網頁通知中心照舊為保底)。
+
+def _tech_line_wo_summary(wo: dict) -> dict:
+    """推播內容最小化(CIA §4):區域+品牌型號+單號,絕不含客戶姓名/地址/電話。"""
+    return {
+        "id": wo.get("id"),
+        "document_number": wo.get("document_number"),
+        "district": wo.get("district"),
+        "brand": wo.get("brand"),
+        "model": wo.get("model"),
+    }
+
+
+async def _notify_tech_line(path: str, payload: dict) -> None:
+    base = os.getenv("TECH_API_BASE_URL")
+    token = os.getenv("INTERNAL_API_TOKEN")
+    if not base or not token:
+        return  # 未配置=跳過(本機單 stack / 測試環境)
+    try:
+        import aiohttp
+        timeout = aiohttp.ClientTimeout(total=8)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            await session.post(
+                f"{base.rstrip('/')}{path}",
+                json=payload,
+                headers={"X-Internal-Token": token},
+            )
+    except Exception:  # noqa: BLE001 — fail-soft,不阻斷主流程
+        logger.warning("tech LINE notify 失敗(non-fatal)path=%s", path, exc_info=True)
+
+
 # v2 完工送簽 summary 的機器格式（work_orders_v2.onsite_completion_v2 組裝）：
 #   [ONSITE_COMPLETE] sig=<evidence_id> photos=[<id>,<id>,...] notes=<自由文字到行尾>
 _ONSITE_SUMMARY_RE = re.compile(
@@ -1854,9 +1893,15 @@ async def assign_order(
             )
     except Exception:  # noqa: BLE001
         logger.exception("assign auto-notify failed (non-fatal)")
-    return await _publish_and_return(
+    result = await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
     )
+    # CR-0169:指派 LINE 推播(HD-3 指派必推;fail-soft、內容最小化)
+    await _notify_tech_line("/api/v1/internal/technicians/notify-assign", {
+        "technician_id": technician_id,
+        "work_order": _tech_line_wo_summary(result),
+    })
+    return result
 
 
 async def reassign_order(
@@ -1979,9 +2024,15 @@ async def reassign_order(
             ),
         ),
     )
-    return await _publish_and_return(
+    result = await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.reassigned"
     )
+    # CR-0169:改派也推播給新技師(fail-soft)
+    await _notify_tech_line("/api/v1/internal/technicians/notify-assign", {
+        "technician_id": new_technician_id,
+        "work_order": _tech_line_wo_summary(result),
+    })
+    return result
 
 
 async def escalate_order(

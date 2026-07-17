@@ -53,6 +53,7 @@ from routers import roles as roles_router
 from routers import staff_applications as staff_applications_router  # CR-0114 R5: 品牌員工帳號申請
 from routers import role_assignments as role_assignments_router  # CR-0143: 角色指派 SoD 雙簽生產接線（WBS 2.1.2）
 from routers import requote_requests as requote_requests_router  # CR-0144: OHS 現場報價修正 command（WBS 2.4.3/ADR-027）
+from routers import technician_line as technician_line_router  # CR-0169: 師傅 LINE 推播(平台官方號綁定+internal 通知)
 from routers import inventory as inventory_router
 from routers import reports_kpi as reports_kpi_router
 from routers import reports_export as reports_export_router
@@ -360,6 +361,7 @@ app.include_router(roles_router.router, prefix="/api/v1", tags=["user_management
 app.include_router(staff_applications_router.router, tags=["user_management"])
 app.include_router(role_assignments_router.router, tags=["user_management"])  # CR-0143: SoD 雙簽
 app.include_router(requote_requests_router.router, tags=["internal"])  # CR-0144: OHS requote command
+app.include_router(technician_line_router.router, prefix="/api/v1", tags=["M05 Technician"])  # CR-0169: 師傅 LINE 綁定+webhook+internal 推播
 app.include_router(inventory_router.router, prefix="/api/v1", tags=["inventory"])
 app.include_router(reports_kpi_router.router, prefix="/api/v1", tags=["reports"])
 app.include_router(reports_export_router.router, prefix="/api/v1", tags=["reports"])
@@ -657,6 +659,7 @@ _TECH_SURFACE_PREFIXES: tuple[str, ...] = (
     "/redoc",
     "/api/v1/auth",
     "/api/v1/technicians",
+    "/api/v1/internal/technicians",  # CR-0169:品牌 api → LINE 推播 internal 端點
     "/api/v1/work-orders",
     "/api/v1/problem-cards",
     "/api/v1/media",

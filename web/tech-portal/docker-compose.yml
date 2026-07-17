@@ -68,6 +68,14 @@ services:
       # 起 dispatch stack 的 redpanda(--profile events)後傳 redpanda:9092 啟用
       # (tech-api 掛 dispatch 網路,service 名可解析)。20260717 M3 UAT 補宣告。
       KAFKA_BOOTSTRAP: "${KAFKA_BOOTSTRAP:-}"
+      # CR-0169:internal service-to-service token(品牌 api 呼叫推播端點)
+      INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-dev-internal-token}"
+      # CR-0169:平台 LINE 官方號憑證(綁定 webhook 驗簽+推播;未設=fail-soft,
+      # 綁定卡顯示「開通中」、推播 no-op)。憑證申請=業主側(與 LINE Login 同帳號)。
+      PLATFORM_LINE_CHANNEL_SECRET: "${PLATFORM_LINE_CHANNEL_SECRET:-}"
+      PLATFORM_LINE_CHANNEL_ACCESS_TOKEN: "${PLATFORM_LINE_CHANNEL_ACCESS_TOKEN:-}"
+      # 推播深連結 base(師傅站)
+      TECH_PORTAL_URL: "${TECH_PORTAL_URL:-http://localhost:3001}"
     volumes:
       # 與品牌 api 共用媒體檔實體(技師上傳的施工照片/簽名,品牌後台要能讀)
       - media:/app/api/data/media

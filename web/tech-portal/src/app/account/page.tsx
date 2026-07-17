@@ -16,6 +16,7 @@ import {
 import TechShell from "@/components/tech/TechShell";
 import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import LineBindCard from "@/components/tech/LineBindCard";
 import { api, auth, getCurrentSession, logout } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
@@ -212,6 +213,9 @@ export default function AccountPage() {
           <span className="text-[10px] text-[var(--text-disabled)]">{t("level")}</span>
         </div>
       </section>
+
+      {/* CR-0169 LINE 接單通知綁定 */}
+      <LineBindCard />
 
       {/* profile_section */}
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">

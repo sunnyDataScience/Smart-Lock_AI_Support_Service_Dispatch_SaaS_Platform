@@ -89,6 +89,9 @@ services:
       # CR-0166 R4：Kafka/Redpanda 事件骨幹（opt-in；未設=no-op，outbox 保底）。
       # 起 broker 用 --profile events；集中共用（非 per-brand，ADR-006）。
       KAFKA_BOOTSTRAP: "${KAFKA_BOOTSTRAP:-}"
+      # CR-0169:師傅 LINE 推播——派單後 service-to-service 通知 tech api
+      # (雙 stack 同網路以 service 名解析;未設=跳過,fail-soft)
+      TECH_API_BASE_URL: "${TECH_API_BASE_URL:-http://tech-api:8080}"
     volumes:
       # 證據照片/簽名檔實體與師傅 stack 的 tech-api 共用(named volume 跨 stack external 掛載)
       - media:/app/api/data/media

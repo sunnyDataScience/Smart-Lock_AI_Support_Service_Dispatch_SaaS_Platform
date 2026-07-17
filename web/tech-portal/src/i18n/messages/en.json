@@ -1350,6 +1350,20 @@
           "approved": "Approved",
           "rejected": "Rejected"
         }
+      },
+      "lineBind": {
+        "title": "LINE Notifications",
+        "desc": "Link the platform LINE official account to receive new assignment and pool alerts directly in LINE.",
+        "bindBtn": "Generate binding code",
+        "regenBtn": "Regenerate code",
+        "codeLabel": "Your binding code (valid 10 min)",
+        "codeHint": "1) Add the platform official account 2) Send the 6-digit code in LINE to finish binding",
+        "boundAs": "LINE linked ({masked})",
+        "unbind": "Unlink",
+        "unbindConfirm": "Unlink LINE? You will stop receiving dispatch push notifications.",
+        "poolToggleLabel": "Pool new-order alerts",
+        "poolToggleHint": "Push when a new order enters the pool (first come first served)",
+        "notConfigured": "Platform LINE account is being provisioned; binding activates once credentials are set."
       }
     }
   },
