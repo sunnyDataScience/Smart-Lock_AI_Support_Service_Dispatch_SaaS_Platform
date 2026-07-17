@@ -152,10 +152,10 @@ export default function TenantsPanel() {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-[var(--text-secondary)]">
-        已開站的品牌租戶名冊(核准品牌申請時自動登錄)。停用/恢復為
+      <p className="text-xs text-[var(--text-secondary)]">
+        停用／恢復為
         <span className="font-medium text-[var(--text-primary)]">平台層標示</span>
-        ;實際停站或重啟該品牌服務,請走維運流程(gcloud / 各品牌後台)。
+        ;實際停站或重啟品牌服務請走維運流程(gcloud / 各品牌後台)。
       </p>
 
       <div className="flex gap-2">
