@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>離線 · SmartLock 師傅站</title>
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 12px; padding: 24px; text-align: center;
+        font-family: -apple-system, "PingFang TC", "Noto Sans TC", system-ui, sans-serif;
+        background: #F8FAFC; color: #0F172A;
+      }
+      .icon { width: 72px; height: 72px; }
+      h1 { font-size: 18px; margin: 8px 0 0; }
+      p { font-size: 14px; color: #64748B; margin: 0; max-width: 300px; line-height: 1.6; }
+      button {
+        margin-top: 12px; border: none; border-radius: 12px;
+        background: #2563EB; color: #fff; font-size: 15px; font-weight: 600;
+        padding: 12px 28px; cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <img class="icon" src="/icons/icon-192.png" alt="SmartLock" />
+    <h1>目前無法連線</h1>
+    <p>網路恢復後即可繼續接單。工單與派單為即時資料,需要連線才能顯示最新狀態。</p>
+    <button onclick="location.reload()">重新連線</button>
+  </body>
+</html>
