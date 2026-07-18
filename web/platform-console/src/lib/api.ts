@@ -323,6 +323,30 @@ async function refreshAccessToken(): Promise<boolean> {
   return refreshInFlight;
 }
 
+// ── UAT W6-8:首載 401 競態消除 ──────────────────────────────────────────────
+// access token 過期時,首載頁面併發的資料請求會「集體先 401 → refresh → 重試成功」,
+// 瀏覽器 console 留下一排 401 錯誤(UAT 實測 5 支)。改為送出前主動檢查 exp:
+// 已過期且有 refresh token → 先刷新再送(refreshInFlight 共用 in-flight,
+// 併發請求只刷一次)。刷新失敗則照舊送出,由既有 401 → refresh → 導登入鏈兜底。
+
+/** access token 是否已過期（exp 前 10 秒視為過期,吸收時鐘偏差與傳輸延遲）。 */
+function isTokenExpired(token: string): boolean {
+  const payload = decodeJwtPayload(token);
+  const exp = payload?.exp;
+  if (typeof exp !== "number") return false; // 無 exp claim → 交給後端判定
+  return exp * 1000 <= Date.now() + 10_000;
+}
+
+/** 取得可直接使用的 access token：過期時先主動刷新，避免 401 往返。 */
+async function getFreshAccessToken(): Promise<string | null> {
+  const token = auth.getAccessToken();
+  if (token && isTokenExpired(token) && auth.getRefreshToken()) {
+    await refreshAccessToken();
+    return auth.getAccessToken();
+  }
+  return token;
+}
+
 // Session 失效（access + refresh 皆過期/無效）→ 清 token 並導去對應入口的登入頁。
 // 為何需要：AuthGuard 只驗「token 存在」不驗「是否過期」，隔夜後過期 token 仍會放行頁面，
 // 頁面拿過期 token 一路 401（refresh 也失敗）就白屏。在 API 層統一兜底，任何 portal 皆適用。
@@ -358,7 +382,7 @@ async function rawRequest<T>(
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
 
   if (!options.skipAuth) {
-    const token = auth.getAccessToken();
+    const token = await getFreshAccessToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
     headers["X-Tenant-ID"] = auth.getTenantId();
   }
@@ -447,7 +471,7 @@ async function uploadMultipart<T>(
   opts?: { idempotencyKey?: string },
 ): Promise<T> {
   const headers: Record<string, string> = {};
-  const token = auth.getAccessToken();
+  const token = await getFreshAccessToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   headers["X-Tenant-ID"] = auth.getTenantId();
   headers["Idempotency-Key"] = opts?.idempotencyKey ?? newIdempotencyKey();
@@ -481,7 +505,7 @@ async function downloadBlob(
   opts?: { query?: RequestOptions["query"]; filename?: string },
 ): Promise<void> {
   const headers: Record<string, string> = {};
-  const token = auth.getAccessToken();
+  const token = await getFreshAccessToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   headers["X-Tenant-ID"] = auth.getTenantId();
 
@@ -528,7 +552,7 @@ async function downloadBlob(
  */
 async function fetchBlobGet(path: string): Promise<{ blob: Blob; contentType: string }> {
   const headers: Record<string, string> = {};
-  const token = auth.getAccessToken();
+  const token = await getFreshAccessToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   headers["X-Tenant-ID"] = auth.getTenantId();
 
@@ -573,7 +597,7 @@ async function downloadBlobPost(
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  const token = auth.getAccessToken();
+  const token = await getFreshAccessToken();
   if (token) headers["Authorization"] = `Bearer ${token}`;
   headers["X-Tenant-ID"] = auth.getTenantId();
   headers["Idempotency-Key"] = opts?.idempotencyKey ?? newIdempotencyKey();

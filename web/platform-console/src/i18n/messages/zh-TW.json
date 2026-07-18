@@ -3528,6 +3528,246 @@
         "save": "儲存設定",
         "saving": "儲存中…"
       }
+    },
+    "actionDialog": {
+      "minChars": "至少需 {min} 個字"
+    }
+  },
+  "platform": {
+    "shell": {
+      "brand": "Lock AI 平台管理",
+      "navAria": "平台管理導覽",
+      "nav": {
+        "dashboard": "儀表板",
+        "requestors": "發案方審核",
+        "technicians": "師傅管理",
+        "tenants": "租戶管理"
+      },
+      "logout": "登出"
+    },
+    "common": {
+      "all": "全部",
+      "loading": "載入中…",
+      "processing": "處理中…",
+      "saving": "儲存中…",
+      "save": "儲存",
+      "cancel": "取消",
+      "close": "關閉",
+      "details": "詳情",
+      "edit": "編輯",
+      "delete": "刪除",
+      "actionFailed": "操作失敗",
+      "colon": "："
+    },
+    "fields": {
+      "contact": "聯絡人",
+      "phone": "電話",
+      "email": "Email",
+      "address": "地址",
+      "taxId": "統編",
+      "website": "網站"
+    },
+    "dashboard": {
+      "title": "儀表板",
+      "welcome": "{name}，歡迎回來。",
+      "tabOverview": "概覽",
+      "tabMonitor": "維運監控",
+      "statActiveTenants": "營運中租戶",
+      "statTenantsTotal": "／共 {count} 個品牌",
+      "statActiveTechs": "啟用中師傅",
+      "statTechsTotal": "／共 {count} 位",
+      "statPendingRequestors": "待審發案方",
+      "statPendingTechs": "待審師傅",
+      "statUnit": "件",
+      "pendingRequestorsSubtitle": "品牌申請 {brands}　·　廠商帳號 {vendors}",
+      "pendingRequestorsHint": "品牌／經銷／鎖店的平台導入申請與帳號審核",
+      "pendingTechsHint": "鎖匠師傅的註冊審核與生命週期管理",
+      "pendingUnit": "件待審核",
+      "tenantsCardTitle": "品牌租戶",
+      "manageTenants": "管理租戶與 License",
+      "noTenants": "尚無已開站租戶。"
+    },
+    "technicians": {
+      "title": "師傅管理",
+      "subtitle": "鎖匠師傅的註冊審核、生命週期與主檔管理。師傅平台全品牌共用，由平台方統一負責。",
+      "addNew": "新增師傅",
+      "searchPlaceholder": "搜尋姓名 / 電話 / Email",
+      "emptyList": "目前沒有符合條件的師傅",
+      "unnamed": "（未命名）",
+      "loginNotSynced": "登入未同步",
+      "skills": "技能",
+      "regions": "服務區域",
+      "status": {
+        "pending_approval": "待審核",
+        "active": "啟用中",
+        "suspended": "已停權",
+        "rejected": "已拒絕",
+        "terminated": "已終止",
+        "inactive": "未啟用"
+      },
+      "action": {
+        "approve": "核准",
+        "reject": "拒絕",
+        "suspend": "停權",
+        "reactivate": "復權",
+        "terminate": "終止",
+        "activate": "啟用"
+      },
+      "actionDialogTitle": "{action}「{name}」",
+      "reasonLabel": "{action}原因",
+      "reasonHint": "至少 3 字,記入稽核",
+      "actionDone": "已{action}「{name}」",
+      "actionFailed": "{action}失敗",
+      "createHint": "建立後狀態為「待審核」，需於清單核准後方可派工；登入密碼由師傅自助設定（忘記密碼）。",
+      "fieldName": "姓名 *",
+      "namePlaceholder": "例：王大鎖",
+      "fieldPhone": "電話",
+      "fieldEmail": "Email",
+      "emailPlaceholder": "（選填）",
+      "fieldRegions": "服務區域 *（逗號分隔）",
+      "regionsPlaceholder": "台北市, 新北市",
+      "fieldSkills": "專長品牌（逗號分隔，選填）",
+      "nameRequired": "姓名為必填",
+      "regionsRequired": "服務區域為必填",
+      "creating": "建立中…",
+      "createSubmit": "建立師傅"
+    },
+    "tenants": {
+      "title": "租戶管理",
+      "subtitle": "所有已開站的品牌租戶(核准品牌申請後自動登錄)。平台方跨品牌名冊與生命週期標示。",
+      "hintBefore": "停用／恢復為",
+      "hintStrong": "平台層標示",
+      "hintAfter": ";實際停站或重啟品牌服務請走維運流程(gcloud / 各品牌後台)。",
+      "status": {
+        "active": "營運中",
+        "suspended": "已停用",
+        "terminated": "已終止"
+      },
+      "emptyAll": "目前沒有租戶",
+      "emptyFiltered": "目前沒有{status}租戶",
+      "createdAt": "開站於",
+      "suspendedAt": "停用於",
+      "serviceStatus": "服務狀態",
+      "action": {
+        "suspend": "停用",
+        "reactivate": "恢復"
+      },
+      "actionDialogTitle": "{action}租戶「{name}」",
+      "suspendDesc": "此操作僅在平台標示為已停用;實際停站(關閉該品牌服務)需另行以維運流程處理。",
+      "reactivateDesc": "將租戶標示恢復為營運中。",
+      "actionDone": "已{action}「{name}」",
+      "actionFailed": "{action}失敗"
+    },
+    "requestors": {
+      "title": "發案方審核",
+      "subtitle": "品牌／經銷／鎖店（發案的一方）的平台導入申請與發案帳號審核。由平台方統一負責。",
+      "tabApplications": "品牌申請",
+      "tabVendors": "廠商帳號",
+      "type": {
+        "brand": "品牌商",
+        "locksmith": "鎖店",
+        "distributor": "經銷商"
+      }
+    },
+    "brandApps": {
+      "intro": "品牌／經銷／鎖店送來的平台導入「申請意向」（不含帳號）。核准後依開站指引手動部署該品牌 stack、聯絡申請人開通。",
+      "status": {
+        "pending": "待審核",
+        "approved": "已核准",
+        "rejected": "已拒絕"
+      },
+      "empty": "目前沒有{status}的申請",
+      "coverageRegions": "涵蓋地區",
+      "storeCount": "門市/據點",
+      "expectedMonthlyOrders": "預估月工單量",
+      "mainBrands": "主營品牌",
+      "referralSource": "得知來源",
+      "notes": "需求",
+      "reviewNotes": "審核備註",
+      "rejectReason": "駁回理由",
+      "approve": "核准",
+      "reject": "拒絕",
+      "approveTitle": "核准「{name}」",
+      "approveDesc": "核准後產出開站指引,依指引手動部署該品牌 stack。",
+      "slugLabel": "品牌代號",
+      "slugPlaceholder": "留空自動產生",
+      "slugHint": "3-30 字元,小寫英數與連字號,字母開頭",
+      "approveDone": "已核准「{name}」",
+      "approveFailed": "核准失敗",
+      "rejectTitle": "拒絕「{name}」",
+      "rejectReasonLabel": "拒絕原因",
+      "rejectDone": "已拒絕「{name}」",
+      "rejectFailed": "拒絕失敗",
+      "guideTitle": "開站指引 — {company}",
+      "guideDesc": "已核准。開站流程為手動 —— 依下列步驟部署該品牌 stack，並聯絡申請人開通。"
+    },
+    "vendors": {
+      "intro": "發案方（品牌／經銷／鎖店）自助註冊的「登入帳號」。核准後即可登入平台發案（相對於申請意向，此為已建帳號的啟用審核）。",
+      "status": {
+        "pending_approval": "待審核",
+        "active": "已啟用",
+        "suspended": "已停權",
+        "rejected": "已拒絕"
+      },
+      "empty": "目前沒有符合條件的廠商",
+      "approve": "核准",
+      "reject": "拒絕",
+      "rejectTitle": "拒絕「{name}」",
+      "rejectReasonLabel": "拒絕原因",
+      "rejectReasonHint": "記入審核紀錄",
+      "approveDone": "已核准「{name}」",
+      "rejectDone": "已拒絕「{name}」"
+    },
+    "monitor": {
+      "status": {
+        "up": "正常",
+        "degraded": "降級",
+        "down": "異常"
+      },
+      "summaryUp": "{count} 正常",
+      "summaryDegraded": "{count} 降級",
+      "summaryDown": "{count} 異常",
+      "lastChecked": "最後檢查 {time}（每 30 秒自動更新）",
+      "gcpLink": "詳細用量 ↗",
+      "gcpTitle": "用量指標（請求數／CPU／記憶體）在 GCP Cloud Monitoring",
+      "checkNow": "立即檢查",
+      "addTarget": "新增目標",
+      "empty": "尚無平台級監控目標。點「新增目標」登記(品牌代號填租戶 slug 者顯示於租戶管理頁)。",
+      "disabled": "停用",
+      "checking": "檢查中",
+      "deleteTitle": "刪除監控目標「{name}」",
+      "deleteDesc": "刪除後不再對此端點進行健康探測。",
+      "deleteDone": "已刪除「{name}」",
+      "deleteFailed": "刪除失敗",
+      "editTarget": "編輯監控目標",
+      "newTarget": "新增監控目標",
+      "fieldBrand": "品牌 / 分組 *",
+      "fieldLabel": "服務標籤 *",
+      "fieldUrl": "Health URL *",
+      "fieldNote": "備註（選填）",
+      "fieldEnabled": "啟用探測",
+      "requiredFields": "品牌、服務標籤、health URL 皆為必填",
+      "labelPlaceholder": "派工 API",
+      "notePlaceholder": "正式環境主派工服務"
+    },
+    "license": {
+      "title": "License 管理",
+      "planTier": "訂閱級距",
+      "plan": {
+        "free": "免費（free）",
+        "standard": "標準（standard）",
+        "pro": "專業（pro）",
+        "enterprise": "企業（enterprise）"
+      },
+      "modules": "開通模組",
+      "coreModule": "core（核心，恆開通）",
+      "module": {
+        "refinery": "知識精煉（refinery）",
+        "studio": "設定工作室（studio）",
+        "compiler": "Onboarding 編譯器（compiler）"
+      },
+      "expiresLabel": "License 到期日（留空＝無期限）",
+      "expiredHint": "目前 License 已過期，僅 core 可用"
     }
   }
 }

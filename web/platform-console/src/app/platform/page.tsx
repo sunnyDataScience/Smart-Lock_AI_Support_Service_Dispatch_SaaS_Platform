@@ -4,12 +4,14 @@
 // 分頁:
 //   - 概覽:待審計數卡(複用既有 list 端點 status 過濾,零新 API),點卡進審核頁。
 //   - 維運監控:跨品牌 /health 紅綠燈(monitor_target registry + 並發探測)。
+// UAT W6-2:文案接 i18n(platform.dashboard / platform.tenants namespace)。
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Building2, UserCheck, ArrowRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import OpsMonitorPanel from "@/components/platform/OpsMonitorPanel";
 
 interface PlatformMe {
@@ -18,12 +20,14 @@ interface PlatformMe {
 
 type Tab = "overview" | "monitor";
 
-const TABS: { value: Tab; label: string }[] = [
-  { value: "overview", label: "概覽" },
-  { value: "monitor", label: "維運監控" },
+const TABS: { value: Tab; key: string }[] = [
+  { value: "overview", key: "tabOverview" },
+  { value: "monitor", key: "tabMonitor" },
 ];
 
 export default function PlatformDashboardPage() {
+  const t = useTranslations("platform.dashboard");
+  const tc = useTranslations("platform.common");
   const [me, setMe] = useState<PlatformMe["data"] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("overview");
@@ -46,28 +50,30 @@ export default function PlatformDashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-bold text-[var(--text-primary)]">儀表板</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)]">{t("title")}</h1>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">
-          {me ? `${me.display_name || me.email}，歡迎回來。` : error ?? "載入中…"}
+          {me
+            ? t("welcome", { name: me.display_name || me.email })
+            : error ?? tc("loading")}
         </p>
       </div>
 
       {/* 分頁切換 */}
       <div className="flex gap-1 border-b border-[var(--border)]">
-        {TABS.map((t) => {
-          const active = tab === t.value;
+        {TABS.map((item) => {
+          const active = tab === item.value;
           return (
             <button
-              key={t.value}
+              key={item.value}
               type="button"
-              onClick={() => setTab(t.value)}
+              onClick={() => setTab(item.value)}
               className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition ${
                 active
                   ? "border-[var(--primary)] text-[var(--primary)]"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
-              {t.label}
+              {t(item.key)}
             </button>
           );
         })}
@@ -97,12 +103,15 @@ interface Overview {
   tenants: TenantRow[];
 }
 
-const TENANT_STATUS_META: Record<string, { label: string; cls: string }> = {
-  active: { label: "營運中", cls: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25" },
-  suspended: { label: "已停用", cls: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25" },
+const TENANT_STATUS_CLS: Record<string, string> = {
+  active: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25",
+  suspended: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25",
 };
 
 function OverviewPanel() {
+  const t = useTranslations("platform.dashboard");
+  const tc = useTranslations("platform.common");
+  const tTenant = useTranslations("platform.tenants");
   const [ov, setOv] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -119,8 +128,8 @@ function OverviewPanel() {
         if (cancelled) return;
         const techs = techRes.data ?? [];
         setOv({
-          techPending: techs.filter((t) => t.status === "pending_approval").length,
-          techActive: techs.filter((t) => t.status === "active").length,
+          techPending: techs.filter((x) => x.status === "pending_approval").length,
+          techActive: techs.filter((x) => x.status === "active").length,
           techTotal: techs.length,
           brandApps: brandRes.data?.length ?? 0,
           vendors: vendorRes.items?.length ?? 0,
@@ -136,7 +145,7 @@ function OverviewPanel() {
   }, []);
 
   const requestorPending = ov ? ov.brandApps + ov.vendors : null;
-  const activeTenants = ov ? ov.tenants.filter((t) => t.status === "active").length : null;
+  const activeTenants = ov ? ov.tenants.filter((x) => x.status === "active").length : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -148,10 +157,18 @@ function OverviewPanel() {
 
       {/* 平台總覽統計 */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="營運中租戶" value={activeTenants} suffix={ov ? `／共 ${ov.tenants.length} 個品牌` : ""} />
-        <StatCard label="啟用中師傅" value={ov?.techActive ?? null} suffix={ov ? `／共 ${ov.techTotal} 位` : ""} />
-        <StatCard label="待審發案方" value={requestorPending} warn suffix="件" />
-        <StatCard label="待審師傅" value={ov?.techPending ?? null} warn suffix="件" />
+        <StatCard
+          label={t("statActiveTenants")}
+          value={activeTenants}
+          suffix={ov ? t("statTenantsTotal", { count: ov.tenants.length }) : ""}
+        />
+        <StatCard
+          label={t("statActiveTechs")}
+          value={ov?.techActive ?? null}
+          suffix={ov ? t("statTechsTotal", { count: ov.techTotal }) : ""}
+        />
+        <StatCard label={t("statPendingRequestors")} value={requestorPending} warn suffix={t("statUnit")} />
+        <StatCard label={t("statPendingTechs")} value={ov?.techPending ?? null} warn suffix={t("statUnit")} />
       </div>
 
       {/* 待辦(點卡進審核頁) */}
@@ -159,59 +176,64 @@ function OverviewPanel() {
         <PendingCard
           href="/platform/requestors"
           icon={Building2}
-          title="待審發案方"
+          title={t("statPendingRequestors")}
           count={requestorPending}
+          unit={t("pendingUnit")}
           subtitle={
             ov
-              ? `品牌申請 ${ov.brandApps}　·　廠商帳號 ${ov.vendors}`
-              : "品牌／經銷／鎖店的平台導入申請與帳號審核"
+              ? t("pendingRequestorsSubtitle", { brands: ov.brandApps, vendors: ov.vendors })
+              : t("pendingRequestorsHint")
           }
         />
         <PendingCard
           href="/platform/technicians"
           icon={UserCheck}
-          title="待審師傅"
+          title={t("statPendingTechs")}
           count={ov ? ov.techPending : null}
-          subtitle="鎖匠師傅的註冊審核與生命週期管理"
+          unit={t("pendingUnit")}
+          subtitle={t("pendingTechsHint")}
         />
       </div>
 
       {/* 租戶摘要 */}
       <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)]">
         <div className="flex items-center justify-between border-b border-[var(--border)] px-6 py-4">
-          <p className="text-sm font-semibold text-[var(--text-primary)]">品牌租戶</p>
+          <p className="text-sm font-semibold text-[var(--text-primary)]">{t("tenantsCardTitle")}</p>
           <Link
             href="/platform/tenants"
             className="inline-flex items-center gap-1 text-xs font-medium text-[var(--primary)] hover:underline"
           >
-            管理租戶與 License
+            {t("manageTenants")}
             <ArrowRight className="h-3.5 w-3.5" aria-hidden />
           </Link>
         </div>
         {ov === null ? (
-          <p className="px-6 py-6 text-sm text-[var(--text-secondary)]">載入中…</p>
+          <p className="px-6 py-6 text-sm text-[var(--text-secondary)]">{tc("loading")}</p>
         ) : ov.tenants.length === 0 ? (
-          <p className="px-6 py-6 text-sm text-[var(--text-secondary)]">尚無已開站租戶。</p>
+          <p className="px-6 py-6 text-sm text-[var(--text-secondary)]">{t("noTenants")}</p>
         ) : (
           <ul className="divide-y divide-[var(--border)]">
-            {ov.tenants.slice(0, 5).map((t) => {
-              const meta = TENANT_STATUS_META[t.status] ?? {
-                label: t.status,
-                cls: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)] border-[var(--border)]",
-              };
+            {ov.tenants.slice(0, 5).map((row) => {
+              const cls =
+                TENANT_STATUS_CLS[row.status] ??
+                "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)] border-[var(--border)]";
+              const label =
+                row.status === "active" || row.status === "suspended" || row.status === "terminated"
+                  ? tTenant(`status.${row.status}`)
+                  : row.status;
               return (
-                <li key={t.id} className="flex items-center gap-3 px-6 py-3.5">
+                <li key={row.id} className="flex items-center gap-3 px-6 py-3.5">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--primary-subtle,rgba(59,130,246,0.12))] text-sm font-bold text-[var(--primary)]">
-                    {(t.company_name || t.slug).slice(0, 1)}
+                    {(row.company_name || row.slug).slice(0, 1)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-[var(--text-primary)]">
-                      {t.company_name}
+                      {row.company_name}
                     </p>
-                    <p className="truncate font-mono text-xs text-[var(--text-secondary)]">{t.slug}</p>
+                    <p className="truncate font-mono text-xs text-[var(--text-secondary)]">{row.slug}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${meta.cls}`}>
-                    {meta.label}
+                  <span className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-medium ${cls}`}>
+                    {label}
                   </span>
                 </li>
               );
@@ -257,12 +279,14 @@ function PendingCard({
   icon: Icon,
   title,
   count,
+  unit,
   subtitle,
 }: {
   href: string;
   icon: typeof Building2;
   title: string;
   count: number | null;
+  unit: string;
   subtitle: string;
 }) {
   return (
@@ -286,7 +310,7 @@ function PendingCard({
         <span className="text-4xl font-bold leading-none text-[var(--text-primary)]">
           {count === null ? "—" : count}
         </span>
-        <span className="pb-1 text-xs text-[var(--text-secondary)]">件待審核</span>
+        <span className="pb-1 text-xs text-[var(--text-secondary)]">{unit}</span>
       </div>
       <p className="text-xs text-[var(--text-secondary)]">{subtitle}</p>
     </Link>

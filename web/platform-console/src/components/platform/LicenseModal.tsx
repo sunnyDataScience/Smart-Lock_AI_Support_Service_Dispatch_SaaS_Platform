@@ -2,26 +2,16 @@
 
 // CR-0166 R3 平台 console — 租戶 License / 模組開通管理 modal。
 // 平台管理員設定訂閱級距、開通附加模組（refinery/studio/compiler）、License 到期日。
-// 內部工具，文案直接繁中。
+// UAT W6-2:文案接 i18n(platform.license namespace)。
 
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 const PLAN_TIERS = ["free", "standard", "pro", "enterprise"] as const;
-// 級距顯示標籤（與下方模組選項同風格：中文＋原始碼）；原本 option 直接顯示英文原始碼
-const PLAN_TIER_LABEL: Record<string, string> = {
-  free: "免費（free）",
-  standard: "標準（standard）",
-  pro: "專業（pro）",
-  enterprise: "企業（enterprise）",
-};
 // core 恆有、不可取消；其餘為 License 附加模組
-const OPTIONAL_MODULES: { key: string; label: string }[] = [
-  { key: "refinery", label: "知識精煉（refinery）" },
-  { key: "studio", label: "設定工作室（studio）" },
-  { key: "compiler", label: "Onboarding 編譯器（compiler）" },
-];
+const OPTIONAL_MODULES = ["refinery", "studio", "compiler"] as const;
 
 interface License {
   tenant_id: string;
@@ -39,6 +29,8 @@ interface Props {
 }
 
 export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }: Props) {
+  const t = useTranslations("platform.license");
+  const tc = useTranslations("platform.common");
   const [lic, setLic] = useState<License | null>(null);
   const [tier, setTier] = useState<string>("standard");
   const [modules, setModules] = useState<Set<string>>(new Set(["core"]));
@@ -107,7 +99,7 @@ export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }:
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-lg font-bold text-[var(--text-primary)]">
-          License 管理
+          {t("title")}
         </h2>
         <p className="mt-1 text-sm text-[var(--text-secondary)]">{tenantName}</p>
 
@@ -118,42 +110,42 @@ export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }:
         )}
 
         {loading ? (
-          <div className="py-10 text-center text-sm text-[var(--text-secondary)]">載入中…</div>
+          <div className="py-10 text-center text-sm text-[var(--text-secondary)]">{tc("loading")}</div>
         ) : (
           <div className="mt-4 flex flex-col gap-4">
             <label className="flex flex-col gap-1 text-sm">
-              <span className="font-medium text-[var(--text-primary)]">訂閱級距</span>
+              <span className="font-medium text-[var(--text-primary)]">{t("planTier")}</span>
               <select
                 value={tier}
                 onChange={(e) => setTier(e.target.value)}
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2"
               >
                 {PLAN_TIERS.map((p) => (
-                  <option key={p} value={p}>{PLAN_TIER_LABEL[p] ?? p}</option>
+                  <option key={p} value={p}>{t(`plan.${p}`)}</option>
                 ))}
               </select>
             </label>
 
             <div className="flex flex-col gap-2 text-sm">
-              <span className="font-medium text-[var(--text-primary)]">開通模組</span>
+              <span className="font-medium text-[var(--text-primary)]">{t("modules")}</span>
               <label className="flex items-center gap-2 text-[var(--text-secondary)]">
-                <input type="checkbox" checked disabled /> core（核心，恆開通）
+                <input type="checkbox" checked disabled /> {t("coreModule")}
               </label>
               {OPTIONAL_MODULES.map((m) => (
-                <label key={m.key} className="flex items-center gap-2">
+                <label key={m} className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={modules.has(m.key)}
-                    onChange={() => toggle(m.key)}
+                    checked={modules.has(m)}
+                    onChange={() => toggle(m)}
                   />
-                  {m.label}
+                  {t(`module.${m}`)}
                 </label>
               ))}
             </div>
 
             <label className="flex flex-col gap-1 text-sm">
               <span className="font-medium text-[var(--text-primary)]">
-                License 到期日（留空＝無期限）
+                {t("expiresLabel")}
               </span>
               <input
                 type="date"
@@ -162,7 +154,7 @@ export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }:
                 className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2"
               />
               {lic?.is_expired && (
-                <span className="text-xs text-[var(--status-danger)]">目前 License 已過期，僅 core 可用</span>
+                <span className="text-xs text-[var(--status-danger)]">{t("expiredHint")}</span>
               )}
             </label>
           </div>
@@ -175,7 +167,7 @@ export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }:
             disabled={saving}
             className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
           >
-            取消
+            {tc("cancel")}
           </button>
           <button
             type="button"
@@ -183,7 +175,7 @@ export default function LicenseModal({ tenantId, tenantName, onClose, onSaved }:
             disabled={saving || loading}
             className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? "儲存中…" : "儲存"}
+            {saving ? tc("saving") : tc("save")}
           </button>
         </div>
       </div>
