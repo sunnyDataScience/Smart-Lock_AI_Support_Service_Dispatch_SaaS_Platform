@@ -42,6 +42,14 @@ const notoSansTC = Noto_Sans_TC({
 export const metadata: Metadata = {
   title: "SmartLock Admin",
   description: "Smart Lock AI Support & Service Dispatch Platform",
+  // UAT P3：補 favicon（原本瀏覽器 fallback 打 /favicon.ico → 404）；做法對齊 tech-portal
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png", sizes: "32x32" },
+    ],
+    apple: "/apple-touch-icon.svg",
+  },
 };
 
 export default function RootLayout({

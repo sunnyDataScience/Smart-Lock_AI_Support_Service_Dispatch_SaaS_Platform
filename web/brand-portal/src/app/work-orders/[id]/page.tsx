@@ -460,13 +460,18 @@ function ProblemCardSummary({
               <span className="text-[11px] text-[var(--text-secondary)]">
                 {t("field.conversation")}
               </span>
-              <Link
-                href={`/conversations/${card.conversation_id}`}
-                className="font-mono text-[13px] font-semibold text-[var(--primary)] hover:underline"
-                title={card.conversation_id}
-              >
-                {card.conversation_id.slice(0, 8)}
-              </Link>
+              {/* UAT P1-1:手建卡(電話進線)無 LINE 對話 */}
+              {card.conversation_id ? (
+                <Link
+                  href={`/conversations/${card.conversation_id}`}
+                  className="font-mono text-[13px] font-semibold text-[var(--primary)] hover:underline"
+                  title={card.conversation_id}
+                >
+                  {card.conversation_id.slice(0, 8)}
+                </Link>
+              ) : (
+                <span className="text-[13px] text-[var(--text-primary)]">—(客服手建)</span>
+              )}
             </div>
           </div>
 
@@ -651,7 +656,10 @@ const EVENT_TITLE_KEY: Record<TimelineEventKey, string> = {
   lastUpdated: "lastUpdatedTitle",
 };
 
-function buildEvents(order: WorkOrder | null): TimelineEvent[] {
+function buildEvents(
+  order: WorkOrder | null,
+  statusLabel: (status: string) => string,
+): TimelineEvent[] {
   if (!order) return [];
   const list: TimelineEvent[] = [];
 
@@ -703,7 +711,8 @@ function buildEvents(order: WorkOrder | null): TimelineEvent[] {
       badge: "system",
       eventKey: "lastUpdated",
       detailKey: "lastUpdatedDetail",
-      detailParams: { status: order.status },
+      // UAT P2-12：狀態經 status.workOrder 字典翻譯（原直出 inquiring/assigned 原始碼）
+      detailParams: { status: statusLabel(order.status) },
       time: order.updated_at,
     });
   }
@@ -718,7 +727,8 @@ function buildEvents(order: WorkOrder | null): TimelineEvent[] {
 function WorkTimeline({ order }: { order: WorkOrder | null }) {
   const t = useTranslations("pages.workOrderDetail.timeline");
   const tCommon = useTranslations("common");
-  const events = buildEvents(order);
+  const tStatus = useTranslations("status.workOrder");
+  const events = buildEvents(order, (s) => tStatus(s));
   return (
     <div className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-6">
       <div className="flex items-center justify-between">
@@ -1270,6 +1280,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const [actionPending, setActionPending] = useState<ActionPending>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionToast, setActionToast] = useState<string | null>(null);
+  // UAT P1-2：指派回 409 QUOTE_NOT_ACCEPTED（報價同意 gate）→ Modal 內展開強制派工區塊
+  const [assignQuoteGateBlocked, setAssignQuoteGateBlocked] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -1382,6 +1394,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     technicianId: string,
     reasonCode: AssignReasonCode,
     reasonText: string,
+    overrideReason?: string,
   ) => {
     setActionPending("assign");
     setActionError(null);
@@ -1403,15 +1416,25 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           reason_code: reasonCode,
         };
         if (reasonText) body.reason_text = reasonText;
+        // UAT P1-2 急件強制派工：主管帶 override_reason（query param，CR-0095）
+        // 繞過「須有已同意報價」gate；後端僅 admin/ops 生效並留稽核。
         res = await api.post<WorkOrderEnvelope>(
           tenantPath(`/work-orders/${encodeURIComponent(id)}:assign`),
           body,
+          overrideReason && overrideReason.trim()
+            ? { query: { override_reason: overrideReason.trim() } }
+            : undefined,
         );
       }
       setOrder(res.data ?? null);
       setActionMode(null);
+      setAssignQuoteGateBlocked(false);
       setActionToast(tToast("assigned"));
     } catch (e) {
+      // UAT P1-2：報價同意 gate 409 → 保持 Modal 開啟並展開強制派工區塊
+      if (e instanceof ApiError && e.status === 409 && e.errorCode === "QUOTE_NOT_ACCEPTED") {
+        setAssignQuoteGateBlocked(true);
+      }
       setActionError(formatActionError(e));
     } finally {
       setActionPending(null);
@@ -1730,6 +1753,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                   <button
                     onClick={() => {
                       setActionError(null);
+                      setAssignQuoteGateBlocked(false);
                       setActionMode("assign");
                     }}
                     disabled={actionPending !== null}
@@ -1856,7 +1880,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
               </div>
             )}
 
-            {actionError && (
+            {/* UAT P2-7：指派 Modal 開啟時錯誤改在 Modal 內 inline 顯示，避免被遮住 */}
+            {actionError && actionMode !== "assign" && (
               <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
                 {tActions("actionFailed", { error: actionError })}
               </div>
@@ -1940,7 +1965,17 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
           pending={actionPending === "assign"}
           workOrderId={id}
           currentTechnicianId={order?.technician_id ?? null}
-          onCancel={() => setActionMode(null)}
+          error={actionError}
+          quoteGateBlocked={assignQuoteGateBlocked}
+          // 對齊後端 _QUOTE_GATE_OVERRIDE_ROLES（admin / operations_manager）
+          canOverride={["admin", "operations_manager"].includes(
+            getCurrentSession()?.role ?? "",
+          )}
+          onCancel={() => {
+            setActionMode(null);
+            setActionError(null);
+            setAssignQuoteGateBlocked(false);
+          }}
           onSubmit={handleAssign}
         />
       )}
@@ -2118,17 +2153,27 @@ function AssignModal({
   pending,
   workOrderId,
   currentTechnicianId,
+  error,
+  quoteGateBlocked,
+  canOverride,
   onCancel,
   onSubmit,
 }: {
   pending: boolean;
   workOrderId: string;
   currentTechnicianId: string | null;
+  /** UAT P2-7：指派失敗訊息 inline 顯示於 Modal 內（不吐到被遮住的頁面層） */
+  error: string | null;
+  /** UAT P1-2：後端回 409 QUOTE_NOT_ACCEPTED（報價同意 gate）時為 true */
+  quoteGateBlocked: boolean;
+  /** 目前登入角色可否強制派工（admin / operations_manager） */
+  canOverride: boolean;
   onCancel: () => void;
   onSubmit: (
     technicianId: string,
     reasonCode: AssignReasonCode,
     reasonText: string,
+    overrideReason?: string,
   ) => Promise<void>;
 }) {
   const t = useTranslations("pages.workOrderDetail.assignDialog");
@@ -2141,6 +2186,9 @@ function AssignModal({
     "auto_dispatch_exhausted",
   );
   const [reasonText, setReasonText] = useState("");
+  // UAT P1-2：強制派工原因（quote gate 409 後展開；必填才能重送）
+  const [overrideReason, setOverrideReason] = useState("");
+  const showOverride = quoteGateBlocked && canOverride;
 
   useEffect(() => {
     let cancelled = false;
@@ -2311,7 +2359,39 @@ function AssignModal({
               {t("reasonTextCounter", { current: reasonText.trim().length })}
             </span>
           </div>
+
+          {/* UAT P1-2：報價同意 gate 擋下後的急件強制派工區塊（僅主管顯示） */}
+          {showOverride && (
+            <div className="flex flex-col gap-2 rounded-md border border-[#FDBA74] bg-[#FFF7ED] px-3 py-2.5">
+              <span className="text-[12px] font-semibold text-[#9A3412]">
+                {t("override.title")}
+              </span>
+              <p className="text-[11px] leading-[1.6] text-[#9A3412]">
+                {t("override.hint")}
+              </p>
+              <label className="flex flex-col gap-1">
+                <span className="text-[11px] font-medium text-[#9A3412]">
+                  {t("override.reasonLabel")} <span className="text-[var(--error)]">{t("required")}</span>
+                </span>
+                <input
+                  type="text"
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  maxLength={300}
+                  placeholder={t("override.reasonPlaceholder")}
+                  className="rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
+                />
+              </label>
+            </div>
+          )}
         </div>
+
+        {/* UAT P2-7：失敗訊息 inline 顯示在按鈕上方（原本吐到頁面層被 Modal 遮住） */}
+        {error && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+            {error}
+          </div>
+        )}
 
         <div className="mt-5 flex justify-end gap-2">
           <button
@@ -2321,13 +2401,25 @@ function AssignModal({
           >
             {t("cancel")}
           </button>
-          <button
-            onClick={() => onSubmit(selected, reasonCode, reasonText.trim())}
-            disabled={!canSubmit}
-            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {pending ? t("submitting") : t("submit")}
-          </button>
+          {showOverride ? (
+            <button
+              onClick={() =>
+                onSubmit(selected, reasonCode, reasonText.trim(), overrideReason.trim())
+              }
+              disabled={!canSubmit || overrideReason.trim().length < 4}
+              className="rounded-md bg-[#B45309] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending ? t("submitting") : t("override.submit")}
+            </button>
+          ) : (
+            <button
+              onClick={() => onSubmit(selected, reasonCode, reasonText.trim())}
+              disabled={!canSubmit}
+              className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {pending ? t("submitting") : t("submit")}
+            </button>
+          )}
         </div>
       </div>
     </div>

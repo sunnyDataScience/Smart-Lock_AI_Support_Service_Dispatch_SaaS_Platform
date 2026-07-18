@@ -23,7 +23,11 @@ import { ApiError, api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
 
-type ProblemCard = components["schemas"]["ProblemCard"];
+// UAT P2-8：後端 create/get 已收/回 location（服務地址），惟 api.generated 尚未含
+// 該欄位——依 types/api.local.ts 慣例本地擴充（型別 SoT 更新後可移除）。
+type ProblemCard = components["schemas"]["ProblemCard"] & {
+  location?: string | null;
+};
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
 type Urgency = components["schemas"]["Urgency"];
@@ -138,6 +142,9 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const router = useRouter();
   const [card, setCard] = useState<ProblemCard | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // UAT P3：404／無效 id（如誤入 /problem-cards/new）→ 顯示「找不到此問題卡」
+  // 而非通用連線錯誤誤導使用者
+  const [notFound, setNotFound] = useState(false);
   const [loading, setLoading] = useState(true);
   const [actionPending, setActionPending] = useState<
     | "confirm"
@@ -173,8 +180,16 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
 
   useEffect(() => {
     let cancelled = false;
+    // 非 UUID 的路徑段（如 /problem-cards/new）不打 API：後端 ::uuid cast 會炸出
+    // 5xx，friendlyError 會誤導成「連線失敗／系統問題」。直接視為找不到。
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
+    setNotFound(false);
     (async () => {
       try {
         const res = await api.get<ProblemCardEnvelope>(
@@ -183,9 +198,13 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
         if (!cancelled) setCard(res.data ?? null);
       } catch (e) {
         if (cancelled) return;
-        setError(
-          friendlyError(e),
-        );
+        if (e instanceof ApiError && e.status === 404) {
+          setNotFound(true);
+        } else {
+          setError(
+            friendlyError(e),
+          );
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -459,6 +478,27 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     }
   };
 
+  // UAT P3：找不到問題卡（404 / 無效 id，如 /problem-cards/new）→ 專屬空狀態＋返回列表
+  if (notFound) {
+    return (
+      <div className="flex h-full bg-[var(--bg-page)]">
+        <Sidebar />
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 px-8">
+          <span className="text-[20px] font-bold text-[var(--text-primary)]">找不到此問題卡</span>
+          <p className="text-[13px] text-[var(--text-secondary)]">
+            此問題卡不存在或已被刪除，請回列表重新選取。
+          </p>
+          <Link
+            href="/problem-cards"
+            className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90"
+          >
+            ← 返回問題卡片列表
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const canConfirm = card?.status === "draft";
   const canResolve = card?.status === "confirmed";
   const canConvertToWO = card?.status === "confirmed";
@@ -645,7 +685,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
             <div className="flex items-start gap-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
               <Info className="mt-[2px] h-4 w-4 flex-shrink-0 text-[#64748B]" />
               <span className="text-[13px] leading-[1.6] text-[#475569]">
-                FMEA 診斷鏈與解決嘗試歷程為示意（信心診斷引擎未實作，見 _audit 文件）；關聯對話與工單資訊為即時資料。
+                FMEA 診斷鏈與解決嘗試歷程為示意內容（智慧診斷功能尚未啟用）；關聯對話與工單資訊為即時資料。
               </span>
             </div>
 
@@ -821,7 +861,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-[13px] font-medium text-[var(--text-secondary)]">關聯對話</span>
-                  {card ? (
+                  {card?.conversation_id ? (
                     <Link
                       href={`/conversations/${card.conversation_id}`}
                       className="font-mono text-[13px] text-[#2563EB] hover:underline"
@@ -829,8 +869,16 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                       {card.conversation_id.slice(0, 8)}
                     </Link>
                   ) : (
-                    <span className="text-[14px] text-[var(--text-primary)]">—</span>
+                    // UAT P1-1:手建卡(電話進線)無 LINE 對話
+                    <span className="text-[14px] text-[var(--text-primary)]">—(客服手建)</span>
                   )}
+                </div>
+                {/* UAT P2-8：顯示服務地址（location，客服手建卡／後續補登） */}
+                <div className="col-span-2 flex flex-col gap-1">
+                  <span className="text-[13px] font-medium text-[var(--text-secondary)]">服務地址</span>
+                  <span className="text-[14px] font-medium text-[var(--text-primary)]">
+                    {card?.location || "—"}
+                  </span>
                 </div>
               </div>
 
@@ -887,6 +935,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
         <ConvertModal
           pending={actionPending === "convert"}
           error={convertErr}
+          initialAddress={card?.location ?? undefined}
           onCancel={() => {
             setConvertModalOpen(false);
             setConvertErr(null);
@@ -1180,6 +1229,7 @@ const TIER_LABEL: Record<string, { label: string; cls: string }> = {
 function ConvertModal({
   pending,
   error,
+  initialAddress,
   onCancel,
   onSubmit,
 }: {
@@ -1190,6 +1240,8 @@ function ConvertModal({
     incomplete: boolean;
     duplicate: boolean;
   } | null;
+  /** UAT P2-8：問題卡已有服務地址（location）時預填（可改） */
+  initialAddress?: string;
   onCancel: () => void;
   onSubmit: (
     info: {
@@ -1200,7 +1252,7 @@ function ConvertModal({
     overrideReason?: string,
   ) => Promise<void>;
 }) {
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(initialAddress ?? "");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [overrideReason, setOverrideReason] = useState("");

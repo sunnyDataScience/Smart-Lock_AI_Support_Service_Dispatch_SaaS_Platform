@@ -61,6 +61,27 @@ const EMERGENCY_LABEL: Record<string, string> = {
   angry_high_risk: "高風險客訴",
 };
 
+// UAT P2-12：報價品項類別中文化（DB quote_line_items.category 值域 labor/material/other）
+const LINE_CATEGORY_LABEL: Record<string, string> = {
+  labor: "工資",
+  material: "材料",
+  other: "其他",
+};
+
+// UAT P3：報價「已接受但總額 —」——total_amount 只在加/刪明細時重算，急件補審
+// 佔位等路徑可能為 null；有明細價時前端以「明細合計」fallback 顯示。
+function quoteTotalFallback(q: Quote): string | null {
+  if (q.total_amount != null) return q.total_amount;
+  if (q.lines.length === 0) return null;
+  let sum = 0;
+  for (const l of q.lines) {
+    const p = l.customer_price != null ? parseFloat(l.customer_price) : NaN;
+    if (Number.isNaN(p)) return null;
+    sum += p * l.quantity;
+  }
+  return String(sum);
+}
+
 function auditRemainLabel(item: AuditQueueItem): { text: string; danger: boolean } {
   if (!item.audit_due_at) return { text: "未起算（待完工回報）", danger: false };
   const remainMs = new Date(item.audit_due_at).getTime() - Date.now();
@@ -772,7 +793,15 @@ export default function QuotesPage() {
                   {t(`state.${quote.state}`)}
                 </span>
                 <div className="text-sm text-[var(--text-secondary)]">v{quote.version}</div>
-                <div className="ml-auto text-lg font-bold text-[var(--text-primary)]">{price(quote.total_amount)}</div>
+                <div className="ml-auto flex items-baseline gap-2">
+                  {/* UAT P3：total_amount 為 null 時以明細合計 fallback */}
+                  {quote.total_amount == null && quoteTotalFallback(quote) != null && (
+                    <span className="text-[11px] text-[var(--text-disabled)]">依明細合計</span>
+                  )}
+                  <span className="text-lg font-bold text-[var(--text-primary)]">
+                    {price(quoteTotalFallback(quote))}
+                  </span>
+                </div>
               </div>
 
               {/* 加項 */}
@@ -851,7 +880,10 @@ export default function QuotesPage() {
                         return (
                           <tr key={l.id} className="border-t border-[var(--border)]">
                             <td className="px-3 py-2 text-[var(--text-primary)]">{l.item_name}</td>
-                            <td className="px-3 py-2 text-[var(--text-secondary)]">{l.category}</td>
+                            {/* UAT P2-12：labor/material 原始碼 → 中文 */}
+                            <td className="px-3 py-2 text-[var(--text-secondary)]">
+                              {LINE_CATEGORY_LABEL[l.category] ?? l.category}
+                            </td>
                             <td className="px-3 py-2 text-right">{l.quantity}</td>
                             {quote.cost_visible && (
                               <td className="px-3 py-2 text-right font-mono text-[var(--text-disabled)]">{price(l.unit_price)}</td>

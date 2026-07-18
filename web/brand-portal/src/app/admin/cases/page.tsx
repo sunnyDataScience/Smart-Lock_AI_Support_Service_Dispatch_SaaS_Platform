@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Inbox, PhoneCall, Check, AlertTriangle, ListFilter } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Inbox, PhoneCall, Check, AlertTriangle, ChevronDown, ChevronRight, ListFilter } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
@@ -61,6 +61,12 @@ const CHANNEL_FILTERS: { value: string; label: string }[] = [
   { value: "referral", label: "熟客介紹" },
 ];
 
+// ISO 時間 → 本地可讀（展開列明細用）
+function fmtDateTime(iso: string | null): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString("zh-TW", { hour12: false });
+}
+
 // 分鐘數 → 「X 天 / X 小時 Y 分 / Y 分」
 function fmtDuration(mins: number): string {
   if (mins >= 1440) return `${Math.floor(mins / 1440)} 天`;
@@ -95,6 +101,8 @@ export default function IntakeCasesPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterChannel, setFilterChannel] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
+  // UAT P3：進線案件無詳情頁——列可展開顯示完整欄位（不另建路由）
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -337,52 +345,117 @@ export default function IntakeCasesPage() {
                     ) : (
                       visibleItems.map((c) => {
                         const sla = slaInfo(c);
+                        const expanded = expandedId === c.id;
+                        const toggle = () => setExpandedId(expanded ? null : c.id);
                         return (
-                          <tr key={c.id} className="border-t border-[var(--border)]">
-                            <td className="px-4 py-3 font-mono text-[13px] font-medium text-[var(--text-primary)]">
-                              {c.case_number}
-                            </td>
-                            <td className="px-4 py-3 text-[var(--text-secondary)]">
-                              {CHANNEL_LABEL[c.source_channel] ?? c.source_channel}
-                            </td>
-                            <td className="px-4 py-3 text-[var(--text-secondary)]">
-                              {c.customer_name || "—"}
-                              {c.customer_phone ? (
-                                <span className="text-[var(--text-disabled)]"> · {c.customer_phone}</span>
-                              ) : null}
-                            </td>
-                            <td className="px-4 py-3 text-[var(--text-secondary)]">{c.summary || "—"}</td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={`rounded px-2 py-[2px] text-[12px] ${
-                                  STATUS_STYLE[c.status] ?? "border border-gray-200 bg-gray-100 text-gray-500"
-                                }`}
-                              >
-                                {STATUS_LABEL[c.status] ?? c.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`text-[12px] ${sla.cls}`}>{sla.label}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              {c.status === "open" && (
-                                <button
-                                  onClick={() => updateStatus(c.id, "in_progress")}
-                                  className="rounded border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--text-primary)] hover:bg-[#F1F5F9]"
+                          <React.Fragment key={c.id}>
+                            <tr
+                              onClick={toggle}
+                              className="cursor-pointer border-t border-[var(--border)] hover:bg-[#F8FAFC]"
+                            >
+                              <td className="px-4 py-3 font-mono text-[13px] font-medium text-[var(--text-primary)]">
+                                <span className="inline-flex items-center gap-1">
+                                  {/* 鍵盤可達的展開切換（整列點擊為滑鼠捷徑） */}
+                                  <button
+                                    type="button"
+                                    aria-expanded={expanded}
+                                    aria-label={expanded ? "收合案件明細" : "展開案件明細"}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggle();
+                                    }}
+                                    className="rounded p-[2px] text-[var(--text-secondary)] hover:bg-[#F1F5F9]"
+                                  >
+                                    {expanded ? (
+                                      <ChevronDown className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                  {c.case_number}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-[var(--text-secondary)]">
+                                {CHANNEL_LABEL[c.source_channel] ?? c.source_channel}
+                              </td>
+                              <td className="px-4 py-3 text-[var(--text-secondary)]">
+                                {c.customer_name || "—"}
+                                {c.customer_phone ? (
+                                  <span className="text-[var(--text-disabled)]"> · {c.customer_phone}</span>
+                                ) : null}
+                              </td>
+                              <td className="max-w-[280px] truncate px-4 py-3 text-[var(--text-secondary)]">{c.summary || "—"}</td>
+                              <td className="px-4 py-3">
+                                <span
+                                  className={`rounded px-2 py-[2px] text-[12px] ${
+                                    STATUS_STYLE[c.status] ?? "border border-gray-200 bg-gray-100 text-gray-500"
+                                  }`}
                                 >
-                                  標記處理中
-                                </button>
-                              )}
-                              {c.status === "in_progress" && (
-                                <button
-                                  onClick={() => updateStatus(c.id, "closed")}
-                                  className="rounded border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--text-primary)] hover:bg-[#F1F5F9]"
-                                >
-                                  結案
-                                </button>
-                              )}
-                            </td>
-                          </tr>
+                                  {STATUS_LABEL[c.status] ?? c.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`text-[12px] ${sla.cls}`}>{sla.label}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                {c.status === "open" && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateStatus(c.id, "in_progress");
+                                    }}
+                                    className="rounded border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--text-primary)] hover:bg-[#F1F5F9]"
+                                  >
+                                    標記處理中
+                                  </button>
+                                )}
+                                {c.status === "in_progress" && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      updateStatus(c.id, "closed");
+                                    }}
+                                    className="rounded border border-[var(--border)] px-2 py-1 text-[12px] text-[var(--text-primary)] hover:bg-[#F1F5F9]"
+                                  >
+                                    結案
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                            {/* UAT P3：展開列——完整欄位（建立時間/摘要/客戶/SLA 時間） */}
+                            {expanded && (
+                              <tr className="border-t border-dashed border-[var(--border)] bg-[#F8FAFC]">
+                                <td colSpan={7} className="px-6 py-4">
+                                  <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-[13px] md:grid-cols-2 lg:grid-cols-3">
+                                    <DetailItem label="案號" value={c.case_number} mono />
+                                    <DetailItem
+                                      label="進線渠道"
+                                      value={CHANNEL_LABEL[c.source_channel] ?? c.source_channel}
+                                    />
+                                    <DetailItem label="建立時間" value={fmtDateTime(c.created_at)} />
+                                    <DetailItem label="客戶姓名" value={c.customer_name || "—"} />
+                                    <DetailItem label="客戶電話" value={c.customer_phone || "—"} />
+                                    <DetailItem
+                                      label="狀態"
+                                      value={STATUS_LABEL[c.status] ?? c.status}
+                                    />
+                                    <DetailItem
+                                      label="首次回應期限"
+                                      value={fmtDateTime(c.first_response_due_at)}
+                                    />
+                                    <DetailItem
+                                      label="首次回應時間"
+                                      value={fmtDateTime(c.first_responded_at)}
+                                    />
+                                    <DetailItem label="SLA" value={sla.label} />
+                                    <div className="md:col-span-2 lg:col-span-3">
+                                      <DetailItem label="需求摘要" value={c.summary || "—"} />
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                         );
                       })
                     )}
@@ -402,6 +475,18 @@ const INPUT =
 
 const FILTER_INPUT =
   "rounded-md border border-[var(--border)] px-3 py-[7px] text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none";
+
+// UAT P3：展開列的「標籤：值」明細項
+function DetailItem({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex gap-2">
+      <span className="shrink-0 text-[var(--text-disabled)]">{label}：</span>
+      <span className={`text-[var(--text-primary)] ${mono ? "font-mono text-[12px]" : ""}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
 
 function Field({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (

@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
+import { statusGroupOf } from "@/components/work-orders/WorkOrdersTable";
 import { api, resolveTenantId } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
@@ -75,7 +76,9 @@ export default function CustomerDetailPage({
 }) {
   const { id } = use(params);
   const t = useTranslations("admin.customers.detail");
-  const tStatus = useTranslations("admin.customers.detail.status");
+  // UAT P2-10：工單狀態 label 與派工管理統一 —— 共用 statusGroupOf +
+  // status.workOrderGroup 字典（原本本頁自建 待派工/已確認 等字典，兩處不一致）
+  const tGroup = useTranslations("status.workOrderGroup");
   const tKpi = useTranslations("admin.customers.detail.kpi");
   const tCols = useTranslations("admin.customers.detail.ordersCols");
   const tConvStatus = useTranslations("admin.customers.detail.convStatus");
@@ -85,18 +88,7 @@ export default function CustomerDetailPage({
     if (!iso) return "—";
     return new Date(iso).toLocaleString(locale, { hour12: false });
   };
-  const statusLabel = (status: string): string => {
-    const known: Record<string, string> = {
-      created: tStatus("created"),
-      assigned: tStatus("assigned"),
-      accepted: tStatus("accepted"),
-      in_progress: tStatus("in_progress"),
-      completed: tStatus("completed"),
-      confirmed: tStatus("confirmed"),
-      cancelled: tStatus("cancelled"),
-    };
-    return known[status] ?? status;
-  };
+  const statusLabel = (status: string): string => tGroup(statusGroupOf(status));
   // 對話 status / channel label（i18n；未知值回退原始值）。
   const convStatusLabel = (s: string): string => {
     const known: Record<string, string> = {
@@ -332,14 +324,21 @@ export default function CustomerDetailPage({
                       {t("statusBreakdown")}
                     </h3>
                     <div className="flex flex-wrap gap-2">
+                      {/* UAT P2-10：原始狀態先折成派工管理的狀態群組再加總，
+                          避免同群組（如 completed/confirmed）拆成兩顆同名籤 */}
                       {Object.entries(
-                        data.history.work_order_status_breakdown,
-                      ).map(([status, count]) => (
+                        Object.entries(
+                          data.history.work_order_status_breakdown,
+                        ).reduce<Record<string, number>>((acc, [status, count]) => {
+                          const label = statusLabel(status);
+                          return { ...acc, [label]: (acc[label] ?? 0) + count };
+                        }, {}),
+                      ).map(([label, count]) => (
                         <span
-                          key={status}
+                          key={label}
                           className="rounded-md bg-[#F1F5F9] px-3 py-1 text-[12px] text-[var(--text-secondary)]"
                         >
-                          {t("statusValue", { label: statusLabel(status) })}
+                          {t("statusValue", { label })}
                           <strong className="text-[var(--text-primary)]">
                             {count}
                           </strong>

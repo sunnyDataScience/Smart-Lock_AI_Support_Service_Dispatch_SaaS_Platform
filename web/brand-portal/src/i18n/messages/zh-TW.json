@@ -515,7 +515,27 @@
       "searchPlaceholder": "搜尋功能即將推出",
       "loadFailed": "載入問題卡失敗：{error}",
       "loadingMore": "載入中…",
-      "loadMore": "載入更多"
+      "loadMore": "載入更多",
+      "createButton": "新增問題卡",
+      "createModal": {
+        "title": "新增問題卡",
+        "hint": "客服手建問題卡（電話等非 LINE 進線）。建立後狀態為「待確認」，可再編輯、報價或轉工單。",
+        "customerName": "客戶姓名",
+        "customerPhone": "聯絡電話",
+        "brand": "品牌",
+        "brandPlaceholder": "選擇或直接輸入品牌",
+        "model": "型號",
+        "modelPlaceholder": "例：YDM-4109",
+        "symptom": "症狀描述",
+        "symptomPlaceholder": "例：電池電量低、無法解鎖（多項以「、」分隔）",
+        "urgency": "緊急度",
+        "location": "服務地址",
+        "locationPlaceholder": "例：台北市中山區民生東路 100 號",
+        "cancel": "取消",
+        "submit": "確認建立",
+        "submitting": "建立中…",
+        "created": "問題卡已建立"
+      }
     },
     "workOrders": {
       "breadcrumb": "首頁 > 工單管理 > 工單列表",
@@ -950,7 +970,14 @@
         "reasonTextCounter": "{current} / 500",
         "cancel": "取消",
         "submit": "確認指派",
-        "submitting": "送出中…"
+        "submitting": "送出中…",
+        "override": {
+          "title": "強制派工（急件）",
+          "hint": "此工單尚無客戶已同意的報價，一般情況須先完成報價確認。急件可由主管填寫原因強制派工，操作將留存稽核紀錄。",
+          "reasonLabel": "強制派工原因",
+          "reasonPlaceholder": "例：客戶受困門外急修，報價事後補確認",
+          "submit": "強制派工"
+        }
       },
       "cancelDialog": {
         "title": "取消工單",
@@ -1996,15 +2023,6 @@
         },
         "recentConversations": "最近對話（{count}）",
         "noConversations": "尚無對話紀錄",
-        "status": {
-          "created": "待派工",
-          "assigned": "已指派",
-          "accepted": "已接單",
-          "in_progress": "作業中",
-          "completed": "已完工",
-          "confirmed": "已確認",
-          "cancelled": "已取消"
-        },
         "convStatus": {
           "active": "進行中",
           "escalated": "已升級",
@@ -2063,7 +2081,7 @@
       "copyLink": "複製連結",
       "getLink": "取得連結",
       "snapshot": "快照雜湊",
-      "note": "此頁為示意資料，報價金額僅供參考。",
+      "note": "報價金額以送出並經客戶確認的版本為準。",
       "state": {
         "draft": "草稿",
         "pending_approval": "待審核",
@@ -2732,7 +2750,7 @@
     "admin": {
       "quoteCatalog": {
         "title": "報價主檔",
-        "mockBadge": "mock（待業主覆核正式價）",
+        "mockBadge": "示意資料（待確認正式價）",
         "loading": "載入中…",
         "services": "服務項目（{n}）",
         "materials": "材料（{n}）",
@@ -2748,7 +2766,7 @@
       },
       "quotes": {
         "title": "報價單",
-        "mockBadge": "mock（金額待業主覆核正式價）",
+        "mockBadge": "示意資料（金額待確認正式價）",
         "woId": "工單 ID",
         "createDraft": "建立報價草稿",
         "quoteId": "報價單號",
@@ -2768,7 +2786,7 @@
         "copyLink": "複製連結",
         "copied": "已複製",
         "snapshot": "凍結快照",
-        "note": "金額來自 mock 主檔；核准門檻、訂金、稅務等正式值待業主確認（esales Q-01~Q-12）。",
+        "note": "金額為示意值；核准門檻、訂金、稅務等正式值待業主確認後更新。",
         "state": {
           "draft": "草稿",
           "pending_approval": "待核准",
@@ -3385,7 +3403,7 @@
         "statusTitle": "狀態",
         "loading": "載入中…",
         "status": {
-          "draft": "草稿",
+          "draft": "待確認",
           "confirmed": "已確認",
           "resolved": "已解決"
         },
@@ -3418,7 +3436,7 @@
         },
         "lastUpdated": "最後更新：{time}",
         "subtitle": "管理依品牌、鎖型、難度的基礎報價",
-        "intro": "列表為 listPricingRules 即時資料（已過濾停用規則），可即時新增與編輯。",
+        "intro": "列表為即時報價規則資料（已過濾停用規則），可即時新增與編輯。",
         "calc": "試算報價",
         "create": "新增規則",
         "cols": {
