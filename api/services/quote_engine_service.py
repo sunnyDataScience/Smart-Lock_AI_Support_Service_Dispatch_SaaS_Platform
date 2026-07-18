@@ -120,8 +120,12 @@ async def create_quote(
             raise ApiError("NOT_FOUND", "work order not found", 404)
         pc_id = str(pc[0])
     else:
+        # UAT-0718 P1-B：手建卡（conversation_id=NULL）走 LEFT JOIN——原 INNER JOIN
+        # conversations 把手建卡剔除 → 建報價恆 404，非急件手建卡永遠過不了報價 gate。
+        # tenant guard 同上輪 26 檔同型修法：COALESCE(pc.tenant_id, u.tenant_id)。
         exists = await (await conn.execute(
-            "SELECT 1 FROM problem_cards pc JOIN conversations c ON pc.conversation_id = c.id "
+            "SELECT 1 FROM problem_cards pc "
+            "LEFT JOIN conversations c ON pc.conversation_id = c.id "
             "LEFT JOIN users u ON c.user_id = u.id "
             "WHERE pc.id = %s::uuid AND COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid",
             (problem_card_id, tenant_id),

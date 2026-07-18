@@ -472,6 +472,11 @@ from realtime.ws_hub import hub, verify_ws_token, authorize_channel, WSAuthError
 _ADMIN_ROLES = {"admin", "operations_manager"}  # SA-01：死角色移除
 _ADMIN_OR_FINANCE = {"admin", "operations_manager", "accountant"}
 _ADMIN_OR_SUPPORT = {"admin", "operations_manager", "support_agent"}
+# UAT-0718 W5-8：SLA 告警頻道白名單放行 customer_service / dispatcher——
+# 儀表板（require_tenant 即可讀）含 SLA 元素、cs 首響 SLA／dispatcher 到場 SLA
+# 皆其職能所轄；原白名單只有 admin/ops → cs 登入即 403 無限重連 console 噪音。
+# 前端依此白名單決定開 WS：admin / operations_manager / dispatcher / customer_service。
+_SLA_ALERT_ROLES = {"admin", "operations_manager", "dispatcher", "customer_service"}
 
 
 async def _ws_authorized_subscribe(
@@ -569,7 +574,7 @@ async def ws_sla_alerts(
         "/realtime/sla-alerts",
         access_token,
         tenant_id,
-        allowed_roles=_ADMIN_ROLES,
+        allowed_roles=_SLA_ALERT_ROLES,
     )
 
 

@@ -42,6 +42,9 @@ class PushBody(BaseModel):
     body: str
     data: dict | None = None
     channels: list[str] | None = None
+    # UAT-0718 W5-3（已釘契約）：可點跳轉關聯，如
+    # {"type":"work_order","id":"<uuid>","url":"/work-orders/<uuid>"}
+    related_entity: dict | None = None
 
 
 @router.get(

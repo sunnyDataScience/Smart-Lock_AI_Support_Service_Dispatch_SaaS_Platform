@@ -103,6 +103,9 @@ async def generate_monthly_batch(
     else:
         period_end = datetime(period_year, period_month + 1, 1, tzinfo=timezone.utc)
 
+    # UAT-0718 W1-1：去重改「任何 settlement 引用該 reconciliation 即排除」——
+    # 原條件只排 monthly_batch_id IS NOT NULL，v2 co-sign 建的結算該欄為 NULL，
+    # 月結會對同一對帳單再建第二筆 settlement（金額翻倍、重複撥款風險）。
     cur = await db_module._conn.execute(
         "SELECT r.id, r.technician_id, r.technician_payout "
         "FROM saas.reconciliation r "
@@ -111,7 +114,7 @@ async def generate_monthly_batch(
         "  AND r.approved_at >= %s AND r.approved_at < %s "
         "  AND NOT EXISTS ("
         "    SELECT 1 FROM saas.settlement s "
-        "    WHERE s.reconciliation_id = r.id AND s.monthly_batch_id IS NOT NULL"
+        "    WHERE s.reconciliation_id = r.id"
         "  )",
         (tenant_id, period_start.isoformat(), period_end.isoformat()),
     )

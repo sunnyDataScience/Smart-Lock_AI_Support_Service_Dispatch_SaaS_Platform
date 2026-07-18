@@ -233,11 +233,14 @@ def apply_goodwill(customer_fee: float, travel_fee: float, *, goodwill_waiver: b
 # DB 編排
 # ─────────────────────────────────────────────────────────────────────────────
 
+# UAT-0718 P1-B 補刀：手建卡工單（pc.conversation_id=NULL）原 INNER JOIN 被剔除
+# → 取消工單恆 404。LEFT 化 + tenant guard COALESCE(pc.tenant_id, u.tenant_id)
+# （同上輪 26 檔同型修法）。
 _WO_JOIN = (
     "FROM work_orders wo "
     "JOIN problem_cards pc ON pc.id = wo.problem_card_id "
-    "JOIN conversations c ON c.id = pc.conversation_id "
-    "JOIN users u ON u.id = c.user_id"
+    "LEFT JOIN conversations c ON c.id = pc.conversation_id "
+    "LEFT JOIN users u ON u.id = c.user_id"
 )
 
 
@@ -246,7 +249,7 @@ async def _fetch_wo_for_cancel(wo_id: str, tenant_id: str) -> dict:
     cur = await db_module._conn.execute(
         "SELECT wo.status, wo.final_price, wo.estimated_price, wo.technician_id "
         f"{_WO_JOIN} "
-        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "WHERE wo.id = %s::uuid AND COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid",
         (wo_id, tenant_id),
     )
     row = await cur.fetchone()

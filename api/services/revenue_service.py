@@ -48,8 +48,12 @@ _GRANULARITY_SPEC: dict[str, tuple[str, str, str]] = {
 
 # DB status 中視為已開立計入營收的值
 _REVENUE_STATUSES = ("issued", "paid")
-# DB status 中視為未收帳款的值
-_OUTSTANDING_STATUSES = ("draft",)
+# DB status 中視為未收帳款的值。
+# UAT-0718 W1-3 口徑修正：未收帳款＝「尚未收到的錢」＝ draft（未請款）+
+# issued（已開立但未付款）。原只算 draft → 已開立未付的發票憑空消失，
+# 出現「本月營收 >0、付款成功率 0%、未收帳款 NT$0」同頁矛盾。
+# paid 已收、cancelled 作廢，皆不計入。
+_OUTSTANDING_STATUSES = ("draft", "issued")
 
 
 def _coerce_decimal(amount) -> str:
@@ -120,8 +124,8 @@ async def _query_kpis(
                 COALESCE(AVG(i.amount) FILTER (WHERE i.status IN ('issued','paid')), 0) AS avg_amount,
                 COUNT(*) FILTER (WHERE i.status = 'paid') AS paid_count,
                 COUNT(*) FILTER (WHERE i.status IN ('issued','paid','cancelled')) AS issued_or_done,
-                COALESCE(SUM(i.amount) FILTER (WHERE i.status = 'draft'), 0) AS outstanding_amount,
-                COUNT(*) FILTER (WHERE i.status = 'draft') AS outstanding_count
+                COALESCE(SUM(i.amount) FILTER (WHERE i.status IN ('draft','issued')), 0) AS outstanding_amount,
+                COUNT(*) FILTER (WHERE i.status IN ('draft','issued')) AS outstanding_count
             {_TENANT_JOIN}
             WHERE u.tenant_id = %s::uuid
               AND {_date_range_clause()}
@@ -139,8 +143,8 @@ async def _query_kpis(
                 COALESCE(AVG(i.amount) FILTER (WHERE i.status IN ('issued','paid')), 0) AS avg_amount,
                 COUNT(*) FILTER (WHERE i.status = 'paid') AS paid_count,
                 COUNT(*) FILTER (WHERE i.status IN ('issued','paid','cancelled')) AS issued_or_done,
-                COALESCE(SUM(i.amount) FILTER (WHERE i.status = 'draft'), 0) AS outstanding_amount,
-                COUNT(*) FILTER (WHERE i.status = 'draft') AS outstanding_count
+                COALESCE(SUM(i.amount) FILTER (WHERE i.status IN ('draft','issued')), 0) AS outstanding_amount,
+                COUNT(*) FILTER (WHERE i.status IN ('draft','issued')) AS outstanding_count
             {_TENANT_JOIN}
             WHERE u.tenant_id = %s::uuid
         """

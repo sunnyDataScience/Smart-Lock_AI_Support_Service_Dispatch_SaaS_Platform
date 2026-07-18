@@ -24,7 +24,9 @@
    - `work_order_state`（spec 欄位名，對應 legacy 的 `status`）
    - `eta_minutes`（None 時省略）
    - `technician_display_name`（mask 後的技師名，遮至「李師傅」）
-   - `last_update_at`（從 scheduled_at 或 completed_at 推算）
+   - `last_update_at`（真實更新時間：completed_at → 最新事件 → updated_at；
+     UAT-0718 W2-4 修正——不再拿未來的 scheduled_at 充數）
+   - `scheduled_at`（獨立預約時間欄位，ISO，可 null；UAT-0718 W2-4 加法欄位）
 
 舊路徑 `GET /api/v1/public/work-orders/{token}/status`（routers/public.py）不動，
 由 DeprecationMiddleware 自動加 Deprecation header（D3 雙掛過渡）。
@@ -100,14 +102,22 @@ async def get_consumer_work_order(
     if record is None:
         raise ApiError("NOT_FOUND", "work order not found", 404)
 
-    # 決定 last_update_at：已完工用 completed_at，否則用 scheduled_at，再 fallback 空字串
-    last_update_at = record.get("completed_at") or record.get("scheduled_at") or ""
+    # UAT-0718 W2-4（已釘契約）：last_update_at ＝真實更新時間
+    # （completed_at → 最新事件時間 → updated_at），絕不用未來的 scheduled_at
+    # 充數；scheduled_at 另立獨立欄位（ISO，可 null）供前端顯示預約時間。
+    last_update_at = (
+        record.get("completed_at")
+        or record.get("last_event_at")
+        or record.get("updated_at")
+        or ""
+    )
 
     return {
         "work_order_state": record["public_status"],
         "eta_minutes": None,  # ETA 由即時追蹤系統提供（本階段留 None）
         "technician_display_name": mask_technician_name(record["technician_name"]),
         "last_update_at": last_update_at,
+        "scheduled_at": record.get("scheduled_at"),
     }
 
 

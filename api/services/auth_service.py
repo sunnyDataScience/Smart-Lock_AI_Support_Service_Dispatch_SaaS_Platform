@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import math
 import re
 import secrets
 import uuid
@@ -120,21 +121,31 @@ async def _users_write_conn(role: str | None):
     return db_module._conn
 
 
-async def _register_login_failure(user_id: str, role: str | None = None) -> None:
-    """登入失敗 +1；達上限則設 locked_until 並把計數歸零（CASE 用 UPDATE 前舊值）。"""
+async def _register_login_failure(user_id: str, role: str | None = None) -> int:
+    """登入失敗 +1；達上限則設 locked_until 並把計數歸零（CASE 用 UPDATE 前舊值）。
+
+    回傳剩餘鎖定分鐘數（0 = 本次未觸發鎖定）。UAT-0718 W4-6（已釘契約）：
+    觸發鎖定的那一次也回 403 ACCOUNT_LOCKED——呼叫端據回傳值決定回應。
+    """
     max_attempts, lockout_minutes = _lockout_cfg()
     conn = await _users_write_conn(role)
-    await conn.execute(
+    cur = await conn.execute(
         "UPDATE users SET "
         "  failed_login_attempts = CASE WHEN failed_login_attempts + 1 >= %s "
         "                               THEN 0 ELSE failed_login_attempts + 1 END, "
         "  locked_until = CASE WHEN failed_login_attempts + 1 >= %s "
         "                      THEN NOW() + make_interval(mins => %s) ELSE locked_until END "
-        "WHERE id = %s::uuid",
+        "WHERE id = %s::uuid "
+        "RETURNING locked_until",
         (max_attempts, max_attempts, lockout_minutes, user_id),
     )
+    row = await cur.fetchone()
     if role == "technician":
         await mirror_rows("users", [user_id])
+    locked_until = row[0] if row else None
+    if locked_until and locked_until > datetime.now(timezone.utc):
+        return _remaining_lock_minutes(locked_until)
+    return 0
 
 
 async def _reset_login_failures(user_id: str, role: str | None = None) -> None:
@@ -148,20 +159,37 @@ async def _reset_login_failures(user_id: str, role: str | None = None) -> None:
         await mirror_rows("users", [user_id])
 
 
-_LOCKED_MSG = "帳號因連續登入失敗已暫時鎖定，請稍後再試或聯絡管理員"
+# UAT-0718 W4-6（已釘契約）：登入撞鎖定（含鎖定期輸入正確密碼）→ 403
+# ACCOUNT_LOCKED 含剩餘分鐘；觸發鎖定的那一次也回這個。鎖定前（1-4 次）
+# 維持通用「帳號或密碼錯誤」——刻意不洩剩餘次數（枚舉/爆破安全取捨）。
+
+
+def _remaining_lock_minutes(locked_until: datetime) -> int:
+    """剩餘鎖定分鐘（無條件進位；至少 1 分鐘，避免顯示「0 分鐘後再試」）。"""
+    delta = (locked_until - datetime.now(timezone.utc)).total_seconds()
+    return max(1, math.ceil(delta / 60))
+
+
+def _locked_error(minutes: int) -> ApiError:
+    return ApiError("ACCOUNT_LOCKED", f"帳號已鎖定，請於 {minutes} 分鐘後再試", 403)
+
+
+_GENERIC_LOGIN_FAIL = "帳號或密碼錯誤"
 
 
 async def login(email: str, password: str, *, allowed_roles: list[str]) -> dict:
     user = await _find_user_by_email(email, allowed_roles)
     if not user:
-        raise ApiError("UNAUTHENTICATED", "Invalid email or password", 401)
+        raise ApiError("UNAUTHENTICATED", _GENERIC_LOGIN_FAIL, 401)
     if not user["is_active"]:
         raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
     if _is_locked(user):
-        raise ApiError("LOGIN_LOCKED", _LOCKED_MSG, 429)
+        raise _locked_error(_remaining_lock_minutes(user["locked_until"]))
     if not user["password_hash"] or not verify_password(password, user["password_hash"]):
-        await _register_login_failure(user["id"], user["role"])
-        raise ApiError("UNAUTHENTICATED", "Invalid email or password", 401)
+        locked_minutes = await _register_login_failure(user["id"], user["role"])
+        if locked_minutes:
+            raise _locked_error(locked_minutes)
+        raise ApiError("UNAUTHENTICATED", _GENERIC_LOGIN_FAIL, 401)
 
     await _reset_login_failures(user["id"], user["role"])
     return _build_login_payload(
@@ -227,17 +255,19 @@ async def login_with_identifier(
         user = await _find_user_by_email(ident, allowed_roles)
 
     if not user:
-        raise ApiError("UNAUTHENTICATED", "Invalid credentials", 401)
+        raise ApiError("UNAUTHENTICATED", _GENERIC_LOGIN_FAIL, 401)
     if not user["is_active"]:
         if user.get("role") == "technician":
             code, msg = await _technician_disabled_reason(user["id"])
             raise ApiError(code, msg, 403)
         raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
     if _is_locked(user):
-        raise ApiError("LOGIN_LOCKED", _LOCKED_MSG, 429)
+        raise _locked_error(_remaining_lock_minutes(user["locked_until"]))
     if not user["password_hash"] or not verify_password(password, user["password_hash"]):
-        await _register_login_failure(user["id"], user["role"])
-        raise ApiError("UNAUTHENTICATED", "Invalid credentials", 401)
+        locked_minutes = await _register_login_failure(user["id"], user["role"])
+        if locked_minutes:
+            raise _locked_error(locked_minutes)
+        raise ApiError("UNAUTHENTICATED", _GENERIC_LOGIN_FAIL, 401)
 
     await _reset_login_failures(user["id"], user["role"])
     return _build_login_payload(
@@ -250,13 +280,23 @@ async def login_with_identifier(
 async def _technician_disabled_reason(user_id: str) -> tuple[str, str]:
     """被停用技師帳號的精確拒登原因（依 technicians.status 區分訊息）。
 
-    查無 technicians 列 → fail-open 回一般 ACCOUNT_DISABLED（不洩漏內部狀態）。
+    UAT-0718 W4-3：改讀**權威庫** technicians.status（require_tech_conn，同
+    CR-0164 登入 lookup 路由）——原讀品牌投影，登入擋在權威庫、原因讀投影，
+    兩源分岔時停權帳號被誤報「待核准」（張冠李戴）。兩源合一後不再分岔。
+
+    查無 technicians 列 / 讀取失敗 → fail-open 回一般 ACCOUNT_DISABLED
+    （不洩漏內部狀態；此處僅決定訊息文案，登入本體已被 is_active 擋下）。
     """
-    cur = await db_module._conn.execute(
-        "SELECT status FROM technicians WHERE user_id = %s::uuid",
-        (user_id,),
-    )
-    row = await cur.fetchone()
+    try:
+        conn = await db_module.require_tech_conn()
+        cur = await conn.execute(
+            "SELECT status FROM technicians WHERE user_id = %s::uuid",
+            (user_id,),
+        )
+        row = await cur.fetchone()
+    except Exception:  # noqa: BLE001 — 文案降級不影響拒登結果
+        logger.warning("查詢技師停用原因失敗（回一般 ACCOUNT_DISABLED）", exc_info=True)
+        row = None
     status = row[0] if row else None
     if status == "pending_approval":
         return "ACCOUNT_PENDING_APPROVAL", "帳號待核准，請等候平台審核通過後再登入"
@@ -280,7 +320,8 @@ async def refresh(refresh_token: str) -> dict:
 
     # A2/A3：refresh 也重查使用者狀態（停權即時失效 + 改密碼後撤 session），
     # 否則被停用/改密碼後仍能用舊 refresh 換新 access 達 30 天。fail-open（查無回 None）。
-    state = await load_user_security_state(payload["sub"])
+    # UAT-0718 R2：帶 role 讓 technician 於雙庫模式路由到權威庫（fail-closed）。
+    state = await load_user_security_state(payload["sub"], payload.get("role"))
     if state is not None:
         if not state["is_active"]:
             raise ApiError("ACCOUNT_DISABLED", "Account is disabled", 403)
@@ -570,21 +611,30 @@ async def register_technician(req: dict) -> dict:
                 ),
             )
         # CR-0115 Tier 1：自填證照落既有 technician_certification 表
+        cert_ids: list[str] = []
         for cert in certifications:
-            await conn.execute(
+            ccur = await conn.execute(
                 "INSERT INTO technician_certification (tenant_id, technician_id, cert_name, "
                 "brand, obtained_at, expires_at, is_mock) "
-                "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, FALSE)",
+                "VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, FALSE) "
+                "RETURNING id",
                 (
                     tenant_id, technician_id, cert["cert_name"], cert.get("brand"),
                     cert.get("obtained_at") or None, cert.get("expires_at") or None,
                 ),
             )
+            crow = await ccur.fetchone()
+            if crow:
+                cert_ids.append(str(crow[0]))
 
     # 投影鏡射（順序 users → technicians，投影側 FK technicians→users）
     # 注意：technician_kyc 敏感 PII **不鏡射**到品牌庫（§8-1 最小揭露）。
     await mirror_rows("users", [user_id])
     await mirror_rows("technicians", [technician_id])
+    # UAT-0718 W3-3：自填證照同步鏡射品牌庫投影（表在 tech_mirror 白名單）——
+    # 原本只落權威庫，平台/品牌審核頁「技能認證矩陣」讀投影恆空，審核者看不到證照。
+    if cert_ids:
+        await mirror_rows("technician_certification", cert_ids)
 
     # CR-0115 §8-2a：簽發兩階段文件上傳 token（Tier 3；明文僅出現在本 response，
     # 落庫只存 SHA-256）。fail-soft：migration 090 未套的異質部署註冊仍成功、僅少 token。

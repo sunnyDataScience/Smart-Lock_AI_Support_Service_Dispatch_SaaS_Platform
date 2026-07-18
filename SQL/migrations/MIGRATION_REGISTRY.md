@@ -131,5 +131,9 @@
 
 | 106 | `106-skill-revisions.sql` | CR-0167 S1 | 🟢 idempotent（全 CREATE TABLE/INDEX IF NOT EXISTS，scratch 5490 驗證 2026-07-12） | skill 熱更新版控：saas.skill_revision（版本快照 append-only，files jsonb={rel_path:content}）＋saas.skill_bundle（published_stamp，SkillSync 輪詢對象）＋saas.skill_audit_log。partial unique index uq_skill_revision_published 保證至多一個 published/(tenant,skill)。品牌庫 only（dispatch surface） |
 
+| 107 | `107-reconciliation-reject.sql` | UAT-0718 W1-2 | 🟢 idempotent（ADD COLUMN IF NOT EXISTS，scratch 5490 驗證 2026-07-18） | 對帳駁回（已釘契約 POST /accounting/reconciliations/{id}:reject）：public.reconciliations 加 rejected_by/rejected_at/reject_reason 三審計欄（nullable）。status 為 VARCHAR 無 CHECK，'rejected' 免放行 constraint |
+
+| 108 | `108-intake-case-links.sql` | UAT-0718 W5-4 | 🟢 idempotent（ADD COLUMN/CREATE INDEX IF NOT EXISTS，scratch 5490 驗證 2026-07-18） | 進線案件去孤島：saas.intake_case 加 conversation_id/problem_card_id/work_order_id 三 nullable uuid 弱關聯欄（無 FK）＋conversation 反查 partial index。LINE 自動建案回填 conversation_id+problem_card_id；手動建案可 NULL |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

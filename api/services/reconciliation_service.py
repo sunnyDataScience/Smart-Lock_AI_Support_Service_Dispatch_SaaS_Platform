@@ -33,7 +33,9 @@ from core.pagination import decode_cursor, encode_cursor
 logger = logging.getLogger("api.reconciliation_service")
 
 
-_VALID_STATUS = {"pending", "approved", "disputed"}
+# UAT-0718 W1-2：補 rejected（駁回/退回）——原本對帳只有核准單一動作，
+# 「爭議中」篩選也無任何產生入口。
+_VALID_STATUS = {"pending", "approved", "disputed", "rejected"}
 
 
 def _coerce_decimal(amount) -> str:
@@ -60,13 +62,21 @@ def _row_to_dict(row: tuple) -> dict:
     }
     if row[12]:
         out["technician_name"] = row[12]
+    # UAT-0718 W1-2：駁回審計欄位（migration 107；駁回前皆 NULL 不輸出）
+    if row[13]:
+        out["rejected_by"] = str(row[13])
+    if row[14]:
+        out["rejected_at"] = row[14].isoformat()
+    if row[15]:
+        out["reject_reason"] = row[15]
     return out
 
 
 _SELECT = (
     "r.id, r.technician_id, r.period_start, r.period_end, r.total_orders, "
     "r.total_revenue, r.platform_fee, r.technician_payout, r.status, "
-    "r.approved_by, r.approved_at, r.created_at, t.name"
+    "r.approved_by, r.approved_at, r.created_at, t.name, "
+    "r.rejected_by, r.rejected_at, r.reject_reason"
 )
 
 _JOIN = (
@@ -218,6 +228,7 @@ async def approve_reconciliation(
 
     # CR-0166 R4：dual-write commission.accrued 事件（ADR-017：品牌 Billing 算佣金→
     # 發事件→技師平台 Settlement 訂閱做跨品牌對帳）。fail-soft；settlement 表為保底。
+    # （reject_reconciliation 見文末——駁回不建 settlement、不發事件）
     try:
         from core.event_bus import TOPIC_COMMISSION_ACCRUED, publish_event
         await publish_event(
@@ -237,3 +248,61 @@ async def approve_reconciliation(
         logger.exception("event publish commission.accrued failed (non-fatal)")
 
     return {"reconciliation": reconciliation, "settlement": settlement}
+
+
+_REJECT_FROM = {"pending"}
+
+
+async def reject_reconciliation(
+    *,
+    tenant_id: str,
+    recon_id: str,
+    rejecter_user_id: str,
+    reason: str,
+) -> dict:
+    """pending → rejected（UAT-0718 W1-2 已釘契約）。
+
+    - reason 必填（strip 後 ≥3 字）→ 否則 422 VALIDATION_ERROR
+    - 僅 pending 可駁；其他狀態 → 409 STATE_CONFLICT（語意同 approve）
+    - 寫審計欄位 rejected_by / rejected_at / reject_reason（migration 107）
+    - 不建 settlement、不發 commission 事件（駁回＝不進入結算）
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    reason_clean = (reason or "").strip()
+    if len(reason_clean) < 3:
+        raise ApiError("VALIDATION_ERROR", "駁回原因必填（至少 3 字）", 422)
+
+    cur = await db_module._conn.execute(
+        f"SELECT r.status {_JOIN} "
+        f"WHERE r.id = %s::uuid AND t.tenant_id = %s::uuid",
+        (recon_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", f"Reconciliation {recon_id} not found", 404)
+
+    current_status = row[0]
+    if current_status not in _REJECT_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot reject reconciliation in status '{current_status}'; expected 'pending'",
+            409,
+        )
+
+    await db_module._conn.execute(
+        "UPDATE reconciliations SET "
+        "  status = 'rejected', "
+        "  rejected_by = %s::uuid, "
+        "  rejected_at = NOW(), "
+        "  reject_reason = %s "
+        "WHERE id = %s::uuid",
+        (rejecter_user_id, reason_clean[:500], recon_id),
+    )
+
+    cur = await db_module._conn.execute(
+        f"SELECT {_SELECT} {_JOIN} WHERE r.id = %s::uuid AND t.tenant_id = %s::uuid",
+        (recon_id, tenant_id),
+    )
+    return {"reconciliation": _row_to_dict(await cur.fetchone())}

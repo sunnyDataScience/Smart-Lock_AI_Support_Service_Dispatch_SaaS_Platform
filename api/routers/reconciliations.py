@@ -1,7 +1,7 @@
-"""Reconciliations router — listReconciliations + approveReconciliation。
+"""Reconciliations router — listReconciliations + approveReconciliation + rejectReconciliation。
 
 operationId 對齊 openapi.yaml：
-  listReconciliations, approveReconciliation
+  listReconciliations, approveReconciliation, rejectReconciliation（UAT-0718 W1-2）
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ from models.generated import (
     Reconciliation,
     ReconciliationApproveRequest,
     ReconciliationPage,
+    ReconciliationRejectRequest,
     ReconciliationStatus,
     Settlement,
 )
@@ -70,6 +71,32 @@ async def approve_reconciliation(
     payload = {
         "reconciliation": Reconciliation(**result["reconciliation"]).model_dump(mode="json"),
         "settlement": Settlement(**result["settlement"]).model_dump(mode="json"),
+    }
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/accounting/reconciliations/{id}:reject",
+    operation_id="rejectReconciliation",
+    summary="駁回對帳（pending → rejected + 審計欄位；UAT-0718 W1-2）",
+)
+async def reject_reconciliation(
+    body: ReconciliationRejectRequest,
+    id: str = Path(),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """僅 pending 可駁（其餘 409，語意同 approve）；reason ≥3 字必填。"""
+    result = await reconciliation_service.reject_reconciliation(
+        tenant_id=user.tenant_id,
+        recon_id=id,
+        rejecter_user_id=user.user_id,
+        reason=body.reason,
+    )
+    payload = {
+        "reconciliation": Reconciliation(**result["reconciliation"]).model_dump(mode="json"),
     }
     if idem is not None:
         await idem.save(200, payload)

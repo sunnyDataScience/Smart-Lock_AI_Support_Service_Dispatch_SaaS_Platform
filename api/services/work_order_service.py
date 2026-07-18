@@ -856,20 +856,31 @@ async def _publish_and_return(
     return order
 
 
-async def _auto_notify(tenant_id: str, user_id, ntype: str, title: str, body: str = "") -> None:
+async def _auto_notify(
+    tenant_id: str, user_id, ntype: str, title: str, body: str = "",
+    wo_id: str | None = None,
+) -> None:
     """CR-0062：事件驅動自動通知（best-effort 非致命；user_id 缺則略過）。
 
     把生命週期事件接到通知中心自動產生（原通知只能手動 push）。
+    UAT-0718 W5-3（已釘契約）：wo_id 給定時帶 related_entity
+    {"type":"work_order","id":"<uuid>","url":"/work-orders/<uuid>"}——前端依
+    related_entity.url 渲染可點跳轉。既有歷史通知不回填（僅新通知帶欄位）。
     """
     if not user_id:
         return
     try:
         from services import notification_service
-        await notification_service.push_notification(
-            {"target_type": "user", "target_id": str(user_id),
-             "type": ntype, "title": title, "body": body},
-            tenant_id=tenant_id,
-        )
+        req: dict = {
+            "target_type": "user", "target_id": str(user_id),
+            "type": ntype, "title": title, "body": body,
+        }
+        if wo_id:
+            req["related_entity"] = {
+                "type": "work_order", "id": str(wo_id),
+                "url": f"/work-orders/{wo_id}",
+            }
+        await notification_service.push_notification(req, tenant_id=tenant_id)
     except Exception:  # noqa: BLE001
         logger.exception("auto-notify failed (non-fatal)")
 
@@ -1103,6 +1114,7 @@ async def reject_order(
             await _auto_notify(
                 tenant_id, created_by, "work_order_rejected",
                 "技師拒接工單", f"工單已被技師退回派工池，原因：{reason}",
+                wo_id=wo_id,
             )
         from services import audit_log_service
         await audit_log_service.log_event(
@@ -1533,6 +1545,7 @@ async def complete_order(
                 tenant_id, crow[0], "work_order_completed",
                 f"工單 {crow[1] or wo_id} 已完工",
                 "技師已回報完工，待客服/客戶確認結案。",
+                wo_id=wo_id,
             )
     except Exception:  # noqa: BLE001
         logger.exception("completion auto-notify failed (non-fatal)")
@@ -1936,6 +1949,7 @@ async def assign_order(
             await _auto_notify(
                 tenant_id, trow[0], "work_order_assigned",
                 "新工單已派給你", "請至『我的工單』查看並接單。",
+                wo_id=wo_id,
             )
     except Exception:  # noqa: BLE001
         logger.exception("assign auto-notify failed (non-fatal)")
@@ -3697,9 +3711,14 @@ async def get_public_status(*, work_order_id: str) -> dict | None:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
+    # UAT-0718 W2-4：補 updated_at 與最新事件時間——「最後更新」須為**真實**
+    # 更新時間（completed_at → 最新事件 → updated_at），絕不可拿未來的
+    # scheduled_at 充數（原 track 頁「最後更新」顯示未來的預約時間誤導客戶）。
     sql = (
         "SELECT wo.id, wo.status, wo.scheduled_at, wo.completed_at, "
-        "       t.name, t.phone "
+        "       t.name, t.phone, wo.updated_at, "
+        "       (SELECT MAX(e.created_at) FROM work_order_events e "
+        "        WHERE e.work_order_id = wo.id) AS last_event_at "
         "FROM work_orders wo "
         "LEFT JOIN technicians t ON wo.technician_id = t.id "
         "WHERE wo.id = %s::uuid"
@@ -3725,6 +3744,8 @@ async def get_public_status(*, work_order_id: str) -> dict | None:
         "completed_at": completed_at.isoformat() if completed_at else None,
         "technician_name": row[4],
         "technician_phone": row[5],
+        "updated_at": row[6].isoformat() if row[6] else None,
+        "last_event_at": row[7].isoformat() if row[7] else None,
     }
 
 

@@ -2715,6 +2715,58 @@ paths:
 
   ## --- Reconciliation v2 dual-sign (FR-0013 / CR-0004 §8 / M12 Settlement) ---
 
+  ## --- 對帳駁回（legacy 面；UAT-0718 W1-2 已釘契約）---
+  ## 註：legacy 對帳 list/approve（public.reconciliations）從未入本設計稿（型別 SoT＝
+  ## runtime export）；此處補文件化新增的 reject 契約，供 spec-lint / 前端對照。
+
+  /accounting/reconciliations/{id}:reject:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string }, description: 對帳記錄 UUID }
+    post:
+      tags: ['M12 Settlement']
+      summary: 駁回對帳（pending → rejected + 審計欄位）
+      operationId: rejectReconciliation
+      description: |
+        UAT-0718 W1-2 已釘契約：僅 pending 可駁（其餘 409，語意同 approve）；
+        reason ≥3 字必填；寫 rejected_by / rejected_at / reject_reason（migration 107）。
+        駁回不建 settlement、不發 commission 事件。缺 Idempotency-Key → 400。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  minLength: 3
+                  maxLength: 500
+                  description: 駁回原因（≥3 字必填）
+      responses:
+        '200':
+          description: OK — 回傳更新後對帳記錄（status=rejected + 審計欄位）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reconciliation:
+                    type: object
+                    description: 對帳記錄（legacy shape，status=rejected，含 rejected_by/rejected_at/reject_reason）
+        '404':
+          description: NOT_FOUND — 對帳記錄不存在或不屬於此 tenant
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 對帳記錄非 pending 狀態，不可駁回
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — reason 缺漏或不足 3 字
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
   /tenants/{tenantId}/accounting/reconciliations:
     parameters:
       - $ref: '#/components/parameters/TenantPath'
@@ -5568,7 +5620,10 @@ components:
         work_order_state: { type: string }
         eta_minutes: { type: integer, nullable: true }
         technician_display_name: { type: string, nullable: true }
+        # UAT-0718 W2-4：last_update_at＝真實更新時間（completed_at → 最新事件 → updated_at），
+        # 不再以未來的 scheduled_at 充數；scheduled_at 為獨立加法欄位（可 null）
         last_update_at: { type: string, format: date-time }
+        scheduled_at: { type: string, format: date-time, nullable: true }
 
     RoleMatrix:
       type: object

@@ -1,7 +1,7 @@
 """Phase I 帳號安全 A1/A2/A3 元件測試。
 
   A1 登入防爆破：
-    A1-1 連續失敗達上限 → 帳號鎖定（即使密碼正確也回 429 LOGIN_LOCKED）
+    A1-1 連續失敗達上限 → 帳號鎖定（觸發那次與鎖定期間都回 403 ACCOUNT_LOCKED；UAT-0718 W4-6）
     A1-2 上限內失敗後成功登入 → 計數歸零（failed_login_attempts=0）
   A2 停權 token 即時失效：
     A2-1 既存帳號 is_active=FALSE → 既簽 token 打受保護端點 403 ACCOUNT_DISABLED
@@ -65,16 +65,23 @@ def _access_token(user_id: str, role: str = "admin") -> str:
 @pytest.mark.asyncio
 @pytest.mark.component
 async def test_a1_lockout_after_max_attempts(client):
-    """A1-1：連續 5 次密碼錯誤 → 鎖定，正確密碼也回 429。"""
+    """A1-1（UAT-0718 W4-6 已釘契約）：1-4 次錯誤回通用 401；第 5 次（觸發鎖定）
+    與鎖定期間（含正確密碼）都回 403 ACCOUNT_LOCKED 含剩餘分鐘。"""
     user_id, email, password = await _create_user()
     try:
-        for _ in range(5):
+        for _ in range(4):
             r = await client.post("/api/v1/auth/login", json={"email": email, "password": "WrongPass99"})
             assert r.status_code == 401, r.text
-        # 鎖定後，即使密碼正確也擋
+        # 第 5 次（觸發鎖定那一次）也回 ACCOUNT_LOCKED
+        r = await client.post("/api/v1/auth/login", json={"email": email, "password": "WrongPass99"})
+        assert r.status_code == 403, r.text
+        assert r.json()["error_code"] == "ACCOUNT_LOCKED"
+        # 鎖定後，即使密碼正確也擋（同 403 ACCOUNT_LOCKED 含剩餘分鐘）
         r = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
-        assert r.status_code == 429, r.text
-        assert r.json()["error_code"] == "LOGIN_LOCKED"
+        assert r.status_code == 403, r.text
+        body = r.json()
+        assert body["error_code"] == "ACCOUNT_LOCKED"
+        assert "分鐘後再試" in body["detail"]
     finally:
         await _cleanup(user_id)
 
