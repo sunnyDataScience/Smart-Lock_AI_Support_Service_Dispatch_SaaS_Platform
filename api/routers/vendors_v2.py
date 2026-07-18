@@ -3,9 +3,9 @@
   - GET /vendors/me                                → getVendorSelfV2（廠商自身 profile）
   - GET /tenants/{tenantId}/vendors?status=...     → listVendorsV2（品牌唯讀）
 
-**核准/拒絕寫端點已移到 platform console**（廠商審核歸平台方統一管，
-routers/platform_vendors.py 的 :approve / :reject，gate=require_platform_admin）。
-品牌端只保留唯讀清單與廠商自身 profile。
+**廠商帳號由平台代建**（UAT R2 W3-2 裁決 2026-07-18：自助註冊與核准/拒絕
+流整條退場，routers/platform_vendors.py 的 POST /platform/vendors 建立即
+active）。品牌端只保留唯讀清單與廠商自身 profile。
 """
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ async def get_vendor_self_v2(
 @router.get(
     "/tenants/{tenantId}/vendors",
     operation_id="listVendorsV2",
-    summary="廠商列表 v2（品牌唯讀；核准/拒絕已移平台 console）",
+    summary="廠商列表 v2（品牌唯讀；廠商帳號由平台代建）",
     tags=["M14 Vendor"],
 )
 async def list_vendors_v2(

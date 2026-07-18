@@ -2,13 +2,15 @@
 
 // CR-0114 §8 追補收尾 — 平台 console 師傅詳情(身分域管理)。
 // 個人資料 + 編輯(含等級)+ 認證 CRUD + 生命週期歷史 + 生命週期動作。
+// UAT R2 W3-5/W3-6:KYC 區塊加「產生補件連結」(免 email 自助方案——連結由
+// 管理員以 LINE/電話轉交師傅,師傅站 /upload-docs/{token} 公開消費)。
 // 排班/獎懲屬品牌營運(per-brand 工單/財務),不在跨品牌平台視角 —— 故不含。
 // UAT W6-2:原「內部工具文案直接繁中」決策撤回——全量接 i18n
 // (platform.technicians.detail namespace;狀態沿用 platform.technicians.status)。
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Eye, FileText, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
+import { ChevronLeft, Eye, FileText, Link2, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
@@ -271,7 +273,20 @@ export default function PlatformTechnicianDetailPage({
           </section>
 
           {/* KYC 審核資料(CR-0115 S7)*/}
-          {kyc && <KycSection basePath={base} kyc={kyc} />}
+          {/* 補件連結(UAT R2 W3-5/W3-6 免 email 自助方案):僅「未核准(待審)
+              或核心證件(身分證正反面)缺漏」時顯示產生按鈕。 */}
+          {kyc && (
+            <KycSection
+              basePath={base}
+              kyc={kyc}
+              canIssueToken={
+                tech.status === "pending_approval" ||
+                !["id_front", "id_back"].every((docType) =>
+                  kyc.documents.some((d) => d.doc_type === docType),
+                )
+              }
+            />
+          )}
 
           {/* 技能認證矩陣 */}
           <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
@@ -398,7 +413,26 @@ function fmtBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
+// 補件連結指向師傅站(tech-portal)公開消費頁 /upload-docs/{token}。
+// NEXT_PUBLIC_* 於 build 時烤入;未設 fallback 本機 tech-portal 埠位。
+const TECH_PORTAL_BASE_URL =
+  process.env.NEXT_PUBLIC_TECH_PORTAL_BASE_URL || "http://localhost:3001";
+
+/** 一次性補件連結(token 明文僅回傳當下顯示,關閉即無法再取)。 */
+interface IssuedUploadToken {
+  link: string;
+  expiresAt: string | null;
+}
+
+function KycSection({
+  basePath,
+  kyc,
+  canIssueToken,
+}: {
+  basePath: string;
+  kyc: KycReview;
+  canIssueToken: boolean;
+}) {
   const { toast } = useToast();
   const td = useTranslations("platform.technicians.detail");
   const tc = useTranslations("platform.common");
@@ -407,6 +441,11 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
   const [revealErr, setRevealErr] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ url: string; contentType: string; label: string } | null>(null);
   const [previewBusy, setPreviewBusy] = useState<string | null>(null);
+  // 補件連結(UAT R2 W3-5/W3-6):issue-upload-token 回傳明文 token,組完整連結
+  // 一次性顯示於 Modal;由管理員以 LINE/電話轉交師傅(免 email 設計)。
+  const [issuedToken, setIssuedToken] = useState<IssuedUploadToken | null>(null);
+  const [tokenBusy, setTokenBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
   // 目前 blob URL 存 ref,unmount / 換頁時保證 revoke(避免記憶體洩漏)。
   const previewUrlRef = useRef<string | null>(null);
 
@@ -465,6 +504,46 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
     setPreview(null);
   }
 
+  // 產生補件連結:復用 technician_kyc_service.issue_upload_token(平台 admin
+  // 端點)。回傳信封防禦處理({data:{...}} 或裸 {token,...} 皆可解)——
+  // 型別未重生前不依賴 api.generated.ts。
+  async function issueUploadToken() {
+    if (tokenBusy) return;
+    setTokenBusy(true);
+    try {
+      const res = await api.post<{
+        data?: { token?: string; expires_at?: string | null };
+        token?: string;
+        expires_at?: string | null;
+      }>(`${basePath}:issue-upload-token`);
+      const payload = res.data ?? res;
+      if (!payload.token) {
+        toast({ title: td("uploadToken.failed"), variant: "error" });
+        return;
+      }
+      setCopied(false);
+      setIssuedToken({
+        link: `${TECH_PORTAL_BASE_URL.replace(/\/+$/, "")}/upload-docs/${encodeURIComponent(payload.token)}`,
+        expiresAt: payload.expires_at ?? null,
+      });
+    } catch (e) {
+      toast({ title: td("uploadToken.failed"), description: friendlyError(e), variant: "error" });
+    } finally {
+      setTokenBusy(false);
+    }
+  }
+
+  async function copyIssuedLink() {
+    if (!issuedToken) return;
+    try {
+      await navigator.clipboard.writeText(issuedToken.link);
+      setCopied(true);
+    } catch {
+      // 剪貼簿權限被拒(非 https 或未授權)→ 提示手動選取複製
+      toast({ title: td("uploadToken.copyFailed"), variant: "error" });
+    }
+  }
+
   const maskedNationalId = k?.has_national_id
     ? `•••••••${k.national_id_last3 ?? ""}`
     : null;
@@ -479,20 +558,33 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
           <ShieldCheck className="h-4 w-4 text-[var(--primary)]" aria-hidden />
           <h2 className="text-base font-semibold text-[var(--text-primary)]">{td("kyc.title")}</h2>
         </div>
-        {hasSensitive && !revealed && (
-          <button
-            type="button"
-            onClick={reveal}
-            disabled={revealBusy}
-            className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50"
-          >
-            <Eye className="h-3.5 w-3.5" aria-hidden />
-            {revealBusy ? td("kyc.revealing") : td("kyc.reveal")}
-          </button>
-        )}
-        {revealed && (
-          <span className="text-xs text-[var(--badge-warn-fg)]">{td("kyc.revealedNote")}</span>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {canIssueToken && (
+            <button
+              type="button"
+              onClick={issueUploadToken}
+              disabled={tokenBusy}
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary)] transition hover:bg-[var(--primary-subtle,rgba(59,130,246,0.08))] disabled:opacity-50"
+            >
+              <Link2 className="h-3.5 w-3.5" aria-hidden />
+              {tokenBusy ? td("uploadToken.generating") : td("uploadToken.button")}
+            </button>
+          )}
+          {hasSensitive && !revealed && (
+            <button
+              type="button"
+              onClick={reveal}
+              disabled={revealBusy}
+              className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50"
+            >
+              <Eye className="h-3.5 w-3.5" aria-hidden />
+              {revealBusy ? td("kyc.revealing") : td("kyc.reveal")}
+            </button>
+          )}
+          {revealed && (
+            <span className="text-xs text-[var(--badge-warn-fg)]">{td("kyc.revealedNote")}</span>
+          )}
+        </div>
       </div>
       {revealErr && <p className="mb-3 text-[13px] text-[var(--status-danger)]">{revealErr}</p>}
 
@@ -588,6 +680,58 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
             ) : (
               <iframe src={preview.url} title={preview.label} className="h-[75vh] w-full rounded-lg border border-[var(--border)]" />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* 補件連結 Modal — token 明文一次性顯示;刻意不做點背景關閉
+          (誤觸關閉即遺失連結,需重新產生),只留明確的關閉按鈕。 */}
+      {issuedToken && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-lg">
+            <h3 className="text-lg font-bold text-[var(--text-primary)]">{td("uploadToken.modalTitle")}</h3>
+            <p className="mt-1 text-xs text-[var(--badge-warn-fg)]">{td("uploadToken.oneTimeNote")}</p>
+
+            <div className="mt-4 flex flex-col gap-1 text-sm">
+              <span className="text-[var(--text-secondary)]">{td("uploadToken.linkLabel")}</span>
+              <div className="flex items-center gap-2">
+                <input
+                  readOnly
+                  value={issuedToken.link}
+                  onFocus={(e) => e.currentTarget.select()}
+                  className="min-w-0 flex-1 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 font-mono text-xs text-[var(--text-primary)] outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={copyIssuedLink}
+                  className="shrink-0 rounded-lg bg-[var(--primary)] px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  {copied ? td("uploadToken.copied") : td("uploadToken.copy")}
+                </button>
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-[var(--text-secondary)]">
+              {issuedToken.expiresAt
+                ? td("uploadToken.expiresAt", {
+                    time: issuedToken.expiresAt.slice(0, 16).replace("T", " "),
+                  })
+                : td("uploadToken.expiresUnknown")}
+            </p>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">{td("uploadToken.deliverHint")}</p>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setIssuedToken(null);
+                  setCopied(false);
+                }}
+                className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))]"
+              >
+                {tc("close")}
+              </button>
+            </div>
           </div>
         </div>
       )}

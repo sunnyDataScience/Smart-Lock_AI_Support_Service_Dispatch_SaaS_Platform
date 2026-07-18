@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **收掉廠商自助註冊＋免 email 自助方案（業主裁決批次二，branch `feat/vendor-close-and-self-service`，2026-07-18）**：①貫徹 20260702 退場決議——移除公開 `POST /vendors/register` 與平台 :approve/:reject（live 404 實證；無 UI 消費者的 breaking）；新增平台代建 `POST /platform/vendors`（復用原驗證核心、建立即 active）＋VendorsPanel 改「帳號管理」；live 全鏈：UI 代建→active→登入。②免 email（SMTP 暫緩）：公開 `POST /platform/brand-applications:lookup`（email＋編號雙精確匹配、rejected 才回理由、防列舉 404＋per-IP 限流）＋申請成功顯示編號＋landing 查詢入口——**駁回者終於拿得到理由**；平台師傅詳情「產生補件連結」→ 師傅站公開頁 `/upload-docs/[token]`（復用註冊上傳 UI 抽共用元件）——**證件略過者有自助補件通道**（連結由平台 LINE/電話轉交）。③v1-freeze baseline 收斂（216 ops，含前輪 21 個既存漂移，api CI gate 恢復綠）。驗證：api **1931 passed 0 failed**＋四站 tsc 0＋live 三鏈實證。**至此二輪 UAT 43 findings 全數處置完畢**。
+
 - **拆帳規則完整 CRUD＋硬性審計（業主 AskUserQuestion 裁決，branch `feat/uat-round2-decisions`，2026-07-18）**：二輪 UAT W1-6 唯讀缺口收斂——payout_rule_service 比照報價主檔補 create/update/軟刪（rule_id 唯一 409/加成率 0~1/日期先後驗證/同 rule_id 復活），**每次寫入同交易硬性記 audit_events**（financial_action＋before/after 快照，稽核寫失敗整筆回滾）；migration 109（updated_at/deleted_at）；前端拆帳規則頁補 CRUD UI＋生效日可編（修「生效日 —」）。同輪收齊無需裁決尾巴：**N2** 編輯欄位白名單加 problem_type＋前端可編＋順修 update_wo_fields INNER JOIN 同型漏網（手建卡單 PATCH 靜默 0 列）——缺欄單（含手建急件）UI 有路過派工閘了；**N1** 查證指派 Modal state 本已初始化（與報告描述不符），補送出守門使 422 結構性不可能；**:3003 W6-2 未竟**（師傅詳情 en ~90 鍵/skip link/錯誤表 i18n/登入頁 LocaleToggle/i18n 鍵數回歸閘）。驗證：api **1917 passed 0 failed**（回歸 +10）＋四站 tsc 0＋Playwright live CRUD＋audit 落庫實證；**migration 109 部署需套用**。仍待業主：廠商入口去留、SMTP 選型。
 
 ### Fixed

@@ -52,7 +52,8 @@ def test_platform_surface_keeps_platform_endpoints(path):
     [
         "/api/v1/auth/login",
         "/api/v1/technicians/login",
-        "/api/v1/vendors/register",
+        "/api/v1/vendors/login",  # register 已於 UAT R2 W3-2 移除，改列 login
+
         "/api/v1/dispatch/assign",
         "/api/v1/internal/conversations/ingest",
         "/api/v1/line/webhook",

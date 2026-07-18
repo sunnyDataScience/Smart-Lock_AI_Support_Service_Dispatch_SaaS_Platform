@@ -97,6 +97,9 @@ services:
         # CR-0116 維運監控「詳細用量」連結 → GCP 方案 1 Metrics Scope dashboard。
         # 未設 = 前端不顯示該連結;建好 dashboard 後填其 URL 即可。
         NEXT_PUBLIC_GCP_MONITORING_URL: "${PLATFORM_GCP_MONITORING_URL:-}"
+        # UAT R2 W3-5/W3-6:師傅補件連結指向的 tech-portal 基底 URL(免 email
+        # 方案——連結由平台管理員以 LINE/電話轉交師傅)。本機預設 :3001。
+        NEXT_PUBLIC_TECH_PORTAL_BASE_URL: "${PLATFORM_TECH_PORTAL_BASE_URL:-http://localhost:3001}"
     ports:
       - "${PLATFORM_WEB_PORT:-3003}:8080"
     restart: unless-stopped

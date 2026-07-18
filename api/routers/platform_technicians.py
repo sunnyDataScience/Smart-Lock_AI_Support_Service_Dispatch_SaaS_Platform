@@ -7,6 +7,7 @@ X-Initiator header,無偽造面)。
 - GET  /platform/technicians?status=&q=
 - POST /platform/technicians/{id}:onboard-approve / :onboard-reject /
                                   :suspend / :reactivate / :terminate
+- POST /platform/technicians/{id}:issue-upload-token(UAT R2 W3-5 補件連結)
 - GET  /platform/technicians/lifecycle-events?tech_id=&event_type=
 """
 
@@ -293,6 +294,25 @@ async def reveal_kyc(
     user: CurrentUser = Depends(require_platform_admin),
 ) -> dict:
     result = await technician_kyc_service.reveal_kyc(
+        technician_id=technicianId, actor_user_id=user.user_id
+    )
+    return {"data": result}
+
+
+@router.post(
+    "/platform/technicians/{technicianId}:issue-upload-token",
+    operation_id="platformIssueTechnicianUploadToken",
+    summary="補發文件上傳 token（免 email 補件連結，一次性明文回傳）",
+    status_code=200,
+)
+async def issue_upload_token(
+    technicianId: str = Path(...),
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    """UAT R2 W3-5:師傅離開註冊頁後無法自行補傳文件 → 平台管理員補發
+    上傳 token,轉交師傅至師傅站 /upload-docs/{token} 補件(復用註冊流程
+    既有的憑 token 公開上傳端點)。token 明文僅此 response 一次性顯示。"""
+    result = await technician_kyc_service.issue_upload_token_for_technician(
         technician_id=technicianId, actor_user_id=user.user_id
     )
     return {"data": result}

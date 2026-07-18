@@ -221,6 +221,14 @@ export default function Home() {
                 <span className="text-[13px] text-[var(--text-secondary)]">{t("ctaBrandHint")}</span>
               </a>
             </div>
+
+            {/* 已申請品牌 → 免 email 進度查詢入口(platform 站 /platform/apply?mode=lookup) */}
+            <a
+              href={`${BRAND_APPLY_HREF}?mode=lookup`}
+              className="mt-4 text-[13px] font-medium text-[var(--text-secondary)] underline-offset-4 transition hover:text-[var(--lp-primary)] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--lp-ring)]"
+            >
+              {t("brandLookupLink")}
+            </a>
           </div>
         </section>
 

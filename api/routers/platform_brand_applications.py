@@ -1,6 +1,8 @@
 """Platform console 品牌申請 router(CR-0114 R2)。
 
 - POST /platform/brand-applications      公開(landing 品牌 CTA;per-IP DB 限流)
+- POST /platform/brand-applications:lookup  公開申請進度查詢(UAT R2 W3-6 免 email
+                                            自助;email+id 雙精確匹配、防列舉 404)
 - GET  /platform/brand-applications      平台管理員(?status= 過濾)
 - POST /platform/brand-applications/{id}:approve   核准 + 回開站指引文字
 - POST /platform/brand-applications/{id}:reject    拒絕(reason 必填)
@@ -40,6 +42,13 @@ class BrandApplicationBody(BaseModel):
     referral_source: str | None = Field(default=None, max_length=50, description="如何得知平台")
 
 
+class LookupBody(BaseModel):
+    """公開申請進度查詢(email + 申請編號雙精確匹配)。"""
+
+    email: EmailStr
+    application_id: str = Field(min_length=1, max_length=64, description="申請編號(UUID)")
+
+
 class ApproveBody(BaseModel):
     slug: str | None = Field(default=None, max_length=30, description="品牌代號(未填自動產生)")
     review_notes: str | None = Field(default=None, max_length=1000)
@@ -72,6 +81,26 @@ async def submit_brand_application(body: BrandApplicationBody, request: Request)
         expected_monthly_orders=body.expected_monthly_orders,
         main_brands=body.main_brands,
         referral_source=body.referral_source,
+        request_ip=client_ip,
+    )
+
+
+@router.post(
+    "/platform/brand-applications:lookup",
+    operation_id="lookupBrandApplication",
+    summary="品牌申請進度查詢(公開;email+申請編號雙匹配,防列舉 404)",
+    status_code=200,
+)
+async def lookup_brand_application(body: LookupBody, request: Request) -> dict:
+    """UAT R2 W3-6 免 email 自助:申請人憑送出時取得的申請編號 + email 查進度。
+
+    不匹配一律 generic 404(防列舉);rejected 才回 review_notes(駁回理由),
+    核准備註不外洩。per-IP in-memory 輕量限流(service 層)。
+    """
+    client_ip = request.client.host if request.client else None
+    return await brand_application_service.lookup(
+        email=body.email,
+        application_id=body.application_id,
         request_ip=client_ip,
     )
 

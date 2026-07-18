@@ -763,13 +763,18 @@ async def list_staff_users(*, tenant_id: str) -> dict:
 
 
 _VENDOR_TYPES = {"brand", "locksmith", "distributor"}
+_VENDOR_INITIAL_STATUSES = {"active", "pending_approval"}
 
 
-async def register_vendor(req: dict) -> dict:
+async def register_vendor(req: dict, *, initial_status: str = "active") -> dict:
     """建立 users(role='vendor', tenant_type='requestor') + vendors 兩列（CR-0029 發案者）。
 
-    鏡像 register_technician：email 全域去重、bcrypt hash、transaction、single-tenant 硬綁。
-    vendor 不簽 token（待首次 login）；status=pending_approval 待管理員核准。
+    UAT R2 W3-2（2026-07-18 業主裁決）：公開自助註冊路徑已移除，本函式改為
+    **平台代建復用核心**（platform_vendor_service.create_vendor 唯一呼叫者），
+    預設 initial_status='active' 建立即啟用（不走待審核流）。
+
+    鏡像 register_technician：email 角色內去重、bcrypt hash、transaction、
+    single-tenant 硬綁。vendor 不簽 token（待首次 login）。
     """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
@@ -778,7 +783,7 @@ async def register_vendor(req: dict) -> dict:
     name = req["name"]
     phone = req["phone"]
     password = req["password"]
-    vendor_type = req["vendor_type"]
+    vendor_type = req.get("vendor_type") or "brand"
     company_name = req.get("company_name")
     tax_id = req.get("tax_id")  # CR-0089 統一編號（B2B 開發票）
     address = req.get("address")
@@ -787,6 +792,12 @@ async def register_vendor(req: dict) -> dict:
         raise ApiError(
             "VALIDATION_ERROR",
             f"vendor_type must be one of {sorted(_VENDOR_TYPES)}",
+            422,
+        )
+    if initial_status not in _VENDOR_INITIAL_STATUSES:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"initial_status must be one of {sorted(_VENDOR_INITIAL_STATUSES)}",
             422,
         )
 
@@ -811,10 +822,14 @@ async def register_vendor(req: dict) -> dict:
             "VALUES (%s::uuid, %s::uuid, 'requestor', %s, %s, %s, %s, 'vendor', TRUE)",
             (user_id, tenant_id, name, phone, email, pw_hash),
         )
+        # 代建（active）視同即刻核准 → 記 approved_at；approved_by 留 NULL
+        # （FK 指品牌 users，平台管理員不在其中 —— 同平台核准時代的既有慣例）。
         await db_module._conn.execute(
-            "INSERT INTO vendors (id, tenant_id, user_id, vendor_type, name, company_name, tax_id, phone, email, address, status) "
-            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, 'pending_approval')",
-            (vendor_id, tenant_id, user_id, vendor_type, name, company_name, tax_id, phone, email, address),
+            "INSERT INTO vendors (id, tenant_id, user_id, vendor_type, name, company_name, tax_id, phone, email, address, status, approved_at) "
+            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, %s, "
+            "        CASE WHEN %s = 'active' THEN NOW() ELSE NULL END)",
+            (vendor_id, tenant_id, user_id, vendor_type, name, company_name,
+             tax_id, phone, email, address, initial_status, initial_status),
         )
 
     return {
@@ -828,8 +843,12 @@ async def register_vendor(req: dict) -> dict:
             "tax_id": tax_id,
             "phone": phone,
             "email": email,
-            "status": "pending_approval",
+            "status": initial_status,
             "created_at": datetime.now(timezone.utc).isoformat(),
         },
-        "message": "Vendor registered, pending admin approval",
+        "message": (
+            "廠商帳號已建立並啟用"
+            if initial_status == "active"
+            else "廠商已註冊，待管理員核准"
+        ),
     }

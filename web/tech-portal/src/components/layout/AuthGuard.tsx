@@ -22,6 +22,8 @@ import IdleLogoutGuard from "./IdleLogoutGuard";
 //  - /scope-change/{token}  客戶確認加價/變更（public endpoint）
 //  - /quotes/{token}        客戶查看/確認報價（public endpoint,purpose=quote_view,CR-0032 Phase C）
 //  - /consent/{token}       客戶簽署三段施工免責同意（public endpoint,CR-0033）
+//  - /upload-docs/{token}   師傅補件上傳（W3-6 免 email 自助;平台簽發 token,
+//                           漏列 → pending 師傅本就未登入,補件連結點開被踢去 /login）
 const PUBLIC_PATHS = new Set([
   "/",
   "/login",
@@ -34,7 +36,13 @@ const PUBLIC_PATHS = new Set([
   "/platform/login", // CR-0114 平台 console 登入（漏列 → 平台管理員到不了登入頁）
   "/platform/apply", // 品牌/經銷/鎖店「申請導入平台」公開頁（未登入必須可達）
 ]);
-const PUBLIC_PREFIXES = ["/track/", "/scope-change/", "/quotes/", "/consent/"];
+const PUBLIC_PREFIXES = [
+  "/track/",
+  "/scope-change/",
+  "/quotes/",
+  "/consent/",
+  "/upload-docs/", // W3-6 師傅補件連結（token 公開頁）
+];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();

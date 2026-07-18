@@ -131,3 +131,15 @@
 - 驗證：api 全套 **1917 passed 0 failed**（回歸 +10）＋四站 tsc 0＋live CRUD 全鏈；migration 109 部署需套用；測試規則（UAT0718E）已清（audit 鏈 append-only 保留 2 筆）
 
 **仍待業主**：廠商入口去留（三選項說明已給）；SMTP 需求說明已給（等決定後接 email 通知/補件通道）。
+
+### 裁決批次二（2026-07-18 晚，branch `feat/vendor-close-and-self-service`）——43 findings 全數處置完畢
+
+業主裁決「**收掉廠商後端**」＋「**免 email、SMTP 暫緩**」已落地：
+
+- **P2-5（W3-2）收掉**：公開 `POST /vendors/register` 與平台 :approve/:reject 移除（live 404 實證）；新增平台代建 `POST /platform/vendors`（建立即 active）＋VendorsPanel 改「帳號管理」（清單＋建立表單）；live 全鏈實證：UI 代建→DB active→/vendors/login 登入成功。v1-freeze baseline 一併收斂（含前輪 21 個既存漂移 op，api CI gate 恢復綠）
+- **W3-6 免 email 申請查詢**：公開 `POST /platform/brand-applications:lookup`（email＋編號雙精確匹配、rejected 才回駁回理由、防列舉 404＋限流）；申請成功畫面顯示申請編號＋複製；landing 加查詢入口（查詢 UI 在 platform 站申請頁——0705 起表單即在該處）。live 實證：submit→lookup 回 pending、錯 email 404
+- **W3-5 免 email 補件**：平台師傅詳情「產生補件連結」（僅 pending/證件缺漏時；一次性 Modal＋複製＋LINE/電話轉交提示）→ 師傅站新公開頁 `/upload-docs/[token]`（復用註冊上傳 UI 抽共用元件；失效明確錯誤非白屏）
+- 驗證：api 全套 **1931 passed 0 failed**（測試改寫＋新增 2 檔）＋四站 tsc 0＋i18n 鍵數對齊＋live 三鏈；測試資料（UAT0718f）清零；全容器重建
+- 註：email 通知（SMTP）暫緩——lookup 頁與補件連結為現行正式通道；SMTP 選型後可疊加寄信不改流程
+
+至此二輪 UAT 43 findings：**40 修復＋2 裁決落地（收掉廠商/免 email 方案）＋1 維持唯讀已改為 CRUD**——全數處置完畢，無懸掛項。

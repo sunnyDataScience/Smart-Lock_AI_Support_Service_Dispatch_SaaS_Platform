@@ -58,7 +58,7 @@ def test_tech_surface_keeps_technician_endpoints(path):
     "path",
     [
         "/api/v1/dispatch/assign",
-        "/api/v1/vendors/register",
+        "/api/v1/vendors/login",  # 廠商動線非技師面（register 已於 UAT R2 W3-2 移除）
         "/api/v1/accounting/invoices",
         "/api/v1/internal/conversations/ingest",
         "/api/v1/line/webhook",

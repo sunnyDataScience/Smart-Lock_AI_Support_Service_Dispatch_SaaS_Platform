@@ -2783,6 +2783,39 @@
       "uploadHint": "簽章資料以 base64 PNG 上傳至 `/api/v1/work-orders/{id}/signature`",
       "submit": "確認簽章",
       "submitting": "提交中…"
+    },
+    "docUpload": {
+      "slots": {
+        "id_front": "身分證正面",
+        "id_back": "身分證反面",
+        "license": "證照掃描",
+        "insurance": "保險證明／良民證"
+      },
+      "fileHint": "JPG / PNG / PDF，10MB 內",
+      "chooseFile": "選擇檔案",
+      "reupload": "重新上傳",
+      "uploadingBtn": "上傳中…",
+      "fileTooLarge": "檔案超過 10MB，請壓縮後再上傳",
+      "register": {
+        "title": "申請已送出！最後一步：上傳證件文件",
+        "hint": "全部選填，可先略過、於核准前補件；文件加密環境保存、僅供平台審核。",
+        "leaveNote": "離開後可聯絡平台索取補件連結。",
+        "finish": "完成（已上傳 {count} 份）",
+        "skip": "略過，稍後補件"
+      },
+      "page": {
+        "title": "證件補件上傳",
+        "subtitle": "請上傳您的證件文件，平台審核申請時會一併查看。",
+        "hint": "文件加密環境保存、僅供平台審核；上傳完成後請點「完成送出」。",
+        "submit": "完成送出（已上傳 {count} 份）",
+        "submitEmpty": "請先上傳至少一份文件",
+        "doneTitle": "已送出",
+        "doneBody": "文件已送出，平台審核時會一併查看。",
+        "doneClose": "您可以關閉此頁面。",
+        "invalidTitle": "連結已失效",
+        "invalidBody": "此補件連結已失效或過期，請聯絡平台重新產生。",
+        "invalidUploadedNote": "先前成功上傳的 {count} 份文件已送出，平台審核時會一併查看。"
+      }
     }
   },
   "components": {

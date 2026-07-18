@@ -103,6 +103,37 @@ async def issue_upload_token(conn: Any, *, technician_id: str) -> dict:
     return {"token": token, "expires_at": expires_at.isoformat()}
 
 
+async def issue_upload_token_for_technician(
+    *, technician_id: str, actor_user_id: str | None
+) -> dict:
+    """平台管理員補發文件上傳 token(UAT R2 W3-5 免 email 補件連結)。
+
+    復用註冊時的 issue_upload_token 簽發核心;僅 pending_approval 師傅可補件
+    (與 _resolve_token 的消費閘一致 —— 已核准/已拒絕簽出的 token 上傳時必被
+    403,提前擋在簽發面給明確錯誤)。token 明文只在本 response 一次性回傳,
+    落庫僅 SHA-256;簽發行為記 log(actor)。
+    """
+    conn = await db_module.require_tech_conn()
+    cur = await conn.execute(
+        "SELECT status FROM technicians WHERE id = %s::uuid", (technician_id,)
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("TECHNICIAN_NOT_FOUND", "Technician not found", 404)
+    if row[0] != "pending_approval":
+        raise ApiError(
+            "STATE_CONFLICT",
+            "師傅已離開待審核狀態，無法補件（僅 pending_approval 可補傳文件）",
+            409,
+        )
+    result = await issue_upload_token(conn, technician_id=technician_id)
+    logger.info(
+        "補件 token 簽發 technician=%s by platform_admin=%s expires_at=%s",
+        technician_id, actor_user_id, result["expires_at"],
+    )
+    return result
+
+
 async def _resolve_token(conn: Any, token: str) -> tuple[str, str, str]:
     """驗 token → (token_id, technician_id, tenant_id)。
 

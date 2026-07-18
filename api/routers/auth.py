@@ -1,4 +1,8 @@
-"""Auth router — 5 endpoints (loginAdmin, loginTechnician, refreshToken, logout, registerTechnician)."""
+"""Auth router — 登入/登出/token/密碼/個資自助 + 技師註冊與文件上傳 + 廠商登入。
+
+廠商自助註冊（registerVendor）已於 2026-07-18 依 UAT R2 W3-2 裁決移除，
+廠商帳號由平台代建（routers/platform_vendors.py）。
+"""
 
 from __future__ import annotations
 
@@ -338,34 +342,9 @@ async def upload_registration_document(
     return {"data": result}
 
 
-class VendorRegisterBody(BaseModel):
-    """發案者（品牌商/鎖店/經銷商）註冊（CR-0029）。"""
-
-    vendor_type: str = Field(description="brand/locksmith/distributor")
-    name: str = Field(min_length=1, max_length=150)
-    company_name: str = Field(min_length=1, max_length=150)  # CR-0089 改必填（發案者為公司）
-    tax_id: str = Field(pattern=r"^\d{8}$", description="統一編號 8 碼")  # CR-0089 新增（B2B 開發票）
-    phone: str = Field(pattern=r"^09\d{8}$")
-    email: EmailStr
-    password: str = Field(min_length=8, max_length=72)  # bcrypt 72 byte 上限
-    address: str | None = Field(default=None, max_length=300)
-
-
-@router.post(
-    "/vendors/register",
-    operation_id="registerVendor",
-    summary="廠商/品牌商註冊（發案者，CR-0029）",
-    status_code=201,
-)
-async def register_vendor(
-    request: Request,
-    body: VendorRegisterBody,
-    idem: IdempotencyContext | None = Depends(_public_register_idem),
-) -> dict:
-    payload = await auth_service.register_vendor(body.model_dump())
-    if idem is not None:
-        await idem.save(201, payload)
-    return payload
+# 公開 POST /vendors/register（registerVendor）已依 UAT R2 W3-2 業主裁決
+# （2026-07-18）整條移除：廠商帳號改由平台代建（POST /platform/vendors，
+# 建立即 active）。登入端點保留（代建帳號沿用 /vendors/login）。
 
 
 @router.post(

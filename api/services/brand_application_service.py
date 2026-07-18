@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import logging
 import re
+import time
+import uuid as uuid_module
+from collections import deque
 from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
@@ -23,6 +26,13 @@ logger = logging.getLogger("api.brand_application")
 #: 同一 IP 每小時最多申請件數(公開表單防灌爆;正常申請人一件就夠)
 _RATE_LIMIT_MAX = 5
 _RATE_LIMIT_WINDOW_MINUTES = 60
+
+#: 進度查詢公開端點 per-IP 限流(in-memory 滑動視窗;對齊 technician_kyc_service
+#: 的公開上傳限流模式 —— 單實例、多 replica 失準屬已知取捨。查詢不落列,無法
+#: 沿用 submit 的 DB 計數,故取輕量 in-memory)
+_LOOKUP_RATE_WINDOW_SEC = 15 * 60
+_LOOKUP_RATE_MAX = 20
+_lookup_rate_buckets: dict[str, deque[float]] = {}
 
 _SLUG_RE = re.compile(r"^[a-z][a-z0-9-]{2,29}$")
 
@@ -140,6 +150,56 @@ async def submit(
     return {
         "data": {"id": app_id, "status": "pending"},
         "message": "申請已送出，平台審核後將與您聯絡",
+    }
+
+
+def _lookup_rate_limit_check(client_ip: str | None) -> None:
+    """同 IP 15 分鐘內最多 20 次進度查詢;超過 → 429。無 IP(測試)不擋。"""
+    if not client_ip:
+        return
+    now = time.monotonic()
+    bucket = _lookup_rate_buckets.setdefault(client_ip, deque())
+    while bucket and now - bucket[0] > _LOOKUP_RATE_WINDOW_SEC:
+        bucket.popleft()
+    if len(bucket) >= _LOOKUP_RATE_MAX:
+        raise ApiError("RATE_LIMITED", "查詢過於頻繁，請稍後再試", 429)
+    bucket.append(now)
+
+
+async def lookup(*, email: str, application_id: str, request_ip: str | None) -> dict:
+    """公開申請進度查詢(UAT R2 W3-6 免 email 自助方案)。
+
+    email + application_id **兩者同時精確匹配**才回資料;任何不匹配(含
+    application_id 非 uuid 格式)一律回 generic 404 —— 不區分「id 不存在」與
+    「email 不符」,防列舉探測。review_notes 僅 rejected 時回傳(駁回理由
+    申請人有知情權;核准備註屬平台內部,不外洩)。
+    """
+    _lookup_rate_limit_check(request_ip)
+
+    not_found = ApiError("NOT_FOUND", "查無申請資料，請確認申請編號與 Email 是否正確", 404)
+    try:
+        app_uuid = str(uuid_module.UUID(application_id))
+    except (ValueError, AttributeError, TypeError):
+        raise not_found from None
+
+    conn = await _conn()
+    cur = await conn.execute(
+        "SELECT status, created_at, reviewed_at, review_notes "
+        "FROM brand_applications WHERE id = %s::uuid AND email = %s",
+        (app_uuid, email.strip()),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise not_found
+    status, created_at, reviewed_at, review_notes = row
+    return {
+        "data": {
+            "status": status,
+            "submitted_at": created_at.isoformat() if created_at else None,
+            "reviewed_at": reviewed_at.isoformat() if reviewed_at else None,
+            "review_notes": review_notes if status == "rejected" else None,
+        },
+        "message": None,
     }
 
 
