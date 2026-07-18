@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Added
+
+- **知識庫 AI 技能階層式導覽＋型號知識新增精靈（#10 完結，CR-0171，branch `feat/kb-skill-hierarchy-wizard`，2026-07-18，業主 AskUserQuestion 拍板兩方案）**：0715 會議 #10「頭語化階層式＋一般 UI 讓客戶 CRUD 新增」收尾（口語化前輪已拍板交付；LiveSkill 編輯器＝既有工程視角 CRUD）。①**品牌分組收合樹**：SkillEditor 左欄 references 從 45 檔平鋪改依路徑第一段（品牌）分組收合——`_brand.md`→「品牌通用」置頂、`_common/`→「共用知識」置底、組內依顯示標題排序（原「路徑排序、標題顯示」對小編像隨機）、選中檔自動展開所屬品牌；cs-sop 等無階層 skill 自動退回平鋪。純顯示層，儲存結構/可攜性零影響。②**型號知識精靈**（`SkillModelWizard`）：小編填表單（品牌下拉可加新品牌/型號/一句話描述＋設定步驟/常見問題/故障排除至少一項）→前端組標準 md（frontmatter＋H1＋章節）落 `references/{品牌}/{型號}.md`＋**立即存草稿**，走既有 draft→admin 發佈 ≤60s 生效；全程不見 markdown。檔名 sanitize 與後端黑名單一致（中文/空格/連字號合法）；僅有品牌階層的 skill 顯示精靈入口。③**刪除改二段確認**（原 hover「×」一鍵即刪無確認，查證痛點）。**零後端變更**（saveDraft 本就收任意檔名整樹）。驗證：brand tsc 0＋容器重建＋Playwright live 全流程（樹狀渲染/精靈填表→存草稿 v1 成功（整樹 PUT 含中文檔名＝同輪 rel_path 修復 live 實證）/二段刪除/cs-sop degrade）＋測試資料 DB 實查污染 0。
+
 ### Fixed
 
 - **LiveSkill rel_path 驗證閘擋掉出廠實檔——產品知識庫在品牌後台無法存草稿/發佈（branch `fix/skill-relpath-unicode`，2026-07-18，#10 階層式前置查證時發現）**：`skill_service._REL_PATH_SEG_RE` 原為 ASCII 白名單，把三個 product-knowledge 出廠實檔擋在驗證閘外（Kaadas 兩個中文型號檔、3E `F(T7).md` 括號、Milre `7150+.md` 加號）；而 `seed_builtin_skills.py` 走直 SQL INSERT 繞過驗證入庫 → 品牌後台編輯產品知識庫任一檔（SkillEditor 整樹 PUT）或發佈原封 seed（`validate_publishable` 同跑 rel_path 驗證）**一律 422 INVALID_FILE_PATH**——CR-0167 HD-1「品牌完整編輯權」對該 skill 實質失效（cs-sop 純 ASCII 倖免，故 S3 驗證未暴露）。修法：segment 字元規則改黑名單制（禁控制字元＋跨平台危險符號 `<>:"|?*`；`.`/`..`/空段/反斜線/NUL 沿用既有檢查），路徑安全不依賴語系；`\n` 屬控制字元故 CR-0167 review 的 `\Z` 結尾繞過防護不退化。回歸測試 +2：出廠實檔名可存草稿＋可發佈、危險字元逐一仍擋；api skills 13 綠（scratch 5490）。
