@@ -22,7 +22,8 @@ import IdleLogoutGuard from "./IdleLogoutGuard";
 //  - /scope-change/{token}  客戶確認加價/變更（public endpoint）
 //  - /quotes/{token}        客戶查看/確認報價（public endpoint,purpose=quote_view,CR-0032 Phase C）
 //  - /consent/{token}       客戶簽署三段施工免責同意（public endpoint,CR-0033）
-const PUBLIC_PATHS = new Set([
+// AUTH_PAGES：登入/註冊類公開頁 —— 已登入者進入時導回各自 portal
+const AUTH_PAGES = new Set([
   "/",
   "/login",
   "/tech-login",
@@ -35,14 +36,22 @@ const PUBLIC_PATHS = new Set([
   "/platform/apply", // 品牌/經銷/鎖店「申請導入平台」公開頁（未登入必須可達）
   "/auth/sso-complete", // CR-0146 OIDC 授權碼流過渡落地頁（進場時尚無 localStorage token）
 ]);
-const PUBLIC_PREFIXES = ["/track/", "/scope-change/", "/quotes/", "/consent/"];
+// CUSTOMER_PUBLIC：客戶 token 公開頁 —— 不論是否登入永遠可看
+//（UAT W2-3：客服已登入時開自己發的報價/追蹤連結不可被導回 /dashboard）
+const CUSTOMER_PUBLIC_PREFIXES = [
+  "/track/",
+  "/scope-change/",
+  "/quotes/",
+  "/consent/",
+];
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const isPublic =
-    PUBLIC_PATHS.has(pathname) ||
-    PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+  const isCustomerPublic = CUSTOMER_PUBLIC_PREFIXES.some((p) =>
+    pathname.startsWith(p),
+  );
+  const isPublic = AUTH_PAGES.has(pathname) || isCustomerPublic;
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
@@ -65,8 +74,9 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       router.replace(pathname.startsWith("/platform") ? "/platform/login" : "/login");
       return;
     }
-    if (token && isPublic) {
-      // 已登入者進公開頁 → 依角色導回各自 portal（technician→/home、vendor→/vendor）
+    if (token && isPublic && !isCustomerPublic) {
+      // 已登入者進「登入類」公開頁 → 依角色導回各自 portal（technician→/home、vendor→/vendor）
+      // 客戶 token 頁（isCustomerPublic）排除在外：永遠直接渲染，客服可預覽自己發的連結
       const home = fallbackRouteForRole(getCurrentSession()?.role ?? null);
       // 防呆(2026-07-05):落點若不屬本 stack(crossModeRedirect 會把它導去別的
       // origin),代表此 token 是別站台殘留 —— 各 port 為獨立 origin,token 各自獨立,
@@ -92,13 +102,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       }
     }
     setChecked(true);
-  }, [isPublic, pathname, router]);
+  }, [isPublic, isCustomerPublic, pathname, router]);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       const pathIsPublic =
-        PUBLIC_PATHS.has(pathname) ||
-        PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
+        AUTH_PAGES.has(pathname) ||
+        CUSTOMER_PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
       if (
         e.key === "smartlock.access_token" &&
         !e.newValue &&

@@ -1928,6 +1928,8 @@ class ReconciliationStatus(StrEnum):
     pending = 'pending'
     approved = 'approved'
     disputed = 'disputed'
+    # UAT-0718 W1-2：對帳駁回（pending → rejected；migration 107）。手動 additive。
+    rejected = 'rejected'
 
 
 class Reconciliation(BaseModel):
@@ -1944,10 +1946,20 @@ class Reconciliation(BaseModel):
     approved_by: UUID | None = None
     approved_at: AwareDatetime | None = None
     created_at: AwareDatetime
+    # UAT-0718 W1-2：駁回審計欄位（migration 107；手動 additive）
+    rejected_by: UUID | None = None
+    rejected_at: AwareDatetime | None = None
+    reject_reason: str | None = None
 
 
 class ReconciliationApproveRequest(BaseModel):
     note: constr(max_length=500) | None = None
+
+
+class ReconciliationRejectRequest(BaseModel):
+    """UAT-0718 W1-2 已釘契約：駁回原因必填（≥3 字）。手動 additive。"""
+
+    reason: constr(min_length=3, max_length=500)
 
 
 class ReconciliationPage(CursorPage):

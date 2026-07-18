@@ -305,7 +305,7 @@ export default function DispatchManualPage() {
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* Page Header */}
         <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] px-8 py-4">
           <span className="text-[13px] text-[var(--text-secondary)]">

@@ -6,7 +6,7 @@ export default function ConversationsLoading() {
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header title="對話管理" subtitle="客戶對話列表" />
         <main className="flex flex-1 flex-col gap-4 overflow-auto px-8 py-6">
           {/* Tabs */}

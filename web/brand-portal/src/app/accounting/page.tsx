@@ -13,6 +13,7 @@ import {
   ChevronDown,
   CheckCircle2,
   Download,
+  XCircle,
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import SettlementTable from "@/components/accounting/SettlementTable";
@@ -20,6 +21,7 @@ import ReconciliationsTable from "@/components/accounting/ReconciliationsTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, tenantPath, getCurrentSession } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { formatTwd } from "@/lib/format";
 import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import { cacheInvalidate } from "@/lib/cache";
 import type { components } from "@/types/api.generated";
@@ -30,6 +32,8 @@ type SettlementPage = components["schemas"]["SettlementPage"];
 type Reconciliation = components["schemas"]["Reconciliation"];
 type ReconciliationPage = components["schemas"]["ReconciliationPage"];
 type ReconciliationStatus = components["schemas"]["ReconciliationStatus"];
+// 'rejected' 為 UAT W1-2 新增後端狀態；生成型別尚未帶出前以本地 union 擴充
+type ReconStatusFilter = ReconciliationStatus | "rejected" | "";
 type ReconciliationApproveResponse = {
   reconciliation: Reconciliation;
   settlement: Settlement;
@@ -50,11 +54,13 @@ export default function AccountingPage() {
   // 取代原本寫死的 dot:true 假通知（恆亮、不反映真實狀態）。
   const [hasPendingInvoices, setHasPendingInvoices] = useState(false);
 
-  const RECON_STATUS_FILTERS: { value: ReconciliationStatus | ""; label: string }[] = useMemo(
+  // UAT W1-2：移除「爭議中」死篩選——legacy/v2 service 皆無 disputed transition、
+  // 無任何產生入口（駁回走新增的 rejected 狀態）。若日後補上爭議流程再恢復。
+  const RECON_STATUS_FILTERS: { value: ReconStatusFilter; label: string }[] = useMemo(
     () => [
       { value: "pending", label: tS("filterPending") },
       { value: "approved", label: tS("filterApproved") },
-      { value: "disputed", label: tS("filterDisputed") },
+      { value: "rejected", label: tS("filterRejected") },
       { value: "", label: tS("filterAll") },
     ],
     [tS],
@@ -104,14 +110,16 @@ export default function AccountingPage() {
   const [recons, setRecons] = useState<Reconciliation[]>([]);
   const [reconsLoading, setReconsLoading] = useState(true);
   const [reconsError, setReconsError] = useState<string | null>(null);
-  const [reconStatus, setReconStatus] = useState<ReconciliationStatus | "">(
-    "pending",
-  );
+  const [reconStatus, setReconStatus] = useState<ReconStatusFilter>("pending");
   const [approveTarget, setApproveTarget] = useState<Reconciliation | null>(
     null,
   );
   const [approving, setApproving] = useState(false);
   const [approveError, setApproveError] = useState<string | null>(null);
+  // UAT W1-2：對帳駁回
+  const [rejectTarget, setRejectTarget] = useState<Reconciliation | null>(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectError, setRejectError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
 
@@ -167,7 +175,7 @@ export default function AccountingPage() {
   }
 
   const fetchReconciliations = useCallback(
-    async (statusFilter: ReconciliationStatus | "") => {
+    async (statusFilter: ReconStatusFilter) => {
       setReconsLoading(true);
       setReconsError(null);
       try {
@@ -256,6 +264,29 @@ export default function AccountingPage() {
       );
     } finally {
       setApproving(false);
+    }
+  };
+
+  // UAT W1-2：駁回對帳（pending → rejected；理由必填 ≥3 字，後端審計）。
+  // 端點依已釘契約 POST .../accounting/reconciliations/{id}:reject（api 側實作中），
+  // 與 approve 同走 legacy base path；409＝狀態已變更（僅 pending 可駁）。
+  const handleReject = async (recon: Reconciliation, reason: string) => {
+    setRejecting(true);
+    setRejectError(null);
+    try {
+      await api.post(
+        `/api/v1/accounting/reconciliations/${encodeURIComponent(recon.id)}:reject`,
+        { reason: reason.trim() },
+      );
+      setRejectTarget(null);
+      setToast(tS("rejectToast", { id: recon.id.slice(0, 8) }));
+      // 同 approve：清 GET 快取再 refetch，避免讀回 30s 舊快取
+      cacheInvalidate("GET:");
+      fetchReconciliations(reconStatus);
+    } catch (e) {
+      setRejectError(friendlyError(e));
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -463,7 +494,17 @@ export default function AccountingPage() {
                 setApproveError(null);
                 setApproveTarget(recon);
               }}
-              pendingApproveId={approving ? approveTarget?.id ?? null : null}
+              onReject={(recon) => {
+                setRejectError(null);
+                setRejectTarget(recon);
+              }}
+              pendingApproveId={
+                approving
+                  ? approveTarget?.id ?? null
+                  : rejecting
+                    ? rejectTarget?.id ?? null
+                    : null
+              }
             />
           </section>
 
@@ -497,6 +538,20 @@ export default function AccountingPage() {
             setApproveError(null);
           }}
           onConfirm={(note) => handleApprove(approveTarget, note)}
+        />
+      )}
+
+      {rejectTarget && (
+        <RejectReconciliationModal
+          recon={rejectTarget}
+          pending={rejecting}
+          error={rejectError}
+          onCancel={() => {
+            if (rejecting) return;
+            setRejectTarget(null);
+            setRejectError(null);
+          }}
+          onConfirm={(reason) => handleReject(rejectTarget, reason)}
         />
       )}
 
@@ -563,7 +618,7 @@ function ApproveReconciliationModal({
           <div className="flex justify-between">
             <span className="text-[var(--text-secondary)]">{t("payout")}</span>
             <span className="font-mono font-semibold text-[var(--text-primary)]">
-              NT$ {Number(recon.technician_payout).toLocaleString("en-US")}
+              {formatTwd(recon.technician_payout)}
             </span>
           </div>
         </div>
@@ -600,6 +655,111 @@ function ApproveReconciliationModal({
             className="rounded-md bg-[var(--success)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {pending ? t("approving") : t("confirm")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** UAT W1-2：駁回對帳理由對話框（理由必填 ≥3 字，inline 驗證） */
+function RejectReconciliationModal({
+  recon,
+  pending,
+  error,
+  onCancel,
+  onConfirm,
+}: {
+  recon: Reconciliation;
+  pending: boolean;
+  error: string | null;
+  onCancel: () => void;
+  onConfirm: (reason: string) => void;
+}) {
+  const t = useTranslations("accounting.settlements.rejectModal");
+  const [reason, setReason] = useState("");
+  const [touched, setTouched] = useState(false);
+  const reasonValid = reason.trim().length >= 3;
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 px-4"
+      onClick={() => !pending && onCancel()}
+    >
+      <div
+        className="w-full max-w-[480px] rounded-xl bg-[var(--bg-surface)] p-6 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-4 flex items-center gap-2">
+          <XCircle className="h-5 w-5 text-[var(--error)]" />
+          <span className="text-[18px] font-semibold text-[var(--text-primary)]">
+            {t("title")}
+          </span>
+        </div>
+        <div className="mb-4 space-y-1 rounded-lg bg-[var(--bg-page)] p-3 text-[13px]">
+          <div className="flex justify-between">
+            <span className="text-[var(--text-secondary)]">{t("reconId")}</span>
+            <span className="font-mono text-[var(--text-primary)]">
+              {recon.id.slice(0, 8)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[var(--text-secondary)]">{t("technician")}</span>
+            <span className="text-[var(--text-primary)]">
+              {recon.technician_name ?? recon.technician_id.slice(0, 8)}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[var(--text-secondary)]">{t("payout")}</span>
+            <span className="font-mono font-semibold text-[var(--text-primary)]">
+              {formatTwd(recon.technician_payout)}
+            </span>
+          </div>
+        </div>
+        <p className="mb-3 text-[13px] leading-[1.6] text-[var(--text-secondary)]">
+          {t("desc")}
+        </p>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          onBlur={() => setTouched(true)}
+          maxLength={500}
+          disabled={pending}
+          rows={3}
+          placeholder={t("reasonPlaceholder")}
+          aria-invalid={touched && !reasonValid}
+          className={`w-full resize-none rounded-md border bg-[var(--bg-surface)] px-3 py-2 text-[13px] text-[var(--text-primary)] focus:outline-none disabled:opacity-50 ${
+            touched && !reasonValid
+              ? "border-[var(--error)] focus:border-[var(--error)]"
+              : "border-[var(--border)] focus:border-[var(--primary)]"
+          }`}
+        />
+        {touched && !reasonValid && (
+          <p className="mt-1 text-[12px] text-[var(--error)]">{t("reasonTooShort")}</p>
+        )}
+
+        {error && (
+          <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            onClick={onCancel}
+            disabled={pending}
+            className="rounded-md border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[13px] font-medium text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+          >
+            {t("cancel")}
+          </button>
+          <button
+            onClick={() => {
+              setTouched(true);
+              if (reasonValid) onConfirm(reason);
+            }}
+            disabled={pending || (touched && !reasonValid)}
+            className="rounded-md bg-[var(--error)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {pending ? t("rejecting") : t("confirm")}
           </button>
         </div>
       </div>

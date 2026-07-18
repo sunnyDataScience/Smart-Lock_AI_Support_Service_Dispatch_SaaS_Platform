@@ -79,7 +79,8 @@ function ResetPasswordInner() {
             <div role="status" className="rounded-lg border border-[var(--border)] bg-[var(--surface-subtle)] px-4 py-3 text-sm text-[var(--text-primary)]">
               {t("confirmSuccess")}
             </div>
-            <Link href="/login" className="text-center text-sm font-medium text-[var(--primary)] hover:underline">
+            {/* UAT W4-4：師傅站登入頁是 /tech-login（/login 不存在 → 404） */}
+            <Link href="/tech-login" className="text-center text-sm font-medium text-[var(--primary)] hover:underline">
               {t("goLogin")}
             </Link>
           </div>

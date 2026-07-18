@@ -2488,6 +2488,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/accounting/reconciliations/{id}:reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 駁回對帳（pending → rejected + 審計欄位；UAT-0718 W1-2）
+         * @description 僅 pending 可駁（其餘 409，語意同 approve）；reason ≥3 字必填。
+         */
+        post: operations["rejectReconciliation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/accounting/invoices": {
         parameters: {
             query?: never;
@@ -9893,15 +9913,12 @@ export interface components {
              * Format: uuid
              */
             id: string;
-            /**
-             * Conversation Id
-             * Format: uuid
-             */
-            conversation_id: string;
+            /** Conversation Id */
+            conversation_id?: string | null;
             /** Brand */
-            brand: string;
+            brand?: string | null;
             /** Model */
-            model: string;
+            model?: string | null;
             /** Symptom */
             symptom: string;
             /** Category */
@@ -9973,9 +9990,9 @@ export interface components {
             /** Customer Phone */
             customer_phone?: string | null;
             /** Brand */
-            brand: string;
+            brand?: string | null;
             /** Model */
-            model: string;
+            model?: string | null;
             /** Symptom */
             symptom: string;
             /** Category */
@@ -10114,6 +10131,10 @@ export interface components {
             } | null;
             /** Channels */
             channels?: string[] | null;
+            /** Related Entity */
+            related_entity?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** Rag */
         Rag: {
@@ -10185,6 +10206,12 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Rejected By */
+            rejected_by?: string | null;
+            /** Rejected At */
+            rejected_at?: string | null;
+            /** Reject Reason */
+            reject_reason?: string | null;
         };
         /** ReconciliationApproveRequest */
         ReconciliationApproveRequest: {
@@ -10203,10 +10230,18 @@ export interface components {
             total_count?: number | null;
         };
         /**
+         * ReconciliationRejectRequest
+         * @description UAT-0718 W1-2 已釘契約：駁回原因必填（≥3 字）。手動 additive。
+         */
+        ReconciliationRejectRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /**
          * ReconciliationStatus
          * @enum {string}
          */
-        ReconciliationStatus: "pending" | "approved" | "disputed";
+        ReconciliationStatus: "pending" | "approved" | "disputed" | "rejected";
         /** RefreshBody */
         RefreshBody: {
             /** Refresh Token */
@@ -12186,6 +12221,21 @@ export interface components {
              * @description 既有客戶 users.id（比對到則填）
              */
             customer_id?: string | null;
+            /**
+             * Conversation Id
+             * @description 來源對話 id（可空）
+             */
+            conversation_id?: string | null;
+            /**
+             * Problem Card Id
+             * @description 關聯問題卡 id（可空）
+             */
+            problem_card_id?: string | null;
+            /**
+             * Work Order Id
+             * @description 關聯工單 id（可空）
+             */
+            work_order_id?: string | null;
         };
         /** _CaseUpdateRequest */
         _CaseUpdateRequest: {
@@ -19132,6 +19182,47 @@ export interface operations {
         requestBody?: {
             content: {
                 "application/json": components["schemas"]["ReconciliationApproveRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rejectReconciliation: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReconciliationRejectRequest"];
             };
         };
         responses: {

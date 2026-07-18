@@ -3528,6 +3528,246 @@
         "save": "Save settings",
         "saving": "Saving…"
       }
+    },
+    "actionDialog": {
+      "minChars": "At least {min} characters required"
+    }
+  },
+  "platform": {
+    "shell": {
+      "brand": "Lock AI Platform Console",
+      "navAria": "Platform console navigation",
+      "nav": {
+        "dashboard": "Dashboard",
+        "requestors": "Requestor Review",
+        "technicians": "Technicians",
+        "tenants": "Tenants"
+      },
+      "logout": "Sign out"
+    },
+    "common": {
+      "all": "All",
+      "loading": "Loading…",
+      "processing": "Processing…",
+      "saving": "Saving…",
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close",
+      "details": "Details",
+      "edit": "Edit",
+      "delete": "Delete",
+      "actionFailed": "Action failed",
+      "colon": ": "
+    },
+    "fields": {
+      "contact": "Contact",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "taxId": "Tax ID",
+      "website": "Website"
+    },
+    "dashboard": {
+      "title": "Dashboard",
+      "welcome": "Welcome back, {name}.",
+      "tabOverview": "Overview",
+      "tabMonitor": "Ops Monitor",
+      "statActiveTenants": "Active tenants",
+      "statTenantsTotal": "/ {count} brands total",
+      "statActiveTechs": "Active technicians",
+      "statTechsTotal": "/ {count} total",
+      "statPendingRequestors": "Requestors pending review",
+      "statPendingTechs": "Technicians pending review",
+      "statUnit": "",
+      "pendingRequestorsSubtitle": "Brand applications {brands} · Vendor accounts {vendors}",
+      "pendingRequestorsHint": "Platform onboarding applications and account reviews for brands, distributors and locksmith shops",
+      "pendingTechsHint": "Technician registration review and lifecycle management",
+      "pendingUnit": "pending review",
+      "tenantsCardTitle": "Brand tenants",
+      "manageTenants": "Manage tenants & licenses",
+      "noTenants": "No tenants onboarded yet."
+    },
+    "technicians": {
+      "title": "Technicians",
+      "subtitle": "Registration review, lifecycle and master-data management for locksmith technicians. The technician pool is shared across brands and managed by the platform.",
+      "addNew": "Add technician",
+      "searchPlaceholder": "Search name / phone / email",
+      "emptyList": "No technicians match the current filters",
+      "unnamed": "(Unnamed)",
+      "loginNotSynced": "Login not synced",
+      "skills": "Skills",
+      "regions": "Service regions",
+      "status": {
+        "pending_approval": "Pending review",
+        "active": "Active",
+        "suspended": "Suspended",
+        "rejected": "Rejected",
+        "terminated": "Terminated",
+        "inactive": "Inactive"
+      },
+      "action": {
+        "approve": "Approve",
+        "reject": "Reject",
+        "suspend": "Suspend",
+        "reactivate": "Reinstate",
+        "terminate": "Terminate",
+        "activate": "Activate"
+      },
+      "actionDialogTitle": "{action} “{name}”",
+      "reasonLabel": "Reason for {action}",
+      "reasonHint": "At least 3 characters; recorded in the audit trail",
+      "actionDone": "{action} applied to “{name}”",
+      "actionFailed": "{action} failed",
+      "createHint": "New technicians start as “pending review” and can be dispatched only after approval; the login password is set by the technician via password reset.",
+      "fieldName": "Name *",
+      "namePlaceholder": "e.g. John Locke",
+      "fieldPhone": "Phone",
+      "fieldEmail": "Email",
+      "emailPlaceholder": "(optional)",
+      "fieldRegions": "Service regions * (comma separated)",
+      "regionsPlaceholder": "Taipei City, New Taipei City",
+      "fieldSkills": "Specialty brands (comma separated, optional)",
+      "nameRequired": "Name is required",
+      "regionsRequired": "Service regions are required",
+      "creating": "Creating…",
+      "createSubmit": "Create technician"
+    },
+    "tenants": {
+      "title": "Tenants",
+      "subtitle": "All onboarded brand tenants (registered automatically when a brand application is approved). Cross-brand registry and lifecycle flags for the platform.",
+      "hintBefore": "Suspend / restore is a ",
+      "hintStrong": "platform-level flag",
+      "hintAfter": "; actually stopping or restarting a brand stack goes through the ops workflow (gcloud / each brand console).",
+      "status": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "terminated": "Terminated"
+      },
+      "emptyAll": "No tenants yet",
+      "emptyFiltered": "No {status} tenants",
+      "createdAt": "Onboarded",
+      "suspendedAt": "Suspended",
+      "serviceStatus": "Service status",
+      "action": {
+        "suspend": "Suspend",
+        "reactivate": "Restore"
+      },
+      "actionDialogTitle": "{action} tenant “{name}”",
+      "suspendDesc": "This only flags the tenant as suspended on the platform; actually stopping the brand's services must be handled through the ops workflow.",
+      "reactivateDesc": "Restore the tenant flag to active.",
+      "actionDone": "{action} applied to “{name}”",
+      "actionFailed": "{action} failed"
+    },
+    "requestors": {
+      "title": "Requestor Review",
+      "subtitle": "Platform onboarding applications and requestor account reviews for brands, distributors and locksmith shops, handled centrally by the platform.",
+      "tabApplications": "Brand applications",
+      "tabVendors": "Vendor accounts",
+      "type": {
+        "brand": "Brand",
+        "locksmith": "Locksmith shop",
+        "distributor": "Distributor"
+      }
+    },
+    "brandApps": {
+      "intro": "Onboarding applications (intent only, no account) submitted by brands, distributors and locksmith shops. After approval, deploy the brand stack manually per the onboarding guide and contact the applicant.",
+      "status": {
+        "pending": "Pending review",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "empty": "No {status} applications",
+      "coverageRegions": "Coverage regions",
+      "storeCount": "Stores / locations",
+      "expectedMonthlyOrders": "Expected monthly orders",
+      "mainBrands": "Main brands",
+      "referralSource": "Referral source",
+      "notes": "Needs",
+      "reviewNotes": "Review notes",
+      "rejectReason": "Rejection reason",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approveTitle": "Approve “{name}”",
+      "approveDesc": "Approval produces an onboarding guide; deploy the brand stack manually per the guide.",
+      "slugLabel": "Brand slug",
+      "slugPlaceholder": "Leave blank to auto-generate",
+      "slugHint": "3-30 chars, lowercase alphanumerics and hyphens, starting with a letter",
+      "approveDone": "Approved “{name}”",
+      "approveFailed": "Approve failed",
+      "rejectTitle": "Reject “{name}”",
+      "rejectReasonLabel": "Rejection reason",
+      "rejectDone": "Rejected “{name}”",
+      "rejectFailed": "Reject failed",
+      "guideTitle": "Onboarding guide — {company}",
+      "guideDesc": "Approved. Onboarding is manual — deploy the brand stack following the steps below and contact the applicant."
+    },
+    "vendors": {
+      "intro": "Login accounts self-registered by requestors (brands / distributors / locksmith shops). Once approved, the account can sign in and submit dispatch requests (unlike applications, this activates an existing account).",
+      "status": {
+        "pending_approval": "Pending review",
+        "active": "Active",
+        "suspended": "Suspended",
+        "rejected": "Rejected"
+      },
+      "empty": "No vendors match the current filters",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectTitle": "Reject “{name}”",
+      "rejectReasonLabel": "Rejection reason",
+      "rejectReasonHint": "Recorded in the review log",
+      "approveDone": "Approved “{name}”",
+      "rejectDone": "Rejected “{name}”"
+    },
+    "monitor": {
+      "status": {
+        "up": "Up",
+        "degraded": "Degraded",
+        "down": "Down"
+      },
+      "summaryUp": "{count} up",
+      "summaryDegraded": "{count} degraded",
+      "summaryDown": "{count} down",
+      "lastChecked": "Last checked {time} (auto-refreshes every 30s)",
+      "gcpLink": "Usage metrics ↗",
+      "gcpTitle": "Usage metrics (requests / CPU / memory) live in GCP Cloud Monitoring",
+      "checkNow": "Check now",
+      "addTarget": "Add target",
+      "empty": "No platform-level monitor targets yet. Click “Add target” to register one (targets whose brand is a tenant slug appear on the Tenants page).",
+      "disabled": "Disabled",
+      "checking": "Checking",
+      "deleteTitle": "Delete monitor target “{name}”",
+      "deleteDesc": "Health probing for this endpoint stops after deletion.",
+      "deleteDone": "Deleted “{name}”",
+      "deleteFailed": "Delete failed",
+      "editTarget": "Edit monitor target",
+      "newTarget": "Add monitor target",
+      "fieldBrand": "Brand / group *",
+      "fieldLabel": "Service label *",
+      "fieldUrl": "Health URL *",
+      "fieldNote": "Note (optional)",
+      "fieldEnabled": "Enable probing",
+      "requiredFields": "Brand, service label and health URL are all required",
+      "labelPlaceholder": "Dispatch API",
+      "notePlaceholder": "Primary dispatch service (production)"
+    },
+    "license": {
+      "title": "License management",
+      "planTier": "Plan tier",
+      "plan": {
+        "free": "Free (free)",
+        "standard": "Standard (standard)",
+        "pro": "Pro (pro)",
+        "enterprise": "Enterprise (enterprise)"
+      },
+      "modules": "Entitled modules",
+      "coreModule": "core (core, always on)",
+      "module": {
+        "refinery": "Knowledge refinery (refinery)",
+        "studio": "Config studio (studio)",
+        "compiler": "Onboarding compiler (compiler)"
+      },
+      "expiresLabel": "License expiry (blank = no expiry)",
+      "expiredHint": "License expired — only core is available"
     }
   }
 }

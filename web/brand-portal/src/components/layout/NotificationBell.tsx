@@ -1,9 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell } from "lucide-react";
-import { api, tenantPath } from "@/lib/api";
+import { api, getCurrentSession, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
+import {
+  BROADCAST_CHANNELS,
+  NotificationBroadcastEvent,
+  useBroadcast,
+} from "@/hooks/useBroadcast";
 import type { components } from "@/types/api.generated";
 import NotificationDrawer from "./NotificationDrawer";
 
@@ -64,6 +70,28 @@ export default function NotificationBell({ variant = "light" }: Props) {
       cancelled = true;
     };
   }, [refreshBadge]);
+
+  // UAT W5-2：通知即時推播 —— 訂閱 /realtime/notifications/{user_id} WS
+  // （後端 push_notification 寫 DB 後 publish 至同一 hub；payload=通知 JSON）。
+  // 收到訊息 → refreshBadge；抽屜開啟時透過既有 broadcast 事件觸發清單刷新。
+  // 斷線重連（exponential backoff）由 subscribeRealtime 內建，靜默處理。
+  const broadcast = useBroadcast<NotificationBroadcastEvent>(
+    BROADCAST_CHANNELS.notifications,
+  );
+  const userId = useMemo(() => getCurrentSession()?.userId ?? null, []);
+  useRealtimeChannel<Notification>({
+    channelPath: userId ? `/realtime/notifications/${userId}` : "",
+    enabled: !!userId,
+    onMessage: (msg) => {
+      const incoming = (msg.payload ?? msg) as Notification | undefined;
+      refreshBadge();
+      if (incoming?.id) {
+        // NotificationDrawer 監聽同名 BroadcastChannel（不同 channel 實例，
+        // 同分頁也收得到）→ 抽屜開啟時 fetchItems 刷新清單
+        broadcast.post({ type: "new_received", id: incoming.id });
+      }
+    },
+  });
 
   const iconColor =
     variant === "dark"

@@ -80,10 +80,13 @@ export default function RecentWorkOrders({
         </Link>
       </div>
 
+      {/* UAT W6-4：固定欄寬列在窄螢幕改容器內橫捲（不擠壓重疊、頁面不橫向溢出） */}
+      <div className="overflow-x-auto">
       <div
         role="table"
         aria-labelledby="recent-work-orders-heading"
         aria-rowcount={items.length + 1}
+        className="min-w-[760px]"
       >
       <div role="row" className="flex bg-[#F1F5F9] px-5 py-[10px]">
         {columns.map((col) => (
@@ -187,6 +190,7 @@ export default function RecentWorkOrders({
         );
       })}
       </div>{/* /role="table" */}
+      </div>{/* /overflow-x-auto */}
 
       {items.length > 0 && (
         <>

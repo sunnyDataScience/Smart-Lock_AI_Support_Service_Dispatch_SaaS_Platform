@@ -1672,14 +1672,16 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
 
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex flex-1 flex-col overflow-auto">
+      {/* UAT W6-4：lg 以下右欄堆疊到主內容下方（整頁縱向捲動）、lg 以上左右欄各自捲動 */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-auto lg:flex-row lg:overflow-hidden">
+        <div className="flex min-w-0 flex-col lg:flex-1 lg:overflow-auto">
           {/* Detail Header */}
           <div className="flex flex-col gap-4 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
             <span className="text-[11px] text-[var(--text-secondary)]">
               {tHeader("breadcrumb", { shortId: displayId })}
             </span>
-            <div className="flex items-center gap-3">
+            {/* UAT W6-4：加 flex-wrap，390px 標題列徽章換行不撐出水平溢出 */}
+            <div className="flex flex-wrap items-center gap-3">
               <Link
                 href="/work-orders"
                 className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--bg-page)]"
@@ -1931,7 +1933,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
             pcId={order?.problem_card_id}
             onLoaded={setProblemCard}
           />
-          <LineMediaGallery conversationId={problemCard?.conversation_id} />
+          <LineMediaGallery conversationId={problemCard?.conversation_id ?? undefined} />
           <WorkTimeline order={order} />
           <ConversationThread conversationId={problemCard?.conversation_id ?? undefined} />
           <CompletionReport order={order} />

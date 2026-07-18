@@ -3,7 +3,8 @@
 // CR-0116 平台維運監控面板。
 // registry(monitor_target)管理 + 對所有啟用目標並發探測 /health → 紅綠燈。
 // 定位:給非技術者一眼看的「即時」狀態(不存歷史);深度指標/告警走 GCP。
-// 前端每 30s 輪詢後端 fan-out(§8-Q7);後端單目標逾時 3s。內部工具 → 文案繁中。
+// 前端每 30s 輪詢後端 fan-out(§8-Q7);後端單目標逾時 3s。
+// UAT W6-2:文案接 i18n(platform.monitor namespace)。
 //
 // 業主裁決(2026-07-07):儀表板不追蹤平台自己(console 打得開=活著),只顯示
 // **平台級服務**(導流站/師傅 API 等 brand 不屬任何租戶 slug 者);brand=租戶 slug
@@ -18,6 +19,7 @@ import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 import { useActionDialog } from "@/components/ui/ActionDialog";
 import { useToast } from "@/components/ui/Toast";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 
 const BASE = "/api/v1/platform/monitor-targets";
 const POLL_MS = 30_000;
@@ -47,20 +49,26 @@ interface HealthResult extends Target {
 
 // checked_at 是後端 UTC ISO 字串:直接 slice 會顯示 UTC 時鐘(台灣差 8 小時,
 // 使用者看起來像「時間戳沒更新」),改用本地時間顯示。
-function fmtCheckedAt(iso: string): string {
+function fmtCheckedAt(iso: string, dateLocale: string): string {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso.slice(11, 19) : d.toLocaleTimeString("zh-TW", { hour12: false });
+  return Number.isNaN(d.getTime())
+    ? iso.slice(11, 19)
+    : d.toLocaleTimeString(dateLocale, { hour12: false });
 }
 
-const STATUS_META: Record<Status, { label: string; dot: string; cls: string }> = {
-  up: { label: "正常", dot: "bg-[var(--status-success)]", cls: "text-[var(--badge-success-fg)] bg-[var(--badge-success-bg)] border-[var(--badge-success-fg)]/25" },
-  degraded: { label: "降級", dot: "bg-[var(--status-warning)]", cls: "text-[var(--badge-warn-fg)] bg-[var(--badge-warn-bg)] border-[var(--badge-warn-fg)]/25" },
-  down: { label: "異常", dot: "bg-[var(--status-danger)]", cls: "text-[var(--badge-danger-fg)] bg-[var(--badge-danger-bg)] border-[var(--badge-danger-fg)]/25" },
+const STATUS_CLS: Record<Status, { dot: string; cls: string }> = {
+  up: { dot: "bg-[var(--status-success)]", cls: "text-[var(--badge-success-fg)] bg-[var(--badge-success-bg)] border-[var(--badge-success-fg)]/25" },
+  degraded: { dot: "bg-[var(--status-warning)]", cls: "text-[var(--badge-warn-fg)] bg-[var(--badge-warn-bg)] border-[var(--badge-warn-fg)]/25" },
+  down: { dot: "bg-[var(--status-danger)]", cls: "text-[var(--badge-danger-fg)] bg-[var(--badge-danger-bg)] border-[var(--badge-danger-fg)]/25" },
 };
 
 export default function OpsMonitorPanel() {
   const actionDialog = useActionDialog();
   const { toast } = useToast();
+  const { locale } = useLocale();
+  const t = useTranslations("platform.monitor");
+  const tc = useTranslations("platform.common");
+  const dateLocale = locale === "en" ? "en-US" : "zh-TW";
   const [targets, setTargets] = useState<Target[]>([]);
   const [tenantSlugs, setTenantSlugs] = useState<Set<string>>(new Set());
   const [health, setHealth] = useState<Record<string, HealthResult>>({});
@@ -87,7 +95,7 @@ export default function OpsMonitorPanel() {
   const loadTenantSlugs = useCallback(async () => {
     try {
       const res = await api.get<{ data: { slug: string }[] }>("/api/v1/platform/tenants");
-      setTenantSlugs(new Set((res.data ?? []).map((t) => t.slug)));
+      setTenantSlugs(new Set((res.data ?? []).map((x) => x.slug)));
     } catch {
       setTenantSlugs(new Set());
     }
@@ -124,39 +132,40 @@ export default function OpsMonitorPanel() {
     };
   }, [loadRegistry, loadTenantSlugs, probe]);
 
-  async function removeTarget(t: Target) {
+  async function removeTarget(target: Target) {
+    const name = `${target.brand} / ${target.label}`;
     const confirmed = await actionDialog.open({
-      title: `刪除監控目標「${t.brand} / ${t.label}」`,
-      description: "刪除後不再對此端點進行健康探測。",
+      title: t("deleteTitle", { name }),
+      description: t("deleteDesc"),
       danger: true,
-      confirmLabel: "刪除",
+      confirmLabel: tc("delete"),
     });
     if (confirmed === null) return;
     try {
-      await api.delete(`${BASE}/${encodeURIComponent(t.id)}`);
+      await api.delete(`${BASE}/${encodeURIComponent(target.id)}`);
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 registry 讀到含此目標的舊清單
       await loadRegistry();
       await probe();
-      toast({ title: `已刪除「${t.brand} / ${t.label}」`, variant: "success" });
+      toast({ title: t("deleteDone", { name }), variant: "success" });
     } catch (e) {
-      toast({ title: "刪除失敗", description: friendlyError(e), variant: "error" });
+      toast({ title: t("deleteFailed"), description: friendlyError(e), variant: "error" });
     }
   }
 
   // 依 brand 分組,只留平台級(brand=租戶 slug 者顯示於租戶管理頁,此處不列)
   const platformGroups = useMemo(() => {
     const g = new Map<string, Target[]>();
-    targets.forEach((t) => {
-      const arr = g.get(t.brand) ?? [];
-      arr.push(t);
-      g.set(t.brand, arr);
+    targets.forEach((target) => {
+      const arr = g.get(target.brand) ?? [];
+      arr.push(target);
+      g.set(target.brand, arr);
     });
     return Array.from(g.entries()).filter(([brand]) => !tenantSlugs.has(brand));
   }, [targets, tenantSlugs]);
 
   // 摘要只計此頁顯示狀態的平台級目標(租戶級健康燈在租戶管理頁,不重複計)
   const summary = useMemo(() => {
-    const platformIds = new Set(platformGroups.flatMap(([, items]) => items.map((t) => t.id)));
+    const platformIds = new Set(platformGroups.flatMap(([, items]) => items.map((x) => x.id)));
     const vals = Object.values(health).filter((v) => platformIds.has(v.id));
     return {
       up: vals.filter((v) => v.status === "up").length,
@@ -171,17 +180,20 @@ export default function OpsMonitorPanel() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3 text-sm text-[var(--text-secondary)]">
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--status-success)]" /> {summary.up} 正常
+            <span className="h-2 w-2 rounded-full bg-[var(--status-success)]" />{" "}
+            {t("summaryUp", { count: summary.up })}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--status-warning)]" /> {summary.degraded} 降級
+            <span className="h-2 w-2 rounded-full bg-[var(--status-warning)]" />{" "}
+            {t("summaryDegraded", { count: summary.degraded })}
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-[var(--status-danger)]" /> {summary.down} 異常
+            <span className="h-2 w-2 rounded-full bg-[var(--status-danger)]" />{" "}
+            {t("summaryDown", { count: summary.down })}
           </span>
           {checkedAt && (
             <span className="text-xs">
-              最後檢查 {fmtCheckedAt(checkedAt)}（每 30 秒自動更新）
+              {t("lastChecked", { time: fmtCheckedAt(checkedAt, dateLocale) })}
             </span>
           )}
         </div>
@@ -191,11 +203,11 @@ export default function OpsMonitorPanel() {
               href={GCP_MONITORING_URL}
               target="_blank"
               rel="noopener noreferrer"
-              title="用量指標（請求數／CPU／記憶體）在 GCP Cloud Monitoring"
+              title={t("gcpTitle")}
               className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))]"
             >
               <BarChart3 className="h-3.5 w-3.5" aria-hidden />
-              詳細用量 ↗
+              {t("gcpLink")}
             </a>
           )}
           <button
@@ -205,7 +217,7 @@ export default function OpsMonitorPanel() {
             className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${probing ? "animate-spin" : ""}`} aria-hidden />
-            立即檢查
+            {t("checkNow")}
           </button>
           <button
             type="button"
@@ -213,7 +225,7 @@ export default function OpsMonitorPanel() {
             className="flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3 py-1.5 text-sm font-semibold text-white transition hover:opacity-90"
           >
             <Plus className="h-4 w-4" aria-hidden />
-            新增目標
+            {t("addTarget")}
           </button>
         </div>
       </div>
@@ -225,10 +237,10 @@ export default function OpsMonitorPanel() {
       )}
 
       {loading ? (
-        <p className="text-sm text-[var(--text-secondary)]">載入中…</p>
+        <p className="text-sm text-[var(--text-secondary)]">{tc("loading")}</p>
       ) : platformGroups.length === 0 ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-10 text-center text-sm text-[var(--text-secondary)]">
-          尚無平台級監控目標。點「新增目標」登記(品牌代號填租戶 slug 者顯示於租戶管理頁)。
+          {t("empty")}
         </div>
       ) : (
         <div className="flex flex-col gap-5">
@@ -239,51 +251,59 @@ export default function OpsMonitorPanel() {
             >
               <h3 className="mb-3 text-sm font-bold text-[var(--text-primary)]">{brand}</h3>
               <div className="flex flex-col divide-y divide-[var(--border)]">
-                {items.map((t) => {
-                  const h = health[t.id];
-                  const meta = h ? STATUS_META[h.status] : null;
+                {items.map((target) => {
+                  const h = health[target.id];
+                  const meta = h ? STATUS_CLS[h.status] : null;
                   return (
-                    <div key={t.id} className="flex items-center gap-3 py-3">
+                    <div key={target.id} className="flex items-center gap-3 py-3">
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-xs font-medium ${
-                          t.enabled
+                          target.enabled
                             ? meta?.cls ?? "text-[var(--text-secondary)] bg-[var(--bg-page)] border-[var(--border)]"
                             : "text-[var(--text-secondary)] bg-[var(--bg-page)] border-[var(--border)]"
                         }`}
                       >
                         <span
                           className={`h-2 w-2 rounded-full ${
-                            !t.enabled ? "bg-[var(--text-tertiary)]" : meta?.dot ?? "bg-[var(--text-tertiary)] animate-pulse"
+                            !target.enabled
+                              ? "bg-[var(--text-tertiary)]"
+                              : meta?.dot ?? "bg-[var(--text-tertiary)] animate-pulse"
                           }`}
                         />
-                        {!t.enabled ? "停用" : meta?.label ?? "檢查中"}
+                        {!target.enabled
+                          ? t("disabled")
+                          : h
+                            ? t(`status.${h.status}`)
+                            : t("checking")}
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-[var(--text-primary)]">{t.label}</span>
-                          {h && t.enabled && (
+                          <span className="text-sm font-medium text-[var(--text-primary)]">
+                            {target.label}
+                          </span>
+                          {h && target.enabled && (
                             <span className="text-xs text-[var(--text-secondary)]">
                               {h.http_code ?? "—"}　{h.latency_ms}ms
                             </span>
                           )}
                         </div>
                         <div className="truncate text-xs text-[var(--text-secondary)]">
-                          {t.url}
-                          {t.note ? `　·　${t.note}` : ""}
+                          {target.url}
+                          {target.note ? `　·　${target.note}` : ""}
                         </div>
                       </div>
                       <button
                         type="button"
-                        onClick={() => setEdit(t)}
-                        aria-label="編輯"
+                        onClick={() => setEdit(target)}
+                        aria-label={tc("edit")}
                         className="text-[var(--text-secondary)] hover:text-[var(--primary)]"
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
                       <button
                         type="button"
-                        onClick={() => removeTarget(t)}
-                        aria-label="刪除"
+                        onClick={() => removeTarget(target)}
+                        aria-label={tc("delete")}
                         className="text-[var(--text-secondary)] hover:text-[var(--status-danger)]"
                       >
                         <Trash2 className="h-4 w-4" />
@@ -322,6 +342,8 @@ function TargetModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useTranslations("platform.monitor");
+  const tc = useTranslations("platform.common");
   const [form, setForm] = useState({
     brand: target?.brand ?? "",
     label: target?.label ?? "",
@@ -334,7 +356,7 @@ function TargetModal({
 
   async function save() {
     if (!form.brand.trim() || !form.label.trim() || !form.url.trim()) {
-      setMsg("品牌、服務標籤、health URL 皆為必填");
+      setMsg(t("requiredFields"));
       return;
     }
     setBusy(true);
@@ -352,7 +374,7 @@ function TargetModal({
       } else {
         await api.post(BASE, payload);
       }
-      cacheInvalidate("GET:"); // 新增/編輯目標後立即反映（清 30s GET 舊快取）
+      cacheInvalidate("GET:"); // 新增/編輯目標後立即反映(清 30s GET 舊快取)
       onSaved();
     } catch (e) {
       setMsg(friendlyError(e));
@@ -370,13 +392,13 @@ function TargetModal({
     >
       <div className="w-full max-w-md rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-6 shadow-lg">
         <h2 className="mb-4 text-lg font-bold text-[var(--text-primary)]">
-          {target ? "編輯監控目標" : "新增監控目標"}
+          {target ? t("editTarget") : t("newTarget")}
         </h2>
         <div className="flex flex-col gap-3">
-          <Field label="品牌 / 分組 *" value={form.brand} onChange={(v) => setForm((f) => ({ ...f, brand: v }))} placeholder="locksmart" />
-          <Field label="服務標籤 *" value={form.label} onChange={(v) => setForm((f) => ({ ...f, label: v }))} placeholder="派工 API" />
-          <Field label="Health URL *" value={form.url} onChange={(v) => setForm((f) => ({ ...f, url: v }))} placeholder="https://xxx.run.app/health" />
-          <Field label="備註（選填）" value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))} placeholder="正式環境主派工服務" />
+          <Field label={t("fieldBrand")} value={form.brand} onChange={(v) => setForm((f) => ({ ...f, brand: v }))} placeholder="locksmart" />
+          <Field label={t("fieldLabel")} value={form.label} onChange={(v) => setForm((f) => ({ ...f, label: v }))} placeholder={t("labelPlaceholder")} />
+          <Field label={t("fieldUrl")} value={form.url} onChange={(v) => setForm((f) => ({ ...f, url: v }))} placeholder="https://xxx.run.app/health" />
+          <Field label={t("fieldNote")} value={form.note} onChange={(v) => setForm((f) => ({ ...f, note: v }))} placeholder={t("notePlaceholder")} />
           <label className="flex items-center gap-2 text-sm text-[var(--text-primary)]">
             <input
               type="checkbox"
@@ -384,7 +406,7 @@ function TargetModal({
               onChange={(e) => setForm((f) => ({ ...f, enabled: e.target.checked }))}
               className="h-4 w-4"
             />
-            啟用探測
+            {t("fieldEnabled")}
           </label>
         </div>
         {msg && <p className="mt-3 text-[13px] text-[var(--status-danger)]">{msg}</p>}
@@ -395,7 +417,7 @@ function TargetModal({
             disabled={busy}
             className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50"
           >
-            取消
+            {tc("cancel")}
           </button>
           <button
             type="button"
@@ -403,7 +425,7 @@ function TargetModal({
             disabled={busy}
             className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
           >
-            {busy ? "儲存中…" : "儲存"}
+            {busy ? tc("saving") : tc("save")}
           </button>
         </div>
       </div>

@@ -516,7 +516,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <Link
             href="/problem-cards"
@@ -1403,8 +1403,9 @@ function EditModal({
   onCancel: () => void;
   onSubmit: (patch: ProblemCardUpdateRequest) => Promise<void>;
 }) {
-  const [brand, setBrand] = useState(initial.brand);
-  const [model, setModel] = useState(initial.model);
+  // brand/model 生成型別為 nullable：以空字串起始，避免 input value 收到 null
+  const [brand, setBrand] = useState(initial.brand ?? "");
+  const [model, setModel] = useState(initial.model ?? "");
   const [symptom, setSymptom] = useState(initial.symptom);
   const [category, setCategory] = useState(initial.category ?? "");
   const [urgency, setUrgency] = useState<Urgency>(initial.urgency);

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import SkillsTable from "@/components/knowledge-base/SkillsTable";
 import { useKbCounts } from "@/hooks/useKbCounts";
+import { ApiError } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { listSkills, type SkillSummary } from "@/lib/skills-api";
 
@@ -22,6 +23,8 @@ export default function SkillsPage() {
   const [items, setItems] = useState<SkillSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // UAT W5-6：403（無權限）需獨立呈現——只顯示權限訊息，不再同時渲染空狀態文案
+  const [forbidden, setForbidden] = useState(false);
 
   // 抓列表：可重複呼叫（初次載入 + 回到本頁時刷新）。不重置 loading，避免刷新時整表閃「載入中」。
   const fetchSkills = useCallback(async () => {
@@ -29,7 +32,9 @@ export default function SkillsPage() {
       const rows = await listSkills();
       setItems(rows);
       setError(null);
+      setForbidden(false);
     } catch (e) {
+      setForbidden(e instanceof ApiError && e.status === 403);
       setError(friendlyError(e));
     } finally {
       setLoading(false);
@@ -93,15 +98,27 @@ export default function SkillsPage() {
           {" 自動生效於 LINE 客服，無需重新部署。每次發佈都保留版本，可隨時回滾。"}
         </div>
 
-        {error && (
+        {error && !forbidden && (
           <div className="mx-4 mt-4 rounded-lg border border-[var(--error)]/30 bg-[var(--error)]/10 px-4 py-3 text-sm text-[var(--error)] md:mx-8">
             {error}
           </div>
         )}
 
-        <div className="flex-1 overflow-auto">
-          <SkillsTable items={items} loading={loading} />
-        </div>
+        {forbidden ? (
+          /* UAT W5-6：403 只顯示權限訊息，不渲染「尚無 AI 技能」空狀態（避免誤導為沒資料） */
+          <div className="mx-4 my-6 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-10 text-center md:mx-8">
+            <p className="text-sm font-medium text-[var(--text-primary)]">
+              您沒有檢視 AI 技能的權限
+            </p>
+            <p className="mt-1 text-xs text-[var(--text-tertiary)]">
+              如需存取此功能，請聯絡品牌管理員調整您的角色權限。
+            </p>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-auto">
+            <SkillsTable items={items} loading={loading} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -73,6 +73,9 @@
       "successMsg": "Password updated"
     }
   },
+  "a11y": {
+    "skipToMain": "Skip to main content"
+  },
   "locale": {
     "label": "Language",
     "menuLabel": "Language options",
@@ -1292,6 +1295,19 @@
           "on_leave": "On leave",
           "circuit_breaker_open": "Paused (circuit breaker)"
         }
+      },
+      "changePassword": {
+        "title": "Change password",
+        "currentLabel": "Current password",
+        "newLabel": "New password",
+        "newPlaceholder": "At least 8 characters",
+        "confirmLabel": "Confirm new password",
+        "submit": "Update password",
+        "submitting": "Updating…",
+        "tooShort": "New password must be at least 8 characters",
+        "mismatch": "The two new passwords do not match",
+        "sameAsCurrent": "New password must differ from the current password",
+        "success": "Password updated. Please sign in again with your new password. Redirecting to sign-in…"
       },
       "schedule": {
         "back": "Back",
@@ -2529,6 +2545,7 @@
       "title": "Order pool",
       "loading": "Loading…",
       "availableCount": "{count} orders available",
+      "availableCountOne": "1 order available",
       "refreshTitle": "Refresh",
       "conflictTaken": "This order has been taken by another technician",
       "empty": "No orders available right now",

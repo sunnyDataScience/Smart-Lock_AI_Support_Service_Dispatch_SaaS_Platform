@@ -98,6 +98,7 @@ async def get_current_user(
 
     # A2/A3：每請求重查使用者狀態（停權即時失效 + 改密碼後撤既有 session）。
     # fail-open：查無/無 DB → None → 維持 claims-only（見 load_user_security_state）。
+    # 例外（UAT-0718 R2）：technician 於雙庫模式讀權威庫且 fail-closed（503）。
     state = await load_user_security_state(payload["sub"], token_role)
     if state is not None:
         if not state["is_active"]:

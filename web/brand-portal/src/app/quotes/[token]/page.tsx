@@ -21,7 +21,8 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 type Params = { token: string };
 
 // 直接打 consumer endpoint — 不走 src/lib/api.ts（會帶 Authorization / X-Tenant-ID）
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+// 用 || 而非 ??：Docker build-arg 未傳時 ENV 是空字串 ""（非 undefined），需一併 fallback
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
 
 type QuoteState =
   | "draft"
@@ -49,6 +50,11 @@ interface ConsumerQuoteView {
   lines: ConsumerQuoteLine[];
   expires_at: string | null;
   snapshot_hash: string | null;
+  // 以下為加法欄位（後端可能尚未提供，防禦性讀取；UAT W2-6 客戶辨識脈絡）
+  quote_no?: string | null;
+  created_at?: string | null;
+  work_order_no?: string | null;
+  service_address?: string | null;
 }
 
 const STATE_COLOR: Record<QuoteState, string> = {
@@ -84,9 +90,12 @@ export default function PublicQuotePage({ params }: { params: Promise<Params> })
         cache: "no-store",
         credentials: "omit",
       });
-      if (res.status === 404) return setState({ kind: "error", code: "not_found", message: t("errors.notFound") });
       if (res.status === 410) return setState({ kind: "error", code: "expired", message: t("errors.expired") });
       if (res.status === 429) return setState({ kind: "error", code: "rate_limit", message: t("errors.rateLimit") });
+      // 其餘 4xx（400/404/422 等：token 格式不符 / 不存在）一律視為「連結無效或已過期」，
+      // 避免把使用者導向「稍後再試」的暫時性錯誤誤導（UAT W2-5）
+      if (res.status >= 400 && res.status < 500)
+        return setState({ kind: "error", code: "not_found", message: t("errors.notFound") });
       if (!res.ok) return setState({ kind: "error", code: "other", message: t("errors.fail", { status: String(res.status) }) });
       const data = (await res.json()) as ConsumerQuoteView;
       setState({ kind: "ok", data });
@@ -186,6 +195,23 @@ function QuotePanel({
 
   return (
     <div className="mt-6 space-y-5" data-testid="quote-view">
+      {/* 客戶可辨識脈絡：報價單編號 / 日期 / 工單 / 地址（UAT W2-6；欄位缺時不渲染） */}
+      <div className="space-y-1.5 rounded-md bg-slate-50 px-3 py-2.5" data-testid="quote-context">
+        <InfoRow
+          label={t("fields.quoteNo")}
+          value={data.quote_no || data.quote_id.slice(0, 8).toUpperCase()}
+        />
+        {data.created_at && (
+          <InfoRow label={t("fields.quoteDate")} value={formatDateTime(data.created_at)} />
+        )}
+        {data.work_order_no && (
+          <InfoRow label={t("fields.workOrderNo")} value={data.work_order_no} />
+        )}
+        {data.service_address && (
+          <InfoRow label={t("fields.serviceAddress")} value={data.service_address} />
+        )}
+      </div>
+
       {/* 狀態 + 總額 */}
       <div className="flex items-center justify-between">
         <span data-testid="quote-state" className={`inline-block rounded-full border px-3 py-1 text-[13px] font-medium ${stateColor}`}>
@@ -247,9 +273,10 @@ function QuotePanel({
         </div>
       )}
 
+      {/* 低調小字：雜湊只露前 8 碼，術語改為客服核對用驗證碼（UAT W2-6） */}
       {data.snapshot_hash && (
         <p className="text-center text-[11px] text-slate-400">
-          {t("fields.snapshot")}: <span className="font-mono">{data.snapshot_hash.slice(0, 16)}…</span>
+          {t("fields.snapshot")}：<span className="font-mono">{data.snapshot_hash.slice(0, 8)}…</span>
         </p>
       )}
     </div>

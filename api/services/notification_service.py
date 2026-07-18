@@ -204,7 +204,13 @@ async def mark_all_read(
 
 
 async def push_notification(req: dict, *, tenant_id: str) -> dict:
-    """target_type='user': target_id 即 users.id；其他 target type Phase 1 暫不展開。"""
+    """target_type='user': target_id 即 users.id；其他 target type Phase 1 暫不展開。
+
+    UAT-0718 W5-2（已釘契約）：寫 DB 後 publish 到既有 WS hub
+    /realtime/notifications/{user_id}（payload=通知 JSON）——前端鈴鐺訂閱該
+    WS，收到訊息 refreshBadge。fail-soft：publish 失敗不影響通知落庫。
+    UAT-0718 W5-3：可選 related_entity（jsonb）讓通知帶可點跳轉。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
@@ -218,12 +224,29 @@ async def push_notification(req: dict, *, tenant_id: str) -> dict:
             422,
         )
 
+    related_entity = req.get("related_entity")
+
     notif_id = str(uuid.uuid4())
     cur = await db_module._conn.execute(
-        "INSERT INTO notifications (id, tenant_id, user_id, type, severity, title, body, source) "
-        "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'info', %s, %s, 'system') "
+        "INSERT INTO notifications (id, tenant_id, user_id, type, severity, title, body, source, related_entity) "
+        "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'info', %s, %s, 'system', %s::jsonb) "
         "RETURNING id, type, severity, title, body, source, created_at, read_at, archived_at, related_entity, actions, raw_event_id",
-        (notif_id, tenant_id, target_id, req["type"], req["title"], req.get("body", "")),
+        (
+            notif_id, tenant_id, target_id, req["type"], req["title"], req.get("body", ""),
+            json.dumps(related_entity, ensure_ascii=False) if related_entity else None,
+        ),
     )
     row = await cur.fetchone()
-    return _row_to_dict(row)
+    notif = _row_to_dict(row)
+
+    # 即時推播（fail-soft：WS 掛掉不影響已落庫的通知，前端 polling 仍拿得到）
+    try:
+        from realtime.ws_hub import hub  # 延遲 import 避免循環
+
+        await hub.publish(
+            f"/realtime/notifications/{target_id}",
+            {"type": "notification", "payload": notif},
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("notification ws publish failed (non-fatal): %s", notif_id[:8])
+    return notif

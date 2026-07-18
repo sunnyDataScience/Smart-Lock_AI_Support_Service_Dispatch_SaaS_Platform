@@ -18,6 +18,7 @@ from passlib.context import CryptContext
 
 from core.config import load_config, require_env
 from core.db import _ensure_conn
+from core.errors import ApiError
 import core.db as db_module
 
 logger = logging.getLogger("api.auth")
@@ -105,6 +106,43 @@ async def _security_conn(role: str | None):
     return db_module._conn
 
 
+async def _load_technician_security_state(user_id: str) -> dict | None:
+    """UAT-0718 R2：technician 角色的 per-request 安全檢查（A2/A3/lockout 狀態源）
+    改讀**權威庫**（require_tech_conn，同 CR-0164 登入 lookup 的路由精神）。
+
+    背景：原本讀品牌庫投影 users.is_active——投影鏡射一斷，被停權技師的活躍
+    token 對所有 API 照常放行（fail-open 結構性漏洞，W4-2 實測）。
+
+    語意：
+      - 權威庫讀取失敗（連線/查詢炸）→ **fail-closed**：raise 503 拒絕請求，
+        不退 claims-only（安全檢查依賴的庫離線時不放行）。
+      - 查無此 user → None（維持既有測試「假 user_id 走 claims-only」慣例；
+        真實技師 token 在權威庫必有列）。
+    效能：require_tech_conn 復用模組級長連線，不會每請求開新連線。
+    """
+    try:
+        uuid.UUID(str(user_id))
+    except (ValueError, TypeError, AttributeError):
+        return None
+    try:
+        conn = await db_module.require_tech_conn()
+        cur = await conn.execute(
+            "SELECT is_active, password_changed_at FROM users WHERE id = %s::uuid LIMIT 1",
+            (user_id,),
+        )
+        row = await cur.fetchone()
+    except Exception as exc:  # noqa: BLE001 — 權威庫不可讀＝安全狀態不可驗
+        logger.error("技師安全狀態查詢失敗（權威庫）：%s", exc)
+        raise ApiError(
+            "SECURITY_STATE_UNAVAILABLE",
+            "技師安全狀態不可驗（權威庫離線）——拒絕請求（fail-closed）",
+            503,
+        ) from exc
+    if not row:
+        return None
+    return {"is_active": row[0], "password_changed_at": row[1]}
+
+
 async def load_user_security_state(user_id: str, role: str | None = None) -> dict | None:
     """回 {is_active, password_changed_at} 供每請求 token 驗證重查（A2/A3）。
 
@@ -113,7 +151,12 @@ async def load_user_security_state(user_id: str, role: str | None = None) -> dic
       - 既有大量元件測試用「未 seed 的假 user_id」（token 驗證只看 claims）→ 查無回 None 不破測試。
       - 真實「停權（is_active=False）」或「改密碼後（password_changed_at）」的既存帳號 → 撈得到 → 失效。
     role 供 CR-0114 路由：platform_admin 查平台庫，其餘查主連線。
+
+    **例外（UAT-0718 R2）**：role=technician 且雙庫模式時改讀權威庫且 fail-closed
+    （見 _load_technician_security_state）；單庫 fallback 行為與舊版完全相同。
     """
+    if role == "technician" and db_module.tech_db_enabled():
+        return await _load_technician_security_state(user_id)
     conn = await _security_conn(role)
     if conn is None:
         return None
@@ -135,7 +178,15 @@ async def security_state_verifiable(role: str | None = None) -> bool:
     """安全狀態是否可驗（SA-05 / CR-0131）：能取得對應安全庫連線＝可查 revoked_jti
     與 users.is_active。DB 不可用 → False——關鍵金流/派工寫入端點（fail_closed=True
     白名單）此時拒絕請求（503），不退 claims-only；一般端點維持 fail-open（C-05 取捨）。
+
+    UAT-0718 R2：technician 於雙庫模式須權威庫也可達（is_active/password_changed_at
+    讀權威庫；revoked_jti 仍在品牌庫）——兩庫任一不可達＝不可驗。
     """
+    if role == "technician" and db_module.tech_db_enabled():
+        try:
+            await db_module.require_tech_conn()
+        except Exception:  # noqa: BLE001 — RuntimeError(Tech DB unavailable) 等
+            return False
     return (await _security_conn(role)) is not None
 
 

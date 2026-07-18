@@ -14,7 +14,9 @@
     "search": "搜尋",
     "language": "語言",
     "comingSoon": "即將推出",
-    "notAvailable": "—"
+    "notAvailable": "—",
+    "skipToMain": "跳到主要內容",
+    "docTitle": "SmartLock 智慧鎖服務"
   },
   "header": {
     "searchPlaceholder": "搜尋工單、技師、客戶...",

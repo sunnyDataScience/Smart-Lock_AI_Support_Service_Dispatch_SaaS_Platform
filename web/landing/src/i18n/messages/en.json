@@ -14,7 +14,9 @@
     "search": "Search",
     "language": "Language",
     "comingSoon": "Coming soon",
-    "notAvailable": "—"
+    "notAvailable": "—",
+    "skipToMain": "Skip to main content",
+    "docTitle": "SmartLock Smart Lock Services"
   },
   "header": {
     "searchPlaceholder": "Search work orders, technicians, customers...",

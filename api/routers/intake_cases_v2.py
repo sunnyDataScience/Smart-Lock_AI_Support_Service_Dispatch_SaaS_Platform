@@ -31,6 +31,10 @@ class _CaseCreateRequest(BaseModel):
     customer_phone: str | None = Field(default=None)
     customer_line_id: str | None = Field(default=None)
     customer_id: str | None = Field(default=None, description="既有客戶 users.id（比對到則填）")
+    # UAT-0718 W5-4：關聯欄（選填；LINE 自動建案由後端回填，手動建案可不填）
+    conversation_id: str | None = Field(default=None, description="來源對話 id（可空）")
+    problem_card_id: str | None = Field(default=None, description="關聯問題卡 id（可空）")
+    work_order_id: str | None = Field(default=None, description="關聯工單 id（可空）")
 
 
 class _CaseUpdateRequest(BaseModel):
@@ -90,6 +94,9 @@ async def create_case(
         customer_line_id=body.customer_line_id,
         customer_id=body.customer_id,
         created_by=user.user_id,
+        conversation_id=body.conversation_id,
+        problem_card_id=body.problem_card_id,
+        work_order_id=body.work_order_id,
     )
     response.status_code = 201
     payload = case  # service 回 {"data": ...}

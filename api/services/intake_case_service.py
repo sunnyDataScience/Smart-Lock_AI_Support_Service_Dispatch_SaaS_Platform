@@ -46,13 +46,17 @@ def _row_to_dict(row: tuple) -> dict:
         "created_by": str(row[11]) if row[11] else None,
         "created_at": row[12].isoformat() if row[12] else None,
         "updated_at": row[13].isoformat() if row[13] else None,
+        # UAT-0718 W5-4（migration 108）：關聯欄——前端有值才渲染連結
+        "conversation_id": str(row[14]) if row[14] else None,
+        "problem_card_id": str(row[15]) if row[15] else None,
+        "work_order_id": str(row[16]) if row[16] else None,
     }
 
 
 _SELECT_COLS = (
     "id, case_number, source_channel, customer_id, customer_name, customer_phone, "
     "customer_line_id, summary, status, first_response_due_at, first_responded_at, "
-    "created_by, created_at, updated_at"
+    "created_by, created_at, updated_at, conversation_id, problem_card_id, work_order_id"
 )
 
 
@@ -66,8 +70,16 @@ async def create_case(
     customer_line_id: str | None = None,
     customer_id: str | None = None,
     created_by: str | None = None,
+    conversation_id: str | None = None,
+    problem_card_id: str | None = None,
+    work_order_id: str | None = None,
 ) -> dict:
-    """客服代建 Case；建案即啟動 first-response SLA。"""
+    """客服代建 Case；建案即啟動 first-response SLA。
+
+    UAT-0718 W5-4：三個 nullable 關聯欄（conversation/problem_card/work_order）
+    ——LINE 自動建案路徑回填 conversation_id（+problem_card_id）；
+    手動建案 UI 端可不填（NULL）。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     if source_channel not in _SOURCE_CHANNELS:
@@ -86,13 +98,15 @@ async def create_case(
     await db_module._conn.execute(
         f"INSERT INTO saas.intake_case "
         f"(id, tenant_id, case_number, source_channel, customer_id, customer_name, "
-        f" customer_phone, customer_line_id, summary, status, first_response_due_at, created_by) "
+        f" customer_phone, customer_line_id, summary, status, first_response_due_at, created_by, "
+        f" conversation_id, problem_card_id, work_order_id) "
         f"VALUES (%s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s, %s, 'open', "
-        f"        NOW() + make_interval(mins => %s), %s)",
+        f"        NOW() + make_interval(mins => %s), %s, %s::uuid, %s::uuid, %s::uuid)",
         (
             case_id, tenant_id, case_number, source_channel,
             customer_id, customer_name, customer_phone, customer_line_id, summary,
             _sla_minutes(), created_by,
+            conversation_id, problem_card_id, work_order_id,
         ),
     )
     return await get_case(tenant_id=tenant_id, case_id=case_id)

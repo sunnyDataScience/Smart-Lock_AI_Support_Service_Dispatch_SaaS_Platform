@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImageOff, Sparkles } from "lucide-react";
+import { Headset, ImageOff, Sparkles } from "lucide-react";
 import { auth } from "@/lib/api";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
@@ -111,17 +111,35 @@ function CustomerMessage({ msg, idx }: { msg: Message; idx: number }) {
 }
 
 function AiMessage({ msg }: { msg: Message }) {
+  // UAT W5-1：接管中真人客服發送的訊息（metadata.sender_role=agent_human）需與
+  // AI 助理視覺區分（稽核/交接要能分辨真人發言）。metadata 為加法欄位，
+  // api.generated 型別尚未帶出前先防禦性讀取。
+  const senderRole = (
+    msg as Message & { metadata?: { sender_role?: string } | null }
+  ).metadata?.sender_role;
+  const isHumanAgent = senderRole === "agent_human";
   return (
     <div className="flex w-full flex-col gap-[6px]">
       <div className="flex items-center gap-[6px]">
         <div
-          className="flex h-6 w-6 items-center justify-center rounded-full bg-[#EFF6FF]"
+          className={`flex h-6 w-6 items-center justify-center rounded-full ${
+            isHumanAgent ? "bg-[#ECFDF5]" : "bg-[#EFF6FF]"
+          }`}
           aria-hidden="true"
         >
-          <Sparkles className="h-[14px] w-[14px] text-[var(--primary)]" />
+          {isHumanAgent ? (
+            <Headset className="h-[14px] w-[14px] text-[#047857]" />
+          ) : (
+            <Sparkles className="h-[14px] w-[14px] text-[var(--primary)]" />
+          )}
         </div>
-        <span className="text-[12px] font-semibold text-[var(--primary)]">
-          AI 助理
+        <span
+          data-testid={isHumanAgent ? "msg-sender-human" : "msg-sender-ai"}
+          className={`text-[12px] font-semibold ${
+            isHumanAgent ? "text-[#047857]" : "text-[var(--primary)]"
+          }`}
+        >
+          {isHumanAgent ? "客服人員" : "AI 助理"}
         </span>
       </div>
       <div className="flex flex-col gap-1">

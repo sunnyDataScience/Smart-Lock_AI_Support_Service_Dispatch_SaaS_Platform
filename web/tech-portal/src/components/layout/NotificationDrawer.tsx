@@ -21,7 +21,7 @@ import {
   useBroadcast,
 } from "@/hooks/useBroadcast";
 import { formatRelative } from "@/lib/format";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 import type {
@@ -93,6 +93,7 @@ export default function NotificationDrawer({
   onClose,
   onUnreadCountChange,
 }: Props) {
+  const { locale } = useLocale(); // UAT W6-6：相對時間依 locale 輸出
   const t = useTranslations("components.layout.notificationDrawer");
   // v2 tenant-scoped path（CR-0003 P2-W2 / ADR-0012）
   const [tab, setTab] = useState<StatusFilter>("unread");
@@ -359,7 +360,7 @@ export default function NotificationDrawer({
                         >
                           {typeLabel}
                         </span>
-                        <span>{formatRelative(n.created_at)}</span>
+                        <span>{formatRelative(n.created_at, locale)}</span>
                       </div>
                       <div className="mt-2 flex items-center gap-3">
                         {unread && (

@@ -230,6 +230,14 @@ export default function NotificationsPage() {
     [items, selectedId],
   );
 
+  // UAT W5-9：開詳情面板即自動標已讀（涵蓋列表點擊與 ?id= 深連結兩種進入路徑；
+  // 面板另保留「標為已讀」鈕作為未讀時的手動備援）
+  useEffect(() => {
+    if (selectedItem && !selectedItem.read_at) void markOneRead(selectedItem);
+    // markOneRead 未 memo 化（內部有 marking 防重入鎖），僅以選中項變化觸發
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedItem?.id, selectedItem?.read_at]);
+
   async function markOneRead(n: Notification) {
     if (n.read_at || marking) return;
     setMarking(n.id);
@@ -343,7 +351,7 @@ export default function NotificationsPage() {
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         {/* header_bar */}
         <div className="flex flex-col gap-3 border-b border-[var(--border)] bg-[var(--bg-surface)] px-6 py-4">
           <div className="flex items-center justify-between">
@@ -497,8 +505,8 @@ export default function NotificationsPage() {
                       <li
                         key={n.id}
                         onClick={() => {
+                          // 自動標已讀交給 selectedItem effect（UAT W5-9），避免雙重呼叫
                           setSelectedId(n.id);
-                          if (unread) markOneRead(n);
                         }}
                         className={`flex cursor-pointer gap-3 px-6 py-4 transition ${
                           active

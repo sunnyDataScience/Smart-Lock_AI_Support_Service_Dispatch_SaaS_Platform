@@ -170,7 +170,9 @@ export default function DashboardPage() {
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
 
-      <div className="flex flex-1 flex-col">
+      {/* UAT W6-4：min-w-0 讓主欄可縮到視窗寬——flex item 預設 min-width:auto
+          會被子元素（表格/圖表）的 min-content 撐開，造成頁面級水平溢出 */}
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header title={t("title")} subtitle={t("subtitle")} />
 
         <main
@@ -209,7 +211,8 @@ export default function DashboardPage() {
             <DateRangePicker value={range} onChange={setRange} />
           </div>
 
-          <div className="flex gap-6">
+          {/* UAT W6-4：KPI 列改響應式 grid（390/768 不再擠壓溢出） */}
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard
               title={tKpi("convTotal")}
               value={conv ? String(conv.total) : "—"}
@@ -251,7 +254,7 @@ export default function DashboardPage() {
             />
           </div>
 
-          <div className="flex gap-6">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <KpiCard
               title={tKpi("aiRate")}
               value={formatPercent(res?.ai_resolution_rate)}
@@ -280,7 +283,7 @@ export default function DashboardPage() {
             <div className="mb-2 flex items-center text-[13px] text-[#71717A]">
               {t("dispatchSection")}
             </div>
-            <div className="flex gap-6">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
               <KpiCard
                 title={tKpi("todayWorkOrders")}
                 value={
@@ -355,7 +358,8 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="flex gap-6">
+          {/* UAT W6-4：圖表列小螢幕堆疊、lg 以上並排（原固定寬 741+371 造成 768/1280 溢出） */}
+          <div className="flex min-w-0 flex-col gap-6 lg:flex-row">
             <WorkOrderTrendChart
               items={workOrders}
               hasMore={workOrdersHasMore}

@@ -17,7 +17,8 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type Params = { token: string };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+// 用 || 而非 ??：Docker build-arg 未傳時 ENV 是空字串 ""（非 undefined），需一併 fallback
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
 
 interface ConsentItem {
   consent_type: string;
@@ -51,9 +52,12 @@ export default function PublicConsentPage({ params }: { params: Promise<Params> 
         cache: "no-store",
         credentials: "omit",
       });
-      if (res.status === 404) return setState({ kind: "error", code: "not_found", message: t("errors.notFound") });
       if (res.status === 410) return setState({ kind: "error", code: "expired", message: t("errors.expired") });
       if (res.status === 429) return setState({ kind: "error", code: "rate_limit", message: t("errors.rateLimit") });
+      // 其餘 4xx（400/404/422 等：token 格式不符 / 不存在）一律視為「連結無效或已過期」，
+      // 避免把使用者導向「稍後再試」的暫時性錯誤誤導（UAT W2-5）
+      if (res.status >= 400 && res.status < 500)
+        return setState({ kind: "error", code: "not_found", message: t("errors.notFound") });
       if (!res.ok) return setState({ kind: "error", code: "other", message: t("errors.fail", { status: String(res.status) }) });
       const data = (await res.json()) as ConsentView;
       setState({ kind: "ok", data });

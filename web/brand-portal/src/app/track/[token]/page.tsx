@@ -24,7 +24,8 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 type Params = { token: string };
 
 // 直接打 consumer endpoint — 不走 src/lib/api.ts（會帶 Authorization / X-Tenant-ID）
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+// 用 || 而非 ??：Docker build-arg 未傳時 ENV 是空字串 ""（非 undefined），需一併 fallback
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
 
 type Status =
   | "pending"
@@ -41,8 +42,10 @@ interface ConsumerWorkOrderView {
   eta_minutes?: number | null;
   /** 已 mask 的技師顯示名（e.g. 李師傅）— spec ConsumerWOView.technician_display_name */
   technician_display_name?: string | null;
-  /** ISO datetime — spec ConsumerWOView.last_update_at */
+  /** ISO datetime — spec ConsumerWOView.last_update_at（後端已修正為真實更新時間） */
   last_update_at?: string | null;
+  /** ISO datetime — 預約時間（加法欄位，可 null；UAT W2-4） */
+  scheduled_at?: string | null;
 }
 
 const STATUS_COLOR: Record<Status, string> = { // eslint-disable-line @typescript-eslint/no-unused-vars
@@ -82,14 +85,6 @@ export default function PublicTrackPage({
 
         if (cancelled) return;
 
-        if (res.status === 404) {
-          setState({
-            kind: "error",
-            code: "not_found",
-            message: t("errors.notFound"),
-          });
-          return;
-        }
         if (res.status === 410) {
           setState({
             kind: "error",
@@ -103,6 +98,16 @@ export default function PublicTrackPage({
             kind: "error",
             code: "rate_limit",
             message: t("errors.rateLimit"),
+          });
+          return;
+        }
+        // 其餘 4xx（400/404/422 等：token 格式不符 / 不存在）一律視為「連結無效或已過期」，
+        // 避免把使用者導向「稍後再試」的暫時性錯誤誤導（UAT W2-5）
+        if (res.status >= 400 && res.status < 500) {
+          setState({
+            kind: "error",
+            code: "not_found",
+            message: t("errors.notFound"),
           });
           return;
         }
@@ -220,6 +225,10 @@ function StatusPanel({ data, token }: { data: ConsumerWorkOrderView; token: stri
         </div>
       )}
 
+      {/* 預約時間獨立顯示（有值才渲染；UAT W2-4——不再與「最後更新」混用） */}
+      {data.scheduled_at && (
+        <InfoRow label={t("fields.scheduled")} value={formatDateTime(data.scheduled_at)} />
+      )}
       <InfoRow label={t("fields.lastUpdate")} value={formatDateTime(data.last_update_at)} />
       <InfoRow label={t("fields.technician")} value={data.technician_display_name ?? "—"} />
 

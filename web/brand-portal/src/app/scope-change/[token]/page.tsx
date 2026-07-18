@@ -22,7 +22,8 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 type Params = { token: string };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8001";
+// 用 || 而非 ??：Docker build-arg 未傳時 ENV 是空字串 ""（非 undefined），需一併 fallback
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
 
 type ProposalStatus =
   | "pending"
@@ -92,14 +93,6 @@ export default function PublicScopeChangePage({
         );
         if (cancelled) return;
 
-        if (res.status === 404) {
-          setState({
-            kind: "error",
-            code: "not_found",
-            message: t("errors.notFound"),
-          });
-          return;
-        }
         if (res.status === 410) {
           setState({
             kind: "error",
@@ -113,6 +106,16 @@ export default function PublicScopeChangePage({
             kind: "error",
             code: "rate_limit",
             message: t("errors.rateLimit"),
+          });
+          return;
+        }
+        // 其餘 4xx（400/404/422 等：token 格式不符 / 不存在）一律視為「連結無效或已過期」，
+        // 避免把使用者導向「稍後再試」的暫時性錯誤誤導（UAT W2-5）
+        if (res.status >= 400 && res.status < 500) {
+          setState({
+            kind: "error",
+            code: "not_found",
+            message: t("errors.notFound"),
           });
           return;
         }

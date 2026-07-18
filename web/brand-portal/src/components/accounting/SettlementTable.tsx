@@ -5,6 +5,8 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+// UAT W1-5：帳務域幣別統一走共用 formatTwd（NT$ 整數格式，原 TWD *.00 移除）
+import { formatTwd } from "@/lib/format";
 import { cacheInvalidate } from "@/lib/cache";
 import { useToast } from "@/components/ui/Toast";
 
@@ -27,12 +29,6 @@ const STATUS_TONE: Record<string, { textColor: string; bgColor: string }> = {
   paid: { textColor: "#10B981", bgColor: "#D1FAE5" },
   failed: { textColor: "#B91C1C", bgColor: "#FEE2E2" },
 };
-
-function formatAmount(amount: string, currency: string): string {
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return `${currency} ${amount}`;
-  return `${currency} ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -135,7 +131,9 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
           className="h-4 w-4 rounded border-[1.5px] border-[var(--border)]"
         />
         <span className="text-[13px] text-[var(--text-secondary)]">
-          {t("batchSelectAll")}（已選 {selectedIds.size}）
+          {/* UAT W6-6：括號段接 i18n，英文模式不再殘留「（已選 N）」 */}
+          {t("batchSelectAll")}
+          {t("batchSelectedCount", { count: selectedIds.size })}
         </span>
         <button
           onClick={() => doBatch("confirm")}
@@ -216,7 +214,7 @@ export default function SettlementTable({ items, loading, onItemsChanged }: Prop
             {/* Amount */}
             <div className="flex w-[140px] shrink-0 items-center px-2">
               <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                {formatAmount(s.amount, s.currency)}
+                {formatTwd(s.amount)}
               </span>
             </div>
 

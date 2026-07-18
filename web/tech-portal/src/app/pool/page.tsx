@@ -6,7 +6,7 @@ import { ChevronRight, Clock, MapPin, RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, getCurrentSession, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { formatNTD, formatRelative } from "@/lib/format";
@@ -22,6 +22,7 @@ function formatErr(e: unknown): string {
 
 export default function PoolPage() {
   const router = useRouter();
+  const { locale } = useLocale(); // UAT W6-6：相對時間依 locale 輸出
   const t = useTranslations("techPortal.pool");
   const [items, setItems] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +91,12 @@ export default function PoolPage() {
         <>
           <RealtimeIndicator status={poolStatus} compact />
           <span className="truncate rounded-full bg-[var(--primary-light)] px-2.5 py-0.5 text-[11px] font-semibold text-[var(--primary)]">
-            {loading ? t("loading") : t("availableCount", { count: items.length })}
+            {/* UAT W6-6：英文單複數 —— translate 層無 ICU plural，用條件 key */}
+            {loading
+              ? t("loading")
+              : t(items.length === 1 ? "availableCountOne" : "availableCount", {
+                  count: items.length,
+                })}
           </span>
         </>
       }
@@ -173,7 +179,7 @@ export default function PoolPage() {
                 <div className="flex items-center gap-3 text-[11px] text-[var(--text-disabled)]">
                   <span className="inline-flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {formatRelative(wo.created_at)}
+                    {formatRelative(wo.created_at, locale)}
                   </span>
                 </div>
                 <button

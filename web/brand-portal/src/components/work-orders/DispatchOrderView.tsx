@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import type { TranslateFn } from "@/lib/translate";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -22,82 +24,56 @@ type WorkOrderEnvelope = components["schemas"]["WorkOrderEnvelope"];
  * 依「電子鎖安裝與維修派工單整合分析報告.pdf」6 大模組組織既有 work_orders 欄位，
  * 模組 1/2/3/5 的標準化欄位可內嵌編輯（PATCH /work-orders/{id}/fields，CR-0026/0043/0047
  * 缺的編輯 UI），模組 4 免責同意串 admin 唯讀 GET，模組 5 計費沿用 quote-items，
- * 模組 6 簽認顯示狀態。label 採繁中（對齊 WorkOrderDetailSidebar 既有硬編慣例）。
+ * 模組 6 簽認顯示狀態。UAT W6-1：label 全數接 i18n
+ * （namespace: components.workOrders.dispatchOrder）。
  */
 
-// ── enum → 繁中（與 WorkOrderDetailSidebar 對齊）──
-const SERVICE_CATEGORY: Record<string, string> = {
-  install: "安裝新機",
-  warranty_in: "保固內維修",
-  warranty_out: "保固外維修",
-  repair: "維修",
-};
-const WARRANTY_STATUS: Record<string, string> = {
-  in_warranty: "保固內",
-  out_warranty: "保固外",
-  not_applicable: "不適用",
-};
-const RAIN_EXPOSURE: Record<string, string> = {
-  indoor: "室內",
-  outdoor_covered: "室外有遮雨",
-  outdoor_exposed: "室外無遮雨",
-};
-const PAYMENT_METHOD: Record<string, string> = {
-  cash: "現金",
-  bank_transfer: "轉帳",
-  credit_card: "刷卡",
-  line_pay: "LINE Pay",
-};
-const DOOR_TYPE: Record<string, string> = {
-  iron: "鐵門",
-  wood: "木門",
-  steel: "鋼門",
-  other: "其它",
-};
-const COMPLETION_STATUS: Record<string, string> = {
-  pending_report: "待完工回報",
-  pending_photos: "待照片",
-  pending_customer_confirm: "待客戶確認",
-  pending_cs_review: "待客服審核",
-  completed: "已完工",
-  closed: "已結案",
+// i18n namespace（本檔所有 label 的字典位置）
+const NS = "components.workOrders.dispatchOrder";
+
+// enum 值域（label 由 i18n enums.* 解析；此處只留合法值供 <select> 產生選項）
+const ENUM_VALUES: Record<string, string[]> = {
+  serviceCategory: ["install", "warranty_in", "warranty_out", "repair"],
+  warrantyStatus: ["in_warranty", "out_warranty", "not_applicable"],
+  rainExposure: ["indoor", "outdoor_covered", "outdoor_exposed"],
+  paymentMethod: ["cash", "bank_transfer", "credit_card", "line_pay"],
+  doorType: ["iron", "wood", "steel", "other"],
 };
 
 type FieldType = "text" | "select" | "date" | "bool" | "number";
 interface FieldDef {
-  key: string; // WorkOrderFieldsPatchRequest 欄位
-  label: string;
+  key: string; // WorkOrderFieldsPatchRequest 欄位（label = t(`fields.${key}`)）
   type: FieldType;
-  enumMap?: Record<string, string>;
+  enumKey?: keyof typeof ENUM_VALUES & string;
   suffix?: string;
 }
 
 // 可編輯欄位（嚴格對齊後端 WorkOrderFieldsPatchRequest 白名單）
 const M1_FIELDS: FieldDef[] = [
-  { key: "customer_name", label: "客戶名稱", type: "text" },
-  { key: "customer_phone", label: "聯絡電話", type: "text" },
-  { key: "customer_address", label: "服務地址", type: "text" },
+  { key: "customer_name", type: "text" },
+  { key: "customer_phone", type: "text" },
+  { key: "customer_address", type: "text" },
 ];
 const M2_FIELDS: FieldDef[] = [
-  { key: "brand", label: "品牌", type: "text" },
-  { key: "model", label: "產品型號", type: "text" },
-  { key: "serial_number", label: "產品序號 (S/N)", type: "text" },
-  { key: "dealer", label: "購買地點 / 經銷商", type: "text" },
-  { key: "install_date", label: "安裝日期", type: "date" },
-  { key: "purchase_date", label: "購買日期", type: "date" },
-  { key: "rain_exposure", label: "安裝環境與遮雨", type: "select", enumMap: RAIN_EXPOSURE },
-  { key: "door_type", label: "門扇材質", type: "select", enumMap: DOOR_TYPE },
-  { key: "door_thickness", label: "門厚", type: "text", suffix: "mm" },
-  { key: "is_interior_door", label: "室內門", type: "bool" },
+  { key: "brand", type: "text" },
+  { key: "model", type: "text" },
+  { key: "serial_number", type: "text" },
+  { key: "dealer", type: "text" },
+  { key: "install_date", type: "date" },
+  { key: "purchase_date", type: "date" },
+  { key: "rain_exposure", type: "select", enumKey: "rainExposure" },
+  { key: "door_type", type: "select", enumKey: "doorType" },
+  { key: "door_thickness", type: "text", suffix: "mm" },
+  { key: "is_interior_door", type: "bool" },
 ];
 const M3_FIELDS: FieldDef[] = [
-  { key: "service_category", label: "服務類別", type: "select", enumMap: SERVICE_CATEGORY },
-  { key: "warranty_status", label: "保固狀態", type: "select", enumMap: WARRANTY_STATUS },
+  { key: "service_category", type: "select", enumKey: "serviceCategory" },
+  { key: "warranty_status", type: "select", enumKey: "warrantyStatus" },
 ];
 const M5_FIELDS: FieldDef[] = [
-  { key: "payment_method", label: "付款方式", type: "select", enumMap: PAYMENT_METHOD },
-  { key: "invoice_no", label: "發票號碼", type: "text" },
-  { key: "special_door_surcharge", label: "特殊門型加價", type: "bool" },
+  { key: "payment_method", type: "select", enumKey: "paymentMethod" },
+  { key: "invoice_no", type: "text" },
+  { key: "special_door_surcharge", type: "bool" },
 ];
 
 const ALL_EDITABLE = [...M1_FIELDS, ...M2_FIELDS, ...M3_FIELDS, ...M5_FIELDS];
@@ -109,14 +85,20 @@ function fmtDate(v?: string | null): string {
 function fmtPrice(v?: string | null): string {
   if (v == null) return "—";
   const n = parseFloat(v);
-  return Number.isNaN(n) ? "—" : `NT$ ${n.toLocaleString("zh-TW", { maximumFractionDigits: 0 })}`;
+  return Number.isNaN(n) ? "—" : `NT$ ${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 }
-function displayValue(order: WorkOrder, f: FieldDef): string {
+/** enum 值 → i18n label；字典缺該值時 fallback 原始碼（translate 缺 key 會回傳 path） */
+function enumLabel(t: TranslateFn, enumKey: string, raw: string): string {
+  const path = `enums.${enumKey}.${raw}`;
+  const v = t(path);
+  return v.endsWith(path) ? raw : v;
+}
+function displayValue(order: WorkOrder, f: FieldDef, t: TranslateFn): string {
   const raw = (order as Record<string, unknown>)[f.key];
-  if (f.type === "bool") return raw ? "是" : "否";
+  if (f.type === "bool") return raw ? t("boolYes") : t("boolNo");
   if (raw == null || raw === "") return "—";
   if (f.type === "date") return fmtDate(String(raw));
-  if (f.enumMap) return f.enumMap[String(raw)] ?? String(raw);
+  if (f.enumKey) return enumLabel(t, f.enumKey, String(raw));
   return `${raw}${f.suffix ? ` ${f.suffix}` : ""}`;
 }
 
@@ -126,6 +108,7 @@ interface Props {
 }
 
 export default function DispatchOrderView({ order, onUpdated }: Props) {
+  const t = useTranslations(NS);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<Record<string, unknown>>({});
   const [saving, setSaving] = useState(false);
@@ -181,15 +164,15 @@ export default function DispatchOrderView({ order, onUpdated }: Props) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ClipboardList className="h-5 w-5 text-[var(--primary)]" />
-          <h2 className="text-[17px] font-bold text-[var(--text-primary)]">標準化派工單</h2>
-          <span className="text-[12px] text-[var(--text-secondary)]">（6 模組）</span>
+          <h2 className="text-[17px] font-bold text-[var(--text-primary)]">{t("title")}</h2>
+          <span className="text-[12px] text-[var(--text-secondary)]">{t("subtitle")}</span>
         </div>
         {!editing ? (
           <button
             onClick={startEdit}
             className="inline-flex items-center gap-1.5 rounded-md border border-[var(--primary)] px-3 py-1.5 text-[13px] font-semibold text-[var(--primary)] hover:bg-[var(--primary-light)]"
           >
-            <Pencil className="h-4 w-4" /> 編輯欄位
+            <Pencil className="h-4 w-4" /> {t("editFields")}
           </button>
         ) : (
           <div className="flex gap-2">
@@ -198,14 +181,14 @@ export default function DispatchOrderView({ order, onUpdated }: Props) {
               disabled={saving}
               className="inline-flex items-center gap-1.5 rounded-md bg-[var(--primary)] px-3 py-1.5 text-[13px] font-semibold text-white disabled:opacity-50"
             >
-              <Check className="h-4 w-4" /> {saving ? "儲存中…" : "儲存"}
+              <Check className="h-4 w-4" /> {saving ? t("saving") : t("save")}
             </button>
             <button
               onClick={() => setEditing(false)}
               disabled={saving}
               className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] px-3 py-1.5 text-[13px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
             >
-              <X className="h-4 w-4" /> 取消
+              <X className="h-4 w-4" /> {t("cancel")}
             </button>
           </div>
         )}
@@ -217,41 +200,41 @@ export default function DispatchOrderView({ order, onUpdated }: Props) {
         </div>
       )}
 
-      <ModuleSection n={1} title="基礎案件資訊">
+      <ModuleSection n={1} title={t("modules.m1")}>
         <FieldGrid order={order} fields={M1_FIELDS} editing={editing} draft={draft} setDraft={setDraft} />
-        <ReadOnlyRow label="維修／施工日期" value={fmtDate(order.scheduled_time)} hint="（由排程管理）" />
+        <ReadOnlyRow label={t("readonly.scheduledDate")} value={fmtDate(order.scheduled_time)} hint={t("readonly.scheduledHint")} />
       </ModuleSection>
 
-      <ModuleSection n={2} title="設備與環境辨識">
+      <ModuleSection n={2} title={t("modules.m2")}>
         <FieldGrid order={order} fields={M2_FIELDS} editing={editing} draft={draft} setDraft={setDraft} />
       </ModuleSection>
 
-      <ModuleSection n={3} title="工單類型與狀態">
+      <ModuleSection n={3} title={t("modules.m3")}>
         <FieldGrid order={order} fields={M3_FIELDS} editing={editing} draft={draft} setDraft={setDraft} />
-        <ReadOnlyRow label="維修原因 / 狀況" value={order.problem_type || "—"} hint="（源自問題卡）" />
+        <ReadOnlyRow label={t("readonly.problemReason")} value={order.problem_type || "—"} hint={t("readonly.problemHint")} />
         <ReadOnlyRow
-          label="保固到期日"
+          label={t("readonly.warrantyExpiry")}
           value={fmtDate(order.warranty_expiry_date)}
-          hint="（輸入序號/購買日後自動計算）"
+          hint={t("readonly.warrantyExpiryHint")}
         />
         <ReadOnlyRow
-          label="完工狀態"
-          value={order.completion_status ? COMPLETION_STATUS[order.completion_status] ?? order.completion_status : "—"}
-          hint="（由完工流程管理）"
+          label={t("readonly.completionStatus")}
+          value={order.completion_status ? enumLabel(t, "completionStatus", order.completion_status) : "—"}
+          hint={t("readonly.completionHint")}
         />
-        {order.status_reason && <ReadOnlyRow label="狀態原因" value={order.status_reason} />}
+        {order.status_reason && <ReadOnlyRow label={t("readonly.statusReason")} value={order.status_reason} />}
       </ModuleSection>
 
-      <ModuleSection n={4} title="施工免責與合規">
+      <ModuleSection n={4} title={t("modules.m4")}>
         <ConsentPanel workOrderId={order.id} />
       </ModuleSection>
 
-      <ModuleSection n={5} title="多維度計費核銷">
+      <ModuleSection n={5} title={t("modules.m5")}>
         <FieldGrid order={order} fields={M5_FIELDS} editing={editing} draft={draft} setDraft={setDraft} />
         <BillingPanel workOrderId={order.id} finalAmount={order.customer_final_amount} />
       </ModuleSection>
 
-      <ModuleSection n={6} title="雙方責任簽認">
+      <ModuleSection n={6} title={t("modules.m6")}>
         <SignaturePanel order={order} />
       </ModuleSection>
     </div>
@@ -260,7 +243,9 @@ export default function DispatchOrderView({ order, onUpdated }: Props) {
 
 function ModuleSection({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
   return (
-    <section className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[#FBFCFE] p-4">
+    // UAT W6-3：模組卡底色改 semantic token（原硬編碼 #FBFCFE 淺色，
+    // 深色模式下文字 token 翻亮 → 白底近白字對比 1.04:1 不可讀）
+    <section className="flex flex-col gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-page)] p-4">
       <h3 className="flex items-center gap-2 text-[14px] font-semibold text-[var(--text-primary)]">
         <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--primary)] text-[11px] font-bold text-white">
           {n}
@@ -285,16 +270,17 @@ function FieldGrid({
   draft: Record<string, unknown>;
   setDraft: (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
 }) {
+  const t = useTranslations(NS);
   return (
     <div className="grid grid-cols-1 gap-x-6 gap-y-2 md:grid-cols-2">
       {fields.map((f) => (
         <div key={f.key} className="flex items-center justify-between gap-3">
-          <span className="text-[13px] text-[var(--text-secondary)]">{f.label}</span>
+          <span className="text-[13px] text-[var(--text-secondary)]">{t(`fields.${f.key}`)}</span>
           {editing ? (
             <FieldInput f={f} value={draft[f.key]} onChange={(v) => setDraft((p) => ({ ...p, [f.key]: v }))} />
           ) : (
             <span className="text-right text-[13px] font-medium text-[var(--text-primary)]">
-              {displayValue(order, f)}
+              {displayValue(order, f, t)}
             </span>
           )}
         </div>
@@ -304,8 +290,10 @@ function FieldGrid({
 }
 
 function FieldInput({ f, value, onChange }: { f: FieldDef; value: unknown; onChange: (v: unknown) => void }) {
+  const t = useTranslations(NS);
+  // bg/text 用 semantic token：深色模式下不繼承淺色卡底（UAT W6-3）
   const cls =
-    "w-[180px] rounded border border-[var(--border)] px-2 py-1 text-[13px] focus:border-[var(--primary)] focus:outline-none";
+    "w-[180px] rounded border border-[var(--border)] bg-[var(--bg-surface)] px-2 py-1 text-[13px] text-[var(--text-primary)] focus:border-[var(--primary)] focus:outline-none";
   if (f.type === "bool") {
     return (
       <input
@@ -316,13 +304,13 @@ function FieldInput({ f, value, onChange }: { f: FieldDef; value: unknown; onCha
       />
     );
   }
-  if (f.type === "select" && f.enumMap) {
+  if (f.type === "select" && f.enumKey) {
     return (
       <select value={String(value ?? "")} onChange={(e) => onChange(e.target.value)} className={cls}>
         <option value="">—</option>
-        {Object.entries(f.enumMap).map(([v, label]) => (
+        {ENUM_VALUES[f.enumKey].map((v) => (
           <option key={v} value={v}>
-            {label}
+            {enumLabel(t, f.enumKey!, v)}
           </option>
         ))}
       </select>
@@ -357,12 +345,8 @@ interface ConsentItem {
   accepted: boolean;
   accepted_at?: string | null;
 }
-const CONSENT_LABEL: Record<string, string> = {
-  new_installation: "新機安裝同意聲明",
-  lock_destruction: "破壞鎖施工免責特別說明",
-  personal_data: "個人資料保護法條款",
-};
 function ConsentPanel({ workOrderId }: { workOrderId: string }) {
+  const t = useTranslations(NS);
   const [items, setItems] = useState<ConsentItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -384,26 +368,30 @@ function ConsentPanel({ workOrderId }: { workOrderId: string }) {
   }, [workOrderId]);
 
   if (error) return <span className="text-[12px] text-[var(--text-disabled)]">{error}</span>;
-  if (!items) return <span className="text-[13px] text-[var(--text-secondary)]">載入中…</span>;
+  if (!items) return <span className="text-[13px] text-[var(--text-secondary)]">{t("consent.loading")}</span>;
 
   return (
     <div className="flex flex-col gap-2">
-      {items.map((c) => (
-        <div key={c.consent_type} className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
-            <ShieldCheck className="h-4 w-4 text-[var(--text-disabled)]" />
-            {CONSENT_LABEL[c.consent_type] ?? c.title}
-          </span>
-          {c.accepted ? (
-            <span className="rounded bg-[#DCFCE7] px-2 py-[2px] text-[12px] font-medium text-[#15803D]">
-              已同意{c.accepted_at ? ` · ${fmtDate(c.accepted_at)}` : ""}
+      {items.map((c) => {
+        const label = t(`consent.labels.${c.consent_type}`);
+        return (
+          <div key={c.consent_type} className="flex items-center justify-between gap-3">
+            <span className="flex items-center gap-1.5 text-[13px] text-[var(--text-secondary)]">
+              <ShieldCheck className="h-4 w-4 text-[var(--text-disabled)]" />
+              {label.endsWith(`consent.labels.${c.consent_type}`) ? c.title : label}
             </span>
-          ) : (
-            <span className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[12px] text-[#92400E]">待客戶簽署</span>
-          )}
-        </div>
-      ))}
-      <span className="text-[11px] text-[var(--text-disabled)]">客戶簽署透過 LINE 免責連結，本頁僅顯示狀態。</span>
+            {c.accepted ? (
+              <span className="rounded bg-[#DCFCE7] px-2 py-[2px] text-[12px] font-medium text-[#15803D]">
+                {t("consent.accepted")}
+                {c.accepted_at ? ` · ${fmtDate(c.accepted_at)}` : ""}
+              </span>
+            ) : (
+              <span className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[12px] text-[#92400E]">{t("consent.awaitingSign")}</span>
+            )}
+          </div>
+        );
+      })}
+      <span className="text-[11px] text-[var(--text-disabled)]">{t("consent.note")}</span>
     </div>
   );
 }
@@ -416,6 +404,7 @@ interface QuoteLine {
   customer_price: string | null;
 }
 function BillingPanel({ workOrderId, finalAmount }: { workOrderId: string; finalAmount?: string | null }) {
+  const t = useTranslations(NS);
   const [items, setItems] = useState<QuoteLine[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -438,13 +427,13 @@ function BillingPanel({ workOrderId, finalAmount }: { workOrderId: string; final
 
   return (
     <div className="mt-1 flex flex-col gap-1.5 border-t border-[var(--border)] pt-2">
-      <span className="text-[12px] font-semibold text-[var(--text-secondary)]">費用明細</span>
+      <span className="text-[12px] font-semibold text-[var(--text-secondary)]">{t("billing.title")}</span>
       {error ? (
         <span className="text-[12px] text-[var(--text-disabled)]">{error}</span>
       ) : !items ? (
-        <span className="text-[13px] text-[var(--text-secondary)]">載入中…</span>
+        <span className="text-[13px] text-[var(--text-secondary)]">{t("billing.loading")}</span>
       ) : items.length === 0 ? (
-        <span className="text-[13px] text-[var(--text-disabled)]">尚無計費明細</span>
+        <span className="text-[13px] text-[var(--text-disabled)]">{t("billing.empty")}</span>
       ) : (
         items.map((it) => (
           <div key={it.id} className="flex items-center justify-between text-[13px]">
@@ -456,7 +445,7 @@ function BillingPanel({ workOrderId, finalAmount }: { workOrderId: string; final
         ))
       )}
       <div className="flex items-center justify-between border-t border-[var(--border)] pt-1.5">
-        <span className="text-[13px] font-semibold text-[var(--text-primary)]">總計金額</span>
+        <span className="text-[13px] font-semibold text-[var(--text-primary)]">{t("billing.total")}</span>
         <span className="font-mono text-[14px] font-bold text-[var(--text-primary)]">{fmtPrice(finalAmount)}</span>
       </div>
     </div>
@@ -465,6 +454,7 @@ function BillingPanel({ workOrderId, finalAmount }: { workOrderId: string; final
 
 // ── 模組 6：雙方簽認（狀態顯示；簽名動作走頁面既有簽名鈕）──
 function SignaturePanel({ order }: { order: WorkOrder }) {
+  const t = useTranslations(NS);
   const signed = ["completed", "confirmed", "closed"].includes(order.status ?? "");
   const customerConfirmed = ["confirmed", "closed"].includes(order.status ?? "");
   const row = (label: string, done: boolean) => (
@@ -477,18 +467,19 @@ function SignaturePanel({ order }: { order: WorkOrder }) {
         className={
           done
             ? "rounded bg-[#DCFCE7] px-2 py-[2px] text-[12px] font-medium text-[#15803D]"
-            : "rounded bg-[#F1F5F9] px-2 py-[2px] text-[12px] text-[var(--text-secondary)]"
+            : // 前景/背景成對硬編碼（避免 bg 硬編碼＋text token 在深色模式脫鉤，UAT W6-3）
+              "rounded bg-[#F1F5F9] px-2 py-[2px] text-[12px] text-[#475569]"
         }
       >
-        {done ? "已簽認" : "待簽認"}
+        {done ? t("signature.signed") : t("signature.awaiting")}
       </span>
     </div>
   );
   return (
     <div className="flex flex-col gap-2">
-      {row("工程師簽名", signed)}
-      {row("客戶驗收簽名", customerConfirmed)}
-      <span className="text-[11px] text-[var(--text-disabled)]">簽名動作透過上方「簽名」按鈕；此處依工單狀態顯示。</span>
+      {row(t("signature.engineer"), signed)}
+      {row(t("signature.customer"), customerConfirmed)}
+      <span className="text-[11px] text-[var(--text-disabled)]">{t("signature.note")}</span>
     </div>
   );
 }

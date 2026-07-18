@@ -116,22 +116,69 @@ async def _change_status_and_audit(
     # source of truth，users.is_active 是登入/refresh 檢查點（A2 停權即時失效走
     # refresh 重查）。原本兩者脫鉤 → 停權/待核准技師仍可登入。active → 可登入；
     # 其他（pending_approval/suspended/terminated/rejected/inactive）→ 不可。
+    # RETURNING 帶回更新前 is_active（old.prev_active），供鏡射/稽核失敗時補償回滾。
     cur = await conn.execute(
-        "UPDATE users SET is_active = %s, updated_at = NOW() "
-        "WHERE id = (SELECT user_id FROM technicians WHERE id = %s::uuid) "
-        "  AND role = 'technician' "
-        "RETURNING id",
+        "UPDATE users u SET is_active = %s, updated_at = NOW() "
+        "FROM (SELECT id, is_active AS prev_active FROM users "
+        "      WHERE id = (SELECT user_id FROM technicians WHERE id = %s::uuid) "
+        "        AND role = 'technician') old "
+        "WHERE u.id = old.id "
+        "RETURNING u.id, old.prev_active",
         (target_status == "active", tech_id),
     )
     user_row = await cur.fetchone()
 
-    # 投影鏡射(雙庫模式;fallback 為 no-op):停權/核准即時反映到品牌庫,
-    # 供 load_user_security_state 與派工資格檢查續讀投影。
-    await mirror_rows("technicians", [tech_id])
-    if user_row:
-        await mirror_rows("users", [str(user_row[0])])
+    async def _revert_authority() -> None:
+        """UAT-0718 R1 補償回滾：鏡射/稽核失敗時把權威庫恢復原狀（status + is_active）。"""
+        try:
+            await conn.execute(
+                "UPDATE technicians SET status = %s, updated_at = NOW() "
+                "WHERE id = %s::uuid AND status = %s",
+                (current, tech_id, target_status),
+            )
+            if user_row:
+                await conn.execute(
+                    "UPDATE users SET is_active = %s, updated_at = NOW() "
+                    "WHERE id = %s::uuid",
+                    (bool(user_row[1]), str(user_row[0])),
+                )
+        except Exception:  # noqa: BLE001 — 補償失敗＝兩庫可能仍分裂，大聲留痕
+            logger.exception(
+                "tech lifecycle 補償回滾失敗（權威庫可能殘留 %s）：tech=%s "
+                "——請跑 scripts/db/split-tech-db.sh --verify 檢查漂移",
+                target_status, tech_id[:8],
+            )
 
-    # audit row（best-effort：audit 失敗不 rollback status，但 log + warning）
+    async def _mirror_best_effort() -> None:
+        """回滾後盡力把投影同步回原值（鏡射半套用時復原；仍失敗僅告警不再 raise）。"""
+        try:
+            await mirror_rows("technicians", [tech_id])
+            if user_row:
+                await mirror_rows("users", [str(user_row[0])])
+        except Exception:  # noqa: BLE001
+            logger.exception(
+                "tech lifecycle 回滾後投影補鏡射失敗：tech=%s", tech_id[:8],
+            )
+
+    # 投影鏡射（雙庫模式；fallback 為 no-op）：停權/核准即時反映到品牌庫，
+    # 供 load_user_security_state 與派工資格檢查續讀投影。
+    # UAT-0718 R1：鏡射失敗＝非原子跨庫寫入——補償回滾權威庫後如實回 500，
+    # 不再讓「權威庫已改、投影沒跟上、稽核 0 筆」的分裂狀態靜默存活。
+    try:
+        await mirror_rows("technicians", [tech_id])
+        if user_row:
+            await mirror_rows("users", [str(user_row[0])])
+    except Exception as exc:  # noqa: BLE001
+        await _revert_authority()
+        await _mirror_best_effort()
+        raise ApiError(
+            "MIRROR_FAILED",
+            "技師身分投影鏡射失敗，狀態變更已回滾——請稍後重試或檢查投影同步",
+            500,
+        ) from exc
+
+    # audit row（UAT-0718 R1：成功路徑保證稽核落地——寫不進就回滾整個操作，
+    # 不再 best-effort 吞掉導致稽核斷鏈）。
     try:
         await conn.execute(
             "INSERT INTO saas.technician_lifecycle_event "
@@ -145,11 +192,18 @@ async def _change_status_and_audit(
                 actor_user_id, actor_role,
             ),
         )
-    except Exception:  # noqa: BLE001
+    except Exception as exc:  # noqa: BLE001
         logger.exception(
             "tech lifecycle audit failed: tech=%s event=%s",
             tech_id[:8], event_type,
         )
+        await _revert_authority()
+        await _mirror_best_effort()
+        raise ApiError(
+            "AUDIT_WRITE_FAILED",
+            "生命週期稽核寫入失敗，狀態變更已回滾（稽核為硬性要求，不可缺漏）",
+            500,
+        ) from exc
     return {
         "technician_id": tech_id,
         "previous_status": current,

@@ -14,7 +14,8 @@
     "search": "Search",
     "language": "Language",
     "comingSoon": "Coming soon",
-    "notAvailable": "—"
+    "notAvailable": "—",
+    "skipToMain": "Skip to main content"
   },
   "header": {
     "searchPlaceholder": "Search work orders, technicians, customers...",
@@ -496,6 +497,33 @@
           "createdAt": "Created",
           "technician": "Technician"
         }
+      },
+      "charts": {
+        "trendTitle": "Work order trend",
+        "techStatusTitle": "Technician status",
+        "sampleBadge": "Sample {limit}",
+        "sampleBadgeTitle": "Only the latest {limit} work orders are sampled; older buckets may be underrepresented",
+        "loadFailed": "Failed to load: {error}",
+        "loading": "Loading…",
+        "ranges": {
+          "7d": "7d",
+          "14d": "14d",
+          "30d": "30d"
+        },
+        "hotTopics": "Top issue categories",
+        "topBrands": "Top brands",
+        "noData": "No data",
+        "seriesCreated": "Created",
+        "seriesCompleted": "Completed",
+        "totalPeople": "Total",
+        "peopleCount": "{count}",
+        "availability": {
+          "available": "Available",
+          "busy": "On the road",
+          "offline": "Offline",
+          "on_leave": "On leave",
+          "circuit_breaker_open": "Circuit open"
+        }
       }
     },
     "problemCards": {
@@ -546,7 +574,18 @@
       "filters": {
         "status": "Status",
         "last7Days": "Last 7 days",
-        "brand": "Brand"
+        "brand": "Brand",
+        "statusOptions": {
+          "dispatched": "Dispatched",
+          "completed": "Completed",
+          "refunded": "Refunded",
+          "disputed": "Disputed"
+        },
+        "periodOptions": {
+          "7": "Last 7 days",
+          "30": "Last 30 days",
+          "90": "Last 90 days"
+        }
       },
       "views": {
         "list": "List",
@@ -557,7 +596,8 @@
       "searchPlaceholder": "Search coming soon",
       "loadFailed": "Failed to load work orders: {error}",
       "loadingMore": "Loading…",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "createOrder": "New work order"
     },
     "conversations": {
       "title": "Conversations",
@@ -571,7 +611,10 @@
       "totalCount": "Total {count}",
       "totalCountMore": "Total {count}+",
       "loadingMore": "Loading…",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "searchPlaceholder": "Search customer name / LINE ID",
+      "searchNote": "Searching {count} loaded items only",
+      "searchEmpty": "No conversations match \"{q}\""
     },
     "workOrderDetail": {
       "breadcrumb": "Home > Work orders > List > {id}",
@@ -1204,7 +1247,11 @@
         "price": "Amount",
         "total": "Total",
         "validUntil": "Valid until",
-        "snapshot": "Quote ref"
+        "quoteNo": "Quote no.",
+        "quoteDate": "Quote date",
+        "workOrderNo": "Work order no.",
+        "serviceAddress": "Service address",
+        "snapshot": "Verification code (for support)"
       },
       "buttons": {
         "accept": "Accept quote",
@@ -2110,6 +2157,202 @@
       "total": "Total",
       "open": "Open",
       "quoteNo": "Quote No."
+    },
+    "cases": {
+      "title": "Intake cases",
+      "totalCount": "{count} total",
+      "filteredCount": ", {count} matched",
+      "slaOverdueCount": "{count} SLA overdue",
+      "createTitle": "Create on behalf (phone / web / referral)",
+      "createDesc": "LINE intakes are created automatically; use this form for non-LINE intakes. A case number is issued and the first-response SLA timer starts on creation.",
+      "fieldChannel": "Intake channel",
+      "fieldCustomerName": "Customer name",
+      "fieldCustomerPhone": "Customer phone",
+      "fieldSummary": "Request summary",
+      "summaryPlaceholder": "e.g. 3F iron door latch stuck",
+      "createBtn": "Create intake case",
+      "creating": "Creating…",
+      "fillRequired": "Please fill in at least the summary or customer contact info",
+      "createdOk": "Created intake case {caseNumber} ({channel})",
+      "loading": "Loading…",
+      "empty": "No intake cases yet",
+      "emptyFiltered": "No cases match the current filters",
+      "filterLabel": "Filters",
+      "allStatus": "All statuses",
+      "allChannels": "All channels",
+      "overdueOnly": "SLA overdue only",
+      "clearFilters": "Clear filters",
+      "channel": {
+        "line": "LINE",
+        "phone": "Phone",
+        "web": "Web form",
+        "referral": "Referral"
+      },
+      "status": {
+        "open": "Awaiting response",
+        "in_progress": "In progress",
+        "closed": "Closed"
+      },
+      "cols": {
+        "caseNumber": "Case no.",
+        "channel": "Channel",
+        "customer": "Customer",
+        "summary": "Summary",
+        "status": "Status",
+        "sla": "SLA (first response)",
+        "actions": "Actions"
+      },
+      "sla": {
+        "responded": "Responded",
+        "awaiting": "Awaiting",
+        "overdue": "Overdue by {duration}",
+        "remaining": "{duration} left"
+      },
+      "duration": {
+        "days": "{n} d",
+        "hoursMinutes": "{h} h {m} m",
+        "minutes": "{n} min"
+      },
+      "markInProgress": "Mark in progress",
+      "closeCase": "Close",
+      "expandDetail": "Expand case details",
+      "collapseDetail": "Collapse case details",
+      "detail": {
+        "caseNumber": "Case no.",
+        "channel": "Intake channel",
+        "createdAt": "Created at",
+        "customerName": "Customer name",
+        "customerPhone": "Customer phone",
+        "status": "Status",
+        "firstResponseDue": "First response due",
+        "firstRespondedAt": "First responded at",
+        "sla": "SLA",
+        "summary": "Request summary"
+      }
+    },
+    "reportsKpi": {
+      "breadcrumb": "Home > Reports > KPI dashboard",
+      "title": "KPI dashboard",
+      "refresh": "Refresh",
+      "dataAsOf": "Data as of {time}",
+      "segments": {
+        "today": "Today",
+        "7d": "7 days",
+        "30d": "30 days",
+        "90d": "90 days"
+      },
+      "exportReport": "Export report",
+      "exportCsvTitle": "Export CSV",
+      "scheduleReport": "Schedule weekly/monthly",
+      "funnelTitle": "Conversion funnel",
+      "loading": "Loading…",
+      "funnelEmpty": "No conversation data in this period",
+      "funnel": {
+        "conversations": "Conversations",
+        "problemCards": "Problem cards",
+        "workOrders": "Work orders",
+        "dispatched": "Dispatched/accepted",
+        "completed": "Completed"
+      },
+      "stageRate": "Stage-to-stage conversion",
+      "disputeTitle": "Anomaly rates",
+      "refundRate": "Refund rate",
+      "refundRateHint": "Refund requests / total work orders",
+      "warrantyClaimRate": "Warranty claim rate",
+      "warrantyClaimRateHint": "Warranty claims / total work orders",
+      "disputeRate": "Dispute escalation rate",
+      "disputeRateHint": "Dispute escalations / total work orders",
+      "techEfficiencyTitle": "Technician efficiency",
+      "avgHandle": "Avg. handle time",
+      "avgHandleValue": "{n} min",
+      "avgHandleSample": "Sample: {count} completed",
+      "ftfr": "First-time fix rate (FTFR)",
+      "ftfrSample": "Sample: {count} completed (original orders not reworked)",
+      "pendingTag": "Pending integration",
+      "pendingNote": "Requires SLA rule table + rating feedback loop",
+      "pendingTitle": "SLA attainment / CSAT / NPS / negative review rate",
+      "pendingDesc": "Goes live after each module is integrated."
+    },
+    "exceptions": {
+      "title": "Exception management",
+      "subtitle": "Track and handle work-order exceptions in one place: material shortage, surcharge rejection, cancellation, disputes, safety risks, etc. High/critical cases automatically pause the linked work order until resolved.",
+      "openException": "Open exception",
+      "refresh": "Refresh",
+      "fieldType": "Type",
+      "fieldSeverity": "Severity",
+      "fieldWorkOrder": "Linked work order (optional)",
+      "fieldDescription": "Description",
+      "submit": "Submit",
+      "selectPathFirst": "Please choose a resolution path first",
+      "type": {
+        "no_show": "No-show",
+        "customer_absent": "Customer absent",
+        "scope_change_rejected": "Surcharge rejected",
+        "material_shortage": "Material shortage",
+        "delay_severe": "Severe delay",
+        "appearance_refused": "Work refused",
+        "payment_failed": "Payment failed",
+        "quality_complaint": "Quality complaint",
+        "schedule_conflict": "Schedule conflict",
+        "other": "Other"
+      },
+      "returnPath": {
+        "continue": "Continue work",
+        "requote": "Re-quote",
+        "reschedule": "Reschedule",
+        "reassign": "Reassign",
+        "new_wo": "New work order",
+        "cancel": "Cancel",
+        "refund": "Refund",
+        "rma": "Complaint RMA",
+        "dispute": "Dispute"
+      },
+      "status": {
+        "all": "All",
+        "open": "Open",
+        "investigating": "Investigating",
+        "escalated": "Escalated",
+        "resolved": "Resolved",
+        "closed": "Closed"
+      },
+      "severity": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "critical": "Critical"
+      },
+      "cols": {
+        "type": "Type",
+        "severity": "Severity",
+        "status": "Status",
+        "workOrder": "Work order",
+        "description": "Description / resolution",
+        "createdAt": "Created at",
+        "actions": "Actions"
+      },
+      "empty": "No exception cases",
+      "holdBadge": "Work order paused",
+      "closedTag": "Closed",
+      "pathPlaceholder": "Resolution path…",
+      "resolve": "Resolve",
+      "escalate": "Escalate"
+    },
+    "quotesAudit": {
+      "title": "Urgent retro-audit queue",
+      "deadlineNote": "Customer confirmation (LIFF) or paper sign-off required within 4 hours of completion",
+      "notStarted": "Not started (awaiting completion report)",
+      "overdue": "Overdue",
+      "remaining": "{h}h {m}m left",
+      "sentWaiting": "Sent, awaiting customer",
+      "pendingLines": "Line items pending",
+      "fillAndSend": "Fill items / send LIFF",
+      "paperDone": "Paper sign-off done",
+      "emergency": {
+        "locked_out": "Locked out",
+        "trapped_inside": "Trapped inside",
+        "safety_risk": "Safety risk",
+        "angry_high_risk": "High-risk complaint"
+      }
     }
   },
   "kb": {
@@ -2356,6 +2599,20 @@
         "confirm": "Confirm"
       },
       "approveToast": "Approved reconciliation {id} (created {payout} settlement)",
+      "filterRejected": "Rejected",
+      "rejectModal": {
+        "title": "Reject reconciliation",
+        "reconId": "Reconciliation ID",
+        "technician": "Technician",
+        "payout": "Technician payout",
+        "desc": "Rejecting will set this reconciliation to \"Rejected\" and no settlement will be created. Please provide a reason (required, at least 3 characters):",
+        "reasonPlaceholder": "Reason (required, 3–500 chars)",
+        "reasonTooShort": "Reason must be at least 3 characters",
+        "cancel": "Cancel",
+        "rejecting": "Rejecting…",
+        "confirm": "Confirm rejection"
+      },
+      "rejectToast": "Rejected reconciliation {id}",
       "genMonthlyNoPaymentNote": "No payment gateway: creates ledger records only; payouts are wired manually by finance"
     },
     "vouchers": {
@@ -2398,6 +2655,20 @@
       "filterAllStatus": "All statuses",
       "filterPaymentMethod": "Payment method",
       "dateRange": "Date range"
+    },
+    "invoiceDetail": {
+      "title": "Invoice details",
+      "invoiceNumber": "Invoice number",
+      "amount": "Amount",
+      "status": "Status",
+      "workOrder": "Work order",
+      "category": "Tax category",
+      "taxId": "Buyer tax ID",
+      "issuedAt": "Issued at",
+      "updatedAt": "Updated at",
+      "voidedAt": "Voided at",
+      "voidReason": "Void reason",
+      "allowanceAmount": "Allowance amount"
     }
   },
   "techPortal": {
@@ -3164,6 +3435,7 @@
     "accounting": {
       "settlementTable": {
         "batchSelectAll": "Select all",
+        "batchSelectedCount": " ({count} selected)",
         "batchConfirm": "Batch confirm",
         "batchMarkPaid": "Batch mark paid",
         "batchHint": "Select settlement rows to enable batch actions",
@@ -3214,12 +3486,15 @@
           "travel_fee": "Travel fee",
           "parts": "Parts",
           "other": "Other"
-        }
+        },
+        "viewDetail": "View details",
+        "viewDetailAria": "View invoice {number} details"
       },
       "reconciliationsTable": {
         "loading": "Loading…",
         "empty": "No reconciliation records",
         "approve": "Approve",
+        "reject": "Reject",
         "processing": "Processing…",
         "cols": {
           "id": "ID",
@@ -3235,7 +3510,8 @@
         "status": {
           "pending": "Pending",
           "approved": "Approved",
-          "disputed": "Disputed"
+          "disputed": "Disputed",
+          "rejected": "Rejected"
         }
       },
       "settlementDetailModal": {
@@ -3396,6 +3672,117 @@
         "viewDetail": "View details →",
         "hint": "Click an order on the left to see its details",
         "hintSub": "Interactive map ships with the GIS module"
+      },
+      "dispatchOrder": {
+        "title": "Standardized dispatch order",
+        "subtitle": "(6 modules)",
+        "editFields": "Edit fields",
+        "save": "Save",
+        "saving": "Saving…",
+        "cancel": "Cancel",
+        "modules": {
+          "m1": "Basic case info",
+          "m2": "Device & environment",
+          "m3": "Order type & status",
+          "m4": "Waiver & compliance",
+          "m5": "Billing & reconciliation",
+          "m6": "Mutual sign-off"
+        },
+        "fields": {
+          "customer_name": "Customer name",
+          "customer_phone": "Contact phone",
+          "customer_address": "Service address",
+          "brand": "Brand",
+          "model": "Model",
+          "serial_number": "Serial number (S/N)",
+          "dealer": "Purchased from / dealer",
+          "install_date": "Install date",
+          "purchase_date": "Purchase date",
+          "rain_exposure": "Install environment & rain cover",
+          "door_type": "Door material",
+          "door_thickness": "Door thickness",
+          "is_interior_door": "Interior door",
+          "service_category": "Service category",
+          "warranty_status": "Warranty status",
+          "payment_method": "Payment method",
+          "invoice_no": "Invoice number",
+          "special_door_surcharge": "Special door surcharge"
+        },
+        "readonly": {
+          "scheduledDate": "Service date",
+          "scheduledHint": "(managed by scheduling)",
+          "problemReason": "Issue / condition",
+          "problemHint": "(from problem card)",
+          "warrantyExpiry": "Warranty expiry",
+          "warrantyExpiryHint": "(auto-calculated from S/N / purchase date)",
+          "completionStatus": "Completion status",
+          "completionHint": "(managed by completion flow)",
+          "statusReason": "Status reason"
+        },
+        "boolYes": "Yes",
+        "boolNo": "No",
+        "enums": {
+          "serviceCategory": {
+            "install": "New install",
+            "warranty_in": "In-warranty repair",
+            "warranty_out": "Out-of-warranty repair",
+            "repair": "Repair"
+          },
+          "warrantyStatus": {
+            "in_warranty": "In warranty",
+            "out_warranty": "Out of warranty",
+            "not_applicable": "N/A"
+          },
+          "rainExposure": {
+            "indoor": "Indoor",
+            "outdoor_covered": "Outdoor, covered",
+            "outdoor_exposed": "Outdoor, exposed"
+          },
+          "paymentMethod": {
+            "cash": "Cash",
+            "bank_transfer": "Bank transfer",
+            "credit_card": "Credit card",
+            "line_pay": "LINE Pay"
+          },
+          "doorType": {
+            "iron": "Iron",
+            "wood": "Wood",
+            "steel": "Steel",
+            "other": "Other"
+          },
+          "completionStatus": {
+            "pending_report": "Awaiting report",
+            "pending_photos": "Awaiting photos",
+            "pending_customer_confirm": "Awaiting customer confirm",
+            "pending_cs_review": "Awaiting CS review",
+            "completed": "Completed",
+            "closed": "Closed"
+          }
+        },
+        "consent": {
+          "labels": {
+            "new_installation": "New installation consent",
+            "lock_destruction": "Destructive entry waiver",
+            "personal_data": "Personal data protection terms"
+          },
+          "accepted": "Accepted",
+          "awaitingSign": "Awaiting customer signature",
+          "note": "Customers sign via the LINE waiver link; this panel shows status only.",
+          "loading": "Loading…"
+        },
+        "billing": {
+          "title": "Charges",
+          "empty": "No billing lines yet",
+          "total": "Total",
+          "loading": "Loading…"
+        },
+        "signature": {
+          "engineer": "Engineer signature",
+          "customer": "Customer acceptance signature",
+          "signed": "Signed",
+          "awaiting": "Pending",
+          "note": "Signing is done via the \"Sign\" button above; this panel reflects work order status."
+        }
       }
     },
     "problemCards": {
@@ -3530,7 +3917,8 @@
             "similarity": "Similarity threshold",
             "maxResults": "Max results",
             "chunkSize": "Chunk size",
-            "chunkOverlap": "Chunk overlap"
+            "chunkOverlap": "Chunk overlap",
+            "unitChars": "chars"
           },
           "llm": {
             "title": "LLM model",

@@ -747,6 +747,8 @@ async def _ensure_line_case(*, tenant_id: str, conv_id: str, pc_id: str, summary
         urow = await cur.fetchone()
         from services import intake_case_service  # 避免模組級循環 import
 
+        # UAT-0718 W5-4：回填 conversation_id + problem_card_id（migration 108）
+        # ——案件不再是資訊孤島，前端可從案件跳回來源對話與問題卡。
         result = await intake_case_service.create_case(
             tenant_id=tenant_id,
             source_channel="line",
@@ -756,6 +758,8 @@ async def _ensure_line_case(*, tenant_id: str, conv_id: str, pc_id: str, summary
             customer_line_id=urow[3] if urow else None,
             customer_id=str(urow[0]) if urow and urow[0] else None,
             created_by=None,
+            conversation_id=conv_id,
+            problem_card_id=pc_id,
         )
         case_id = result["data"]["id"]
         await db_module._conn.execute(

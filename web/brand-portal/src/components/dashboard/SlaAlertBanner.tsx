@@ -13,6 +13,16 @@ import {
 import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { getCurrentSession } from "@/lib/api";
+
+// UAT W5-8：後端 /realtime/sla-alerts WS 白名單（api/main.py _SLA_ALERT_ROLES）。
+// 角色不在名單時不開 WS——technician/vendor 開儀表板原本會 403 無限重連刷 console。
+const SLA_WS_ALLOWED_ROLES = new Set([
+  "admin",
+  "operations_manager",
+  "dispatcher",
+  "customer_service",
+]);
 
 type AlertType =
   | "quote_expiring"
@@ -97,6 +107,9 @@ export default function SlaAlertBanner() {
   const [alerts, setAlerts] = useState<SlaAlert[]>([]);
   const [collapsed, setCollapsed] = useState(false);
 
+  const role = getCurrentSession()?.role ?? null;
+  const wsAllowed = !!role && SLA_WS_ALLOWED_ROLES.has(role);
+
   const { status } = useRealtimeChannel<{
     alert_type?: AlertType;
     target_id?: string;
@@ -105,6 +118,7 @@ export default function SlaAlertBanner() {
     escalated_to?: string;
   }>({
     channelPath: "/realtime/sla-alerts",
+    enabled: wsAllowed,
     onMessage: (msg) => {
       const data = (msg.payload ?? msg) as {
         alert_type?: AlertType;
@@ -142,12 +156,16 @@ export default function SlaAlertBanner() {
     setAlerts([]);
   }
 
+  // 角色不在白名單（如 cs）：整個 banner 不渲染，也不顯示訂閱指示（UAT W5-8）
+  if (!wsAllowed) return null;
+
   if (alerts.length === 0) {
     // 仍顯示一個小型 indicator，讓使用者知道訂閱狀態
     return (
       <div
         data-testid="sla-alert-banner-empty"
-        className="flex items-center gap-2 rounded-lg border border-[var(--border)] bg-white px-4 py-2 text-[12px] text-[var(--text-secondary)]"
+        // UAT W6-7：白底改 semantic token，深色主題不再亮塊
+        className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-2 text-[12px] text-[var(--text-secondary)]"
       >
         <AlertTriangle className="h-4 w-4 text-[#10B981]" />
         <span>{t("channelName")}</span>

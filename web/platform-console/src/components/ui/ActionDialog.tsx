@@ -23,6 +23,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/components/ui/Modal";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 export interface ActionDialogInput {
   /** 欄位標籤 */
@@ -56,6 +57,9 @@ interface ActionDialogContextValue {
 const ActionDialogContext = createContext<ActionDialogContextValue | null>(null);
 
 export function ActionDialogProvider({ children }: { children: ReactNode }) {
+  // UAT W6-2:預設鈕文案接 i18n(caller 未給 confirmLabel/cancelLabel 時的退回值)
+  const tCommon = useTranslations("common");
+  const tDialog = useTranslations("components.actionDialog");
   const [opts, setOpts] = useState<ActionDialogOptions | null>(null);
   const [value, setValue] = useState("");
   const [touched, setTouched] = useState(false);
@@ -157,7 +161,7 @@ export function ActionDialogProvider({ children }: { children: ReactNode }) {
                 />
                 {touched && invalid ? (
                   <p className="text-xs text-[var(--status-danger)]" role="alert">
-                    至少需 {minLen} 個字
+                    {tDialog("minChars", { min: minLen })}
                   </p>
                 ) : (
                   opts.input.hint && (
@@ -173,7 +177,7 @@ export function ActionDialogProvider({ children }: { children: ReactNode }) {
                 onClick={() => settle(null)}
                 className="rounded-lg border border-[var(--border)] px-3.5 py-1.5 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)]"
               >
-                {opts.cancelLabel ?? "取消"}
+                {opts.cancelLabel ?? tCommon("cancel")}
               </button>
               <button
                 type="button"
@@ -182,7 +186,7 @@ export function ActionDialogProvider({ children }: { children: ReactNode }) {
                   opts.danger ? "bg-[var(--status-danger)]" : "bg-[var(--primary)]"
                 }`}
               >
-                {opts.confirmLabel ?? "確認"}
+                {opts.confirmLabel ?? tCommon("confirm")}
               </button>
             </ModalFooter>
           </ModalContent>
