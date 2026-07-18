@@ -6,7 +6,7 @@ import { ChevronRight, ClipboardList, RefreshCw } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import StatusBadge from "@/components/tech/StatusBadge";
 import UrgencyBadge from "@/components/tech/UrgencyBadge";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { formatRelative } from "@/lib/format";
@@ -37,6 +37,7 @@ function formatErr(e: unknown): string {
 }
 
 export default function MyOrdersPage() {
+  const { locale } = useLocale(); // UAT W6-6：相對時間依 locale 輸出
   const t = useTranslations("techPortal.myOrders");
   const tTabs = useTranslations("techPortal.myOrders.tabs");
   const tEmpty = useTranslations("techPortal.myOrders.empty");
@@ -188,7 +189,7 @@ export default function MyOrdersPage() {
                 <span>{wo.district}</span>
               </div>
               <div className="flex items-center justify-between text-[11px] text-[var(--text-disabled)]">
-                <span>{formatRelative(wo.updated_at)}</span>
+                <span>{formatRelative(wo.updated_at, locale)}</span>
                 <ChevronRight className="h-4 w-4" />
               </div>
             </Link>

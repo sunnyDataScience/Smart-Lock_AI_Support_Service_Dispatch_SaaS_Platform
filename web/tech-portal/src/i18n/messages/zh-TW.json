@@ -73,6 +73,9 @@
       "successMsg": "密碼已更新"
     }
   },
+  "a11y": {
+    "skipToMain": "跳到主要內容"
+  },
   "locale": {
     "label": "語言",
     "menuLabel": "語言選項",
@@ -1292,6 +1295,19 @@
           "on_leave": "請假中",
           "circuit_breaker_open": "暫停接單（熔斷）"
         }
+      },
+      "changePassword": {
+        "title": "修改密碼",
+        "currentLabel": "目前密碼",
+        "newLabel": "新密碼",
+        "newPlaceholder": "至少 8 碼",
+        "confirmLabel": "確認新密碼",
+        "submit": "更新密碼",
+        "submitting": "更新中…",
+        "tooShort": "新密碼長度至少 8 碼",
+        "mismatch": "兩次輸入的新密碼不一致",
+        "sameAsCurrent": "新密碼不可與目前密碼相同",
+        "success": "密碼已更新，請使用新密碼重新登入，即將返回登入頁…"
       },
       "schedule": {
         "back": "返回",
@@ -2529,6 +2545,7 @@
       "title": "案件池",
       "loading": "載入中…",
       "availableCount": "{count} 件可接工單",
+      "availableCountOne": "1 件可接工單",
       "refreshTitle": "重新整理",
       "conflictTaken": "此工單已被其他技師接走",
       "empty": "目前沒有可接工單",

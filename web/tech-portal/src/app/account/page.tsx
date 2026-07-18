@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 import TechShell from "@/components/tech/TechShell";
 import ThemeToggle from "@/components/theme/ThemeToggle";
+import LocaleToggle from "@/components/i18n/LocaleToggle";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import ChangePasswordSection from "@/components/auth/ChangePasswordSection";
 import LineBindCard from "@/components/tech/LineBindCard";
 import { api, auth, getCurrentSession, logout } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
@@ -43,6 +45,7 @@ export default function AccountPage() {
   const t = useTranslations("pages.account.profile");
   const tAvail = useTranslations("pages.account.profile.availability");
   const tShell = useTranslations("techPortal.shell");
+  const tLocale = useTranslations("locale");
   const [tech, setTech] = useState<Technician | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -265,6 +268,18 @@ export default function AccountPage() {
         </span>
         <ThemeToggle variant="segmented" />
       </section>
+
+      {/* language_section — 語言切換（UAT W6-5：登入後也要有語言入口,
+          與登入頁同一 LocaleToggle/localStorage 機制）*/}
+      <section className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">
+        <span className="mb-2 block text-[11px] font-medium text-[var(--text-secondary)]">
+          {tLocale("label")}
+        </span>
+        <LocaleToggle variant="segmented" />
+      </section>
+
+      {/* security_section — 修改密碼（UAT W4-7：後端 API 既有,補前端入口）*/}
+      <ChangePasswordSection />
 
       {/* settings_section */}
       <section className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]">

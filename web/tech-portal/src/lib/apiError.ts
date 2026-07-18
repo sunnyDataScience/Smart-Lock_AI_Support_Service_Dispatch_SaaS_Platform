@@ -48,6 +48,9 @@ const CODE_MESSAGES: Record<string, string> = {
   SOD_VIOLATION_RBAC: "因職責分離限制，您無法同時擔任此操作的多個角色。",
   ACCOUNT_DISABLED: "此帳號已停用，請聯絡管理員。",
   LOGIN_LOCKED: "登入嘗試次數過多，帳號已暫時鎖定，請稍後再試。",
+  // A1 帳號鎖定（UAT W4-6）：後端 detail 帶具體剩餘分鐘數，正常會直接顯示
+  // detail；此映射僅作 detail 缺漏時的保底文案。
+  ACCOUNT_LOCKED: "帳號已鎖定，請稍後再試。",
   INVALID_CURRENT_PASSWORD: "目前密碼不正確。",
   RESET_TOKEN_INVALID: "重設連結無效，請重新申請。",
   RESET_TOKEN_EXPIRED: "重設連結已過期，請重新申請。",
@@ -129,6 +132,13 @@ export function friendlyError(e: unknown): string {
  * 帳號鎖定／停用等具體錯誤碼仍走原映射。
  */
 export function friendlyLoginError(e: unknown): string {
+  // A1 帳號鎖定（UAT W4-6）：403 ACCOUNT_LOCKED 的後端 detail 帶「請於 N 分鐘後
+  // 再試」的具體時間，優先原樣顯示；detail 缺漏或非使用者導向時退回映射保底。
+  // 其他 403（待核准 / 停權等）不在此攔，走 friendlyError 顯示後端中文訊息。
+  if (e instanceof ApiError && e.errorCode === "ACCOUNT_LOCKED") {
+    if (looksUserFriendly(e.message)) return e.message;
+    return CODE_MESSAGES.ACCOUNT_LOCKED;
+  }
   if (e instanceof ApiError && e.status === 401) {
     const mapped = CODE_MESSAGES[e.errorCode];
     if (mapped && e.errorCode !== "UNAUTHENTICATED" && e.errorCode !== "TOKEN_STALE") {

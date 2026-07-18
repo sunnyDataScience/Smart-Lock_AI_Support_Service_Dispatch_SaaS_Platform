@@ -53,8 +53,9 @@ export default function ForgotPasswordPage() {
             >
               {t("requestSent")}
             </div>
+            {/* UAT W4-4：師傅站登入頁是 /tech-login（/login 不存在 → 404） */}
             <Link
-              href="/login"
+              href="/tech-login"
               className="text-center text-sm font-medium text-[var(--primary)] hover:underline"
             >
               {t("backToLogin")}
@@ -86,7 +87,7 @@ export default function ForgotPasswordPage() {
             </button>
 
             <Link
-              href="/login"
+              href="/tech-login"
               className="text-center text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--primary)] hover:underline"
             >
               {t("backToLogin")}

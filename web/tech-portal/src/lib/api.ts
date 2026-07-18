@@ -741,6 +741,18 @@ export async function confirmPasswordReset(token: string, newPassword: string): 
   });
 }
 
+// 登入後自助修改密碼（UAT W4-7；端點既有,成功 204）。
+// A3:成功後後端會踢掉舊 session,呼叫端應主動登出並引導重新登入。
+// 目前密碼錯誤 → ApiError INVALID_CURRENT_PASSWORD(friendlyError 已有繁中映射)。
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  await request<void>("POST", "/api/v1/auth/change-password", {
+    body: { current_password: currentPassword, new_password: newPassword },
+  });
+}
+
 export async function logout(): Promise<void> {
   const refresh = auth.getRefreshToken();
   try {

@@ -18,7 +18,7 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/components/ui/Modal";
-import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 
 // 服務類別中文標籤（後端 enum 白名單 install/warranty_in/warranty_out/repair；
 // 原本與 problem_type 串接直出英文原始碼）
@@ -40,6 +40,7 @@ export default function PoolOrderDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params.id;
+  const { locale } = useLocale(); // UAT W6-6：相對時間依 locale 輸出
   const t = useTranslations("techPortal.pool");
   const tCommon = useTranslations("techPortal.common");
 
@@ -209,7 +210,7 @@ export default function PoolOrderDetailPage() {
                 <Clock className="h-3.5 w-3.5" />
                 {t("fieldCreated")}
               </span>
-              <span>{formatRelative(wo.created_at)}</span>
+              <span>{formatRelative(wo.created_at, locale)}</span>
             </div>
             {wo.scheduled_time && (
               <div className="flex items-center justify-between text-[12px] text-[var(--text-secondary)]">
