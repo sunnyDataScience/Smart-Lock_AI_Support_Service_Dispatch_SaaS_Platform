@@ -81,3 +81,23 @@
 ---
 
 **下一步**:等業主看過本報告,指定修復優先序(建議 P1×4 全修+P2 挑 UAT 阻塞項);P1-1 手建問題卡入口屬 flow 變更需裁決入口位置。
+
+
+---
+
+## 🔧 修復結果(2026-07-18 業主指示「全修」,同日完成)
+
+**36/39 修復落地**(branch `fix/uat-cross-domain-gaps`,四域 commit:api/brand/tech/landing+platform):
+- P1×4 全修:P1-1 手建卡全鏈(入口+api 放寬+26 檔 JOIN 鏈 LEFT 化+fallback)/P1-2 override UI(前端對齊 QUOTE_NOT_ACCEPTED+override_reason;後端 UAT 已實證)/P1-3 上線切換(CR-0169 schema 未套+鏡射私有欄,CORS 為紅鯡魚)/P1-4 池過濾+遮蔽
+- P2×13 修(P2-11 查證為誤報——儀表板列本就是 Link)
+- P3×19 修(P3-7 查證為誤報——chip 已用 badge token)
+
+**驗證**:api 全套 1884 passed 0 failed(全新 scratch)+四站 tsc 0+Playwright live 全鏈(手建卡→確認→急件→主管強制開單→工單詳情姓名/電話/地址 fallback 全對)。測試資料 UAT0718/UAT0718b 全清零。
+
+### 附錄:修復過程新發現(未修,待下輪)
+
+| # | 嚴重度 | 發現 |
+|---|---|---|
+| N1 | P2 | 指派技師 Modal「指派原因」combobox 預設 selected 但 state 未初始化——不動下拉直接按確認 → 422 缺 reason_code,使用者以為按鈕壞 |
+| N2 | P2 | 派工前置閘(DISPATCH_PRECONDITION)要求品牌/型號/問題類型,但「編輯欄位」PATCH 白名單無 problem_type、事後補卡欄位不回填工單 → 缺欄單(含手建卡急件)在 UI 上無路過閘 |
+| N3 | P3 | 統計類組合 SQL(revenue/operational_kpi/dashboard 部分)維持舊 tenant guard——手建卡單暫不入這些統計(known limitation,不影響工單流程與帳務) |
