@@ -56,11 +56,33 @@ _USERS_PROJECTION_COLS = [
 ]
 
 
+# UAT-P1-3(2026-07-18)：權威庫私有欄——不投影到品牌庫。CR-0169 在權威庫
+# technicians 加了 LINE 綁定欄(line_user_id/notify_pool_new)，品牌庫投影表
+# 沒有(也不該有——綁定資訊隱私最小化)；SELECT * 鏡射把新欄帶進品牌庫
+# INSERT → UndefinedColumn 500，炸掉**所有**技師身分寫入路徑(上線切換/
+# 排班/資料編輯)。維持其餘欄位缺失大聲失敗(漂移偵測)，僅顯式列出的私有
+# 欄跳過。未來在權威庫加「品牌庫不需要」的欄位時，必須同步登記到這裡。
+_TECH_PRIVATE_COLS: dict[str, set[str]] = {
+    "technicians": {"line_user_id", "notify_pool_new"},
+}
+
+
 def _select_cols(table: str) -> str:
     """鏡射 SELECT 欄位：users 走最小白名單（不含憑證/PII），其餘表全欄。"""
     if table == "users":
         return ", ".join(_USERS_PROJECTION_COLS)
     return "*"
+
+
+def _drop_private_cols(
+    table: str, cols: list[str], rows: list[tuple]
+) -> tuple[list[str], list[tuple]]:
+    """剔除權威庫私有欄(見 _TECH_PRIVATE_COLS)；無登記則原樣返回。"""
+    drop = _TECH_PRIVATE_COLS.get(table)
+    if not drop:
+        return cols, rows
+    keep = [i for i, c in enumerate(cols) if c not in drop]
+    return [cols[i] for i in keep], [tuple(row[i] for i in keep) for row in rows]
 
 
 def _check_table(table: str) -> None:
@@ -83,6 +105,7 @@ async def mirror_rows(table: str, pk_vals: Sequence) -> None:
             f"SELECT {_select_cols(table)} FROM {table} WHERE id = ANY(%s)", (ids,))
         rows = await cur.fetchall()
         cols = [d.name for d in cur.description]
+        cols, rows = _drop_private_cols(table, cols, rows)
         async with db.get_conn() as brand:
             if rows:
                 collist = ", ".join(cols)
@@ -148,6 +171,7 @@ async def mirror_children(table: str, fk_col: str, parent_val) -> None:
         cur = await tech.execute(f"SELECT * FROM {table} WHERE {fk_col} = %s", (parent_val,))
         rows = await cur.fetchall()
         cols = [d.name for d in cur.description]
+        cols, rows = _drop_private_cols(table, cols, rows)
         async with db.get_conn() as brand:
             await brand.execute(f"DELETE FROM {table} WHERE {fk_col} = %s", (parent_val,))
             if rows:
