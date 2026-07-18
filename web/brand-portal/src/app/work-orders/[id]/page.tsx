@@ -2184,13 +2184,31 @@ function AssignModal({
   const [techsLoading, setTechsLoading] = useState(true);
   const [techsError, setTechsError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string>("");
+  // UAT N1：state 必須以下拉預設選項值初始化——combobox 顯示已選但 state 為空時，
+  // 不動下拉直接按確認會送出缺 reason_code 的 body → 422，使用者誤以為按鈕壞掉
   const [reasonCode, setReasonCode] = useState<AssignReasonCode>(
     "auto_dispatch_exhausted",
   );
+  // UAT N1 防衛：送出前 inline 驗證 reason（理論上恆有值；防未來改動回歸）
+  const [reasonError, setReasonError] = useState<string | null>(null);
   const [reasonText, setReasonText] = useState("");
   // UAT P1-2：強制派工原因（quote gate 409 後展開；必填才能重送）
   const [overrideReason, setOverrideReason] = useState("");
   const showOverride = quoteGateBlocked && canOverride;
+
+  /** UAT N1：確認前守門——reason 缺值時 inline 提示並擋下請求（不送必 422 的 body） */
+  const submitGuarded = (withOverride: boolean) => {
+    if (!reasonCode) {
+      setReasonError(t("reasonMissing"));
+      return;
+    }
+    setReasonError(null);
+    if (withOverride) {
+      onSubmit(selected, reasonCode, reasonText.trim(), overrideReason.trim());
+    } else {
+      onSubmit(selected, reasonCode, reasonText.trim());
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -2334,7 +2352,10 @@ function AssignModal({
             </label>
             <select
               value={reasonCode}
-              onChange={(e) => setReasonCode(e.target.value as AssignReasonCode)}
+              onChange={(e) => {
+                setReasonCode(e.target.value as AssignReasonCode);
+                setReasonError(null);
+              }}
               className="rounded-md border border-[var(--border)] px-3 py-2 text-[13px] focus:border-[var(--primary)] focus:outline-none"
             >
               {ASSIGN_REASON_VALUES.map((value) => (
@@ -2343,6 +2364,10 @@ function AssignModal({
                 </option>
               ))}
             </select>
+            {/* UAT N1：reason 缺值的 inline 驗證提示（防 422 靜默失敗） */}
+            {reasonError && (
+              <span className="text-[12px] text-[var(--error)]">{reasonError}</span>
+            )}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -2405,9 +2430,7 @@ function AssignModal({
           </button>
           {showOverride ? (
             <button
-              onClick={() =>
-                onSubmit(selected, reasonCode, reasonText.trim(), overrideReason.trim())
-              }
+              onClick={() => submitGuarded(true)}
               disabled={!canSubmit || overrideReason.trim().length < 4}
               className="rounded-md bg-[#B45309] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -2415,7 +2438,7 @@ function AssignModal({
             </button>
           ) : (
             <button
-              onClick={() => onSubmit(selected, reasonCode, reasonText.trim())}
+              onClick={() => submitGuarded(false)}
               disabled={!canSubmit}
               className="rounded-md bg-[var(--primary)] px-4 py-2 text-[13px] font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >

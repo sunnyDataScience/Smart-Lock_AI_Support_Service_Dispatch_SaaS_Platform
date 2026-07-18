@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_TC } from "next/font/google";
 import AuthGuard from "@/components/layout/AuthGuard";
+import SkipLink from "@/components/layout/SkipLink";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ActionDialogProvider } from "@/components/ui/ActionDialog";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -66,11 +67,6 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeFOUCScript }} />
       </head>
       <body className="h-full font-primary antialiased">
-        {/* WCAG 2.4.1 Bypass Blocks：第一個可 tab 元素是 skip-link，按 Enter
-         * 跳到 #main-content；視覺上預設隱藏（translateY(-200%)），:focus 才滑入 */}
-        <a href="#main-content" className="skip-link">
-          跳到主要內容
-        </a>
         {/* Provider 嵌套順序：Theme（最外）→ Locale → Toast → AuthGuard
          *   - Theme 影響色票，最早套用避免閃白
          *   - Locale 設定 html.lang，screen reader / 字型 fallback 需要
@@ -78,6 +74,11 @@ export default function RootLayout({
          */}
         <ThemeProvider>
           <LocaleProvider>
+            {/* WCAG 2.4.1 Bypass Blocks：第一個可 tab 元素是 skip-link，按 Enter
+             * 跳到 #main-content；視覺上預設隱藏，:focus 才滑入。
+             * UAT W6-2：i18n 化抽成 client component，需在 LocaleProvider 內；
+             * Theme / Locale provider 皆不產生 DOM，故仍是 body 第一個可 tab 元素 */}
+            <SkipLink />
             <ToastProvider>
               {/* #12:ActionDialog 取代 window.prompt/confirm,與 Toast 並存 */}
               <ActionDialogProvider>

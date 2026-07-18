@@ -592,6 +592,10 @@ _PATCHABLE_FIELDS: dict[str, set | None] = {
     "serial_number": None,
     "brand": None,
     "model": None,
+    # UAT-0718 N2：派工閘要求 problem_type（_DISPATCH_REQUIRED）——補進 PATCH 白名單，
+    # 缺欄單（含手建卡急件）才有 UI 路可過閘。值域對齊 problem_cards.category 自由字串
+    # （工單建立時即複製 pc.category，DB VARCHAR(100) 無 enum constraint）。
+    "problem_type": None,
     "door_type": None,
     "door_thickness": None,
     "is_interior_door": None,           # bool
@@ -682,12 +686,19 @@ async def update_wo_fields(*, tenant_id: str, wo_id: str, fields: dict) -> dict:
             args.append(w_end)
 
     args.extend([wo_id, tenant_id])
+    # UAT-0718 N2：原本 FROM pc, c, u 內連結——手建卡（conversation_id NULL）工單
+    # 永遠 join 不到 → UPDATE 靜默 0 列（P1-B LEFT JOIN 掃描的同型漏網）。
+    # 改與 get_order 相同的 COALESCE(wo.tenant_id, 鏈上 u.tenant_id) 語意：
+    # wo.tenant_id 有值直接比對；否則走 pc→c→u 反查（子查詢無列時為 NULL 不放行）。
     await db_module._conn.execute(
         f"UPDATE work_orders wo SET {', '.join(sets)}, updated_at = now() "
-        "FROM problem_cards pc, conversations c, users u "
-        "WHERE wo.id = %s::uuid AND wo.problem_card_id = pc.id "
-        "  AND pc.conversation_id = c.id AND c.user_id = u.id "
-        "  AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
+        "WHERE wo.id = %s::uuid "
+        "  AND COALESCE(wo.tenant_id, ("
+        "        SELECT u.tenant_id FROM problem_cards pc "
+        "        JOIN conversations c ON pc.conversation_id = c.id "
+        "        JOIN users u ON c.user_id = u.id "
+        "        WHERE pc.id = wo.problem_card_id"
+        "  )) = %s::uuid",
         args,
     )
     return await _publish_and_return(

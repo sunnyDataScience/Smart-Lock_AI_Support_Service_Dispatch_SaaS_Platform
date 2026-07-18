@@ -2911,6 +2911,78 @@ paths:
           description: DUAL_SIGN_REQUIRED — 對帳單非 in_review 狀態，需先完成 review
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
+  ## --- 拆帳規則 CRUD（UAT-0718 W1-6 業主裁決 / M12 Settlement）---
+  ## 註：GET /tenants/{tenantId}/payout-rules（CR-0037 唯讀列表）從未入本設計稿（型別 SoT＝
+  ## runtime export）；此處補文件化新增的 CRUD 契約。比照 quote-catalog（CR-0110）：
+  ## OPS_ROLES 守衛、Idempotency-Key(POST)、軟刪 deleted_at（migration 109）；
+  ## 拆帳牽師傅佣金 → 每寫入硬性記 audit_events（before/after，寫不進整筆回滾）。
+
+  /tenants/{tenantId}/payout-rules:
+    parameters: [{ $ref: '#/components/parameters/TenantPath' }]
+    post:
+      tags: ['M12 Settlement']
+      summary: 新增拆帳規則（UAT-0718 W1-6；硬性稽核）
+      operationId: createPayoutRuleV2
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayoutRuleWrite' }
+      responses:
+        '201':
+          description: Created — 寫入即租戶確認值（is_mock=FALSE + decision_status=accepted）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      rule_id: { type: string }
+        '409':
+          description: CODE_TAKEN — rule_id 已存在（未刪列）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — 必填缺漏 / base_payout < 0 / 加成率非 0~1 / 生效日晚於失效日
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /tenants/{tenantId}/payout-rules/{ruleId}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: ruleId, in: path, required: true, schema: { type: string, maxLength: 60 } }
+    patch:
+      tags: ['M12 Settlement']
+      summary: 編輯拆帳規則（partial；編輯後 is_mock=FALSE；硬性稽核）
+      operationId: updatePayoutRuleV2
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PayoutRuleWrite' }
+      responses:
+        '200':
+          description: OK
+        '404':
+          description: NOT_FOUND — 規則不存在或已停用
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: VALIDATION_ERROR — 欄位驗證失敗（含合併後 effective > expiry）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    delete:
+      tags: ['M12 Settlement']
+      summary: 停用拆帳規則（軟刪 deleted_at；硬性稽核）
+      operationId: deletePayoutRuleV2
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: OK — 軟刪（可人工復原；月結價來源可追溯）
+        '404':
+          description: NOT_FOUND
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
   ## --- Dispute v2 dual-sign 狀態機 (FR-0013 / CR-0004 §8 / M14 Dispute) ---
 
   /tenants/{tenantId}/disputes:
@@ -6863,6 +6935,26 @@ components:
               $ref: '#/components/schemas/Reconciliation'
             settlement:
               $ref: '#/components/schemas/SettlementV2'
+
+    # --- M12 Settlement — 拆帳規則 CRUD（UAT-0718 W1-6）---
+
+    PayoutRuleWrite:
+      type: object
+      description: |
+        拆帳規則寫入 body（POST create / PATCH partial 共用；技師佣金主檔
+        public.technician_payout_rule，CR-0037 + migration 109）。
+        rule_id 僅 create 必填；base_payout 為內部敏感成本（讀取端 RBAC 遮蔽）。
+      properties:
+        rule_id: { type: string, maxLength: 60, description: 規則代碼（create 必填；PK，未刪列唯一） }
+        service_code: { type: string, maxLength: 40, description: 服務代碼（create 必填） }
+        service_name: { type: string, maxLength: 120, nullable: true }
+        level_id: { type: string, maxLength: 10, description: 技師級別 LV-A / LV-B / LV-C（create 必填） }
+        base_payout: { type: number, minimum: 0, description: 基礎拆帳（內部成本；create 必填） }
+        night_surcharge_pct: { type: number, minimum: 0, maximum: 1, description: 夜間加成率（0~1 比例） }
+        urgent_surcharge_pct: { type: number, minimum: 0, maximum: 1, description: 急件加成率（0~1 比例） }
+        currency: { type: string, maxLength: 8, description: 幣別（預設 TWD） }
+        effective_date: { type: string, format: date, nullable: true, description: 生效日 }
+        expiry_date: { type: string, format: date, nullable: true, description: 失效日（須 ≥ 生效日） }
 
     # --- M14 Dispute — Dispute v2 dual-sign 狀態機 (FR-0013 / CR-0004 §8) ---
 

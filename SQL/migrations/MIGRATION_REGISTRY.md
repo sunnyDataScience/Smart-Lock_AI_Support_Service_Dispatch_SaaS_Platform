@@ -135,5 +135,7 @@
 
 | 108 | `108-intake-case-links.sql` | UAT-0718 W5-4 | 🟢 idempotent（ADD COLUMN/CREATE INDEX IF NOT EXISTS，scratch 5490 驗證 2026-07-18） | 進線案件去孤島：saas.intake_case 加 conversation_id/problem_card_id/work_order_id 三 nullable uuid 弱關聯欄（無 FK）＋conversation 反查 partial index。LINE 自動建案回填 conversation_id+problem_card_id；手動建案可 NULL |
 
+| 109 | `109-payout-rule-crud.sql` | UAT-0718 W1-6 | 🟢 idempotent（ADD COLUMN IF NOT EXISTS，scratch 5490 驗證 2026-07-18） | 拆帳規則 CRUD（業主裁決）：public.technician_payout_rule 加 updated_at/deleted_at 兩欄——軟刪（NULL=生效列，比照 quote_catalog CR-0110）＋編輯留痕；CRUD 端點（catalog_v2.py POST/PATCH/DELETE /payout-rules）每寫入硬性記 audit_events |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

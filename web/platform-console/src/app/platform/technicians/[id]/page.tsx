@@ -1,9 +1,10 @@
 "use client";
 
-// CR-0114 §8 追補收尾 — 平台 console 師傅詳情（身分域管理）。
-// 個人資料 + 編輯（含等級）+ 認證 CRUD + 生命週期歷史 + 生命週期動作。
-// 排班/獎懲屬品牌營運（per-brand 工單/財務），不在跨品牌平台視角 —— 故不含。
-// 內部工具 → 文案直接繁中。
+// CR-0114 §8 追補收尾 — 平台 console 師傅詳情(身分域管理)。
+// 個人資料 + 編輯(含等級)+ 認證 CRUD + 生命週期歷史 + 生命週期動作。
+// 排班/獎懲屬品牌營運(per-brand 工單/財務),不在跨品牌平台視角 —— 故不含。
+// UAT W6-2:原「內部工具文案直接繁中」決策撤回——全量接 i18n
+// (platform.technicians.detail namespace;狀態沿用 platform.technicians.status)。
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -13,6 +14,8 @@ import { friendlyError } from "@/lib/apiError";
 import { cacheInvalidate } from "@/lib/cache";
 import { useActionDialog } from "@/components/ui/ActionDialog";
 import { useToast } from "@/components/ui/Toast";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import type { TranslateFn } from "@/lib/translate";
 
 interface Technician {
   id: string;
@@ -48,7 +51,7 @@ interface LifecycleEvent {
   created_at: string | null;
 }
 
-// ── KYC 審核資料（CR-0115 S7；§8-3 預設遮罩、reveal 取全值寫稽核）──────────
+// ── KYC 審核資料(CR-0115 S7;§8-3 預設遮罩、reveal 取全值寫稽核)──────────
 interface KycReview {
   profile: {
     years_experience: number | null;
@@ -81,42 +84,51 @@ interface RegistrationDocument {
   created_at: string | null;
 }
 
-const DOC_TYPE_LABEL: Record<string, string> = {
-  id_front: "身分證正面",
-  id_back: "身分證反面",
-  license: "證照掃描",
-  insurance: "保險證明／良民證",
-};
+// i18n 已知鍵集合 —— 後端來的動態值只有落在集合內才走翻譯,否則原樣顯示
+// (translate 缺 key 會回傳完整 path,直接餵 UI 會露出 "platform.…" 字串)。
+const KNOWN_DOC_TYPES = new Set(["id_front", "id_back", "license", "insurance"]);
+const KNOWN_STATUSES = new Set([
+  "pending_approval",
+  "active",
+  "suspended",
+  "rejected",
+  "terminated",
+  "inactive",
+]);
+const KNOWN_ACTOR_ROLES = new Set([
+  "admin",
+  "platform_admin",
+  "operations_manager",
+  "reviewer",
+]);
 
-const STATUS_LABEL: Record<string, string> = {
-  pending_approval: "待審核",
-  active: "啟用中",
-  suspended: "已停權",
-  rejected: "已拒絕",
-  terminated: "已終止",
-  inactive: "未啟用",
-};
-
-const CERT_STATUS: Record<Certification["status"], { label: string; cls: string }> = {
-  valid: { label: "有效", cls: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25" },
-  expiring_soon: { label: "即將到期", cls: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25" },
-  expired: { label: "已過期", cls: "bg-[var(--badge-danger-bg)] text-[var(--badge-danger-fg)] border-[var(--badge-danger-fg)]/25" },
+const CERT_STATUS_CLS: Record<Certification["status"], string> = {
+  valid: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25",
+  expiring_soon: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25",
+  expired: "bg-[var(--badge-danger-bg)] text-[var(--badge-danger-fg)] border-[var(--badge-danger-fg)]/25",
 };
 
 const LEVELS = ["S", "A", "B", "C"];
 
-// lifecycle 事件 reason 的機器句翻譯（technician_lifecycle_service 寫入
-// "onboarding approved by <actor_role>" 英文機器句；其餘 reason 為自由文字原樣）
-const ACTOR_ROLE_LABEL: Record<string, string> = {
-  admin: "系統管理員",
-  platform_admin: "平台管理員",
-  operations_manager: "營運主管",
-  reviewer: "審核員",
-};
+/** 師傅狀態顯示(沿用清單頁 platform.technicians.status.*;未知狀態原樣)。 */
+function statusLabel(tt: TranslateFn, status: string | null): string {
+  if (!status) return "—";
+  return KNOWN_STATUSES.has(status) ? tt(`status.${status}`) : status;
+}
 
-function humanizeEventReason(raw: string): string {
+/** 證件文件類型顯示(未知類型原樣)。 */
+function docTypeLabel(td: TranslateFn, docType: string): string {
+  return KNOWN_DOC_TYPES.has(docType) ? td(`kyc.docType.${docType}`) : docType;
+}
+
+// lifecycle 事件 reason 的機器句翻譯(technician_lifecycle_service 寫入
+// "onboarding approved by <actor_role>" 英文機器句;其餘 reason 為自由文字原樣)
+function humanizeEventReason(td: TranslateFn, raw: string): string {
   const m = raw.match(/^onboarding approved by (\S+)$/);
-  if (m) return `入職審核通過（${ACTOR_ROLE_LABEL[m[1]] ?? m[1]} 核准）`;
+  if (m) {
+    const actor = KNOWN_ACTOR_ROLES.has(m[1]) ? td(`lifecycle.actorRole.${m[1]}`) : m[1];
+    return td("lifecycle.onboardApproved", { actor });
+  }
   return raw;
 }
 
@@ -132,6 +144,10 @@ export default function PlatformTechnicianDetailPage({
   const { id } = use(params);
   const actionDialog = useActionDialog();
   const { toast } = useToast();
+  const tt = useTranslations("platform.technicians");
+  const td = useTranslations("platform.technicians.detail");
+  const tc = useTranslations("platform.common");
+  const tf = useTranslations("platform.fields");
   const [tech, setTech] = useState<Technician | null>(null);
   const [certs, setCerts] = useState<Certification[]>([]);
   const [events, setEvents] = useState<LifecycleEvent[]>([]);
@@ -183,18 +199,18 @@ export default function PlatformTechnicianDetailPage({
 
   async function deleteCert(cert: Certification) {
     const confirmed = await actionDialog.open({
-      title: `刪除認證「${cert.cert_name}」`,
+      title: td("certs.deleteTitle", { name: cert.cert_name }),
       danger: true,
-      confirmLabel: "刪除",
+      confirmLabel: td("certs.deleteConfirm"),
     });
     if (confirmed === null) return;
     try {
       await api.delete(`${base}/certifications/${encodeURIComponent(cert.id)}`);
       cacheInvalidate("GET:"); // 清 30s GET 快取,否則 load() 讀到含此認證的舊資料
       await load();
-      toast({ title: `已刪除認證「${cert.cert_name}」`, variant: "success" });
+      toast({ title: td("certs.deleteDone", { name: cert.cert_name }), variant: "success" });
     } catch (e) {
-      toast({ title: "刪除失敗", description: friendlyError(e), variant: "error" });
+      toast({ title: td("certs.deleteFailed"), description: friendlyError(e), variant: "error" });
     }
   }
 
@@ -205,7 +221,7 @@ export default function PlatformTechnicianDetailPage({
         className="flex w-fit items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
       >
         <ChevronLeft className="h-4 w-4" aria-hidden />
-        返回師傅管理
+        {td("back")}
       </Link>
 
       {error && (
@@ -215,9 +231,9 @@ export default function PlatformTechnicianDetailPage({
       )}
 
       {loading && !tech ? (
-        <p className="text-sm text-[var(--text-secondary)]">載入中…</p>
+        <p className="text-sm text-[var(--text-secondary)]">{tc("loading")}</p>
       ) : !tech ? (
-        <p className="text-sm text-[var(--text-secondary)]">找不到此師傅</p>
+        <p className="text-sm text-[var(--text-secondary)]">{td("notFound")}</p>
       ) : (
         <>
           {/* 個人資料 */}
@@ -226,10 +242,10 @@ export default function PlatformTechnicianDetailPage({
               <div className="flex items-center gap-3">
                 <h1 className="text-xl font-bold text-[var(--text-primary)]">{tech.name}</h1>
                 <span className="rounded-md border border-[var(--border)] px-2 py-0.5 text-xs text-[var(--text-secondary)]">
-                  {STATUS_LABEL[tech.status ?? ""] ?? tech.status}
+                  {statusLabel(tt, tech.status)}
                 </span>
                 <span className="rounded-md bg-[var(--bg-page)] px-2 py-0.5 text-xs font-semibold text-[var(--text-secondary)]">
-                  等級 {tech.level}
+                  {td("levelBadge", { level: tech.level })}
                 </span>
               </div>
               <button
@@ -238,40 +254,40 @@ export default function PlatformTechnicianDetailPage({
                 className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))]"
               >
                 <Pencil className="h-3.5 w-3.5" aria-hidden />
-                編輯
+                {tc("edit")}
               </button>
             </div>
             <div className="mt-4 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
-              <Info label="電話" value={tech.phone || "—"} />
-              <Info label="評分" value={tech.rating.toFixed(1)} />
-              <Info label="完成工單" value={String(tech.completed_orders_count ?? 0)} />
-              <Info label="建立時間" value={fmtDate(tech.created_at)} />
-              <Info label="專長品牌" value={tech.skills.length ? tech.skills.join("、") : "—"} span />
-              <Info label="服務區域" value={tech.service_areas.length ? tech.service_areas.join("、") : "—"} span />
+              <Info label={tf("phone")} value={tech.phone || "—"} />
+              <Info label={td("rating")} value={tech.rating.toFixed(1)} />
+              <Info label={td("completedOrders")} value={String(tech.completed_orders_count ?? 0)} />
+              <Info label={td("createdAt")} value={fmtDate(tech.created_at)} />
+              <Info label={td("specialtyBrands")} value={tech.skills.length ? tech.skills.join(td("listSeparator")) : "—"} span />
+              <Info label={tt("regions")} value={tech.service_areas.length ? tech.service_areas.join(td("listSeparator")) : "—"} span />
               {tech.authorized_brands && tech.authorized_brands.length > 0 && (
-                <Info label="已授權品牌" value={tech.authorized_brands.join("、")} span />
+                <Info label={td("authorizedBrands")} value={tech.authorized_brands.join(td("listSeparator"))} span />
               )}
             </div>
           </section>
 
-          {/* KYC 審核資料（CR-0115 S7）*/}
+          {/* KYC 審核資料(CR-0115 S7)*/}
           {kyc && <KycSection basePath={base} kyc={kyc} />}
 
           {/* 技能認證矩陣 */}
           <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">技能認證矩陣</h2>
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">{td("certs.title")}</h2>
               <button
                 type="button"
                 onClick={() => setCertEdit("new")}
                 className="flex items-center gap-1.5 rounded-lg border border-[var(--primary)] px-3 py-1.5 text-sm font-medium text-[var(--primary)] transition hover:bg-[var(--primary-subtle,rgba(59,130,246,0.08))]"
               >
                 <Plus className="h-3.5 w-3.5" aria-hidden />
-                新增認證
+                {td("certs.add")}
               </button>
             </div>
             {certs.length === 0 ? (
-              <p className="py-6 text-center text-sm text-[var(--text-secondary)]">尚無認證資料</p>
+              <p className="py-6 text-center text-sm text-[var(--text-secondary)]">{td("certs.empty")}</p>
             ) : (
               <div className="flex flex-col divide-y divide-[var(--border)]">
                 {certs.map((c) => (
@@ -279,18 +295,20 @@ export default function PlatformTechnicianDetailPage({
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-[var(--text-primary)]">{c.cert_name}</span>
-                        <span className={`rounded-md border px-2 py-0.5 text-xs ${CERT_STATUS[c.status].cls}`}>
-                          {CERT_STATUS[c.status].label}
+                        <span className={`rounded-md border px-2 py-0.5 text-xs ${CERT_STATUS_CLS[c.status]}`}>
+                          {td(`certs.status.${c.status}`)}
                         </span>
                       </div>
-                      <div className="mt-1 text-xs text-[var(--text-secondary)]">
-                        {c.brand ? `品牌：${c.brand}　` : ""}取得：{fmtDate(c.obtained_at)}　到期：{fmtDate(c.expires_at)}
+                      <div className="mt-1 flex flex-wrap gap-x-4 text-xs text-[var(--text-secondary)]">
+                        {c.brand && <span>{td("certs.brandMeta", { brand: c.brand })}</span>}
+                        <span>{td("certs.obtainedMeta", { date: fmtDate(c.obtained_at) })}</span>
+                        <span>{td("certs.expiresMeta", { date: fmtDate(c.expires_at) })}</span>
                       </div>
                     </div>
-                    <button type="button" onClick={() => setCertEdit(c)} aria-label="編輯認證" className="text-[var(--text-secondary)] hover:text-[var(--primary)]">
+                    <button type="button" onClick={() => setCertEdit(c)} aria-label={td("certs.editAria")} className="text-[var(--text-secondary)] hover:text-[var(--primary)]">
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => deleteCert(c)} aria-label="刪除認證" className="text-[var(--text-secondary)] hover:text-[var(--status-danger)]">
+                    <button type="button" onClick={() => deleteCert(c)} aria-label={td("certs.deleteAria")} className="text-[var(--text-secondary)] hover:text-[var(--status-danger)]">
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -301,9 +319,9 @@ export default function PlatformTechnicianDetailPage({
 
           {/* 生命週期歷史 */}
           <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
-            <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">生命週期歷史</h2>
+            <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">{td("lifecycle.title")}</h2>
             {events.length === 0 ? (
-              <p className="py-6 text-center text-sm text-[var(--text-secondary)]">尚無事件</p>
+              <p className="py-6 text-center text-sm text-[var(--text-secondary)]">{td("lifecycle.empty")}</p>
             ) : (
               <div className="flex flex-col divide-y divide-[var(--border)]">
                 {events.map((ev) => (
@@ -311,13 +329,17 @@ export default function PlatformTechnicianDetailPage({
                     <div>
                       {ev.event_type === "kyc_reveal" ? (
                         // CR-0115 S7:非狀態轉移的稽核事件(敏感資料揭露)
-                        <span className="font-medium text-[var(--badge-warn-fg)]">檢視敏感資料全值</span>
+                        <span className="font-medium text-[var(--badge-warn-fg)]">{td("lifecycle.kycReveal")}</span>
                       ) : (
                         <span className="font-medium text-[var(--text-primary)]">
-                          {STATUS_LABEL[ev.previous_status ?? ""] ?? ev.previous_status ?? "—"} → {STATUS_LABEL[ev.new_status ?? ""] ?? ev.new_status}
+                          {statusLabel(tt, ev.previous_status)} → {statusLabel(tt, ev.new_status)}
                         </span>
                       )}
-                      {ev.reason && <span className="text-[var(--text-secondary)]">　原因：{humanizeEventReason(ev.reason)}</span>}
+                      {ev.reason && (
+                        <span className="text-[var(--text-secondary)]">
+                          　{td("lifecycle.reason", { reason: humanizeEventReason(td, ev.reason) })}
+                        </span>
+                      )}
                     </div>
                     <span className="whitespace-nowrap text-xs text-[var(--text-secondary)]">
                       {ev.created_at ? ev.created_at.slice(0, 16).replace("T", " ") : "—"}
@@ -357,17 +379,18 @@ export default function PlatformTechnicianDetailPage({
 }
 
 function Info({ label, value, span }: { label: string; value: string; span?: boolean }) {
+  const tc = useTranslations("platform.common");
   return (
     <div className={span ? "sm:col-span-2" : ""}>
-      <span className="text-[var(--text-secondary)]">{label}：</span>
+      <span className="text-[var(--text-secondary)]">{label}{tc("colon")}</span>
       <span className="text-[var(--text-primary)]">{value}</span>
     </div>
   );
 }
 
-// ── KYC 審核資料（CR-0115 S7）────────────────────────────────────────────────
-// §8-3 (a)：預設遮罩顯示；「顯示完整資料」打 :reveal（後端寫稽核）。
-// 文件實體走授權 fetch → blob 內嵌預覽（img/iframe），不經公開 URL。
+// ── KYC 審核資料(CR-0115 S7)────────────────────────────────────────────────
+// §8-3 (a):預設遮罩顯示;「顯示完整資料」打 :reveal(後端寫稽核)。
+// 文件實體走授權 fetch → blob 內嵌預覽(img/iframe),不經公開 URL。
 
 function fmtBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -377,6 +400,8 @@ function fmtBytes(n: number): string {
 
 function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
   const { toast } = useToast();
+  const td = useTranslations("platform.technicians.detail");
+  const tc = useTranslations("platform.common");
   const [revealed, setRevealed] = useState<{ national_id: string | null; bank_account: string | null } | null>(null);
   const [revealBusy, setRevealBusy] = useState(false);
   const [revealErr, setRevealErr] = useState<string | null>(null);
@@ -423,10 +448,10 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
       setPreview({
         url,
         contentType: doc.content_type,
-        label: DOC_TYPE_LABEL[doc.doc_type] ?? doc.doc_type,
+        label: docTypeLabel(td, doc.doc_type),
       });
     } catch (e) {
-      toast({ title: "預覽失敗", description: friendlyError(e), variant: "error" });
+      toast({ title: td("kyc.previewFailed"), description: friendlyError(e), variant: "error" });
     } finally {
       setPreviewBusy(null);
     }
@@ -452,7 +477,7 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <ShieldCheck className="h-4 w-4 text-[var(--primary)]" aria-hidden />
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">KYC 審核資料</h2>
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">{td("kyc.title")}</h2>
         </div>
         {hasSensitive && !revealed && (
           <button
@@ -462,53 +487,56 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
             className="flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-sm text-[var(--text-primary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50"
           >
             <Eye className="h-3.5 w-3.5" aria-hidden />
-            {revealBusy ? "解密中…" : "顯示完整資料"}
+            {revealBusy ? td("kyc.revealing") : td("kyc.reveal")}
           </button>
         )}
         {revealed && (
-          <span className="text-xs text-[var(--badge-warn-fg)]">已顯示完整資料（本次揭露已寫入稽核）</span>
+          <span className="text-xs text-[var(--badge-warn-fg)]">{td("kyc.revealedNote")}</span>
         )}
       </div>
       {revealErr && <p className="mb-3 text-[13px] text-[var(--status-danger)]">{revealErr}</p>}
 
       <div className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
-        <Info label="從業年資" value={p.years_experience != null ? `${p.years_experience} 年` : "—"} />
-        <Info label="交通工具" value={p.vehicle_type || "—"} />
-        <Info label="可服務時段" value={p.availability_note || "—"} />
         <Info
-          label="緊急聯絡人"
+          label={td("kyc.yearsExperience")}
+          value={p.years_experience != null ? td("kyc.yearsUnit", { years: p.years_experience }) : "—"}
+        />
+        <Info label={td("kyc.vehicleType")} value={p.vehicle_type || "—"} />
+        <Info label={td("kyc.availabilityNote")} value={p.availability_note || "—"} />
+        <Info
+          label={td("kyc.emergencyContact")}
           value={p.emergency_contact_name ? `${p.emergency_contact_name}（${p.emergency_contact_phone || "—"}）` : "—"}
         />
         <Info
-          label="條款同意時間"
-          value={p.terms_accepted_at ? p.terms_accepted_at.slice(0, 16).replace("T", " ") : "未同意"}
+          label={td("kyc.termsAcceptedAt")}
+          value={p.terms_accepted_at ? p.terms_accepted_at.slice(0, 16).replace("T", " ") : td("kyc.termsNotAccepted")}
         />
-        {p.bio && <Info label="自我介紹" value={p.bio} span />}
+        {p.bio && <Info label={td("kyc.bio")} value={p.bio} span />}
       </div>
 
-      <h3 className="mb-2 mt-5 text-sm font-semibold text-[var(--text-primary)]">敏感資料（加密保存）</h3>
+      <h3 className="mb-2 mt-5 text-sm font-semibold text-[var(--text-primary)]">{td("kyc.sensitiveTitle")}</h3>
       {!k ? (
-        <p className="text-sm text-[var(--text-secondary)]">師傅尚未提供敏感 PII（可於核准前補件）</p>
+        <p className="text-sm text-[var(--text-secondary)]">{td("kyc.noSensitive")}</p>
       ) : (
         <div className="grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
-          <Info label="身分證字號" value={revealed?.national_id ?? maskedNationalId ?? "—"} />
-          <Info label="生日" value={k.birth_date ?? "—"} />
+          <Info label={td("kyc.nationalId")} value={revealed?.national_id ?? maskedNationalId ?? "—"} />
+          <Info label={td("kyc.birthDate")} value={k.birth_date ?? "—"} />
           <Info
-            label="撥款帳戶"
+            label={td("kyc.bankAccount")}
             value={
               revealed?.bank_account
                 ? `${k.bank_code ? `${k.bank_code} ` : ""}${revealed.bank_account}`
                 : maskedBankAccount ?? "—"
             }
           />
-          <Info label="統一編號" value={k.tax_id ?? "—"} />
-          <Info label="通訊地址" value={k.address ?? "—"} span />
+          <Info label={td("kyc.taxId")} value={k.tax_id ?? "—"} />
+          <Info label={td("kyc.address")} value={k.address ?? "—"} span />
         </div>
       )}
 
-      <h3 className="mb-2 mt-5 text-sm font-semibold text-[var(--text-primary)]">證件文件</h3>
+      <h3 className="mb-2 mt-5 text-sm font-semibold text-[var(--text-primary)]">{td("kyc.documentsTitle")}</h3>
       {kyc.documents.length === 0 ? (
-        <p className="text-sm text-[var(--text-secondary)]">尚未上傳文件（可於核准前補件）</p>
+        <p className="text-sm text-[var(--text-secondary)]">{td("kyc.noDocuments")}</p>
       ) : (
         <div className="flex flex-col divide-y divide-[var(--border)]">
           {kyc.documents.map((d) => (
@@ -516,7 +544,7 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
               <FileText className="h-4 w-4 shrink-0 text-[var(--text-secondary)]" aria-hidden />
               <div className="min-w-0 flex-1">
                 <span className="text-sm font-medium text-[var(--text-primary)]">
-                  {DOC_TYPE_LABEL[d.doc_type] ?? d.doc_type}
+                  {docTypeLabel(td, d.doc_type)}
                 </span>
                 <span className="ml-2 text-xs text-[var(--text-secondary)]">
                   {d.filename}（{fmtBytes(d.size_bytes)}）
@@ -529,7 +557,7 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
                 className="flex items-center gap-1 rounded-md border border-[var(--border)] px-2.5 py-1 text-xs text-[var(--text-primary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50"
               >
                 <Eye className="h-3.5 w-3.5" aria-hidden />
-                {previewBusy === d.id ? "載入中…" : "預覽"}
+                {previewBusy === d.id ? td("kyc.previewLoading") : td("kyc.preview")}
               </button>
             </div>
           ))}
@@ -551,7 +579,7 @@ function KycSection({ basePath, kyc }: { basePath: string; kyc: KycReview }) {
                 onClick={closePreview}
                 className="rounded-lg border border-[var(--border)] px-3 py-1 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))]"
               >
-                關閉
+                {tc("close")}
               </button>
             </div>
             {preview.contentType.startsWith("image/") ? (
@@ -576,6 +604,8 @@ function EditTechnicianModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const td = useTranslations("platform.technicians.detail");
+  const tc = useTranslations("platform.common");
   const [form, setForm] = useState({
     name: tech.name,
     phone: tech.phone,
@@ -600,7 +630,7 @@ function EditTechnicianModal({
         coverage_areas: splitCsv(form.regions),
         level: form.level || undefined,
       });
-      cacheInvalidate("GET:"); // 編輯後變更立即反映（清 30s GET 舊快取）
+      cacheInvalidate("GET:"); // 編輯後變更立即反映(清 30s GET 舊快取)
       onSaved();
     } catch (e) {
       setMsg(friendlyError(e));
@@ -610,12 +640,12 @@ function EditTechnicianModal({
   }
 
   return (
-    <ModalShell title="編輯師傅資料" onClose={onClose}>
+    <ModalShell title={td("edit.title")} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <ModalField label="姓名" value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
-        <ModalField label="聯絡電話" value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
+        <ModalField label={td("edit.fieldName")} value={form.name} onChange={(v) => setForm((f) => ({ ...f, name: v }))} />
+        <ModalField label={td("edit.fieldPhone")} value={form.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
         <label className="flex flex-col gap-1 text-sm">
-          <span className="text-[var(--text-secondary)]">等級</span>
+          <span className="text-[var(--text-secondary)]">{td("edit.fieldLevel")}</span>
           <select
             value={form.level}
             onChange={(e) => setForm((f) => ({ ...f, level: e.target.value }))}
@@ -626,11 +656,11 @@ function EditTechnicianModal({
             ))}
           </select>
         </label>
-        <ModalField label="專長品牌（逗號分隔）" value={form.skills} onChange={(v) => setForm((f) => ({ ...f, skills: v }))} placeholder="Yale, Dormakaba" />
-        <ModalField label="服務區域（逗號分隔）" value={form.regions} onChange={(v) => setForm((f) => ({ ...f, regions: v }))} placeholder="台北市, 新北市" />
+        <ModalField label={td("edit.fieldSkills")} value={form.skills} onChange={(v) => setForm((f) => ({ ...f, skills: v }))} placeholder="Yale, Dormakaba" />
+        <ModalField label={td("edit.fieldRegions")} value={form.regions} onChange={(v) => setForm((f) => ({ ...f, regions: v }))} placeholder={td("edit.regionsPlaceholder")} />
       </div>
       {msg && <p className="mt-3 text-[13px] text-[var(--status-danger)]">{msg}</p>}
-      <ModalActions busy={busy} onClose={onClose} onSave={save} saveLabel="儲存" />
+      <ModalActions busy={busy} onClose={onClose} onSave={save} saveLabel={tc("save")} />
     </ModalShell>
   );
 }
@@ -646,6 +676,8 @@ function CertModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const td = useTranslations("platform.technicians.detail");
+  const tc = useTranslations("platform.common");
   const [form, setForm] = useState({
     cert_name: cert?.cert_name ?? "",
     brand: cert?.brand ?? "",
@@ -657,7 +689,7 @@ function CertModal({
 
   async function save() {
     if (!form.cert_name.trim()) {
-      setMsg("認證項目為必填");
+      setMsg(td("certs.nameRequired"));
       return;
     }
     setBusy(true);
@@ -674,7 +706,7 @@ function CertModal({
       } else {
         await api.post(`${basePath}/certifications`, payload);
       }
-      cacheInvalidate("GET:"); // 認證新增/編輯後立即反映（清 30s GET 舊快取）
+      cacheInvalidate("GET:"); // 認證新增/編輯後立即反映(清 30s GET 舊快取)
       onSaved();
     } catch (e) {
       setMsg(friendlyError(e));
@@ -684,23 +716,23 @@ function CertModal({
   }
 
   return (
-    <ModalShell title={cert ? "編輯認證" : "新增認證"} onClose={onClose}>
+    <ModalShell title={cert ? td("certs.editTitle") : td("certs.addTitle")} onClose={onClose}>
       <div className="flex flex-col gap-3">
-        <ModalField label="認證項目 *" value={form.cert_name} onChange={(v) => setForm((f) => ({ ...f, cert_name: v }))} placeholder="電子鎖安裝認證" />
-        <ModalField label="品牌" value={form.brand} onChange={(v) => setForm((f) => ({ ...f, brand: v }))} placeholder="Yale" />
+        <ModalField label={td("certs.fieldName")} value={form.cert_name} onChange={(v) => setForm((f) => ({ ...f, cert_name: v }))} placeholder={td("certs.namePlaceholder")} />
+        <ModalField label={td("certs.fieldBrand")} value={form.brand} onChange={(v) => setForm((f) => ({ ...f, brand: v }))} placeholder="Yale" />
         <div className="flex gap-3">
           <label className="flex flex-1 flex-col gap-1 text-sm">
-            <span className="text-[var(--text-secondary)]">取得日期</span>
+            <span className="text-[var(--text-secondary)]">{td("certs.fieldObtainedAt")}</span>
             <input type="date" value={form.obtained_at} onChange={(e) => setForm((f) => ({ ...f, obtained_at: e.target.value }))} className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-sm outline-none" />
           </label>
           <label className="flex flex-1 flex-col gap-1 text-sm">
-            <span className="text-[var(--text-secondary)]">到期日期</span>
+            <span className="text-[var(--text-secondary)]">{td("certs.fieldExpiresAt")}</span>
             <input type="date" value={form.expires_at} onChange={(e) => setForm((f) => ({ ...f, expires_at: e.target.value }))} className="rounded-lg border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-sm outline-none" />
           </label>
         </div>
       </div>
       {msg && <p className="mt-3 text-[13px] text-[var(--status-danger)]">{msg}</p>}
-      <ModalActions busy={busy} onClose={onClose} onSave={save} saveLabel="儲存" />
+      <ModalActions busy={busy} onClose={onClose} onSave={save} saveLabel={tc("save")} />
     </ModalShell>
   );
 }
@@ -726,13 +758,14 @@ function ModalField({ label, value, onChange, placeholder }: { label: string; va
 }
 
 function ModalActions({ busy, onClose, onSave, saveLabel }: { busy: boolean; onClose: () => void; onSave: () => void; saveLabel: string }) {
+  const tc = useTranslations("platform.common");
   return (
     <div className="mt-5 flex justify-end gap-2">
       <button type="button" onClick={onClose} disabled={busy} className="rounded-lg border border-[var(--border)] px-4 py-2 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))] disabled:opacity-50">
-        取消
+        {tc("cancel")}
       </button>
       <button type="button" onClick={onSave} disabled={busy} className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
-        {busy ? "儲存中…" : saveLabel}
+        {busy ? tc("saving") : saveLabel}
       </button>
     </div>
   );
