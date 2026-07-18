@@ -119,3 +119,15 @@
 - **留待**：P2-5 廠商入口去留（業主裁決）／W1-6 拆帳規則 CRUD（功能決策）／W3-5 補件通道＋W3-6 email 通知（SMTP 基礎設施）；W6-9 hydration 查無確定性根因（排查結論：static prerender 輸出確定性，建議乾淨 context 重測）；:3003 師傅詳情頁 en 化與平台 skip link 列已知未竟（下輪）
 
 **驗證**：api 全套 **1907 passed 0 failed**（scratch 5490，新增回歸測試 21）＋四站 tsc 0＋i18n 四站 zh/en 鍵數對齊＋Playwright live（token 頁×2/手建卡建報價全鏈/RWD 390/768/1280 三頁零溢出/深色對比實測/平台英文渲染+首載 0 error）。migration 107/108 本機已套，**dev/prod 部署需套用**。全容器重建。測試資料（UAT0718d）清零。
+
+### 裁決批次一（2026-07-18 晚，branch `feat/uat-round2-decisions`）
+
+業主裁決「拆帳規則完整 CRUD＋審計」已落地＋無需裁決尾巴收齊：
+
+- **W1-6**：payout rule create/update/軟刪（比照報價主檔），寫入同交易硬性記 `audit_events`（before/after 快照，稽核失敗整筆回滾）；migration 109；前端頁補 CRUD UI＋生效日可編。live 實證：UI 建立→DB 落庫＋`payout_rule.created` 稽核→停用→軟刪＋`payout_rule.deleted` 稽核
+- **N2**：編輯欄位白名單加 `problem_type`＋前端可編；**順修 update_wo_fields INNER JOIN 同型漏網**（手建卡單 PATCH 原靜默 0 列）；回歸測試證明缺欄單補 problem_type 後過派工閘
+- **N1**：查證兩個指派 Modal state 均已初始化（報告描述與現行 tree 不符，git 全歷史亦然）；補送出守門＋inline 驗證使 422 路徑結構性不可能。若 UAT 當時撞到的是其他入口，重現時再報
+- **W6-2 未竟**：:3003 師傅詳情頁 en 化（~90 鍵）＋skip link/錯誤訊息表 i18n＋登入頁 LocaleToggle＋i18n 鍵數回歸閘腳本
+- 驗證：api 全套 **1917 passed 0 failed**（回歸 +10）＋四站 tsc 0＋live CRUD 全鏈；migration 109 部署需套用；測試規則（UAT0718E）已清（audit 鏈 append-only 保留 2 筆）
+
+**仍待業主**：廠商入口去留（三選項說明已給）；SMTP 需求說明已給（等決定後接 email 通知/補件通道）。
