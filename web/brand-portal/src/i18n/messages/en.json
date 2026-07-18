@@ -1001,6 +1001,7 @@
         "skillsPrefix": "Skills {names}",
         "skillsMore": "…",
         "reasonLabel": "Assignment reason",
+        "reasonMissing": "Please select an assignment reason first",
         "reason": {
           "auto_dispatch_exhausted": "Auto-dispatch exhausted",
           "customer_requested_specific_tech": "Customer requested specific technician",
@@ -1872,7 +1873,8 @@
         "circuitBreaker": "Technician circuit-broken; needs operations_manager dual-sign (MVP pending)",
         "conflict": "Work order already assigned by someone else, please refresh",
         "escalatePrompt": "Reason for higher-level review (required):",
-        "cancelConfirm": "Cancel this work order and refund in full? Customer will be notified."
+        "cancelConfirm": "Cancel this work order and refund in full? Customer will be notified.",
+        "reasonRequired": "Please select an assignment reason first"
       },
       "actionMsg": {
         "assignedTo": "Assigned to {name}",
@@ -3694,6 +3696,7 @@
           "customer_address": "Service address",
           "brand": "Brand",
           "model": "Model",
+          "problem_type": "Problem type",
           "serial_number": "Serial number (S/N)",
           "dealer": "Purchased from / dealer",
           "install_date": "Install date",
@@ -3711,8 +3714,6 @@
         "readonly": {
           "scheduledDate": "Service date",
           "scheduledHint": "(managed by scheduling)",
-          "problemReason": "Issue / condition",
-          "problemHint": "(from problem card)",
           "warrantyExpiry": "Warranty expiry",
           "warrantyExpiryHint": "(auto-calculated from S/N / purchase date)",
           "completionStatus": "Completion status",

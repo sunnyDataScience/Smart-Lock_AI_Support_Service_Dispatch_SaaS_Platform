@@ -68,6 +68,9 @@ const M2_FIELDS: FieldDef[] = [
 ];
 const M3_FIELDS: FieldDef[] = [
   { key: "service_category", type: "select", enumKey: "serviceCategory" },
+  // UAT N2：派工前置閘要求問題類型——由唯讀（問題卡帶入）改為可編輯，
+  // 缺欄單（含手建卡急件）才有路補齊過閘（後端 PATCH 白名單同步開放）
+  { key: "problem_type", type: "text" },
   { key: "warranty_status", type: "select", enumKey: "warrantyStatus" },
 ];
 const M5_FIELDS: FieldDef[] = [
@@ -211,7 +214,6 @@ export default function DispatchOrderView({ order, onUpdated }: Props) {
 
       <ModuleSection n={3} title={t("modules.m3")}>
         <FieldGrid order={order} fields={M3_FIELDS} editing={editing} draft={draft} setDraft={setDraft} />
-        <ReadOnlyRow label={t("readonly.problemReason")} value={order.problem_type || "—"} hint={t("readonly.problemHint")} />
         <ReadOnlyRow
           label={t("readonly.warrantyExpiry")}
           value={fmtDate(order.warranty_expiry_date)}

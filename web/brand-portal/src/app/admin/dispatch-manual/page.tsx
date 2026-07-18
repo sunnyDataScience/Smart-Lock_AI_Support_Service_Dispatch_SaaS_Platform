@@ -195,6 +195,12 @@ export default function DispatchManualPage() {
 
   async function submitAssign() {
     if (!wo || !selectedTechId || submitting) return;
+    // UAT N1 防衛：reason 缺值時 inline 擋下（不送必 422 的 body；state 已以
+    // 預設選項值初始化，此為防未來改動回歸的守門）
+    if (!reasonCode) {
+      setSubmitError(t("errors.reasonRequired"));
+      return;
+    }
     if (reasonCode === "other" && reasonText.trim().length < 10) {
       setSubmitError(t("errors.otherRequired"));
       return;
