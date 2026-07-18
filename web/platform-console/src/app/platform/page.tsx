@@ -94,9 +94,10 @@ interface TenantRow {
   created_at?: string | null;
 }
 
+// 20260702 退場決議 + UAT R2 W3-2:廠商帳號改平台代建(建立即啟用,無待審),
+// 「待審發案方」語意收斂為「待審品牌申請」——不再計 vendors pending。
 interface Overview {
   brandApps: number;
-  vendors: number;
   techPending: number;
   techActive: number;
   techTotal: number;
@@ -119,10 +120,9 @@ function OverviewPanel() {
     let cancelled = false;
     (async () => {
       try {
-        const [techRes, brandRes, vendorRes, tenantRes] = await Promise.all([
+        const [techRes, brandRes, tenantRes] = await Promise.all([
           api.get<{ data: { status?: string }[] }>("/api/v1/platform/technicians"),
           api.get<{ data: unknown[] }>("/api/v1/platform/brand-applications?status=pending"),
-          api.get<{ items: unknown[] }>("/api/v1/platform/vendors?status=pending_approval"),
           api.get<{ data: TenantRow[] }>("/api/v1/platform/tenants"),
         ]);
         if (cancelled) return;
@@ -132,7 +132,6 @@ function OverviewPanel() {
           techActive: techs.filter((x) => x.status === "active").length,
           techTotal: techs.length,
           brandApps: brandRes.data?.length ?? 0,
-          vendors: vendorRes.items?.length ?? 0,
           tenants: tenantRes.data ?? [],
         });
       } catch (err) {
@@ -144,7 +143,7 @@ function OverviewPanel() {
     };
   }, []);
 
-  const requestorPending = ov ? ov.brandApps + ov.vendors : null;
+  const requestorPending = ov ? ov.brandApps : null;
   const activeTenants = ov ? ov.tenants.filter((x) => x.status === "active").length : null;
 
   return (
@@ -179,11 +178,7 @@ function OverviewPanel() {
           title={t("statPendingRequestors")}
           count={requestorPending}
           unit={t("pendingUnit")}
-          subtitle={
-            ov
-              ? t("pendingRequestorsSubtitle", { brands: ov.brandApps, vendors: ov.vendors })
-              : t("pendingRequestorsHint")
-          }
+          subtitle={t("pendingRequestorsHint")}
         />
         <PendingCard
           href="/platform/technicians"

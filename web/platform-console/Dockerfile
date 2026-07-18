@@ -79,6 +79,10 @@ ENV NEXT_PUBLIC_PLATFORM_PORTAL_URL=${NEXT_PUBLIC_PLATFORM_PORTAL_URL}
 # 未設 = 前端不顯示該連結（避免指向空頁）。
 ARG NEXT_PUBLIC_GCP_MONITORING_URL=""
 ENV NEXT_PUBLIC_GCP_MONITORING_URL=${NEXT_PUBLIC_GCP_MONITORING_URL}
+# UAT R2 W3-5/W3-6 免 email 自助方案：平台 console 產生的師傅補件連結指向
+# 師傅站(tech-portal)/upload-docs/{token}。未傳 = 前端 fallback http://localhost:3001。
+ARG NEXT_PUBLIC_TECH_PORTAL_BASE_URL=""
+ENV NEXT_PUBLIC_TECH_PORTAL_BASE_URL=${NEXT_PUBLIC_TECH_PORTAL_BASE_URL}
 
 # 跑 next build（next.config.ts 設了 output: standalone）
 ENV NEXT_TELEMETRY_DISABLED=1

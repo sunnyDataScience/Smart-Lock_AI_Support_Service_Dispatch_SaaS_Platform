@@ -3654,11 +3654,10 @@
       "statTenantsTotal": "/ {count} brands total",
       "statActiveTechs": "Active technicians",
       "statTechsTotal": "/ {count} total",
-      "statPendingRequestors": "Requestors pending review",
+      "statPendingRequestors": "Brand applications pending review",
       "statPendingTechs": "Technicians pending review",
       "statUnit": "",
-      "pendingRequestorsSubtitle": "Brand applications {brands} · Vendor accounts {vendors}",
-      "pendingRequestorsHint": "Platform onboarding applications and account reviews for brands, distributors and locksmith shops",
+      "pendingRequestorsHint": "Platform onboarding application reviews for brands, distributors and locksmith shops (vendor accounts are platform-created, nothing to review)",
       "pendingTechsHint": "Technician registration review and lifecycle management",
       "pendingUnit": "pending review",
       "tenantsCardTitle": "Brand tenants",
@@ -3751,6 +3750,20 @@
             "insurance": "Insurance / criminal record certificate"
           }
         },
+        "uploadToken": {
+          "button": "Generate re-upload link",
+          "generating": "Generating…",
+          "failed": "Failed to generate the re-upload link",
+          "modalTitle": "Document re-upload link",
+          "oneTimeNote": "This link is shown only once and cannot be retrieved after closing this window — copy it now.",
+          "linkLabel": "Re-upload link",
+          "expiresAt": "Valid until: {time}",
+          "expiresUnknown": "Validity follows the system setting (48 hours by default)",
+          "copy": "Copy link",
+          "copied": "Copied",
+          "copyFailed": "Copy failed — select the link and copy it manually",
+          "deliverHint": "Hand the link to the technician via LINE or phone (no email is sent); the technician opens it to upload the missing documents."
+        },
         "certs": {
           "title": "Skill certification matrix",
           "add": "Add certification",
@@ -3830,7 +3843,7 @@
     },
     "requestors": {
       "title": "Requestor Review",
-      "subtitle": "Platform onboarding applications and requestor account reviews for brands, distributors and locksmith shops, handled centrally by the platform.",
+      "subtitle": "Platform onboarding application reviews and vendor account management for brands, distributors and locksmith shops, handled centrally by the platform.",
       "tabApplications": "Brand applications",
       "tabVendors": "Vendor accounts",
       "type": {
@@ -3872,7 +3885,7 @@
       "guideDesc": "Approved. Onboarding is manual — deploy the brand stack following the steps below and contact the applicant."
     },
     "vendors": {
-      "intro": "Login accounts self-registered by requestors (brands / distributors / locksmith shops). Once approved, the account can sign in and submit dispatch requests (unlike applications, this activates an existing account).",
+      "intro": "Vendor accounts are created by the platform. Once created, the vendor signs in to the brand portal (/vendor-login) with email + password to submit dispatch requests.",
       "status": {
         "pending_approval": "Pending review",
         "active": "Active",
@@ -3880,13 +3893,27 @@
         "rejected": "Rejected"
       },
       "empty": "No vendors match the current filters",
-      "approve": "Approve",
-      "reject": "Reject",
-      "rejectTitle": "Reject “{name}”",
-      "rejectReasonLabel": "Rejection reason",
-      "rejectReasonHint": "Recorded in the review log",
-      "approveDone": "Approved “{name}”",
-      "rejectDone": "Rejected “{name}”"
+      "create": "Create vendor account",
+      "createTitle": "Create vendor account",
+      "createHint": "The account is active immediately after creation. Hand the email and initial password to the vendor via LINE or phone, and remind them to change the password after signing in.",
+      "fieldName": "Contact name *",
+      "fieldCompany": "Company name *",
+      "fieldTaxId": "Tax ID *",
+      "fieldPhone": "Phone *",
+      "fieldEmail": "Email *",
+      "fieldPassword": "Initial password *",
+      "taxIdPlaceholder": "8 digits",
+      "phonePlaceholder": "0912345678",
+      "passwordPlaceholder": "At least 8 characters",
+      "nameRequired": "Contact name is required",
+      "companyRequired": "Company name is required",
+      "taxIdInvalid": "Tax ID must be exactly 8 digits",
+      "phoneInvalid": "Phone must be 10 digits starting with 09",
+      "emailInvalid": "Invalid email format",
+      "passwordTooShort": "Initial password must be at least 8 characters",
+      "creating": "Creating…",
+      "createSubmit": "Create account",
+      "createDone": "Vendor account “{name}” created"
     },
     "monitor": {
       "status": {

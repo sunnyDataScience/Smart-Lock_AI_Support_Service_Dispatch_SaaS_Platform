@@ -3654,11 +3654,10 @@
       "statTenantsTotal": "／共 {count} 個品牌",
       "statActiveTechs": "啟用中師傅",
       "statTechsTotal": "／共 {count} 位",
-      "statPendingRequestors": "待審發案方",
+      "statPendingRequestors": "待審品牌申請",
       "statPendingTechs": "待審師傅",
       "statUnit": "件",
-      "pendingRequestorsSubtitle": "品牌申請 {brands}　·　廠商帳號 {vendors}",
-      "pendingRequestorsHint": "品牌／經銷／鎖店的平台導入申請與帳號審核",
+      "pendingRequestorsHint": "品牌／經銷／鎖店的平台導入申請審核（廠商帳號由平台代建，無待審）",
       "pendingTechsHint": "鎖匠師傅的註冊審核與生命週期管理",
       "pendingUnit": "件待審核",
       "tenantsCardTitle": "品牌租戶",
@@ -3751,6 +3750,20 @@
             "insurance": "保險證明／良民證"
           }
         },
+        "uploadToken": {
+          "button": "產生補件連結",
+          "generating": "產生中…",
+          "failed": "產生補件連結失敗",
+          "modalTitle": "師傅補件連結",
+          "oneTimeNote": "此連結僅顯示一次，關閉視窗後無法再次取得，請立即複製。",
+          "linkLabel": "補件連結",
+          "expiresAt": "有效期限：{time}",
+          "expiresUnknown": "有效期限依系統設定（預設 48 小時）",
+          "copy": "複製連結",
+          "copied": "已複製",
+          "copyFailed": "複製失敗，請手動選取連結複製",
+          "deliverHint": "請透過 LINE 或電話將連結轉交師傅（不經 Email 寄送）；師傅開啟連結即可補上傳證件。"
+        },
         "certs": {
           "title": "技能認證矩陣",
           "add": "新增認證",
@@ -3830,7 +3843,7 @@
     },
     "requestors": {
       "title": "發案方審核",
-      "subtitle": "品牌／經銷／鎖店（發案的一方）的平台導入申請與發案帳號審核。由平台方統一負責。",
+      "subtitle": "品牌／經銷／鎖店（發案的一方）的平台導入申請審核與廠商帳號管理。由平台方統一負責。",
       "tabApplications": "品牌申請",
       "tabVendors": "廠商帳號",
       "type": {
@@ -3872,7 +3885,7 @@
       "guideDesc": "已核准。開站流程為手動 —— 依下列步驟部署該品牌 stack，並聯絡申請人開通。"
     },
     "vendors": {
-      "intro": "發案方（品牌／經銷／鎖店）自助註冊的「登入帳號」。核准後即可登入平台發案（相對於申請意向，此為已建帳號的啟用審核）。",
+      "intro": "廠商帳號由平台代建。建立後，廠商即可以 Email＋密碼登入品牌後台（/vendor-login）發案。",
       "status": {
         "pending_approval": "待審核",
         "active": "已啟用",
@@ -3880,13 +3893,27 @@
         "rejected": "已拒絕"
       },
       "empty": "目前沒有符合條件的廠商",
-      "approve": "核准",
-      "reject": "拒絕",
-      "rejectTitle": "拒絕「{name}」",
-      "rejectReasonLabel": "拒絕原因",
-      "rejectReasonHint": "記入審核紀錄",
-      "approveDone": "已核准「{name}」",
-      "rejectDone": "已拒絕「{name}」"
+      "create": "建立廠商帳號",
+      "createTitle": "建立廠商帳號",
+      "createHint": "建立後帳號即為啟用狀態。請將 Email 與初始密碼透過 LINE 或電話轉交廠商，並提醒對方登入後自行修改密碼。",
+      "fieldName": "聯絡人姓名 *",
+      "fieldCompany": "公司名稱 *",
+      "fieldTaxId": "統一編號 *",
+      "fieldPhone": "聯絡電話 *",
+      "fieldEmail": "Email *",
+      "fieldPassword": "初始密碼 *",
+      "taxIdPlaceholder": "8 碼數字",
+      "phonePlaceholder": "0912345678",
+      "passwordPlaceholder": "至少 8 碼",
+      "nameRequired": "請填寫聯絡人姓名",
+      "companyRequired": "請填寫公司名稱",
+      "taxIdInvalid": "統一編號須為 8 碼數字",
+      "phoneInvalid": "電話須為 09 開頭共 10 碼數字",
+      "emailInvalid": "Email 格式不正確",
+      "passwordTooShort": "初始密碼至少 8 碼",
+      "creating": "建立中…",
+      "createSubmit": "建立帳號",
+      "createDone": "已建立廠商帳號「{name}」"
     },
     "monitor": {
       "status": {

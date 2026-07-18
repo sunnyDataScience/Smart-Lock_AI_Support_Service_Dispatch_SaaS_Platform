@@ -2,9 +2,10 @@
 
 // CR-0114 收尾 — 平台 console「發案方審核」。
 // 品牌申請(導入意向)與廠商帳號(發案登入帳號)都是「發案的一方」(相對於師傅=
-// 接案方),業主指示合成同一頁。兩者資料模型與審核動作不同(品牌申請核准要填代號
-// + 出開站指引;廠商核准是啟用帳號)→ 用分頁分隔,不硬混成一張清單。
+// 接案方),業主指示合成同一頁 → 用分頁分隔,不硬混成一張清單。
 // UAT W6-2:文案接 i18n(platform.requestors namespace)。
+// 20260702 退場決議 + UAT R2 W3-2:廠商自助註冊收掉,「廠商帳號」分頁從審核
+// 改為帳號管理(平台代建;見 VendorsPanel)。品牌申請分頁維持審核工作流。
 
 import { useState } from "react";
 import BrandApplicationsPanel from "@/components/platform/BrandApplicationsPanel";

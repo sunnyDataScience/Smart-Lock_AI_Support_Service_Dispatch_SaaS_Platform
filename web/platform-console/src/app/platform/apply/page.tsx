@@ -1,8 +1,8 @@
 "use client";
 
-import { Building2, Check, ArrowLeft } from "lucide-react";
+import { Building2, Check, ArrowLeft, Copy, Search } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { PLATFORM_API_BASE_URL } from "@/lib/appMode";
 
 // 品牌/經銷/鎖店「申請導入 SmartLock 平台」公開頁(CR-0114 延伸)。
@@ -10,6 +10,12 @@ import { PLATFORM_API_BASE_URL } from "@/lib/appMode";
 // 以絕對 URL 跳轉過來（業主 2026-07-05 要求）。申請=意向書:不收密碼、不建帳號，
 // 核准後平台人工開站+聯絡（CR-0114 裁決 2）。POST 平台 API（plain fetch，無登入態）。
 // 硬編繁中（對齊 platform console 慣例）。欄位含業界補充（網站/涵蓋地區/規模/品牌/來源）。
+//
+// 2026-07-18 免 email 自助方案（UAT R2 W3-6 業主裁決,SMTP 暫緩）:
+//   - 送出成功畫面顯示「申請編號」（submit 回應 id）+ 複製按鈕，提示保存供日後查詢。
+//   - 同頁新增「查詢申請進度」模式（?mode=lookup 可直達）:憑 Email + 申請編號
+//     POST /platform/brand-applications:lookup（公開端點,兩者同時精確匹配才回資料,
+//     不匹配一律 404 防列舉）→ 顯示審核中/已核准/已駁回（含駁回理由）結果卡。
 
 const inputCls =
   "h-10 w-full rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3 text-sm text-[var(--text-primary)] outline-none transition focus:border-[var(--border-focus)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 disabled:opacity-50";
@@ -39,6 +45,56 @@ const FIELD_MESSAGES: Record<string, string> = {
   notes: "備註過長（1000 字內）",
 };
 
+// 申請編號 = 後端 UUID;查詢前先做格式檢查,避免打出必然 404/422 的請求。
+const UUID_RE =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/** 進度查詢回應(:lookup 契約;review_notes 僅 rejected 時回傳) */
+type LookupResult = {
+  status: string;
+  submitted_at: string | null;
+  reviewed_at: string | null;
+  review_notes?: string | null;
+};
+
+// 查詢結果狀態 → 顯示樣式與說明(未知狀態走 fallback,不讓結果卡開天窗)
+const STATUS_VIEW: Record<string, { label: string; cls: string; desc: string }> = {
+  pending: {
+    label: "審核中",
+    cls: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)]",
+    desc: "您的申請正在審核中，審核完成後平台將主動與您聯絡。",
+  },
+  approved: {
+    label: "已核准",
+    cls: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)]",
+    desc: "您的申請已核准，平台將與您聯繫開通事宜。",
+  },
+  rejected: {
+    label: "已駁回",
+    cls: "bg-[var(--badge-danger-bg)] text-[var(--badge-danger-fg)]",
+    desc: "很抱歉，本次申請未通過審核。",
+  },
+};
+
+const STATUS_VIEW_FALLBACK = {
+  label: "已受理",
+  cls: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)]",
+  desc: "申請已受理，平台將盡快處理。",
+};
+
+function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("zh-TW", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function BrandApplyPage() {
   const router = useRouter();
   const [applicationType, setApplicationType] = useState<AppType>("brand");
@@ -59,16 +115,110 @@ export default function BrandApplyPage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
+  // 送出成功後的申請編號(defensive:後端回 {id, status},取不到就不顯示編號區塊)
+  const [applicationId, setApplicationId] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+
+  // 頁面模式:apply=申請表單(含成功畫面)/ lookup=查詢申請進度
+  const [mode, setMode] = useState<"apply" | "lookup">("apply");
+  const [lookupEmail, setLookupEmail] = useState("");
+  const [lookupId, setLookupId] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookupFieldErrors, setLookupFieldErrors] = useState<Record<string, string>>({});
+  const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
+
+  // ?mode=lookup 直達查詢(landing 入口用)。避免 useSearchParams 需 Suspense,
+  // 純 client 頁直接讀 window.location。
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mode") === "lookup") setMode("lookup");
+  }, []);
 
   function goBack() {
     if (typeof window !== "undefined" && window.history.length > 1) router.back();
     else window.location.assign("/platform/login");
   }
 
+  async function copyApplicationId() {
+    if (!applicationId) return;
+    try {
+      await navigator.clipboard.writeText(applicationId);
+      setCopyState("copied");
+      setTimeout(() => setCopyState("idle"), 2000);
+    } catch {
+      setCopyState("failed");
+    }
+  }
+
+  /** 切到查詢模式;剛送出成功時帶入 Email 與申請編號方便直接查 */
+  function openLookup(prefill: boolean) {
+    if (prefill) {
+      setLookupEmail(email.trim());
+      setLookupId(applicationId ?? "");
+    }
+    setLookupResult(null);
+    setLookupError(null);
+    setLookupFieldErrors({});
+    setMode("lookup");
+  }
+
+  async function onLookupSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const errs: Record<string, string> = {};
+    const em = lookupEmail.trim();
+    if (!em) errs.lookup_email = "請輸入申請時填寫的 Email";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) errs.lookup_email = "Email 格式不正確";
+    const id = lookupId.trim();
+    if (!id) errs.lookup_id = "請輸入申請編號";
+    else if (!UUID_RE.test(id)) errs.lookup_id = "申請編號格式不正確（送出申請時顯示的編號）";
+    setLookupFieldErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      setLookupError(null);
+      setLookupResult(null);
+      return;
+    }
+    setLookupError(null);
+    setLookupResult(null);
+    setLookupLoading(true);
+    try {
+      const res = await fetch(
+        `${PLATFORM_API_BASE_URL}/api/v1/platform/brand-applications:lookup`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: em, application_id: id }),
+        },
+      );
+      if (!res.ok) {
+        // 契約:不匹配一律 404 generic(防列舉),不細分是哪個欄位錯。
+        if (res.status === 404) {
+          setLookupError("查無資料，請確認 Email 與申請編號是否正確。");
+        } else if (res.status === 429) {
+          setLookupError("查詢過於頻繁，請稍後再試。");
+        } else {
+          setLookupError("查詢失敗，請稍後再試。");
+        }
+        return;
+      }
+      const body = (await res.json()) as LookupResult;
+      setLookupResult(body);
+    } catch {
+      setLookupError("查詢失敗，請確認網路後再試。");
+    } finally {
+      setLookupLoading(false);
+    }
+  }
+
   // 欄位有錯時輸入框標紅。用 important modifier（Tailwind v4 後綴 !）蓋掉 inputCls
   // 的預設 border 色（兩個同名 utility 並存時勝負取決於產出 CSS 順序，不加 ! 不保證紅框生效）。
   const errCls = (key: string) =>
     fieldErrors[key]
+      ? " border-[var(--status-danger)]! focus:border-[var(--status-danger)]!"
+      : "";
+
+  const lookupErrCls = (key: string) =>
+    lookupFieldErrors[key]
       ? " border-[var(--status-danger)]! focus:border-[var(--status-danger)]!"
       : "";
 
@@ -153,6 +303,17 @@ export default function BrandApplyPage() {
         else setError("送出失敗，請稍後再試");
         return;
       }
+      // 201 回 {id, status};id=申請編號,供免 email 查詢進度。防禦性讀取:
+      // 解析失敗不擋成功畫面,只是不顯示編號區塊。
+      let created: { id?: unknown } | null = null;
+      try {
+        created = await res.json();
+      } catch {
+        /* 非 JSON 回應 → 略過編號顯示 */
+      }
+      setApplicationId(
+        typeof created?.id === "string" && created.id ? created.id : null,
+      );
       setDone(true);
     } catch {
       setError("送出失敗，請確認網路後再試");
@@ -177,13 +338,121 @@ export default function BrandApplyPage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--primary)]">
             <Building2 className="h-6 w-6 text-white" />
           </div>
-          <h1 className="text-xl font-bold text-[var(--text-primary)]">申請導入 SmartLock 平台</h1>
-          <p className="max-w-[440px] text-sm text-[var(--text-secondary)]">
-            品牌商、經銷商、鎖店皆可申請。送出基本資料後，平台將審核並與您聯絡協助開站與教育訓練。
-          </p>
+          {mode === "lookup" ? (
+            <>
+              <h1 className="text-xl font-bold text-[var(--text-primary)]">查詢申請進度</h1>
+              <p className="max-w-[440px] text-sm text-[var(--text-secondary)]">
+                輸入申請時填寫的 Email 與送出後取得的申請編號，即可查詢審核進度。
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="text-xl font-bold text-[var(--text-primary)]">申請導入 SmartLock 平台</h1>
+              <p className="max-w-[440px] text-sm text-[var(--text-secondary)]">
+                品牌商、經銷商、鎖店皆可申請。送出基本資料後，平台將審核並與您聯絡協助開站與教育訓練。
+              </p>
+              {!done && (
+                <button
+                  type="button"
+                  onClick={() => openLookup(false)}
+                  className="mt-1 inline-flex items-center gap-1.5 text-[13px] font-medium text-[var(--primary)] underline-offset-4 transition hover:underline"
+                >
+                  <Search className="h-3.5 w-3.5" aria-hidden />
+                  已送出申請？查詢審核進度
+                </button>
+              )}
+            </>
+          )}
         </div>
 
-        {done ? (
+        {mode === "lookup" ? (
+          <div className="flex flex-col gap-4">
+            <form onSubmit={onLookupSubmit} noValidate className="flex flex-col gap-4">
+              {lookupError && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-[var(--badge-danger-fg)]/25 bg-[var(--badge-danger-bg)] px-3 py-2 text-sm text-[var(--badge-danger-fg)]"
+                >
+                  {lookupError}
+                </div>
+              )}
+              <Field label="Email" required hint="申請時填寫的聯絡 Email" error={lookupFieldErrors.lookup_email}>
+                <input
+                  type="email"
+                  value={lookupEmail}
+                  onChange={(e) => setLookupEmail(e.target.value)}
+                  aria-invalid={!!lookupFieldErrors.lookup_email || undefined}
+                  className={inputCls + lookupErrCls("lookup_email")}
+                />
+              </Field>
+              <Field
+                label="申請編號"
+                required
+                hint="申請送出成功時顯示的編號"
+                error={lookupFieldErrors.lookup_id}
+              >
+                <input
+                  value={lookupId}
+                  onChange={(e) => setLookupId(e.target.value)}
+                  placeholder="例：123e4567-e89b-12d3-a456-426614174000"
+                  aria-invalid={!!lookupFieldErrors.lookup_id || undefined}
+                  className={inputCls + lookupErrCls("lookup_id")}
+                />
+              </Field>
+              <button
+                type="submit"
+                disabled={lookupLoading}
+                className="h-11 rounded-lg bg-[var(--primary)] text-sm font-semibold text-white transition hover:bg-[var(--primary-hover)] disabled:opacity-60"
+              >
+                {lookupLoading ? "查詢中…" : "查詢進度"}
+              </button>
+            </form>
+
+            {lookupResult && (() => {
+              const view = STATUS_VIEW[lookupResult.status] ?? STATUS_VIEW_FALLBACK;
+              return (
+                <div
+                  role="status"
+                  className="rounded-xl border border-[var(--border)] bg-[var(--bg-page)] p-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[12px] font-semibold ${view.cls}`}
+                    >
+                      {view.label}
+                    </span>
+                    <span className="text-[12px] text-[var(--text-disabled)]">
+                      送出於 {formatDateTime(lookupResult.submitted_at)}
+                      {lookupResult.reviewed_at
+                        ? `・審核於 ${formatDateTime(lookupResult.reviewed_at)}`
+                        : ""}
+                    </span>
+                  </div>
+                  <p className="mt-2.5 text-sm leading-relaxed text-[var(--text-primary)]">
+                    {view.desc}
+                  </p>
+                  {lookupResult.status === "rejected" && lookupResult.review_notes && (
+                    <div className="mt-2.5 rounded-lg bg-[var(--bg-surface)] px-3 py-2">
+                      <p className="text-[12px] font-medium text-[var(--text-secondary)]">駁回理由</p>
+                      <p className="mt-0.5 whitespace-pre-wrap text-sm text-[var(--text-primary)]">
+                        {lookupResult.review_notes}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <button
+              type="button"
+              onClick={() => setMode("apply")}
+              className="inline-flex items-center justify-center gap-1 text-[13px] font-medium text-[var(--text-secondary)] transition hover:text-[var(--text-primary)]"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              返回申請表單
+            </button>
+          </div>
+        ) : done ? (
           <div className="flex flex-col items-center gap-4 py-8">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[var(--badge-success-bg)]">
               <Check className="h-7 w-7 text-[var(--badge-success-fg)]" />
@@ -191,13 +460,53 @@ export default function BrandApplyPage() {
             <p className="max-w-[400px] text-center text-sm text-[var(--text-primary)]">
               申請已送出！平台審核後將盡快與您聯絡。感謝您有意加入 SmartLock。
             </p>
-            <button
-              type="button"
-              onClick={goBack}
-              className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
-            >
-              返回上一頁
-            </button>
+            {applicationId && (
+              <div className="w-full max-w-[440px] rounded-xl border border-[var(--border)] bg-[var(--bg-page)] p-4 text-left">
+                <p className="text-[13px] font-medium text-[var(--text-secondary)]">申請編號</p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <code className="min-w-0 flex-1 break-all rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-2.5 py-1.5 text-[13px] text-[var(--text-primary)]">
+                    {applicationId}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={copyApplicationId}
+                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-lg border border-[var(--border)] px-2.5 text-[12px] font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-focus)] hover:text-[var(--text-primary)]"
+                  >
+                    {copyState === "copied" ? (
+                      <Check className="h-3.5 w-3.5" aria-hidden />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" aria-hidden />
+                    )}
+                    {copyState === "copied" ? "已複製" : "複製"}
+                  </button>
+                </div>
+                {copyState === "failed" && (
+                  <p className="mt-1.5 text-xs text-[var(--status-danger)]">
+                    複製失敗，請手動選取編號複製。
+                  </p>
+                )}
+                <p className="mt-2 text-xs leading-relaxed text-[var(--text-secondary)]">
+                  請保存此編號：之後可憑 Email＋申請編號隨時查詢審核進度。
+                </p>
+              </div>
+            )}
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => openLookup(true)}
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border)] px-4 py-2 text-sm font-semibold text-[var(--text-primary)] transition hover:border-[var(--border-focus)]"
+              >
+                <Search className="h-4 w-4" aria-hidden />
+                查詢申請進度
+              </button>
+              <button
+                type="button"
+                onClick={goBack}
+                className="rounded-lg bg-[var(--primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[var(--primary-hover)]"
+              >
+                返回上一頁
+              </button>
+            </div>
           </div>
         ) : (
           // noValidate：改用 submit 時全欄 inline 驗證，不依賴原生氣泡（一次只提示一欄且樣式不可控）
