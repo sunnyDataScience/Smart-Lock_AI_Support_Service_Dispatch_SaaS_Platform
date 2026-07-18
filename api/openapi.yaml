@@ -1097,6 +1097,117 @@ paths:
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
 
   ## ============================================================
+  ## Platform console（UAT R2 W3-2/W3-5/W3-6 業主裁決 2026-07-18）
+  ## 註:平台面端點多數僅存在 runtime export(型別 SoT,CR-0126);此處補列
+  ## 本輪新增/變更之三端點供設計期契約追蹤。公開 POST /vendors/register
+  ## (registerVendor)與 /platform/vendors/{id}:approve/:reject 已整條移除。
+  ## ============================================================
+  /platform/vendors:
+    post:
+      tags: [Auth]
+      summary: 平台代建廠商帳號（建立即 active，取代已移除的公開自助註冊）
+      operationId: platformCreateVendor
+      description: |
+        UAT R2 W3-2：廠商自助註冊全鏈退場（20260702 決議貫徹）。廠商帳號一律由
+        平台管理員代建，復用原註冊驗證邏輯但**建立即 active**（無待審流）。
+        Gate = require_platform_admin。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, company_name, tax_id, phone, email, password]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 150 }
+                company_name: { type: string, minLength: 1, maxLength: 150 }
+                tax_id: { type: string, pattern: '^\d{8}$', description: 統一編號 8 碼 }
+                phone: { type: string, pattern: '^09\d{8}$' }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 72 }
+                vendor_type: { type: string, enum: [brand, locksmith, distributor], default: brand }
+                address: { type: string, maxLength: 300, nullable: true }
+      responses:
+        '201':
+          description: 廠商已建立並啟用（status=active）
+        '409':
+          description: EMAIL_TAKEN — 該 email 已註冊為廠商
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422':
+          description: 欄位驗證失敗（tax_id/phone/email 格式等）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /platform/brand-applications:lookup:
+    post:
+      tags: [Auth]
+      summary: 品牌申請進度查詢（公開免認證；email+申請編號雙精確匹配）
+      operationId: lookupBrandApplication
+      description: |
+        UAT R2 W3-6 免 email 自助方案：申請人憑送出時取得的申請編號 + email 查
+        進度。不匹配一律 generic 404（防列舉）；review_notes 僅 rejected 時回
+        （核准備註不外洩）。per-IP 輕量限流。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, application_id]
+              properties:
+                email: { type: string, format: email }
+                application_id: { type: string, description: 申請編號(UUID) }
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status: { type: string, enum: [pending, approved, rejected] }
+                      submitted_at: { type: string, format: date-time }
+                      reviewed_at: { type: string, format: date-time, nullable: true }
+                      review_notes: { type: string, nullable: true, description: 僅 rejected 時回駁回理由 }
+        '404':
+          description: 查無申請資料（generic，不區分 id/email 何者不符）
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '429':
+          description: RATE_LIMITED
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+  /platform/technicians/{technicianId}:issue-upload-token:
+    post:
+      tags: [Auth]
+      summary: 補發師傅文件上傳 token（免 email 補件連結；一次性明文回傳）
+      operationId: platformIssueTechnicianUploadToken
+      description: |
+        UAT R2 W3-5：師傅離開註冊頁後無法自行補傳文件 → 平台管理員補發上傳
+        token，轉交師傅至師傅站 /upload-docs/{token} 補件（復用註冊流程既有的
+        憑 token 公開上傳端點）。僅 pending_approval 師傅可補件。
+      parameters:
+        - { name: technicianId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: 'OK'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      token: { type: string, description: 一次性明文（落庫僅 SHA-256） }
+                      expires_at: { type: string, format: date-time }
+        '404':
+          description: 師傅不存在
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '409':
+          description: STATE_CONFLICT — 師傅已離開 pending_approval，無補件語意
+          content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  ## ============================================================
   ## Phase I MVP paths — merged from openapi-smart-lock-saas.yaml
   ## ============================================================
 

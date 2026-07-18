@@ -1,13 +1,16 @@
-"""平台方廠商審核服務（廠商審核自品牌後台移到 platform console）。
+"""平台方廠商管理服務（UAT R2 W3-2：自助註冊退場 → 平台代建）。
 
-`vendors` = 發案方登入帳號（role='vendor', tenant_type='requestor'），品牌/經銷/
-鎖店註冊後 pending_approval，核准即啟用可登入發案。此職權自品牌後台
-（admin/vendor-approvals）移到平台方統一管。
+`vendors` = 發案方登入帳號（role='vendor', tenant_type='requestor'）。
+公開自助註冊（POST /vendors/register）與待審核流（:approve/:reject）已依
+2026-07-18 業主裁決整條移除；廠商帳號一律由平台管理員代建，建立即 active。
 
-實作策略：復用 `vendor_service` 的狀態機（approve/reject 含冪等 409、audit）。
-vendors 住主品牌庫（platform-api 的 POSTGRES_URI 指主庫）→ 平台端直查
-`db_module._conn`；list 不加 tenant filter（平台跨品牌視角），approve/reject
-先查該 vendor 的 tenant_id 再委派 vendor_service。
+實作策略：復用 `auth_service.register_vendor` 的驗證/建立核心（email 角色內
+去重、bcrypt hash、users+vendors 雙列 transaction），以 initial_status='active'
+直接啟用。vendors 住主品牌庫（platform-api 的 POSTGRES_URI 指主庫）→ 平台端
+直查 `db_module._conn`；list 不加 tenant filter（平台跨品牌視角）。
+
+audit 慣例：跟隨既有平台廠商端點作法 —— logger 記 actor（vendors.approved_by
+FK 指品牌 users，平台管理員不在其中，不落該欄）。
 """
 
 from __future__ import annotations
@@ -17,14 +20,14 @@ import logging
 import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
-from services import vendor_service
+from services import auth_service
 from services.vendor_service import _VENDOR_SELECT, _row_to_vendor
 
 logger = logging.getLogger("api.platform_vendor")
 
 
 async def list_vendors(*, status: str | None = None) -> dict:
-    """跨品牌廠商清單（不加 tenant filter）。status 可過濾（如 pending_approval）。"""
+    """跨品牌廠商清單（不加 tenant filter）。status 可過濾（如 active）。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     if status:
@@ -41,33 +44,11 @@ async def list_vendors(*, status: str | None = None) -> dict:
     return {"items": [_row_to_vendor(r) for r in rows]}
 
 
-async def _resolve_tenant_id(vendor_id: str) -> str | None:
-    """查該廠商的 tenant_id（不存在 → 404）。"""
-    if not await _ensure_conn():
-        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
-    cur = await db_module._conn.execute(
-        "SELECT tenant_id FROM vendors WHERE id = %s::uuid", (vendor_id,))
-    row = await cur.fetchone()
-    if not row:
-        raise ApiError("NOT_FOUND", "vendor not found", 404)
-    return str(row[0]) if row[0] else None
-
-
-# vendors.approved_by 有 FK → 品牌 users(id)。平台管理員住平台庫(lock_platform),
-# 非品牌 user,存其 uuid 會違反 FK → 平台核准一律存 approved_by=NULL(approved_at
-# 仍記錄時間;「由平台方核准」為隱含事實,品牌端已無核准權)。approver_id 參數保留
-# 供未來平台側 audit 表承接(比照 technician_lifecycle_event 的 actor 記錄)。
-async def approve_vendor(*, vendor_id: str, approver_id: str) -> dict:
-    tenant_id = await _resolve_tenant_id(vendor_id)
-    logger.info("platform approve vendor %s by %s", vendor_id, approver_id)
-    return await vendor_service.approve_vendor(
-        tenant_id=tenant_id, vendor_id=vendor_id, approver_id=None,
+async def create_vendor(*, req: dict, actor_user_id: str) -> dict:
+    """平台代建廠商帳號：復用註冊核心，建立即 active（不走待審）。"""
+    result = await auth_service.register_vendor(req, initial_status="active")
+    logger.info(
+        "platform create vendor %s (%s) by %s",
+        result["data"]["id"], result["data"]["email"], actor_user_id,
     )
-
-
-async def reject_vendor(*, vendor_id: str, approver_id: str, reason: str | None = None) -> dict:
-    tenant_id = await _resolve_tenant_id(vendor_id)
-    logger.info("platform reject vendor %s by %s", vendor_id, approver_id)
-    return await vendor_service.reject_vendor(
-        tenant_id=tenant_id, vendor_id=vendor_id, approver_id=None, reason=reason,
-    )
+    return result

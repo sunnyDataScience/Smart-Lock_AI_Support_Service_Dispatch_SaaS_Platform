@@ -54,7 +54,8 @@ async def test_same_email_technician_and_vendor_ok(client):
         tech = await auth_service.register_technician(_tech_req(email))
         vendor = await auth_service.register_vendor(_vendor_req(email))
         assert tech["data"]["status"] == "pending_approval"
-        assert vendor["data"]["status"] == "pending_approval"
+        # UAT R2 W3-2：廠商改平台代建，建立即 active（無待審流）
+        assert vendor["data"]["status"] == "active"
         # 兩列 users：role technician + vendor
         cur = await db_module._conn.execute(
             "SELECT role FROM users WHERE email = %s ORDER BY role", (email,)

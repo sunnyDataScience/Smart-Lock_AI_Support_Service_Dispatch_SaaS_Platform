@@ -311,6 +311,8 @@ def test_platform_router_has_lifecycle_write_endpoints():
         "getPlatformTechnicianKyc",
         "revealPlatformTechnicianKyc",
         "getPlatformTechnicianDocument",
+        # UAT R2 W3-5：平台補發文件上傳 token（免 email 補件連結）
+        "platformIssueTechnicianUploadToken",
     }
     # CR-0166 R1-4：品牌授權 grant/revoke live API（原僅 seed，執行期不可授/撤）
     brand_auth_expected = {

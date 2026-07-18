@@ -214,23 +214,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/vendors/register": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 廠商/品牌商註冊（發案者，CR-0029） */
-        post: operations["registerVendor"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/vendors/login": {
         parameters: {
             query?: never;
@@ -328,6 +311,29 @@ export interface paths {
         put?: never;
         /** 品牌申請(公開,landing 表單) */
         post: operations["submitBrandApplication"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/brand-applications:lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 品牌申請進度查詢(公開;email+申請編號雙匹配,防列舉 404)
+         * @description UAT R2 W3-6 免 email 自助:申請人憑送出時取得的申請編號 + email 查進度。
+         *
+         *     不匹配一律 generic 404(防列舉);rejected 才回 review_notes(駁回理由),
+         *     核准備註不外洩。per-IP in-memory 輕量限流(service 層)。
+         */
+        post: operations["lookupBrandApplication"];
         delete?: never;
         options?: never;
         head?: never;
@@ -540,6 +546,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/platform/technicians/{technicianId}:issue-upload-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 補發文件上傳 token（免 email 補件連結，一次性明文回傳）
+         * @description UAT R2 W3-5:師傅離開註冊頁後無法自行補傳文件 → 平台管理員補發
+         *     上傳 token,轉交師傅至師傅站 /upload-docs/{token} 補件(復用註冊流程
+         *     既有的憑 token 公開上傳端點)。token 明文僅此 response 一次性顯示。
+         */
+        post: operations["platformIssueTechnicianUploadToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/technicians/{technicianId}/documents/{documentId}": {
         parameters: {
             query?: never;
@@ -635,44 +663,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 跨品牌廠商清單（平台審核用） */
+        /** 跨品牌廠商清單（平台管理用） */
         get: operations["listPlatformVendors"];
         put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform/vendors/{vendorId}:approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 核准廠商（pending_approval → active） */
-        post: operations["platformApproveVendor"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/platform/vendors/{vendorId}:reject": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** 拒絕廠商（pending_approval → rejected） */
-        post: operations["platformRejectVendor"];
+        /** 平台代建廠商帳號（建立即啟用，取代自助註冊） */
+        post: operations["platformCreateVendor"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3957,7 +3952,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 廠商列表 v2（品牌唯讀；核准/拒絕已移平台 console） */
+        /** 廠商列表 v2（品牌唯讀；廠商帳號由平台代建） */
         get: operations["listVendorsV2"];
         put?: never;
         post?: never;
@@ -9590,6 +9585,22 @@ export interface components {
             /** Refresh Token */
             refresh_token?: string | null;
         };
+        /**
+         * LookupBody
+         * @description 公開申請進度查詢(email + 申請編號雙精確匹配)。
+         */
+        LookupBody: {
+            /**
+             * Email
+             * Format: email
+             */
+            email: string;
+            /**
+             * Application Id
+             * @description 申請編號(UUID)
+             */
+            application_id: string;
+        };
         /** Manual */
         Manual: {
             /**
@@ -11557,15 +11568,12 @@ export interface components {
             ctx?: Record<string, never>;
         };
         /**
-         * VendorRegisterBody
-         * @description 發案者（品牌商/鎖店/經銷商）註冊（CR-0029）。
+         * VendorCreateBody
+         * @description 平台代建廠商帳號（釘定契約：name/company_name/tax_id/phone/email/password）。
+         *
+         *     vendor_type 與 address 選填（additive；未帶 vendor_type 預設 brand）。
          */
-        VendorRegisterBody: {
-            /**
-             * Vendor Type
-             * @description brand/locksmith/distributor
-             */
-            vendor_type: string;
+        VendorCreateBody: {
             /** Name */
             name: string;
             /** Company Name */
@@ -11584,6 +11592,12 @@ export interface components {
             email: string;
             /** Password */
             password: string;
+            /**
+             * Vendor Type
+             * @description brand/locksmith/distributor
+             * @default brand
+             */
+            vendor_type: string;
             /** Address */
             address?: string | null;
         };
@@ -13104,11 +13118,6 @@ export interface components {
             /** Notes */
             notes?: string | null;
         };
-        /** RejectBody */
-        routers__platform_vendors__RejectBody: {
-            /** Reason */
-            reason?: string | null;
-        };
         /** ReviewBody */
         routers__reconciliations_v2__ReviewBody: {
             /** Note */
@@ -13599,44 +13608,6 @@ export interface operations {
             };
         };
     };
-    registerVendor: {
-        parameters: {
-            query?: never;
-            header?: {
-                "Idempotency-Key"?: string | null;
-                "X-Tenant-ID"?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["VendorRegisterBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     loginVendor: {
         parameters: {
             query?: never;
@@ -13858,6 +13829,41 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lookupBrandApplication: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LookupBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -14405,6 +14411,41 @@ export interface operations {
             };
         };
     };
+    platformIssueTechnicianUploadToken: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                technicianId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     getPlatformTechnicianDocument: {
         parameters: {
             query?: never;
@@ -14737,60 +14778,23 @@ export interface operations {
             };
         };
     };
-    platformApproveVendor: {
+    platformCreateVendor: {
         parameters: {
             query?: never;
             header?: {
                 Authorization?: string | null;
             };
-            path: {
-                vendorId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    platformRejectVendor: {
-        parameters: {
-            query?: never;
-            header?: {
-                Authorization?: string | null;
-            };
-            path: {
-                vendorId: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["routers__platform_vendors__RejectBody"];
+                "application/json": components["schemas"]["VendorCreateBody"];
             };
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
