@@ -43,6 +43,10 @@ const notoSansTC = Noto_Sans_TC({
 export const metadata: Metadata = {
   title: "Lock AI Platform Console",
   description: "Lock AI 平台維運後台",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

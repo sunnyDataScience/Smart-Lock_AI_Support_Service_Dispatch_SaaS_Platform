@@ -45,6 +45,13 @@ interface HealthResult extends Target {
   error: string | null;
 }
 
+// checked_at 是後端 UTC ISO 字串:直接 slice 會顯示 UTC 時鐘(台灣差 8 小時,
+// 使用者看起來像「時間戳沒更新」),改用本地時間顯示。
+function fmtCheckedAt(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso.slice(11, 19) : d.toLocaleTimeString("zh-TW", { hour12: false });
+}
+
 const STATUS_META: Record<Status, { label: string; dot: string; cls: string }> = {
   up: { label: "正常", dot: "bg-[var(--status-success)]", cls: "text-[var(--badge-success-fg)] bg-[var(--badge-success-bg)] border-[var(--badge-success-fg)]/25" },
   degraded: { label: "降級", dot: "bg-[var(--status-warning)]", cls: "text-[var(--badge-warn-fg)] bg-[var(--badge-warn-bg)] border-[var(--badge-warn-fg)]/25" },
@@ -89,6 +96,10 @@ export default function OpsMonitorPanel() {
   const probe = useCallback(async () => {
     setProbing(true);
     try {
+      // api.get 有 30s staleTime 快取:不先清掉的話,「立即檢查」與 30s 輪詢會
+      // 直接吃到快取(瞬間回舊資料 → 轉圈看不到、checked_at 也不動,UAT 誤判無回饋)。
+      // 探測本來就要拿最新狀態,每次都清快取強制真打。
+      cacheInvalidate("GET:");
       const res = await api.get<{ data: HealthResult[]; checked_at: string }>(`${BASE}/health`);
       const map: Record<string, HealthResult> = {};
       (res.data ?? []).forEach((r) => {
@@ -170,7 +181,7 @@ export default function OpsMonitorPanel() {
           </span>
           {checkedAt && (
             <span className="text-xs">
-              最後檢查 {checkedAt.slice(11, 19)}（每 30 秒自動更新）
+              最後檢查 {fmtCheckedAt(checkedAt)}（每 30 秒自動更新）
             </span>
           )}
         </div>

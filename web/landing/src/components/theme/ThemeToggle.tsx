@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Monitor, Moon, Sun, Check } from "lucide-react";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { useTheme, type Theme } from "./ThemeProvider";
 
 /**
@@ -14,18 +15,20 @@ import { useTheme, type Theme } from "./ThemeProvider";
  * 為什麼自寫 popover 而不裝 @radix-ui/react-dropdown-menu：
  *   專案沒裝 dropdown-menu，避免新增依賴。3 個選項的簡單彈窗用 native 即可。
  *   focus trap 不關鍵（按 ESC / 點外面關閉就夠用）。
+ *
+ * label 走 i18n（theme.* 命名空間），視覺 token（icon）與字串分離 —
+ * 切 English 後選單不再殘留中文（UAT 回報）。形狀對齊 LocaleToggle。
  */
 
 interface ThemeOption {
   value: Theme;
-  label: string;
   icon: typeof Sun;
 }
 
 const OPTIONS: readonly ThemeOption[] = [
-  { value: "light", label: "淺色", icon: Sun },
-  { value: "dark", label: "深色", icon: Moon },
-  { value: "system", label: "系統", icon: Monitor },
+  { value: "light", icon: Sun },
+  { value: "dark", icon: Moon },
+  { value: "system", icon: Monitor },
 ] as const;
 
 function getCurrentIcon(theme: Theme) {
@@ -66,10 +69,11 @@ function SegmentedToggle({
   theme: Theme;
   setTheme: (t: Theme) => void;
 }) {
+  const t = useTranslations("theme");
   return (
     <div
       role="radiogroup"
-      aria-label="主題模式"
+      aria-label={t("label")}
       className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-1"
     >
       {OPTIONS.map((opt) => {
@@ -89,7 +93,7 @@ function SegmentedToggle({
             }`}
           >
             <Icon className="h-4 w-4" aria-hidden="true" />
-            <span>{opt.label}</span>
+            <span>{t(opt.value)}</span>
           </button>
         );
       })}
@@ -110,6 +114,7 @@ function IconToggle({
   setTheme: (t: Theme) => void;
   tone: "light" | "dark";
 }) {
+  const t = useTranslations("theme");
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const CurrentIcon = getCurrentIcon(theme);
@@ -148,10 +153,10 @@ function IconToggle({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={`切換主題（目前：${OPTIONS.find((o) => o.value === theme)?.label}）`}
+        aria-label={t("current", { label: t(theme) })}
         aria-haspopup="menu"
         aria-expanded={open}
-        title="切換主題"
+        title={t("label")}
         className={`flex h-10 w-10 items-center justify-center rounded-lg focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 ${hoverBg}`}
       >
         <CurrentIcon className={`h-5 w-5 ${iconColor}`} aria-hidden="true" />
@@ -160,7 +165,7 @@ function IconToggle({
       {open && (
         <div
           role="menu"
-          aria-label="主題選項"
+          aria-label={t("menuLabel")}
           className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-[160px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] p-1 shadow-[var(--shadow-popover)]"
         >
           {OPTIONS.map((opt) => {
@@ -183,7 +188,7 @@ function IconToggle({
                     className="h-4 w-4 text-[var(--text-secondary)]"
                     aria-hidden="true"
                   />
-                  {opt.label}
+                  {t(opt.value)}
                 </span>
                 {active && (
                   <Check
