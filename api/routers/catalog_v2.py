@@ -180,3 +180,91 @@ async def delete_quote_catalog_item(
         kind=_kind_of(segment), tenant_id=tenantId, code=code,
     )
     return {"data": result}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# UAT-0718 W1-6 拆帳規則 CRUD（業主裁決）— 比照 quote_catalog CR-0110 pattern：
+# OPS_ROLES 守衛 + Idempotency-Key(POST) + 軟刪（migration 109 deleted_at）。
+# 拆帳牽師傅佣金 → service 層每寫入硬性記 audit_events（before/after）。
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _PayoutRuleBody(BaseModel):
+    """拆帳規則寫入 body（白名單/比例/日期驗證在 service 層）。
+
+    rule_id 僅 create 用；base_payout ≥ 0；夜間/急件加成率為 0~1 比例。
+    """
+
+    rule_id: str | None = Field(default=None, max_length=60, description="規則代碼（create 必填）")
+    service_code: str | None = Field(default=None, max_length=40)
+    service_name: str | None = Field(default=None, max_length=120)
+    level_id: str | None = Field(default=None, max_length=10, description="LV-A / LV-B / LV-C")
+    base_payout: float | None = Field(default=None, description="基礎拆帳（內部成本，≥ 0）")
+    night_surcharge_pct: float | None = Field(default=None, description="夜間加成率（0~1 比例）")
+    urgent_surcharge_pct: float | None = Field(default=None, description="急件加成率（0~1 比例）")
+    currency: str | None = Field(default=None, max_length=8)
+    effective_date: str | None = Field(default=None, description="生效日（ISO YYYY-MM-DD）")
+    expiry_date: str | None = Field(default=None, description="失效日（ISO；須 ≥ 生效日）")
+
+
+@router.post(
+    "/tenants/{tenantId}/payout-rules",
+    operation_id="createPayoutRuleV2",
+    summary="新增拆帳規則（UAT-0718 W1-6；硬性稽核）",
+    status_code=201,
+    tags=["M12 Settlement"],
+)
+async def create_payout_rule_v2(
+    body: _PayoutRuleBody,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    _cross_tenant_write(user, tenantId)
+    result = await payout_rule_service.create_rule(
+        tenant_id=tenantId, actor_id=user.user_id, actor_role=user.role,
+        rule_id=body.rule_id or "",
+        data=body.model_dump(exclude={"rule_id"}, exclude_none=True),
+    )
+    payload = {"data": result}
+    if idem is not None:
+        await idem.save(201, payload)
+    return payload
+
+
+@router.patch(
+    "/tenants/{tenantId}/payout-rules/{ruleId}",
+    operation_id="updatePayoutRuleV2",
+    summary="編輯拆帳規則（partial；編輯後 is_mock=FALSE；硬性稽核）",
+    tags=["M12 Settlement"],
+)
+async def update_payout_rule_v2(
+    body: _PayoutRuleBody,
+    tenantId: str = Path(...),
+    ruleId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    _cross_tenant_write(user, tenantId)
+    result = await payout_rule_service.update_rule(
+        tenant_id=tenantId, actor_id=user.user_id, actor_role=user.role,
+        rule_id=ruleId, data=body.model_dump(exclude={"rule_id"}, exclude_none=True),
+    )
+    return {"data": result}
+
+
+@router.delete(
+    "/tenants/{tenantId}/payout-rules/{ruleId}",
+    operation_id="deletePayoutRuleV2",
+    summary="停用拆帳規則（軟刪 deleted_at；硬性稽核）",
+    tags=["M12 Settlement"],
+)
+async def delete_payout_rule_v2(
+    tenantId: str = Path(...),
+    ruleId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
+) -> dict:
+    _cross_tenant_write(user, tenantId)
+    result = await payout_rule_service.delete_rule(
+        tenant_id=tenantId, actor_id=user.user_id, actor_role=user.role, rule_id=ruleId,
+    )
+    return {"data": result}

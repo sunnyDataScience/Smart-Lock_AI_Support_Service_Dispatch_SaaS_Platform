@@ -98,6 +98,9 @@ class WorkOrderFieldsPatchRequest(BaseModel):
     serial_number: str | None = Field(None, max_length=100)
     brand: str | None = Field(None, max_length=100)
     model: str | None = Field(None, max_length=100)
+    # UAT-0718 N2：派工前置閘（DISPATCH_PRECONDITION）要求 problem_type，但白名單
+    # 原本沒開 → 缺欄單在 UI 無路過閘。值域對齊 problem_cards.category（自由字串）。
+    problem_type: str | None = Field(None, max_length=100)
     door_type: str | None = Field(None, max_length=50)
     door_thickness: str | None = Field(None, max_length=50)
     is_interior_door: bool | None = None

@@ -3994,7 +3994,8 @@ export interface paths {
         /** 師傅拆帳規則主檔 v2（CR-0037；base_payout 僅後台可見） */
         get: operations["listPayoutRulesV2"];
         put?: never;
-        post?: never;
+        /** 新增拆帳規則（UAT-0718 W1-6；硬性稽核） */
+        post: operations["createPayoutRuleV2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4034,6 +4035,24 @@ export interface paths {
         head?: never;
         /** 編輯報價主檔項目（partial；編輯後 is_mock=FALSE；CR-0110） */
         patch: operations["updateQuoteCatalogItem"];
+        trace?: never;
+    };
+    "/tenants/{tenantId}/payout-rules/{ruleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** 停用拆帳規則（軟刪 deleted_at；硬性稽核） */
+        delete: operations["deletePayoutRuleV2"];
+        options?: never;
+        head?: never;
+        /** 編輯拆帳規則（partial；編輯後 is_mock=FALSE；硬性稽核） */
+        patch: operations["updatePayoutRuleV2"];
         trace?: never;
     };
     "/tenants/{tenantId}/work-orders/{woId}/quotes": {
@@ -12017,6 +12036,8 @@ export interface components {
             brand?: string | null;
             /** Model */
             model?: string | null;
+            /** Problem Type */
+            problem_type?: string | null;
             /** Door Type */
             door_type?: string | null;
             /** Door Thickness */
@@ -12662,6 +12683,55 @@ export interface components {
             severity: string;
             /** Description */
             description?: string | null;
+        };
+        /**
+         * _PayoutRuleBody
+         * @description 拆帳規則寫入 body（白名單/比例/日期驗證在 service 層）。
+         *
+         *     rule_id 僅 create 用；base_payout ≥ 0；夜間/急件加成率為 0~1 比例。
+         */
+        _PayoutRuleBody: {
+            /**
+             * Rule Id
+             * @description 規則代碼（create 必填）
+             */
+            rule_id?: string | null;
+            /** Service Code */
+            service_code?: string | null;
+            /** Service Name */
+            service_name?: string | null;
+            /**
+             * Level Id
+             * @description LV-A / LV-B / LV-C
+             */
+            level_id?: string | null;
+            /**
+             * Base Payout
+             * @description 基礎拆帳（內部成本，≥ 0）
+             */
+            base_payout?: number | null;
+            /**
+             * Night Surcharge Pct
+             * @description 夜間加成率（0~1 比例）
+             */
+            night_surcharge_pct?: number | null;
+            /**
+             * Urgent Surcharge Pct
+             * @description 急件加成率（0~1 比例）
+             */
+            urgent_surcharge_pct?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /**
+             * Effective Date
+             * @description 生效日（ISO YYYY-MM-DD）
+             */
+            effective_date?: string | null;
+            /**
+             * Expiry Date
+             * @description 失效日（ISO；須 ≥ 生效日）
+             */
+            expiry_date?: string | null;
         };
         /** _PoolNotifyBody */
         _PoolNotifyBody: {
@@ -23241,6 +23311,47 @@ export interface operations {
             };
         };
     };
+    createPayoutRuleV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_PayoutRuleBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     createQuoteCatalogItem: {
         parameters: {
             query?: never;
@@ -23339,6 +23450,84 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["_CatalogItemBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deletePayoutRuleV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updatePayoutRuleV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                ruleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_PayoutRuleBody"];
             };
         };
         responses: {
