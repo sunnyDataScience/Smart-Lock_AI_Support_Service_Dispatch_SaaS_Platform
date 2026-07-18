@@ -32,7 +32,8 @@ const URGENCY_OPTIONS: { value: Urgency; label: string }[] = [
 ];
 
 const PC_STATUS_LABEL: Record<ProblemCardStatus, { label: string; bg: string; color: string }> = {
-  draft: { label: "草稿", bg: "#EEF2FF", color: "#6366F1" },
+  // UAT P3：draft 全站統一顯示「待確認」（與問題卡列表/詳情一致）
+  draft: { label: "待確認", bg: "#EEF2FF", color: "#6366F1" },
   confirmed: { label: "已確認", bg: "#DBEAFE", color: "#3B82F6" },
   resolved: { label: "已解決", bg: "#D1FAE5", color: "#10B981" },
 };
@@ -519,7 +520,7 @@ function CreateProblemCardModal({
         </div>
 
         <p className="mb-4 text-[12px] text-[var(--text-secondary)]">
-          將此對話手動建立為問題卡（每個對話最多一張，狀態起始為「草稿」）。
+          將此對話手動建立為問題卡（每個對話最多一張，狀態起始為「待確認」）。
         </p>
 
         <div className="flex flex-col gap-3">

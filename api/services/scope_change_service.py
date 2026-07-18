@@ -213,8 +213,8 @@ async def respond_public(
         t_cur = await db_module._conn.execute(
             "SELECT u.tenant_id FROM work_orders wo "
             "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-            "JOIN conversations c ON pc.conversation_id = c.id "
-            "JOIN users u ON c.user_id = u.id "
+            "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+            "LEFT JOIN users u ON c.user_id = u.id "
             "WHERE wo.id = %s::uuid",
             (str(work_order_id),),
         )

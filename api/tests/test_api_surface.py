@@ -90,7 +90,14 @@ def test_tech_surface_simulated_filter_on_real_routes():
     assert any(p.startswith("/tenants/{tenantId}/tech-statements") for p in kept)
     assert "/realtime/pool/{tech_id}" in kept
     assert not any(p.startswith("/api/v1/dispatch") for p in kept)
-    assert not any(p.startswith("/api/v1/internal") for p in kept)
+    # CR-0169 起 /api/v1/internal/technicians（品牌 api → LINE 推播）為技師面
+    # 白名單例外；其餘 internal（ingest 等）仍須剔除。
+    assert not any(
+        p.startswith("/api/v1/internal")
+        and not p.startswith("/api/v1/internal/technicians")
+        for p in kept
+    )
+    assert any(p.startswith("/api/v1/internal/technicians") for p in kept)
     assert not any("/line/webhook" in p for p in kept)
     assert not any(p.startswith("/tenants/{tenantId}/dispatch") for p in kept)
     # 過濾是縮減不是清空:保留數量在合理範圍(> 20 條技師面路由)

@@ -1,25 +1,32 @@
 "use client";
 
 /**
- * FR-0046 Dispatcher Commission Statement — 派工員獎金對帳單。
+ * 派工獎金對帳單。
  *
- * 對應 backend: GET /tenants/{tid}/me/commission-statements
- * 對應 Sprint 3 (docs/_ops/phase-ii-web-integration-plan.md §4)
+ * UAT P2-5：對齊新端點 GET /api/v1/technicians/me/commission-statements
+ * → {"data":{"items":[{period, gross_amount, commission_amount, status}]}}。
+ * 404 / 錯誤一律顯示「暫無資料」空狀態（原「資料可能已被刪除」誤導文案不再出現）。
+ * UAT P2-4：改用師傅站手機殼層 TechShell（底部導航＋返回 /account）。
  */
 
 import { useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
-import { api, tenantPath } from "@/lib/api";
-import { friendlyError } from "@/lib/apiError";
+import TechShell from "@/components/tech/TechShell";
+import { api } from "@/lib/api";
+import { formatNTD } from "@/lib/format";
 import {
-  type DispatcherCommissionStatement,
   STATEMENT_STATUS_LABEL,
   STATEMENT_STATUS_COLOR,
-  formatDecimal,
-  daysUntilDeadline,
   type BadgeColor,
 } from "@/components/phase-ii";
+
+/** 新端點回傳項目（api/v1 technicians/me 範疇）。 */
+interface CommissionStatementItem {
+  period: string;
+  gross_amount: string | number | null;
+  commission_amount: string | number | null;
+  status: string;
+}
 
 const STATUS_BG: Record<BadgeColor, { bg: string; text: string }> = {
   red: { bg: "#fef0ef", text: "#d70015" },
@@ -31,26 +38,21 @@ const STATUS_BG: Record<BadgeColor, { bg: string; text: string }> = {
   gray: { bg: "#f4f4f5", text: "#52525b" },
 };
 
-function formatError(e: unknown): string {
-  return friendlyError(e);
-}
-
 export default function MyCommissionStatementsPage() {
-  const [items, setItems] = useState<DispatcherCommissionStatement[]>([]);
+  const [items, setItems] = useState<CommissionStatementItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function fetchStatements() {
     setLoading(true);
-    setError(null);
     try {
-      const res = await api.get<
-        DispatcherCommissionStatement[] | { items: DispatcherCommissionStatement[] }
-      >(tenantPath("/me/commission-statements"));
-      const list = Array.isArray(res) ? res : res.items ?? [];
-      setItems(list);
-    } catch (e) {
-      setError(formatError(e));
+      const res = await api.get<{
+        data?: { items?: CommissionStatementItem[] };
+      }>("/api/v1/technicians/me/commission-statements");
+      setItems(res.data?.items ?? []);
+    } catch {
+      // UAT P2-5：端點未就緒（404）或其他錯誤 → 一律空狀態「暫無資料」，
+      // 不顯示「資料可能已被刪除」等誤導文案。
+      setItems([]);
     } finally {
       setLoading(false);
     }
@@ -60,115 +62,86 @@ export default function MyCommissionStatementsPage() {
     fetchStatements();
   }, []);
 
-  function renderBadge(status: DispatcherCommissionStatement["status"]) {
-    const color = STATEMENT_STATUS_COLOR[status];
+  function renderBadge(status: string) {
+    const color =
+      (STATEMENT_STATUS_COLOR as Record<string, BadgeColor>)[status] ?? "gray";
     const sty = STATUS_BG[color];
+    const label =
+      (STATEMENT_STATUS_LABEL as Record<string, string>)[status] ?? status;
     return (
       <span
-        className="rounded-full px-2 py-0.5 text-xs font-medium"
+        className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium"
         style={{ backgroundColor: sty.bg, color: sty.text }}
       >
-        {STATEMENT_STATUS_LABEL[status]}
+        {label}
       </span>
     );
   }
 
-  function renderDeadline(s: DispatcherCommissionStatement) {
-    if (s.status !== "pending_review" && s.status !== "disputed")
-      return <span className="text-gray-400">—</span>;
-    const days = daysUntilDeadline(s.dispute_window_ends_at);
-    if (days === null) return <span className="text-gray-400">—</span>;
-    if (days < 0) return <span className="text-gray-500 italic">已過期</span>;
-    if (days < 3) return <span className="text-red-600 font-semibold">{days} 天</span>;
-    if (days < 7) return <span className="text-orange-600 font-semibold">{days} 天</span>;
-    return <span className="text-gray-700">{days} 天</span>;
-  }
-
   return (
-    <div className="flex h-full bg-[var(--bg-page)]">
-      <Sidebar />
-      <main className="flex-1 overflow-auto p-6 md:p-8">
-        <header className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">我的派工獎金對帳單</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              FR-0046 — base + performance bonus − penalty 三段計算
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={fetchStatements}
-            disabled={loading}
-            className="flex items-center gap-2 rounded-md border border-gray-300 bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            重新整理
-          </button>
-        </header>
+    <TechShell
+      // 頁首走 shell 統一規格(h-14 bar;返回 /account)
+      backHref="/account"
+      title="派工獎金"
+      actions={
+        <button
+          type="button"
+          onClick={fetchStatements}
+          disabled={loading}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          title="重新整理"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
+      }
+    >
+      <div className="flex flex-col gap-3 px-4 py-4">
+        <p className="text-[12px] text-[var(--text-secondary)]">
+          每月派工獎金結算明細；金額有疑問請聯絡管理員。
+        </p>
 
-        {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-            {error}
+        {loading && items.length === 0 ? (
+          <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
+            載入中…
           </div>
+        ) : items.length === 0 ? (
+          <div className="flex h-40 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] text-[13px] text-[var(--text-secondary)]">
+            暫無資料
+          </div>
+        ) : (
+          items.map((s) => (
+            <article
+              key={s.period}
+              className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[15px] font-semibold text-[var(--text-primary)]">
+                  {s.period}
+                </span>
+                {renderBadge(s.status)}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-[13px]">
+                <div>
+                  <span className="block text-[11px] text-[var(--text-disabled)]">
+                    毛額
+                  </span>
+                  <span className="font-medium text-[var(--text-primary)]">
+                    {formatNTD(s.gross_amount)}
+                  </span>
+                </div>
+                <div>
+                  <span className="block text-[11px] text-[var(--text-disabled)]">
+                    獎金
+                  </span>
+                  <span className="font-bold text-[#059669]">
+                    {formatNTD(s.commission_amount)}
+                  </span>
+                </div>
+              </div>
+            </article>
+          ))
         )}
-
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-[var(--bg-surface)]">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">月份</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">狀態</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">派單 / 完工</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">完工率</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">底薪</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">獎金</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">扣款</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">淨額</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">申訴期限</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-[var(--bg-surface)]">
-              {items.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">無對帳單</td>
-                </tr>
-              )}
-              {items.map((s) => (
-                <tr key={s.id} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                    {s.period_year}/{String(s.period_month).padStart(2, "0")}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm">{renderBadge(s.status)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">
-                    {s.total_dispatched_orders} / {s.total_completed_orders}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">
-                    {s.completion_rate_pct}%
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">
-                    {formatDecimal(s.base_commission)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-green-600">
-                    +{formatDecimal(s.performance_bonus)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-red-600">
-                    −{formatDecimal(s.penalty)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold text-gray-900">
-                    {formatDecimal(s.net_commission)}
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 text-sm">{renderDeadline(s)}</td>
-                </tr>
-              ))}
-              {loading && items.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-sm text-gray-500">載入中…</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </main>
-    </div>
+      </div>
+    </TechShell>
   );
 }

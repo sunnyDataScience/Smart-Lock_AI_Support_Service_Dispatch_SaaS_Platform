@@ -515,7 +515,27 @@
       "searchPlaceholder": "Search coming soon",
       "loadFailed": "Failed to load problem cards: {error}",
       "loadingMore": "Loading…",
-      "loadMore": "Load more"
+      "loadMore": "Load more",
+      "createButton": "New Problem Card",
+      "createModal": {
+        "title": "New Problem Card",
+        "hint": "Manually create a problem card for non-LINE intake (e.g. phone). It starts as Draft and can be edited, quoted, or converted to a work order.",
+        "customerName": "Customer Name",
+        "customerPhone": "Contact Phone",
+        "brand": "Brand",
+        "brandPlaceholder": "Pick or type a brand",
+        "model": "Model",
+        "modelPlaceholder": "e.g. YDM-4109",
+        "symptom": "Symptom",
+        "symptomPlaceholder": "e.g. low battery, cannot unlock (separate multiple with commas)",
+        "urgency": "Urgency",
+        "location": "Service Address",
+        "locationPlaceholder": "e.g. 100 Minsheng E. Rd., Zhongshan Dist., Taipei",
+        "cancel": "Cancel",
+        "submit": "Create",
+        "submitting": "Creating…",
+        "created": "Problem card created"
+      }
     },
     "workOrders": {
       "breadcrumb": "Home > Work orders > List",
@@ -950,7 +970,14 @@
         "reasonTextCounter": "{current} / 500",
         "cancel": "Cancel",
         "submit": "Confirm assignment",
-        "submitting": "Submitting…"
+        "submitting": "Submitting…",
+        "override": {
+          "title": "Force Dispatch (Emergency)",
+          "hint": "This work order has no customer-accepted quote; normally the quote must be confirmed first. Supervisors may force dispatch for emergencies by providing a reason. The action is audited.",
+          "reasonLabel": "Force dispatch reason",
+          "reasonPlaceholder": "e.g. customer locked out, urgent repair; quote to be confirmed afterwards",
+          "submit": "Force Dispatch"
+        }
       },
       "cancelDialog": {
         "title": "Cancel work order",
@@ -1996,15 +2023,6 @@
         },
         "recentConversations": "Recent conversations ({count})",
         "noConversations": "No conversation history",
-        "status": {
-          "created": "Pending dispatch",
-          "assigned": "Assigned",
-          "accepted": "Accepted",
-          "in_progress": "In progress",
-          "completed": "Completed",
-          "confirmed": "Confirmed",
-          "cancelled": "Cancelled"
-        },
         "convStatus": {
           "active": "Active",
           "escalated": "Escalated",
@@ -2063,7 +2081,7 @@
       "copyLink": "Copy Link",
       "getLink": "Get Link",
       "snapshot": "Snapshot Hash",
-      "note": "This page shows mock data; amounts are for reference only.",
+      "note": "Amounts are based on the version sent to and confirmed by the customer.",
       "state": {
         "draft": "Draft",
         "pending_approval": "Pending Approval",
@@ -2732,7 +2750,7 @@
     "admin": {
       "quoteCatalog": {
         "title": "Price catalog",
-        "mockBadge": "mock (pending owner price review)",
+        "mockBadge": "Sample data (pending official pricing)",
         "loading": "Loading…",
         "services": "Services ({n})",
         "materials": "Materials ({n})",
@@ -2748,7 +2766,7 @@
       },
       "quotes": {
         "title": "Quotes",
-        "mockBadge": "mock (amounts pending owner price review)",
+        "mockBadge": "Sample data (pending official pricing)",
         "woId": "Work order ID",
         "createDraft": "Create draft quote",
         "quoteId": "Quote ID",
@@ -2768,7 +2786,7 @@
         "copyLink": "Copy link",
         "copied": "Copied",
         "snapshot": "Frozen snapshot",
-        "note": "Amounts come from the mock catalog; approval threshold, deposit, tax etc. pending owner confirmation (esales Q-01~Q-12).",
+        "note": "Amounts are placeholders; approval threshold, deposit and tax values pending owner confirmation.",
         "state": {
           "draft": "Draft",
           "pending_approval": "Pending approval",
@@ -3418,7 +3436,7 @@
         },
         "lastUpdated": "Updated: {time}",
         "subtitle": "Manage base pricing by brand, lock type, and difficulty",
-        "intro": "Live data from listPricingRules (disabled rules filtered). You can create and edit on the fly.",
+        "intro": "Live pricing rule data (disabled rules filtered). You can create and edit on the fly.",
         "calc": "Estimate price",
         "create": "Add rule",
         "cols": {

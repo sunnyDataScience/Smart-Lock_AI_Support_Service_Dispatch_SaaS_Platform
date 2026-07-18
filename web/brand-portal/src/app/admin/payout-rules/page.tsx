@@ -25,6 +25,14 @@ interface Resp {
   note: string;
 }
 
+// UAT P2-12：拆帳規則狀態中文化（DB technician_payout_rule.decision_status：
+// draft / draft_review / accepted，migration 045 + 082）
+const DECISION_STATUS_LABEL: Record<string, string> = {
+  draft: "草稿",
+  draft_review: "覆核中",
+  accepted: "已確認",
+};
+
 function pct(v: string | number | null): string {
   if (v == null) return "—";
   const n = typeof v === "string" ? parseFloat(v) : v;
@@ -109,7 +117,9 @@ export default function PayoutRulesPage() {
                         <td className="px-3 py-2 text-[var(--text-secondary)]">{r.effective_date?.slice(0, 10) || "—"}</td>
                         <td className="px-3 py-2">
                           <span className="rounded bg-[#F1F5F9] px-2 py-[2px] text-[11px] text-[var(--text-secondary)]">
-                            {r.decision_status || "—"}
+                            {r.decision_status
+                              ? DECISION_STATUS_LABEL[r.decision_status] ?? r.decision_status
+                              : "—"}
                           </span>
                         </td>
                       </tr>
@@ -120,7 +130,10 @@ export default function PayoutRulesPage() {
               {!resp.cost_visible && (
                 <p className="mt-2 text-[11px] text-[var(--text-disabled)]">基本拆帳金額僅後台財務角色可見。</p>
               )}
-              <p className="mt-2 text-[12px] text-[var(--text-disabled)]">{resp.note}</p>
+              {/* UAT P3 內部術語外洩：後端 note 為工程備註（esales/Q-09 等），不對使用者顯示 */}
+              <p className="mt-2 text-[12px] text-[var(--text-disabled)]">
+                拆帳金額依規則狀態為準；「草稿／覆核中」表示正式值尚待確認。
+              </p>
             </>
           )}
         </div>

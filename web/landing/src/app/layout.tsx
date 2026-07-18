@@ -40,8 +40,13 @@ const notoSansTC = Noto_Sans_TC({
 });
 
 export const metadata: Metadata = {
-  title: "LockSmart 智慧鎖服務",
+  // 品牌名對齊頁面內文案「SmartLock」(UAT:分頁 title 曾誤植 LockSmart)
+  title: "SmartLock 智慧鎖服務",
   description: "智慧鎖 AI 客服與到府維修服務",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({

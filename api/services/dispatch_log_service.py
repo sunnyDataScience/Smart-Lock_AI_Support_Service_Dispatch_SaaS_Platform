@@ -83,8 +83,8 @@ _TENANT_JOIN = (
     "LEFT JOIN technicians t ON dl.technician_id = t.id "
     "JOIN work_orders wo ON dl.work_order_id = wo.id "
     "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-    "JOIN conversations c ON pc.conversation_id = c.id "
-    "JOIN users u ON c.user_id = u.id"
+    "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+    "LEFT JOIN users u ON c.user_id = u.id"
 )
 
 
@@ -99,7 +99,7 @@ async def list_dispatch_logs(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    where = ["u.tenant_id = %s::uuid"]
+    where = ["COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid"]
     args: list = [tenant_id]
 
     if work_order_id:

@@ -110,9 +110,10 @@ class Urgency(StrEnum):
 
 class ProblemCard(BaseModel):
     id: UUID
-    conversation_id: UUID
-    brand: constr(max_length=50)
-    model: constr(max_length=100)
+    # UAT P1-1(手動加,regen 後須重加):手建卡無對話/可缺品牌型號
+    conversation_id: UUID | None = None
+    brand: constr(max_length=50) | None = None
+    model: constr(max_length=100) | None = None
     symptom: constr(max_length=1000)
     category: str
     urgency: Urgency
@@ -144,6 +145,8 @@ class ProblemCard(BaseModel):
     firmware_version: str | None = None
     serial: str | None = None
     resolved_by: str | None = None
+    # UAT P2-8：服務地址（create 一直有收，補接回 response；regen 後須重加）
+    location: str | None = None
 
 
 class ProblemCardPage(CursorPage):
@@ -1070,9 +1073,16 @@ class Intent(StrEnum):
 
 
 class ProblemCardCreateRequest(BaseModel):
-    conversation_id: UUID
-    brand: constr(max_length=50)
-    model: constr(max_length=100)
+    # UAT P1-1(手動加,regen 後須重加):客服手建卡無 LINE 對話 → conversation_id
+    # 可空;customer_name/customer_phone 為手建卡客戶資訊(電話落 contact_phone 欄、
+    # 姓名落 extracted_fields,轉工單時 fallback 帶出)。
+    conversation_id: UUID | None = None
+    customer_name: constr(max_length=100) | None = None
+    customer_phone: constr(max_length=20) | None = None
+    # UAT P1-1:brand/model 改可空——電話報修客戶常說不出品牌型號,與 AI 草擬卡
+    # 同等寬鬆(缺欄走 ai_missing_fields/完整度 gate 待補機制;DB 欄本就 nullable)
+    brand: constr(max_length=50) | None = None
+    model: constr(max_length=100) | None = None
     symptom: constr(max_length=1000)
     category: str | None = None
     urgency: Urgency

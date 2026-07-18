@@ -238,9 +238,9 @@ async def resolve_customer_line_user_id(
         "SELECT u.line_user_id "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid"
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid"
     )
     cur = await db_module._conn.execute(sql, (work_order_id, tenant_id))
     row = await cur.fetchone()

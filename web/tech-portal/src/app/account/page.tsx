@@ -8,6 +8,8 @@ import {
   CalendarDays,
   ChevronRight,
   CircleUser,
+  Coins,
+  FileText,
   LogOut,
   ShieldCheck,
   Star,
@@ -274,6 +276,33 @@ export default function AccountPage() {
             <CalendarDays className="h-4 w-4 text-[var(--text-secondary)]" />
             <span className="text-[14px] font-medium text-[var(--text-primary)]">
               {t("mySchedule")}
+            </span>
+          </div>
+          <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />
+        </Link>
+        <div className="border-t border-[var(--border)]" />
+        {/* UAT P2-4：對帳單／派工獎金入口（原兩頁無從進入） */}
+        <Link
+          href="/account/statements"
+          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-page)]"
+        >
+          <div className="flex items-center gap-3">
+            <FileText className="h-4 w-4 text-[var(--text-secondary)]" />
+            <span className="text-[14px] font-medium text-[var(--text-primary)]">
+              {t("statements")}
+            </span>
+          </div>
+          <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />
+        </Link>
+        <div className="border-t border-[var(--border)]" />
+        <Link
+          href="/account/commission-statements"
+          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-[var(--bg-page)]"
+        >
+          <div className="flex items-center gap-3">
+            <Coins className="h-4 w-4 text-[var(--text-secondary)]" />
+            <span className="text-[14px] font-medium text-[var(--text-primary)]">
+              {t("commissionStatements")}
             </span>
           </div>
           <ChevronRight className="h-4 w-4 text-[var(--text-disabled)]" />

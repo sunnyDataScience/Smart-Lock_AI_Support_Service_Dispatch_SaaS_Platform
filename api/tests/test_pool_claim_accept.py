@@ -215,7 +215,12 @@ async def test_admin_accept_created_still_409():
 
 @pytest.mark.component
 @pytest.mark.asyncio
-async def test_pool_tech_view_filters_assigned_to_others():
+async def test_pool_tech_view_excludes_all_assigned():
+    """UAT P1-4：技師案件池只留無主可搶單——已指派（含派給自己）一律不入池。
+
+    派給自己的單在 my-orders「進行中」分頁追蹤（assigned 屬 active tab），
+    池內殘留已指派單會造成「已指派仍在案件池」混淆＋假搶單。
+    """
     assert await db_module._ensure_conn()
     t_uid, tech_id = await _seed_tech("active")
     other_uid, other_tech = await _seed_tech("active")
@@ -228,10 +233,10 @@ async def test_pool_tech_view_filters_assigned_to_others():
         )
         ids = {w["id"] for w in page["items"]}
         assert w_created in ids
-        assert w_mine in ids
+        assert w_mine not in ids  # 派給自己的單走 my-orders，不留在池
         assert w_other not in ids  # 派給他人的單不出現在技師 pool
 
-        # admin 視角全列
+        # admin 視角全列（派工佇列監控）
         page_admin = await svc.list_work_order_pool(tenant_id=TID)
         ids_admin = {w["id"] for w in page_admin["items"]}
         assert {w_created, w_mine, w_other} <= ids_admin
@@ -241,3 +246,52 @@ async def test_pool_tech_view_filters_assigned_to_others():
         await _cleanup_wo(u3, p3)
         await _cleanup_tech(t_uid, tech_id)
         await _cleanup_tech(other_uid, other_tech)
+
+
+@pytest.mark.component
+@pytest.mark.asyncio
+async def test_pool_tech_view_masks_customer_privacy():
+    """UAT P1-4：技師池列表/池詳情（接單前）不回客戶姓名/電話/完整地址。
+
+    address 遮蔽為 district（市＋區）；接單後（technician_id=本人）詳情不遮蔽。
+    """
+    assert await db_module._ensure_conn()
+    t_uid, tech_id = await _seed_tech("active")
+    wid, uid, pid = await _seed_wo("created", None)
+    try:
+        # 池列表：遮蔽
+        page = await svc.list_work_order_pool(
+            tenant_id=TID, actor_user_id=t_uid, actor_role="technician"
+        )
+        mine = next(w for w in page["items"] if w["id"] == wid)
+        assert "customer_name" not in mine
+        assert "customer_phone" not in mine
+        assert mine["address"] == mine["district"]  # 只留區域
+
+        # 池詳情（接單前、非本人名下）：同樣遮蔽
+        detail = await svc.get_order(
+            tenant_id=TID, wo_id=wid,
+            actor_user_id=t_uid, actor_role="technician",
+        )
+        assert "customer_name" not in detail
+        assert "customer_phone" not in detail
+        assert detail["address"] == detail["district"]
+
+        # 接單後（technician_id=本人）：完整揭露
+        await db_module._conn.execute(
+            "UPDATE work_orders SET status='accepted', technician_id=%s::uuid "
+            "WHERE id=%s::uuid",
+            (tech_id, wid),
+        )
+        detail_mine = await svc.get_order(
+            tenant_id=TID, wo_id=wid,
+            actor_user_id=t_uid, actor_role="technician",
+        )
+        assert detail_mine["address"] == "台北市信義區1號"
+
+        # admin（無 actor）不受影響
+        detail_admin = await svc.get_order(tenant_id=TID, wo_id=wid)
+        assert detail_admin["address"] == "台北市信義區1號"
+    finally:
+        await _cleanup_wo(uid, pid)
+        await _cleanup_tech(t_uid, tech_id)

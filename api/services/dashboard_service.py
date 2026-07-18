@@ -101,9 +101,9 @@ async def get_stats(*, tenant_id: str, period: str) -> dict:
     hot_sql = (
         f"SELECT pc.category, COUNT(*) AS n "
         f"FROM problem_cards pc "
-        f"JOIN conversations c ON pc.conversation_id = c.id "
-        f"JOIN users u ON c.user_id = u.id "
-        f"WHERE u.tenant_id = %s::uuid AND {_period_clause('pc')} "
+        f"LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        f"LEFT JOIN users u ON c.user_id = u.id "
+        f"WHERE COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid AND {_period_clause('pc')} "
         f"  AND pc.category IS NOT NULL "
         f"GROUP BY pc.category ORDER BY n DESC LIMIT 5"
     )
@@ -116,9 +116,9 @@ async def get_stats(*, tenant_id: str, period: str) -> dict:
     brand_sql = (
         f"SELECT pc.brand, COUNT(*) AS n "
         f"FROM problem_cards pc "
-        f"JOIN conversations c ON pc.conversation_id = c.id "
-        f"JOIN users u ON c.user_id = u.id "
-        f"WHERE u.tenant_id = %s::uuid AND {_period_clause('pc')} "
+        f"LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        f"LEFT JOIN users u ON c.user_id = u.id "
+        f"WHERE COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid AND {_period_clause('pc')} "
         f"  AND pc.brand IS NOT NULL "
         f"GROUP BY pc.brand ORDER BY n DESC LIMIT 5"
     )
@@ -135,7 +135,7 @@ async def get_stats(*, tenant_id: str, period: str) -> dict:
         f"  COALESCE(SUM((m.metadata->'token_usage'->>'completion')::int), 0) AS completion "
         f"FROM messages m "
         f"JOIN conversations c ON m.conversation_id = c.id "
-        f"JOIN users u ON c.user_id = u.id "
+        f"LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE u.tenant_id = %s::uuid AND {_period_clause('m')}"
     )
     cur = await db_module._conn.execute(token_sql, (tenant_id, interval, interval))

@@ -80,10 +80,10 @@ async def submit_work_order_signature(
         "SELECT wo.id, wo.technician_id, c.user_id, t.user_id "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         "LEFT JOIN technicians t ON wo.technician_id = t.id "
-        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (wo_id, tenant_id),
     )
     row = await cur.fetchone()

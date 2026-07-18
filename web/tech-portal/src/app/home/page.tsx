@@ -111,7 +111,18 @@ export default function TechHomePage() {
         };
   }, [summary, availability, t]);
 
-  const greeting = tech?.name ? t("greeting", { name: tech.name }) : t("title");
+  // UAT P3：問候語依時段（05–11 早安 / 11–18 午安 / 其餘 晚安）
+  const greeting = useMemo(() => {
+    if (!tech?.name) return t("title");
+    const hour = new Date().getHours();
+    const key =
+      hour >= 5 && hour < 11
+        ? "greetingMorning"
+        : hour >= 11 && hour < 18
+          ? "greetingAfternoon"
+          : "greetingEvening";
+    return t(key, { name: tech.name });
+  }, [tech?.name, t]);
 
   return (
     <TechShell

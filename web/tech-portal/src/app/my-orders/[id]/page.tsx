@@ -19,6 +19,7 @@ import SignaturePad from "@/components/tech/SignaturePad";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { formatNTD } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -254,23 +255,36 @@ export default function MyOrderDetailPage() {
     setArriving(true);
     setArriveError(null);
     try {
-      const gps = await new Promise<{ lat: number; lng: number }>(
-        (resolve, reject) => {
-          if (!navigator.geolocation) {
-            reject(new Error(t("gpsUnavailable")));
-            return;
-          }
-          navigator.geolocation.getCurrentPosition(
-            (pos) =>
-              resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-            () => reject(new Error(t("gpsDenied"))),
-            { timeout: 10_000 },
-          );
-        },
-      );
+      // UAT P2-6：拿不到定位(拒絕/不支援/逾時)不再卡死流程——二次確認後
+      // 送無座標請求(後端 gps 已 optional,事件標記無定位),拒絕定位的
+      // 師傅仍可推進工單。
+      let gps: { lat: number; lng: number } | null = null;
+      try {
+        gps = await new Promise<{ lat: number; lng: number }>(
+          (resolve, reject) => {
+            if (!navigator.geolocation) {
+              reject(new Error(t("gpsUnavailable")));
+              return;
+            }
+            navigator.geolocation.getCurrentPosition(
+              (pos) =>
+                resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+              () => reject(new Error(t("gpsDenied"))),
+              { timeout: 10_000 },
+            );
+          },
+        );
+      } catch {
+        if (!window.confirm(t("arriveNoGpsConfirm"))) {
+          setArriving(false);
+          return;
+        }
+      }
       await api.post(
         tenantPath(`/work-orders/${encodeURIComponent(wo.id)}/onsite/arrival`),
-        { arrived_at: new Date().toISOString(), gps },
+        gps
+          ? { arrived_at: new Date().toISOString(), gps }
+          : { arrived_at: new Date().toISOString() },
       );
       await fetchOrder();
     } catch (e) {
@@ -293,6 +307,11 @@ export default function MyOrderDetailPage() {
     !isTerminal &&
     !wo.actual_arrival &&
     ["assigned", "accepted", "en_route", "in_progress"].includes(wo.status);
+  // UAT P2-2②：可回報到場但尚未回報 → 完工回報先鎖住（請先回報到場）。
+  // 僅在後端接受 arrival 的狀態鎖（避免 scheduled 等回報不了到場的狀態被鎖死）。
+  const needsArrivalFirst = Boolean(canReportArrival);
+  // UAT P2-2①：到場與否以 actual_arrival 有值判斷（不只看 status），頁首加「已到場」層。
+  const hasArrived = Boolean(wo?.actual_arrival);
 
   return (
     <TechShell
@@ -305,6 +324,11 @@ export default function MyOrderDetailPage() {
           <>
             <UrgencyBadge urgency={wo.urgency} />
             <StatusBadge status={wo.status} />
+            {hasArrived && !isTerminal && (
+              <span className="whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-[2px] text-[11px] font-medium text-[#15803D]">
+                {t("arrivedTag")}
+              </span>
+            )}
           </>
         ) : undefined
       }
@@ -438,16 +462,15 @@ export default function MyOrderDetailPage() {
                   {tStatus(wo.status)}
                 </span>
               </div>
-              {wo.estimated_reward && (
-                <div>
-                  <span className="block text-[11px] text-[var(--text-disabled)]">
-                    {t("estimatedReward")}
-                  </span>
-                  <span className="font-bold text-[#059669]">
-                    ${wo.estimated_reward}
-                  </span>
-                </div>
-              )}
+              {/* UAT P2-3：預估報酬列固定顯示（與案件池同讀 estimated_reward；無值顯示 —） */}
+              <div>
+                <span className="block text-[11px] text-[var(--text-disabled)]">
+                  {t("estimatedReward")}
+                </span>
+                <span className="font-bold text-[#059669]">
+                  {formatNTD(wo.estimated_reward)}
+                </span>
+              </div>
               {wo.scheduled_time && (
                 <div>
                   <span className="block text-[11px] text-[var(--text-disabled)]">
@@ -521,13 +544,20 @@ export default function MyOrderDetailPage() {
                   })}
                 </div>
               )}
+              {/* UAT P2-2②：未回報到場前完工回報鎖住，避免狀態機斷鏈（先到場、再完工） */}
               <button
                 type="button"
                 onClick={() => setShowForm(true)}
-                className="h-12 rounded-full bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[var(--primary-hover)]"
+                disabled={needsArrivalFirst}
+                className="h-12 rounded-full bg-[var(--primary)] text-[15px] font-semibold text-white hover:bg-[var(--primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {t("completeCta")}
               </button>
+              {needsArrivalFirst && (
+                <p className="text-center text-[11px] text-[var(--text-disabled)]">
+                  {t("completeNeedArrival")}
+                </p>
+              )}
 
               {/* Subflow CTAs */}
               <div className="grid grid-cols-2 gap-2">

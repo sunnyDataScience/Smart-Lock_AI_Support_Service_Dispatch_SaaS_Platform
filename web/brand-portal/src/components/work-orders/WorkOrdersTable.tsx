@@ -44,6 +44,21 @@ export const STATUS_GROUP_MAP: Record<WorkOrderStatus, StatusGroup> = {
   cancelled: "cancelled",
 };
 
+/**
+ * UAT P2-10：任意工單狀態字串 → 狀態群組。
+ * 派工管理各頁（列表/看板/地圖/儀表板）皆以 STATUS_GROUP_MAP + status.workOrderGroup
+ * 字典顯示；其他頁（如客戶詳情）的工單狀態 label 一律共用本 helper，不得另建字典。
+ * v2 DB 另有 created / confirmed 兩值不在 WorkOrderStatus enum，此處防禦對應。
+ */
+export function statusGroupOf(status: string): StatusGroup {
+  if (status in STATUS_GROUP_MAP) {
+    return STATUS_GROUP_MAP[status as WorkOrderStatus];
+  }
+  if (status === "created") return "pending"; // 已建立＝待處理
+  if (status === "confirmed") return "done"; // 客戶已確認＝已完成
+  return "pending";
+}
+
 // Tone（顏色 token）與 label（i18n 字串）已分離。
 // 視覺常數模組級不變；label 由各元件自行 useTranslations 取得。
 export const STATUS_GROUP_TONE: Record<StatusGroup, { color: string; bg: string }> = {

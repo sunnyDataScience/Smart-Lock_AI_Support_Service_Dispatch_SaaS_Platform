@@ -61,9 +61,9 @@ async def _assert_wo_in_tenant(conn, work_order_id: str, tenant_id: str | None) 
     row = await (await conn.execute(
         "SELECT 1 FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (work_order_id, tenant_id))).fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "work order not found", 404)

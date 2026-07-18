@@ -123,8 +123,8 @@ _TENANT_JOIN = (
     "FROM refund_requests r "
     "JOIN work_orders wo ON r.work_order_id = wo.id "
     "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-    "JOIN conversations c ON pc.conversation_id = c.id "
-    "JOIN users u ON c.user_id = u.id"
+    "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+    "LEFT JOIN users u ON c.user_id = u.id"
 )
 
 
@@ -139,7 +139,7 @@ async def list_refund_requests(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    where = ["u.tenant_id = %s::uuid"]
+    where = ["COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid"]
     args: list = [tenant_id]
 
     if status:
@@ -228,8 +228,8 @@ async def create_refund_request(
     cur = await db_module._conn.execute(
         "SELECT u.tenant_id FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         "WHERE wo.id = %s::uuid",
         (work_order_id,),
     )
@@ -531,8 +531,8 @@ def approver_role_for_tier(tier: str, refund_config: dict) -> str | None:
 _WO_TENANT_JOIN_REFUND = (
     "FROM work_orders wo "
     "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-    "JOIN conversations c ON pc.conversation_id = c.id "
-    "JOIN users u ON c.user_id = u.id"
+    "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+    "LEFT JOIN users u ON c.user_id = u.id"
 )
 
 
@@ -657,9 +657,9 @@ async def get_refund_sod(*, tenant_id: str, refund_id: str) -> dict:
         "FROM refund_requests r "
         "JOIN work_orders wo ON r.work_order_id = wo.id "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE r.id = %s::uuid AND u.tenant_id = %s::uuid LIMIT 1",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE r.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid LIMIT 1",
         (refund_id, tenant_id),
     )
     row = await cur.fetchone()

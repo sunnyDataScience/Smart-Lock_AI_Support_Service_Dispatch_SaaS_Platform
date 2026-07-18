@@ -19,6 +19,26 @@ type AppType = "brand" | "locksmith" | "distributor";
 const VOLUME_OPTIONS = ["未定", "50 以下", "50–200", "200–500", "500 以上"];
 const REFERRAL_OPTIONS = ["Google 搜尋", "朋友介紹", "社群媒體", "業務接洽", "展會/活動", "其他"];
 
+// 422 field 級 details（body.email 等）→ 對應欄位下方的繁中訊息。
+// key = API snake_case 欄位名（details[].field 去掉 "body." 前綴）；
+// 訊息對齊後端 BrandApplicationBody 的驗證規則，查無對應時用泛訊息。
+const FIELD_MESSAGES: Record<string, string> = {
+  application_type: "申請類型無效，請重新選擇",
+  company_name: "請輸入公司名稱（150 字內）",
+  contact_name: "請輸入聯絡人姓名（150 字內）",
+  tax_id: "統一編號需為 8 碼數字",
+  phone: "聯絡電話需為 09 開頭共 10 碼數字",
+  email: "Email 格式不正確",
+  address: "公司地址過長（500 字內）",
+  website: "公司網站網址過長（255 字內）",
+  coverage_regions: "服務涵蓋地區過長（500 字內）",
+  store_count: "門市／據點數需為 0–100000 的整數",
+  expected_monthly_orders: "預估月工單量格式不正確",
+  main_brands: "主營品牌／產品過長（500 字內）",
+  referral_source: "來源選項格式不正確",
+  notes: "備註過長（1000 字內）",
+};
+
 export default function BrandApplyPage() {
   const router = useRouter();
   const [applicationType, setApplicationType] = useState<AppType>("brand");
@@ -37,6 +57,7 @@ export default function BrandApplyPage() {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
 
   function goBack() {
@@ -44,8 +65,34 @@ export default function BrandApplyPage() {
     else window.location.assign("/platform/login");
   }
 
+  // 欄位有錯時輸入框標紅。用 important modifier（Tailwind v4 後綴 !）蓋掉 inputCls
+  // 的預設 border 色（兩個同名 utility 並存時勝負取決於產出 CSS 順序，不加 ! 不保證紅框生效）。
+  const errCls = (key: string) =>
+    fieldErrors[key]
+      ? " border-[var(--status-danger)]! focus:border-[var(--status-danger)]!"
+      : "";
+
+  // submit 時全欄檢查一次（取代原生氣泡驗證；規則對齊後端 BrandApplicationBody）
+  function validateAll(): Record<string, string> {
+    const errs: Record<string, string> = {};
+    if (!companyName.trim()) errs.company_name = "請輸入公司名稱";
+    if (!/^\d{8}$/.test(taxId.trim())) errs.tax_id = "統一編號需為 8 碼數字";
+    if (!contactName.trim()) errs.contact_name = "請輸入聯絡人姓名";
+    if (!/^09\d{8}$/.test(phone.trim())) errs.phone = "聯絡電話需為 09 開頭共 10 碼數字";
+    const em = email.trim();
+    if (!em) errs.email = "請輸入 Email";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) errs.email = "Email 格式不正確";
+    return errs;
+  }
+
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const clientErrs = validateAll();
+    setFieldErrors(clientErrs);
+    if (Object.keys(clientErrs).length > 0) {
+      setError("輸入的資料有誤，請檢查標紅欄位後再送出。");
+      return;
+    }
     setError(null);
     setLoading(true);
     try {
@@ -76,14 +123,34 @@ export default function BrandApplyPage() {
         },
       );
       if (!res.ok) {
-        let msg = "送出失敗，請稍後再試";
+        let body: {
+          message?: string;
+          detail?: string;
+          details?: { field?: string; issue?: string }[];
+        } | null = null;
         try {
-          const body = (await res.json()) as { message?: string; detail?: string };
-          msg = body.message || body.detail || msg;
+          body = await res.json();
         } catch {
-          /* 非 JSON 回應 → 用預設訊息 */
+          /* 非 JSON 回應 → 走下方泛訊息 */
         }
-        setError(msg);
+        // 422 帶 field 級 details（RFC7807 superset，field = "body.email" 等）
+        // → 解析後 inline 顯示在對應欄位下方，不再丟英文泛訊息。
+        if (res.status === 422 && Array.isArray(body?.details) && body.details.length > 0) {
+          const serverErrs: Record<string, string> = {};
+          body.details.forEach((d) => {
+            const key = (d.field ?? "").replace(/^body\./, "");
+            if (key) serverErrs[key] = FIELD_MESSAGES[key] ?? "此欄位格式不正確，請修正後再送出";
+          });
+          setFieldErrors(serverErrs);
+          setError("輸入的資料有誤，請檢查標紅欄位後再送出。");
+          return;
+        }
+        // 後端 message 已是繁中（業務刻意寫給使用者）才直接顯示；
+        // 英文 message 不露出，改依狀態碼給繁中泛訊息（對齊 apiError.ts 慣例）。
+        const backendMsg = body?.message || body?.detail;
+        if (backendMsg && /[一-鿿]/.test(backendMsg)) setError(backendMsg);
+        else if (res.status === 429) setError("申請送出過於頻繁，請稍後再試");
+        else setError("送出失敗，請稍後再試");
         return;
       }
       setDone(true);
@@ -133,7 +200,8 @@ export default function BrandApplyPage() {
             </button>
           </div>
         ) : (
-          <form onSubmit={onSubmit} className="flex flex-col gap-5">
+          // noValidate：改用 submit 時全欄 inline 驗證，不依賴原生氣泡（一次只提示一欄且樣式不可控）
+          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
             {error && (
               <div
                 role="alert"
@@ -144,11 +212,11 @@ export default function BrandApplyPage() {
             )}
 
             <Section title="申請類型">
-              <Field label="您的身分" required>
+              <Field label="您的身分" required error={fieldErrors.application_type}>
                 <select
                   value={applicationType}
                   onChange={(e) => setApplicationType(e.target.value as AppType)}
-                  className={inputCls}
+                  className={inputCls + errCls("application_type")}
                 >
                   <option value="brand">品牌商</option>
                   <option value="locksmith">鎖店</option>
@@ -158,44 +226,44 @@ export default function BrandApplyPage() {
             </Section>
 
             <Section title="公司資料">
-              <Field label="公司名稱" required>
-                <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} required className={inputCls} />
+              <Field label="公司名稱" required error={fieldErrors.company_name}>
+                <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} aria-invalid={!!fieldErrors.company_name || undefined} className={inputCls + errCls("company_name")} />
               </Field>
-              <Field label="統一編號" required hint="8 碼數字，用於開立發票與對帳">
-                <input value={taxId} onChange={(e) => setTaxId(e.target.value)} required pattern="\d{8}" inputMode="numeric" placeholder="12345678" className={inputCls} />
+              <Field label="統一編號" required hint="8 碼數字，用於開立發票與對帳" error={fieldErrors.tax_id}>
+                <input value={taxId} onChange={(e) => setTaxId(e.target.value)} inputMode="numeric" placeholder="12345678" aria-invalid={!!fieldErrors.tax_id || undefined} className={inputCls + errCls("tax_id")} />
               </Field>
-              <Field label="公司網站">
-                <input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://" className={inputCls} />
+              <Field label="公司網站" error={fieldErrors.website}>
+                <input value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://" aria-invalid={!!fieldErrors.website || undefined} className={inputCls + errCls("website")} />
               </Field>
             </Section>
 
             <Section title="聯絡資訊">
-              <Field label="聯絡人" required>
-                <input value={contactName} onChange={(e) => setContactName(e.target.value)} required className={inputCls} />
+              <Field label="聯絡人" required error={fieldErrors.contact_name}>
+                <input value={contactName} onChange={(e) => setContactName(e.target.value)} aria-invalid={!!fieldErrors.contact_name || undefined} className={inputCls + errCls("contact_name")} />
               </Field>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="聯絡電話" required>
-                  <input value={phone} onChange={(e) => setPhone(e.target.value)} required pattern="09\d{8}" placeholder="09xxxxxxxx" className={inputCls} />
+                <Field label="聯絡電話" required error={fieldErrors.phone}>
+                  <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="numeric" placeholder="09xxxxxxxx" aria-invalid={!!fieldErrors.phone || undefined} className={inputCls + errCls("phone")} />
                 </Field>
-                <Field label="Email" required>
-                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required className={inputCls} />
+                <Field label="Email" required error={fieldErrors.email}>
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} aria-invalid={!!fieldErrors.email || undefined} className={inputCls + errCls("email")} />
                 </Field>
               </div>
-              <Field label="公司地址">
-                <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputCls} />
+              <Field label="公司地址" error={fieldErrors.address}>
+                <input value={address} onChange={(e) => setAddress(e.target.value)} aria-invalid={!!fieldErrors.address || undefined} className={inputCls + errCls("address")} />
               </Field>
             </Section>
 
             <Section title="營運概況" subtitle="協助平台評估與媒合（選填）">
-              <Field label="服務涵蓋地區" hint="逗號分隔，例：台北市、新北市（派工媒合用）">
-                <input value={coverageRegions} onChange={(e) => setCoverageRegions(e.target.value)} placeholder="台北市、新北市" className={inputCls} />
+              <Field label="服務涵蓋地區" hint="逗號分隔，例：台北市、新北市（派工媒合用）" error={fieldErrors.coverage_regions}>
+                <input value={coverageRegions} onChange={(e) => setCoverageRegions(e.target.value)} placeholder="台北市、新北市" aria-invalid={!!fieldErrors.coverage_regions || undefined} className={inputCls + errCls("coverage_regions")} />
               </Field>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="門市 / 據點數">
-                  <input type="number" min={0} value={storeCount} onChange={(e) => setStoreCount(e.target.value)} className={inputCls} />
+                <Field label="門市 / 據點數" error={fieldErrors.store_count}>
+                  <input type="number" min={0} value={storeCount} onChange={(e) => setStoreCount(e.target.value)} aria-invalid={!!fieldErrors.store_count || undefined} className={inputCls + errCls("store_count")} />
                 </Field>
-                <Field label="預估月工單量">
-                  <select value={expectedMonthlyOrders} onChange={(e) => setExpectedMonthlyOrders(e.target.value)} className={inputCls}>
+                <Field label="預估月工單量" error={fieldErrors.expected_monthly_orders}>
+                  <select value={expectedMonthlyOrders} onChange={(e) => setExpectedMonthlyOrders(e.target.value)} className={inputCls + errCls("expected_monthly_orders")}>
                     <option value="">請選擇</option>
                     {VOLUME_OPTIONS.map((o) => (
                       <option key={o} value={o}>{o}</option>
@@ -203,11 +271,11 @@ export default function BrandApplyPage() {
                   </select>
                 </Field>
               </div>
-              <Field label="主營品牌 / 產品" hint="例：Yale、Dormakaba、Kaadas">
-                <input value={mainBrands} onChange={(e) => setMainBrands(e.target.value)} className={inputCls} />
+              <Field label="主營品牌 / 產品" hint="例：Yale、Dormakaba、Kaadas" error={fieldErrors.main_brands}>
+                <input value={mainBrands} onChange={(e) => setMainBrands(e.target.value)} aria-invalid={!!fieldErrors.main_brands || undefined} className={inputCls + errCls("main_brands")} />
               </Field>
-              <Field label="如何得知 SmartLock">
-                <select value={referralSource} onChange={(e) => setReferralSource(e.target.value)} className={inputCls}>
+              <Field label="如何得知 SmartLock" error={fieldErrors.referral_source}>
+                <select value={referralSource} onChange={(e) => setReferralSource(e.target.value)} className={inputCls + errCls("referral_source")}>
                   <option value="">請選擇</option>
                   {REFERRAL_OPTIONS.map((o) => (
                     <option key={o} value={o}>{o}</option>
@@ -217,13 +285,14 @@ export default function BrandApplyPage() {
             </Section>
 
             <Section title="需求說明">
-              <Field label="備註">
+              <Field label="備註" error={fieldErrors.notes}>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   maxLength={1000}
                   rows={3}
-                  className={`${inputCls} h-auto resize-y py-2`}
+                  aria-invalid={!!fieldErrors.notes || undefined}
+                  className={`${inputCls + errCls("notes")} h-auto resize-y py-2`}
                   placeholder="想導入的情境、期待的協助等（選填）"
                 />
               </Field>
@@ -272,11 +341,14 @@ function Field({
   label,
   required,
   hint,
+  error,
   children,
 }: {
   label: string;
   required?: boolean;
   hint?: string;
+  /** 欄位級驗證錯誤（client 檢查或 API 422 details）→ 欄位下方紅字 */
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -286,7 +358,12 @@ function Field({
         {required ? <span className="text-[var(--status-danger)]"> *</span> : <span className="text-[var(--text-disabled)]">（選填）</span>}
       </span>
       {children}
-      {hint && <span className="text-xs text-[var(--text-secondary)]">{hint}</span>}
+      {error && (
+        <span role="alert" className="text-xs text-[var(--status-danger)]">
+          {error}
+        </span>
+      )}
+      {hint && !error && <span className="text-xs text-[var(--text-secondary)]">{hint}</span>}
     </label>
   );
 }

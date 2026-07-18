@@ -56,8 +56,9 @@ const URGENCY_COLOR: Record<string, string> = {
 };
 
 // 問題卡狀態中文標籤（draft/confirmed/resolved；原本 {c.status} 直出英文原始碼）
+// UAT P3：draft 全站統一顯示「待確認」（與問題卡列表/詳情一致）
 const PC_STATUS_LABEL: Record<string, string> = {
-  draft: "草稿",
+  draft: "待確認",
   confirmed: "已確認",
   resolved: "已解決",
 };

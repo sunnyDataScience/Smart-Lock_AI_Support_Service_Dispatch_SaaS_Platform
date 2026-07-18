@@ -1,3 +1,15 @@
+/**
+ * 金額統一格式（UAT P3）：NT$ + 千分位、無小數。
+ * 後端 Decimal 序列化為字串（如 "1500.00"）；null / 空值 / 非數字 → "—"。
+ * 範例：formatNTD("1500.00") → "NT$ 1,500"
+ */
+export function formatNTD(value: string | number | null | undefined): string {
+  if (value == null || value === "") return "—";
+  const num = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(num)) return "—";
+  return `NT$ ${Math.round(num).toLocaleString("zh-TW")}`;
+}
+
 export function formatRelative(iso: string): string {
   const ts = new Date(iso).getTime();
   if (Number.isNaN(ts)) return iso;

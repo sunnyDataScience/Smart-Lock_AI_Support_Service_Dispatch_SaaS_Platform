@@ -1264,8 +1264,8 @@
         "ariaToggleOnline": "切換在線/離線",
         "onlineToggleLabel": "在線接單",
         "onlineToggleHint": "（切換上線 / 離線，可接收派單）",
-        "monthIncome": "本月收入概覽（待後端 API）",
-        "incomeNote": "收入總覽、佣金組成、結算紀錄屬 V1.1 範圍",
+        "monthIncome": "本月收入概覽",
+        "incomeNote": "收入總覽與佣金明細即將推出，敬請期待",
         "completedOrders": "完成工單",
         "rating": "平均評分",
         "level": "分級",
@@ -1277,6 +1277,8 @@
         "noProfile": "尚未取得個人資料",
         "appearance": "外觀主題",
         "mySchedule": "我的排班",
+        "statements": "對帳單",
+        "commissionStatements": "派工獎金",
         "notifPref": "通知偏好",
         "editProfile": "編輯個人資料",
         "logoutConfirm": "確定要登出？",
@@ -2422,7 +2424,9 @@
     },
     "home": {
       "title": "首頁",
-      "greeting": "{name}，今天好",
+      "greetingMorning": "早安，{name}",
+      "greetingAfternoon": "午安，{name}",
+      "greetingEvening": "晚安，{name}",
       "refresh": "重新整理",
       "status": {
         "available": "上線中",
@@ -2528,7 +2532,7 @@
       "refreshTitle": "重新整理",
       "conflictTaken": "此工單已被其他技師接走",
       "empty": "目前沒有可接工單",
-      "estimatedReward": "預估 ${amount}",
+      "estimatedReward": "預估 {amount}",
       "accept": "接受工單",
       "accepting": "接單中…",
       "viewDetail": "查看詳情",
@@ -2581,7 +2585,7 @@
       "pcSymptom": "症狀：",
       "pcDiagnosis": "AI 診斷：",
       "pcConfidence": "信心度 {percent}%",
-      "callCustomer": "撥打客戶電話（待補）",
+      "callCustomer": "撥打客戶電話",
       "completeCta": "完工回報",
       "subflows": {
         "reschedule": "改期",
@@ -2616,8 +2620,11 @@
       "arrivedSubmitting": "回報中...",
       "arrivedConfirm": "確定已到達現場？系統將記錄到場時間與 GPS 位置。",
       "arrivedAt": "已到場：{time}",
+      "arrivedTag": "已到場",
+      "completeNeedArrival": "請先回報到場，再進行完工回報",
       "gpsUnavailable": "此裝置不支援定位，無法回報到場",
-      "gpsDenied": "需要定位權限才能回報到場，請開啟定位後再試"
+      "gpsDenied": "需要定位權限才能回報到場，請開啟定位後再試",
+      "arriveNoGpsConfirm": "無法取得定位。要以「無定位」方式回報到場嗎?(會標記為未提供位置)"
     },
     "doorCheck": {
       "title": "門面外觀檢核",

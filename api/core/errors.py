@@ -160,7 +160,28 @@ def _build_response(req: Request, err: ApiError) -> JSONResponse:
 # Exception handlers
 # ---------------------------------------------------------------------------
 
-def register_exception_handlers(app: FastAPI) -> None:
+def register_exception_handlers(
+    app: FastAPI, *, cors_origins: list[str] | None = None
+) -> None:
+    """註冊統一錯誤 handlers。
+
+    cors_origins（UAT 副產物修正）：未捕捉例外的 500 由 Starlette
+    ServerErrorMiddleware 產生，它位於**所有** user middleware（含
+    CORSMiddleware）之外 → 回應不帶 Access-Control-Allow-Origin，瀏覽器
+    只報 CORS 錯、前端永遠看不到真正的 500。傳入 CORS 白名單讓通用
+    Exception handler 對照 request Origin 手動補 header（其餘 handler
+    走 ExceptionMiddleware，在 CORSMiddleware 內側，不需補）。
+    """
+    _allowed_origins = set(cors_origins or [])
+
+    def _apply_cors(req: Request, resp: JSONResponse) -> JSONResponse:
+        origin = req.headers.get("origin")
+        if origin and (origin in _allowed_origins or "*" in _allowed_origins):
+            resp.headers["Access-Control-Allow-Origin"] = origin
+            resp.headers["Access-Control-Allow-Credentials"] = "true"
+            resp.headers.setdefault("Vary", "Origin")
+        return resp
+
     @app.exception_handler(ApiError)
     async def handle_api_error(req: Request, err: ApiError):
         return _build_response(req, err)
@@ -199,11 +220,12 @@ def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def handle_unexpected(req: Request, err: Exception):
         logger.exception("Unhandled error on %s %s", req.method, req.url.path)
-        return _build_response(
+        # 500 回應在 CORSMiddleware 外側產生 → 手動補 CORS header（見函式 docstring）
+        return _apply_cors(req, _build_response(
             req,
             ApiError(
                 error_code="INTERNAL_ERROR",
                 message="An unexpected error occurred",
                 status_code=500,
             ),
-        )
+        ))

@@ -196,7 +196,7 @@ async def create_conversation(
     # 1. Idempotency check: session_id 是否已存在?
     cur = await db_module._conn.execute(
         "SELECT c.id FROM conversations c "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         "WHERE c.session_id = %s AND u.tenant_id = %s::uuid LIMIT 1",
         (session_id, tenant_id),
     )

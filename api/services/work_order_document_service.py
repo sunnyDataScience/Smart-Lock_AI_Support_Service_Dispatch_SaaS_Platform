@@ -34,18 +34,23 @@ async def _fetch_customer_view(*, tenant_id: str, work_order_id: str) -> dict:
         "       wo.completion_status "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (work_order_id, tenant_id),
     )
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "Work order not found in this tenant", 404)
     # 只取 item_name / quantity / customer_price —— **不 SELECT unit_price**
+    # UAT P2-9：與工單詳情費用明細同口徑——只列可入帳品項（被拒報價品項不混入）
+    from services.quote_service import _BILLABLE_ITEM_FILTER
+
     icur = await db_module._conn.execute(
-        "SELECT item_name, quantity, customer_price "
-        "FROM quote_line_items WHERE work_order_id = %s::uuid ORDER BY created_at ASC",
+        "SELECT qli.item_name, qli.quantity, qli.customer_price "
+        "FROM quote_line_items qli "
+        f"WHERE qli.work_order_id = %s::uuid AND {_BILLABLE_ITEM_FILTER} "
+        "ORDER BY qli.created_at ASC",
         (work_order_id,),
     )
     items = await icur.fetchall()

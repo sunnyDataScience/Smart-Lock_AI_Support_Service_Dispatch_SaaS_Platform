@@ -98,6 +98,16 @@ function price(v?: string | null): string {
   return `NT$ ${Math.round(parseFloat(v)).toLocaleString()}`;
 }
 
+// UAT P3 內部術語外洩：seed 內少數規則值為英文工程備註，顯示層轉為使用者中文
+// （資料層正規化屬另案；此處僅收斂已知字串，未知值原樣顯示）
+function friendlyValueText(v: string | null): string | null {
+  if (!v) return v;
+  if (v.includes("50% from the final quote")) {
+    return "最終報價金額之 50%（計算方式待確認）";
+  }
+  return v;
+}
+
 export default function QuoteCatalogPage() {
   const t = useTranslations("admin.quoteCatalog");
   const [cat, setCat] = useState<Catalog | null>(null);
@@ -260,7 +270,7 @@ export default function QuoteCatalogPage() {
                       <tr key={r.rule_code} className="border-t border-[var(--border)]">
                         <td className="px-3 py-2 text-[var(--text-secondary)]">{r.rule_type}</td>
                         <td className="px-3 py-2 text-[var(--text-primary)]">{r.rule_name}</td>
-                        <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{r.amount != null ? price(r.amount) : r.value_text}</td>
+                        <td className="px-3 py-2 font-mono text-[var(--text-primary)]">{r.amount != null ? price(r.amount) : friendlyValueText(r.value_text)}</td>
                         <td className="px-3 py-2">
                           <span className={`rounded px-2 py-[2px] text-[11px] ${["已知規格", "已確認"].includes(r.decision_status) ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEF3C7] text-[#92400E]"}`}>
                             {r.decision_status}
@@ -287,7 +297,10 @@ export default function QuoteCatalogPage() {
                 </table>
               </Section>
 
-              <p className="text-[12px] text-[var(--text-disabled)]">{cat.note}</p>
+              {/* UAT P3 內部術語外洩：後端 note 為工程備註（esales mock 等），不對使用者顯示 */}
+              <p className="text-[12px] text-[var(--text-disabled)]">
+                標示「待決策」的項目代表正式價格尚未由品牌方核定，報價時請以最新核定值為準。
+              </p>
             </div>
           )}
         </div>

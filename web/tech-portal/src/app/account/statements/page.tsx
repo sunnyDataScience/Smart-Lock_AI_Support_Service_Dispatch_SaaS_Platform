@@ -1,15 +1,16 @@
 "use client";
 
 /**
- * FR-0045 Technician AP Statement — 技師薪資對帳單 (含申訴流程)。
+ * 技師薪資對帳單（含申訴期限提示）。
  *
  * 對應 backend: GET /tenants/{tid}/tech-statements?technician_id={technicians.id}
- * 對應 Sprint 3 (docs/_ops/phase-ii-web-integration-plan.md §4)
+ * UAT P2-4：改用師傅站手機殼層 TechShell（底部導航＋返回 /account），
+ * 桌面殼層 Sidebar 與 FR- 內部規格文字不再對使用者露出。
  */
 
 import { useEffect, useState } from "react";
 import { RefreshCw, AlertTriangle } from "lucide-react";
-import Sidebar from "@/components/layout/Sidebar";
+import TechShell from "@/components/tech/TechShell";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import {
@@ -17,7 +18,6 @@ import {
   STATEMENT_STATUS_LABEL,
   STATEMENT_STATUS_COLOR,
   formatDecimal,
-  formatDateTime,
   daysUntilDeadline,
   type BadgeColor,
 } from "@/components/phase-ii";
@@ -73,7 +73,7 @@ export default function MyStatementsPage() {
     const sty = STATUS_BG[color];
     return (
       <span
-        className="rounded-full px-2 py-0.5 text-xs font-medium"
+        className="whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-medium"
         style={{ backgroundColor: sty.bg, color: sty.text }}
       >
         {STATEMENT_STATUS_LABEL[status]}
@@ -81,110 +81,125 @@ export default function MyStatementsPage() {
     );
   }
 
-  function renderDeadlineCell(s: TechStatement) {
-    if (s.status !== "pending_review" && s.status !== "disputed") {
-      return <span className="text-gray-400">—</span>;
-    }
+  function renderDeadline(s: TechStatement) {
+    if (s.status !== "pending_review" && s.status !== "disputed") return null;
     const days = daysUntilDeadline(s.dispute_window_ends_at);
-    if (days === null) return <span className="text-gray-400">—</span>;
+    if (days === null) return null;
     if (days < 0)
-      return <span className="text-gray-500 italic">已過期</span>;
-    if (days < 3)
-      return <span className="text-red-600 font-semibold">{days} 天</span>;
-    if (days < 7)
-      return <span className="text-orange-600 font-semibold">{days} 天</span>;
-    return <span className="text-gray-700">{days} 天</span>;
+      return <span className="text-[12px] italic text-[var(--text-disabled)]">申訴已截止</span>;
+    const color =
+      days < 3 ? "text-red-600" : days < 7 ? "text-orange-600" : "text-[var(--text-secondary)]";
+    return (
+      <span className={`text-[12px] font-medium ${color}`}>
+        申訴期限剩 {days} 天
+      </span>
+    );
   }
 
   return (
-    <div className="flex h-full bg-[var(--bg-page)]">
-      <Sidebar />
-      <main className="flex-1 overflow-auto p-6 md:p-8">
-        <header className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">我的薪資對帳單</h1>
-            <p className="mt-1 text-sm text-gray-500">
-              FR-0045 — 月薪資對帳 + 申訴流程 (6 state machine)
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={fetchStatements}
-            disabled={loading}
-            className="flex items-center gap-2 rounded-md border border-gray-300 bg-[var(--bg-surface)] px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={loading ? "animate-spin" : ""} />
-            重新整理
-          </button>
-        </header>
+    <TechShell
+      // 頁首走 shell 統一規格(h-14 bar;返回 /account)
+      backHref="/account"
+      title="薪資對帳單"
+      actions={
+        <button
+          type="button"
+          onClick={fetchStatements}
+          disabled={loading}
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
+          title="重新整理"
+        >
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+        </button>
+      }
+    >
+      <div className="flex flex-col gap-3 px-4 py-4">
+        <p className="text-[12px] text-[var(--text-secondary)]">
+          每月薪資結算明細；金額有疑問可於申訴期限內聯絡管理員。
+        </p>
 
         {error && (
-          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700">
             {error}
           </div>
         )}
 
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-[var(--bg-surface)]">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">月份</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">狀態</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">完工數</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">毛額</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">扣項</th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">淨額</th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">申訴期限</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-[var(--bg-surface)]">
-              {items.length === 0 && !loading && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-500">無對帳單</td>
-                </tr>
-              )}
-              {items.map((s) => {
-                const totalDeduction =
-                  Number(s.travel_fee_deduction) +
-                  Number(s.cash_collection_deduction) +
-                  Number(s.dispute_hold_amount) +
-                  Number(s.other_deductions);
-                return (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900">
-                      {s.period_year} / {String(s.period_month).padStart(2, "0")}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm">{renderStatusBadge(s.status)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">{s.total_completed_orders}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">{formatDecimal(s.gross_amount)}</td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-orange-600">
+        {loading && items.length === 0 ? (
+          <div className="flex h-40 items-center justify-center text-[13px] text-[var(--text-secondary)]">
+            載入中…
+          </div>
+        ) : items.length === 0 && !error ? (
+          <div className="flex h-40 items-center justify-center rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] text-[13px] text-[var(--text-secondary)]">
+            暫無資料
+          </div>
+        ) : (
+          // 手機以卡片列呈現（表格橫向塞不下）
+          items.map((s) => {
+            const totalDeduction =
+              Number(s.travel_fee_deduction) +
+              Number(s.cash_collection_deduction) +
+              Number(s.dispute_hold_amount) +
+              Number(s.other_deductions);
+            return (
+              <article
+                key={s.id}
+                className="flex flex-col gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))]"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[15px] font-semibold text-[var(--text-primary)]">
+                    {s.period_year} / {String(s.period_month).padStart(2, "0")}
+                  </span>
+                  {renderStatusBadge(s.status)}
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-[13px]">
+                  <div>
+                    <span className="block text-[11px] text-[var(--text-disabled)]">
+                      完工數
+                    </span>
+                    <span className="font-medium text-[var(--text-primary)]">
+                      {s.total_completed_orders}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[11px] text-[var(--text-disabled)]">
+                      毛額
+                    </span>
+                    <span className="font-medium text-[var(--text-primary)]">
+                      {formatDecimal(s.gross_amount)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[11px] text-[var(--text-disabled)]">
+                      扣項
+                    </span>
+                    <span className="font-medium text-orange-600">
                       −{formatDecimal(String(totalDeduction))}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold text-gray-900">
+                    </span>
+                  </div>
+                  <div>
+                    <span className="block text-[11px] text-[var(--text-disabled)]">
+                      淨額
+                    </span>
+                    <span className="font-bold text-[#059669]">
                       {formatDecimal(s.net_amount)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm">{renderDeadlineCell(s)}</td>
-                  </tr>
-                );
-              })}
-              {loading && items.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-500">載入中…</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </span>
+                  </div>
+                </div>
+                {renderDeadline(s)}
+              </article>
+            );
+          })
+        )}
 
         {items.some((s) => s.status === "disputed") && (
-          <div className="mt-4 flex items-start gap-2 rounded-md border border-orange-200 bg-orange-50 p-3 text-sm text-orange-800">
+          <div className="flex items-start gap-2 rounded-2xl border border-orange-200 bg-orange-50 p-3 text-[13px] text-orange-800">
             <AlertTriangle size={18} className="mt-0.5 flex-shrink-0" />
             <div>
               您有申訴中的對帳單。管理員審核完成前金額暫不撥款，您仍可透過聯絡管理員補充佐證。
             </div>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </TechShell>
   );
 }

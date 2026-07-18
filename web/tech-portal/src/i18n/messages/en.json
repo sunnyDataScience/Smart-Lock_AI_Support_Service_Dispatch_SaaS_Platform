@@ -1264,8 +1264,8 @@
         "ariaToggleOnline": "Toggle online/offline",
         "onlineToggleLabel": "Accepting orders",
         "onlineToggleHint": "(Toggle online / offline to receive dispatches)",
-        "monthIncome": "This month's income (API pending)",
-        "incomeNote": "Income overview, commission breakdown, and settlements ship in V1.1",
+        "monthIncome": "This month's income",
+        "incomeNote": "Income overview and commission details are coming soon",
         "completedOrders": "Completed",
         "rating": "Avg rating",
         "level": "Level",
@@ -1277,6 +1277,8 @@
         "noProfile": "No profile available",
         "appearance": "Appearance",
         "mySchedule": "My schedule",
+        "statements": "Statements",
+        "commissionStatements": "Dispatch bonus",
         "notifPref": "Notification preferences",
         "editProfile": "Edit profile",
         "logoutConfirm": "Are you sure you want to sign out?",
@@ -2422,7 +2424,9 @@
     },
     "home": {
       "title": "Home",
-      "greeting": "Hi {name}",
+      "greetingMorning": "Good morning, {name}",
+      "greetingAfternoon": "Good afternoon, {name}",
+      "greetingEvening": "Good evening, {name}",
       "refresh": "Refresh",
       "status": {
         "available": "Online",
@@ -2528,7 +2532,7 @@
       "refreshTitle": "Refresh",
       "conflictTaken": "This order has been taken by another technician",
       "empty": "No orders available right now",
-      "estimatedReward": "Est. ${amount}",
+      "estimatedReward": "Est. {amount}",
       "accept": "Accept order",
       "accepting": "Accepting…",
       "viewDetail": "View details",
@@ -2581,7 +2585,7 @@
       "pcSymptom": "Symptom: ",
       "pcDiagnosis": "AI diagnosis: ",
       "pcConfidence": "Confidence {percent}%",
-      "callCustomer": "Call customer (TBD)",
+      "callCustomer": "Call customer",
       "completeCta": "Complete order",
       "subflows": {
         "reschedule": "Reschedule",
@@ -2616,8 +2620,11 @@
       "arrivedSubmitting": "Reporting...",
       "arrivedConfirm": "Confirm you have arrived on site? Arrival time and GPS will be recorded.",
       "arrivedAt": "Arrived: {time}",
+      "arrivedTag": "Arrived",
+      "completeNeedArrival": "Report your arrival before submitting completion",
       "gpsUnavailable": "Geolocation is not supported on this device",
-      "gpsDenied": "Location permission is required to report arrival"
+      "gpsDenied": "Location permission is required to report arrival",
+      "arriveNoGpsConfirm": "Location unavailable. Report arrival without GPS? (It will be marked as no location provided.)"
     },
     "doorCheck": {
       "title": "Door appearance check",
