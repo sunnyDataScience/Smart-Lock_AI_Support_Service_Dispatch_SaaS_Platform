@@ -1,10 +1,14 @@
 "use client";
 
-import { Wrench, Check, ChevronLeft, ShieldCheck, Upload } from "lucide-react";
+import { Wrench, Check, ChevronLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import BackToHome from "@/components/layout/BackToHome";
 import LocaleToggle from "@/components/i18n/LocaleToggle";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
+import DocUploadSlots, {
+  useRegistrationDocUpload,
+} from "@/components/tech/RegistrationDocUpload";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 
@@ -483,44 +487,12 @@ function maskTail(v: string, visible: number): string {
 
 // ── 文件上傳（Tier 3，§8-2a 兩階段）────────────────────────────────────────
 // 註冊成功後憑一次性 token 打公開端點;全部選填,可略過(核准前補件)。
-// 離開此頁 token 即不可再取得 → 畫面明示「離開後如需補傳請聯絡平台」。
-
-const DOC_SLOTS: { type: string; label: string }[] = [
-  { type: "id_front", label: "身分證正面" },
-  { type: "id_back", label: "身分證反面" },
-  { type: "license", label: "證照掃描" },
-  { type: "insurance", label: "保險證明／良民證" },
-];
+// 槽位清單與上傳邏輯抽至共用元件 RegistrationDocUpload（與 /upload-docs/[token]
+// 補件獨立頁共用）；離開後可請平台 admin 簽發補件連結（W3-6 免 email 自助通道）。
 
 function DocUploadSection({ token, onFinish }: { token: string; onFinish: () => void }) {
-  const [uploaded, setUploaded] = useState<Record<string, string>>({});
-  const [uploading, setUploading] = useState<string | null>(null);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  async function handleFile(docType: string, file: File | null) {
-    if (!file || uploading) return;
-    // 客戶端預檢:超過 10MB 直接擋,不整包上傳才拿到泛化錯誤。
-    if (file.size > 10 * 1024 * 1024) {
-      setErrors((prev) => ({ ...prev, [docType]: "檔案超過 10MB，請壓縮後再上傳" }));
-      return;
-    }
-    setUploading(docType);
-    setErrors((prev) => ({ ...prev, [docType]: "" }));
-    try {
-      const fd = new FormData();
-      fd.append("token", token);
-      fd.append("doc_type", docType);
-      fd.append("file", file);
-      await api.upload("/api/v1/technicians/registration-documents", fd);
-      setUploaded((prev) => ({ ...prev, [docType]: file.name }));
-    } catch (err) {
-      setErrors((prev) => ({ ...prev, [docType]: friendlyError(err) }));
-    } finally {
-      setUploading(null);
-    }
-  }
-
-  const count = Object.keys(uploaded).length;
+  const t = useTranslations("techPortal.docUpload.register");
+  const ctrl = useRegistrationDocUpload(token);
 
   return (
     <div className="flex flex-col gap-4">
@@ -529,61 +501,24 @@ function DocUploadSection({ token, onFinish }: { token: string; onFinish: () => 
           <Check className="h-6 w-6 text-green-600" />
         </div>
         <p className="text-center text-sm font-semibold text-[var(--text-primary)]">
-          申請已送出！最後一步：上傳證件文件
+          {t("title")}
         </p>
-        <p className="text-center text-xs text-[var(--text-secondary)]">
-          全部選填，可先略過、於核准前補件；文件加密環境保存、僅供平台審核。
-        </p>
+        <p className="text-center text-xs text-[var(--text-secondary)]">{t("hint")}</p>
       </div>
 
-      <div className="flex flex-col gap-2">
-        {DOC_SLOTS.map(({ type, label }) => (
-          <label
-            key={type}
-            className={`flex cursor-pointer items-center justify-between gap-3 rounded-lg border px-3 py-2.5 transition ${
-              uploaded[type]
-                ? "border-green-300 bg-green-50"
-                : "border-[var(--border)] hover:bg-[var(--bg-page)]"
-            }`}
-          >
-            <div className="flex min-w-0 flex-col">
-              <span className="text-[13px] font-medium text-[var(--text-primary)]">{label}</span>
-              {uploaded[type] ? (
-                <span className="truncate text-xs text-green-700">✓ {uploaded[type]}</span>
-              ) : (
-                <span className="text-xs text-[var(--text-disabled)]">JPG / PNG / PDF，10MB 內</span>
-              )}
-              {errors[type] && <span className="text-xs text-red-600">{errors[type]}</span>}
-            </div>
-            <span className="flex shrink-0 items-center gap-1 rounded-md border border-[var(--border)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-secondary)]">
-              <Upload className="h-3.5 w-3.5" />
-              {uploading === type ? "上傳中…" : uploaded[type] ? "重新上傳" : "選擇檔案"}
-            </span>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,application/pdf"
-              className="hidden"
-              disabled={!!uploading}
-              onChange={(e) => {
-                handleFile(type, e.target.files?.[0] ?? null);
-                e.target.value = ""; // 允許同檔重選
-              }}
-            />
-          </label>
-        ))}
-      </div>
+      <DocUploadSlots ctrl={ctrl} />
 
-      <p className="text-center text-xs text-[var(--text-disabled)]">
-        離開此頁後將無法自行補傳，屆時請聯絡平台協助補件。
-      </p>
+      <p className="text-center text-xs text-[var(--text-disabled)]">{t("leaveNote")}</p>
 
       <button
         type="button"
         onClick={onFinish}
-        disabled={!!uploading}
+        disabled={!!ctrl.uploading}
         className="rounded-full bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[var(--primary-hover)] disabled:opacity-60"
       >
-        {count > 0 ? `完成（已上傳 ${count} 份）` : "略過，稍後補件"}
+        {ctrl.uploadedCount > 0
+          ? t("finish", { count: ctrl.uploadedCount })
+          : t("skip")}
       </button>
     </div>
   );

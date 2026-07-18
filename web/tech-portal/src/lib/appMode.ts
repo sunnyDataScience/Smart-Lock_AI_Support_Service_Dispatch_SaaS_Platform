@@ -43,11 +43,12 @@ export const PLATFORM_PORTAL_URL = (
 // 師傅工作台路由(需要 technician 登入態的頁面;/tech-login 為入口頁另計)
 const TECH_APP_PREFIXES = ["/home", "/pool", "/my-orders", "/account"];
 
-// tech build 保留的路徑(師傅端 + 必要公開頁;token 公開頁屬派工方 web 服務)
+// tech build 保留的路徑(師傅端 + 必要公開頁;客戶 token 公開頁屬派工方 web 服務)
 const TECH_BUILD_ALLOWED = [
   "/",
   "/tech-login",
   "/tech-register", // CR-0115 師傅 KYC 註冊獨立頁
+  "/upload-docs", // W3-6 師傅補件連結公開頁(師傅身分歸 tech 站,同 /tech-register)
   "/forgot-password",
   "/reset-password",
   ...TECH_APP_PREFIXES,
@@ -85,6 +86,10 @@ export function crossModeRedirect(pathname: string): string | null {
     // 不服務 —— 否則表單會 POST 品牌 API,在品牌庫產生平台 console 看不到的
     // 「幽靈師傅」。導對方 tech portal 同路徑。
     if (matchPrefix(pathname, "/tech-register")) {
+      return PEER_PORTAL_URL ? `${PEER_PORTAL_URL}${pathname}` : "/login";
+    }
+    // W3-6 師傅補件連結公開頁同理歸 tech 站(token 憑證消費須打 tech API)。
+    if (matchPrefix(pathname, "/upload-docs")) {
       return PEER_PORTAL_URL ? `${PEER_PORTAL_URL}${pathname}` : "/login";
     }
     if (TECH_APP_PREFIXES.some((p) => matchPrefix(pathname, p))) {

@@ -2783,6 +2783,39 @@
       "uploadHint": "Signature data uploaded as base64 PNG to `/api/v1/work-orders/{id}/signature`",
       "submit": "Confirm signature",
       "submitting": "Submitting…"
+    },
+    "docUpload": {
+      "slots": {
+        "id_front": "ID card (front)",
+        "id_back": "ID card (back)",
+        "license": "License scan",
+        "insurance": "Insurance proof / police clearance"
+      },
+      "fileHint": "JPG / PNG / PDF, up to 10MB",
+      "chooseFile": "Choose file",
+      "reupload": "Re-upload",
+      "uploadingBtn": "Uploading…",
+      "fileTooLarge": "File exceeds 10MB. Please compress it and try again.",
+      "register": {
+        "title": "Application submitted! Last step: upload your documents",
+        "hint": "All optional — you may skip and provide them before approval. Files are stored encrypted and used only for platform review.",
+        "leaveNote": "After leaving this page, contact the platform to request a document upload link.",
+        "finish": "Done ({count} uploaded)",
+        "skip": "Skip, provide later"
+      },
+      "page": {
+        "title": "Supplementary document upload",
+        "subtitle": "Upload your documents; the platform will review them together with your application.",
+        "hint": "Files are stored encrypted and used only for platform review. Click \"Submit\" when finished.",
+        "submit": "Submit ({count} uploaded)",
+        "submitEmpty": "Please upload at least one document first",
+        "doneTitle": "Submitted",
+        "doneBody": "Your documents have been submitted and will be reviewed together with your application.",
+        "doneClose": "You may now close this page.",
+        "invalidTitle": "Link no longer valid",
+        "invalidBody": "This upload link is invalid or has expired. Please contact the platform to issue a new one.",
+        "invalidUploadedNote": "The {count} document(s) uploaded earlier were submitted and will be reviewed by the platform."
+      }
     }
   },
   "components": {
