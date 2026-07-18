@@ -122,8 +122,8 @@ async def create_quote(
     else:
         exists = await (await conn.execute(
             "SELECT 1 FROM problem_cards pc JOIN conversations c ON pc.conversation_id = c.id "
-            "JOIN users u ON c.user_id = u.id "
-            "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+            "LEFT JOIN users u ON c.user_id = u.id "
+            "WHERE pc.id = %s::uuid AND COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid",
             (problem_card_id, tenant_id),
         )).fetchone()
         if not exists:
@@ -744,8 +744,8 @@ async def resolve_customer_line_uid(*, tenant_id: str, quote_id: str) -> str | N
         "SELECT u.line_user_id "
         "FROM quote q "
         "JOIN problem_cards pc ON q.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         "WHERE q.id = %s::uuid AND (q.tenant_id = %s::uuid OR q.tenant_id IS NULL)",
         (quote_id, tenant_id))).fetchone()
     return row[0] if row else None

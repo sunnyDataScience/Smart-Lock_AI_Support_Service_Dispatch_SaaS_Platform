@@ -322,9 +322,9 @@ async def list_dispatch_candidates(
         "SELECT pc.brand, wo.customer_address "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (work_order_id, tenant_id),
     )
     wo_row = await cur.fetchone()
@@ -385,9 +385,9 @@ async def auto_match_dispatch(
     cur = await db_module._conn.execute(
         "SELECT pc.brand "
         "FROM problem_cards pc "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid AND COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid",
         (problem_card_id, tenant_id),
     )
     pc_row = await cur.fetchone()
@@ -491,9 +491,9 @@ async def get_candidate_detail(
         "SELECT pc.brand, wo.customer_address "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (work_order_id, tenant_id),
     )
     wo_row = await cur.fetchone()

@@ -214,8 +214,10 @@ async def get_work_order_v2(
 ) -> dict:
     _cross_tenant_read(user, tenantId)
 
+    # UAT P1-4：帶 actor 讓技師查非本人名下的單（池詳情）時套接單前隱私遮蔽
     order = await work_order_service.get_order(
         tenant_id=tenantId, wo_id=id,
+        actor_user_id=user.user_id, actor_role=user.role,
     )
     return {"data": WorkOrder(**order).model_dump(mode="json")}
 
@@ -752,7 +754,9 @@ class _ArrivalEventRequest(BaseModel):
     """
 
     arrived_at: str = Field(..., description="到場時間，ISO 8601 格式")
-    gps: _ArrivalGps = Field(..., description="GPS 到場座標")
+    # UAT P2-6：gps 改 optional——拒絕定位權限的技師仍可回報到場(前端二次確認
+    # 後送無座標請求，事件 payload 標記 no_gps)；service 層本就接受 gps=None。
+    gps: _ArrivalGps | None = Field(default=None, description="GPS 到場座標（無定位時可省略）")
 
 
 class _FunctionTestResult(BaseModel):
@@ -806,7 +810,7 @@ async def onsite_arrival_v2(
         tenant_id=tenantId,
         wo_id=woId,
         arrived_at=body.arrived_at,
-        gps=body.gps.model_dump(exclude_none=True),
+        gps=body.gps.model_dump(exclude_none=True) if body.gps else None,
         actor_user_id=user.user_id,
     )
     payload = {

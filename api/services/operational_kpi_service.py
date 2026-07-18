@@ -71,8 +71,8 @@ async def get_operational_kpi(
     )
     join_clause = (
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
     )
 
     # 1. FTFR：總完工 wo / 被當作 rework_of_id 的 wo 數

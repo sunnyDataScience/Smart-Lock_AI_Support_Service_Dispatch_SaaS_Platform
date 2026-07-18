@@ -99,7 +99,7 @@ async def list_alerts(
         f"SELECT {_SELECT_COLUMNS} "
         f"FROM sentiment_alerts sa "
         f"JOIN conversations c ON sa.conversation_id = c.id "
-        f"JOIN users u ON c.user_id = u.id "
+        f"LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE {' AND '.join(where)} "
         f"ORDER BY sa.created_at DESC, sa.id DESC "
         f"LIMIT %s"
@@ -153,7 +153,7 @@ async def update_alert(
     cur = await db_module._conn.execute(
         "SELECT sa.status FROM sentiment_alerts sa "
         "JOIN conversations c ON sa.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         "WHERE sa.id = %s::uuid AND u.tenant_id = %s::uuid",
         (alert_id, tenant_id),
     )
@@ -188,7 +188,7 @@ async def update_alert(
         f"SELECT {_SELECT_COLUMNS} "
         f"FROM sentiment_alerts sa "
         f"JOIN conversations c ON sa.conversation_id = c.id "
-        f"JOIN users u ON c.user_id = u.id "
+        f"LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE sa.id = %s::uuid AND u.tenant_id = %s::uuid",
         (alert_id, tenant_id),
     )

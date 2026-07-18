@@ -18,7 +18,11 @@ from services import work_order_service as svc
 
 @pytest.mark.asyncio
 async def test_publish_pool_added_includes_work_order(monkeypatch):
-    """event=added → payload 必含 work_order 物件供前端 prepend。"""
+    """event=added → payload 必含 work_order 物件供前端 prepend。
+
+    UAT P1-4：pool 頻道屬接單前視角 → payload 套 _mask_pool_privacy
+    （不推客戶姓名/電話/完整地址，address 遮蔽為 district）。
+    """
     published = []
 
     class FakeHub:
@@ -26,7 +30,11 @@ async def test_publish_pool_added_includes_work_order(monkeypatch):
             published.append((channel, msg))
 
     async def fake_get_order(*, tenant_id, wo_id):
-        return {"id": wo_id, "status": "assigned", "tenant_id": tenant_id}
+        return {
+            "id": wo_id, "status": "assigned", "tenant_id": tenant_id,
+            "district": "台北市信義區", "address": "台北市信義區1號",
+            "customer_name": "客", "customer_phone": "0912000000",
+        }
 
     # patch hub import inside _publish_pool_change
     import realtime.ws_hub as ws_hub
@@ -46,6 +54,7 @@ async def test_publish_pool_added_includes_work_order(monkeypatch):
     assert payload["work_order_id"] == "w1"
     assert payload["work_order"] == {
         "id": "w1", "status": "assigned", "tenant_id": "t1",
+        "district": "台北市信義區", "address": "台北市信義區",  # 接單前只留區域
     }
 
 

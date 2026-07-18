@@ -26,7 +26,7 @@ from models.generated import (
     TechnicianProfileEnvelope,
     TechnicianUpdateRequest,
 )
-from services import technician_service
+from services import technician_commission_service, technician_service
 
 router = APIRouter()
 
@@ -128,6 +128,21 @@ async def get_my_availability(
         date_str=date,
         work_order_id=work_order_id,
     )
+
+
+@router.get(
+    "/technicians/me/commission-statements",
+    operation_id="listMyCommissionStatements",
+    summary="技師本人佣金對帳單（月彙總；UAT P2-5 補端點，讀 R4 佣金投影）",
+)
+async def list_my_commission_statements(
+    limit: int = Query(default=24, ge=1, le=60, description="最多回傳期數（月）"),
+    user: CurrentUser = Depends(_technician_only),
+) -> dict:
+    data = await technician_commission_service.list_my_commission_statements(
+        tenant_id=user.tenant_id, user_id=user.user_id, limit=limit,
+    )
+    return {"data": data}
 
 
 @router.get(

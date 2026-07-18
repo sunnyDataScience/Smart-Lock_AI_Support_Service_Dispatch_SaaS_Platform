@@ -44,16 +44,32 @@ def _row_to_item(row: tuple, *, include_cost: bool) -> dict:
 
 
 _ITEM_SELECT = (
-    "id, work_order_id, tenant_id, item_name, category, "
-    "unit_price, quantity, customer_price, is_mock"
+    "qli.id, qli.work_order_id, qli.tenant_id, qli.item_name, qli.category, "
+    "qli.unit_price, qli.quantity, qli.customer_price, qli.is_mock"
+)
+
+# UAT P2-9：費用明細只計入「已同意」報價的品項——bind_quotes_to_work_order 會把
+# PC 階段「所有版本」報價（含被拒/失效）的品項都回填 work_order_id，導致工單詳情
+# 費用明細把 rejected 報價品項也算進來。可入帳範圍：
+#   - qli.quote_id IS NULL：CR-0027 後台手動成本拆項（無報價單歸屬，維持入帳）
+#   - quote.state = 'accepted'：客戶已確認報價
+#   - quote.state = 'retrospective_audit_only'：急件補審佔位報價（實際施作品項）
+_BILLABLE_ITEM_FILTER = (
+    "(qli.quote_id IS NULL OR EXISTS ("
+    "  SELECT 1 FROM quote q WHERE q.id = qli.quote_id "
+    "    AND q.state IN ('accepted', 'retrospective_audit_only')))"
 )
 
 
 async def _recompute_final_amount(work_order_id: str) -> str | None:
-    """重算 work_orders.customer_final_amount = Σ(customer_price × quantity)。"""
+    """重算 work_orders.customer_final_amount = Σ(customer_price × quantity)。
+
+    UAT P2-9：只加總可入帳品項（_BILLABLE_ITEM_FILTER）——被拒報價的品項不入總計。
+    """
     cur = await db_module._conn.execute(
-        "SELECT COALESCE(SUM(customer_price * quantity), 0) "
-        "FROM quote_line_items WHERE work_order_id = %s::uuid",
+        "SELECT COALESCE(SUM(qli.customer_price * qli.quantity), 0) "
+        "FROM quote_line_items qli "
+        f"WHERE qli.work_order_id = %s::uuid AND {_BILLABLE_ITEM_FILTER}",
         (work_order_id,),
     )
     total = (await cur.fetchone())[0]
@@ -68,26 +84,30 @@ async def _recompute_final_amount(work_order_id: str) -> str | None:
 async def list_line_items(
     *, tenant_id: str, work_order_id: str, include_cost: bool
 ) -> dict:
-    """列出公單成本拆項 + 對外總額。include_cost 決定是否含 unit_price（RBAC）。"""
+    """列出公單成本拆項 + 對外總額。include_cost 決定是否含 unit_price（RBAC）。
+
+    UAT P2-9：只列可入帳品項（_BILLABLE_ITEM_FILTER，被拒報價品項不混入）；
+    總計以可入帳品項現算（列表與總計永遠一致，且不回 null——歷史單
+    customer_final_amount 從未重算時原本會回 null）。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     # tenant 隔離：work_order 須屬該 tenant（走 users join，與 _WO_JOIN 一致）
     await _assert_wo_in_tenant(work_order_id, tenant_id)
     cur = await db_module._conn.execute(
-        f"SELECT {_ITEM_SELECT} FROM quote_line_items "
-        "WHERE work_order_id = %s::uuid ORDER BY created_at ASC",
+        f"SELECT {_ITEM_SELECT} FROM quote_line_items qli "
+        f"WHERE qli.work_order_id = %s::uuid AND {_BILLABLE_ITEM_FILTER} "
+        "ORDER BY qli.created_at ASC",
         (work_order_id,),
     )
     rows = await cur.fetchall()
     items = [_row_to_item(r, include_cost=include_cost) for r in rows]
-    fcur = await db_module._conn.execute(
-        "SELECT customer_final_amount FROM work_orders WHERE id = %s::uuid",
-        (work_order_id,),
-    )
-    frow = await fcur.fetchone()
+    final_amount = _dec(sum(
+        float(i["customer_price"] or 0) * i["quantity"] for i in items
+    ))
     return {
         "items": items,
-        "customer_final_amount": _dec(frow[0]) if frow else None,
+        "customer_final_amount": final_amount,
         "cost_visible": include_cost,
     }
 
@@ -132,9 +152,9 @@ async def _assert_wo_in_tenant(work_order_id: str, tenant_id: str) -> None:
     cur = await db_module._conn.execute(
         "SELECT 1 FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (work_order_id, tenant_id),
     )
     if not await cur.fetchone():

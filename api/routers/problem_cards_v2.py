@@ -139,7 +139,10 @@ async def create_problem_card_v2(
     )
     card = await problem_card_service.create_card(
         tenant_id=tenantId,
-        conversation_id=str(body.conversation_id),
+        # UAT P1-1：手建卡（電話進線）無對話 → None
+        conversation_id=str(body.conversation_id) if body.conversation_id else None,
+        customer_name=body.customer_name,
+        customer_phone=body.customer_phone,
         brand=body.brand,
         model=body.model,
         symptom=body.symptom,

@@ -142,6 +142,21 @@ def _wo_row_to_dict(row: tuple) -> dict:
     return out
 
 
+def _mask_pool_privacy(wo: dict) -> dict:
+    """接單前隱私遮蔽（UAT P1-4）：技師尚未接單前不揭露客戶個資。
+
+    對齊 technician_line_service 最小揭露原則（區域＋品牌型號＋單號縮寫，
+    不含客戶姓名/地址/電話）；接單後（my-orders，technician_id=本人）才回完整資訊。
+    address 以 district（市＋區前綴）取代——WorkOrder schema 的 address 為
+    required string，不可缺欄。
+    """
+    out = dict(wo)  # 不可變：建新 dict，不改原物件
+    out.pop("customer_name", None)
+    out.pop("customer_phone", None)
+    out["address"] = out.get("district") or ""
+    return out
+
+
 _WO_SELECT = (
     "wo.id, wo.problem_card_id, wo.technician_id, wo.status, wo.priority, "
     "wo.customer_address, "
@@ -163,11 +178,15 @@ _WO_SELECT = (
     "wo.completion_summary, wo.function_tests"
 )
 
+# UAT P1-1:手建問題卡(電話進線)無 conversation → 整鏈改 LEFT JOIN,
+# tenant guard 一律 COALESCE(wo.tenant_id, u.tenant_id)(舊單 wo.tenant_id 可能
+# NULL 走 user 鏈;手建卡單 wo.tenant_id 必有值)。原 INNER 鏈會讓手建卡的
+# 工單在列表/詳情/派工全鏈 404。
 _WO_JOIN = (
     "FROM work_orders wo "
-    "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-    "JOIN conversations c ON pc.conversation_id = c.id "
-    "JOIN users u ON c.user_id = u.id"
+    "LEFT JOIN problem_cards pc ON wo.problem_card_id = pc.id "
+    "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+    "LEFT JOIN users u ON c.user_id = u.id"
 )
 
 
@@ -186,7 +205,7 @@ async def list_orders(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    where = ["u.tenant_id = %s::uuid"]
+    where = ["COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid"]
     args: list = [tenant_id]
 
     if problem_card_id:
@@ -264,33 +283,28 @@ async def list_work_order_pool(
     actor_user_id: str | None = None,
     actor_role: str | None = None,
 ) -> dict:
-    """技師案件池：尚未進入「執行中／結案」終態的可接工單。
+    """技師案件池：可搶接的無主工單。
 
-    含：created（未派工）、assigned（已派但尚未接受）。
-    技師視角只列「自己可接」的單：created 全列 + assigned 僅限派給自己的
-    （assigned 給他人的單技師接不了 — FR-0005 A9，列出只會產生必 409 的假搶單）。
-    admin/後台視角維持全列。
+    UAT P1-4 裁決：已指派（technician_id 非空／status 非 created）的單不得
+    出現在技師案件池——派給自己的單走 my-orders「進行中」分頁追蹤，池只留
+    created 且未指派的可搶單，杜絕「已指派仍掛在池」的混淆。
+    admin/後台視角維持全列（created + assigned；派工佇列監控用）。
+    技師視角另套接單前隱私遮蔽（_mask_pool_privacy：不回客戶姓名/電話/完整地址）。
     優先序：urgency=high > medium > low；同等級依 created_at ASC 列出
     （越早建立越優先）。預設不分頁，上限 100 筆。
     """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    tech_filter = ""
-    params: tuple = (tenant_id,)
     if actor_role == "technician":
-        tech = await _fetch_technician_for_user(actor_user_id)
-        if tech:
-            tech_filter = (
-                "  AND (wo.status = 'created' OR wo.technician_id = %s::uuid) "
-            )
-            params = (tenant_id, tech["id"])
+        status_filter = "  AND wo.status = 'created' AND wo.technician_id IS NULL "
+    else:
+        status_filter = "  AND wo.status IN ('created', 'assigned') "
 
     sql = (
         f"SELECT {_WO_SELECT} {_WO_JOIN} "
-        f"WHERE u.tenant_id = %s::uuid "
-        f"  AND wo.status IN ('created', 'assigned') "
-        f"{tech_filter}"
+        f"WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid "
+        f"{status_filter}"
         f"ORDER BY "
         f"  CASE wo.priority "
         f"    WHEN 'urgent' THEN 0 WHEN 'high' THEN 1 "
@@ -299,9 +313,11 @@ async def list_work_order_pool(
         f"  wo.created_at ASC, wo.id ASC "
         f"LIMIT 100"
     )
-    cur = await db_module._conn.execute(sql, params)
+    cur = await db_module._conn.execute(sql, (tenant_id,))
     rows = await cur.fetchall()
     items = [_wo_row_to_dict(r) for r in rows]
+    if actor_role == "technician":
+        items = [_mask_pool_privacy(i) for i in items]
     return {"items": items, "next_cursor": None, "has_more": False}
 
 
@@ -335,19 +351,32 @@ async def _compute_sla_deadline(created_at_iso: str | None, urgency: str | None)
         return None
 
 
-async def get_order(*, tenant_id: str, wo_id: str) -> dict:
+async def get_order(
+    *,
+    tenant_id: str,
+    wo_id: str,
+    actor_user_id: str | None = None,
+    actor_role: str | None = None,
+) -> dict:
+    """工單詳情。actor 為技師且該單非本人名下（池詳情／搶單前預覽）時，
+    套接單前隱私遮蔽（UAT P1-4：接單後才揭露客戶姓名/電話/完整地址）。
+    未帶 actor（後台/內部呼叫）行為不變。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     cur = await db_module._conn.execute(
         f"SELECT {_WO_SELECT} {_WO_JOIN} "
-        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        f"WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (wo_id, tenant_id),
     )
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "Work order not found", 404)
     out = _wo_row_to_dict(row)
+    if actor_role == "technician":
+        tech = await _fetch_technician_for_user(actor_user_id)
+        if not tech or out.get("technician_id") != tech["id"]:
+            out = _mask_pool_privacy(out)
     # CR-0100：SLA deadline computed（單筆詳情用；列表視圖不需倒數，省一次 config 讀取）
     sla = await _compute_sla_deadline(out.get("created_at"), out.get("urgency"))
     if sla:
@@ -385,8 +414,9 @@ async def create_from_problem_card(
     Idempotency：同 PC 重複呼叫回既存 WO（created_flag=False，HTTP 200）；
     新建回 created_flag=True（HTTP 201）。
 
-    customer_address / name / phone：優先用 caller 帶入；否則 fallback 到
-    user 的 profile（users.address/display_name/phone）。address 兩者皆無 → 422。
+    customer_address / name / phone：優先用 caller 帶入；address 其次取
+    pc.location（UAT P2-8：本案蒐集的服務地址），再 fallback 到 user 的
+    profile（users.address/display_name/phone）。address 三者皆無 → 422。
 
     urgency / priority：PC.urgency 與 WO.priority 共用 DB enum
     (low/normal/high/urgent)，直接 pass-through。
@@ -399,11 +429,15 @@ async def create_from_problem_card(
         "SELECT pc.status, pc.urgency, "
         "       u.address, u.display_name, u.phone, "
         # CR-0026：建單時把設備辨識 + 問題類型 + 媒體從 PC 複製進 work_order
-        "       pc.brand, pc.model, pc.category, pc.media_urls, pc.emergency_class "
+        # UAT P2-8：pc.location（本案蒐集的服務地址）一併帶出供地址 fallback
+        # UAT P1-1：手建卡（無對話）→ LEFT JOIN；tenant guard 改用 pc.tenant_id
+        # （CR-0132 直接租戶欄）；contact_phone/extracted_fields 供客戶資訊 fallback
+        "       pc.brand, pc.model, pc.category, pc.media_urls, pc.emergency_class, "
+        "       pc.location, pc.contact_phone, pc.extracted_fields "
         "FROM problem_cards pc "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid AND COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid "
         "FOR UPDATE OF pc",
         (pc_id, tenant_id),
     )
@@ -412,7 +446,16 @@ async def create_from_problem_card(
         raise ApiError("NOT_FOUND", "Problem card not found", 404)
 
     (pc_status, pc_urgency, user_address, user_name, user_phone,
-     pc_brand, pc_model, pc_category, pc_media, pc_emergency_class) = row
+     pc_brand, pc_model, pc_category, pc_media, pc_emergency_class,
+     pc_location, pc_contact_phone, pc_extracted) = row
+
+    # UAT P1-1：手建卡客戶資訊 fallback——caller > 卡上(extracted/contact_phone) > user profile
+    pc_customer_name = None
+    if pc_extracted:
+        _ext = pc_extracted if isinstance(pc_extracted, dict) else {}
+        pc_customer_name = (_ext.get("customer_name") or "").strip() or None
+    user_name = user_name or pc_customer_name
+    user_phone = user_phone or pc_contact_phone
 
     if pc_status != "confirmed":
         raise ApiError(
@@ -441,9 +484,11 @@ async def create_from_problem_card(
     if pc_emergency_class is None:
         await _qe.assert_pc_quote_confirmed(tenant_id=tenant_id, problem_card_id=pc_id)
 
-    # 3. Resolve customer info（caller override > user profile fallback）
+    # 3. Resolve customer info（caller override > PC location > user profile fallback）
+    #    UAT P2-8：pc.location 為本案蒐集的服務地址（L3 補址欄），比 user profile
+    #    的通用地址更準——caller 未帶時優先取卡上地址，避免有卡址仍 422。
     #    CR-0165 F6a：專用碼取代泛用 VALIDATION_ERROR（比照結案 ADDRESS_REQUIRED_FOR_CLOSE）
-    final_address = customer_address or user_address
+    final_address = customer_address or pc_location or user_address
     if not final_address:
         raise ApiError(
             "ADDRESS_REQUIRED_FOR_CONVERT",
@@ -642,7 +687,7 @@ async def update_wo_fields(*, tenant_id: str, wo_id: str, fields: dict) -> dict:
         "FROM problem_cards pc, conversations c, users u "
         "WHERE wo.id = %s::uuid AND wo.problem_card_id = pc.id "
         "  AND pc.conversation_id = c.id AND c.user_id = u.id "
-        "  AND u.tenant_id = %s::uuid",
+        "  AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         args,
     )
     return await _publish_and_return(
@@ -850,11 +895,12 @@ async def _publish_pool_change(
 
         payload: dict = {"event": event, "work_order_id": wo_id}
         if event == "added":
-            # added 需帶完整 wo 物件供 prepend
+            # added 需帶完整 wo 物件供 prepend；pool 頻道屬接單前視角
+            # → 套 UAT P1-4 隱私遮蔽（不推客戶姓名/電話/完整地址）
             try:
-                payload["work_order"] = await get_order(
+                payload["work_order"] = _mask_pool_privacy(await get_order(
                     tenant_id=tenant_id, wo_id=wo_id,
-                )
+                ))
             except Exception:  # noqa: BLE001
                 logger.exception("get_order failed for pool publish added")
         await hub.publish(
@@ -875,7 +921,7 @@ async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
     """Fetch current DB status with tenant guard. Raises NOT_FOUND if missing."""
     cur = await db_module._conn.execute(
         f"SELECT wo.status {_WO_JOIN} "
-        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        f"WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (wo_id, tenant_id),
     )
     row = await cur.fetchone()
@@ -1458,7 +1504,7 @@ async def complete_order(
         ecur = await db_module._conn.execute(
             "SELECT u.email, wo.document_number FROM work_orders wo "
             "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-            "JOIN conversations c ON pc.conversation_id = c.id "
+            "LEFT JOIN conversations c ON pc.conversation_id = c.id "
             "JOIN users u ON c.user_id = u.id WHERE wo.id = %s::uuid",
             (wo_id,),
         )
@@ -2322,7 +2368,7 @@ async def get_dispatch_queue_snapshot(*, tenant_id: str) -> dict:
         f"                     AND wo.scheduled_at IS NOT NULL "
         f"                     AND wo.scheduled_at < NOW() + INTERVAL '2 hours') AS sla_at_risk "
         f"{_WO_JOIN} "
-        f"WHERE u.tenant_id = %s::uuid"
+        f"WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid"
     )
     cur = await db_module._conn.execute(sql, (tenant_id,))
     row = await cur.fetchone()
@@ -2348,7 +2394,7 @@ async def get_today_stats(*, tenant_id: str) -> dict:
         f"                     AND wo.scheduled_at IS NOT NULL "
         f"                     AND wo.scheduled_at < NOW()) AS overdue_count "
         f"{_WO_JOIN} "
-        f"WHERE u.tenant_id = %s::uuid"
+        f"WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid"
     )
     cur = await db_module._conn.execute(sql, (tenant_id,))
     row = await cur.fetchone()
@@ -3345,7 +3391,7 @@ async def request_reschedule(
     # ─── tenant + ownership check ─────────────────────────────────────────
     cur = await db_module._conn.execute(
         f"SELECT wo.status, wo.technician_id, wo.scheduled_at {_WO_JOIN} "
-        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        f"WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (wo_id, tenant_id),
     )
     row = await cur.fetchone()
@@ -3456,7 +3502,7 @@ async def approve_reschedule(
 
     cur = await db_module._conn.execute(
         f"SELECT wo.status, wo.service_report, wo.scheduled_at {_WO_JOIN} "
-        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        f"WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (wo_id, tenant_id),
     )
     row = await cur.fetchone()
@@ -3572,7 +3618,7 @@ async def notify_delay(
     # tenant + ownership check
     cur = await db_module._conn.execute(
         f"SELECT wo.status, wo.technician_id {_WO_JOIN} "
-        f"WHERE wo.id = %s::uuid AND u.tenant_id = %s::uuid",
+        f"WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
         (wo_id, tenant_id),
     )
     row = await cur.fetchone()

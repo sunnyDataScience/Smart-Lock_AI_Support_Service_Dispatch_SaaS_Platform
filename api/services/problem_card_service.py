@@ -93,7 +93,8 @@ def _pc_row_to_dict(row: tuple) -> dict:
     """row 順序對齊 _PC_SELECT。"""
     return {
         "id": str(row[0]),
-        "conversation_id": str(row[1]),
+        # UAT P1-1:手建卡無對話 → None(str(None) 會變 'None' 字串炸 response model)
+        "conversation_id": str(row[1]) if row[1] is not None else None,
         "brand": row[2] or "",
         "model": row[3] or "",
         "symptom": _coerce_symptom(row[4]),
@@ -125,6 +126,8 @@ def _pc_row_to_dict(row: tuple) -> dict:
         "firmware_version": row[26] if len(row) > 26 else None,
         "serial": row[27] if len(row) > 27 else None,
         "resolved_by": str(row[28]) if len(row) > 28 and row[28] else None,
+        # UAT P2-8：location 欄位早已落庫（create 有收），但 get/list 一直沒回
+        "location": row[29] if len(row) > 29 else None,
     }
 
 
@@ -136,7 +139,9 @@ _PC_SELECT = (
     "pc.intake_completeness, pc.resolution_completeness, pc.triage_tier, "
     "pc.resolution_channel, pc.knowledge_ready, pc.contact_phone, pc.failure_mode, "
     "pc.root_cause, pc.root_cause_category, pc.corrective_action, pc.verification, "
-    "pc.disposition, pc.firmware_version, pc.serial, pc.resolved_by"
+    "pc.disposition, pc.firmware_version, pc.serial, pc.resolved_by, "
+    # UAT P2-8（index 29，append-only 保既有索引不變）：服務地址
+    "pc.location"
 )
 
 
@@ -156,7 +161,7 @@ async def list_cards(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    where = ["u.tenant_id = %s::uuid"]
+    where = ["COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid"]
     args: list = [tenant_id]
 
     if conversation_id:
@@ -199,8 +204,8 @@ async def list_cards(
     sql = (
         f"SELECT {_PC_SELECT} "
         f"FROM problem_cards pc "
-        f"JOIN conversations c ON pc.conversation_id = c.id "
-        f"JOIN users u ON c.user_id = u.id "
+        f"LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        f"LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE {' AND '.join(where)} "
         f"ORDER BY pc.created_at DESC, pc.id DESC "
         f"LIMIT %s"
@@ -228,9 +233,9 @@ async def get_card(*, tenant_id: str, pc_id: str) -> dict:
     cur = await db_module._conn.execute(
         f"SELECT {_PC_SELECT} "
         f"FROM problem_cards pc "
-        f"JOIN conversations c ON pc.conversation_id = c.id "
-        f"JOIN users u ON c.user_id = u.id "
-        f"WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+        f"LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        f"LEFT JOIN users u ON c.user_id = u.id "
+        f"WHERE pc.id = %s::uuid AND COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid",
         (pc_id, tenant_id),
     )
     row = await cur.fetchone()
@@ -247,9 +252,9 @@ async def _fetch_status_for_update(pc_id: str, tenant_id: str) -> str:
     cur = await db_module._conn.execute(
         "SELECT pc.status "
         "FROM problem_cards pc "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid AND COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid",
         (pc_id, tenant_id),
     )
     row = await cur.fetchone()
@@ -560,9 +565,9 @@ async def assert_completeness(
 async def create_card(
     *,
     tenant_id: str,
-    conversation_id: str,
-    brand: str,
-    model: str,
+    conversation_id: str | None,
+    brand: str | None,
+    model: str | None,
     symptom: str,
     urgency: str,
     category: str | None = None,
@@ -572,8 +577,15 @@ async def create_card(
     symptoms: list[str] | None = None,
     intent: str | None = None,
     media_urls: list[str] | None = None,
+    customer_name: str | None = None,
+    customer_phone: str | None = None,
 ) -> dict:
     """建立 ProblemCard。conversation 必須屬同租戶且尚未掛 PC（DB UNIQUE 約束）。
+
+    UAT P1-1：conversation_id 可為 None＝客服手建卡（電話進線，無 LINE 對話；
+    DB 欄本就 nullable、source default 'human'）。此時跳過 conversation guard
+    與 active-card 檢查；customer_phone 落 contact_phone 欄、customer_name 落
+    extracted_fields.customer_name（轉工單 fallback 帶出）。
 
     Mapping：
       - urgency (low/medium/high) → DB low/normal/high
@@ -586,10 +598,8 @@ async def create_card(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    if not brand or not brand.strip():
-        raise ApiError("VALIDATION_ERROR", "brand is required", 422)
-    if not model or not model.strip():
-        raise ApiError("VALIDATION_ERROR", "model is required", 422)
+    # UAT P1-1:brand/model 改選填(電話報修常不知型號;與 AI 草擬卡同等寬鬆,
+    # 缺欄由完整度 gate/待補機制補齊。DB 欄 nullable)
     if not symptom or not symptom.strip():
         raise ApiError("VALIDATION_ERROR", "symptom is required", 422)
     if urgency not in _VALID_API_URGENCY:
@@ -617,34 +627,35 @@ async def create_card(
             422,
         )
 
-    # tenant guard via conversations.user.tenant_id
-    cur = await db_module._conn.execute(
-        "SELECT c.id FROM conversations c "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE c.id = %s::uuid AND u.tenant_id = %s::uuid",
-        (conversation_id, tenant_id),
-    )
-    if not await cur.fetchone():
-        raise ApiError(
-            "NOT_FOUND",
-            f"Conversation {conversation_id} not found",
-            404,
+    # tenant guard via conversations.user.tenant_id（手建卡無對話 → 跳過）
+    if conversation_id is not None:
+        cur = await db_module._conn.execute(
+            "SELECT c.id FROM conversations c "
+            "LEFT JOIN users u ON c.user_id = u.id "
+            "WHERE c.id = %s::uuid AND u.tenant_id = %s::uuid",
+            (conversation_id, tenant_id),
         )
+        if not await cur.fetchone():
+            raise ApiError(
+                "NOT_FOUND",
+                f"Conversation {conversation_id} not found",
+                404,
+            )
 
-    # CR-0096：同一 conversation 同時只能有一張「仍 active」的卡（部分唯一索引）。
-    # 已轉工單/結案的舊卡不算 → 同一客人可再開新卡。撞 active 卡才回 409。
-    cur = await db_module._conn.execute(
-        "SELECT id FROM problem_cards "
-        "WHERE conversation_id = %s::uuid "
-        "  AND status NOT IN ('resolved', 'escalated') AND converted_at IS NULL",
-        (conversation_id,),
-    )
-    if await cur.fetchone():
-        raise ApiError(
-            "STATE_CONFLICT",
-            "An active problem card already exists for this conversation",
-            409,
+        # CR-0096：同一 conversation 同時只能有一張「仍 active」的卡（部分唯一索引）。
+        # 已轉工單/結案的舊卡不算 → 同一客人可再開新卡。撞 active 卡才回 409。
+        cur = await db_module._conn.execute(
+            "SELECT id FROM problem_cards "
+            "WHERE conversation_id = %s::uuid "
+            "  AND status NOT IN ('resolved', 'escalated') AND converted_at IS NULL",
+            (conversation_id,),
         )
+        if await cur.fetchone():
+            raise ApiError(
+                "STATE_CONFLICT",
+                "An active problem card already exists for this conversation",
+                409,
+            )
 
     # 合併 symptom 字串與 symptoms 陣列
     merged_symptoms: list[str] = []
@@ -661,17 +672,23 @@ async def create_card(
     db_intent = _API_INTENT_TO_DB[intent] if intent else None
     media = media_urls if media_urls else None
 
+    # UAT P1-1：手建卡客戶資訊——電話落 contact_phone、姓名落 extracted_fields
+    extracted = (
+        json.dumps({"customer_name": customer_name.strip()[:100]})
+        if customer_name and customer_name.strip()
+        else None
+    )
     cur = await db_module._conn.execute(
         f"INSERT INTO problem_cards "
         f"  (conversation_id, brand, model, category, location, "
         f"   door_status, network_status, symptoms, urgency, intent, "
-        f"   media_urls, status, tenant_id) "
-        f"VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb, 'incomplete', %s::uuid) "
+        f"   media_urls, status, tenant_id, contact_phone, extracted_fields) "
+        f"VALUES (%s::uuid, %s, %s, %s, %s, %s, %s, %s::jsonb, %s, %s, %s::jsonb, 'incomplete', %s::uuid, %s, %s::jsonb) "
         f"RETURNING id",
         (
             conversation_id,
-            brand.strip()[:100],
-            model.strip()[:100],
+            (brand or "").strip()[:100] or None,
+            (model or "").strip()[:100] or None,
             (category or "").strip()[:100] or None,
             (location or "").strip()[:255] or None,
             door_status,
@@ -681,6 +698,8 @@ async def create_card(
             db_intent,
             json.dumps(media) if media else None,
             tenant_id,  # CR-0132：直接租戶欄
+            (customer_phone or "").strip()[:20] or None,
+            extracted,
         ),
     )
     row = await cur.fetchone()
@@ -1049,9 +1068,9 @@ async def update_card(
     cur = await db_module._conn.execute(
         "SELECT pc.id "
         "FROM problem_cards pc "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE pc.id = %s::uuid AND u.tenant_id = %s::uuid",
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE pc.id = %s::uuid AND COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid",
         (pc_id, tenant_id),
     )
     if not await cur.fetchone():

@@ -137,8 +137,10 @@ async def get_work_order(
     id: str = Path(),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # UAT P1-4：帶 actor 讓技師查非本人名下的單（池詳情）時套接單前隱私遮蔽
     order = await work_order_service.get_order(
         tenant_id=user.tenant_id, wo_id=id,
+        actor_user_id=user.user_id, actor_role=user.role,
     )
     return {"data": WorkOrder(**order).model_dump(mode="json")}
 

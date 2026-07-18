@@ -124,9 +124,9 @@ async def list_pending_approvals(
             "FROM scope_changes sc "
             "JOIN work_orders wo ON sc.work_order_id = wo.id "
             "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-            "JOIN conversations c ON pc.conversation_id = c.id "
-            "JOIN users u ON c.user_id = u.id "
-            "WHERE u.tenant_id = %s::uuid AND sc.status = 'pending' "
+            "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+            "LEFT JOIN users u ON c.user_id = u.id "
+            "WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid AND sc.status = 'pending' "
             "ORDER BY sc.created_at LIMIT %s",
             (tenant_id, limit),
         )
@@ -147,7 +147,7 @@ async def list_pending_approvals(
             "LEFT JOIN problem_cards pc ON wo.problem_card_id = pc.id "
             "LEFT JOIN conversations c ON pc.conversation_id = c.id "
             "LEFT JOIN users u ON c.user_id = u.id "
-            "WHERE u.tenant_id = %s::uuid "
+            "WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid "
             "  AND rr.status IN ('pending', 'csm_approved') "
             "ORDER BY rr.created_at LIMIT %s",
             (tenant_id, limit),

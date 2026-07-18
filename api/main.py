@@ -315,7 +315,10 @@ async def _public_upload_body_cap(request, call_next):
             )
     return await call_next(request)
 
-register_exception_handlers(app)
+# UAT 副產物修正：傳 CORS 白名單，讓未捕捉例外的 500（ServerErrorMiddleware
+# 產生、位於 CORSMiddleware 外側）也帶 Access-Control-Allow-Origin——否則前端
+# 只看到 CORS 錯、看不到真正的 500。
+register_exception_handlers(app, cors_origins=_cors_origins)
 app.add_exception_handler(IdempotencyReplay, handle_idempotency_replay)
 
 app.include_router(auth_router.router, prefix="/api/v1", tags=["auth"])

@@ -78,8 +78,8 @@ async def get_customer_satisfaction(
         "  AVG(wo.rating) FILTER (WHERE wo.rating IS NOT NULL) "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE {base_where}",
         tuple(args),
     )
@@ -99,8 +99,8 @@ async def get_customer_satisfaction(
         "SELECT wo.rating, COUNT(*) "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE {base_where} AND wo.rating IS NOT NULL "
         "GROUP BY wo.rating",
         tuple(args),
@@ -128,8 +128,8 @@ async def get_customer_satisfaction(
         "SELECT wo.id, wo.technician_id, wo.rating, wo.feedback, wo.completed_at "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE {base_where} AND wo.rating IS NOT NULL AND wo.rating <= 2 "
         "ORDER BY wo.completed_at DESC NULLS LAST "
         "LIMIT 5",

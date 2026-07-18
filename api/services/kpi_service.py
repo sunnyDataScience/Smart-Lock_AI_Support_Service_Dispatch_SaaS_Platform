@@ -3,7 +3,8 @@
 GET /api/v1/reports/kpi — 給 /admin/reports/kpi KPI 儀表板。
 
 聚合來源（皆 JOIN users.tenant_id 過濾）：
-  - funnel：conversations / problem_cards / work_orders 計數，依 created_at 落在 period
+  - funnel：以期間內建立的 conversations 為 cohort，各階段計「推進到該階段的
+    對話數」（UAT P3：cohort 化保證遞減鏈，轉換率恆 ≤ 100%）
   - dispute_rates：refund_requests / warranty_claims / disputes 數 / work_orders 總數
   - technician_efficiency：AVG(EXTRACT(EPOCH FROM completed_at - started_at)/60) 分鐘
 
@@ -68,41 +69,48 @@ def _build_time_filter(
     return _period_clause(alias), [interval, interval]
 
 
-async def _count_conversations(
+async def _funnel_counts(
     tenant_id: str,
     interval: str,
     start_date: date | None,
     end_date: date | None,
-) -> int:
+) -> dict:
+    """轉換漏斗（UAT P3 修正）：以「期間內建立的對話」為單一 cohort，各階段計
+    「該 cohort 中推進到此階段的對話數」。
+
+    舊算法各階段依自身 created_at 各自計數——期間內開的工單可對應期間外的
+    對話，工單數＞對話數 → 前端以首階段為分母算出 300% 假轉換率。cohort 化
+    後各階段為前一階段的子集（嚴格遞減鏈），百分比恆 ≤ 100%。
+    """
     clause, time_args = _build_time_filter("c", interval, start_date, end_date)
+    _wo_exists = (
+        "SELECT 1 FROM problem_cards pc "
+        "JOIN work_orders wo ON wo.problem_card_id = pc.id "
+        "WHERE pc.conversation_id = c.id"
+    )
     sql = (
-        "SELECT COUNT(*) FROM conversations c "
-        "JOIN users u ON c.user_id = u.id "
+        "SELECT COUNT(*), "
+        "  COUNT(*) FILTER (WHERE EXISTS ("
+        "    SELECT 1 FROM problem_cards pc WHERE pc.conversation_id = c.id)), "
+        f"  COUNT(*) FILTER (WHERE EXISTS ({_wo_exists})), "
+        f"  COUNT(*) FILTER (WHERE EXISTS ({_wo_exists} "
+        "    AND wo.status IN ('assigned','accepted','in_progress','completed','confirmed'))), "
+        f"  COUNT(*) FILTER (WHERE EXISTS ({_wo_exists} "
+        "    AND wo.status IN ('completed','confirmed'))) "
+        "FROM conversations c "
+        "LEFT JOIN users u ON c.user_id = u.id "
         "WHERE u.tenant_id = %s::uuid "
         f"AND {clause}"
     )
     cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
     row = await cur.fetchone()
-    return int(row[0] or 0)
-
-
-async def _count_problem_cards(
-    tenant_id: str,
-    interval: str,
-    start_date: date | None,
-    end_date: date | None,
-) -> int:
-    clause, time_args = _build_time_filter("pc", interval, start_date, end_date)
-    sql = (
-        "SELECT COUNT(*) FROM problem_cards pc "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE u.tenant_id = %s::uuid "
-        f"AND {clause}"
-    )
-    cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
-    row = await cur.fetchone()
-    return int(row[0] or 0)
+    return {
+        "conversations": int(row[0] or 0),
+        "problem_cards": int(row[1] or 0),
+        "work_orders": int(row[2] or 0),
+        "dispatched": int(row[3] or 0),
+        "completed": int(row[4] or 0),
+    }
 
 
 async def _count_work_orders(
@@ -122,8 +130,8 @@ async def _count_work_orders(
     sql = (
         "SELECT COUNT(*) FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE {' AND '.join(where)}"
     )
     cur = await db_module._conn.execute(sql, args)
@@ -153,9 +161,9 @@ async def _ftfr(
         "  )) AS first_time "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE u.tenant_id = %s::uuid "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid "
         f"AND {clause} "
         "AND wo.status IN ('completed', 'confirmed') "
         "AND COALESCE(wo.is_rework, FALSE) = FALSE"
@@ -182,9 +190,9 @@ async def _count_dispute_table(
         f"SELECT COUNT(*) FROM {table} t "
         f"JOIN work_orders wo ON t.{fk} = wo.id "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE u.tenant_id = %s::uuid "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid "
         f"AND {clause}"
     )
     cur = await db_module._conn.execute(sql, [tenant_id, *time_args])
@@ -206,9 +214,9 @@ async def _avg_handle_minutes(
         "       COUNT(*) "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
-        "JOIN users u ON c.user_id = u.id "
-        "WHERE u.tenant_id = %s::uuid "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN users u ON c.user_id = u.id "
+        "WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid "
         "AND wo.status IN ('completed','confirmed') "
         "AND wo.started_at IS NOT NULL "
         "AND wo.completed_at IS NOT NULL "
@@ -258,23 +266,10 @@ async def get_kpi_report(
 
     start_date, end_date = _validate_date_range(start_date, end_date)
 
-    conversations_n = await _count_conversations(tenant_id, interval, start_date, end_date)
-    problem_cards_n = await _count_problem_cards(tenant_id, interval, start_date, end_date)
+    # UAT P3：漏斗改 cohort 計數（同一批期間內對話逐階段遞減，轉換率恆 ≤ 100%）
+    funnel = await _funnel_counts(tenant_id, interval, start_date, end_date)
+    # 異常率分母維持「期間內建立的工單」絕對數（與漏斗 cohort 口徑分離）
     work_orders_n = await _count_work_orders(tenant_id, interval, start_date, end_date)
-    dispatched_n = await _count_work_orders(
-        tenant_id,
-        interval,
-        start_date,
-        end_date,
-        statuses=("assigned", "accepted", "in_progress", "completed", "confirmed"),
-    )
-    completed_n = await _count_work_orders(
-        tenant_id,
-        interval,
-        start_date,
-        end_date,
-        statuses=("completed", "confirmed"),
-    )
 
     refund_n = await _count_dispute_table(
         tenant_id, interval, start_date, end_date, "refund_requests"
@@ -297,13 +292,7 @@ async def get_kpi_report(
     return {
         "period": period,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "funnel": {
-            "conversations": conversations_n,
-            "problem_cards": problem_cards_n,
-            "work_orders": work_orders_n,
-            "dispatched": dispatched_n,
-            "completed": completed_n,
-        },
+        "funnel": funnel,
         "dispute_rates": {
             "refund_rate": _ratio(refund_n, work_orders_n),
             "warranty_claim_rate": _ratio(warranty_n, work_orders_n),

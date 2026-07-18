@@ -20,12 +20,17 @@
 
 from __future__ import annotations
 
+import logging
 from calendar import monthrange
 from datetime import date
 
+from psycopg import errors as pg_errors
+
 import core.db as db_module
-from core.db import _ensure_conn
+from core.db import _ensure_conn, require_tech_conn
 from core.errors import ApiError
+
+logger = logging.getLogger("api.technician_commission_service")
 
 # technicians.level（S/A/B/C）→ payout_rule.level_id（LV-A/B/C）。
 # 來源「19 鎖匠等級」僅定義 A/B/C；S 無對應費率 → 暫映最高級 LV-A（CR-0106 §限制，待業主補 S 級）。
@@ -150,3 +155,64 @@ async def compute_monthly_commission(
             "rate_source": "technician_payout_rule（業主 2026-06-27 核准）",
         },
     }
+
+
+async def list_my_commission_statements(
+    *, tenant_id: str, user_id: str, limit: int = 24
+) -> dict:
+    """技師本人佣金對帳單（UAT P2-5：tech surface 缺此端點 → 對帳單頁 404）。
+
+    來源 = technician_commission_projection（CR-0166 R4 / ADR-017 技師視角
+    跨品牌 CQRS 投影，commission.accrued 事件物化；雙庫模式讀技師權威庫，
+    單庫 fallback 主庫）。依月彙總（period=YYYY-MM），每期回
+    {period, gross_amount, commission_amount, status}。
+
+    誠實限制：
+      - 投影欄位最小化（ADR-017 §投影隱私）只帶佣金 accrued 金額，無工單毛額
+        → gross_amount 以當期佣金累計代替（＝commission_amount），待事件補帶毛額。
+      - 投影無對帳單狀態機 → status 一律 'accrued'（月結中），待月結模組。
+      - 無資料（含投影表尚未建立——consumer 未啟動過的部署）→ 空 items 200，不 404。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    # users.id → technicians.id（投影以 technician_id 關聯；查無技師列＝尚無佣金）
+    cur = await db_module._conn.execute(
+        "SELECT id FROM technicians WHERE user_id = %s::uuid AND tenant_id = %s::uuid",
+        (user_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        return {"items": []}
+    technician_id = str(row[0])
+
+    conn = await require_tech_conn()
+    try:
+        cur = await conn.execute(
+            "SELECT to_char(date_trunc('month', COALESCE(accrued_at, created_at)), 'YYYY-MM') "
+            "         AS period, "
+            "       SUM(amount), COUNT(*), MAX(currency) "
+            "FROM technician_commission_projection "
+            "WHERE technician_id = %s::uuid "
+            "GROUP BY period ORDER BY period DESC LIMIT %s",
+            (technician_id, limit),
+        )
+        rows = await cur.fetchall()
+    except pg_errors.UndefinedTable:
+        # 投影表由 event_consumer.ensure_schema() 建（opt-in）；未建＝尚無佣金
+        # 事件流入 → fail-soft 回空清單（UAT P2-5：不可 404/500）
+        logger.warning(
+            "technician_commission_projection 不存在（consumer 未啟動過）→ 回空對帳單"
+        )
+        return {"items": []}
+
+    items = [{
+        "period": r[0],
+        # 投影未帶工單毛額 → gross 以佣金累計代替（見 docstring 誠實限制）
+        "gross_amount": f"{float(r[1] or 0):.2f}",
+        "commission_amount": f"{float(r[1] or 0):.2f}",
+        "status": "accrued",
+        "items_count": int(r[2] or 0),
+        "currency": r[3] or "TWD",
+    } for r in rows]
+    return {"items": items}

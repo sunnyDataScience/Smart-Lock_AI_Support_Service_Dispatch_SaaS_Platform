@@ -217,7 +217,7 @@ async def get_customer(*, tenant_id: str, customer_id: str) -> dict:
         "SELECT wo.status, COUNT(*) "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
         "WHERE c.user_id = %s::uuid "
         "GROUP BY wo.status",
         (customer_id,),
@@ -234,7 +234,7 @@ async def get_customer(*, tenant_id: str, customer_id: str) -> dict:
         "  COUNT(*) FILTER (WHERE wo.rating IS NOT NULL) AS rated_count "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
         "WHERE c.user_id = %s::uuid AND wo.completed_at IS NOT NULL",
         (customer_id,),
     )
@@ -256,7 +256,7 @@ async def get_customer(*, tenant_id: str, customer_id: str) -> dict:
         "FROM refund_requests r "
         "JOIN work_orders wo ON r.work_order_id = wo.id "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
         "WHERE c.user_id = %s::uuid",
         (customer_id,),
     )
@@ -270,7 +270,7 @@ async def get_customer(*, tenant_id: str, customer_id: str) -> dict:
         "       wo.priority, wo.estimated_price, wo.created_at, wo.completed_at "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
-        "JOIN conversations c ON pc.conversation_id = c.id "
+        "LEFT JOIN conversations c ON pc.conversation_id = c.id "
         "WHERE c.user_id = %s::uuid "
         "ORDER BY wo.created_at DESC LIMIT 10",
         (customer_id,),
