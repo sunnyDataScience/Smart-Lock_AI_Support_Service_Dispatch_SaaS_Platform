@@ -51,7 +51,7 @@ export default function ApiStatusPage() {
             <p className="text-sm text-[var(--text-secondary)]">
               Smoke test for backend connectivity. Base URL:{" "}
               <code className="rounded bg-slate-100 px-2 py-0.5 text-xs">
-                {process.env.NEXT_PUBLIC_API_BASE_URL ?? "(unset)"}
+                {process.env.NEXT_PUBLIC_API_BASE_URL || "(unset)"}
               </code>
             </p>
           </div>

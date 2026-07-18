@@ -5,6 +5,7 @@ import { Banknote } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { formatTwd } from "@/lib/format";
 
 interface PayoutRule {
   rule_id: string;
@@ -39,11 +40,10 @@ function pct(v: string | number | null): string {
   if (Number.isNaN(n)) return "—";
   return `${Math.round(n * 100)}%`;
 }
-function money(v: string | number | null, cur: string | null): string {
+// UAT W1-5：幣別統一走共用 formatTwd（NT$ 整數格式）；cur 欄位（如 "TWD"）不再直出
+function money(v: string | number | null): string {
   if (v == null) return "—";
-  const n = typeof v === "string" ? parseFloat(v) : v;
-  if (Number.isNaN(n)) return "—";
-  return `${cur || "NT$"} ${n.toLocaleString("zh-TW", { maximumFractionDigits: 0 })}`;
+  return formatTwd(v);
 }
 
 export default function PayoutRulesPage() {
@@ -109,7 +109,7 @@ export default function PayoutRulesPage() {
                         <td className="px-3 py-2 text-[var(--text-secondary)]">{r.level_id}</td>
                         {resp.cost_visible && (
                           <td className="px-3 py-2 text-right font-mono font-medium text-[var(--text-primary)]">
-                            {money(r.base_payout, r.currency)}
+                            {money(r.base_payout)}
                           </td>
                         )}
                         <td className="px-3 py-2 text-right">{pct(r.night_surcharge_pct)}</td>

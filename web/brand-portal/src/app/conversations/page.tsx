@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import ConversationsTable from "@/components/conversations/ConversationsTable";
 import { resolveTenantId } from "@/lib/api";
@@ -35,6 +36,9 @@ export default function ConversationsPage() {
     [tTabs],
   );
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
+  // UAT W5-5：對話搜尋。後端 listConversationsV2 尚不支援 q 參數，
+  // 故先做前端 filter（僅過濾已載入清單，UI 有標註範圍）。
+  const [search, setSearch] = useState("");
 
   // CR-0003 P2-W2：遷移至 tenant-scoped v2 端點（FR-0018）
   const tenantId = resolveTenantId();
@@ -48,6 +52,16 @@ export default function ConversationsPage() {
     // 有新對話/新訊息時自動刷新第一頁（15s 輪詢，bypass 快取；翻頁後自動暫停）
     pollIntervalMs: 15_000,
   });
+
+  const q = search.trim().toLowerCase();
+  const visibleItems = useMemo(() => {
+    if (!q) return items;
+    return items.filter(
+      (c) =>
+        (c.display_name ?? "").toLowerCase().includes(q) ||
+        (c.line_user_id ?? "").toLowerCase().includes(q),
+    );
+  }, [items, q]);
 
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
@@ -78,12 +92,30 @@ export default function ConversationsPage() {
               ))}
             </div>
 
-            <span className="ml-auto text-[13px] text-[var(--text-secondary)]">
+            {/* UAT W5-5：搜尋客戶名稱 / LINE ID（前端過濾已載入清單） */}
+            <div className="relative ml-auto hidden sm:block">
+              <Search
+                className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-disabled)]"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("searchPlaceholder")}
+                aria-label={t("searchPlaceholder")}
+                className="w-[220px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] py-[7px] pl-8 pr-3 text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-disabled)] focus:border-[var(--primary)] focus:outline-none"
+              />
+            </div>
+
+            <span className="text-[13px] text-[var(--text-secondary)]">
               {loading
                 ? t("loading")
-                : hasMore
-                  ? t("totalCountMore", { count: items.length })
-                  : t("totalCount", { count: items.length })}
+                : q
+                  ? t("searchNote", { count: items.length })
+                  : hasMore
+                    ? t("totalCountMore", { count: items.length })
+                    : t("totalCount", { count: items.length })}
             </span>
           </div>
         </div>
@@ -99,7 +131,13 @@ export default function ConversationsPage() {
             </div>
           )}
 
-          <ConversationsTable items={items} loading={loading} />
+          {q && visibleItems.length === 0 && !loading ? (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-8 text-center text-sm text-[var(--text-secondary)]">
+              {t("searchEmpty", { q: search.trim() })}
+            </div>
+          ) : (
+            <ConversationsTable items={visibleItems} loading={loading} />
+          )}
 
           {hasMore && (
             <div className="mt-4 flex justify-center">

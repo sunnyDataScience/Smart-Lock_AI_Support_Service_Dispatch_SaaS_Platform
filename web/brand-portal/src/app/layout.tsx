@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Noto_Sans_TC } from "next/font/google";
 import AuthGuard from "@/components/layout/AuthGuard";
+import SkipLink from "@/components/layout/SkipLink";
 import { ToastProvider } from "@/components/ui/Toast";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
@@ -69,18 +70,18 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeFOUCScript }} />
       </head>
       <body className="h-full font-primary antialiased">
-        {/* WCAG 2.4.1 Bypass Blocks：第一個可 tab 元素是 skip-link，按 Enter
-         * 跳到 #main-content；視覺上預設隱藏（translateY(-200%)），:focus 才滑入 */}
-        <a href="#main-content" className="skip-link">
-          跳到主要內容
-        </a>
         {/* Provider 嵌套順序：Theme（最外）→ Locale → Toast → AuthGuard
          *   - Theme 影響色票，最早套用避免閃白
          *   - Locale 設定 html.lang，screen reader / 字型 fallback 需要
          *   - Toast 在最內層，登入畫面也能用；t() 透過 Locale context 取得
+         * WCAG 2.4.1 Bypass Blocks：SkipLink 是 LocaleProvider 內第一個 DOM
+         * 元素＝第一個可 tab 元素（provider 本身不渲染節點，tab 順序不變）；
+         * 視覺上預設隱藏（translateY(-200%)），:focus 才滑入。UAT W6-1 改為
+         * client component 以接 i18n。
          */}
         <ThemeProvider>
           <LocaleProvider>
+            <SkipLink />
             <ToastProvider>
               <AuthGuard>{children}</AuthGuard>
             </ToastProvider>

@@ -13,7 +13,7 @@ export default function DashboardLoading() {
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header title="儀表板" subtitle="近 7 日營運概況" />
         <main className="flex flex-1 flex-col gap-6 overflow-auto px-8 py-6">
           {/* 4 KPI cards (top row) */}

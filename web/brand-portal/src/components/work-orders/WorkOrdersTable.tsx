@@ -118,7 +118,7 @@ function WorkOrderRow({
       aria-rowindex={idx + 2}  /* +1 表頭、+1 to be 1-indexed */
       style={style}
       className={`flex h-12 items-center border-b border-[var(--border)] px-4 hover:bg-[#EFF6FF] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 focus-visible:ring-inset ${
-        idx % 2 === 0 ? "bg-white" : "bg-[var(--bg-page)]"
+        idx % 2 === 0 ? "bg-[var(--bg-surface)]" : "bg-[var(--bg-page)]"
       }`}
     >
       <div role="cell" className="w-[120px]">
@@ -292,36 +292,39 @@ export default function WorkOrdersTable({ items, loading }: Props) {
   const useVirtual = items.length >= VIRTUALIZE_THRESHOLD;
 
   return (
-    <div
-      role="table"
-      aria-label={tTable("ariaLabel")}
-      aria-rowcount={items.length + 1}  /* 含表頭 */
-      aria-colcount={cols.length}
-      className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]"
-    >
-      <TableHeader cols={cols} />
+    // UAT W6-4：外層 overflow-x-auto——固定欄寬列在 390px 改容器內橫捲，不再互相覆蓋
+    <div className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]">
+      <div
+        role="table"
+        aria-label={tTable("ariaLabel")}
+        aria-rowcount={items.length + 1}  /* 含表頭 */
+        aria-colcount={cols.length}
+        className="min-w-[820px]"
+      >
+        <TableHeader cols={cols} />
 
-      {items.length === 0 && !loading && (
-        <div role="row" className="flex h-24 items-center justify-center">
-          <div role="cell" aria-colspan={cols.length}>
-            <span className="text-[13px] text-[var(--text-secondary)]">{tEmpty("empty")}</span>
+        {items.length === 0 && !loading && (
+          <div role="row" className="flex h-24 items-center justify-center">
+            <div role="cell" aria-colspan={cols.length}>
+              <span className="text-[13px] text-[var(--text-secondary)]">{tEmpty("empty")}</span>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {useVirtual ? (
-        <VirtualizedRows items={items} groupLabels={groupLabels} urgencyLabels={urgencyLabels} />
-      ) : (
-        items.map((order, idx) => (
-          <WorkOrderRow
-            key={order.id}
-            order={order}
-            idx={idx}
-            groupLabel={groupLabels[STATUS_GROUP_MAP[order.status]]}
-            urgencyLabel={urgencyLabels[order.urgency]}
-          />
-        ))
-      )}
+        {useVirtual ? (
+          <VirtualizedRows items={items} groupLabels={groupLabels} urgencyLabels={urgencyLabels} />
+        ) : (
+          items.map((order, idx) => (
+            <WorkOrderRow
+              key={order.id}
+              order={order}
+              idx={idx}
+              groupLabel={groupLabels[STATUS_GROUP_MAP[order.status]]}
+              urgencyLabel={urgencyLabels[order.urgency]}
+            />
+          ))
+        )}
+      </div>
     </div>
   );
 }

@@ -15,9 +15,17 @@ import {
 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import InvoicesTable from "@/components/accounting/InvoicesTable";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerDescription,
+} from "@/components/ui/Drawer";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { auth, getCurrentSession } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { formatTwd } from "@/lib/format";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
 
@@ -51,6 +59,8 @@ export default function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [periodFilter, setPeriodFilter] = useState<string>("");
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>("");
+  // UAT W1-4：發票詳情 Drawer（原眼睛 icon 為死控制）
+  const [viewTarget, setViewTarget] = useState<Invoice | null>(null);
 
   const queryString = useMemo(() => {
     const p = new URLSearchParams();
@@ -233,7 +243,11 @@ export default function InvoicesPage() {
 
         {/* Invoices Table */}
         <div className="flex flex-1 flex-col overflow-auto">
-          <InvoicesTable items={items} loading={loading} />
+          <InvoicesTable
+            items={items}
+            loading={loading}
+            onView={(inv) => setViewTarget(inv)}
+          />
 
           {hasMore && (
             <div className="flex justify-center py-4">
@@ -248,6 +262,92 @@ export default function InvoicesPage() {
           )}
         </div>
       </div>
+
+      {/* UAT W1-4：發票詳情 Drawer（最小實作：不做整頁路由） */}
+      <InvoiceDetailDrawer invoice={viewTarget} onClose={() => setViewTarget(null)} />
+    </div>
+  );
+}
+
+function InvoiceDetailDrawer({
+  invoice,
+  onClose,
+}: {
+  invoice: Invoice | null;
+  onClose: () => void;
+}) {
+  const t = useTranslations("accounting.invoiceDetail");
+  const tStatus = useTranslations("components.accounting.invoicesTable.status");
+  const tCategory = useTranslations("components.accounting.invoicesTable.category");
+
+  function fmtDateTime(iso: string | null | undefined): string {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString("zh-TW", { hour12: false });
+  }
+
+  return (
+    <Drawer open={!!invoice} onOpenChange={(open) => !open && onClose()}>
+      {invoice && (
+        <DrawerContent side="right" size="md">
+          <DrawerHeader>
+            <DrawerTitle>{t("title")}</DrawerTitle>
+            <DrawerDescription className="font-mono">
+              {invoice.invoice_number}
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="flex flex-col gap-3 overflow-y-auto px-6 py-4 text-[13px]">
+            <DetailRow label={t("invoiceNumber")}>
+              <span className="font-mono">{invoice.invoice_number}</span>
+            </DetailRow>
+            <DetailRow label={t("amount")}>
+              <span className="font-mono font-semibold">{formatTwd(invoice.amount)}</span>
+            </DetailRow>
+            <DetailRow label={t("status")}>{tStatus(invoice.status)}</DetailRow>
+            <DetailRow label={t("workOrder")}>
+              <Link
+                href={`/work-orders/${invoice.work_order_id}`}
+                className="font-mono text-[var(--primary)] hover:underline"
+              >
+                {invoice.work_order_id.slice(0, 8)}
+              </Link>
+            </DetailRow>
+            <DetailRow label={t("category")}>
+              {invoice.category ? tCategory(invoice.category) : "—"}
+            </DetailRow>
+            <DetailRow label={t("taxId")}>{invoice.tax_id || "—"}</DetailRow>
+            <DetailRow label={t("issuedAt")}>{fmtDateTime(invoice.issued_at)}</DetailRow>
+            <DetailRow label={t("updatedAt")}>{fmtDateTime(invoice.updated_at)}</DetailRow>
+            {invoice.voided_at && (
+              <DetailRow label={t("voidedAt")}>{fmtDateTime(invoice.voided_at)}</DetailRow>
+            )}
+            {invoice.void_reason && (
+              <DetailRow label={t("voidReason")}>{invoice.void_reason}</DetailRow>
+            )}
+            {invoice.allowance_amount != null && (
+              <DetailRow label={t("allowanceAmount")}>
+                <span className="font-mono">{formatTwd(invoice.allowance_amount)}</span>
+              </DetailRow>
+            )}
+          </div>
+        </DrawerContent>
+      )}
+    </Drawer>
+  );
+}
+
+function DetailRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-[var(--border)] pb-2 last:border-b-0">
+      <span className="shrink-0 text-[var(--text-secondary)]">{label}</span>
+      <span className="text-right text-[var(--text-primary)]">{children}</span>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Eye } from "lucide-react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
-import { formatRelative } from "@/lib/format";
+import { formatRelative, formatTwd } from "@/lib/format";
 
 type Invoice = components["schemas"]["Invoice"];
 type InvoiceStatus = components["schemas"]["InvoiceStatus"];
@@ -13,6 +13,8 @@ type InvoiceStatus = components["schemas"]["InvoiceStatus"];
 interface Props {
   items: Invoice[];
   loading?: boolean;
+  /** UAT W1-4：點眼睛開發票詳情（不傳則不渲染操作鈕） */
+  onView?: (inv: Invoice) => void;
 }
 
 const STATUS_TONE: Record<InvoiceStatus, { textColor: string; bgColor: string }> = {
@@ -23,13 +25,7 @@ const STATUS_TONE: Record<InvoiceStatus, { textColor: string; bgColor: string }>
   reopened: { textColor: "#5B21B6", bgColor: "#EDE9FE" },
 };
 
-function formatTwd(amount: string): string {
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return `NT$ ${amount}`;
-  return `NT$ ${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
-export default function InvoicesTable({ items, loading }: Props) {
+export default function InvoicesTable({ items, loading, onView }: Props) {
   const t = useTranslations("components.accounting.invoicesTable");
 
   const columns = useMemo(
@@ -159,9 +155,21 @@ export default function InvoicesTable({ items, loading }: Props) {
               </span>
             </div>
 
-            {/* Actions */}
+            {/* Actions — UAT W1-4：原為死控制（裸 icon），改為可點開詳情 */}
             <div className="flex min-w-0 flex-1 items-center gap-1 px-2">
-              <Eye className="h-4 w-4 text-[var(--text-secondary)]" />
+              {onView ? (
+                <button
+                  type="button"
+                  onClick={() => onView(inv)}
+                  title={t("viewDetail")}
+                  aria-label={t("viewDetailAria", { number: inv.invoice_number })}
+                  className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--text-secondary)] transition hover:bg-[var(--bg-page)] hover:text-[var(--primary)]"
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+              ) : (
+                <Eye className="h-4 w-4 text-[var(--text-disabled)]" />
+              )}
             </div>
           </div>
         );

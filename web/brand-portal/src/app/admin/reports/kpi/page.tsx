@@ -19,6 +19,7 @@ import {
 import { api, auth } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
@@ -26,12 +27,8 @@ import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
 type KpiReport = components["schemas"]["KpiReport"];
 type Period = components["schemas"]["DashboardPeriod"];
 
-const SEGMENTS: { label: string; value: Period }[] = [
-  { label: "今日", value: "today" },
-  { label: "7 天", value: "7d" },
-  { label: "30 天", value: "30d" },
-  { label: "90 天", value: "90d" },
-];
+// UAT W6-1：label 走 i18n（admin.reportsKpi.segments）
+const SEGMENT_VALUES: Period[] = ["today", "7d", "30d", "90d"];
 
 function formatPercent(rateStr: string | null | undefined): string {
   if (rateStr === null || rateStr === undefined) return "—";
@@ -52,30 +49,34 @@ interface FunnelStage {
   color: string;
 }
 
-function buildFunnel(report: KpiReport | null): FunnelStage[] {
+function buildFunnel(
+  report: KpiReport | null,
+  labelOf: (key: string) => string,
+): FunnelStage[] {
   const f = report?.funnel;
   if (!f) return [];
   return [
-    { label: "對話建立", value: f.conversations, color: "#1E40AF" },
-    { label: "ProblemCard 產出", value: f.problem_cards, color: "#2563EB" },
-    { label: "工單建立", value: f.work_orders, color: "#3B82F6" },
-    { label: "派出/接受", value: f.dispatched, color: "#06B6D4" },
-    { label: "完工", value: f.completed, color: "#10B981" },
+    { label: labelOf("conversations"), value: f.conversations, color: "#1E40AF" },
+    { label: labelOf("problemCards"), value: f.problem_cards, color: "#2563EB" },
+    { label: labelOf("workOrders"), value: f.work_orders, color: "#3B82F6" },
+    { label: labelOf("dispatched"), value: f.dispatched, color: "#06B6D4" },
+    { label: labelOf("completed"), value: f.completed, color: "#10B981" },
   ];
 }
 
-function PendingTag({ note }: { note: string }) {
+function PendingTag({ note, label }: { note: string; label: string }) {
   return (
     <span
       className="ml-2 rounded-md bg-[#FEF3C7] px-2 py-[2px] text-[10px] font-semibold text-[#92400E]"
       title={note}
     >
-      待接入
+      {label}
     </span>
   );
 }
 
 export default function KpiDashboardPage() {
+  const t = useTranslations("admin.reportsKpi");
   // 預設「過去 30 日」，與舊行為一致；DateRangePicker 與 segment 共享同一 range state
   const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
   const [scheduleOpen, setScheduleOpen] = useState(false);
@@ -133,7 +134,7 @@ export default function KpiDashboardPage() {
     fetchReport(period);
   }, [period]);
 
-  const funnel = buildFunnel(report);
+  const funnel = buildFunnel(report, (key) => t(`funnel.${key}`));
   const baseValue = funnel[0]?.value ?? 0;
 
   return (
@@ -145,16 +146,16 @@ export default function KpiDashboardPage() {
           {/* Page Header */}
           <div className="flex flex-col gap-1">
             <span className="text-[13px] text-[var(--text-secondary)]">
-              首頁 &gt; 報表 &gt; KPI 儀表板
+              {t("breadcrumb")}
             </span>
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-semibold text-[var(--text-primary)]">
-                KPI 儀表板
+                {t("title")}
               </h1>
               <button
                 onClick={() => fetchReport(period)}
                 disabled={loading}
-                title="重新整理"
+                title={t("refresh")}
                 className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <RefreshCw
@@ -165,7 +166,7 @@ export default function KpiDashboardPage() {
               </button>
             </div>
             <span className="text-[13px] text-[var(--text-secondary)]">
-              資料截至 {formatGeneratedAt(report?.generated_at)}
+              {t("dataAsOf", { time: formatGeneratedAt(report?.generated_at) })}
             </span>
           </div>
 
@@ -177,18 +178,19 @@ export default function KpiDashboardPage() {
 
           {/* Toolbar */}
           <div className="flex items-center gap-3">
-            <div className="flex rounded-lg bg-[#F1F5F9] p-[3px]">
-              {SEGMENTS.map((seg) => (
+            {/* UAT W6-7 同型修正：segmented control 底色改 semantic token */}
+            <div className="flex rounded-lg bg-[var(--bg-page)] p-[3px]">
+              {SEGMENT_VALUES.map((value) => (
                 <button
-                  key={seg.value}
-                  onClick={() => handleSegmentClick(seg.value)}
+                  key={value}
+                  onClick={() => handleSegmentClick(value)}
                   className={`rounded-md px-[14px] py-[6px] text-[13px] ${
-                    period === seg.value
+                    period === value
                       ? "bg-[var(--primary)] font-medium text-white"
                       : "font-medium text-[var(--text-secondary)]"
                   }`}
                 >
-                  {seg.label}
+                  {t(`segments.${value}`)}
                 </button>
               ))}
             </div>
@@ -199,11 +201,11 @@ export default function KpiDashboardPage() {
 
             <button
               onClick={() => setExportOpen(true)}
-              title="匯出 CSV"
+              title={t("exportCsvTitle")}
               className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] hover:bg-[var(--bg-page)]"
             >
               <Download className="h-4 w-4 text-[var(--text-secondary)]" />
-              <span className="text-[13px] text-[var(--text-primary)]">匯出報告</span>
+              <span className="text-[13px] text-[var(--text-primary)]">{t("exportReport")}</span>
             </button>
 
             <button
@@ -211,7 +213,7 @@ export default function KpiDashboardPage() {
               className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] hover:bg-[var(--bg-page)]"
             >
               <Timer className="h-4 w-4 text-[var(--text-secondary)]" />
-              <span className="text-[13px] text-[var(--text-primary)]">排程週/月報</span>
+              <span className="text-[13px] text-[var(--text-primary)]">{t("scheduleReport")}</span>
             </button>
           </div>
 
@@ -219,18 +221,18 @@ export default function KpiDashboardPage() {
           <div className="flex flex-col gap-5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <div className="flex items-center gap-2">
               <span className="text-base font-semibold text-[var(--text-primary)]">
-                轉換漏斗
+                {t("funnelTitle")}
               </span>
               <Info className="h-4 w-4 text-[var(--text-disabled)]" />
             </div>
 
             {loading && !report ? (
               <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-                載入中…
+                {t("loading")}
               </div>
             ) : baseValue === 0 ? (
               <div className="flex h-32 items-center justify-center text-[13px] text-[var(--text-secondary)]">
-                此期間尚無對話資料
+                {t("funnelEmpty")}
               </div>
             ) : (
               <>
@@ -291,7 +293,7 @@ export default function KpiDashboardPage() {
                   })}
                 </div>
                 <span className="text-center text-[11px] text-[var(--text-secondary)]">
-                  各階段轉換率
+                  {t("stageRate")}
                 </span>
               </>
             )}
@@ -300,26 +302,27 @@ export default function KpiDashboardPage() {
           {/* Dispute & Anomaly Card */}
           <div className="flex flex-col gap-5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <span className="text-base font-semibold text-[var(--text-primary)]">
-              異常率
+              {t("disputeTitle")}
             </span>
-            <div className="flex gap-4">
+            {/* UAT W6-4 同型修正：小螢幕堆疊 */}
+            <div className="flex flex-col gap-4 md:flex-row">
               <DisputeRow
-                label="退款率"
+                label={t("refundRate")}
                 rate={report?.dispute_rates?.refund_rate}
                 target={0.05}
-                hint="退款申請數 / 工單總數"
+                hint={t("refundRateHint")}
               />
               <DisputeRow
-                label="保固索賠率"
+                label={t("warrantyClaimRate")}
                 rate={report?.dispute_rates?.warranty_claim_rate}
                 target={0.05}
-                hint="保固索賠數 / 工單總數"
+                hint={t("warrantyClaimRateHint")}
               />
               <DisputeRow
-                label="爭議升級率"
+                label={t("disputeRate")}
                 rate={report?.dispute_rates?.dispute_rate}
                 target={0.02}
-                hint="爭議升級數 / 工單總數"
+                hint={t("disputeRateHint")}
               />
             </div>
           </div>
@@ -327,32 +330,32 @@ export default function KpiDashboardPage() {
           {/* Technician Efficiency Card */}
           <div className="flex flex-col gap-5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <span className="text-base font-semibold text-[var(--text-primary)]">
-              技師效率
+              {t("techEfficiencyTitle")}
             </span>
 
-            <div className="flex gap-4">
-              <div className="flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
+            <div className="flex flex-col gap-4 md:flex-row">
+              <div className="flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-page)] p-5">
                 <span className="text-[13px] text-[var(--text-secondary)]">
-                  平均處理時長
+                  {t("avgHandle")}
                 </span>
                 <span className="text-2xl font-bold text-[var(--text-primary)]">
                   {report?.technician_efficiency?.avg_handle_minutes != null
-                    ? `${report.technician_efficiency.avg_handle_minutes} 分`
+                    ? t("avgHandleValue", { n: report.technician_efficiency.avg_handle_minutes })
                     : "—"}
                 </span>
                 <span className="text-[11px] text-[var(--text-secondary)]">
-                  樣本：{report?.technician_efficiency?.completed_count ?? 0} 筆完工
+                  {t("avgHandleSample", { count: report?.technician_efficiency?.completed_count ?? 0 })}
                 </span>
               </div>
-              <div className="flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
+              <div className="flex flex-1 flex-col items-center gap-2 rounded-[10px] border border-[var(--border)] bg-[var(--bg-page)] p-5">
                 <span className="text-[13px] text-[var(--text-secondary)]">
-                  一次修好率（FTFR）
+                  {t("ftfr")}
                 </span>
                 <span className="text-2xl font-bold text-[var(--text-primary)]">
                   {formatPercent(report?.technician_efficiency?.ftfr)}
                 </span>
                 <span className="text-[11px] text-[var(--text-secondary)]">
-                  樣本：{report?.technician_efficiency?.ftfr_sample ?? 0} 筆完工（未被返工 / 完工原始工單）
+                  {t("ftfrSample", { count: report?.technician_efficiency?.ftfr_sample ?? 0 })}
                 </span>
               </div>
             </div>
@@ -360,17 +363,17 @@ export default function KpiDashboardPage() {
 
           {/* UAT 隱藏(20260702 決議 7):SLA/滿意度/NPS 為待接入佔位塊 */}
           {!UAT_HIDE_FAKE_FLOWS && (
-            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-[var(--border)] bg-[#F8FAFC] p-6">
+            <div className="flex flex-col gap-3 rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-page)] p-6">
               <div className="flex items-center">
                 <span className="text-base font-semibold text-[var(--text-secondary)]">
-                  SLA 達成率 / 客戶滿意度 / NPS / 差評率
+                  {t("pendingTitle")}
                 </span>
-                <PendingTag note="需 SLA 規則表 + 評價回傳機制" />
+                <PendingTag note={t("pendingNote")} label={t("pendingTag")} />
               </div>
               <span className="text-[13px] leading-relaxed text-[var(--text-secondary)]">
                 {report?.notes?.length
                   ? report.notes.join("；")
-                  : "需各自獨立模組接入後再上線。"}
+                  : t("pendingDesc")}
               </span>
             </div>
           )}
@@ -416,7 +419,7 @@ function DisputeRow({
   const barWidth = pct === null ? 0 : Math.min(100, pct * 5);
 
   return (
-    <div className="flex flex-1 flex-col gap-3 rounded-[10px] border border-[var(--border)] bg-[#F8FAFC] p-5">
+    <div className="flex flex-1 flex-col gap-3 rounded-[10px] border border-[var(--border)] bg-[var(--bg-page)] p-5">
       <div className="flex items-center justify-between">
         <span className="text-[13px] text-[var(--text-primary)]">{label}</span>
         <span

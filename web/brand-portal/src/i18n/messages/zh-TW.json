@@ -14,7 +14,8 @@
     "search": "搜尋",
     "language": "語言",
     "comingSoon": "即將推出",
-    "notAvailable": "—"
+    "notAvailable": "—",
+    "skipToMain": "跳到主要內容"
   },
   "header": {
     "searchPlaceholder": "搜尋工單、技師、客戶...",
@@ -496,6 +497,33 @@
           "createdAt": "建立時間",
           "technician": "指派技師"
         }
+      },
+      "charts": {
+        "trendTitle": "工單趨勢",
+        "techStatusTitle": "技師狀態分佈",
+        "sampleBadge": "取樣 {limit} 筆",
+        "sampleBadgeTitle": "只取最近 {limit} 筆工單；資料量超過時較舊區段可能偏低",
+        "loadFailed": "載入失敗：{error}",
+        "loading": "載入中…",
+        "ranges": {
+          "7d": "7天",
+          "14d": "14天",
+          "30d": "30天"
+        },
+        "hotTopics": "熱門問題類別",
+        "topBrands": "熱門品牌",
+        "noData": "目前無資料",
+        "seriesCreated": "新建工單",
+        "seriesCompleted": "已完成工單",
+        "totalPeople": "總人數",
+        "peopleCount": "{count}人",
+        "availability": {
+          "available": "可用",
+          "busy": "外出中",
+          "offline": "離線",
+          "on_leave": "休假中",
+          "circuit_breaker_open": "熔斷中"
+        }
       }
     },
     "problemCards": {
@@ -546,7 +574,18 @@
       "filters": {
         "status": "狀態",
         "last7Days": "最近 7 天",
-        "brand": "品牌"
+        "brand": "品牌",
+        "statusOptions": {
+          "dispatched": "已派工",
+          "completed": "已完工",
+          "refunded": "已退款",
+          "disputed": "爭議中"
+        },
+        "periodOptions": {
+          "7": "最近 7 天",
+          "30": "最近 30 天",
+          "90": "最近 90 天"
+        }
       },
       "views": {
         "list": "列表",
@@ -557,7 +596,8 @@
       "searchPlaceholder": "搜尋功能即將推出",
       "loadFailed": "載入工單失敗：{error}",
       "loadingMore": "載入中…",
-      "loadMore": "載入更多"
+      "loadMore": "載入更多",
+      "createOrder": "新增工單"
     },
     "conversations": {
       "title": "對話管理",
@@ -571,7 +611,10 @@
       "totalCount": "共 {count} 筆",
       "totalCountMore": "共 {count}+ 筆",
       "loadingMore": "載入中…",
-      "loadMore": "載入更多"
+      "loadMore": "載入更多",
+      "searchPlaceholder": "搜尋客戶名稱 / LINE ID",
+      "searchNote": "僅搜尋已載入的 {count} 筆",
+      "searchEmpty": "無符合「{q}」的對話"
     },
     "workOrderDetail": {
       "breadcrumb": "首頁 > 工單管理 > 工單列表 > {id}",
@@ -1204,7 +1247,11 @@
         "price": "金額",
         "total": "報價總額",
         "validUntil": "報價有效期至",
-        "snapshot": "報價憑證"
+        "quoteNo": "報價單編號",
+        "quoteDate": "報價日期",
+        "workOrderNo": "工單編號",
+        "serviceAddress": "服務地址",
+        "snapshot": "驗證碼（客服核對用）"
       },
       "buttons": {
         "accept": "同意報價",
@@ -2110,6 +2157,202 @@
       "total": "總額",
       "open": "開啟",
       "quoteNo": "報價單號"
+    },
+    "cases": {
+      "title": "進線案件（Case）",
+      "totalCount": "共 {count} 件",
+      "filteredCount": "，篩出 {count} 件",
+      "slaOverdueCount": "{count} 件 SLA 逾時",
+      "createTitle": "代客建案（電話/官網/熟客介紹）",
+      "createDesc": "LINE 進線由系統自動建案；此處供客服登記非 LINE 進線。建立後自動發案號並啟動首次回應 SLA 計時。",
+      "fieldChannel": "進線渠道",
+      "fieldCustomerName": "客戶姓名",
+      "fieldCustomerPhone": "客戶電話",
+      "fieldSummary": "需求摘要",
+      "summaryPlaceholder": "如：三樓鐵門鎖舌卡住",
+      "createBtn": "建立進線案件",
+      "creating": "建立中…",
+      "fillRequired": "請至少填寫需求摘要或客戶聯絡資訊",
+      "createdOk": "已建立進線案件 {caseNumber}（{channel}）",
+      "loading": "載入中…",
+      "empty": "目前沒有進線案件",
+      "emptyFiltered": "沒有符合篩選條件的案件",
+      "filterLabel": "篩選",
+      "allStatus": "全部狀態",
+      "allChannels": "全部渠道",
+      "overdueOnly": "只看 SLA 逾時",
+      "clearFilters": "清除篩選",
+      "channel": {
+        "line": "LINE",
+        "phone": "電話",
+        "web": "官網表單",
+        "referral": "熟客介紹"
+      },
+      "status": {
+        "open": "待回應",
+        "in_progress": "處理中",
+        "closed": "已結案"
+      },
+      "cols": {
+        "caseNumber": "案號",
+        "channel": "渠道",
+        "customer": "客戶",
+        "summary": "摘要",
+        "status": "狀態",
+        "sla": "SLA（首次回應）",
+        "actions": "操作"
+      },
+      "sla": {
+        "responded": "已回應",
+        "awaiting": "待回應",
+        "overdue": "逾時 {duration}",
+        "remaining": "剩 {duration}"
+      },
+      "duration": {
+        "days": "{n} 天",
+        "hoursMinutes": "{h} 小時 {m} 分",
+        "minutes": "{n} 分"
+      },
+      "markInProgress": "標記處理中",
+      "closeCase": "結案",
+      "expandDetail": "展開案件明細",
+      "collapseDetail": "收合案件明細",
+      "detail": {
+        "caseNumber": "案號",
+        "channel": "進線渠道",
+        "createdAt": "建立時間",
+        "customerName": "客戶姓名",
+        "customerPhone": "客戶電話",
+        "status": "狀態",
+        "firstResponseDue": "首次回應期限",
+        "firstRespondedAt": "首次回應時間",
+        "sla": "SLA",
+        "summary": "需求摘要"
+      }
+    },
+    "reportsKpi": {
+      "breadcrumb": "首頁 > 報表 > KPI 儀表板",
+      "title": "KPI 儀表板",
+      "refresh": "重新整理",
+      "dataAsOf": "資料截至 {time}",
+      "segments": {
+        "today": "今日",
+        "7d": "7 天",
+        "30d": "30 天",
+        "90d": "90 天"
+      },
+      "exportReport": "匯出報告",
+      "exportCsvTitle": "匯出 CSV",
+      "scheduleReport": "排程週/月報",
+      "funnelTitle": "轉換漏斗",
+      "loading": "載入中…",
+      "funnelEmpty": "此期間尚無對話資料",
+      "funnel": {
+        "conversations": "對話建立",
+        "problemCards": "ProblemCard 產出",
+        "workOrders": "工單建立",
+        "dispatched": "派出/接受",
+        "completed": "完工"
+      },
+      "stageRate": "各階段轉換率",
+      "disputeTitle": "異常率",
+      "refundRate": "退款率",
+      "refundRateHint": "退款申請數 / 工單總數",
+      "warrantyClaimRate": "保固索賠率",
+      "warrantyClaimRateHint": "保固索賠數 / 工單總數",
+      "disputeRate": "爭議升級率",
+      "disputeRateHint": "爭議升級數 / 工單總數",
+      "techEfficiencyTitle": "技師效率",
+      "avgHandle": "平均處理時長",
+      "avgHandleValue": "{n} 分",
+      "avgHandleSample": "樣本：{count} 筆完工",
+      "ftfr": "一次修好率（FTFR）",
+      "ftfrSample": "樣本：{count} 筆完工（未被返工 / 完工原始工單）",
+      "pendingTag": "待接入",
+      "pendingNote": "需 SLA 規則表 + 評價回傳機制",
+      "pendingTitle": "SLA 達成率 / 客戶滿意度 / NPS / 差評率",
+      "pendingDesc": "需各自獨立模組接入後再上線。"
+    },
+    "exceptions": {
+      "title": "異常管理",
+      "subtitle": "統一追蹤並處理工單異常：缺料、加價拒絕、取消、爭議、安全風險等。標記為「高 / 緊急」的案件會自動暫停關聯工單，待處理後恢復。",
+      "openException": "開立異常",
+      "refresh": "重新整理",
+      "fieldType": "類型",
+      "fieldSeverity": "嚴重度",
+      "fieldWorkOrder": "關聯工單（選填）",
+      "fieldDescription": "說明",
+      "submit": "送出",
+      "selectPathFirst": "請先選擇處理方式",
+      "type": {
+        "no_show": "放鴿子",
+        "customer_absent": "客戶不在",
+        "scope_change_rejected": "加價拒絕",
+        "material_shortage": "缺料",
+        "delay_severe": "嚴重延遲",
+        "appearance_refused": "拒絕施工",
+        "payment_failed": "付款失敗",
+        "quality_complaint": "品質客訴",
+        "schedule_conflict": "排班衝突",
+        "other": "其他"
+      },
+      "returnPath": {
+        "continue": "繼續施工",
+        "requote": "重報價",
+        "reschedule": "改期",
+        "reassign": "改派",
+        "new_wo": "開新工單",
+        "cancel": "取消",
+        "refund": "退款",
+        "rma": "客訴 RMA",
+        "dispute": "爭議"
+      },
+      "status": {
+        "all": "全部",
+        "open": "開立",
+        "investigating": "處理中",
+        "escalated": "已升級",
+        "resolved": "已處理",
+        "closed": "已關閉"
+      },
+      "severity": {
+        "low": "低",
+        "medium": "中",
+        "high": "高",
+        "critical": "緊急"
+      },
+      "cols": {
+        "type": "類型",
+        "severity": "嚴重度",
+        "status": "狀態",
+        "workOrder": "工單",
+        "description": "說明 / 處理",
+        "createdAt": "建立時間",
+        "actions": "動作"
+      },
+      "empty": "目前無異常案件",
+      "holdBadge": "已暫停工單",
+      "closedTag": "已結案",
+      "pathPlaceholder": "處理方式…",
+      "resolve": "處理",
+      "escalate": "升級"
+    },
+    "quotesAudit": {
+      "title": "急件補審佇列",
+      "deadlineNote": "完工後 4 小時內須完成客戶確認（LIFF）或紙本簽認",
+      "notStarted": "未起算（待完工回報）",
+      "overdue": "已逾時",
+      "remaining": "剩 {h}h {m}m",
+      "sentWaiting": "已送客戶待確認",
+      "pendingLines": "待補明細",
+      "fillAndSend": "補明細／送 LIFF",
+      "paperDone": "紙本簽認完成",
+      "emergency": {
+        "locked_out": "被鎖門外",
+        "trapped_inside": "人困屋內",
+        "safety_risk": "安全風險",
+        "angry_high_risk": "高風險客訴"
+      }
     }
   },
   "kb": {
@@ -2356,6 +2599,20 @@
         "confirm": "確認核准"
       },
       "approveToast": "已核准對帳 {id}（已建立 {payout} 結算）",
+      "filterRejected": "已駁回",
+      "rejectModal": {
+        "title": "駁回對帳",
+        "reconId": "對帳 ID",
+        "technician": "技師",
+        "payout": "技師應領",
+        "desc": "駁回後此對帳單狀態將轉為「已駁回」，不會建立結算。請填寫駁回理由（必填，至少 3 字）：",
+        "reasonPlaceholder": "駁回理由（必填，3–500 字）",
+        "reasonTooShort": "理由至少需 3 個字",
+        "cancel": "取消",
+        "rejecting": "駁回中…",
+        "confirm": "確認駁回"
+      },
+      "rejectToast": "已駁回對帳 {id}",
       "genMonthlyNoPaymentNote": "金流未接:僅建立帳務紀錄,實際撥款由財務手動匯款"
     },
     "vouchers": {
@@ -2398,6 +2655,20 @@
       "filterAllStatus": "全部狀態",
       "filterPaymentMethod": "付款方式",
       "dateRange": "日期範圍"
+    },
+    "invoiceDetail": {
+      "title": "發票詳情",
+      "invoiceNumber": "發票編號",
+      "amount": "金額",
+      "status": "狀態",
+      "workOrder": "關聯工單",
+      "category": "稅務分類",
+      "taxId": "買方統編",
+      "issuedAt": "開立時間",
+      "updatedAt": "更新時間",
+      "voidedAt": "作廢時間",
+      "voidReason": "作廢原因",
+      "allowanceAmount": "折讓金額"
     }
   },
   "techPortal": {
@@ -3164,6 +3435,7 @@
     "accounting": {
       "settlementTable": {
         "batchSelectAll": "全選",
+        "batchSelectedCount": "（已選 {count}）",
         "batchConfirm": "批次確認",
         "batchMarkPaid": "批次標記已付",
         "batchHint": "請先勾選結算列以啟用批次操作",
@@ -3214,12 +3486,15 @@
           "travel_fee": "車馬費",
           "parts": "零件",
           "other": "其他"
-        }
+        },
+        "viewDetail": "檢視詳情",
+        "viewDetailAria": "檢視發票 {number} 詳情"
       },
       "reconciliationsTable": {
         "loading": "載入中…",
         "empty": "目前沒有對帳記錄",
         "approve": "核准對帳",
+        "reject": "駁回",
         "processing": "處理中…",
         "cols": {
           "id": "ID",
@@ -3235,7 +3510,8 @@
         "status": {
           "pending": "待核准",
           "approved": "已核准",
-          "disputed": "爭議中"
+          "disputed": "爭議中",
+          "rejected": "已駁回"
         }
       },
       "settlementDetailModal": {
@@ -3396,6 +3672,117 @@
         "viewDetail": "查看詳情 →",
         "hint": "點擊左側工單清單檢視詳情",
         "hintSub": "互動式地圖待 GIS 模組接入"
+      },
+      "dispatchOrder": {
+        "title": "標準化派工單",
+        "subtitle": "（6 模組）",
+        "editFields": "編輯欄位",
+        "save": "儲存",
+        "saving": "儲存中…",
+        "cancel": "取消",
+        "modules": {
+          "m1": "基礎案件資訊",
+          "m2": "設備與環境辨識",
+          "m3": "工單類型與狀態",
+          "m4": "施工免責與合規",
+          "m5": "多維度計費核銷",
+          "m6": "雙方責任簽認"
+        },
+        "fields": {
+          "customer_name": "客戶名稱",
+          "customer_phone": "聯絡電話",
+          "customer_address": "服務地址",
+          "brand": "品牌",
+          "model": "產品型號",
+          "serial_number": "產品序號 (S/N)",
+          "dealer": "購買地點 / 經銷商",
+          "install_date": "安裝日期",
+          "purchase_date": "購買日期",
+          "rain_exposure": "安裝環境與遮雨",
+          "door_type": "門扇材質",
+          "door_thickness": "門厚",
+          "is_interior_door": "室內門",
+          "service_category": "服務類別",
+          "warranty_status": "保固狀態",
+          "payment_method": "付款方式",
+          "invoice_no": "發票號碼",
+          "special_door_surcharge": "特殊門型加價"
+        },
+        "readonly": {
+          "scheduledDate": "維修／施工日期",
+          "scheduledHint": "（由排程管理）",
+          "problemReason": "維修原因 / 狀況",
+          "problemHint": "（源自問題卡）",
+          "warrantyExpiry": "保固到期日",
+          "warrantyExpiryHint": "（輸入序號/購買日後自動計算）",
+          "completionStatus": "完工狀態",
+          "completionHint": "（由完工流程管理）",
+          "statusReason": "狀態原因"
+        },
+        "boolYes": "是",
+        "boolNo": "否",
+        "enums": {
+          "serviceCategory": {
+            "install": "安裝新機",
+            "warranty_in": "保固內維修",
+            "warranty_out": "保固外維修",
+            "repair": "維修"
+          },
+          "warrantyStatus": {
+            "in_warranty": "保固內",
+            "out_warranty": "保固外",
+            "not_applicable": "不適用"
+          },
+          "rainExposure": {
+            "indoor": "室內",
+            "outdoor_covered": "室外有遮雨",
+            "outdoor_exposed": "室外無遮雨"
+          },
+          "paymentMethod": {
+            "cash": "現金",
+            "bank_transfer": "轉帳",
+            "credit_card": "刷卡",
+            "line_pay": "LINE Pay"
+          },
+          "doorType": {
+            "iron": "鐵門",
+            "wood": "木門",
+            "steel": "鋼門",
+            "other": "其它"
+          },
+          "completionStatus": {
+            "pending_report": "待完工回報",
+            "pending_photos": "待照片",
+            "pending_customer_confirm": "待客戶確認",
+            "pending_cs_review": "待客服審核",
+            "completed": "已完工",
+            "closed": "已結案"
+          }
+        },
+        "consent": {
+          "labels": {
+            "new_installation": "新機安裝同意聲明",
+            "lock_destruction": "破壞鎖施工免責特別說明",
+            "personal_data": "個人資料保護法條款"
+          },
+          "accepted": "已同意",
+          "awaitingSign": "待客戶簽署",
+          "note": "客戶簽署透過 LINE 免責連結，本頁僅顯示狀態。",
+          "loading": "載入中…"
+        },
+        "billing": {
+          "title": "費用明細",
+          "empty": "尚無計費明細",
+          "total": "總計金額",
+          "loading": "載入中…"
+        },
+        "signature": {
+          "engineer": "工程師簽名",
+          "customer": "客戶驗收簽名",
+          "signed": "已簽認",
+          "awaiting": "待簽認",
+          "note": "簽名動作透過上方「簽名」按鈕；此處依工單狀態顯示。"
+        }
       }
     },
     "problemCards": {
@@ -3530,7 +3917,8 @@
             "similarity": "相似度門檻",
             "maxResults": "最大結果數",
             "chunkSize": "分塊大小",
-            "chunkOverlap": "分塊重疊"
+            "chunkOverlap": "分塊重疊",
+            "unitChars": "字元"
           },
           "llm": {
             "title": "LLM 模型",

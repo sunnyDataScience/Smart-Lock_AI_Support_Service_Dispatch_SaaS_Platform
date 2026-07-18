@@ -54,12 +54,13 @@ interface AuditQueueItem {
   emergency_class: string | null;
 }
 
-const EMERGENCY_LABEL: Record<string, string> = {
-  locked_out: "被鎖門外",
-  trapped_inside: "人困屋內",
-  safety_risk: "安全風險",
-  angry_high_risk: "高風險客訴",
-};
+// UAT W6-1：急件標籤走 i18n（admin.quotesAudit.emergency）——此處只留值域
+const EMERGENCY_VALUES = [
+  "locked_out",
+  "trapped_inside",
+  "safety_risk",
+  "angry_high_risk",
+] as const;
 
 // UAT P2-12：報價品項類別中文化（DB quote_line_items.category 值域 labor/material/other）
 const LINE_CATEGORY_LABEL: Record<string, string> = {
@@ -82,12 +83,18 @@ function quoteTotalFallback(q: Quote): string | null {
   return String(sum);
 }
 
-function auditRemainLabel(item: AuditQueueItem): { text: string; danger: boolean } {
-  if (!item.audit_due_at) return { text: "未起算（待完工回報）", danger: false };
+function auditRemainLabel(
+  tAudit: (key: string, vars?: Record<string, string | number>) => string,
+  item: AuditQueueItem,
+): { text: string; danger: boolean } {
+  if (!item.audit_due_at) return { text: tAudit("notStarted"), danger: false };
   const remainMs = new Date(item.audit_due_at).getTime() - Date.now();
-  if (remainMs <= 0) return { text: "已逾時", danger: true };
+  if (remainMs <= 0) return { text: tAudit("overdue"), danger: true };
   const mins = Math.floor(remainMs / 60000);
-  return { text: `剩 ${Math.floor(mins / 60)}h ${mins % 60}m`, danger: mins < 60 };
+  return {
+    text: tAudit("remaining", { h: Math.floor(mins / 60), m: mins % 60 }),
+    danger: mins < 60,
+  };
 }
 
 // CR-0095：報價列表項（GET /quotes，免手貼 UUID）
@@ -149,6 +156,7 @@ function price(v?: string | null): string {
 
 export default function QuotesPage() {
   const t = useTranslations("admin.quotes");
+  const tAudit = useTranslations("admin.quotesAudit");
   const [services, setServices] = useState<CatalogItem[]>([]);
   const [materials, setMaterials] = useState<CatalogItem[]>([]);
   const [woId, setWoId] = useState("");
@@ -579,14 +587,14 @@ export default function QuotesPage() {
           {!openFocus && auditQueue.length > 0 && (
             <div className="mb-6 rounded-lg border border-[#FDBA74] bg-[#FFF7ED] p-4">
               <div className="mb-2 flex items-center gap-2">
-                <span className="text-[14px] font-bold text-[#9A3412]">急件補審佇列</span>
+                <span className="text-[14px] font-bold text-[#9A3412]">{tAudit("title")}</span>
                 <span className="rounded bg-[#FFEDD5] px-2 py-[2px] text-[11px] text-[#9A3412]">
-                  完工後 4 小時內須完成客戶確認（LIFF）或紙本簽認
+                  {tAudit("deadlineNote")}
                 </span>
               </div>
               <div className="flex flex-col gap-2">
                 {auditQueue.map((q) => {
-                  const remain = auditRemainLabel(q);
+                  const remain = auditRemainLabel(tAudit, q);
                   return (
                     <div key={q.id} className="flex flex-wrap items-center gap-3 rounded-md border border-[var(--border)] bg-white px-3 py-2 text-[13px]">
                       <span className="font-mono text-[12px] text-[var(--text-secondary)]">
@@ -595,14 +603,16 @@ export default function QuotesPage() {
                       <span className="text-[var(--text-primary)]">{q.customer_name ?? "—"}</span>
                       {q.emergency_class && (
                         <span className="rounded bg-[#FEE2E2] px-2 py-[2px] text-[11px] font-semibold text-[#991B1B]">
-                          {EMERGENCY_LABEL[q.emergency_class] ?? q.emergency_class}
+                          {(EMERGENCY_VALUES as readonly string[]).includes(q.emergency_class)
+                            ? tAudit(`emergency.${q.emergency_class}`)
+                            : q.emergency_class}
                         </span>
                       )}
                       <span className={`rounded px-2 py-[2px] text-[11px] font-semibold ${remain.danger ? "bg-[#FEE2E2] text-[#991B1B]" : "bg-[#F1F5F9] text-[#475569]"}`}>
                         {remain.text}
                       </span>
                       <span className="text-[12px] text-[var(--text-secondary)]">
-                        {q.state === "sent" ? "已送客戶待確認" : "待補明細"}
+                        {q.state === "sent" ? tAudit("sentWaiting") : tAudit("pendingLines")}
                       </span>
                       <div className="ml-auto flex items-center gap-2">
                         <button
@@ -610,14 +620,14 @@ export default function QuotesPage() {
                           disabled={busy}
                           className="rounded border border-[var(--primary)] px-3 py-[4px] text-[12px] font-semibold text-[var(--primary)] hover:bg-[var(--bg-page)] disabled:opacity-50"
                         >
-                          補明細／送 LIFF
+                          {tAudit("fillAndSend")}
                         </button>
                         <button
                           onClick={() => auditCompletePaper(q.id)}
                           disabled={busy}
                           className="rounded bg-[#9A3412] px-3 py-[4px] text-[12px] font-semibold text-white hover:opacity-90 disabled:opacity-50"
                         >
-                          紙本簽認完成
+                          {tAudit("paperDone")}
                         </button>
                       </div>
                     </div>

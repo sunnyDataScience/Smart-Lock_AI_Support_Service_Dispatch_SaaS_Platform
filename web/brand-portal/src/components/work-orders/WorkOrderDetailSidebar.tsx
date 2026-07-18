@@ -122,7 +122,9 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
   const comingSoon = t("comingSoon");
 
   return (
-    <div className="flex w-[380px] flex-shrink-0 flex-col gap-4 overflow-auto bg-[#F1F5F9] p-5">
+    // UAT W6-4：lg 以上固定 380px 右欄、以下改滿版堆疊（390px 原本右欄佔滿視窗、
+    // 主內容被壓成 10px 隱形長條）；底色改 semantic token（深色主題可讀）
+    <div className="flex w-full flex-col gap-4 bg-[var(--bg-page)] p-5 lg:w-[380px] lg:flex-shrink-0 lg:overflow-auto">
       {/* Device Panel — brand/model 真實，其他示意 */}
       <div className="flex flex-col gap-3 rounded-lg bg-[var(--bg-surface)] p-4 shadow-sm">
         <div className="flex h-[160px] items-center justify-center rounded-lg bg-[#F8FAFC]">

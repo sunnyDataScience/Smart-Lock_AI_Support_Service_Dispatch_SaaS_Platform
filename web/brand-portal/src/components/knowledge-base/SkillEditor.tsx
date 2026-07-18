@@ -304,7 +304,9 @@ export default function SkillEditor({ skillName }: Props) {
           {dirty && <span className="text-[var(--warning)]">· 未儲存變更</span>}
         </div>
         <div className="flex items-center gap-2">
-          {!editable && viewingStatus === "published" && (
+          {/* UAT W5-7：retired 版本也可作為基底建立草稿（原僅 published，
+              最新版 retired 時整頁唯讀找不到編輯入口） */}
+          {!editable && ["published", "retired"].includes(viewingStatus) && (
             <button
               type="button"
               onClick={forkToDraft}

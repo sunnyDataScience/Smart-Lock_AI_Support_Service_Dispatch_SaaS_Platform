@@ -24,7 +24,7 @@ export default function DashboardError({
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header title="儀表板" subtitle="近 7 日營運概況" />
         <main className="flex flex-1 items-center justify-center px-8 py-6">
           <ErrorState

@@ -132,7 +132,7 @@ export default function ProblemCardsPage() {
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
 
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-5">
           <div className="flex flex-col gap-1">
             <span className="text-[13px] text-[var(--text-secondary)]">

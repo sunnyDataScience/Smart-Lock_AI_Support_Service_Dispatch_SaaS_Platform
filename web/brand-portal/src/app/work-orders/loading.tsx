@@ -6,7 +6,7 @@ export default function WorkOrdersLoading() {
   return (
     <div className="flex h-full bg-[var(--bg-page)]">
       <Sidebar />
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <Header title="派工管理" subtitle="工單列表與檢視切換" />
         <main className="flex flex-1 flex-col gap-4 overflow-auto px-8 py-6">
           {/* Filter / view-toggle bar */}

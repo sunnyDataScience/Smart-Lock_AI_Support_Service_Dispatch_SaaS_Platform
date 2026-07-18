@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+// UAT W1-5：formatTwd 抽至 lib/format 供帳務域共用
+import { formatTwd } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
 type Reconciliation = components["schemas"]["Reconciliation"];
@@ -11,27 +13,20 @@ interface Props {
   items: Reconciliation[];
   loading?: boolean;
   onApprove?: (recon: Reconciliation) => void;
+  /** UAT W1-2：pending 列駁回（開理由對話框） */
+  onReject?: (recon: Reconciliation) => void;
   pendingApproveId?: string | null;
 }
 
-const STATUS_TONE: Record<
-  ReconciliationStatus,
-  { textColor: string; bgColor: string }
-> = {
+// 'rejected' 為 UAT W1-2 新增後端狀態；生成型別尚未帶出，
+// 故用 string key + fallback 安全處理（同 SettlementTable 'confirmed' 前例）。
+const STATUS_TONE: Record<string, { textColor: string; bgColor: string }> = {
   pending: { textColor: "#92400E", bgColor: "#FEF3C7" },
   approved: { textColor: "#065F46", bgColor: "#D1FAE5" },
   disputed: { textColor: "#991B1B", bgColor: "#FEE2E2" },
+  rejected: { textColor: "#7F1D1D", bgColor: "#FEE2E2" },
 };
-
-function formatTwd(amount: string | null | undefined): string {
-  if (!amount) return "—";
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return `NT$ ${amount}`;
-  return `NT$ ${n.toLocaleString("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })}`;
-}
+const FALLBACK_TONE = { textColor: "#334155", bgColor: "#E2E8F0" };
 
 function formatPeriod(start: string, end: string): string {
   return `${start.slice(0, 10)} ～ ${end.slice(0, 10)}`;
@@ -41,6 +36,7 @@ export default function ReconciliationsTable({
   items,
   loading,
   onApprove,
+  onReject,
   pendingApproveId,
 }: Props) {
   const t = useTranslations("components.accounting.reconciliationsTable");
@@ -60,11 +56,12 @@ export default function ReconciliationsTable({
     [t],
   );
 
-  const statusLabels: Record<ReconciliationStatus, string> = useMemo(
+  const statusLabels: Record<string, string> = useMemo(
     () => ({
       pending: t("status.pending"),
       approved: t("status.approved"),
       disputed: t("status.disputed"),
+      rejected: t("status.rejected"),
     }),
     [t],
   );
@@ -96,8 +93,9 @@ export default function ReconciliationsTable({
       )}
 
       {items.map((row, idx) => {
-        const tone = STATUS_TONE[row.status];
+        const tone = STATUS_TONE[row.status] ?? FALLBACK_TONE;
         const canApprove = row.status === "pending" && !!onApprove;
+        const canReject = row.status === "pending" && !!onReject;
         return (
           <div
             key={row.id}
@@ -145,11 +143,11 @@ export default function ReconciliationsTable({
                 className="rounded-[10px] px-2 py-[2px] text-[11px] font-medium"
                 style={{ color: tone.textColor, backgroundColor: tone.bgColor }}
               >
-                {statusLabels[row.status]}
+                {statusLabels[row.status] ?? row.status}
               </span>
             </div>
             <div className="flex min-w-0 flex-1 items-center justify-end gap-[6px] px-3">
-              {canApprove ? (
+              {canApprove && (
                 <button
                   onClick={() => onApprove!(row)}
                   disabled={pendingApproveId !== null && pendingApproveId !== undefined}
@@ -157,7 +155,18 @@ export default function ReconciliationsTable({
                 >
                   {pendingApproveId === row.id ? t("processing") : t("approve")}
                 </button>
-              ) : (
+              )}
+              {/* UAT W1-2：pending 列可駁回（danger 樣式，開理由對話框） */}
+              {canReject && (
+                <button
+                  onClick={() => onReject!(row)}
+                  disabled={pendingApproveId !== null && pendingApproveId !== undefined}
+                  className="rounded-md border border-[var(--error)] px-2 py-1 text-[11px] font-medium text-[var(--error)] transition hover:bg-[var(--error)] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t("reject")}
+                </button>
+              )}
+              {!canApprove && !canReject && (
                 <span className="text-[11px] text-[var(--text-secondary)]">—</span>
               )}
             </div>

@@ -10,17 +10,19 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 
+// UAT W6-1：label 走 i18n key（pages.dashboard.charts.ranges）
 const RANGES = [
-  { label: "7天", days: 7 },
-  { label: "14天", days: 14 },
-  { label: "30天", days: 30 },
+  { key: "7d", days: 7 },
+  { key: "14d", days: 14 },
+  { key: "30d", days: 30 },
 ] as const;
 
-type RangeLabel = (typeof RANGES)[number]["label"];
+type RangeKey = (typeof RANGES)[number]["key"];
 
 interface BucketRow {
   date: string;
@@ -85,9 +87,10 @@ export default function WorkOrderTrendChart({
   error,
   sampleLimit,
 }: Props) {
-  const [activeRange, setActiveRange] = useState<RangeLabel>("14天");
+  const t = useTranslations("pages.dashboard.charts");
+  const [activeRange, setActiveRange] = useState<RangeKey>("14d");
 
-  const days = RANGES.find((r) => r.label === activeRange)?.days ?? 14;
+  const days = RANGES.find((r) => r.key === activeRange)?.days ?? 14;
   const data = useMemo(() => buildSeries(items, days), [items, days]);
   const maxValue = useMemo(
     () => data.reduce((m, d) => Math.max(m, d.created, d.completed), 0),
@@ -103,31 +106,33 @@ export default function WorkOrderTrendChart({
   );
 
   return (
-    <div className="flex w-[741px] flex-col gap-4 rounded-lg border-[1.5px] border-[#E4E4E7] bg-[var(--bg-surface)] p-6">
-      <div className="flex items-center justify-between">
+    // UAT W6-4：w-[741px] 硬編碼寬 → 響應式（1280 桌面溢出 160px 的主因）
+    <div className="flex w-full min-w-0 flex-1 flex-col gap-4 rounded-lg border-[1.5px] border-[var(--border)] bg-[var(--bg-surface)] p-6">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-3">
-          <h3 className="text-[20px] font-semibold text-[#18181B]">工單趨勢</h3>
+          <h3 className="text-[20px] font-semibold text-[var(--text-primary)]">{t("trendTitle")}</h3>
           {hasMore && (
             <span
               className="rounded bg-[var(--badge-warn-bg)] px-2 py-[2px] text-[10px] font-medium text-[var(--badge-warn-fg)]"
-              title={`只取最近 ${sampleLimit} 筆工單；資料量超過時較舊區段可能偏低`}
+              title={t("sampleBadgeTitle", { limit: sampleLimit })}
             >
-              取樣 {sampleLimit} 筆
+              {t("sampleBadge", { limit: sampleLimit })}
             </span>
           )}
         </div>
-        <div className="flex gap-0 rounded-lg bg-[#F4F4F5] p-1">
+        {/* UAT W6-7：segmented control 白底改 semantic token（深色主題不再亮塊） */}
+        <div className="flex gap-0 rounded-lg bg-[var(--bg-page)] p-1">
           {RANGES.map((range) => (
             <button
-              key={range.label}
-              onClick={() => setActiveRange(range.label)}
+              key={range.key}
+              onClick={() => setActiveRange(range.key)}
               className={`rounded-md px-3 py-[6px] text-[12px] font-medium ${
-                activeRange === range.label
+                activeRange === range.key
                   ? "bg-[var(--primary)] text-white"
-                  : "text-[#71717A]"
+                  : "text-[var(--text-secondary)]"
               }`}
             >
-              {range.label}
+              {t(`ranges.${range.key}`)}
             </button>
           ))}
         </div>
@@ -135,14 +140,14 @@ export default function WorkOrderTrendChart({
 
       {error && (
         <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
-          載入失敗：{error}
+          {t("loadFailed", { error })}
         </div>
       )}
 
       <div className="h-[240px] w-full">
         {loading && items.length === 0 ? (
           <div className="flex h-full items-center justify-center text-[13px] text-[var(--text-secondary)]">
-            載入中…
+            {t("loading")}
           </div>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
@@ -179,7 +184,7 @@ export default function WorkOrderTrendChart({
                 stroke="#2563EB"
                 strokeWidth={2.5}
                 fill="url(#blueGrad)"
-                name="新建工單"
+                name={t("seriesCreated")}
               />
               <Area
                 type="monotone"
@@ -187,7 +192,7 @@ export default function WorkOrderTrendChart({
                 stroke="#10B981"
                 strokeWidth={2.5}
                 fill="url(#greenGrad)"
-                name="已完成工單"
+                name={t("seriesCompleted")}
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -197,11 +202,11 @@ export default function WorkOrderTrendChart({
       <div className="flex items-center justify-center gap-6">
         <div className="flex items-center gap-[6px]">
           <div className="h-2 w-2 rounded-full bg-[#2563EB]" />
-          <span className="text-[13px] font-medium text-[#71717A]">新建工單</span>
+          <span className="text-[13px] font-medium text-[var(--text-secondary)]">{t("seriesCreated")}</span>
         </div>
         <div className="flex items-center gap-[6px]">
           <div className="h-2 w-2 rounded-full bg-[#10B981]" />
-          <span className="text-[13px] font-medium text-[#71717A]">已完成工單</span>
+          <span className="text-[13px] font-medium text-[var(--text-secondary)]">{t("seriesCompleted")}</span>
         </div>
       </div>
     </div>
