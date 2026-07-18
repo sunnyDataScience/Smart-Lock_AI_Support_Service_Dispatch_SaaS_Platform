@@ -122,7 +122,11 @@ function writeToken(key: string, value: string | null) {
 // 的 smartlock_claims cookie 提供 role/tenant/email（非機密——本就在 JWT 內、可讀）。
 // auth token 仍走 httpOnly cookie（SSO）+ Authorization header（localStorage 過渡）；
 // 本步只退場「前端 session claims 的 localStorage 依賴」。單一寫入點 = auth.setTokens。
-const CLAIMS_COOKIE = "smartlock_claims";
+// UAT-1(2026-07-18):cookie 名帶 APP_MODE 後綴——localhost 各站共用 cookie jar
+// (cookie 不隔離 port),原單一名字讓「登入任一站」覆寫其他站的 session role
+// (:3001 技師登入 → :3000 讀到 role=technician → 誤導向)。後綴由 build 時
+// NEXT_PUBLIC_APP_MODE 烤入,三站各自讀寫自己的名字;prod 各站不同 host 本就隔離,行為不變。
+const CLAIMS_COOKIE = `smartlock_claims_${process.env.NEXT_PUBLIC_APP_MODE || "app"}`;
 
 interface ClaimsCookie {
   userId: string | null;
