@@ -33,9 +33,16 @@ export default function PwaProvider() {
     const dismissed = localStorage.getItem(DISMISS_KEY) === "1";
     if (standalone || dismissed) return;
 
-    // 2. Android/桌面:攔截 beforeinstallprompt,改由我們的按鈕觸發
+    // UAT P2-1③:安裝橫幅只對行動裝置顯示(<768px,與 TechBottomNav 斷點一致)。
+    // 桌面 Chrome 想安裝仍可用網址列的安裝 icon,不需橫幅打擾。
+    if (window.innerWidth >= 768) return;
+
+    // 2. Android:攔截 beforeinstallprompt,改由我們的按鈕觸發
     const onPrompt = (e: Event) => {
       e.preventDefault();
+      // UAT P2-1①:Chrome 可能在同一 SPA session 換頁時重新觸發本事件,
+      // mount 時的 dismissed 檢查擋不住 → 觸發當下再驗一次,確保「暫不」後本裝置不再出現。
+      if (localStorage.getItem(DISMISS_KEY) === "1") return;
       setDeferred(e as BeforeInstallPromptEvent);
       setShow(true);
     };
@@ -70,7 +77,9 @@ export default function PwaProvider() {
   if (!show) return null;
 
   return (
-    <div className="fixed inset-x-3 bottom-3 z-[60] mx-auto max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-lg">
+    // UAT P2-1②:停靠在底部導航(h-14 + safe-area)上方,不再蓋住導航與操作鈕;
+    // z-40 低於 Modal/Drawer(z-50),避免壓住彈窗。md:hidden 保險(行動裝置限定)。
+    <div className="fixed inset-x-3 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] z-40 mx-auto max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-4 shadow-lg md:hidden">
       <div className="flex items-start gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icons/icon-192.png" alt="" className="h-11 w-11 shrink-0 rounded-xl" />

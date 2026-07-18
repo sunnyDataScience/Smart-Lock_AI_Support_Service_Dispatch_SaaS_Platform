@@ -9,7 +9,7 @@ import RealtimeIndicator from "@/components/realtime/RealtimeIndicator";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { api, getCurrentSession, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
-import { formatRelative } from "@/lib/format";
+import { formatNTD, formatRelative } from "@/lib/format";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import type { components } from "@/types/api.generated";
 
@@ -164,7 +164,9 @@ export default function PoolPage() {
                   </span>
                   {wo.estimated_reward && (
                     <span className="text-[#059669] font-semibold">
-                      {t("estimatedReward", { amount: wo.estimated_reward })}
+                      {t("estimatedReward", {
+                        amount: formatNTD(wo.estimated_reward),
+                      })}
                     </span>
                   )}
                 </div>

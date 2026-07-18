@@ -30,7 +30,7 @@ const SERVICE_CATEGORY_LABEL: Record<string, string> = {
 };
 import { ApiError, api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
-import { formatRelative } from "@/lib/format";
+import { formatNTD, formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -201,9 +201,7 @@ export default function PoolOrderDetailPage() {
                 {t("fieldReward")}
               </span>
               <span className="text-[16px] font-bold text-[#059669]">
-                {wo.estimated_reward
-                  ? t("estimatedReward", { amount: wo.estimated_reward })
-                  : "—"}
+                {formatNTD(wo.estimated_reward)}
               </span>
             </div>
             <div className="flex items-center justify-between text-[12px] text-[var(--text-secondary)]">
@@ -265,7 +263,9 @@ export default function PoolOrderDetailPage() {
                 <span className="text-[var(--text-secondary)]">
                   {device}
                   {wo.estimated_reward
-                    ? ` · ${t("estimatedReward", { amount: wo.estimated_reward })}`
+                    ? ` · ${t("estimatedReward", {
+                        amount: formatNTD(wo.estimated_reward),
+                      })}`
                     : ""}
                 </span>
               </div>

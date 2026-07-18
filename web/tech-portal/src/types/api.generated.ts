@@ -593,6 +593,41 @@ export interface paths {
         patch: operations["updatePlatformTechnicianCertification"];
         trace?: never;
     };
+    "/api/v1/platform/technicians/{technicianId}/brand-authorizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 師傅品牌授權列表 */
+        get: operations["listPlatformTechnicianBrandAuthorizations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/technicians/{technicianId}/brand-authorizations/{brand}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** 授權師傅某品牌（冪等 upsert） */
+        put: operations["platformGrantTechnicianBrandAuthorization"];
+        post?: never;
+        /** 撤銷師傅某品牌授權（軟撤，保留歷史） */
+        delete: operations["platformRevokeTechnicianBrandAuthorization"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/platform/vendors": {
         parameters: {
             query?: never;
@@ -759,6 +794,24 @@ export interface paths {
         put?: never;
         /** 恢復租戶 */
         post: operations["reactivatePlatformTenant"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/platform/tenants/{tenantId}/license": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 租戶 License 與已開通模組 */
+        get: operations["getPlatformTenantLicense"];
+        /** 更新租戶 License（訂閱級距／模組開通／到期日） */
+        put: operations["updatePlatformTenantLicense"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1036,6 +1089,109 @@ export interface paths {
         put?: never;
         /** 採納 SOP 草稿（核准後入庫成為案例） */
         post: operations["adoptSopDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/skills": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** AI 技能列表（每 skill 最新/發佈版本＋狀態） */
+        get: operations["listSkills"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/skills/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 取得 skill 檔案樹（預設最新版本，可指定 version） */
+        get: operations["getSkill"];
+        /** 存 skill 草稿（at-most-one draft/skill，覆蓋既有草稿） */
+        put: operations["saveSkillDraft"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/skills/{name}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** skill 版本歷史（diff / rollback 選單） */
+        get: operations["listSkillRevisions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/skills/{name}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 發佈 skill 版本（驗證閘＋bump stamp→SkillSync 60s 內生效） */
+        post: operations["publishSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/knowledge-base/skills/{name}/rollback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 回滾至指定 skill 版本（重新發佈舊版本） */
+        post: operations["rollbackSkill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/internal/skills/ingest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 內部：knowledge-pipeline 汲取 skill 為 draft（HD-2：人工發佈） */
+        post: operations["ingestSkillRevision"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1941,6 +2097,23 @@ export interface paths {
         patch: operations["updateMyAvailability"];
         trace?: never;
     };
+    "/api/v1/technicians/me/commission-statements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 技師本人佣金對帳單（月彙總；UAT P2-5 補端點，讀 R4 佣金投影） */
+        get: operations["listMyCommissionStatements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/technicians": {
         parameters: {
             query?: never;
@@ -2796,6 +2969,93 @@ export interface paths {
         put?: never;
         /** 現場報價修正 browser 入口(技師本人;後台角色=cs_fallback 降級) */
         post: operations["submitRequoteRequestAsTech"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/me/line-bind-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 簽發 LINE 綁定碼(6 位,TTL 10 分鐘,舊碼作廢) */
+        post: operations["issueTechnicianLineBindCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/technicians/me/line-binding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 查 LINE 綁定狀態(userId 遮蔽) */
+        get: operations["getTechnicianLineBinding"];
+        put?: never;
+        post?: never;
+        /** 解除 LINE 綁定 */
+        delete: operations["deleteTechnicianLineBinding"];
+        options?: never;
+        head?: never;
+        /** 池內新單推播開關(HD-3=b) */
+        patch: operations["updateTechnicianLineBinding"];
+        trace?: never;
+    };
+    "/api/v1/technicians/line-webhook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 平台 LINE 官方號 webhook(綁定碼訊息) */
+        post: operations["technicianLineWebhook"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/internal/technicians/notify-assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 派單指派 LINE 推播(internal;fail-soft) */
+        post: operations["internalNotifyTechnicianAssign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/internal/technicians/notify-pool": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** 搶單池新單 LINE 廣播(internal;開關過濾) */
+        post: operations["internalNotifyTechnicianPool"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4332,6 +4592,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenants/{tenantId}/work-orders/{id}:reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 技師拒單 v2（tenant-scoped，assigned → created 回派工池）
+         * @description 技師拒絕本人被派的工單 → 回 created 池，擴大候選（UF-04/TC-DISPATCH-02）。
+         *     後台改派走 :reassign（不混用）。
+         */
+        post: operations["rejectWorkOrderV2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tenants/{tenantId}/work-orders/{id}:assign": {
         parameters: {
             query?: never;
@@ -5711,6 +5992,7 @@ export interface paths {
          *
          *     header X-Initiator required（draft 只需發起人，不強制雙簽）。
          *     proposed_value 先經 namespace.json_schema 驗證（422 CONFIG_SCHEMA_INVALID on fail）。
+         *     CR-0166 R1：靜態 gate 放寬 OPS_ROLES，service 依 namespace owner_role_codes 動態縮權。
          */
         put: operations["createConfigDraft"];
         post?: never;
@@ -5893,6 +6175,27 @@ export interface paths {
         put?: never;
         /** ops_manager co-sign（step-2，in_review → approved + settlement） */
         post: operations["coSignReconciliationV2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenantId}/accounting/reconciliation-gate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 期末對帳閘門：品牌佣金 vs 技師平台投影對平（CR-0166 R4）
+         * @description 回 {checked, matched, mismatched, missing, gate_pass}。
+         *     Kafka 未啟用時 skipped=true（無投影不誤報）；mismatch>0 → gate_pass=false 應阻結算。
+         */
+        get: operations["commissionReconcileGateV2"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -7597,6 +7900,16 @@ export interface components {
              */
             referral_source?: string | null;
         };
+        /** BrandAuthGrantBody */
+        BrandAuthGrantBody: {
+            /**
+             * Cert Expires At
+             * @description 認證到期日（YYYY-MM-DD，可選）
+             */
+            cert_expires_at?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
         /** BulkBody */
         BulkBody: {
             /** Ids */
@@ -8842,6 +9155,31 @@ export interface components {
             /** Count */
             count?: number | null;
         };
+        /** IngestRequest */
+        IngestRequest: {
+            /**
+             * Tenant Id
+             * @description 租戶 UUID
+             */
+            tenant_id: string;
+            /**
+             * Skill Name
+             * @description skill 目錄名（kebab-case）
+             */
+            skill_name: string;
+            /** Files */
+            files: {
+                [key: string]: string;
+            };
+            /** Note */
+            note?: string | null;
+            /**
+             * Merge
+             * @description 加性合併進現有 skill（保留既有檔，只新增/更新）
+             * @default false
+             */
+            merge: boolean;
+        };
         /**
          * IngestTurnRequest
          * @description LINE agent gateway 旁路持久化一輪對話的 request body（方案 A）。
@@ -8873,6 +9211,12 @@ export interface components {
             media_base64?: string | null;
             /** Media Mime */
             media_mime?: string | null;
+            /** Sentiment Label */
+            sentiment_label?: string | null;
+            /** Sentiment Confidence */
+            sentiment_confidence?: number | null;
+            /** Sentiment Keywords */
+            sentiment_keywords?: string[] | null;
         };
         /**
          * Intent
@@ -9148,6 +9492,27 @@ export interface components {
          * @enum {string}
          */
         Level: "operations_manager" | "tenant_admin";
+        /**
+         * LicenseUpdateBody
+         * @description CR-0166 R3：租戶 License 更新（平台管理員）。全欄選填，未帶＝不變。
+         */
+        LicenseUpdateBody: {
+            /**
+             * Plan Tier
+             * @description free/standard/pro/enterprise
+             */
+            plan_tier?: string | null;
+            /**
+             * Entitled Modules
+             * @description 開通模組（core 自動保留）：refinery/studio/compiler
+             */
+            entitled_modules?: string[] | null;
+            /**
+             * License Expires At
+             * @description 到期 ISO 時間（null=無期限）
+             */
+            license_expires_at?: string | null;
+        };
         /** LineBot */
         LineBot: {
             /** Greeting Message Enabled */
@@ -9596,14 +9961,17 @@ export interface components {
             serial?: string | null;
             /** Resolved By */
             resolved_by?: string | null;
+            /** Location */
+            location?: string | null;
         };
         /** ProblemCardCreateRequest */
         ProblemCardCreateRequest: {
-            /**
-             * Conversation Id
-             * Format: uuid
-             */
-            conversation_id: string;
+            /** Conversation Id */
+            conversation_id?: string | null;
+            /** Customer Name */
+            customer_name?: string | null;
+            /** Customer Phone */
+            customer_phone?: string | null;
             /** Brand */
             brand: string;
             /** Model */
@@ -9717,6 +10085,14 @@ export interface components {
             /** Resolution Note */
             resolution_note?: string | null;
         };
+        /** PublishRequest */
+        PublishRequest: {
+            /**
+             * Version
+             * @description 要發佈的版本號
+             */
+            version: number;
+        };
         /** PushBody */
         PushBody: {
             /**
@@ -9756,6 +10132,11 @@ export interface components {
             reason: string;
             /** Notes */
             notes?: string | null;
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
         };
         /**
          * ReasonCode
@@ -10319,6 +10700,14 @@ export interface components {
             /** Message */
             message?: string | null;
         };
+        /** RollbackRequest */
+        RollbackRequest: {
+            /**
+             * Target Version
+             * @description 要回滾到的版本號
+             */
+            target_version: number;
+        };
         /**
          * RolloutRequest
          * @description POST body — start rollout.
@@ -10338,6 +10727,21 @@ export interface components {
              * @default 15
              */
             observation_minutes_per_stage: number;
+        };
+        /** SaveDraftRequest */
+        SaveDraftRequest: {
+            /**
+             * Files
+             * @description 檔案樹 {相對路徑: 內容}，含 SKILL.md 與 references/*
+             */
+            files: {
+                [key: string]: string;
+            };
+            /**
+             * Note
+             * @description 版本備註
+             */
+            note?: string | null;
         };
         /**
          * Scope
@@ -11618,6 +12022,14 @@ export interface components {
             /** Total Count */
             total_count?: number | null;
         };
+        /** WorkOrderRejectRequest */
+        WorkOrderRejectRequest: {
+            /**
+             * Reason
+             * @description 拒單原因（必填）
+             */
+            reason: string;
+        };
         /**
          * WorkOrderReopenRequest
          * @description CR-0043 Tier②：返修/reopen — 建子單連回原單（BR-M05-02）。
@@ -11722,8 +12134,8 @@ export interface components {
              * @description 到場時間，ISO 8601 格式
              */
             arrived_at: string;
-            /** @description GPS 到場座標 */
-            gps: components["schemas"]["_ArrivalGps"];
+            /** @description GPS 到場座標（無定位時可省略） */
+            gps?: components["schemas"]["_ArrivalGps"] | null;
         };
         /** _ArrivalGps */
         _ArrivalGps: {
@@ -12153,6 +12565,15 @@ export interface components {
             /** Period Month */
             period_month?: number | null;
         };
+        /** _NotifyAssignBody */
+        _NotifyAssignBody: {
+            /** Technician Id */
+            technician_id: string;
+            /** Work Order */
+            work_order: {
+                [key: string]: unknown;
+            };
+        };
         /** _NotifyDelayBody */
         _NotifyDelayBody: {
             /** Delay Minutes */
@@ -12166,6 +12587,13 @@ export interface components {
             delay_minutes: number;
             /** Reason */
             reason: string;
+        };
+        /** _NotifyPoolBody */
+        _NotifyPoolBody: {
+            /** Work Order */
+            work_order: {
+                [key: string]: unknown;
+            };
         };
         /** _OpenExceptionRequest */
         _OpenExceptionRequest: {
@@ -12184,6 +12612,11 @@ export interface components {
             severity: string;
             /** Description */
             description?: string | null;
+        };
+        /** _PoolNotifyBody */
+        _PoolNotifyBody: {
+            /** Notify Pool New */
+            notify_pool_new: boolean;
         };
         /**
          * _ProposeRescheduleRequest
@@ -14036,6 +14469,119 @@ export interface operations {
             };
         };
     };
+    listPlatformTechnicianBrandAuthorizations: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                technicianId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    platformGrantTechnicianBrandAuthorization: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                technicianId: string;
+                brand: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BrandAuthGrantBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    platformRevokeTechnicianBrandAuthorization: {
+        parameters: {
+            query?: {
+                reason?: string | null;
+            };
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                technicianId: string;
+                brand: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     listPlatformVendors: {
         parameters: {
             query?: {
@@ -14439,6 +14985,80 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getPlatformTenantLicense: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updatePlatformTenantLicense: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LicenseUpdateBody"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -15220,6 +15840,271 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CaseEntryEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listSkills: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getSkill: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    saveSkillDraft: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaveDraftRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    listSkillRevisions: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publishSkill: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PublishRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rollbackSkill: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RollbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ingestSkillRevision: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Internal-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -17407,6 +18292,43 @@ export interface operations {
             };
         };
     };
+    listMyCommissionStatements: {
+        parameters: {
+            query?: {
+                /** @description 最多回傳期數（月） */
+                limit?: number;
+            };
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     listTechnicians: {
         parameters: {
             query?: {
@@ -19563,6 +20485,249 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issueTechnicianLineBindCode: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getTechnicianLineBinding: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deleteTechnicianLineBinding: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    updateTechnicianLineBinding: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_PoolNotifyBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    technicianLineWebhook: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Line-Signature"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    internalNotifyTechnicianAssign: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Internal-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_NotifyAssignBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    internalNotifyTechnicianPool: {
+        parameters: {
+            query?: never;
+            header?: {
+                "X-Internal-Token"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_NotifyPoolBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23483,6 +24648,46 @@ export interface operations {
             };
         };
     };
+    rejectWorkOrderV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkOrderRejectRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkOrderEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     assignWorkOrderV2: {
         parameters: {
             query?: {
@@ -27193,6 +28398,42 @@ export interface operations {
                 "application/json": components["schemas"]["CoSignBody"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commissionReconcileGateV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
