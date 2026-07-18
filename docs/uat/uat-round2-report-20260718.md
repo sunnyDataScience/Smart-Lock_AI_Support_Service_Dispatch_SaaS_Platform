@@ -106,3 +106,16 @@
 
 **環境處置記錄**：測前重建 tech-web/landing-web/platform-web（12:51 舊 build 早於 13:28 全修 commit，避免測到修復前版本）；測後重建 platform-api（07-14 舊 build，P1-C 根因）。
 **下一步**：等業主指定修復優先序。建議 P1-A/P1-B 先修（客戶 token 頁一行級＋quote_engine LEFT JOIN 補刀）；R1/R2 屬架構課題建議開 CR 裁決；P2-5 廠商入口需業主裁決去留。
+
+---
+
+## 🔧 修復結果（2026-07-18 業主指示「開始修」，同日完成）
+
+**40/43 修復落地**（branch `fix/uat-round2-fixes`，四域 commit：api/brand/tech/platform+landing），**3 項留待業主裁決/基礎設施**：
+
+- **P1×5 全數處置**：P1-A token 頁 `??`→`||`（live 驗證 fetch 改打 :8001、亂 token 顯示「連結無效」）／P1-B quote_engine LEFT JOIN 補刀＋**再掃出 cancellation_service 同型漏網一併修**（live 驗證手建卡→建立報價成功建 draft quote）／P1-C 部署過期已重佈／**R1 落地**：鏡射失敗補償回滾權威庫＋稽核硬性寫入（消除跨庫分裂）／**R2 落地**：A2 technician 改讀權威庫＋fail-closed 503（P1-D 一併解除）
+- **P2×15 修**（帳務月結去重/未收帳款口徑/對帳駁回端點+UI（migration 107）/AuthGuard 放行客戶頁/證照鏡射/停用原因兩源合一/重設密碼死路/R3 前端稽核/人工訊息徽章/通知推播+跳轉/進線案件關聯欄（migration 108）/:3000 英文 308 鍵/:3003 英文接線+LocaleToggle/深色派工單對比 1.04→16.3/RWD 零溢出（整合補刀 12 頁 shell `min-w-0`——flex item min-content 撐開為頁面級溢出根因））
+- **P3×20 修**（發票詳情 Drawer/幣別統一 NT$/track 預約時間/token 錯誤分級/報價頁脈絡/鎖定訊息 ACCOUNT_LOCKED 契約/修改密碼入口/語言切換/相對時間 locale/單複數/首載 401 競態/駁回理由標示/landing title…）
+- **留待**：P2-5 廠商入口去留（業主裁決）／W1-6 拆帳規則 CRUD（功能決策）／W3-5 補件通道＋W3-6 email 通知（SMTP 基礎設施）；W6-9 hydration 查無確定性根因（排查結論：static prerender 輸出確定性，建議乾淨 context 重測）；:3003 師傅詳情頁 en 化與平台 skip link 列已知未竟（下輪）
+
+**驗證**：api 全套 **1907 passed 0 failed**（scratch 5490，新增回歸測試 21）＋四站 tsc 0＋i18n 四站 zh/en 鍵數對齊＋Playwright live（token 頁×2/手建卡建報價全鏈/RWD 390/768/1280 三頁零溢出/深色對比實測/平台英文渲染+首載 0 error）。migration 107/108 本機已套，**dev/prod 部署需套用**。全容器重建。測試資料（UAT0718d）清零。
