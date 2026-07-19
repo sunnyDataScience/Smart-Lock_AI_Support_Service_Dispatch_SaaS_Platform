@@ -74,6 +74,9 @@ ENV NEXT_PUBLIC_PLATFORM_API_BASE_URL=${NEXT_PUBLIC_PLATFORM_API_BASE_URL}
 # 品牌申請導入頁移到 platform 站 /platform/apply → landing 品牌 CTA 外導目標。
 ARG NEXT_PUBLIC_PLATFORM_PORTAL_URL=""
 ENV NEXT_PUBLIC_PLATFORM_PORTAL_URL=${NEXT_PUBLIC_PLATFORM_PORTAL_URL}
+# 登入頁測試帳號提示開關（本機 compose 帶 1;雲端不帶 → 不渲染,0719 UAT C-2）。
+ARG NEXT_PUBLIC_DEV_LOGIN_HINT=""
+ENV NEXT_PUBLIC_DEV_LOGIN_HINT=${NEXT_PUBLIC_DEV_LOGIN_HINT}
 # CR-0116：平台維運監控頁「詳細用量」連結目標（GCP 方案 1 Metrics Scope dashboard）。
 # 用量指標住 GCP Cloud Monitoring（非 /health）→ console 只連過去,不重造。
 # 未設 = 前端不顯示該連結（避免指向空頁）。
