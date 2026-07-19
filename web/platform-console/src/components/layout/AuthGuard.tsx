@@ -6,7 +6,6 @@ import { auth, getCurrentSession } from "@/lib/api";
 import { crossModeRedirect } from "@/lib/appMode";
 import { canAccessRoute, fallbackRouteForRole } from "@/lib/rolePolicy";
 import { SidebarProvider } from "./SidebarContext";
-import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 import IdleLogoutGuard from "./IdleLogoutGuard";
 
 // 完整公開頁清單（AuthGuard 掛在 root layout 包整個 app，漏列就會被踢去 /login）：
@@ -113,12 +112,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   if (isPublic) return <>{children}</>;
   if (!checked) return null;
   // SidebarProvider 掛在通過認證的 subtree 內，公開頁（如 login）
-  // 不需要也不會錯掛
-  // RbacChangedBanner 也只在認證後 subtree 渲染（fixed 定位，無 layout 影響；
-  // 訂閱 /realtime/rbac 接權限變更事件，顯示 reload 提示）
+  // 不需要也不會錯掛。
+  // 0719 UAT C-6：移除 RbacChangedBanner —— 它訂閱 tenant-scoped /realtime/rbac，
+  // 但 platform surface（API_SURFACE=platform）只保留 /api/v1/platform 路由，該
+  // WS route 被過濾掉 → handshake 403 反覆重連。平台 admin 是單一固定角色、無租戶
+  // RBAC 矩陣，本就不需此 banner（租戶 RBAC 變更提示在品牌後台）。
   return (
     <SidebarProvider>
-      <RbacChangedBanner />
       <IdleLogoutGuard />
       {children}
     </SidebarProvider>

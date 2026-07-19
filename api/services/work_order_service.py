@@ -1392,8 +1392,10 @@ def _tech_line_wo_summary(wo: dict) -> dict:
 
 
 async def _notify_tech_line(path: str, payload: dict) -> None:
-    base = os.getenv("TECH_API_BASE_URL")
-    token = os.getenv("INTERNAL_API_TOKEN")
+    # strip:secret 建立時常帶尾端換行,aiohttp 嚴格模式會拒發(0719 雲端 UAT C-5
+    # header injection 防護炸推播);收端 deps.py:require_internal_token 本就 strip。
+    base = (os.getenv("TECH_API_BASE_URL") or "").strip()
+    token = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
     if not base or not token:
         return  # 未配置=跳過(本機單 stack / 測試環境)
     try:
