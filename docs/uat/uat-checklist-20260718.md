@@ -90,12 +90,23 @@
 
 前置:`./scripts/deploy/agent.sh` 帶 `LOCK_API_BASE_URL`+`INTERNAL_API_TOKEN`+`AGENT_TENANT_ID`(此後 skill 更新永不重佈)
 
-- [ ] 品牌後台改一條 FAQ(可用型號知識精靈)→ admin 發佈 → **60 秒內** LINE 問 AI 客服 → 回答已用新知識
-- [ ] 回滾到前版 → 60 秒內回答變回
+> **2026-07-19 雲端驗證：熱更新機制鐵證成立**(詳 `cloud-deploy-report-20260719.md`)。品牌庫發佈
+> v2(含臨時暗號)→ 2 分鐘後 LINE 問 → agent 吐出只存在於 DB 新版的 `CLOUD0719`(被 K8 守衛攔)
+> = 零重佈、DB→agent 送達鐵證;SkillSync `換裝完成 stamp=N` 遞增三重佐證;測後回滾 v1(md5=基線)。
+> **本輪撈到部署級 finding CD-3**:SkillSync log 被容器吞掉(已修 line_gateway logging)。
+> **設計隱憂**:cs-sop 未設 `always`,紅線 SOP 依賴 LLM 每輪自覺 read_file(待評估)。
+
+- [x] 熱更新機制:發佈→不重佈→agent 內容更新(以守衛攔截暗號實證,等效於「新知識生效」)
+- [x] 回滾:v1 重新發佈→agent 換回基線(stamp 遞增+md5 比對)
+- [ ] 業主親驗版:品牌後台改一條**產品 FAQ**(型號知識精靈)→ 發佈 → 60 秒內 LINE 問該型號 → 新答(cs-sop 話術類因 always 未設可能需多問一次)
 
 ### B3. agent RAG 檢索(#16⑤,卡:同上重佈帶 `RAG_TENANT_ID`)
 
-- [ ] 重佈後 LINE 問一個「非 references 措辭」的產品問題 → AI 能語義檢索命中(brand 過濾已修大小寫漏資料)
+> **2026-07-19：設計上排 cutover 輪,本輪不做**(詳 cloud 報告 §B3)。容器化 RAG 需 rag sidecar
+> (streamableHttp),agent image 缺 mcp 套件、雲端語料 0;RAG_TENANT_ID 已從雲端 agent 移除避免
+> 連線重試噪音,`agent.sh` 透傳已修(CD-2)待 sidecar 就緒。
+
+- [ ] (cutover 輪)rag sidecar 部署 + 語料灌雲 + LINE 問非 references 措辭 → 語義命中
 
 ### B4. 雲端壓測+HSTS(#26/#27 雲側,卡:上雲窗口)
 
