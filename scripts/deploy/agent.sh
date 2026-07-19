@@ -62,6 +62,12 @@ AGENT_TENANT_ID="${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
 API_SERVICE_NAME="${API_SERVICE_NAME:-smart-lock-api}"
 ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
 ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
+# RAG_TENANT_ID（#16⑤ RAG 生產啟用）：設了才透傳——app_config.load_mcp_servers 以此
+# 決定是否掛 locksmith-rag MCP；未設=跳過（agent 行為不變）。2026-07-19 上雲補：
+# 原腳本不認此變數，外部傳了也被丟掉 → RAG MCP 永遠不啟用。
+if [[ -n "${RAG_TENANT_ID:-}" ]]; then
+    ENV_VARS="${ENV_VARS},RAG_TENANT_ID=${RAG_TENANT_ID}"
+fi
 # LOCK_API_BASE_URL（橋接/查接管狀態目標）在 deploy 時動態解析 api 的 Cloud Run URL 後追加。
 
 # ── Secrets（Secret Manager → 環境變數）──
