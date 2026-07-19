@@ -74,8 +74,9 @@
 - **附帶（非 bug）**：客戶端「已派工」通知 outbox 推 seed 假客戶 LINE ID → LINE 400，屬環境資料限制。
 - **F-1（前端，記 backlog）**：缺欄工單編輯表單顯示問題卡 join 的品牌/型號預填值，但 PATCH 只送 diff → 同值重打不觸發送出、派工 422 死循環（需清空重打或改為送全量）。問題類型欄可正常補（前輪修復有效）。
 
-> **B1 結論**：綁定＋派單＋override＋稽核全鏈雲上實證通過；推播最後一哩卡 C-4/C-5，
-> code+script 已修，**重佈 smart-lock-api 後可端到端收訊**（見 §五）。
+> **B1 結論（✅ 端到端完成銷案）**：綁定＋派單＋override＋稽核全鏈雲上實證通過；
+> 推播最後一哩卡 C-4/C-5，code+script 已修並重佈；**2026-07-19 業主親證 LINE 實收
+> TC-000025 派單通知 —— B1 技師 LINE 推播（綁定→派單→LINE 收訊）雲上完全打通。**
 
 ## 三、Blocked — 待業主（無法代測）
 
@@ -141,7 +142,7 @@ RFC7807 錯誤信封、忘記密碼假 email 同訊息 —— 皆落實。
 
 | # | 嚴重度 | 問題 | 修法 | 雲上驗證 |
 |---|---|---|---|---|
-| C-4 | HIGH | 品牌 api 缺 `TECH_API_BASE_URL` → 技師 LINE 推播靜默不發（fail-soft 無 log） | api.sh 品牌面自動解析 lock-tech-api URL 烤入 | `notify-assign` 200；派單→師傅站顯示 |
+| C-4 | HIGH | 品牌 api 缺 `TECH_API_BASE_URL` → 技師 LINE 推播靜默不發（fail-soft 無 log） | api.sh 品牌面自動解析 lock-tech-api URL 烤入 | `notify-assign` 200；派單→師傅站顯示；**業主親證 LINE 實收** |
 | C-5 | HIGH | `INTERNAL_API_TOKEN` 帶尾端換行 → aiohttp header injection 防護拒發推播 | `_notify_tech_line` base/token 加 `.strip()` | 同上，不再 control character |
 | C-6 | MEDIUM | 平台 console＋師傅站訂閱被 surface 過濾掉的 `/realtime/rbac` → handshake 403 反覆重連 | 兩站 AuthGuard 移除 `RbacChangedBanner`（brand 保留） | 兩站 console 0 error |
 | C-7 | HIGH（安全） | 技師 token 可打管理員視角 `/api/v1/technicians`＋`/{id}`＋workload-heatmap 枚舉全租戶技師 PII（守衛僅 require_tenant 無 role） | 改 `role_required(*DISPATCH_ROLES)` | 技師 403、admin 200 |
@@ -162,4 +163,4 @@ image tag 皆為對應修復 commit。
 **上線完整度：核心營運鏈路（登入／派工／報價／帳務／知識庫／師傅接單／LINE 推播）
 雲上全數實證可用；安全面（認證／租戶隔離／surface 隔離／webhook）全綠，本輪撈到的
 技師名冊越權（C-7）已修。** 五個部署/健壯性/安全 finding 全數修復並重佈驗證，剩 4 項
-低風險 backlog。仍待業主：三站登入後功能親手抽驗、B1 LINE 推播收訊確認（手機端）。
+低風險 backlog。**B1 LINE 推播收訊已由業主親證（2026-07-19）**。仍待業主：三站登入後功能親手抽驗一輪。
