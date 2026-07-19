@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query, Response
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import CurrentUser, DISPATCH_ROLES, role_required
 from models.generated import (
     Technician,
     TechnicianAvailability,
@@ -71,9 +71,13 @@ async def my_workload_heatmap(
 async def get_workload_heatmap(
     technician_id: str = Path(...),
     days: int = Query(default=30, ge=1, le=90),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> dict:
-    """A37 排班熱力圖端點 — admin 看候選技師近 30 日 daily workload + load_intensity 分級。"""
+    """A37 排班熱力圖端點 — admin 看候選技師近 30 日 daily workload + load_intensity 分級。
+
+    CR/0719 UAT C-7：原守衛 require_tenant 無 role 檢查 → 任何技師 token 可讀同儕
+    workload（IDOR）。改 DISPATCH_ROLES（admin/ops/dispatcher 派工方管理視角）。
+    """
     data = await technician_service.get_technician_workload_heatmap(
         tenant_id=user.tenant_id,
         technician_id=technician_id,
@@ -157,8 +161,11 @@ async def list_technicians(
     limit: int = Query(default=20, ge=1, le=100),
     availability: TechnicianAvailability | None = Query(default=None),
     level: TechnicianLevel | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> dict:
+    # CR/0719 UAT C-7：原 require_tenant 無 role 檢查 → 技師 token 可枚舉全租戶
+    # 技師名冊 PII（phone/service_areas/rating）。此為「管理員視角」端點，改
+    # DISPATCH_ROLES 擋 technician/其他角色（admin/ops/dispatcher 才可管理技師）。
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
     response.headers["Deprecation"] = "true"
     response.headers["Link"] = (
@@ -187,8 +194,9 @@ async def list_technicians(
 async def get_technician(
     response: Response,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> dict:
+    # CR/0719 UAT C-7：同 list_technicians，管理員視角詳情改 DISPATCH_ROLES。
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
     response.headers["Deprecation"] = "true"
     response.headers["Link"] = (

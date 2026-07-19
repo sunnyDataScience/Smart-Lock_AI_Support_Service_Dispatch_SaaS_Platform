@@ -32,6 +32,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+import psycopg
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -217,8 +218,36 @@ def register_exception_handlers(
             ),
         )
 
+    @app.exception_handler(psycopg.errors.InvalidTextRepresentation)
+    async def handle_invalid_text(req: Request, err: Exception):
+        # SQLSTATE 22P02：client 傳了無法轉型的值到 DB 邊界（最常見＝非法 UUID
+        # path/query 參數，如 /customers/not-a-uuid）。過去冒泡到 generic 500；
+        # 統一轉 422，符合 coding-style「系統邊界快速失敗」（0719 UAT C-8：多端點
+        # 非法 UUID → 500 系統性修復。根治優於逐端點改 Path 型別）。
+        return _apply_cors(req, _build_response(
+            req,
+            ApiError(
+                error_code="VALIDATION_ERROR",
+                message="Malformed value for a typed field (e.g. invalid UUID)",
+                status_code=422,
+            ),
+        ))
+
     @app.exception_handler(Exception)
     async def handle_unexpected(req: Request, err: Exception):
+        # Fallback：22P02 若被 driver/pool 包裝未命中上面專類 handler，仍轉 422。
+        sqlstate = getattr(err, "sqlstate", None) or getattr(
+            getattr(err, "__cause__", None), "sqlstate", None
+        )
+        if sqlstate == "22P02":
+            return _apply_cors(req, _build_response(
+                req,
+                ApiError(
+                    error_code="VALIDATION_ERROR",
+                    message="Malformed value for a typed field (e.g. invalid UUID)",
+                    status_code=422,
+                ),
+            ))
         logger.exception("Unhandled error on %s %s", req.method, req.url.path)
         # 500 回應在 CORSMiddleware 外側產生 → 手動補 CORS header（見函式 docstring）
         return _apply_cors(req, _build_response(
