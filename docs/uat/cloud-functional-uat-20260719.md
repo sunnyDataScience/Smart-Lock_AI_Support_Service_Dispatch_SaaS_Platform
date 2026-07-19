@@ -113,3 +113,53 @@
 
 **三 findings 全數收斂銷案。**
 
+
+---
+
+## 七、全面登入後 UAT ＋ API 全域掃測（ultracode 輪，2026-07-19 下午）
+
+> 業主授權重設三站帳密＋LINE 綁定後，執行「上線完整度」全面驗證：主迴圈 Playwright
+> 巡三站登入後 UI，並行 Workflow 15-agent 對三站 157 端點做唯讀＋負向＋安全掃測。
+
+### 7.1 三站登入後 UI 巡檢（Playwright 實操，全數載入正常）
+
+| 站台 | 巡檢頁面 | 結果 |
+|---|---|---|
+| 品牌後台 | dashboard／知識庫 AI 技能／派工列表＋詳情＋新增精靈／帳務與結算／KPI 報表／客戶主檔／對話管理／問題卡／報價單／報價目錄／拆帳規則／角色權限／系統設定／異常管理／庫存／進線案件／待補知識佇列 | 全部渲染有資料或正常空狀態；整場 console 僅我手動派工測試觸發的預期 409/422，各頁本身 0 error |
+| 平台 console | dashboard（租戶 1／師傅 17／待審師傅 2）／租戶管理／申請導入＋查詢 | 正常；C-6 修復後 console 0 error |
+| 師傅站 | home（今日行程進行中 3）／帳戶（LINE 已綁定 …68fa02＋解綁＋池單開關）／my-orders（進行中 9，含派的三張單） | 正常；C-6 修復後 console 0 error |
+
+### 7.2 Workflow API 全域掃測（15 agent／157 端點／唯讀＋負向＋安全）
+
+**全綠維度**：認證邊界（45/45，無 token/壞 token/亂簽 JWT 一律 401）、租戶隔離
+（跨租戶 403 cross_tenant_read、X-Tenant-ID 不符 403 tenant_mismatch）、surface 隔離
+（tech/platform 面打品牌端點 404）、webhook 驗簽（agent /callback＋tech line-webhook
+無/壞簽名 fail-closed）、帳務域 39/39、報表 32/32。防枚舉（錯憑證不分帳號存在與否）、
+RFC7807 錯誤信封、忘記密碼假 email 同訊息 —— 皆落實。
+
+### 7.3 本輪撈到並修復的 findings（C-4 ~ C-8，皆已重佈驗證）
+
+| # | 嚴重度 | 問題 | 修法 | 雲上驗證 |
+|---|---|---|---|---|
+| C-4 | HIGH | 品牌 api 缺 `TECH_API_BASE_URL` → 技師 LINE 推播靜默不發（fail-soft 無 log） | api.sh 品牌面自動解析 lock-tech-api URL 烤入 | `notify-assign` 200；派單→師傅站顯示 |
+| C-5 | HIGH | `INTERNAL_API_TOKEN` 帶尾端換行 → aiohttp header injection 防護拒發推播 | `_notify_tech_line` base/token 加 `.strip()` | 同上，不再 control character |
+| C-6 | MEDIUM | 平台 console＋師傅站訂閱被 surface 過濾掉的 `/realtime/rbac` → handshake 403 反覆重連 | 兩站 AuthGuard 移除 `RbacChangedBanner`（brand 保留） | 兩站 console 0 error |
+| C-7 | HIGH（安全） | 技師 token 可打管理員視角 `/api/v1/technicians`＋`/{id}`＋workload-heatmap 枚舉全租戶技師 PII（守衛僅 require_tenant 無 role） | 改 `role_required(*DISPATCH_ROLES)` | 技師 403、admin 200 |
+| C-8 | MEDIUM | 非法 UUID path/query 系統性 500（psycopg 22P02 冒泡） | errors.py 全域 22P02 handler + fallback → 422 | 三端點非法 UUID 全 422 |
+
+**重佈**：smart-lock-api（00023-v4t，C-4/5/7/8）＋lock-platform-web＋lock-tech-web（C-6）。
+image tag 皆為對應修復 commit。
+
+### 7.4 backlog（低風險，非阻斷，記錄待排）
+
+- quote_v2 跨租戶 GET 的 error_code 誤標 `CROSS_TENANT_WRITE`（應 READ；阻擋行為正確）
+- knowledge-base cases/manuals/sop-drafts 回應信封不走 `{data}`（前端需分兩種解析）
+- audit chain 完整性驗證回報鏈斷（疑 seed 未依序計算 hash chain，非 code 缺陷；建議修 seed 產生器並確認生產寫入路徑串接）
+- 前端 F-1：缺欄工單編輯表單 PATCH 只送 diff，同值重打不觸發送出 → 派工 422 死循環（需清空重打或改送全量）
+
+### 7.5 結論
+
+**上線完整度：核心營運鏈路（登入／派工／報價／帳務／知識庫／師傅接單／LINE 推播）
+雲上全數實證可用；安全面（認證／租戶隔離／surface 隔離／webhook）全綠，本輪撈到的
+技師名冊越權（C-7）已修。** 五個部署/健壯性/安全 finding 全數修復並重佈驗證，剩 4 項
+低風險 backlog。仍待業主：三站登入後功能親手抽驗、B1 LINE 推播收訊確認（手機端）。
