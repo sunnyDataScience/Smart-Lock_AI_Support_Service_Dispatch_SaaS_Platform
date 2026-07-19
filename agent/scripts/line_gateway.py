@@ -13,12 +13,23 @@
 機密讀 lock-cs-agent/.env(LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN);其餘設定讀 config.toml。
 """
 
+import logging
 import os
 import sys
 import tempfile
 from pathlib import Path
 
 from aiohttp import web
+
+# SkillSync 等 lockcore 模組用 stdlib logging（非 loguru）——容器內無人配置
+# logging 時 INFO 級全被 lastResort handler 吞掉（只放行 WARNING+），造成
+# 「SkillSync 啟用/換裝完成」在 Cloud Run 完全無聲、部署驗證只能瞎猜
+# （2026-07-19 上雲實踩）。統一導到 stdout，INFO 起跳。
+logging.basicConfig(
+    level=logging.INFO,
+    stream=sys.stdout,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 
 from lockcore.agent.loop import AgentLoop
 from lockcore.agent.skill_sync import SkillSync
