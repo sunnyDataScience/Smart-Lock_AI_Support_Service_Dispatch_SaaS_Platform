@@ -76,3 +76,14 @@
   補 `NEXT_PUBLIC_API_BASE_URL`（本站即 platform api；localhost 只留裸 next dev）
 - 部署：三 web 服務重佈由業主執行（prod 部署權限），佈後雲上復驗三項
 
+### 雲上復驗（2026-07-19，三站新 revision 全部 image tag=`dd09afc2-*`）
+
+| 項 | Revision | 復驗證據 |
+|---|---|---|
+| C-1 | `smart-lock-web-00021-njn` | 登入頁「我是鎖匠師傅 →」href=`https://lock-tech-web-…/tech-login`（實測 200）；console 0 errors（原 RSC prefetch 404 一併消失） |
+| C-2 | 同上 | 登入頁測試帳號提示不再渲染 |
+| C-3 | `lock-platform-web-00003-dth` | `/platform/apply?mode=lookup` 負向查詢 POST 實測打 `https://lock-platform-api-…/brand-applications:lookup`（404 防列舉）＋UI「查無資料」友善錯誤 |
+| 回歸 | `lock-tech-web-00003-gll` | 師傅站六關鍵路徑（登入/註冊/PWA 三件套）全 200，`APP_MODE=tech`＋PEER 烤入正確 |
+
+**三 findings 全數收斂銷案。**
+
