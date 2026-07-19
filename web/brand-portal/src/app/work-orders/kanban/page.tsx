@@ -12,8 +12,14 @@ import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
 import KanbanBoard from "@/components/work-orders/KanbanBoard";
 import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal";
+import {
+  STATUS_GROUP_VALUES,
+  rawStatusesOfGroup,
+  type StatusGroup,
+} from "@/components/work-orders/WorkOrdersTable";
 import { api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
@@ -21,26 +27,39 @@ type WorkOrderPage = components["schemas"]["WorkOrderPage"];
 
 const PAGE_SIZE = 100;
 
-const viewTabs = [
-  { label: "列表", icon: List, active: false, href: "/work-orders" },
-  { label: "看板", icon: Columns3, active: true, href: "/work-orders/kanban" },
-  { label: "地圖", icon: Map, active: false, href: "/work-orders/map" },
+// key 對應 pages.workOrders.views.*（UAT R3-7：option/tab 文字接 i18n）
+const VIEW_TAB_DEFS = [
+  { key: "list" as const, icon: List, active: false, href: "/work-orders" },
+  { key: "kanban" as const, icon: Columns3, active: true, href: "/work-orders/kanban" },
+  { key: "map" as const, icon: Map, active: false, href: "/work-orders/map" },
 ];
 
 export default function WorkOrdersKanbanPage() {
+  const t = useTranslations("pages.workOrders");
+  const tFilters = useTranslations("pages.workOrders.filters");
+  const tViews = useTranslations("pages.workOrders.views");
+  const tGroup = useTranslations("status.workOrderGroup");
+
   const [items, setItems] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [periodFilter, setPeriodFilter] = useState<string>("");
+  // UAT R3（P3）：期間預設「最近 7 天」要真的帶條件（label 與行為一致）
+  const [periodFilter, setPeriodFilter] = useState<string>("7");
   const [brandFilter, setBrandFilter] = useState<string>("");
   const [keyword, setKeyword] = useState<string>("");
 
+  const viewTabs = useMemo(
+    () => VIEW_TAB_DEFS.map((d) => ({ ...d, label: tViews(d.key) })),
+    [tViews],
+  );
+
   const queryObj = useMemo(() => {
-    const q: Record<string, string | number> = { limit: PAGE_SIZE };
-    if (statusFilter) q.status = statusFilter;
+    const q: Record<string, string | number | string[]> = { limit: PAGE_SIZE };
+    // UAT R3-7：群組值展開成多個原始 status（api.ts buildUrl 陣列展開）
+    if (statusFilter) q.status = rawStatusesOfGroup(statusFilter as StatusGroup);
     if (brandFilter) q.brand = brandFilter;
     if (keyword.trim()) q.keyword = keyword.trim();
     if (periodFilter) {
@@ -92,19 +111,19 @@ export default function WorkOrdersKanbanPage() {
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex flex-col gap-1 border-b border-[var(--border)] bg-[var(--bg-surface)] pl-14 pr-4 md:px-8 py-4">
           <span className="text-[13px] text-[var(--text-secondary)]">
-            首頁 &gt; 工單管理 &gt; 派工板
+            {t("breadcrumbKanban")}
           </span>
           <div className="flex items-center justify-between">
-            <h1 className="text-[24px] font-bold text-[#0F172A]">工單管理</h1>
+            <h1 className="text-[24px] font-bold text-[#0F172A]">{t("title")}</h1>
             <div className="flex items-center gap-[6px] rounded-md bg-[#F1F5F9] px-3 py-[6px]">
               <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-                共
+                {t("totalLabelPrefix")}
               </span>
               <span className="text-[13px] font-bold text-[var(--text-primary)]">
                 {loading && items.length === 0 ? "—" : items.length}
               </span>
               <span className="text-[13px] font-medium text-[var(--text-secondary)]">
-                筆工單
+                {t("totalOrders")}
               </span>
             </div>
           </div>
@@ -117,7 +136,7 @@ export default function WorkOrdersKanbanPage() {
               type="text"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="搜尋客戶 / 地址 / 電話"
+              placeholder={t("searchKeywordPlaceholder")}
               className="flex-1 bg-transparent text-[13px] outline-none"
             />
           </div>
@@ -127,11 +146,12 @@ export default function WorkOrdersKanbanPage() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
           >
-            <option value="">狀態</option>
-            <option value="dispatched">已派工</option>
-            <option value="completed">已完工</option>
-            <option value="refunded">已退款</option>
-            <option value="disputed">爭議中</option>
+            <option value="">{tFilters("status")}</option>
+            {STATUS_GROUP_VALUES.map((g) => (
+              <option key={g} value={g}>
+                {tGroup(g)}
+              </option>
+            ))}
           </select>
 
           <select
@@ -139,10 +159,10 @@ export default function WorkOrdersKanbanPage() {
             onChange={(e) => setPeriodFilter(e.target.value)}
             className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
           >
-            <option value="">最近 7 天</option>
-            <option value="7">最近 7 天</option>
-            <option value="30">最近 30 天</option>
-            <option value="90">最近 90 天</option>
+            <option value="7">{tFilters("periodOptions.7")}</option>
+            <option value="30">{tFilters("periodOptions.30")}</option>
+            <option value="90">{tFilters("periodOptions.90")}</option>
+            <option value="">{tFilters("periodOptions.all")}</option>
           </select>
 
           <select
@@ -150,7 +170,7 @@ export default function WorkOrdersKanbanPage() {
             onChange={(e) => setBrandFilter(e.target.value)}
             className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
           >
-            <option value="">品牌</option>
+            <option value="">{tFilters("brand")}</option>
             {brandOptions.map((b) => (
               <option key={b} value={b}>
                 {b}
@@ -163,7 +183,7 @@ export default function WorkOrdersKanbanPage() {
           <div className="flex h-9 items-center rounded-md border border-[var(--border)] bg-[var(--bg-surface)]">
             {viewTabs.map((tab) => (
               <Link
-                key={tab.label}
+                key={tab.key}
                 href={tab.href}
                 className={`flex h-9 items-center justify-center gap-[6px] rounded-md px-3 ${
                   tab.active
@@ -187,13 +207,13 @@ export default function WorkOrdersKanbanPage() {
             className="flex h-9 items-center gap-[6px] rounded-md bg-[var(--primary)] px-4 hover:opacity-90"
           >
             <Plus className="h-4 w-4 text-white" />
-            <span className="text-[13px] font-medium text-white">新增工單</span>
+            <span className="text-[13px] font-medium text-white">{t("createOrder")}</span>
           </button>
         </div>
 
         {error && (
           <div className="mx-8 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            載入工單失敗：{error}
+            {t("loadFailed", { error })}
           </div>
         )}
 

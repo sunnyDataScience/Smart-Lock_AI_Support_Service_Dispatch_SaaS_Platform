@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Download,
   Timer,
+  ListChecks,
   Info,
   ArrowRight,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
 import { ReportExportModal } from "@/components/admin/reports/ReportExportModal";
 import ScheduleReportModal from "@/components/admin/ScheduleReportModal";
+import ScheduledReportsListModal from "@/components/admin/ScheduledReportsListModal";
 
 type KpiReport = components["schemas"]["KpiReport"];
 type Period = components["schemas"]["DashboardPeriod"];
@@ -80,6 +82,8 @@ export default function KpiDashboardPage() {
   // 預設「過去 30 日」，與舊行為一致；DateRangePicker 與 segment 共享同一 range state
   const [range, setRange] = useState<DateRange>(() => getPresetRange("last30"));
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  // UAT R3（G5-P3）：排程原 write-only——補「已排程清單」入口（檢視＋取消）
+  const [scheduleListOpen, setScheduleListOpen] = useState(false);
   const period = useMemo<Period>(() => mapRangeToDashboardPeriod(range), [range]);
   const [report, setReport] = useState<KpiReport | null>(null);
   const [loading, setLoading] = useState(true);
@@ -214,6 +218,14 @@ export default function KpiDashboardPage() {
             >
               <Timer className="h-4 w-4 text-[var(--text-secondary)]" />
               <span className="text-[13px] text-[var(--text-primary)]">{t("scheduleReport")}</span>
+            </button>
+
+            <button
+              onClick={() => setScheduleListOpen(true)}
+              className="flex items-center gap-[6px] rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-[14px] py-[7px] hover:bg-[var(--bg-page)]"
+            >
+              <ListChecks className="h-4 w-4 text-[var(--text-secondary)]" />
+              <span className="text-[13px] text-[var(--text-primary)]">{t("scheduledList")}</span>
             </button>
           </div>
 
@@ -392,6 +404,11 @@ export default function KpiDashboardPage() {
         onOpenChange={setScheduleOpen}
         reportType="kpi"
         filters={{ period }}
+      />
+
+      <ScheduledReportsListModal
+        open={scheduleListOpen}
+        onOpenChange={setScheduleListOpen}
       />
     </div>
   );

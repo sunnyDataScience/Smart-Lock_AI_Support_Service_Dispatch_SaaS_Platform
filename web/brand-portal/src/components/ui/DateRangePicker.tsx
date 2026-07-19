@@ -43,22 +43,22 @@ import {
   type PresetDef,
   type PresetKey,
 } from "@/lib/dateRange";
+import { useLocale, useTranslations } from "@/components/i18n/LocaleProvider";
 
-const WEEKDAY_LABELS = ["日", "一", "二", "三", "四", "五", "六"];
-
-const MONTH_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
-  year: "numeric",
-  month: "long",
-});
+// UAT R3 G4：週標頭 / 月份格式依 locale 解析（原寫死 zh-TW）
+const WEEKDAY_LABELS: Record<string, string[]> = {
+  "zh-TW": ["日", "一", "二", "三", "四", "五", "六"],
+  en: ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+};
 
 export interface DateRangePickerProps {
   value: DateRange;
   onChange: (range: DateRange) => void;
-  /** 自訂 presets；不傳用內建 7 個 */
+  /** 自訂 presets；不傳用內建 7 個（label 由 components.dateRange.presets.* 解析） */
   presets?: ReadonlyArray<PresetDef>;
   /** trigger 按鈕額外 className */
   className?: string;
-  /** 觸發按鈕的 aria-label，預設「選擇日期區間」 */
+  /** 觸發按鈕的 aria-label，預設「選擇日期區間」（i18n） */
   ariaLabel?: string;
   /** 停用整顆元件（loading 狀態用） */
   disabled?: boolean;
@@ -73,9 +73,10 @@ export default function DateRangePicker({
   onChange,
   presets = PRESETS,
   className = "",
-  ariaLabel = "選擇日期區間",
+  ariaLabel,
   disabled = false,
 }: DateRangePickerProps) {
+  const t = useTranslations("components.dateRange");
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange>(value);
   // 使用者點第一下後等第二下；null = 還沒開始選
@@ -89,14 +90,23 @@ export default function DateRangePicker({
     }
   }, [open, value]);
 
+  // UAT R3 G4：preset label（過去 7 日等）接 i18n——lib 內建 label 只當 fallback
+  const presetLabel = (p: PresetDef): string => {
+    const v = t(`presets.${p.key}`);
+    return v.endsWith(`presets.${p.key}`) ? p.label : v;
+  };
+
   const detected = useMemo(() => detectPreset(draft), [draft]);
   const triggerLabel = useMemo(() => {
     const presetDef = presets.find((p) => p.key === detected);
     if (presetDef && presetDef.key !== "custom") {
-      return formatDateRange(value, { presetLabel: presetDef.label });
+      return formatDateRange(value, { presetLabel: presetLabel(presetDef) });
     }
+    if (!value.from || !value.to) return t("pickDate");
     return formatDateRange(value);
-  }, [value, detected, presets]);
+    // presetLabel 依 t 變動，t 已含於 deps（useTranslations 依 locale memo 化）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, detected, presets, t]);
 
   const handlePresetClick = (key: PresetKey) => {
     if (key === "custom") {
@@ -137,7 +147,7 @@ export default function DateRangePicker({
         <button
           type="button"
           disabled={disabled}
-          aria-label={ariaLabel}
+          aria-label={ariaLabel ?? t("ariaLabel")}
           className={[
             "inline-flex items-center gap-2 rounded-lg border border-[var(--border)]",
             "bg-[var(--bg-surface)] px-3 py-[7px]",
@@ -202,6 +212,7 @@ function DateRangePickerBody({
   onPresetClick,
   onDayClick,
 }: BodyProps) {
+  const t = useTranslations("components.dateRange");
   // 當前左月份（右月份 = 左 + 1）
   const initialMonth = useMemo(() => {
     if (draft.from) return startOfMonth(draft.from);
@@ -217,10 +228,11 @@ function DateRangePickerBody({
       <div
         className="flex shrink-0 flex-row gap-1 overflow-x-auto border-b border-[var(--border)] p-3 sm:flex-col sm:gap-[2px] sm:overflow-visible sm:border-b-0 sm:border-r sm:p-2"
         role="listbox"
-        aria-label="預設日期範圍"
+        aria-label={t("presetListAria")}
       >
         {presets.map((p) => {
           const active = p.key === detectedPresetKey;
+          const label = t(`presets.${p.key}`);
           return (
             <button
               key={p.key}
@@ -237,7 +249,7 @@ function DateRangePickerBody({
                 "sm:min-w-[110px]",
               ].join(" ")}
             >
-              {p.label}
+              {label.endsWith(`presets.${p.key}`) ? p.label : label}
             </button>
           );
         })}
@@ -295,9 +307,16 @@ function CalendarMonth({
   onNext,
   onDayClick,
 }: CalendarMonthProps) {
+  const { locale } = useLocale();
+  const t = useTranslations("components.dateRange");
   const titleId = useId();
   const days = useMemo(() => buildMonthGrid(month), [month]);
   const today = useMemo(() => startOfDay(new Date()), []);
+  const weekdayLabels = WEEKDAY_LABELS[locale] ?? WEEKDAY_LABELS["zh-TW"];
+  const monthFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { year: "numeric", month: "long" }),
+    [locale],
+  );
 
   // 鍵盤導覽 — 方向鍵搬 focus，Enter / Space 選日。focus 走 grid cell tabindex。
   const gridRef = useRef<HTMLDivElement | null>(null);
@@ -351,7 +370,7 @@ function CalendarMonth({
       <div className="flex items-center justify-between px-1">
         <button
           type="button"
-          aria-label="上個月"
+          aria-label={t("prevMonth")}
           onClick={onPrev}
           className={[
             "h-7 w-7 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-strong)]",
@@ -362,11 +381,11 @@ function CalendarMonth({
           <ChevronLeft className="mx-auto h-4 w-4" aria-hidden="true" />
         </button>
         <span id={titleId} className="text-[13px] font-semibold">
-          {MONTH_FORMATTER.format(month)}
+          {monthFormatter.format(month)}
         </span>
         <button
           type="button"
-          aria-label="下個月"
+          aria-label={t("nextMonth")}
           onClick={onNext}
           className={[
             "h-7 w-7 rounded-md text-[var(--text-secondary)] hover:bg-[var(--surface-strong)]",
@@ -383,7 +402,7 @@ function CalendarMonth({
         role="grid"
         className="grid w-[252px] grid-cols-7 gap-[2px] text-center"
       >
-        {WEEKDAY_LABELS.map((w) => (
+        {weekdayLabels.map((w) => (
           <div
             key={w}
             role="columnheader"

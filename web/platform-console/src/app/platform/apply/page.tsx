@@ -57,7 +57,7 @@ type LookupResult = {
   review_notes?: string | null;
 };
 
-// 查詢結果狀態 → 顯示樣式與說明(未知狀態走 fallback,不讓結果卡開天窗)
+// 查詢結果狀態 → 顯示樣式與說明(未知狀態在解析時擋下,顯示 LOOKUP_PARSE_ERROR)
 const STATUS_VIEW: Record<string, { label: string; cls: string; desc: string }> = {
   pending: {
     label: "審核中",
@@ -76,11 +76,9 @@ const STATUS_VIEW: Record<string, { label: string; cls: string; desc: string }> 
   },
 };
 
-const STATUS_VIEW_FALLBACK = {
-  label: "已受理",
-  cls: "bg-[var(--badge-muted-bg)] text-[var(--badge-muted-fg)]",
-  desc: "申請已受理，平台將盡快處理。",
-};
+// 查詢結果解讀失敗時的顯性錯誤訊息（UAT R3-1:原 fallback「已受理」會把
+// 駁回/未知狀態誤導成受理中,改為明講解讀失敗請重試）
+const LOOKUP_PARSE_ERROR = "無法解讀查詢結果，請稍後再試。";
 
 function formatDateTime(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -115,7 +113,7 @@ export default function BrandApplyPage() {
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [done, setDone] = useState(false);
-  // 送出成功後的申請編號(defensive:後端回 {id, status},取不到就不顯示編號區塊)
+  // 送出成功後的申請編號(defensive:後端回 {data:{id,status}} 信封,取不到就不顯示編號區塊)
   const [applicationId, setApplicationId] = useState<string | null>(null);
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
 
@@ -201,8 +199,22 @@ export default function BrandApplyPage() {
         }
         return;
       }
-      const body = (await res.json()) as LookupResult;
-      setLookupResult(body);
+      // 契約:200 回信封 {data:{status,submitted_at,reviewed_at,review_notes}}
+      // （UAT R3-1:原本把整個信封當扁平物件塞進 state → status 恆 undefined
+      // 永遠走 fallback「已受理」）。data 缺漏或 status 非已知值 → 顯性錯誤,
+      // 不再默默顯示誤導性的受理中文案。
+      let body: { data?: LookupResult | null } | null = null;
+      try {
+        body = await res.json();
+      } catch {
+        /* 非 JSON 回應 → 走下方解讀失敗訊息 */
+      }
+      const data = body?.data;
+      if (data && typeof data.status === "string" && STATUS_VIEW[data.status]) {
+        setLookupResult(data);
+      } else {
+        setLookupError(LOOKUP_PARSE_ERROR);
+      }
     } catch {
       setLookupError("查詢失敗，請確認網路後再試。");
     } finally {
@@ -303,16 +315,19 @@ export default function BrandApplyPage() {
         else setError("送出失敗，請稍後再試");
         return;
       }
-      // 201 回 {id, status};id=申請編號,供免 email 查詢進度。防禦性讀取:
-      // 解析失敗不擋成功畫面,只是不顯示編號區塊。
-      let created: { id?: unknown } | null = null;
+      // 201 回信封 {data:{id,status}};data.id=申請編號,供免 email 查詢進度
+      // （UAT R3-1:原本讀頂層 created?.id 恆 undefined → 編號區塊被 defensive
+      // 隱藏,申請人拿不到編號）。防禦性讀取:解析失敗不擋成功畫面,只是不顯示
+      // 編號區塊。
+      let created: { data?: { id?: unknown } | null } | null = null;
       try {
         created = await res.json();
       } catch {
         /* 非 JSON 回應 → 略過編號顯示 */
       }
+      const createdId = created?.data?.id;
       setApplicationId(
-        typeof created?.id === "string" && created.id ? created.id : null,
+        typeof createdId === "string" && createdId ? createdId : null,
       );
       setDone(true);
     } catch {
@@ -409,7 +424,10 @@ export default function BrandApplyPage() {
             </form>
 
             {lookupResult && (() => {
-              const view = STATUS_VIEW[lookupResult.status] ?? STATUS_VIEW_FALLBACK;
+              // set 時已驗證 status ∈ STATUS_VIEW;此為防禦保底(未知狀態不渲染
+              // 誤導卡,由 LOOKUP_PARSE_ERROR 訊息負責告知)
+              const view = STATUS_VIEW[lookupResult.status];
+              if (!view) return null;
               return (
                 <div
                   role="status"

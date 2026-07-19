@@ -3,7 +3,7 @@
 spec 對齊：
   GET /tenants/{tenantId}/reports/kpi        → getReportKpi
   GET /tenants/{tenantId}/reports/revenue    → getReportRevenue
-  GET /tenants/{tenantId}/reports/export     → exportReport（CSV stream）
+  GET /tenants/{tenantId}/reports/export     → exportReport（CSV stream / PDF；UAT R3-9 補 format=pdf）
 
 設計原則：
   - require_tenant + cross-tenant guard（ADR-0030）
@@ -16,7 +16,7 @@ from __future__ import annotations
 from datetime import date
 
 from fastapi import APIRouter, Depends, Path, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 
 from core.deps import CurrentUser, require_tenant, role_required
 from core.errors import ApiError
@@ -121,11 +121,11 @@ async def get_report_revenue(
 @router.get(
     "/tenants/{tenantId}/reports/export",
     operation_id="exportReportV2",
-    summary="匯出 KPI / 營收 / 技師排行 / 結算報表（tenant-scoped v2；CSV stream）",
+    summary="匯出 KPI / 營收 / 技師排行 / 結算報表（tenant-scoped v2；CSV stream / PDF）",
     responses={
         200: {
-            "description": "CSV stream",
-            "content": {"text/csv": {}},
+            "description": "CSV / PDF stream",
+            "content": {"text/csv": {}, "application/pdf": {}},
         },
         403: {"description": "缺乏匯出權限或跨 tenant 存取"},
         422: {"description": "參數錯誤"},
@@ -137,6 +137,7 @@ async def export_report_v2(
     report_type: str = Query(
         ..., description="kpi / revenue / technician_ranking / accounting"
     ),
+    format: str = Query(default="csv", description="csv / pdf"),
     period: str | None = Query(default=None, description="KPI 期間：today/7d/30d/90d"),
     from_: str | None = Query(default=None, alias="from"),
     to: str | None = Query(default=None),
@@ -150,11 +151,32 @@ async def export_report_v2(
             403,
         )
 
+    # UAT R3-9：原本整個吞掉 format query param 恆走 CSV——前端選 PDF 拿到的
+    # .pdf 內容其實是 CSV（打不開）。改對齊 legacy /api/v1/reports/export：
+    # format=pdf 走 report_export_service.render_pdf（reportlab + STSong-Light）。
     report_export_service.validate_inputs(
-        report_type=report_type, fmt="csv", period=period
+        report_type=report_type, fmt=format, period=period
     )
 
     now = report_export_service.now_utc()
+
+    if format == "pdf":
+        pdf_bytes = await report_export_service.render_pdf(
+            tenant_id=tenantId,
+            report_type=report_type,
+            period=period,
+            from_date=from_,
+            to_date=to,
+        )
+        fname = report_export_service.filename(now, report_type, "pdf")
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={
+                "Content-Disposition": f'attachment; filename="{fname}"',
+            },
+        )
+
     fname = report_export_service.filename(now, report_type, "csv")
 
     async def gen():

@@ -11,7 +11,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Sidebar from "@/components/layout/Sidebar";
-import WorkOrdersTable from "@/components/work-orders/WorkOrdersTable";
+import WorkOrdersTable, {
+  STATUS_GROUP_VALUES,
+  rawStatusesOfGroup,
+  type StatusGroup,
+} from "@/components/work-orders/WorkOrdersTable";
 import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal";
 import { tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
@@ -46,10 +50,12 @@ export default function WorkOrdersPage() {
   const t = useTranslations("pages.workOrders");
   const tFilters = useTranslations("pages.workOrders.filters");
   const tViews = useTranslations("pages.workOrders.views");
+  const tGroup = useTranslations("status.workOrderGroup");
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
-  const [periodFilter, setPeriodFilter] = useState<string>(""); // 7/30/all
+  // UAT R3（P3）：期間預設「最近 7 天」要真的帶條件（label 與行為一致）
+  const [periodFilter, setPeriodFilter] = useState<string>("7"); // 7/30/90/""=全部
   const [keyword, setKeyword] = useState<string>("");
 
   const filterDropdowns = useMemo(
@@ -63,7 +69,12 @@ export default function WorkOrdersPage() {
 
   const queryParams = useMemo(() => {
     const p = new URLSearchParams();
-    if (statusFilter) p.set("status", statusFilter);
+    // UAT R3-7：篩選值為狀態群組 → 展開成多個原始 status（後端可重複收）
+    if (statusFilter) {
+      for (const raw of rawStatusesOfGroup(statusFilter as StatusGroup)) {
+        p.append("status", raw);
+      }
+    }
     if (brandFilter) p.set("brand", brandFilter);
     if (keyword.trim()) p.set("keyword", keyword.trim());
     if (periodFilter) {
@@ -138,10 +149,11 @@ export default function WorkOrdersPage() {
             className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
           >
             <option value="">{tFilters("status")}</option>
-            <option value="dispatched">{tFilters("statusOptions.dispatched")}</option>
-            <option value="completed">{tFilters("statusOptions.completed")}</option>
-            <option value="refunded">{tFilters("statusOptions.refunded")}</option>
-            <option value="disputed">{tFilters("statusOptions.disputed")}</option>
+            {STATUS_GROUP_VALUES.map((g) => (
+              <option key={g} value={g}>
+                {tGroup(g)}
+              </option>
+            ))}
           </select>
 
           <select
@@ -149,10 +161,10 @@ export default function WorkOrdersPage() {
             onChange={(e) => setPeriodFilter(e.target.value)}
             className="h-9 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 text-[13px] text-[var(--text-primary)] outline-none"
           >
-            <option value="">{tFilters("last7Days")}</option>
             <option value="7">{tFilters("periodOptions.7")}</option>
             <option value="30">{tFilters("periodOptions.30")}</option>
             <option value="90">{tFilters("periodOptions.90")}</option>
+            <option value="">{tFilters("periodOptions.all")}</option>
           </select>
 
           <select

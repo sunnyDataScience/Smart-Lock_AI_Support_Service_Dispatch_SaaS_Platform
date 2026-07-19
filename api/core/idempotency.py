@@ -1,9 +1,19 @@
-"""Idempotency-Key 24h dedup。
+"""Idempotency-Key 24h dedup（UAT R3-6 起改 reserve-first 先佔）。
 
-流程：
+流程（reserve-first，已釘契約）：
 1. 解析 header；無 key 則跳過（GET 或缺 header 視情況拒絕）
-2. SELECT 既有 (tenant_id, key) → 命中且 path/method/hash 相符 → 直接回先前 response
-3. 不命中 → 設 marker、handler 跑完後寫入 (status, body)
+2. handler 執行前先 INSERT 佔位列（status='in_progress'）
+3. INSERT 撞 (tenant_id, key) 既有列時：
+   - status='completed' 且 hash 相符 → 回放已存 response
+   - status='completed' 但 hash 不符 → 409 IDEMPOTENCY_KEY_MISMATCH
+   - status='in_progress'（且未逾時）→ 409 IDEMPOTENCY_IN_PROGRESS（客戶端稍後重試）
+   - 列已逾期（TTL 過）或 in_progress 逾時（handler 掛掉殘留）→ 原子接管重佔
+4. handler 成功 → save() 把佔位列補成 completed + response
+5. handler 失敗（未 save）→ dependency finally 釋放佔位列（錯誤回應不快取，
+   客戶端可立即用同 key 重試 —— 對齊改造前「失敗不入快取」語意）
+
+舊版 check-then-act（先 SELECT 再事後 INSERT）在同 key 併發 2 發時雙雙 miss →
+handler 執行兩次（UAT R3-6：同一張問題卡兩張工單＋發票錯亂）。
 """
 
 from __future__ import annotations
@@ -12,7 +22,7 @@ import hashlib
 import json
 import logging
 import uuid as uuid_lib
-from typing import Any
+from typing import Any, AsyncIterator
 
 from fastapi import Header, Request
 from fastapi.responses import JSONResponse
@@ -23,6 +33,9 @@ from core.errors import ApiError
 import core.db as db_module
 
 logger = logging.getLogger("api.idempotency")
+
+#: in_progress 佔位逾時秒數（handler 掛掉殘留的接管窗；非 409 重試建議值）
+_DEFAULT_RESERVE_TTL_SECONDS = 300
 
 
 def _hash_request(method: str, path: str, body: bytes) -> str:
@@ -35,16 +48,50 @@ def _hash_request(method: str, path: str, body: bytes) -> str:
     return h.hexdigest()
 
 
-async def _lookup(tenant_id: str, key: str) -> dict | None:
-    if not await _ensure_conn():
-        return None
-    ttl_hours = int(load_config().idempotency.get("ttl_hours", 24))
+async def _try_insert_reservation(
+    tenant_id: str, key: str, method: str, path: str, request_hash: str
+) -> bool:
+    """INSERT 佔位列；成功=True，撞既有列=False。"""
     cur = await db_module._conn.execute(
-        "SELECT method, path, request_hash, response_status, response_body "
-        "FROM idempotency_keys "
+        "INSERT INTO idempotency_keys "
+        "  (tenant_id, key, method, path, request_hash, status) "
+        "VALUES (%s::uuid, %s, %s, %s, %s, 'in_progress') "
+        "ON CONFLICT (tenant_id, key) DO NOTHING "
+        "RETURNING key",
+        (tenant_id, key, method, path, request_hash),
+    )
+    return (await cur.fetchone()) is not None
+
+
+async def _try_takeover(
+    tenant_id: str, key: str, method: str, path: str, request_hash: str,
+    ttl_hours: int, reserve_ttl_seconds: int,
+) -> bool:
+    """原子接管逾期列（TTL 過的 completed / 逾時的 in_progress 殘留）。
+
+    UPDATE 帶時間條件 —— 併發下只有一個請求能接管成功。
+    """
+    cur = await db_module._conn.execute(
+        "UPDATE idempotency_keys "
+        "SET method = %s, path = %s, request_hash = %s, "
+        "    status = 'in_progress', response_status = NULL, response_body = NULL, "
+        "    created_at = NOW() "
         "WHERE tenant_id = %s::uuid AND key = %s "
-        "AND created_at > NOW() - (%s * INTERVAL '1 hour')",
-        (tenant_id, key, ttl_hours),
+        "  AND ( created_at <= NOW() - (%s * INTERVAL '1 hour') "
+        "        OR (status = 'in_progress' "
+        "            AND created_at <= NOW() - (%s * INTERVAL '1 second')) ) "
+        "RETURNING key",
+        (method, path, request_hash, tenant_id, key, ttl_hours, reserve_ttl_seconds),
+    )
+    return (await cur.fetchone()) is not None
+
+
+async def _fetch_existing(tenant_id: str, key: str) -> dict | None:
+    cur = await db_module._conn.execute(
+        "SELECT method, path, request_hash, response_status, response_body, status "
+        "FROM idempotency_keys "
+        "WHERE tenant_id = %s::uuid AND key = %s",
+        (tenant_id, key),
     )
     row = await cur.fetchone()
     if not row:
@@ -55,29 +102,53 @@ async def _lookup(tenant_id: str, key: str) -> dict | None:
         "request_hash": row[2],
         "response_status": row[3],
         "response_body": row[4],
+        "status": row[5],
     }
 
 
-async def _store(
+async def _complete(
     tenant_id: str,
     key: str,
-    method: str,
-    path: str,
-    request_hash: str,
     response_status: int,
     response_body: dict,
 ) -> None:
-    if not await _ensure_conn():
-        return
+    """handler 成功後把佔位列補成 completed（無佔位列時容錯直接 INSERT）。"""
     try:
+        cur = await db_module._conn.execute(
+            "UPDATE idempotency_keys "
+            "SET status = 'completed', response_status = %s, response_body = %s "
+            "WHERE tenant_id = %s::uuid AND key = %s "
+            "RETURNING key",
+            (response_status, json.dumps(response_body), tenant_id, key),
+        )
+        if await cur.fetchone():
+            return
+        # 佔位列消失（極端：接管競態）→ 保底 INSERT，維持回放能力
         await db_module._conn.execute(
-            "INSERT INTO idempotency_keys (tenant_id, key, method, path, request_hash, response_status, response_body) "
-            "VALUES (%s::uuid, %s, %s, %s, %s, %s, %s) "
+            "INSERT INTO idempotency_keys "
+            "  (tenant_id, key, method, path, request_hash, response_status, response_body, status) "
+            "VALUES (%s::uuid, %s, '', '', '', %s, %s, 'completed') "
             "ON CONFLICT (tenant_id, key) DO NOTHING",
-            (tenant_id, key, method, path, request_hash, response_status, json.dumps(response_body)),
+            (tenant_id, key, response_status, json.dumps(response_body)),
         )
     except Exception as e:
         logger.warning("Idempotency store failed: %s", e)
+
+
+async def _release_reservation(tenant_id: str, key: str) -> None:
+    """handler 失敗（未 save）→ 刪掉自己的 in_progress 佔位列。
+
+    只刪 in_progress：completed 列（已 save 或他人接管完成）不動。
+    錯誤回應不快取 —— 客戶端可立即用同 key 重試（維持改造前語意）。
+    """
+    try:
+        await db_module._conn.execute(
+            "DELETE FROM idempotency_keys "
+            "WHERE tenant_id = %s::uuid AND key = %s AND status = 'in_progress'",
+            (tenant_id, key),
+        )
+    except Exception as e:
+        logger.warning("Idempotency release failed: %s", e)
 
 
 class IdempotencyContext:
@@ -89,6 +160,7 @@ class IdempotencyContext:
         self.method = method
         self.path = path
         self.request_hash = request_hash
+        self.saved = False
 
     async def save(self, status_code: int, body: Any) -> None:
         if isinstance(body, (dict, list)):
@@ -98,7 +170,8 @@ class IdempotencyContext:
                 payload = json.loads(body)
             except Exception:
                 payload = {"raw": str(body)}
-        await _store(self.tenant_id, self.key, self.method, self.path, self.request_hash, status_code, payload)
+        await _complete(self.tenant_id, self.key, status_code, payload)
+        self.saved = True
 
 
 # CR-0165 F12：公開無登入端點（技師/廠商註冊）client 無從得知 tenant，
@@ -150,18 +223,13 @@ async def _guard_impl(
     body = await request.body()
     request_hash = _hash_request(request.method, request.url.path, body)
 
-    cached = await _lookup(x_tenant_id, idempotency_key)
-    if cached:
-        if cached["request_hash"] != request_hash:
-            raise ApiError(
-                error_code="IDEMPOTENCY_KEY_MISMATCH",
-                message="Same Idempotency-Key used with different request payload",
-                status_code=409,
-            )
-        # Replay
-        raise IdempotencyReplay(cached["response_status"], cached["response_body"])
+    if not await _ensure_conn():
+        # DB 不可用 → 無法 dedup（與舊版 _lookup fail-open 行為一致，不擋業務）
+        return None
 
-    return IdempotencyContext(
+    ttl_hours = int(cfg.get("ttl_hours", 24))
+    reserve_ttl = int(cfg.get("reserve_ttl_seconds", _DEFAULT_RESERVE_TTL_SECONDS))
+    ctx = IdempotencyContext(
         tenant_id=x_tenant_id,
         key=idempotency_key,
         method=request.method,
@@ -169,21 +237,75 @@ async def _guard_impl(
         request_hash=request_hash,
     )
 
+    # reserve-first：先佔 → 成功者才執行 handler
+    if await _try_insert_reservation(
+        x_tenant_id, idempotency_key, request.method, request.url.path, request_hash
+    ):
+        return ctx
+
+    # 撞既有列：接管逾期列 → 否則依 status 回放 / 409
+    if await _try_takeover(
+        x_tenant_id, idempotency_key, request.method, request.url.path, request_hash,
+        ttl_hours, reserve_ttl,
+    ):
+        return ctx
+
+    existing = await _fetch_existing(x_tenant_id, idempotency_key)
+    if existing is None:
+        # 競態邊角：列在 takeover 檢查與 SELECT 之間被釋放 → 再佔一次
+        if await _try_insert_reservation(
+            x_tenant_id, idempotency_key, request.method, request.url.path, request_hash
+        ):
+            return ctx
+        raise ApiError(
+            error_code="IDEMPOTENCY_IN_PROGRESS",
+            message="相同 Idempotency-Key 的請求正在處理中，請稍後重試",
+            status_code=409,
+        )
+
+    if existing["request_hash"] != request_hash:
+        raise ApiError(
+            error_code="IDEMPOTENCY_KEY_MISMATCH",
+            message="Same Idempotency-Key used with different request payload",
+            status_code=409,
+        )
+
+    if existing["status"] == "completed":
+        # Replay
+        raise IdempotencyReplay(existing["response_status"], existing["response_body"])
+
+    # in_progress（未逾時）→ 客戶端稍後重試
+    raise ApiError(
+        error_code="IDEMPOTENCY_IN_PROGRESS",
+        message="相同 Idempotency-Key 的請求正在處理中，請稍後重試",
+        status_code=409,
+    )
+
 
 async def idempotency_guard(
     request: Request,
     idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
-) -> IdempotencyContext | None:
-    """寫操作建議套用此 dependency。
+) -> AsyncIterator[IdempotencyContext | None]:
+    """寫操作建議套用此 dependency（yield 形式）。
 
     - 缺 key → 回 None（呼叫方決定是否強制要求）
-    - 命中 → 拋 ApiError(replay) 攜帶已存 response
-    - 未命中 → 回 IdempotencyContext，handler 完成後手動 save()
+    - 既有 completed 命中 → 拋 IdempotencyReplay 回放已存 response
+    - 同 key in_progress → 409 IDEMPOTENCY_IN_PROGRESS
+    - 成功先佔 → 回 IdempotencyContext，handler 完成後手動 save()；
+      未 save（handler 拋錯）由本 dependency finally 釋放佔位列
     """
-    return await _guard_impl(
+    ctx = await _guard_impl(
         request, idempotency_key, x_tenant_id, default_tenant=None
     )
+    if ctx is None:
+        yield None
+        return
+    try:
+        yield ctx
+    finally:
+        if not ctx.saved:
+            await _release_reservation(ctx.tenant_id, ctx.key)
 
 
 def make_idempotency_guard(*, default_tenant: str):
@@ -197,10 +319,18 @@ def make_idempotency_guard(*, default_tenant: str):
         request: Request,
         idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
         x_tenant_id: str | None = Header(default=None, alias="X-Tenant-ID"),
-    ) -> IdempotencyContext | None:
-        return await _guard_impl(
+    ) -> AsyncIterator[IdempotencyContext | None]:
+        ctx = await _guard_impl(
             request, idempotency_key, x_tenant_id, default_tenant=default_tenant
         )
+        if ctx is None:
+            yield None
+            return
+        try:
+            yield ctx
+        finally:
+            if not ctx.saved:
+                await _release_reservation(ctx.tenant_id, ctx.key)
 
     return _dep
 

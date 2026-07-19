@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ClipboardList,
   CircleCheckBig,
@@ -29,8 +29,10 @@ import {
   mapRangeToDashboardPeriod,
   type DateRange,
 } from "@/lib/dateRange";
-import { api, tenantPath } from "@/lib/api";
+import { api, getCurrentSession, tenantPath } from "@/lib/api";
+import { cacheInvalidate } from "@/lib/cache";
 import { friendlyError } from "@/lib/apiError";
+import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
 import { UAT_HIDE_FAKE_FLOWS } from "@/lib/uatFlags";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import type { components } from "@/types/api.generated";
@@ -100,6 +102,36 @@ export default function DashboardPage() {
   const [techniciansLoading, setTechniciansLoading] = useState(true);
   const [techniciansError, setTechniciansError] = useState<string | null>(null);
 
+  // UAT R3（P3 儀表板無即時性）：訂閱 /realtime/dispatch-queue，收訊 throttle 2s
+  // 後 refetch 工單列表 / 統計（後端 publisher 既有，前端補消費者）。
+  // refreshTick 併入下方 fetch effect 的 deps —— 收訊即重抓三組資料。
+  const [refreshTick, setRefreshTick] = useState(0);
+  const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (throttleTimerRef.current) clearTimeout(throttleTimerRef.current);
+    };
+  }, []);
+  // WS 頻道白名單（api/main.py _ADMIN_ROLES）——角色不符不開 WS，避免 403 重連迴圈
+  const [dispatchWsAllowed, setDispatchWsAllowed] = useState(false);
+  useEffect(() => {
+    const role = getCurrentSession()?.role ?? null;
+    setDispatchWsAllowed(role === "admin" || role === "operations_manager");
+  }, []);
+  useRealtimeChannel({
+    channelPath: "/realtime/dispatch-queue",
+    enabled: dispatchWsAllowed,
+    onMessage: () => {
+      if (throttleTimerRef.current) return; // 2s 內併發訊息合併為一次 refetch
+      throttleTimerRef.current = setTimeout(() => {
+        throttleTimerRef.current = null;
+        // 清 GET 快取（30s staleTime）再 refetch，否則拿回同一份舊資料
+        cacheInvalidate("GET:");
+        setRefreshTick((tick) => tick + 1);
+      }, 2000);
+    },
+  });
+
   useEffect(() => {
     let cancelled = false;
 
@@ -157,7 +189,7 @@ export default function DashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, [period, refreshTick]);
 
   const conv = stats?.conversations;
   const res = stats?.resolution;

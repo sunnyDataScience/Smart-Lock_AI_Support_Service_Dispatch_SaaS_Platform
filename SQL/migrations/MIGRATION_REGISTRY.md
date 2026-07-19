@@ -137,5 +137,7 @@
 
 | 109 | `109-payout-rule-crud.sql` | UAT-0718 W1-6 | 🟢 idempotent（ADD COLUMN IF NOT EXISTS，scratch 5490 驗證 2026-07-18） | 拆帳規則 CRUD（業主裁決）：public.technician_payout_rule 加 updated_at/deleted_at 兩欄——軟刪（NULL=生效列，比照 quote_catalog CR-0110）＋編輯留痕；CRUD 端點（catalog_v2.py POST/PATCH/DELETE /payout-rules）每寫入硬性記 audit_events |
 
+| 110 | `110-idempotency-reserve-first.sql` | UAT R3-6 | 🟢 idempotent（ADD COLUMN/CREATE INDEX IF NOT EXISTS＋DROP NOT NULL 可重套，scratch 5490 驗證 2026-07-19） | Idempotency 先佔（已釘契約）：idempotency_keys 加 status（in_progress/completed）＋response_status/response_body 改 nullable——handler 前先 INSERT 佔位，同 key 併發 409 IDEMPOTENCY_IN_PROGRESS；work_orders 加 partial UNIQUE(problem_card_id)（限原始單：parent_work_order_id IS NULL AND rework_of_id IS NULL，reopen 子單/rework 排除）併發 convert DB 兜底。⚠️ 套用前先跑檔頭重複列預檢（scratch 0 列；本機/prod 套前必重跑） |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

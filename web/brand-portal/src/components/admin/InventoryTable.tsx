@@ -22,6 +22,16 @@ function formatDate(iso: string | null | undefined): string {
   return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/**
+ * UAT R3（G5-P3）「最後補貨」：API 契約新欄 last_restock_at（最近一筆 purchase
+ * 交易時間）優先，防禦性退回舊欄名 last_restocked_at；皆缺顯「—」。
+ */
+function lastRestockAt(row: InventoryItem): string | null | undefined {
+  const raw = (row as Record<string, unknown>)["last_restock_at"];
+  if (typeof raw === "string") return raw;
+  return row.last_restocked_at;
+}
+
 export default function InventoryTable({ items, loading, onItemsChanged }: Props) {
   const t = useTranslations("components.admin.inventory");
   const [restockItem, setRestockItem] = useState<InventoryItem | null>(null);
@@ -134,7 +144,7 @@ export default function InventoryTable({ items, loading, onItemsChanged }: Props
 
               <div className="flex w-[140px] shrink-0 items-center px-3">
                 <span className="text-[13px] text-[var(--text-secondary)]">
-                  {formatDate(row.last_restocked_at)}
+                  {formatDate(lastRestockAt(row))}
                 </span>
               </div>
 

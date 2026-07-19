@@ -73,11 +73,12 @@ services:
     environment:
       POSTGRES_URI: "postgresql://lock:0000@db:5432/lock_AI_data"
       # 雙庫模式(CR-0112 方案 B):技師身分權威庫在師傅 stack 的 tech-db。
-      # 預設空 = 單庫 fallback(dispatch stack 可獨立起);跑雙庫時傳:
-      #   TECH_POSTGRES_URI=postgresql://lock:0000@tech-db:5432/lock_tech \
-      #     docker compose -f docker-compose.dispatch.yml up -d api
-      # (tech-db 由師傅 stack 提供並掛在本 stack 的 network 上)
-      TECH_POSTGRES_URI: "${TECH_POSTGRES_URI:-}"
+      # UAT-R3-2(2026-07-19):預設從「空=單庫 fallback」改為接線 URI——雙庫已是
+      # 現行架構,brand-api 缺此值會靜默讀品牌庫(split-brain:排班申請寫權威庫、
+      # 品牌後台審核頁永遠空)。tech-db 由師傅 stack 提供並掛在本 stack 的 network
+      # 上;僅起 dispatch stack(不起師傅 stack)時技師相關路徑會連線失敗大聲報錯
+      # (fail-loud 優於讀錯庫),屆時可顯式傳 TECH_POSTGRES_URI= 空值退回單庫。
+      TECH_POSTGRES_URI: "${TECH_POSTGRES_URI:-postgresql://lock:0000@tech-db:5432/lock_tech}"
       API_SURFACE: dispatch       # 完整後台面 + 背景 worker(見 api/main.py CR-0112)
       DB_URI_STRICT: "1"          # CR-0153:三庫 URI 啟動守衛(漏設拒啟,ADR-020)
       # 三個前端網域都要放行:派工 web(3000)+ 師傅 web(3001)+ landing(3002)

@@ -1046,6 +1046,10 @@ class Message(BaseModel):
     type: MessageType
     content: str
     media_url: str | None = None  # spec format: uri-reference（CR-0119 相對路徑 /api/v1/media/{id}）
+    metadata: dict[str, Any] | None = Field(
+        None,
+        description='訊息附掛 metadata 原樣帶出（UAT R3-3；至少含 sender_role 供前端區分 AI／真人客服）',
+    )
     created_at: AwareDatetime
 
 

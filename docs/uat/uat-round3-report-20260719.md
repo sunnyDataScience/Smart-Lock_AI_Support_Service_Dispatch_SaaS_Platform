@@ -63,3 +63,18 @@
 ---
 
 **下一步建議**：P1×2 先修（apply 信封解析一檔兩處＋brand-api 補 env 重佈）；R3-6 idempotency 併發穿透屬正確性問題建議一起修；Realtime 三項建議合併成一個收斂輪；其餘 P2/P3 可批次掃。等業主指示。
+
+---
+
+## 🔧 修復結果（2026-07-19 上午，業主指示「一起修」，30/30 全數落地）
+
+branch `fix/uat-round3-fixes`，api/brand/platform 三域 commit＋整合者環境修復：
+
+- **P1×2**：R3-1 apply 信封解析（submit 讀 `body.data.id`＋lookup 讀 `body.data`＋fallback 改顯性錯誤；對 :8003 端到端驗證）；R3-2 brand compose `TECH_POSTGRES_URI` 預設改接線 URI（fail-loud 取捨入註解）＋api 首次 fallback WARNING——**live 實證**：權威庫排班申請出現在品牌後台 inbox（原永遠空）
+- **R3-6 Idempotency reserve-first**（migration 110）：先佔位→in_progress 撞鍵 409／completed 回放／逾期原子接管／失敗釋放；`work_orders` partial UNIQUE 兜底（**謂詞排除 reopen/rework 子單**，防返修功能壓死）；併發測試恰一單
+- **Realtime 系統性收斂**：channel registry＋token 每次連線重讀＋握手失敗先 refresh（修 1h 舊 token 無限 403）＋StrictMode linger（修間歇失效）＋鈴鐺/全頁收訊 refetch（修漏拍）＋dashboard 補 dispatch-queue 訂閱（補零即時）；單元測試 +10
+- **R3-3 metadata**：序列化補欄（live 驗證回應含 metadata 鍵）；R3-7 多值篩選前後端；R3-8 KB 裸路徑（順修同根因 5 處）；R3-9 **真 PDF**（根因=v2 忽略 format 參數，復用 v1 reportlab 機制）；KPI 平均時長算式（無到場單 0 分灌爆 AVG→CASE 錨點）；其餘 P3 批全落地
+- **驗證**：api 全套 **1943 passed 0 failed**（回歸 +12）＋brand tsc 0/vitest 24 綠＋platform tsc 0/i18n 對齊＋live（排班鏈/metadata/深色 zebra 14.63:1/側欄 active 11.5:1）；**migration 110 部署需套用（檔頭有存量預檢 SQL，先跑再套）**；測試資料（UAT0719x/UAT0719fix）清零
+- **skipped（合理）**：DB_URI_STRICT 不納 TECH URI（CR-0153 守衛按 surface 斷言，納入會拒啟現行單庫雲端部署；以 WARNING＋compose 預設緩解，全面三庫化時再開 CR）
+
+至此三輪 UAT 累計 **112 findings 全數收斂**（82＋30）。

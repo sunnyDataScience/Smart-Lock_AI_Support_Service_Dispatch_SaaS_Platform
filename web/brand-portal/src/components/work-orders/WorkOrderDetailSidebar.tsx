@@ -253,45 +253,8 @@ export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Pr
   );
 }
 
-// CR-0026 enum → 顯示映射（繁中；enum 值由 backend 驗證）
-const SERVICE_CATEGORY_LABEL: Record<string, string> = {
-  install: "安裝",
-  warranty_in: "保內",
-  warranty_out: "保外",
-  repair: "維修",
-};
-const WARRANTY_STATUS_LABEL: Record<string, string> = {
-  in_warranty: "保固內",
-  out_warranty: "保固外",
-  not_applicable: "不適用",
-};
-// 門扇材質對照（與 DispatchOrderView 的 DOOR_TYPE 一致），避免顯示原始 enum 碼
-const DOOR_TYPE_LABEL: Record<string, string> = {
-  iron: "鐵門",
-  wood: "木門",
-  steel: "鋼門",
-  other: "其它",
-};
-const COMPLETION_STATUS_LABEL: Record<string, string> = {
-  pending_report: "待完工回報",
-  pending_photos: "待照片",
-  pending_customer_confirm: "待客戶確認",
-  pending_cs_review: "待客服審核",
-  completed: "已完工",
-  closed: "已結案",
-};
-// CR-0043 Phase 2 標籤映射
-const RAIN_EXPOSURE_LABEL: Record<string, string> = {
-  indoor: "室內",
-  outdoor_covered: "室外有遮雨",
-  outdoor_exposed: "室外無遮雨",
-};
-const PAYMENT_METHOD_LABEL: Record<string, string> = {
-  cash: "現金",
-  bank_transfer: "轉帳",
-  credit_card: "刷卡",
-  line_pay: "LINE Pay",
-};
+// UAT R3 G4：CR-0026/0043 enum 值域改 i18n（components.workOrders.dispatchOrder.enums.*，
+// 與 DispatchOrderView 共用同一字典）；字典缺該值時 fallback 原始碼
 
 interface QuoteLineItem {
   id: string;
@@ -406,38 +369,37 @@ function CostDetailPanel({ workOrderId }: { workOrderId?: string }) {
 
 function WorkOrderFieldsPanel({ workOrder }: { workOrder?: WorkOrder }) {
   const t = useTranslations("components.workOrders.detailSidebar");
+  const tEnums = useTranslations("components.workOrders.dispatchOrder.enums");
   if (!workOrder) return null;
+
+  // enum 值 → i18n label；字典缺該值時 fallback 原始碼（translate 缺 key 回傳 path）
+  const enumOr = (group: string, raw?: string | null): string | null => {
+    if (!raw) return null;
+    const path = `${group}.${raw}`;
+    const v = tEnums(path);
+    return v.endsWith(path) ? raw : v;
+  };
 
   const rows: { label: string; value: string }[] = [];
   const push = (label: string, value?: string | null) => {
     if (value) rows.push({ label, value });
   };
-  // CR-0043 Tier①：客名/電話接回顯示（基礎案件資訊）
-  push("客戶姓名", workOrder.customer_name);
-  push("聯絡電話", workOrder.customer_phone);
-  push(t("woServiceCategory"), workOrder.service_category
-    ? SERVICE_CATEGORY_LABEL[workOrder.service_category] ?? workOrder.service_category
-    : null);
+  // CR-0043 Tier①：客名/電話接回顯示（基礎案件資訊）；UAT R3 G4 label 接 i18n
+  push(t("woCustomerName"), workOrder.customer_name);
+  push(t("woCustomerPhone"), workOrder.customer_phone);
+  push(t("woServiceCategory"), enumOr("serviceCategory", workOrder.service_category));
   push(t("woProblemType"), workOrder.problem_type);
-  push(t("woWarranty"), workOrder.warranty_status
-    ? WARRANTY_STATUS_LABEL[workOrder.warranty_status] ?? workOrder.warranty_status
-    : null);
-  push("保固到期日", workOrder.warranty_expiry_date);  // CR-0047 自動算
-  push(t("woDoorType"), workOrder.door_type ? DOOR_TYPE_LABEL[workOrder.door_type] ?? workOrder.door_type : null);
+  push(t("woWarranty"), enumOr("warrantyStatus", workOrder.warranty_status));
+  push(t("woWarrantyExpiry"), workOrder.warranty_expiry_date);  // CR-0047 自動算
+  push(t("woDoorType"), enumOr("doorType", workOrder.door_type));
   // CR-0043：門厚 + 設備/計費新欄位
-  push("門厚", workOrder.door_thickness);
-  push("購買地點/經銷商", workOrder.dealer);
-  push("安裝日期", workOrder.install_date);
-  push("安裝環境", workOrder.rain_exposure
-    ? RAIN_EXPOSURE_LABEL[workOrder.rain_exposure] ?? workOrder.rain_exposure
-    : null);
-  push("付款方式", workOrder.payment_method
-    ? PAYMENT_METHOD_LABEL[workOrder.payment_method] ?? workOrder.payment_method
-    : null);
-  if (workOrder.special_door_surcharge) push("特殊門型加價", "是");
-  push(t("woCompletion"), workOrder.completion_status
-    ? COMPLETION_STATUS_LABEL[workOrder.completion_status] ?? workOrder.completion_status
-    : null);
+  push(t("woDoorThickness"), workOrder.door_thickness);
+  push(t("woDealer"), workOrder.dealer);
+  push(t("woInstallDate"), workOrder.install_date);
+  push(t("woRainExposure"), enumOr("rainExposure", workOrder.rain_exposure));
+  push(t("woPaymentMethod"), enumOr("paymentMethod", workOrder.payment_method));
+  if (workOrder.special_door_surcharge) push(t("woSpecialSurcharge"), t("woYes"));
+  push(t("woCompletion"), enumOr("completionStatus", workOrder.completion_status));
   push(t("woStatusReason"), workOrder.status_reason);
 
   return (
@@ -514,7 +476,7 @@ function CustomerInfoPanel({
             {phone?.trim() ? (
               <span className="text-[13px] text-[var(--text-primary)]">{phone}</span>
             ) : (
-              <span className="text-[13px] text-[var(--text-disabled)]">未提供</span>
+              <span className="text-[13px] text-[var(--text-disabled)]">{t("phoneNotProvided")}</span>
             )}
           </div>
           {/* LINE 帳號識別碼（line_user_id）—— 非電話，獨立標示 */}

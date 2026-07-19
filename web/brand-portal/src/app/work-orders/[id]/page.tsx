@@ -470,7 +470,7 @@ function ProblemCardSummary({
                   {card.conversation_id.slice(0, 8)}
                 </Link>
               ) : (
-                <span className="text-[13px] text-[var(--text-primary)]">—(客服手建)</span>
+                <span className="text-[13px] text-[var(--text-primary)]">{t("field.manualCreated")}</span>
               )}
             </div>
           </div>
@@ -948,30 +948,22 @@ function ConversationThread({ conversationId }: { conversationId?: string }) {
    增 function_tests），屬 B 類全端工，待 CIA。此處先呈現真實的完工時間/摘要/
    實收金額，未完工則誠實顯示空狀態，不再顯示寫死的假測試結果。 */
 
-// CR-0100 功能測試測項中文標籤（後端存 key，前端顯示；對齊技師端勾選清單）。
-const FUNCTION_TEST_LABEL: Record<string, string> = {
-  fingerprint: "指紋解鎖",
-  password: "密碼解鎖",
-  card: "卡片(RFID)",
-  app: "App/藍牙",
-  mechanical_key: "機械鑰匙",
-  battery: "電池電壓",
-};
+// CR-0100 功能測試測項（後端存 key，前端顯示；對齊技師端勾選清單）。
+// UAT R3 G4：值域 map 改 i18n（pages.workOrderDetail.completion.functionTests.*），
+// 此處只留合法 key 清單供 fallback 判斷
+const FUNCTION_TEST_KEYS = new Set([
+  "fingerprint",
+  "password",
+  "card",
+  "app",
+  "mechanical_key",
+  "battery",
+]);
 
 const FUNCTION_TEST_RESULT_STYLE: Record<string, { symbol: string; color: string }> = {
   pass: { symbol: "✓", color: "var(--success)" },
   fail: { symbol: "✗", color: "var(--error)" },
   na: { symbol: "—", color: "var(--text-disabled)" },
-};
-
-// M05 Q052 六段完工細狀態中文標籤（後端存 key；與 DispatchOrderView/WorkOrderDetailSidebar 對齊）
-const COMPLETION_STATUS_LABEL: Record<string, string> = {
-  pending_report: "待完工回報",
-  pending_photos: "待照片",
-  pending_customer_confirm: "待客戶確認",
-  pending_cs_review: "待客服審核",
-  completed: "已完工",
-  closed: "已結案",
 };
 
 // 歷史資料的 completion_summary 可能是機器字串（[ONSITE_COMPLETE] sig=.. photos=[..] notes=..）；
@@ -990,6 +982,7 @@ function parseCompletionSummary(raw: string): { text: string | null; meta: strin
 
 function CompletionReport({ order }: { order: WorkOrder | null }) {
   const t = useTranslations("pages.workOrderDetail.completion");
+  const tEnums = useTranslations("components.workOrders.dispatchOrder.enums");
   if (!order) return null;
   const done =
     !!order.completion_time ||
@@ -1023,7 +1016,13 @@ function CompletionReport({ order }: { order: WorkOrder | null }) {
                 {t("statusLabel")}
               </span>
               <span className="text-[13px] text-[var(--text-primary)]">
-                {COMPLETION_STATUS_LABEL[order.completion_status] ?? order.completion_status}
+                {(() => {
+                  // M05 Q052 六段完工細狀態——與 DispatchOrderView/WorkOrderDetailSidebar
+                  // 共用 enums.completionStatus 字典；缺 key fallback 原始碼
+                  const path = `completionStatus.${order.completion_status}`;
+                  const v = tEnums(path);
+                  return v.endsWith(path) ? order.completion_status : v;
+                })()}
               </span>
             </div>
           )}
@@ -1081,7 +1080,9 @@ function CompletionReport({ order }: { order: WorkOrder | null }) {
                         {style.symbol}
                       </span>
                       <span className="text-[var(--text-primary)]">
-                        {FUNCTION_TEST_LABEL[ft.key] ?? ft.key}
+                        {FUNCTION_TEST_KEYS.has(ft.key)
+                          ? t(`functionTests.${ft.key}`)
+                          : ft.key}
                       </span>
                       <span className="text-[12px] text-[var(--text-disabled)]">
                         {t(`testResult.${ft.result}`)}

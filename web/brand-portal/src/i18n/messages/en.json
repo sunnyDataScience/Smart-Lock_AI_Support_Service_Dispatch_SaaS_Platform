@@ -350,7 +350,11 @@
         "brand": "Brand",
         "model": "Model",
         "createdAt": "Created"
-      }
+      },
+      "aiDraftChip": "AI draft",
+      "aiDraftPendingTitle": "AI draft, missing: {fields}",
+      "aiDraftReviewTitle": "AI draft, pending support review before converting",
+      "aiMissingFields": "Missing: {fields}"
     },
     "conversations": {
       "ariaLabel": "Conversations",
@@ -434,8 +438,11 @@
       "settings": "Settings",
       "staff": "Staff Accounts",
       "payoutRules": "Payout Rules",
-      "configGovernance": "Config Governance"
-    }
+      "configGovernance": "Config Governance",
+      "scheduleRequests": "Schedule requests"
+    },
+    "openNav": "Open navigation menu",
+    "closeNav": "Close navigation menu"
   },
   "pages": {
     "dashboard": {
@@ -575,16 +582,11 @@
         "status": "Status",
         "last7Days": "Last 7 days",
         "brand": "Brand",
-        "statusOptions": {
-          "dispatched": "Dispatched",
-          "completed": "Completed",
-          "refunded": "Refunded",
-          "disputed": "Disputed"
-        },
         "periodOptions": {
           "7": "Last 7 days",
           "30": "Last 30 days",
-          "90": "Last 90 days"
+          "90": "Last 90 days",
+          "all": "All time"
         }
       },
       "views": {
@@ -597,7 +599,10 @@
       "loadFailed": "Failed to load work orders: {error}",
       "loadingMore": "Loading…",
       "loadMore": "Load more",
-      "createOrder": "New work order"
+      "createOrder": "New work order",
+      "breadcrumbKanban": "Home > Work Orders > Kanban",
+      "breadcrumbMap": "Home > Work Orders > Map",
+      "searchKeywordPlaceholder": "Search customer / address / phone"
     },
     "conversations": {
       "title": "Conversations",
@@ -950,7 +955,8 @@
           "model": "Model",
           "category": "Category",
           "conversation": "Linked conversation",
-          "symptom": "Symptom"
+          "symptom": "Symptom",
+          "manualCreated": "— (created by support)"
         }
       },
       "completion": {
@@ -966,6 +972,14 @@
           "pass": "Pass",
           "fail": "Fail",
           "na": "N/A"
+        },
+        "functionTests": {
+          "fingerprint": "Fingerprint unlock",
+          "password": "PIN unlock",
+          "card": "Card (RFID)",
+          "app": "App / Bluetooth",
+          "mechanical_key": "Mechanical key",
+          "battery": "Battery voltage"
         }
       },
       "completeDialog": {
@@ -1793,7 +1807,7 @@
     "dispatchManual": {
       "missingParam": {
         "title": "Missing work order parameter",
-        "hint": "Open via the dispatch queue (A28) \"Manual override\" link, or append",
+        "hint": "Open via the dispatch queue \"Manual override\" link, or append",
         "queryHint": "?work_order_id=xxx",
         "goQueue": "Go to dispatch queue"
       },
@@ -1841,7 +1855,14 @@
         },
         "circuitBadge": "Broken",
         "etaImmediate": "Immediate",
-        "etaMinutes": "in {min} min"
+        "etaMinutes": "in {min} min",
+        "availabilityValues": {
+          "available": "Dispatchable",
+          "busy": "Busy",
+          "offline": "Offline",
+          "on_leave": "On leave",
+          "circuit_breaker_open": "Circuit breaker open"
+        }
       },
       "panel": {
         "noTech": "Pick a technician from the candidate list",
@@ -2273,7 +2294,8 @@
       "pendingTag": "Pending integration",
       "pendingNote": "Requires SLA rule table + rating feedback loop",
       "pendingTitle": "SLA attainment / CSAT / NPS / negative review rate",
-      "pendingDesc": "Goes live after each module is integrated."
+      "pendingDesc": "Goes live after each module is integrated.",
+      "scheduledList": "Scheduled reports"
     },
     "exceptions": {
       "title": "Exception management",
@@ -2415,7 +2437,8 @@
         "saveSubmit": "Save changes",
         "cancel": "Cancel",
         "validateRequired": "Please provide title, brand, problem and solution.",
-        "errorNoData": "Backend returned no case data"
+        "errorNoData": "Backend returned no case data",
+        "createFailed": "Failed to create the case. Please try again later."
       },
       "detail": {
         "loading": "Loading…",
@@ -3232,7 +3255,7 @@
         },
         "reasonLabel": "Reason for change",
         "reasonPlaceholder": "e.g. F-019 — grant reviewer write access to invoices",
-        "reasonHint": "Recorded in audit_events.payload.reason (min 4 characters)",
+        "reasonHint": "The reason will be recorded in the audit log (min 4 characters)",
         "errors": {
           "reasonTooShort": "Please provide a reason (at least 4 characters)",
           "forbidden": "Your role tier cannot grant this permission (server: {code})",
@@ -3361,6 +3384,30 @@
             "title": "Export settlement report",
             "description": "Export settlement list (settlement / technician / amount / status) as CSV / PDF."
           }
+        }
+      },
+      "scheduledReports": {
+        "title": "Scheduled reports",
+        "description": "View and cancel recurring report schedules",
+        "loading": "Loading…",
+        "empty": "No active schedules",
+        "recipients": "Recipients: {list}",
+        "nextRun": "Next run: {date}",
+        "cancel": "Cancel schedule",
+        "cancelling": "Cancelling…",
+        "cancelConfirm": "Cancel this schedule? It will no longer be sent.",
+        "cancelledToast": "Schedule cancelled",
+        "close": "Close",
+        "reportTypes": {
+          "kpi": "KPI report",
+          "revenue": "Revenue report",
+          "technician_ranking": "Technician ranking",
+          "settlements": "Settlement report"
+        },
+        "cadence": {
+          "weekly": "Weekly",
+          "monthly": "Monthly",
+          "quarterly": "Quarterly"
         }
       }
     },
@@ -3624,7 +3671,18 @@
         "technicianTitle": "Assigned technician",
         "unassigned": "Not assigned",
         "markIssue": "Flag issue",
-        "modulePending": "Actions enabled once dispatch module is connected"
+        "modulePending": "Actions enabled once dispatch module is connected",
+        "woCustomerName": "Customer name",
+        "woCustomerPhone": "Contact phone",
+        "woWarrantyExpiry": "Warranty expiry",
+        "woDoorThickness": "Door thickness",
+        "woDealer": "Dealer / point of purchase",
+        "woInstallDate": "Install date",
+        "woRainExposure": "Installation environment",
+        "woPaymentMethod": "Payment method",
+        "woSpecialSurcharge": "Special door surcharge",
+        "woYes": "Yes",
+        "phoneNotProvided": "Not provided"
       },
       "kanban": {
         "loading": "Loading…",
@@ -3946,6 +4004,38 @@
         "reset": "Discard changes",
         "save": "Save settings",
         "saving": "Saving…"
+      }
+    },
+    "notificationBell": {
+      "loadError": "Failed to load notifications: {error}",
+      "loadingTitle": "Loading…",
+      "unreadTitle": "{count} unread notifications",
+      "ariaLoading": "Notification center, loading",
+      "ariaUnread": "Notification center, {count} unread",
+      "ariaNone": "Notification center, no unread"
+    },
+    "realtimeIndicator": {
+      "idle": "Inactive",
+      "disabled": "Not configured",
+      "connecting": "Connecting",
+      "open": "Live",
+      "closed": "Disconnected (retrying)",
+      "error": "Connection error (retrying)"
+    },
+    "dateRange": {
+      "ariaLabel": "Select date range",
+      "pickDate": "Pick dates",
+      "presetListAria": "Preset date ranges",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "presets": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last7": "Last 7 days",
+        "last30": "Last 30 days",
+        "thisMonth": "This month",
+        "lastMonth": "Last month",
+        "custom": "Custom"
       }
     }
   }

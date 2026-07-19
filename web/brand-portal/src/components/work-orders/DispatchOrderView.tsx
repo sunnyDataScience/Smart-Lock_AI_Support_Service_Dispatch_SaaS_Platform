@@ -96,8 +96,17 @@ function enumLabel(t: TranslateFn, enumKey: string, raw: string): string {
   const v = t(path);
   return v.endsWith(path) ? raw : v;
 }
+/**
+ * UAT R3 G1-P3：欄位取值。M1 服務地址 API 鍵名為 address（customer_address 常缺）
+ * → 防禦性 customer_address ?? address，避免詳情恆顯「—」。
+ */
+function fieldRaw(order: WorkOrder, key: string): unknown {
+  const rec = order as Record<string, unknown>;
+  if (key === "customer_address") return rec.customer_address ?? rec.address;
+  return rec[key];
+}
 function displayValue(order: WorkOrder, f: FieldDef, t: TranslateFn): string {
-  const raw = (order as Record<string, unknown>)[f.key];
+  const raw = fieldRaw(order, f.key);
   if (f.type === "bool") return raw ? t("boolYes") : t("boolNo");
   if (raw == null || raw === "") return "—";
   if (f.type === "date") return fmtDate(String(raw));
@@ -120,7 +129,7 @@ export default function DispatchOrderView({ order, onUpdated }: Props) {
   const startEdit = useCallback(() => {
     if (!order) return;
     const d: Record<string, unknown> = {};
-    for (const f of ALL_EDITABLE) d[f.key] = (order as Record<string, unknown>)[f.key] ?? "";
+    for (const f of ALL_EDITABLE) d[f.key] = fieldRaw(order, f.key) ?? "";
     setDraft(d);
     setError(null);
     setEditing(true);
@@ -131,7 +140,7 @@ export default function DispatchOrderView({ order, onUpdated }: Props) {
     // 只送有變動的欄位（patch exclude_unset 語意）
     const body: Record<string, unknown> = {};
     for (const f of ALL_EDITABLE) {
-      const orig = (order as Record<string, unknown>)[f.key] ?? (f.type === "bool" ? false : "");
+      const orig = fieldRaw(order, f.key) ?? (f.type === "bool" ? false : "");
       let next = draft[f.key];
       if (f.type === "bool") next = !!next;
       if (next === "") next = null;
@@ -382,13 +391,14 @@ function ConsentPanel({ workOrderId }: { workOrderId: string }) {
               <ShieldCheck className="h-4 w-4 text-[var(--text-disabled)]" />
               {label.endsWith(`consent.labels.${c.consent_type}`) ? c.title : label}
             </span>
+            {/* UAT G4：chip 改 semantic token 成對（bg+fg 同源），深淺主題皆可讀 */}
             {c.accepted ? (
-              <span className="rounded bg-[#DCFCE7] px-2 py-[2px] text-[12px] font-medium text-[#15803D]">
+              <span className="rounded bg-[var(--badge-success-bg)] px-2 py-[2px] text-[12px] font-medium text-[var(--badge-success-fg)]">
                 {t("consent.accepted")}
                 {c.accepted_at ? ` · ${fmtDate(c.accepted_at)}` : ""}
               </span>
             ) : (
-              <span className="rounded bg-[#FEF3C7] px-2 py-[2px] text-[12px] text-[#92400E]">{t("consent.awaitingSign")}</span>
+              <span className="rounded bg-[var(--badge-warn-bg)] px-2 py-[2px] text-[12px] text-[var(--badge-warn-fg)]">{t("consent.awaitingSign")}</span>
             )}
           </div>
         );
@@ -467,10 +477,12 @@ function SignaturePanel({ order }: { order: WorkOrder }) {
       </span>
       <span
         className={
+          // UAT R3 G4：改 semantic token 成對（bg+fg 同源）——原「成對硬編碼」被
+          // globals.css 深色補丁攔 bg 不攔 fg（bg-[#F1F5F9] → 深底＋深字 1.37:1），
+          // 兩種修復策略互撞；token 成對從根治
           done
-            ? "rounded bg-[#DCFCE7] px-2 py-[2px] text-[12px] font-medium text-[#15803D]"
-            : // 前景/背景成對硬編碼（避免 bg 硬編碼＋text token 在深色模式脫鉤，UAT W6-3）
-              "rounded bg-[#F1F5F9] px-2 py-[2px] text-[12px] text-[#475569]"
+            ? "rounded bg-[var(--badge-success-bg)] px-2 py-[2px] text-[12px] font-medium text-[var(--badge-success-fg)]"
+            : "rounded bg-[var(--badge-muted-bg)] px-2 py-[2px] text-[12px] text-[var(--badge-muted-fg)]"
         }
       >
         {done ? t("signature.signed") : t("signature.awaiting")}

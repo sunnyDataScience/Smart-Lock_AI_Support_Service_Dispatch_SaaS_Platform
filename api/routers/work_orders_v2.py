@@ -177,7 +177,7 @@ async def list_work_orders_v2(
     limit: int = Query(default=20, ge=1, le=100),
     problem_card_id: str | None = Query(default=None, description="過濾特定問題卡的工單"),
     technician_id: str | None = Query(default=None, description="過濾特定技師的工單"),
-    status: str | None = Query(default=None, description="工單狀態（dispatched/completed/refunded/disputed 等）"),
+    status: list[str] | None = Query(default=None, description="工單狀態，可重複帶多值取聯集（UAT R3-7；例 status=assigned&status=confirmed）；向後相容單值"),
     brand: str | None = Query(default=None, description="品牌過濾（透過 problem_cards.brand）"),
     created_after: str | None = Query(default=None, description="建立時間下限 ISO 8601（例：最近 7 天）"),
     keyword: str | None = Query(default=None, description="關鍵字搜尋（客戶姓名/地址/電話模糊）"),

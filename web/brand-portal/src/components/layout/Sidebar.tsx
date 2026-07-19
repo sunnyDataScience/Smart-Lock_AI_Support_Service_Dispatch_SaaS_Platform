@@ -82,6 +82,8 @@ const navSections: NavSection[] = [
         children: [
           { id: "workOrders", href: "/work-orders" },
           { id: "dispatchQueue", href: "/admin/dispatch-queue" },
+          // UAT R3-11：排班申請審核原本全站無導航入口（R3-2 加碼項）
+          { id: "scheduleRequests", href: "/admin/schedule-requests" },
           { id: "materialRequests", href: "/admin/material-requests" },
         ],
       },
@@ -322,9 +324,11 @@ export default function Sidebar() {
                 aria-haspopup={hasChildren ? "menu" : undefined}
                 aria-expanded={hasChildren ? active : undefined}
                 aria-controls={hasChildren && active ? submenuId : undefined}
+                // UAT G4：active 配色改成對 semantic token（--sidebar-active-bg/fg）——
+                // 原 bg 硬編碼 #1E3A5F + text-inverse 在深色主題翻轉後脫鉤（1.55:1 不可讀）
                 className={`flex items-center gap-3 rounded-lg py-[10px] text-sm focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-sidebar)] ${
                   active
-                    ? "border-l-[3px] border-[var(--primary)] bg-[#1E3A5F] pl-[9px] pr-3 font-semibold"
+                    ? "border-l-[3px] border-[var(--primary)] bg-[var(--sidebar-active-bg)] pl-[9px] pr-3 font-semibold"
                     : "px-3 font-medium text-[var(--text-disabled)]"
                 }`}
               >
@@ -334,7 +338,7 @@ export default function Sidebar() {
                   }`}
                   aria-hidden="true"
                 />
-                <span className={active ? "text-[var(--text-inverse)]" : ""}>
+                <span className={active ? "text-[var(--sidebar-active-fg)]" : ""}>
                   {itemLabel}
                 </span>
               </Link>
@@ -355,7 +359,7 @@ export default function Sidebar() {
                           aria-current={childActive ? "page" : undefined}
                           className={`block rounded-[6px] px-3 py-[6px] text-sm focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 focus-visible:ring-offset-[var(--bg-sidebar)] ${
                             childActive
-                              ? "bg-[#1E3A5F] font-semibold text-[#93C5FD]"
+                              ? "bg-[var(--sidebar-active-bg)] font-semibold text-[var(--sidebar-active-accent)]"
                               : "font-normal text-[var(--text-disabled)]"
                           }`}
                         >

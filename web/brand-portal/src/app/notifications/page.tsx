@@ -203,25 +203,24 @@ export default function NotificationsPage() {
     },
   );
 
-  // 即時推送：新通知插入列表頂端、增加未讀計數
-  const userId = useMemo(() => getCurrentSession()?.userId ?? null, []);
+  // 即時推送（UAT R3-4 收斂）：收訊即 refetch 列表 + 未讀 chip——
+  // fetchItems 的 onSuccess 會同步 unread_count，不再依賴推送 payload 的
+  // 樂觀插入（漏拍 / 過濾條件不一致時列表與 chip 會脫鉤）。
+  // userId 改 effect 讀取：useMemo(..., []) 在 session 尚未就緒時會鎖死 null
+  // → 該 session 永不訂閱（R3-4 間歇失效根因之一）。
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    setUserId(getCurrentSession()?.userId ?? null);
+  }, []);
   const { status: rtStatus } = useRealtimeChannel<Notification>({
     channelPath: userId ? `/realtime/notifications/${userId}` : "",
     enabled: !!userId,
     onMessage: (msg) => {
       const incoming = (msg.payload ?? msg) as Notification | undefined;
-      if (!incoming?.id) return;
-      // 依 tab/type 過濾，不符合直接忽略
-      if (typeFilter !== "all" && incoming.type !== typeFilter) return;
-      const isUnread = !incoming.read_at;
-      if (tab === "unread" && !isUnread) return;
-      if (tab === "read" && isUnread) return;
-      mutate((prev) => {
-        if (prev.some((x) => x.id === incoming.id)) return prev;
-        return [incoming, ...prev];
-      });
-      if (isUnread) setUnreadCount((c) => c + 1);
-      broadcast.post({ type: "new_received", id: incoming.id });
+      fetchItems();
+      if (incoming?.id) {
+        broadcast.post({ type: "new_received", id: incoming.id });
+      }
     },
   });
 

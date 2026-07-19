@@ -86,7 +86,11 @@ export class ApiError extends Error {
 }
 
 interface RequestOptions {
-  query?: Record<string, string | number | boolean | undefined>;
+  /** 陣列值會展開成重複 query param（如 status=a&status=b，UAT R3-7 多值篩選）。 */
+  query?: Record<
+    string,
+    string | number | boolean | undefined | ReadonlyArray<string | number>
+  >;
   body?: unknown;
   idempotencyKey?: string;
   signal?: AbortSignal;
@@ -100,7 +104,12 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   const url = new URL(path, BASE_URL);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
-      if (value !== undefined) url.searchParams.set(key, String(value));
+      if (value === undefined) continue;
+      if (Array.isArray(value)) {
+        for (const v of value) url.searchParams.append(key, String(v));
+      } else {
+        url.searchParams.set(key, String(value));
+      }
     }
   }
   return url.toString();
@@ -321,6 +330,15 @@ async function refreshAccessToken(): Promise<boolean> {
   })();
 
   return refreshInFlight;
+}
+
+/**
+ * tryRefreshAccessToken — 提供 REST 之外的通道（如 realtime.ts WS 握手 403）
+ * 走「既有 refresh 機制」換新 token（UAT R3-5：WS 重連永遠帶舊 token）。
+ * 與 REST 401 路徑共用同一個 in-flight promise，不會並發重刷。
+ */
+export async function tryRefreshAccessToken(): Promise<boolean> {
+  return refreshAccessToken();
 }
 
 // Session 失效（access + refresh 皆過期/無效）→ 清 token 並導去對應入口的登入頁。
