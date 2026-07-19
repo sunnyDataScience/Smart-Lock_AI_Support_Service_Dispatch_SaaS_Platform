@@ -51,6 +51,32 @@
 > 附帶觀察（非新 finding）：`/home` 等師傅工作台路由在品牌雲端 build 為 404
 > （dispatch 模式本應導對方 portal）—— C-1 修復即一併解。
 
+## 二之一、雲端 UAT 帳號（2026-07-19 業主授權重設，密碼三站同組）
+
+| 站台 | 帳號 | 密碼 | 備註 |
+|---|---|---|---|
+| 品牌後台（smart-lock-web） | `admin@example.com` | `SmartLock@Uat0719` | role=admin（品牌庫 lock-ai-db；**非**本機慣用的 test@lock-ai.com） |
+| 師傅站（lock-tech-web） | `demo-tech@example.com` | `SmartLock@Uat0719` | 示範技師-林師傅（技師庫 lock_tech）；LINE 已綁業主帳號（…68fa02） |
+| 平台 console（lock-platform-web） | `test@lock-ai.com` | `SmartLock@Uat0719` | platform_admin（平台庫 lock_platform） |
+
+> 重設方式＝bcrypt hash 直寫三庫 users（含解鎖＋password_changed_at 踢舊 session）。
+> **UAT 驗收完成後請至各站自行改回自訂密碼**（或重跑重設腳本改自訂值）。
+
+## 二之二、B1 技師 LINE 推播端到端代測（2026-07-19，撈到 C-4/C-5）
+
+業主授權重設帳密＋LINE 綁定後，代測「品牌後台派單 → 師傅 LINE 實收」全鏈，撈到兩個
+新的雲端部署級 finding（皆本機有、雲端缺／髒）：
+
+- **綁定成功**：師傅站產碼（`POST /technicians/me/line-bind-code`，需 `X-Tenant-ID`）→ 業主 LINE 傳碼 → 回「✅ 綁定完成」；`line-binding` 查詢 `bound=true`（masked …68fa02）
+- **派單成功**：UI 走「新增工單精靈 → 指派技師 → 報價未同意 409 → 強制派工（override＋稽核）」全鏈；`assign` 200、`work_order_service: assign quote-gate/brand-auth overridden`、outbox `enqueue ok`
+- **C-4（HIGH，已修 api.sh）**：品牌 api 的 `_notify_tech_line` 需 `TECH_API_BASE_URL` 指向 tech-api，雲端從未設此 env → fail-soft **靜默跳過（無 log）**，技師推播完全不發。本機 compose 有配故本機能收。修法：api.sh 品牌面（all/dispatch）自動解析 lock-tech-api URL 烤入。**已熱修 revision 00022 補上 env**。
+- **C-5（HIGH，已修 code）**：補上 env 後推播仍失敗——`aiohttp` 報 `ValueError: Forbidden control character detected in headers`（`INTERNAL_API_TOKEN` secret 帶尾端換行）。收端 `deps.py:require_internal_token` 本就 strip，但發送端 `_notify_tech_line` 未 strip → header injection 防護拒發。修法：`work_order_service._notify_tech_line` 對 base/token 加 `.strip()`。**需重佈 smart-lock-api 生效**。
+- **附帶（非 bug）**：客戶端「已派工」通知 outbox 推 seed 假客戶 LINE ID → LINE 400，屬環境資料限制。
+- **F-1（前端，記 backlog）**：缺欄工單編輯表單顯示問題卡 join 的品牌/型號預填值，但 PATCH 只送 diff → 同值重打不觸發送出、派工 422 死循環（需清空重打或改為送全量）。問題類型欄可正常補（前輪修復有效）。
+
+> **B1 結論**：綁定＋派單＋override＋稽核全鏈雲上實證通過；推播最後一哩卡 C-4/C-5，
+> code+script 已修，**重佈 smart-lock-api 後可端到端收訊**（見 §五）。
+
 ## 三、Blocked — 待業主（無法代測）
 
 - **三站登入後全功能**（dashboard/知識庫 AI 技能/帳務結算/派單/平台管理）：

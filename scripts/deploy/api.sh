@@ -94,6 +94,21 @@ if [[ "${API_SURFACE}" == "tech" ]]; then
     SECRETS="${SECRETS},PLATFORM_LINE_CHANNEL_SECRET=PLATFORM_LINE_CHANNEL_SECRET:latest"
     SECRETS="${SECRETS},PLATFORM_LINE_CHANNEL_ACCESS_TOKEN=PLATFORM_LINE_CHANNEL_ACCESS_TOKEN:latest"
 fi
+# CR-0169 技師推播的品牌面半邊（0719 雲端 UAT C-4）：品牌 api 的
+# _notify_tech_line 需要 TECH_API_BASE_URL 指向 tech-api，未設=靜默跳過
+# （fail-soft 無 log）→ 派單/池單技師推播在雲上完全不發。品牌面（all/
+# dispatch）自動解析 lock-tech-api URL 烤入；解析不到 WARN（推播退 no-op）。
+if [[ "${API_SURFACE}" == "all" || "${API_SURFACE}" == "dispatch" ]]; then
+    TECH_API_SERVICE_NAME="${TECH_API_SERVICE_NAME:-lock-tech-api}"
+    _tech_api_url=$(gcloud run services describe "${TECH_API_SERVICE_NAME}" \
+        --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
+    if [[ -n "${_tech_api_url}" ]]; then
+        ENV_VARS="${ENV_VARS},TECH_API_BASE_URL=${_tech_api_url}"
+        echo "  TECH_API_BASE_URL=${_tech_api_url}（技師 LINE 推播 internal 鏈）"
+    else
+        echo "  WARN: 找不到 ${TECH_API_SERVICE_NAME} URL —— 技師 LINE 推播將靜默停用"
+    fi
+fi
 
 # ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
 # 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
