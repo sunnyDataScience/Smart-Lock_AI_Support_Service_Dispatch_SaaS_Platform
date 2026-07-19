@@ -3,7 +3,7 @@
 > 業主裁決「上雲後再做測試」→ 批准全量執行。本輪把本地三輪 UAT（112 findings 全修）的最新 code
 > 與資料庫變更推上 GCP（Cloud Run + Cloud SQL），並在雲上驗 B 區。**七服務全部部署成功、
 > DB migration 全套、B1 綁定＋B2 熱更新機制均實證**；過程撈到 3 個部署級 finding（皆已修）＋
-> 記錄 1 個 skill 設計隱憂。
+> cs-sop always 疑慮經 K8 eval 實測澄清（99% 紅線通過、不降反升）。
 
 ---
 
@@ -58,14 +58,22 @@
 | CD-2 | `agent.sh` 不認 `RAG_TENANT_ID`，外部傳了也被丟棄 → RAG MCP 永不啟用 | agent.sh 補透傳（commit merged） |
 | CD-3 | **SkillSync 用 stdlib logging，容器無配置時 INFO 全被吞** → LiveSkill 心跳在 Cloud Run 完全無聲，部署後無法驗證 | line_gateway 加 `logging.basicConfig` 導 stdout（重佈後 `SkillSync 換裝完成` log 立即可見） |
 
-## 四、設計隱憂（記錄，待業主/後續評估）
+## 四、cs-sop always 疑慮——已量測澄清（業主裁決「先量測再決定」）
 
-- **cs-sop 未設 `always: true`**：這條「每輪都該套用的路由/紅線/轉真人 SOP」不常駐系統提示，agent 每輪需自覺 `read_file` 才看得到 → 依賴 LLM（flash-lite）服從性。**產品知識類編輯（FAQ/型號）能生效**（問到會讀 product-knowledge）；但 cs-sop 的**紅線規則（保固不亂承諾、該轉真人要轉）若某輪 LLM 沒去讀就可能漏套**，對合約紅線是可靠性風險。建議評估把 cs-sop 設 always 或改機制保證每輪注入
-- **首則訊息延遲**：agent minScale 已=1（非持續冷啟動），但剛重佈新 revision 後首則訊息因「新實例起＋首次 LLM 呼叫＋多輪迭代」達 1-2 分鐘；穩定後熱 instance 秒級。上線前建議做一次「重佈後暖機」
+- **結論：cs-sop 未設 `always` 對紅線可靠性無實質傷害，維持現況記 backlog。**
+- 疑慮起點：cs-sop（路由/紅線/轉真人 SOP）不常駐系統提示，agent 每輪需自覺 `read_file` 才看得到 → B2 暗號時中時不中即此現象，直覺上「紅線是否可能漏套」。
+- **關鍵事實（查 code）**：紅線有**兩層防線**。第一層 cs-sop（LLM，會飄）；第二層 `reply_guard`（`loop.py:_guard_reply`，**確定性程式、每則回覆都跑、不依賴 LLM 讀 SOP**）攔報價數字／未來源型號／**假裝轉真人（含保固 say-do gap，CR-0166 R0）**。B2 的 `CLOUD0719` 就是第二層攔下。
+- **實測（2026-07-19，本機 agent 完整跑 K8 禁區 eval 200 題）**：**pass_rate=99.00%**（門檻 95%、上週基準 98.5%，不降反升）。SOP 依賴的三類（final_quote／discount／warranty_free）**全部正確 `transfer_to_human`、零漏**。
+- **唯一 2 題失敗**：皆 `image_moderation`（對「客戶稱傳了照片」假裝看得到內容，BR-AI-05）——與 cs-sop always **無關**、與報價/保固/轉真人紅線**無關**，屬既有獨立小 finding（基準亦含），可另案處理。
+- 故：紅線由確定性守衛兜底＋LLM 高服從共同保證 99%，cs-sop always 不需動。
+
+## 五、首則訊息延遲
+
+- agent minScale 已=1（非持續冷啟動），但剛重佈新 revision 後首則訊息因「新實例起＋首次 LLM 呼叫＋多輪迭代」達 1-2 分鐘；穩定後熱 instance 秒級。上線前建議做一次「重佈後暖機」
 
 ---
 
-## 五、雲端服務網址（供 LINE console / 前端設定）
+## 六、雲端服務網址（供 LINE console / 前端設定）
 
 | 用途 | URL |
 |---|---|
@@ -77,4 +85,4 @@
 
 ---
 
-**下一步**：B1 雲端綁定收尾（業主提供 demo-tech 密碼或授權重設）；B3/B4 待 cutover/壓測窗口；cs-sop always 設計評估；上線前暖機 SOP。三輪 UAT 的 code 已全數上雲，雲端功能與本機一致。
+**下一步**：B1 雲端綁定收尾（業主提供 demo-tech 密碼或授權重設）；B3/B4 待 cutover/壓測窗口；cs-sop always 已量測澄清（不需動）；上線前暖機 SOP。三輪 UAT 的 code 已全數上雲，雲端功能與本機一致。
