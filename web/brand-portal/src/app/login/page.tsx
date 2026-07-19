@@ -162,10 +162,13 @@ export default function BrandEntryPage() {
             </Link>
           </div>
 
-          {/* TODO: remove dev hint before prod */}
-          <p className="mt-4 text-center text-xs text-[var(--text-disabled)]">
-            {t("devHint")}
-          </p>
+          {/* 測試帳號提示只在明示開啟的 build 顯示(本機 compose 帶
+              NEXT_PUBLIC_DEV_LOGIN_HINT=1;雲端不帶 → 不渲染,0719 UAT C-2) */}
+          {process.env.NEXT_PUBLIC_DEV_LOGIN_HINT === "1" && (
+            <p className="mt-4 text-center text-xs text-[var(--text-disabled)]">
+              {t("devHint")}
+            </p>
+          )}
         </div>
       </main>
     </div>

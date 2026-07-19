@@ -166,6 +166,7 @@ services:
         NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-}"   # 空 → 前端 fallback localhost:8001
         NEXT_PUBLIC_APP_MODE: "dispatch"                            # 派工方 build:擋師傅工作台路由
         NEXT_PUBLIC_PEER_PORTAL_URL: "${TECH_PORTAL_URL:-http://localhost:3001}"
+        NEXT_PUBLIC_DEV_LOGIN_HINT: "1"                             # 本機保留登入頁測試帳號提示(雲端不帶)
     ports:
       - "${WEB_PORT:-3000}:8080"
     restart: unless-stopped

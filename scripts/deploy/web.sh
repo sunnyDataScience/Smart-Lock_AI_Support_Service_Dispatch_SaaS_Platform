@@ -157,9 +157,32 @@ build_and_push() {
         echo "  NEXT_PUBLIC_REALTIME_BASE_URL=${realtime_url}"
     fi
 
+    # 站台別 build args(0719 雲端 UAT C-1:本機 compose 有帶、雲端全缺 →
+    # APP_MODE=all 跨站導向失效、「我是鎖匠師傅」死連結)。dispatch↔tech 互為
+    # peer,URL 從對方 web 服務解析;解析不到留空(appMode 退站內路由)。
+    local app_mode="" peer_url=""
+    local peer_service="${PEER_WEB_SERVICE_NAME:-}"
+    case "${WEB_APP}" in
+        brand-portal)     app_mode="dispatch"; peer_service="${peer_service:-lock-tech-web}" ;;
+        tech-portal)      app_mode="tech";     peer_service="${peer_service:-smart-lock-web}" ;;
+        platform-console) app_mode="platform" ;;
+        landing)          app_mode="landing" ;;  # 上雲時另補 NEXT_PUBLIC_*_PORTAL_URL CTA 目標
+    esac
+    if [[ -n "${peer_service}" ]]; then
+        peer_url=$(gcloud run services describe "${peer_service}" \
+            --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
+        if [[ -z "${peer_url}" ]]; then
+            echo "  WARN: 找不到 peer 服務 ${peer_service} —— 跨站連結退回站內路由。"
+        fi
+    fi
+    echo "  NEXT_PUBLIC_APP_MODE=${app_mode}"
+    echo "  NEXT_PUBLIC_PEER_PORTAL_URL=${peer_url}"
+
     docker build --platform linux/amd64 -f ${WEB_DIR}/Dockerfile \
         --build-arg NEXT_PUBLIC_API_BASE_URL="${api_url}" \
         --build-arg NEXT_PUBLIC_REALTIME_BASE_URL="${realtime_url}" \
+        --build-arg NEXT_PUBLIC_APP_MODE="${app_mode}" \
+        --build-arg NEXT_PUBLIC_PEER_PORTAL_URL="${peer_url}" \
         -t "${IMAGE}" .
 
     echo ""

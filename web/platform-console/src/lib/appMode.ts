@@ -28,10 +28,14 @@ export const DISPATCH_PORTAL_URL = (
   process.env.NEXT_PUBLIC_DISPATCH_PORTAL_URL || ""
 ).replace(/\/+$/, "");
 
-// landing 品牌申請表單直打 platform API(CR-0114 R2;瀏覽器端,
-// 與 NEXT_PUBLIC_API_BASE_URL(品牌 api)分開 —— 申請歸平台方管)。
+// 公開申請頁直打 platform API(CR-0114 R2;瀏覽器端)。本站(platform console)
+// 的 NEXT_PUBLIC_API_BASE_URL 即 platform api,未另設專屬 base 時直接沿用
+// (0719 雲端 UAT C-3:雲端 build 只烤 API_BASE_URL,原本 fallback localhost
+// 導致公開申請/查詢對外全壞;localhost 只留給裸 next dev)。
 export const PLATFORM_API_BASE_URL = (
-  process.env.NEXT_PUBLIC_PLATFORM_API_BASE_URL || "http://localhost:8003"
+  process.env.NEXT_PUBLIC_PLATFORM_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "http://localhost:8003"
 ).replace(/\/+$/, "");
 
 // landing 容器專用:平台 console 絕對 URL(品牌申請導入頁移到 platform 站
