@@ -87,6 +87,13 @@ fi
 if [[ "${API_SURFACE}" == "platform" ]]; then
     SECRETS="${SECRETS},PLATFORM_POSTGRES_URI=PLATFORM_POSTGRES_URI:latest"
 fi
+# CR-0169 技師 LINE 推播：平台官方號憑證只掛 tech 面（綁定 webhook 驗簽＋推播）。
+# 2026-07-19 上雲時建立（gcloud secrets create）。不寫進這裡的話，下次 api.sh
+# 重佈 tech 面會把手動掛的 secrets 洗掉 → 推播靜默 no-op、綁定卡退回「開通中」。
+if [[ "${API_SURFACE}" == "tech" ]]; then
+    SECRETS="${SECRETS},PLATFORM_LINE_CHANNEL_SECRET=PLATFORM_LINE_CHANNEL_SECRET:latest"
+    SECRETS="${SECRETS},PLATFORM_LINE_CHANNEL_ACCESS_TOKEN=PLATFORM_LINE_CHANNEL_ACCESS_TOKEN:latest"
+fi
 
 # ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
 # 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
