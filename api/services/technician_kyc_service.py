@@ -140,6 +140,14 @@ async def _resolve_token(conn: Any, token: str) -> tuple[str, str, str]:
     不合法/過期/超次數/師傅已離開 pending_approval → 403(單一錯誤碼,
     不區分原因,避免探測)。
     """
+    # UAT R3（契約 4）：token 解析失敗一律 403 UPLOAD_TOKEN_INVALID＋統一訊息
+    # （不區分格式錯/無效/過期/超次數/狀態不符，維持防探測）；先擋掉格式
+    # 明顯不合法者（過短/過長），免打 DB。
+    invalid = ApiError(
+        "UPLOAD_TOKEN_INVALID", "連結已失效，請聯絡平台重新產生補件連結", 403
+    )
+    if not token or len(token) < 16 or len(token) > 128:
+        raise invalid
     cur = await conn.execute(
         "SELECT ut.id, ut.technician_id, ut.expires_at, ut.upload_count, ut.max_uploads, "
         "       t.status, t.tenant_id "
@@ -149,7 +157,6 @@ async def _resolve_token(conn: Any, token: str) -> tuple[str, str, str]:
         (_hash_token(token),),
     )
     row = await cur.fetchone()
-    invalid = ApiError("UPLOAD_TOKEN_INVALID", "上傳連結無效或已過期,請聯絡平台協助補件", 403)
     if not row:
         raise invalid
     token_id, technician_id, expires_at, upload_count, max_uploads, status, tenant_id = row
@@ -176,7 +183,7 @@ async def _claim_upload_slot(conn: Any, token_id: str) -> None:
         (token_id,),
     )
     if not await cur.fetchone():
-        raise ApiError("UPLOAD_TOKEN_INVALID", "上傳連結無效或已過期,請聯絡平台協助補件", 403)
+        raise ApiError("UPLOAD_TOKEN_INVALID", "連結已失效，請聯絡平台重新產生補件連結", 403)
 
 
 async def upload_registration_document(

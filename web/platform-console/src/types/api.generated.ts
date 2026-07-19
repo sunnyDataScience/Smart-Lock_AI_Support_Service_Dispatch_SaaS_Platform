@@ -5379,7 +5379,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** 匯出 KPI / 營收 / 技師排行 / 結算報表（tenant-scoped v2；CSV stream） */
+        /** 匯出 KPI / 營收 / 技師排行 / 結算報表（tenant-scoped v2；CSV stream / PDF） */
         get: operations["exportReportV2"];
         put?: never;
         post?: never;
@@ -9682,6 +9682,13 @@ export interface components {
             content: string;
             /** Media Url */
             media_url?: string | null;
+            /**
+             * Metadata
+             * @description 訊息附掛 metadata 原樣帶出（UAT R3-3；至少含 sender_role 供前端區分 AI／真人客服）
+             */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
             /**
              * Created At
              * Format: date-time
@@ -24666,8 +24673,8 @@ export interface operations {
                 problem_card_id?: string | null;
                 /** @description 過濾特定技師的工單 */
                 technician_id?: string | null;
-                /** @description 工單狀態（dispatched/completed/refunded/disputed 等） */
-                status?: string | null;
+                /** @description 工單狀態，可重複帶多值取聯集（UAT R3-7；例 status=assigned&status=confirmed）；向後相容單值 */
+                status?: string[] | null;
                 /** @description 品牌過濾（透過 problem_cards.brand） */
                 brand?: string | null;
                 /** @description 建立時間下限 ISO 8601（例：最近 7 天） */
@@ -26649,6 +26656,8 @@ export interface operations {
             query: {
                 /** @description kpi / revenue / technician_ranking / accounting */
                 report_type: string;
+                /** @description csv / pdf */
+                format?: string;
                 /** @description KPI 期間：today/7d/30d/90d */
                 period?: string | null;
                 from?: string | null;
@@ -26665,7 +26674,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description CSV stream */
+            /** @description CSV / PDF stream */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -26673,6 +26682,7 @@ export interface operations {
                 content: {
                     "application/json": unknown;
                     "text/csv": unknown;
+                    "application/pdf": unknown;
                 };
             };
             /** @description 缺乏匯出權限或跨 tenant 存取 */

@@ -311,7 +311,10 @@ async def register_technician(
 )
 async def upload_registration_document(
     request: Request,
-    token: str = Form(min_length=16, max_length=128, description="註冊 response 回傳的一次性上傳 token"),
+    # UAT R3（契約 4）：不在 Form 層驗長度——格式不合法的 token 也要走
+    # 403 UPLOAD_TOKEN_INVALID 統一回應（Form 驗證會變 422 VALIDATION_ERROR，
+    # 前端失效畫面收不到 code）；長度檢查移到 _resolve_token。
+    token: str = Form(description="註冊 response 回傳的一次性上傳 token"),
     doc_type: str = Form(description="id_front / id_back / license / insurance"),
     file: UploadFile = File(...),
 ) -> dict:

@@ -87,9 +87,13 @@ def _conv_row_to_dict(row: tuple) -> dict:
 
 
 def _msg_row_to_dict(row: tuple) -> dict:
-    metadata = row[5] or {}
+    # UAT R3-3：metadata 原樣帶出（object|null）——前端靠 metadata.sender_role
+    # 區分「AI 助理 / 真人客服」徽章；之前序列化器把整包剝掉導致人工訊息
+    # 永遠標成 AI 助理（W5-1 修了前端、後端漏補欄位）。
+    raw_meta = row[5]
+    metadata = raw_meta if isinstance(raw_meta, dict) else None
     media_url = None
-    if isinstance(metadata, dict):
+    if metadata:
         media_url = metadata.get("image_url") or metadata.get("media_url")
     return {
         "id": str(row[0]),
@@ -98,6 +102,7 @@ def _msg_row_to_dict(row: tuple) -> dict:
         "type": _coerce_message_type(row[3]),
         "content": row[4] or "",
         "media_url": media_url,
+        "metadata": metadata,
         "created_at": row[6].isoformat() if row[6] else None,
     }
 

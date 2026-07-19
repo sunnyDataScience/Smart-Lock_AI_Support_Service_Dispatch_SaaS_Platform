@@ -216,15 +216,28 @@ async def get_conn() -> AsyncIterator[AsyncConnection]:
     yield _shared_conn  # type: ignore[misc]
 
 
+_tech_fallback_warned = False
+
+
 async def require_tech_conn() -> AsyncConnection:
     """技師域連線（CR-0112 方案 B）：雙庫模式回技師庫，否則回主連線（fallback）。
 
     非 context-manager 風格，供既有「先 ensure 再用模組連線」的 service 慣例改造用。
     """
+    global _tech_fallback_warned
     if tech_db_enabled():
         if not await _ensure_tech_conn():
             raise RuntimeError("Tech DB unavailable")
         return _tech_conn  # type: ignore[return-value]
+    # UAT R3-2 設計半部：fail-soft 不再靜默——首次 fallback 即 WARNING。
+    # （行為不變：單庫部署/pytest 仍照常回主連線；雙庫部署漏帶 env 至少留下線索）
+    if not _tech_fallback_warned:
+        _tech_fallback_warned = True
+        logger.warning(
+            "TECH_POSTGRES_URI 未設，技師權威庫讀寫 fallback 品牌庫——"
+            "雙庫部署漏此 env 會 split-brain（排班申請/技師身分寫錯庫，UAT R3-2）；"
+            "單庫部署可忽略本警告"
+        )
     if not await _ensure_conn():
         raise RuntimeError("DB unavailable")
     return _current_conn()  # type: ignore[return-value]

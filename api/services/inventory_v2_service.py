@@ -95,18 +95,21 @@ _ITEM_SELECT = (
     "i.id, i.tenant_id, i.part_number, i.name, i.category, "
     "i.brand_compatibility, i.unit_cost, i.quantity_on_hand, i.reorder_point, "
     "i.supplier, i.owner, i.serial_required, i.is_active, "
-    "i.created_at, i.updated_at"
+    "i.created_at, i.updated_at, "
+    # UAT R3（契約 5）：last_restock_at = 該品項最近一筆 purchase 交易時間
+    "(SELECT MAX(t.created_at) FROM saas.inventory_transaction t "
+    " WHERE t.item_id = i.id AND t.transaction_type = 'purchase') AS last_restock_at"
 )
 
-# 欄位順序對齊 _ITEM_SELECT（15 欄）：
+# 欄位順序對齊 _ITEM_SELECT（16 欄）：
 # [0]=id, [1]=tenant_id, [2]=part_number, [3]=name, [4]=category,
 # [5]=brand_compatibility, [6]=unit_cost, [7]=quantity_on_hand, [8]=reorder_point,
 # [9]=supplier, [10]=owner, [11]=serial_required, [12]=is_active,
-# [13]=created_at, [14]=updated_at
+# [13]=created_at, [14]=updated_at, [15]=last_restock_at（衍生）
 
 
 def _row_to_item(row: tuple) -> dict:
-    """row → item dict（帶衍生 stock_status）。"""
+    """row → item dict（帶衍生 stock_status / last_restock_at）。"""
     qty = int(row[7] or 0)
     reorder = int(row[8] or 0)
     return {
@@ -126,6 +129,8 @@ def _row_to_item(row: tuple) -> dict:
         "stock_status": _derive_stock_status(qty, reorder),
         "created_at": row[13].isoformat() if row[13] else None,
         "updated_at": row[14].isoformat() if row[14] else None,
+        # UAT R3（契約 5）：ISO|null——前端有值才渲染「最後補貨」
+        "last_restock_at": row[15].isoformat() if row[15] else None,
     }
 
 

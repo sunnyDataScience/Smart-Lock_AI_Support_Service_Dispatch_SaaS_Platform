@@ -6,7 +6,9 @@ GET /api/v1/reports/kpi — 給 /admin/reports/kpi KPI 儀表板。
   - funnel：以期間內建立的 conversations 為 cohort，各階段計「推進到該階段的
     對話數」（UAT P3：cohort 化保證遞減鏈，轉換率恆 ≤ 100%）
   - dispute_rates：refund_requests / warranty_claims / disputes 數 / work_orders 總數
-  - technician_efficiency：AVG(EXTRACT(EPOCH FROM completed_at - started_at)/60) 分鐘
+  - technician_efficiency：AVG(completed_at - 真實開工錨) 分鐘——started_at 早於
+    completed_at 才視為真到場，否則 fallback created_at（UAT R3：完工自動補的
+    started_at==completed_at 會把平均灌成 0）
 
 period 採用 dashboard 同 enum（today / 7d / 30d / 90d）。
 若呼叫端提供 start_date / end_date，date range 覆蓋 period（F-021 Dashboard
@@ -207,10 +209,19 @@ async def _avg_handle_minutes(
     end_date: date | None,
 ) -> tuple[float | None, int]:
     """平均處理時長（分鐘）+ 完工樣本數。
-    僅取 status IN (completed, confirmed) 且 started_at / completed_at 皆非 NULL。"""
+    僅取 status IN (completed, confirmed) 且 completed_at 非 NULL。
+
+    UAT R3 算式 bug 修正：complete_order 在完工同一句 SQL 補
+    `started_at = COALESCE(started_at, NOW())` —— 技師沒按過「到場」的單
+    started_at == completed_at → 時長恆 0，AVG 被灌成 0.0（實測兩筆完工
+    62/4 分應 ~33，回 0.0）。起點錨改「真實開工時間」：started_at 早於
+    completed_at 才採用（真到場紀錄），否則 fallback wo.created_at
+    （與客戶詳情頁 avg_minutes 同口徑）。"""
     clause, time_args = _build_time_filter("wo", interval, start_date, end_date)
     sql = (
-        "SELECT AVG(EXTRACT(EPOCH FROM (wo.completed_at - wo.started_at)) / 60.0), "
+        "SELECT AVG(EXTRACT(EPOCH FROM (wo.completed_at - "
+        "       CASE WHEN wo.started_at IS NOT NULL AND wo.started_at < wo.completed_at "
+        "            THEN wo.started_at ELSE wo.created_at END)) / 60.0), "
         "       COUNT(*) "
         "FROM work_orders wo "
         "JOIN problem_cards pc ON wo.problem_card_id = pc.id "
@@ -218,7 +229,6 @@ async def _avg_handle_minutes(
         "LEFT JOIN users u ON c.user_id = u.id "
         "WHERE COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid "
         "AND wo.status IN ('completed','confirmed') "
-        "AND wo.started_at IS NOT NULL "
         "AND wo.completed_at IS NOT NULL "
         f"AND {clause}"
     )

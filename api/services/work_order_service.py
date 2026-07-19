@@ -197,7 +197,7 @@ async def list_orders(
     limit: int,
     problem_card_id: str | None = None,
     technician_id: str | None = None,
-    status: str | None = None,
+    status: str | list[str] | None = None,
     brand: str | None = None,
     created_after: str | None = None,
     keyword: str | None = None,
@@ -216,9 +216,14 @@ async def list_orders(
         where.append("wo.technician_id = %s::uuid")
         args.append(technician_id)
 
+    # UAT R3-7：status 可多值（list）取聯集——前端把群組值映射為多個原始
+    # status 重複帶 query param；單值字串維持向後相容。
     if status:
-        where.append("wo.status = %s")
-        args.append(status)
+        statuses = [status] if isinstance(status, str) else [s for s in status if s]
+        if statuses:
+            placeholders = ", ".join(["%s"] * len(statuses))
+            where.append(f"wo.status IN ({placeholders})")
+            args.extend(statuses)
 
     if brand:
         where.append("pc.brand = %s")
@@ -502,21 +507,48 @@ async def create_from_problem_card(
 
     # 4. INSERT（CR-0020：建立時依地址發公單號 {2碼地區}-{6碼流水}，per-region 原子遞增）
     #    CR-0026：複製設備辨識(brand/model)/問題類型(problem_type)/媒體(photos)，並寫 tenant_id
-    insert_cur = await db_module._conn.execute(
-        "INSERT INTO work_orders "
-        "  (problem_card_id, status, priority, "
-        "   customer_name, customer_phone, customer_address, created_by, document_number, "
-        "   brand, model, problem_type, service_category, photos, tenant_id, quote_gate_applied) "
-        "VALUES (%s::uuid, 'created', %s, %s, %s, %s, "
-        "        %s::uuid, generate_wo_number(%s), "
-        "        %s, %s, %s, %s, %s::jsonb, %s::uuid, TRUE) "
-        "RETURNING id",
-        # CR-0043：problem_type 留 pc.category（問題本質）；service_category 另映射 enum（修死欄 bug）
-        # CR-0128：quote_gate_applied=TRUE——gate 後新單，結案硬閘驗報價確認（存量單 FALSE 豁免）
-        (pc_id, priority, final_name, final_phone, final_address, created_by, final_address,
-         pc_brand, pc_model, pc_category, _map_service_category(pc_category),
-         json.dumps(pc_media, ensure_ascii=False) if pc_media else None, tenant_id),
-    )
+    #    UAT R3-6：autocommit 下步驟 1 的 FOR UPDATE 鎖不跨語句，步驟 2 的
+    #    get-or-create 在併發下可雙雙 miss → 靠 migration 110 的 partial UNIQUE
+    #    （problem_card_id 限原始單）DB 兜底；撞 UNIQUE = 別的請求已建 → 回既有單
+    #    （get 語意，created_flag=False）。
+    try:
+        insert_cur = await db_module._conn.execute(
+            "INSERT INTO work_orders "
+            "  (problem_card_id, status, priority, "
+            "   customer_name, customer_phone, customer_address, created_by, document_number, "
+            "   brand, model, problem_type, service_category, photos, tenant_id, quote_gate_applied) "
+            "VALUES (%s::uuid, 'created', %s, %s, %s, %s, "
+            "        %s::uuid, generate_wo_number(%s), "
+            "        %s, %s, %s, %s, %s::jsonb, %s::uuid, TRUE) "
+            "RETURNING id",
+            # CR-0043：problem_type 留 pc.category（問題本質）；service_category 另映射 enum（修死欄 bug）
+            # CR-0128：quote_gate_applied=TRUE——gate 後新單，結案硬閘驗報價確認（存量單 FALSE 豁免）
+            (pc_id, priority, final_name, final_phone, final_address, created_by, final_address,
+             pc_brand, pc_model, pc_category, _map_service_category(pc_category),
+             json.dumps(pc_media, ensure_ascii=False) if pc_media else None, tenant_id),
+        )
+    except Exception as exc:
+        from psycopg import errors as _pg_errors
+
+        constraint = getattr(getattr(exc, "diag", None), "constraint_name", None)
+        if isinstance(exc, _pg_errors.UniqueViolation) and (
+            constraint in (None, "uq_work_orders_problem_card")
+        ):
+            cur = await db_module._conn.execute(
+                "SELECT id FROM work_orders "
+                "WHERE problem_card_id = %s::uuid "
+                "ORDER BY created_at ASC LIMIT 1",
+                (pc_id,),
+            )
+            existing = await cur.fetchone()
+            if existing:
+                logger.info(
+                    "convert 併發撞 UNIQUE(problem_card_id) → 回既有單 pc=%s wo=%s",
+                    pc_id, existing[0],
+                )
+                wo = await get_order(tenant_id=tenant_id, wo_id=str(existing[0]))
+                return wo, False
+        raise
     new_row = await insert_cur.fetchone()
     if not new_row:
         raise ApiError("INTERNAL_ERROR", "Failed to insert work order", 500)
