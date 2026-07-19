@@ -15,6 +15,13 @@
   --bg-sidebar: #1E293B;
   --bg-surface: #FFFFFF;
 
+  /* Sidebar active 成對 token（UAT R3 G4）：sidebar 兩主題皆深底，
+   * bg / fg / accent 同源成對定義，不隨 data-theme 翻轉——
+   * 杜絕「補丁翻背景、前景 token 各自翻轉」的互撞（原 1.55:1 不可讀） */
+  --sidebar-active-bg: #1E3A5F;
+  --sidebar-active-fg: #FFFFFF;
+  --sidebar-active-accent: #93C5FD;
+
   /* Borders */
   --border: #E2E8F0;
   --border-focus: #2563EB;

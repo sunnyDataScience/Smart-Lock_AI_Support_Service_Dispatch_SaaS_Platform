@@ -75,6 +75,22 @@ function formatErr(e: unknown): string {
   return friendlyError(e);
 }
 
+// UAT R3-10：候選「可用性」原始 enum → i18n（available→可派遣）；未知值 fallback 原文
+const AVAILABILITY_KEYS = new Set([
+  "available",
+  "busy",
+  "offline",
+  "on_leave",
+  "circuit_breaker_open",
+]);
+function availabilityLabel(
+  t: (key: string) => string,
+  availability: string,
+): string {
+  if (!AVAILABILITY_KEYS.has(availability)) return availability;
+  return t(`candidates.availabilityValues.${availability}`);
+}
+
 export default function DispatchManualPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -94,8 +110,9 @@ export default function DispatchManualPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Filters
+  // UAT R3-10：分級 chip 預設全選——原預設漏 C 級，候選常顯 0 位＋誤導空狀態
   const [selectedLevels, setSelectedLevels] = useState<Set<TechnicianLevel>>(
-    new Set(["S", "A", "B"]),
+    new Set(LEVELS),
   );
   const [excludeCircuit, setExcludeCircuit] = useState(true);
   const [ratingMin, setRatingMin] = useState(0);
@@ -644,7 +661,7 @@ export default function DispatchManualPage() {
                               ? c.availability_eta_minutes === 0
                                 ? t("candidates.etaImmediate")
                                 : t("candidates.etaMinutes", { min: String(c.availability_eta_minutes) })
-                              : tech.availability}
+                              : availabilityLabel(t, tech.availability)}
                           </td>
                         </tr>
                       );
@@ -684,7 +701,9 @@ export default function DispatchManualPage() {
             </button>
             {wo && (
               <Link
-                href={`/my-orders/${wo.id}/reschedule?from=staff_assist`}
+                // UAT R3-10：原連師傅站路由（/my-orders/...）在本站 404 死路，
+                // 改導本站工單詳情頁接續改期作業
+                href={`/work-orders/${wo.id}`}
                 className="flex items-center gap-1 rounded-md border border-blue-200 bg-white px-3 py-2 text-[13px] font-medium text-blue-700 hover:bg-blue-50"
               >
                 <ArrowUpCircle className="h-4 w-4 rotate-90" />

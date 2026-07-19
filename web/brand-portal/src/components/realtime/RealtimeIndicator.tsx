@@ -1,17 +1,16 @@
 "use client";
 
 import type { RealtimeStatus } from "@/lib/realtime";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
-const STATUS_META: Record<
-  RealtimeStatus,
-  { label: string; color: string; pulse: boolean }
-> = {
-  idle: { label: "未啟用", color: "#94A3B8", pulse: false },
-  disabled: { label: "未配置", color: "#94A3B8", pulse: false },
-  connecting: { label: "連線中", color: "#F59E0B", pulse: true },
-  open: { label: "即時連線", color: "#10B981", pulse: true },
-  closed: { label: "已斷線（重試中）", color: "#94A3B8", pulse: false },
-  error: { label: "連線異常（重試中）", color: "#EF4444", pulse: false },
+// Tone（顏色 / pulse）與 label（i18n）分離 —— label 由 components.realtimeIndicator.* 解析
+const STATUS_TONE: Record<RealtimeStatus, { color: string; pulse: boolean }> = {
+  idle: { color: "#94A3B8", pulse: false },
+  disabled: { color: "#94A3B8", pulse: false },
+  connecting: { color: "#F59E0B", pulse: true },
+  open: { color: "#10B981", pulse: true },
+  closed: { color: "#94A3B8", pulse: false },
+  error: { color: "#EF4444", pulse: false },
 };
 
 interface Props {
@@ -25,21 +24,23 @@ export default function RealtimeIndicator({
   labelPrefix,
   compact = false,
 }: Props) {
-  const meta = STATUS_META[status];
+  const t = useTranslations("components.realtimeIndicator");
+  const tone = STATUS_TONE[status];
+  const label = t(status);
   if (status === "disabled" || status === "idle") {
     if (compact) return null;
   }
   return (
     <span className="inline-flex items-center gap-1 text-[11px] text-[var(--text-secondary)]">
       <span
-        className={`inline-block h-2 w-2 rounded-full ${meta.pulse ? "animate-pulse" : ""}`}
-        style={{ backgroundColor: meta.color }}
-        title={meta.label}
+        className={`inline-block h-2 w-2 rounded-full ${tone.pulse ? "animate-pulse" : ""}`}
+        style={{ backgroundColor: tone.color }}
+        title={label}
       />
       {!compact && (
         <span>
           {labelPrefix ? `${labelPrefix} ` : ""}
-          {meta.label}
+          {label}
         </span>
       )}
     </span>

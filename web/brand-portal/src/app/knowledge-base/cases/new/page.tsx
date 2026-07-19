@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { api, tenantPath } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import type { KBDocument } from "@/lib/kb-adapter";
 import type { components } from "@/types/api.generated";
@@ -56,15 +56,20 @@ export default function NewCasePage() {
     try {
       // CR-0005 step 3/3：v2 POST 走 kb_v2.py:ingestKBDocument（doc_type=case）
       // 返回 KBDocument（meta-wrap）；用 doc.id 導頁
+      // UAT R3-8：/kb/documents 為平台級 flat 端點（對齊列表 GET，per
+      // api.ts:tenantPath docstring）——原誤包 tenantPath 100% 404
       const doc = await api.post<KBDocument>(
-        tenantPath("/kb/documents"),
+        "/kb/documents",
         { ...body, doc_type: "case" },
       );
       if (!doc?.id) throw new Error(tF("errorNoData"));
       router.replace(`/knowledge-base/cases/${doc.id}`);
     } catch (e) {
+      // UAT R3-8 順修：建立情境的 404 不該顯「資料已被刪除」（誤導）
       setError(
-        friendlyError(e),
+        e instanceof ApiError && e.status === 404
+          ? tF("createFailed")
+          : friendlyError(e),
       );
       setSubmitting(false);
     }

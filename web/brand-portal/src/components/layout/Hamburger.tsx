@@ -2,6 +2,7 @@
 
 import { Menu, X } from "lucide-react";
 import { useSidebar } from "./SidebarContext";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 
 /**
  * Hamburger — 行動版 sidebar drawer 開關按鈕（floating 模式）
@@ -18,12 +19,13 @@ import { useSidebar } from "./SidebarContext";
 
 export default function Hamburger() {
   const { isOpen, toggle } = useSidebar();
+  const t = useTranslations("sidebar");
 
   return (
     <button
       type="button"
       onClick={toggle}
-      aria-label={isOpen ? "關閉導航選單" : "開啟導航選單"}
+      aria-label={isOpen ? t("closeNav") : t("openNav")}
       aria-expanded={isOpen}
       aria-controls="sidebar-drawer"
       className="md:hidden fixed left-2 top-2 z-50 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white/85 text-[var(--text-secondary)] shadow-sm backdrop-blur-sm transition hover:bg-white hover:text-[var(--text-primary)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 active:scale-95"

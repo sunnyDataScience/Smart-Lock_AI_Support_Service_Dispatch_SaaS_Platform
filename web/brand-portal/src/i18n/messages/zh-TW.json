@@ -350,7 +350,11 @@
         "brand": "品牌",
         "model": "型號",
         "createdAt": "建立時間"
-      }
+      },
+      "aiDraftChip": "AI 草擬",
+      "aiDraftPendingTitle": "AI 草擬，待補：{fields}",
+      "aiDraftReviewTitle": "AI 草擬，待客服人審轉工單",
+      "aiMissingFields": "待補：{fields}"
     },
     "conversations": {
       "ariaLabel": "對話列表",
@@ -434,8 +438,11 @@
       "settings": "系統設定",
       "staff": "員工帳號",
       "payoutRules": "拆帳規則",
-      "configGovernance": "設定治理"
-    }
+      "configGovernance": "設定治理",
+      "scheduleRequests": "排班申請審核"
+    },
+    "openNav": "開啟導航選單",
+    "closeNav": "關閉導航選單"
   },
   "pages": {
     "dashboard": {
@@ -575,16 +582,11 @@
         "status": "狀態",
         "last7Days": "最近 7 天",
         "brand": "品牌",
-        "statusOptions": {
-          "dispatched": "已派工",
-          "completed": "已完工",
-          "refunded": "已退款",
-          "disputed": "爭議中"
-        },
         "periodOptions": {
           "7": "最近 7 天",
           "30": "最近 30 天",
-          "90": "最近 90 天"
+          "90": "最近 90 天",
+          "all": "全部期間"
         }
       },
       "views": {
@@ -597,7 +599,10 @@
       "loadFailed": "載入工單失敗：{error}",
       "loadingMore": "載入中…",
       "loadMore": "載入更多",
-      "createOrder": "新增工單"
+      "createOrder": "新增工單",
+      "breadcrumbKanban": "首頁 > 工單管理 > 派工板",
+      "breadcrumbMap": "首頁 > 工單管理 > 地圖",
+      "searchKeywordPlaceholder": "搜尋客戶 / 地址 / 電話"
     },
     "conversations": {
       "title": "對話管理",
@@ -950,7 +955,8 @@
           "model": "型號",
           "category": "類別",
           "conversation": "關聯對話",
-          "symptom": "症狀描述"
+          "symptom": "症狀描述",
+          "manualCreated": "—(客服手建)"
         }
       },
       "completion": {
@@ -966,6 +972,14 @@
           "pass": "通過",
           "fail": "失敗",
           "na": "不適用"
+        },
+        "functionTests": {
+          "fingerprint": "指紋解鎖",
+          "password": "密碼解鎖",
+          "card": "卡片(RFID)",
+          "app": "App/藍牙",
+          "mechanical_key": "機械鑰匙",
+          "battery": "電池電壓"
         }
       },
       "completeDialog": {
@@ -1793,7 +1807,7 @@
     "dispatchManual": {
       "missingParam": {
         "title": "缺少工單參數",
-        "hint": "請從派工佇列監控 (A28) 點「人工介入」進入，或在 URL 加上",
+        "hint": "請從派工佇列監控點「人工介入」進入，或在 URL 加上",
         "queryHint": "?work_order_id=xxx",
         "goQueue": "前往派工佇列"
       },
@@ -1841,7 +1855,14 @@
         },
         "circuitBadge": "熔斷",
         "etaImmediate": "立即",
-        "etaMinutes": "{min} 分後"
+        "etaMinutes": "{min} 分後",
+        "availabilityValues": {
+          "available": "可派遣",
+          "busy": "忙碌中",
+          "offline": "離線",
+          "on_leave": "請假中",
+          "circuit_breaker_open": "熔斷中"
+        }
       },
       "panel": {
         "noTech": "請從候選列表中選擇技師",
@@ -2273,7 +2294,8 @@
       "pendingTag": "待接入",
       "pendingNote": "需 SLA 規則表 + 評價回傳機制",
       "pendingTitle": "SLA 達成率 / 客戶滿意度 / NPS / 差評率",
-      "pendingDesc": "需各自獨立模組接入後再上線。"
+      "pendingDesc": "需各自獨立模組接入後再上線。",
+      "scheduledList": "已排程清單"
     },
     "exceptions": {
       "title": "異常管理",
@@ -2415,7 +2437,8 @@
         "saveSubmit": "儲存變更",
         "cancel": "取消",
         "validateRequired": "請填寫標題、品牌、問題描述、解決方案。",
-        "errorNoData": "後端未回傳案例資料"
+        "errorNoData": "後端未回傳案例資料",
+        "createFailed": "建立失敗，請稍後再試。"
       },
       "detail": {
         "loading": "載入中…",
@@ -3232,7 +3255,7 @@
         },
         "reasonLabel": "修改原因",
         "reasonPlaceholder": "例如：F-019 需求 — 開放 reviewer 寫入發票權限",
-        "reasonHint": "將記入 audit_events.payload.reason（最少 4 字元）",
+        "reasonHint": "原因將記入稽核紀錄（最少 4 字元）",
         "errors": {
           "reasonTooShort": "請填寫修改原因（至少 4 個字元）",
           "forbidden": "您的角色階層不足以授權此權限（後端拒絕：{code}）",
@@ -3361,6 +3384,30 @@
             "title": "匯出結算報表",
             "description": "匯出結算列表（settlement / technician / amount / status）CSV / PDF。"
           }
+        }
+      },
+      "scheduledReports": {
+        "title": "已排程清單",
+        "description": "檢視並取消定期報表排程",
+        "loading": "載入中…",
+        "empty": "尚無有效排程",
+        "recipients": "收件人：{list}",
+        "nextRun": "下次寄送：{date}",
+        "cancel": "取消排程",
+        "cancelling": "取消中…",
+        "cancelConfirm": "確定取消此排程？取消後將不再定期寄送。",
+        "cancelledToast": "排程已取消",
+        "close": "關閉",
+        "reportTypes": {
+          "kpi": "KPI 報表",
+          "revenue": "營收報表",
+          "technician_ranking": "技師排名",
+          "settlements": "結算報表"
+        },
+        "cadence": {
+          "weekly": "每週",
+          "monthly": "每月",
+          "quarterly": "每季"
         }
       }
     },
@@ -3624,7 +3671,18 @@
         "technicianTitle": "指派技師",
         "unassigned": "尚未指派",
         "markIssue": "標記異常",
-        "modulePending": "派工模組接入後可執行操作"
+        "modulePending": "派工模組接入後可執行操作",
+        "woCustomerName": "客戶姓名",
+        "woCustomerPhone": "聯絡電話",
+        "woWarrantyExpiry": "保固到期日",
+        "woDoorThickness": "門厚",
+        "woDealer": "購買地點/經銷商",
+        "woInstallDate": "安裝日期",
+        "woRainExposure": "安裝環境",
+        "woPaymentMethod": "付款方式",
+        "woSpecialSurcharge": "特殊門型加價",
+        "woYes": "是",
+        "phoneNotProvided": "未提供"
       },
       "kanban": {
         "loading": "載入中…",
@@ -3946,6 +4004,38 @@
         "reset": "取消變更",
         "save": "儲存設定",
         "saving": "儲存中…"
+      }
+    },
+    "notificationBell": {
+      "loadError": "通知載入失敗：{error}",
+      "loadingTitle": "載入中…",
+      "unreadTitle": "{count} 則未讀通知",
+      "ariaLoading": "通知中心，載入中",
+      "ariaUnread": "通知中心，{count} 則未讀",
+      "ariaNone": "通知中心，無未讀"
+    },
+    "realtimeIndicator": {
+      "idle": "未啟用",
+      "disabled": "未配置",
+      "connecting": "連線中",
+      "open": "即時連線",
+      "closed": "已斷線（重試中）",
+      "error": "連線異常（重試中）"
+    },
+    "dateRange": {
+      "ariaLabel": "選擇日期區間",
+      "pickDate": "選擇日期",
+      "presetListAria": "預設日期範圍",
+      "prevMonth": "上個月",
+      "nextMonth": "下個月",
+      "presets": {
+        "today": "今天",
+        "yesterday": "昨天",
+        "last7": "過去 7 日",
+        "last30": "過去 30 日",
+        "thisMonth": "本月",
+        "lastMonth": "上月",
+        "custom": "自訂"
       }
     }
   }

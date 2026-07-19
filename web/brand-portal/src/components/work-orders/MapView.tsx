@@ -25,6 +25,7 @@ interface DistrictBucket {
   district: string;
   count: number;
   pending: number;
+  dispatched: number;
   inProgress: number;
   done: number;
 }
@@ -41,11 +42,14 @@ function bucketByDistrict(
       district: key,
       count: 0,
       pending: 0,
+      dispatched: 0,
       inProgress: 0,
       done: 0,
     };
     bucket.count += 1;
-    if (group === "pending" || group === "dispatched") bucket.pending += 1;
+    // UAT R3（G5-P3）：已派工獨立計數，不再計入「待」——對齊工單卡 badge 的群組分類
+    if (group === "pending") bucket.pending += 1;
+    else if (group === "dispatched") bucket.dispatched += 1;
     else if (group === "in_progress") bucket.inProgress += 1;
     else if (group === "done") bucket.done += 1;
     map.set(key, bucket);
@@ -124,6 +128,9 @@ export default function MapView({ items, selectedItem, onClose }: Props) {
                   <div className="flex gap-2 text-[10px]">
                     <span style={{ color: "#6366F1" }}>
                       {t("bucketPending", { count: b.pending })}
+                    </span>
+                    <span style={{ color: "#8B5CF6" }}>
+                      {t("bucketDispatched", { count: b.dispatched })}
                     </span>
                     <span style={{ color: "#3B82F6" }}>
                       {t("bucketInProgress", { count: b.inProgress })}

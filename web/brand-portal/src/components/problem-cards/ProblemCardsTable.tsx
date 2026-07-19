@@ -54,10 +54,13 @@ export default function ProblemCardsTable({ items, loading }: Props) {
   );
 
   return (
+    // UAT R3-12：390 窄幅外層改 overflow-x-auto（表頭不疊印、右側欄位可捲達），
+    // 內層 min-w 撐出完整欄寬
     <div
-      className="overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]"
+      className="overflow-x-auto rounded-lg border border-[var(--border)] bg-[var(--bg-surface)]"
       aria-label={tTable("ariaLabel")}
     >
+      <div className="min-w-[880px]">
       <div className="flex h-[44px] items-center bg-[var(--bg-page)] px-4">
         {columns.map((col) => (
           <div key={col.key} className={`${col.width} px-0`}>
@@ -81,8 +84,10 @@ export default function ProblemCardsTable({ items, loading }: Props) {
           <Link
             key={card.id}
             href={`/problem-cards/${card.id}`}
+            // UAT R3-12：zebra 偶數列 bg-white → semantic token（比照 WorkOrdersTable），
+            // 深色主題不再白底近白字（1.07:1）
             className={`flex h-12 items-center border-b border-[var(--border)] px-4 hover:bg-[#EFF6FF] ${
-              idx % 2 === 0 ? "bg-white" : "bg-[var(--bg-page)]"
+              idx % 2 === 0 ? "bg-[var(--bg-surface)]" : "bg-[var(--bg-page)]"
             }`}
           >
             <div className="w-[180px] shrink-0">
@@ -97,11 +102,13 @@ export default function ProblemCardsTable({ items, loading }: Props) {
                   style={{ color: "#7C3AED", backgroundColor: "#F3E8FF" }}
                   title={
                     card.ai_missing_fields && card.ai_missing_fields.length > 0
-                      ? `AI 草擬，待補：${card.ai_missing_fields.join("、")}`
-                      : "AI 草擬，待客服人審轉工單"
+                      ? tTable("aiDraftPendingTitle", {
+                          fields: card.ai_missing_fields.join("、"),
+                        })
+                      : tTable("aiDraftReviewTitle")
                   }
                 >
-                  AI 草擬
+                  {tTable("aiDraftChip")}
                 </span>
               )}
               <span className="text-[13px] text-[var(--text-primary)] align-middle">
@@ -111,7 +118,9 @@ export default function ProblemCardsTable({ items, loading }: Props) {
                 card.ai_missing_fields &&
                 card.ai_missing_fields.length > 0 && (
                   <span className="ml-2 text-[11px] text-[var(--text-disabled)] align-middle">
-                    待補：{card.ai_missing_fields.join("、")}
+                    {tTable("aiMissingFields", {
+                      fields: card.ai_missing_fields.join("、"),
+                    })}
                   </span>
                 )}
             </div>
@@ -152,6 +161,7 @@ export default function ProblemCardsTable({ items, loading }: Props) {
           </Link>
         );
       })}
+      </div>
     </div>
   );
 }

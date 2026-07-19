@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { api, getCurrentSession, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { useRealtimeChannel } from "@/hooks/useRealtimeChannel";
+import { useTranslations } from "@/components/i18n/LocaleProvider";
 import {
   BROADCAST_CHANNELS,
   NotificationBroadcastEvent,
@@ -35,6 +36,7 @@ function formatBadge(count: number, hasMore: boolean): string {
 }
 
 export default function NotificationBell({ variant = "light" }: Props) {
+  const t = useTranslations("components.notificationBell");
   const [unreadCount, setUnreadCount] = useState<number | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,12 +75,18 @@ export default function NotificationBell({ variant = "light" }: Props) {
 
   // UAT W5-2：通知即時推播 —— 訂閱 /realtime/notifications/{user_id} WS
   // （後端 push_notification 寫 DB 後 publish 至同一 hub；payload=通知 JSON）。
-  // 收到訊息 → refreshBadge；抽屜開啟時透過既有 broadcast 事件觸發清單刷新。
+  // 收到訊息 → refreshBadge（refetch，不依賴推送計數，UAT R3-4）；
+  // 抽屜開啟時透過既有 broadcast 事件觸發清單刷新。
   // 斷線重連（exponential backoff）由 subscribeRealtime 內建，靜默處理。
   const broadcast = useBroadcast<NotificationBroadcastEvent>(
     BROADCAST_CHANNELS.notifications,
   );
-  const userId = useMemo(() => getCurrentSession()?.userId ?? null, []);
+  // UAT R3-4 根因之一：原 useMemo(..., []) 在首次 render 讀 session，claims cookie
+  // 尚未就緒時鎖死 null → 該 session 永不訂閱 WS（間歇失效）。改 effect 讀取。
+  const [userId, setUserId] = useState<string | null>(null);
+  useEffect(() => {
+    setUserId(getCurrentSession()?.userId ?? null);
+  }, []);
   useRealtimeChannel<Notification>({
     channelPath: userId ? `/realtime/notifications/${userId}` : "",
     enabled: !!userId,
@@ -108,19 +116,19 @@ export default function NotificationBell({ variant = "light" }: Props) {
         className={`relative flex h-10 w-10 items-center justify-center rounded-lg focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-1 ${hoverBg}`}
         title={
           error
-            ? `通知載入失敗：${error}`
+            ? t("loadError", { error })
             : unreadCount === null
-              ? "載入中…"
-              : `${unreadCount} 則未讀通知`
+              ? t("loadingTitle")
+              : t("unreadTitle", { count: String(unreadCount) })
         }
         aria-label={
           error
-            ? `通知載入失敗：${error}`
+            ? t("loadError", { error })
             : unreadCount === null
-              ? "通知中心，載入中"
+              ? t("ariaLoading")
               : unreadCount > 0
-                ? `通知中心，${unreadCount} 則未讀`
-                : "通知中心，無未讀"
+                ? t("ariaUnread", { count: String(unreadCount) })
+                : t("ariaNone")
         }
         aria-haspopup="dialog"
         aria-expanded={drawerOpen}

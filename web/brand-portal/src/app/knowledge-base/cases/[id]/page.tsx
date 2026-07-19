@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Pencil, Trash2 } from "lucide-react";
 import Sidebar from "@/components/layout/Sidebar";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { ApiError, api, tenantPath } from "@/lib/api";
+import { ApiError, api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { formatRelative } from "@/lib/format";
@@ -46,7 +46,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       // CR-0005 step 3/3（業主拍 HD-01=a meta-wrap）：v2 GET 走 kb_v2.py:getKBDocument
       // 返回 KBDocument shape；用 kbDocumentToCaseEntry adapter 對應既有 UI flat shape
       const doc = await api.get<KBDocument>(
-        tenantPath(`/kb/documents/${encodeURIComponent(id)}?doc_type=case`),
+        `/kb/documents/${encodeURIComponent(id)}?doc_type=case`,
       );
       if (!doc?.id) {
         setNotFound(true);
@@ -79,7 +79,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       // CR-0005 step 3/3 partial（業主 2026-06-04 拍 §8 HD-02=a 軟刪 + HD-03=a DB audit）
       // v2 DELETE 走 kb_v2.py delete_kb_document（UPDATE is_active=FALSE + deleted_at=NOW
       // + audit log INSERT）；返回 204 無 body 無 shape 顧慮
-      await api.delete(tenantPath(`/kb/documents/${encodeURIComponent(id)}?doc_type=case`));
+      await api.delete(`/kb/documents/${encodeURIComponent(id)}?doc_type=case`);
       router.replace("/knowledge-base/cases");
     } catch (e) {
       setError(

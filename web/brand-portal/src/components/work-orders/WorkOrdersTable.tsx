@@ -23,41 +23,16 @@ const VIRTUALIZE_THRESHOLD = 50;
 // 虛擬化模式的可視高度（單頁 ~12 列 + buffer）
 const VIRTUAL_VIEWPORT_HEIGHT = 600;
 
-export type StatusGroup = "pending" | "dispatched" | "in_progress" | "done" | "cancelled";
-
-export const STATUS_GROUP_MAP: Record<WorkOrderStatus, StatusGroup> = {
-  inquiring: "pending",
-  qualified: "pending",
-  quoted: "pending",
-  negotiating: "pending",
-  accepted: "dispatched",
-  scheduled: "dispatched",
-  dispatching: "dispatched",
-  assigned: "dispatched",
-  en_route: "dispatched",
-  arrived: "dispatched",
-  in_progress: "in_progress",
-  completed: "done",
-  billed: "done",
-  paid: "done",
-  closed: "done",
-  cancelled: "cancelled",
-};
-
-/**
- * UAT P2-10：任意工單狀態字串 → 狀態群組。
- * 派工管理各頁（列表/看板/地圖/儀表板）皆以 STATUS_GROUP_MAP + status.workOrderGroup
- * 字典顯示；其他頁（如客戶詳情）的工單狀態 label 一律共用本 helper，不得另建字典。
- * v2 DB 另有 created / confirmed 兩值不在 WorkOrderStatus enum，此處防禦對應。
- */
-export function statusGroupOf(status: string): StatusGroup {
-  if (status in STATUS_GROUP_MAP) {
-    return STATUS_GROUP_MAP[status as WorkOrderStatus];
-  }
-  if (status === "created") return "pending"; // 已建立＝待處理
-  if (status === "confirmed") return "done"; // 客戶已確認＝已完成
-  return "pending";
-}
+// 狀態群組正反向映射抽至純 .ts 模組（可被 vitest 直接 import 測試，UAT R3-7）；
+// 此處 re-export 保持既有 caller import 路徑不變。
+export {
+  STATUS_GROUP_MAP,
+  STATUS_GROUP_VALUES,
+  rawStatusesOfGroup,
+  statusGroupOf,
+  type StatusGroup,
+} from "./statusGroup";
+import { STATUS_GROUP_MAP, type StatusGroup } from "./statusGroup";
 
 // Tone（顏色 token）與 label（i18n 字串）已分離。
 // 視覺常數模組級不變；label 由各元件自行 useTranslations 取得。
