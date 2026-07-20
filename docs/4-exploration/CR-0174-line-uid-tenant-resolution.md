@@ -1,7 +1,7 @@
 ---
 id: CR-0174
 title: 多租戶 LINE line_uid → tenant 反解(消除硬編 default 誤配)
-status: draft
+status: in-progress
 type: change-impact-analysis
 date: 2026-07-20
 related-findings: R29(codegraph LINE 推播稽核)
@@ -130,3 +130,12 @@ CR-0028/CR-0017 上線後,消費者/品牌側 webhook(`POST /line/webhook`,`api/
 - **回退開關**:保留 `_DEFAULT_TENANT_FOR_LINE_LOOKUP` 常數與 `LINE_DEFAULT_TENANT_ID` env 直到 S4;S2/S3 出問題時關 flag 即回退到 default-lookup 舊行為,無需 revert code。
 - **排序穩定性風險(僅 HD-2=b 時)**:「取最近綁定」須以 `bound_at`(必要時加 `id` tiebreak)穩定排序,避免同時間多筆造成非決定性回傳。
 - **既有前置債**:migration 018 pending-apply 屬 R29 之外的既有風險,本 CR 於 S0 順帶驗證但不擴大範圍。
+
+## 11. 進度（實作記錄）
+
+- **§8 決策（業主 2026-07-20）**：HD-2=**fail-closed**；**HD-1 為事實**——客戶/品牌 LINE 為單一共用官方帳號（code 僅讀單一 `LINE_CHANNEL_*`、無 per-tenant 設定、webhook 無 `destination`），故「用 destination 根治」不可用，改「binding 反解 + tenant-scoped fallback + 歧義 fail-closed」。
+- **S0 盤點（本機 DB，2026-07-20）**：migration 018 **已套**（applied 2026-07-11，`saas.line_binding` 存在）〔HD-4〕；`users` 有 `line_user_id` 的 legacy 存量 = **2 筆，皆在 default tenant `00…001`**；跨多租戶 active binding 歧義 = **0 筆**。→ 加 tenant 條件對現況**零回歸**（legacy 皆經 default tenant 解析）。
+- **實作（branch `feat/cr-0174-line-uid-tenant-resolution`）**：`line_binding_service.resolve_user_by_line_uid` step-2 fallback `SELECT id FROM users WHERE line_user_id=%s LIMIT 1`（**無 tenant 條件＝跨租戶洩漏 R29**）→ 改 `... AND tenant_id=%s::uuid`；同租戶多筆撞同 line_uid → **fail-closed 回 None + warning**（HD-2）；step-1 `get_active_binding` 本就 tenant-scoped。
+- **驗證**：unit **4 passed**（tenant-scoped SQL／單筆命中／歧義 fail-closed／binding 優先）＋ **真 DB 讀取驗證**（實際 legacy user：對的 tenant 找到＝1、別的 tenant＝0 洩漏封死、舊無 tenant 查詢會撈到＝洩漏面對照）。
+- **範圍界定（有意的最小安全子集）**：僅做「封洩漏 + 歧義 fail-closed」（HD-3=b 加 tenant 條件、**保留** fallback）；CIA §9 的 S3/S4「**移除** users fallback + feature flag 灰度」**未做**——盤點顯示無移除急迫性（legacy 僅 2 筆、皆 default tenant、0 歧義），移除需 legacy 回填屬更大範圍，另議。零回歸故不需 feature flag。
+- **剩餘（deploy）**：生產庫驗證 018 已套（本機已套；prod 待查）＋生產 legacy users／歧義存量盤點（同 S0 查詢，確認 prod 亦零回歸）。
