@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Docs
+
+- **LINE 推播 Hardening 批次生產部署 Release Checklist（branch `docs/release-checklist-line-push-hardening`，2026-07-20，業主「一次做完」）**：把本輪 4 個 CR（CR-0175 outbox 冪等／CR-0172 技師派工 outbox／CR-0174 跨租戶反解 fail-closed／CR-0173 技師 line_user_id 加密）+ R24 env 系列的交錯部署依賴，合成單一可執行 runbook `docs/uat/release-checklist-line-push-hardening-20260720.md`。由 codegraph 稽核 workflow（10 agent：5 萃取 + 5 對 code 逐行稽核驗證）產出，每個 env 名/行號/檔名皆對照實際 code。核心＝一條主部署序列（secret→改 api.sh→schema 雙庫→tech-api 先於 brand-api→backfill→flag 維持關）+ 前置盤點 gate SQL + 部署後驗證清單 + 回滾速查 + Top 8 雷。**稽核發現真 gap**：`scripts/deploy/api.sh` 目前**未掛** `LINE_UID_ENC_KEY`/`LINE_UID_BIDX_KEY`/`TECH_PORTAL_URL`（tech 面）與 `LINE_CHANNEL_SECRET`（all 面），手動 set-env 會被下次重佈洗掉 → 列為部署前必改（另 follow-up 收斂為腳本管控）。同時釐清技師側 webhook 缺 secret 是 **403**、客戶側才 **401**。
+
 ### Added
 
 - **第二輪代理 UAT 報告——六個未測功能域（業主指示「再測試一次 UAT 這次要測試不同的功能」，branch `docs/uat-round2-report`，2026-07-18）**：Playwright 真瀏覽器 7 測試員序列 1,075 步實測**帳務結算深度／客戶端 token 頁（LINE 連結）／師傅・廠商・品牌三條註冊審核鏈／帳號安全 A1-A3＋忘記密碼／對話接管・進線案件・通知・KB 版本治理／四站英文模式＋深色＋RWD**。結果 **69 檢查點 PASS、43 findings（P1×5/P2×17/P3×21）**，詳 `docs/uat/uat-round2-report-20260718.md`。P1 重點：①四個客戶 token 頁本機全壞死（compose 烤入空字串＋token 頁用 `??` 不觸發 fallback → fetch 打回 :3000）；②手建卡「建立報價」404＝上輪 26 檔 LEFT JOIN 化的漏網之魚（`quote_engine_service.py:124` INNER JOIN conversations）；③platform-api 容器過舊缺 `_TECH_PRIVATE_COLS` 修復→師傅生命週期全 500＋跨庫狀態分裂＋A2 停權踢出 fail-open（**環境層已重佈解除**，遺留 R1 非原子鏡射/R2 A2 讀投影 fail-open/R3 前端錯誤靜默三個設計課題）。亮點驗證：v2 dual-sign SoD 同人擋、A3 改密碼踢舊 session、A1 五次鎖定、KB 存草稿→發佈→回滾→audit 全鏈＋權限分離、:3002 i18n/深色/RWD 全綠。附帶觀察：skill seed 異常（cs-sop 無 published revision，SkillSync 只能回退 builtin）＋月結對 co-sign 結算重複建立（dual-sign 接 UI 前必修）。測試資料 UAT0718c 三庫零殘留（append-only 稽核表與 revoked_jti 合理保留），基線 diff 實證。
