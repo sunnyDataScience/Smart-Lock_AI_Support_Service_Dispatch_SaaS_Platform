@@ -1397,6 +1397,10 @@ async def _notify_tech_line(path: str, payload: dict) -> None:
     base = (os.getenv("TECH_API_BASE_URL") or "").strip()
     token = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
     if not base or not token:
+        logger.warning(
+            "tech LINE notify 未配置(缺 TECH_API_BASE_URL/INTERNAL_API_TOKEN)→ 跳過推播 path=%s",
+            path,
+        )
         return  # 未配置=跳過(本機單 stack / 測試環境)
     try:
         import aiohttp

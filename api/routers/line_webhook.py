@@ -36,11 +36,25 @@ router = APIRouter()
 
 
 def _verify_signature(body_bytes: bytes, signature: str | None) -> bool:
-    """LINE x-line-signature 驗證。LINE_CHANNEL_SECRET 缺時 dev 模式略過。"""
+    """LINE x-line-signature 驗證。
+
+    缺 LINE_CHANNEL_SECRET 時 **預設 fail-closed（拒絕）**——避免裸端點被繞過驗簽。
+    僅在明確設定 ALLOW_UNSIGNED_LINE_WEBHOOK=1 的本地開發環境才放行未簽章請求，
+    與技師側 technician_line.py:_verify_line_signature 的 fail-closed 風格對齊。
+    """
     secret = os.getenv("LINE_CHANNEL_SECRET")
     if not secret:
-        logger.warning("LINE_CHANNEL_SECRET missing — skip signature verify (DEV ONLY)")
-        return True
+        if os.getenv("ALLOW_UNSIGNED_LINE_WEBHOOK") == "1":
+            logger.warning(
+                "LINE_CHANNEL_SECRET missing — signature verify bypassed via "
+                "ALLOW_UNSIGNED_LINE_WEBHOOK=1 (DEV ONLY)"
+            )
+            return True
+        logger.error(
+            "LINE_CHANNEL_SECRET missing — rejecting webhook (fail-closed). "
+            "Set the secret in prod, or ALLOW_UNSIGNED_LINE_WEBHOOK=1 for local dev."
+        )
+        return False
     if not signature:
         return False
     mac = hmac.new(secret.encode("utf-8"), body_bytes, hashlib.sha256).digest()
@@ -133,10 +147,11 @@ async def _handle_postback(event: dict[str, Any]) -> None:
     source = event.get("source") or {}
     line_uid = source.get("userId") or "?"
 
-    parts = data.split("|")
-    if not parts:
+    if not data:
         logger.warning("postback data malformed: %s", data)
         return
+
+    parts = data.split("|")
 
     kind = parts[0]
     try:
@@ -151,6 +166,15 @@ async def _handle_postback(event: dict[str, Any]) -> None:
             logger.info("postback binding start: line=%s", line_uid[:8])
         elif kind == "r:c" and len(parts) == 3:
             proposal_id, slot_idx_str = parts[1], parts[2]
+            if not slot_idx_str.isdecimal():
+                # R27: 畸形 slot_idx（非十進位數字，isdecimal 嚴格對齊 int()）明確記 error 並丟棄，
+                # 不落入下方 broad except 被當成可 CAS 冪等重試的一般失敗
+                logger.error(
+                    "postback reschedule confirm malformed slot_idx: "
+                    "proposal=%s raw_slot=%r data=%s line=%s",
+                    proposal_id[:8], slot_idx_str, data, line_uid[:8],
+                )
+                return
             slot_idx = int(slot_idx_str)
             await work_order_service.confirm_reschedule_by_proposal(
                 proposal_id=proposal_id, slot_idx=slot_idx,

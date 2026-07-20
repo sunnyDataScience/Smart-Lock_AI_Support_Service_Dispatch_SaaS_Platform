@@ -45,9 +45,17 @@ def test_verify_signature_missing_header(monkeypatch):
     assert webhook_module._verify_signature(b'{"events":[]}', None) is False
 
 
-def test_verify_signature_no_secret_dev_passthrough(monkeypatch):
-    """dev mode: LINE_CHANNEL_SECRET 未設時放行。"""
+def test_verify_signature_no_secret_fail_closed(monkeypatch):
+    """R24: 缺 LINE_CHANNEL_SECRET 且無 dev 旗標 → fail-closed 拒絕(不再放行)。"""
     monkeypatch.delenv("LINE_CHANNEL_SECRET", raising=False)
+    monkeypatch.delenv("ALLOW_UNSIGNED_LINE_WEBHOOK", raising=False)
+    assert webhook_module._verify_signature(b'{"events":[]}', None) is False
+
+
+def test_verify_signature_no_secret_dev_passthrough(monkeypatch):
+    """dev mode: 明確設 ALLOW_UNSIGNED_LINE_WEBHOOK=1 時,缺 secret 才放行(R24)。"""
+    monkeypatch.delenv("LINE_CHANNEL_SECRET", raising=False)
+    monkeypatch.setenv("ALLOW_UNSIGNED_LINE_WEBHOOK", "1")
     assert webhook_module._verify_signature(b'{"events":[]}', None) is True
 
 
@@ -201,6 +209,7 @@ async def test_webhook_post_accepts_valid_signature(monkeypatch, client):
 @pytest.mark.asyncio
 async def test_webhook_post_dispatches_postback_event(monkeypatch, client):
     monkeypatch.delenv("LINE_CHANNEL_SECRET", raising=False)  # dev mode
+    monkeypatch.setenv("ALLOW_UNSIGNED_LINE_WEBHOOK", "1")  # R24: dev 放行需明確旗標
 
     called = {}
 
@@ -233,9 +242,63 @@ async def test_webhook_post_dispatches_postback_event(monkeypatch, client):
 @pytest.mark.asyncio
 async def test_webhook_post_rejects_invalid_json(monkeypatch, client):
     monkeypatch.delenv("LINE_CHANNEL_SECRET", raising=False)
+    monkeypatch.setenv("ALLOW_UNSIGNED_LINE_WEBHOOK", "1")  # R24: dev 放行需明確旗標
     resp = await client.post(
         "/api/v1/line/webhook",
         content=b"{not-json",
         headers={"Content-Type": "application/json"},
     )
     assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_webhook_post_no_secret_no_flag_fail_closed(monkeypatch, client):
+    """R24: 缺 secret 且無 ALLOW_UNSIGNED 旗標 → 端到端 401(fail-closed)。"""
+    monkeypatch.delenv("LINE_CHANNEL_SECRET", raising=False)
+    monkeypatch.delenv("ALLOW_UNSIGNED_LINE_WEBHOOK", raising=False)
+    resp = await client.post(
+        "/api/v1/line/webhook",
+        content=b'{"events":[]}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert resp.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_handle_postback_empty_data_no_dispatch(monkeypatch):
+    """R28: 空 postback data → 不分派任何 handler、不 crash(dead branch 修正)。"""
+    called = {}
+
+    async def fake_confirm(**kwargs):
+        called["hit"] = True
+
+    monkeypatch.setattr(
+        webhook_module.work_order_service,
+        "confirm_reschedule_by_proposal",
+        fake_confirm,
+    )
+    await webhook_module._handle_postback({
+        "source": {"userId": "U1"},
+        "postback": {"data": ""},
+    })
+    assert "hit" not in called
+
+
+@pytest.mark.asyncio
+async def test_handle_postback_malformed_slot_idx_no_dispatch(monkeypatch):
+    """R27: r:c slot_idx 非數字 → 不呼叫 confirm(不落 broad except 的冪等假設)。"""
+    called = {}
+
+    async def fake_confirm(**kwargs):
+        called["hit"] = True
+
+    monkeypatch.setattr(
+        webhook_module.work_order_service,
+        "confirm_reschedule_by_proposal",
+        fake_confirm,
+    )
+    await webhook_module._handle_postback({
+        "source": {"userId": "U1"},
+        "postback": {"data": "r:c|p-1234|abc"},
+    })
+    assert "hit" not in called
