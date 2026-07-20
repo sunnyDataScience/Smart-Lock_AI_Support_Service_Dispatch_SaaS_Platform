@@ -139,5 +139,7 @@
 
 | 110 | `110-idempotency-reserve-first.sql` | UAT R3-6 | 🟢 idempotent（ADD COLUMN/CREATE INDEX IF NOT EXISTS＋DROP NOT NULL 可重套，scratch 5490 驗證 2026-07-19） | Idempotency 先佔（已釘契約）：idempotency_keys 加 status（in_progress/completed）＋response_status/response_body 改 nullable——handler 前先 INSERT 佔位，同 key 併發 409 IDEMPOTENCY_IN_PROGRESS；work_orders 加 partial UNIQUE(problem_card_id)（限原始單：parent_work_order_id IS NULL AND rework_of_id IS NULL，reopen 子單/rework 排除）併發 convert DB 兜底。⚠️ 套用前先跑檔頭重複列預檢（scratch 0 列；本機/prod 套前必重跑） |
 
+| 111 | `111-line-push-outbox-idempotency.sql` | CR-0175 R13/R19 | 🟢 idempotent（DELETE 重複 + CREATE UNIQUE INDEX IF NOT EXISTS，拋棄式 PG16 驗證 2026-07-20） | 客戶推播 outbox 冪等：line_push_outbox 對「事件型不可重複」的 4 個 push_kind（work_order_assigned/accepted/document、scope_change_result）建 partial unique index `uq_outbox_ref_kind_strict`（reference_id NOT NULL AND status<>'dead'），擋重複 enqueue；`enqueue()` 配 ON CONFLICT DO NOTHING 回既有 id。可更新型 kind（quote/reschedule/scope_change proposal、schedule_conflict）不納入（允許合法重推），由 worker `x_line_retry_key`（CR-0175 C）擋 crash-replay。⚠️ 套用前先跑存量重複盤點（乾淨庫 DELETE 0） |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

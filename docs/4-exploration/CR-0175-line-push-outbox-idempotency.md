@@ -1,7 +1,7 @@
 ---
 id: CR-0175
 title: 客戶推播 outbox 冪等（enqueue 去重 + 送出 retry key）
-status: draft
+status: in-progress
 type: change-impact-analysis
 date: 2026-07-20
 related-findings: R13, R19（codegraph LINE 推播稽核）
@@ -132,7 +132,21 @@ source-report: .claude/context/decisions/codegraph-tech-line-push-trace-2026-07-
   - 步驟 5 若 SDK 不接受 `x_line_retry_key` kwarg → `TypeError` 打斷推播（由步驟 2 前置驗證緩解；未驗證不上線）。
 - **灰度**：A/B（去重）與 C（retry key）**可分離上線**。A/B 先上（純 DB + service 內，無外部 SDK 依賴、風險可控）；C 待 SDK 簽章確認後獨立上，降低外部整合破壞面。
 - **回退開關**：
-  - A：`DROP INDEX uq_outbox_ref_kind`（純加法索引，drop 即回退，不動資料）。
+  - A：`DROP INDEX uq_outbox_ref_kind_strict`（純加法索引，drop 即回退，不動資料）。
   - B：`ON CONFLICT DO NOTHING` 移除即回無條件 INSERT（回舊語意）。
   - C：`x_line_retry_key` 傳參以 feature flag / env 包裹，異常時可關閉退回不帶 key 的 `push_message`（維持現況 at-least-once，不惡化）。
 - **對齊原則備註**：技師 webhook 側已 fail-closed，但本客戶 outbox 側的正確對齊方向是「冪等閉合」而非 fail-fast，故本 CR 不加 startup hard fail、不動 `_push_to_line:242` 缺 token 的結構化錯誤回傳（保本地可用性）。
+
+## 11. 進度（實作記錄）
+
+- **§8 決策（業主 2026-07-20 拍板，照建議全採）**：
+  - 問題 1 白名單：🔒 去重＝`work_order_assigned` / `work_order_accepted` / `work_order_document` / `scope_change_result`；🔓 允許重推＝`quote_proposal` / `reschedule_proposal` / `scope_change_proposal` / `schedule_conflict`。
+  - 問題 2 dedup 視窗：`reference_id IS NOT NULL AND status <> 'dead' AND push_kind IN (4 strict)`。
+  - 問題 3 存量清理：migration 內先 DELETE 重複（保留 `(created_at, id)` 最大者）再建 index；生產實際重複量待 DB up 時盤點（乾淨庫＝DELETE 0）。
+  - 問題 4 enqueue 回傳：維持 `-> str`（8 個呼叫端全未接回傳值，驗證無需 created 旗標）。
+  - 問題 5 SDK：`line-bot-sdk 3.23.0` 之 `AsyncMessagingApi.push_message(..., x_line_retry_key=...)` **原生支援**，C 可行零版本風險。
+- **實作（branch `feat/cr-0175-outbox-idempotency`）**：
+  - A/B：migration `SQL/migrations/111-line-push-outbox-idempotency.sql`（partial unique index **`uq_outbox_ref_kind_strict`** ＋存量清理）；`enqueue()` strict kind 走 `ON CONFLICT (reference_id, push_kind) WHERE <predicate> DO NOTHING`，撞既有回既有 id（冪等回傳）。
+  - C：`_push_to_line(..., retry_key)` → `push_message(req, x_line_retry_key=outbox_id)`。
+- **驗證**：unit 18 passed（`test_cr_0175_outbox_idempotency.py` enqueue 分支×4 ＋ `test_cr_0017_outbox_worker.py` retry_key×1 ＋既有回歸）；**拋棄式 Postgres 16 實測** migration 套用＋ON CONFLICT 推斷＋去重/放行全綠（strict 同 ref 第二次 `INSERT 0 0`、`quote_proposal` 兩次都落）。
+- **剩餘（deploy 時）**：migration 111 套用生產庫前先跑存量重複盤點（§9-1）；真 DB 整合測試（雙 enqueue／crash-replay）於有 DB 環境補跑；C 可與 A/B 分離灰度。

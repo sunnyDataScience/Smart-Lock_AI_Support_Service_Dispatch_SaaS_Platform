@@ -47,6 +47,27 @@ PushKind = Literal[
 # 對齊 chk_push_status CHECK
 OutboxStatus = Literal["pending", "sent", "failed", "dead"]
 
+# CR-0175 R13：事件型、不可重複的 push_kind — enqueue 走 ON CONFLICT DO NOTHING 去重
+# （對齊 migration 111 的 partial unique index uq_outbox_ref_kind_strict）。業主裁決
+# 2026-07-20：「可更新後再推」的 kind（quote_proposal / reschedule_proposal /
+# scope_change_proposal / schedule_conflict）不在此集合，維持無條件 INSERT（允許合法
+# 重推）；兩者皆由 worker 端 x_line_retry_key（CR-0175 C）擋 crash-replay 重送。
+_STRICT_DEDUP_KINDS: frozenset[str] = frozenset({
+    "work_order_assigned",
+    "work_order_accepted",
+    "work_order_document",
+    "scope_change_result",
+})
+
+# 與 migration 111 uq_outbox_ref_kind_strict 的 predicate **逐字對齊**（供 ON CONFLICT
+# 推斷該 partial unique index 作為 arbiter；不一致會 InvalidColumnReference）。
+_DEDUP_INDEX_PREDICATE = (
+    "reference_id IS NOT NULL AND status <> 'dead' "
+    "AND push_kind IN ("
+    "'work_order_assigned', 'work_order_accepted', "
+    "'work_order_document', 'scope_change_result')"
+)
+
 
 async def enqueue(
     *,
@@ -59,6 +80,10 @@ async def enqueue(
     max_attempts: int = 5,
 ) -> str:
     """寫入 outbox row → 回傳 outbox_id。
+
+    CR-0175 冪等：對 _STRICT_DEDUP_KINDS（事件型）且帶 reference_id 者，若 dedup 視窗
+    （status<>'dead'）內已有同 (reference_id, push_kind) row，則 **不重複插入、回既有
+    row id**（呼叫端勿假設每次回不同 id）。其餘 kind 維持無條件 INSERT（允許合法重推）。
 
     Args:
         tenant_id: 租戶 UUID
@@ -84,16 +109,49 @@ async def enqueue(
             422,
         ) from exc
 
-    cur = await db_module._conn.execute(
-        "INSERT INTO line_push_outbox "
+    _cols = (
         "  (tenant_id, push_kind, target_line_id, reference_id, reference_table, "
         "   payload, max_attempts) "
-        "VALUES (%s::uuid, %s, %s, %s, %s, %s::jsonb, %s) "
-        "RETURNING id",
-        (tenant_id, push_kind, target_line_id, reference_id, reference_table,
-         payload_json, max_attempts),
     )
-    row = await cur.fetchone()
+    _vals = (tenant_id, push_kind, target_line_id, reference_id, reference_table,
+             payload_json, max_attempts)
+
+    if push_kind in _STRICT_DEDUP_KINDS and reference_id is not None:
+        # CR-0175：冪等 enqueue——撞既有（dedup 視窗 status<>'dead' 內）則不插入，
+        # 改回既有 row id（明確冪等回傳語意，避免重複推播）。
+        cur = await db_module._conn.execute(
+            "INSERT INTO line_push_outbox " + _cols +
+            "VALUES (%s::uuid, %s, %s, %s, %s, %s::jsonb, %s) "
+            "ON CONFLICT (reference_id, push_kind) WHERE " + _DEDUP_INDEX_PREDICATE +
+            " DO NOTHING "
+            "RETURNING id",
+            _vals,
+        )
+        row = await cur.fetchone()
+        if row is None:
+            # 冪等命中：回既有（dedup 視窗內最新）row id。
+            cur2 = await db_module._conn.execute(
+                "SELECT id FROM line_push_outbox "
+                "WHERE reference_id = %s::uuid AND push_kind = %s AND status <> 'dead' "
+                "ORDER BY created_at DESC LIMIT 1",
+                (reference_id, push_kind),
+            )
+            row = await cur2.fetchone()
+            outbox_id = str(row[0])
+            logger.info(
+                "outbox enqueue 冪等命中既有: id=%s kind=%s ref=%s/%s（不重複推播）",
+                outbox_id, push_kind, reference_table, reference_id,
+            )
+            return outbox_id
+    else:
+        cur = await db_module._conn.execute(
+            "INSERT INTO line_push_outbox " + _cols +
+            "VALUES (%s::uuid, %s, %s, %s, %s, %s::jsonb, %s) "
+            "RETURNING id",
+            _vals,
+        )
+        row = await cur.fetchone()
+
     outbox_id = str(row[0])
     logger.info(
         "outbox enqueue ok: id=%s kind=%s tenant=%s ref=%s/%s",
