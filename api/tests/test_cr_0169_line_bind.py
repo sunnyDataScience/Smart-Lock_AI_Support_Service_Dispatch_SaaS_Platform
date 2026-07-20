@@ -7,8 +7,18 @@ import base64
 import hashlib
 import hmac
 
+import pytest
+
+import services.technician_line_service as tls
 from routers.technician_line import _BIND_CODE_RE, _verify_line_signature
-from services.technician_line_service import _hash_code, _wo_summary
+from services.technician_line_service import (
+    _BIND_ATTEMPT_MAX,
+    _bind_attempt_ok,
+    _bind_attempts,
+    _hash_code,
+    _wo_summary,
+    bind_by_code,
+)
 
 
 def test_bind_code_regex():
@@ -69,3 +79,101 @@ def test_wo_summary_minimal_no_pii():
 def test_wo_summary_fallbacks():
     assert "新工單" in _wo_summary({"id": "12345678-0000"})  # 無區域/型號
     assert "12345678" in _wo_summary({"id": "12345678-0000"})  # 單號縮寫 fallback
+
+
+# ── R3: 綁定碼枚舉限流(_bind_attempt_ok 純函式) ──────────────────────────────
+
+def test_bind_attempt_rate_limit():
+    """同一 line_user_id 於 window 內 MAX 次內放行、第 MAX+1 次拒(擋枚舉搶綁)。"""
+    _bind_attempts.clear()
+    uid = "Uenum"
+    for _ in range(_BIND_ATTEMPT_MAX):
+        assert _bind_attempt_ok(uid) is True
+    assert _bind_attempt_ok(uid) is False
+    _bind_attempts.clear()
+
+
+def test_bind_attempt_window_evicts(monkeypatch):
+    """過 window 後舊嘗試逐出、重新放行(以 fake time 控制)。"""
+    _bind_attempts.clear()
+
+    class _FakeTime:
+        def __init__(self):
+            self.t = 1000.0
+
+        def monotonic(self):
+            return self.t
+
+    ft = _FakeTime()
+    monkeypatch.setattr(tls, "time", ft)
+    uid = "Uwin"
+    for _ in range(_BIND_ATTEMPT_MAX):
+        assert _bind_attempt_ok(uid) is True
+    assert _bind_attempt_ok(uid) is False
+    ft.t += tls._BIND_ATTEMPT_WINDOW_SEC + 1  # 時間跳過 window
+    assert _bind_attempt_ok(uid) is True
+    _bind_attempts.clear()
+
+
+def test_bind_attempt_empty_source_not_limited():
+    """無 source(空字串 line_user_id)一律放行,不限流。"""
+    _bind_attempts.clear()
+    for _ in range(_BIND_ATTEMPT_MAX + 3):
+        assert _bind_attempt_ok("") is True
+    _bind_attempts.clear()
+
+
+def test_bind_attempt_per_source_isolated():
+    """不同 line_user_id 各自獨立計數,互不影響。"""
+    _bind_attempts.clear()
+    for _ in range(_BIND_ATTEMPT_MAX):
+        _bind_attempt_ok("UA")
+    assert _bind_attempt_ok("UA") is False  # UA 已達上限
+    assert _bind_attempt_ok("UB") is True   # UB 不受影響
+    _bind_attempts.clear()
+
+
+# ── R4: 換綁自動解除他技師舊綁(mock conn,不碰真 DB) ────────────────────────
+
+class _FakeCur:
+    def __init__(self, one=None, many=None):
+        self._one = one
+        self._many = many
+
+    async def fetchone(self):
+        return self._one
+
+    async def fetchall(self):
+        return self._many or []
+
+
+@pytest.mark.asyncio
+async def test_bind_by_code_rebind_unbinds_previous_tech(monkeypatch):
+    """R4: 同一 line_user_id 換綁新技師時,自動解除舊技師綁定(避免派工推錯人)。"""
+    _bind_attempts.clear()
+    executed: list[tuple] = []
+
+    class _FakeConn:
+        async def execute(self, sql, params=None):
+            executed.append((sql, params))
+            if sql.startswith("SELECT c.id"):
+                return _FakeCur(one=("code-1", "tech-NEW", "師傅B"))
+            if "SET line_user_id = NULL" in sql:
+                return _FakeCur(many=[("tech-OLD",)])  # 該 uid 原綁在 tech-OLD
+            return _FakeCur()
+
+    async def _fake_conn():
+        return _FakeConn()
+
+    monkeypatch.setattr(tls.db_module, "require_tech_conn", _fake_conn)
+
+    res = await bind_by_code(line_user_id="Ushared", code="123456")
+    assert res == {"technician_id": "tech-NEW", "name": "師傅B"}
+
+    # 有發出「只解他人(id <> 新技師)」的 dup-unbind UPDATE
+    unbind = [(s, p) for s, p in executed
+              if "SET line_user_id = NULL" in s and "id <> " in s]
+    assert unbind, "換綁應先發出 dup-unbind UPDATE"
+    _, params = unbind[0]
+    assert params == ("Ushared", "tech-NEW")  # 解除綁到同 uid 但非新技師者
+    _bind_attempts.clear()

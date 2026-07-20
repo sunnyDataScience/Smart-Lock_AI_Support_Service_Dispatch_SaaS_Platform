@@ -19,6 +19,8 @@ import hashlib
 import logging
 import os
 import secrets
+import time
+from collections import deque
 from datetime import datetime, timedelta, timezone
 
 import aiohttp
@@ -31,6 +33,38 @@ logger = logging.getLogger("api.technician_line_service")
 _BIND_CODE_TTL_MINUTES = 10
 _LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
 _LINE_REPLY_URL = "https://api.line.me/v2/bot/message/reply"
+
+# 綁定碼枚舉防護:per-source(line_user_id)嘗試限流(in-memory,單實例;多 replica
+# 失準同 CR-0114 已知取捨)。webhook 已驗簽 fail-closed,此為第二層縱深——擋單一 LINE
+# 帳號在 TTL 內暴力猜碼搶綁(6 位碼空間 10^6)。
+_BIND_ATTEMPT_WINDOW_SEC = 10 * 60
+_BIND_ATTEMPT_MAX = 5
+_BIND_ATTEMPT_MAX_SOURCES = 10_000  # 記憶體邊界:超過即清掃全過期 bucket
+_bind_attempts: dict[str, deque[float]] = {}
+
+
+def _bind_attempt_ok(line_user_id: str) -> bool:
+    """per-source 綁定碼嘗試限流:同一 line_user_id 於 window 內超過上限 → False
+    (擋暴力枚舉搶綁)。成功綁定後由呼叫端清空該 bucket。無 source 不擋。
+
+    記憶體邊界:成功綁定 pop 該 source;從未回來的 source 之 bucket 由 (a) 該 source
+    再次呼叫時的過期修剪、(b) dict 超過 _BIND_ATTEMPT_MAX_SOURCES 時的全表清掃 兩者
+    收斂,避免長壽命行程 unbounded 成長。單實例;多 replica 失準同 CR-0114 已知取捨。"""
+    if not line_user_id:
+        return True
+    now = time.monotonic()
+    if len(_bind_attempts) > _BIND_ATTEMPT_MAX_SOURCES:
+        # 清掃:移除 timestamp 全過期(含空)的 source,回收記憶體
+        for src in [s for s, b in _bind_attempts.items()
+                    if not b or now - b[-1] > _BIND_ATTEMPT_WINDOW_SEC]:
+            del _bind_attempts[src]
+    bucket = _bind_attempts.setdefault(line_user_id, deque())
+    while bucket and now - bucket[0] > _BIND_ATTEMPT_WINDOW_SEC:
+        bucket.popleft()
+    if len(bucket) >= _BIND_ATTEMPT_MAX:
+        return False
+    bucket.append(now)
+    return True
 
 
 def _hash_code(raw: str) -> str:
@@ -70,6 +104,9 @@ async def issue_bind_code(*, technician_id: str) -> dict:
 
 async def bind_by_code(*, line_user_id: str, code: str) -> dict | None:
     """webhook 路徑:以綁定碼完成綁定。回 {technician_id, name} 或 None(碼無效)。"""
+    if not _bind_attempt_ok(line_user_id):
+        logger.warning("LINE 綁定碼嘗試過於頻繁,暫拒枚舉 source=%s", (line_user_id or "")[:8])
+        return None
     conn = await db_module.require_tech_conn()
     cur = await conn.execute(
         "SELECT c.id, c.technician_id, t.name FROM technician_line_bind_codes c "
@@ -82,6 +119,22 @@ async def bind_by_code(*, line_user_id: str, code: str) -> dict | None:
     if not row:
         return None
     code_id, technician_id, name = str(row[0]), str(row[1]), row[2]
+    # 換綁唯一性:同一 line_user_id 若已綁其他技師,先自動解除舊綁並記審計
+    # (對齊客服側 line_binding_service.consume_link_token 的換綁邏輯,避免兩技師
+    #  共用同一 LINE userId 導致派工推播推錯人)。純 SQL,不動 schema。
+    # 註:三段 UPDATE 同 conn 但非單一交易;並發下同一 uid 對兩技師的有效碼被同時
+    #   消費仍有窄殘留視窗(best-effort 縱深,非強一致);根治需 DB 層 UNIQUE 約束(defer)。
+    dup_cur = await conn.execute(
+        "UPDATE technicians SET line_user_id = NULL "
+        "WHERE line_user_id = %s AND id <> %s::uuid "
+        "RETURNING id",
+        (line_user_id, technician_id),
+    )
+    for old in await dup_cur.fetchall():
+        logger.warning(
+            "LINE 換綁:line_user_id 原綁 technician=%s 已自動解除,改綁 technician=%s",
+            str(old[0])[:8], technician_id[:8],
+        )
     await conn.execute(
         "UPDATE technicians SET line_user_id = %s WHERE id = %s::uuid",
         (line_user_id, technician_id),
@@ -90,6 +143,7 @@ async def bind_by_code(*, line_user_id: str, code: str) -> dict | None:
         "UPDATE technician_line_bind_codes SET used_at = NOW() WHERE id = %s::uuid",
         (code_id,),
     )
+    _bind_attempts.pop(line_user_id, None)  # 綁定成功清空該 source 的嘗試計數
     logger.info("LINE 綁定完成 technician=%s", technician_id[:8])
     return {"technician_id": technician_id, "name": name}
 
@@ -135,7 +189,7 @@ async def _push(line_user_id: str, text: str) -> bool:
     """平台官方號 push。未配置憑證=no-op False;429/5xx 簡易 backoff 重試 2 次。"""
     token = os.getenv("PLATFORM_LINE_CHANNEL_ACCESS_TOKEN")
     if not token:
-        logger.info("platform LINE 未配置(缺 PLATFORM_LINE_CHANNEL_ACCESS_TOKEN)→ 跳過推播")
+        logger.warning("platform LINE 未配置(缺 PLATFORM_LINE_CHANNEL_ACCESS_TOKEN)→ 跳過推播")
         return False
     payload = {"to": line_user_id, "messages": [{"type": "text", "text": text[:4900]}]}
     headers = {"Authorization": f"Bearer {token}"}
@@ -162,6 +216,7 @@ async def reply_text(reply_token: str, text: str) -> bool:
     """webhook 回覆(綁定成功/失敗提示)。fail-soft。"""
     token = os.getenv("PLATFORM_LINE_CHANNEL_ACCESS_TOKEN")
     if not token:
+        logger.warning("platform LINE reply 未配置(缺 PLATFORM_LINE_CHANNEL_ACCESS_TOKEN)→ 綁定確認訊息未送出")
         return False
     try:
         timeout = aiohttp.ClientTimeout(total=10)
@@ -172,8 +227,13 @@ async def reply_text(reply_token: str, text: str) -> bool:
                       "messages": [{"type": "text", "text": text[:4900]}]},
                 headers={"Authorization": f"Bearer {token}"},
             ) as r:
-                return r.status == 200
-    except aiohttp.ClientError:
+                if r.status != 200:
+                    body = await r.text()
+                    logger.warning("platform LINE reply 失敗 status=%s body=%s", r.status, body)
+                    return False
+                return True
+    except aiohttp.ClientError as exc:
+        logger.warning("platform LINE reply 連線錯誤:%s", exc)
         return False
 
 

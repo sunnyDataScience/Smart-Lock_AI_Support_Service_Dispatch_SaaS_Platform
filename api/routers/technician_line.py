@@ -102,7 +102,7 @@ async def delete_binding(
 # ── 平台官方號 webhook ────────────────────────────────────────────────────────
 
 def _verify_line_signature(raw_body: bytes, signature: str | None) -> bool:
-    secret = os.getenv("PLATFORM_LINE_CHANNEL_SECRET", "")
+    secret = os.getenv("PLATFORM_LINE_CHANNEL_SECRET", "").strip()
     if not secret or not signature:
         return False
     digest = hmac.new(secret.encode("utf-8"), raw_body, hashlib.sha256).digest()
