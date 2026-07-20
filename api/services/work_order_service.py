@@ -1415,6 +1415,33 @@ async def _notify_tech_line(path: str, payload: dict) -> None:
         logger.warning("tech LINE notify 失敗(non-fatal)path=%s", path, exc_info=True)
 
 
+def _tech_dispatch_via_outbox() -> bool:
+    """CR-0172 HD-F 灰度旗標:技師派工推播是否走 outbox(送達保證)。預設 false(走舊
+    同步 HTTP,行為與現況一致);穩定後可移除舊路徑(§9 S6)。"""
+    return os.getenv("TECH_DISPATCH_VIA_OUTBOX") == "1"
+
+
+async def _dispatch_tech_notify(
+    *, tenant_id: str, wo_id: str, technician_id: str, wo_summary: dict,
+) -> None:
+    """CR-0172:技師派工指派推播——flag 開啟走 outbox(enqueue → worker 投 tech-portal
+    內部端點,取得送達保證,閉合 R10);關閉走舊同步 HTTP。兩者皆 fail-soft,絕不阻斷
+    派單主流程(HD-3 指派必推的可靠性由 outbox 重試/dead 提供)。
+    """
+    payload = {"technician_id": technician_id, "work_order": wo_summary}
+    if _tech_dispatch_via_outbox():
+        try:
+            from services import line_push_outbox_service
+            await line_push_outbox_service.enqueue(
+                tenant_id=tenant_id, push_kind="tech_dispatch_assigned",
+                payload=payload, reference_id=wo_id, reference_table="work_orders",
+            )
+        except Exception:  # noqa: BLE001 — enqueue 失敗 non-fatal
+            logger.exception("tech dispatch enqueue 失敗(non-fatal)wo=%s", wo_id)
+    else:
+        await _notify_tech_line("/api/v1/internal/technicians/notify-assign", payload)
+
+
 # v2 完工送簽 summary 的機器格式（work_orders_v2.onsite_completion_v2 組裝）：
 #   [ONSITE_COMPLETE] sig=<evidence_id> photos=[<id>,<id>,...] notes=<自由文字到行尾>
 _ONSITE_SUMMARY_RE = re.compile(
@@ -2005,11 +2032,12 @@ async def assign_order(
     result = await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.assigned"
     )
-    # CR-0169:指派 LINE 推播(HD-3 指派必推;fail-soft、內容最小化)
-    await _notify_tech_line("/api/v1/internal/technicians/notify-assign", {
-        "technician_id": technician_id,
-        "work_order": _tech_line_wo_summary(result),
-    })
+    # CR-0169/CR-0172:指派 LINE 推播(HD-3 指派必推;fail-soft、內容最小化)。
+    # flag 開啟走 outbox 取得送達保證(閉合 R10),否則走舊同步 HTTP。
+    await _dispatch_tech_notify(
+        tenant_id=tenant_id, wo_id=wo_id, technician_id=technician_id,
+        wo_summary=_tech_line_wo_summary(result),
+    )
     return result
 
 
@@ -2136,11 +2164,11 @@ async def reassign_order(
     result = await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.reassigned"
     )
-    # CR-0169:改派也推播給新技師(fail-soft)
-    await _notify_tech_line("/api/v1/internal/technicians/notify-assign", {
-        "technician_id": new_technician_id,
-        "work_order": _tech_line_wo_summary(result),
-    })
+    # CR-0169/CR-0172:改派也推播給新技師(fail-soft;flag 開啟走 outbox)
+    await _dispatch_tech_notify(
+        tenant_id=tenant_id, wo_id=wo_id, technician_id=new_technician_id,
+        wo_summary=_tech_line_wo_summary(result),
+    )
     return result
 
 
