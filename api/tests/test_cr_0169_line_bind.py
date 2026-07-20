@@ -10,6 +10,7 @@ import hmac
 import pytest
 
 import services.technician_line_service as tls
+from core import line_uid_crypto
 from routers.technician_line import _BIND_CODE_RE, _verify_line_signature
 from services.technician_line_service import (
     _BIND_ATTEMPT_MAX,
@@ -175,5 +176,8 @@ async def test_bind_by_code_rebind_unbinds_previous_tech(monkeypatch):
               if "SET line_user_id = NULL" in s and "id <> " in s]
     assert unbind, "換綁應先發出 dup-unbind UPDATE"
     _, params = unbind[0]
-    assert params == ("Ushared", "tech-NEW")  # 解除綁到同 uid 但非新技師者
+    # CR-0173:dup-unbind 改以 bidx 等值查(+ 明文過渡雙軌)→ (bidx, line_user_id, tech)
+    assert params == (
+        line_uid_crypto.blind_index("Ushared"), "Ushared", "tech-NEW",
+    )  # 解除綁到同 uid 但非新技師者
     _bind_attempts.clear()

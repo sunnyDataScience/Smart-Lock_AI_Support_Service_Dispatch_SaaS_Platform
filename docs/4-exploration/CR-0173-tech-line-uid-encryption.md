@@ -1,7 +1,7 @@
 --- 
 id: CR-0173
 title: technicians.line_user_id 欄位級加密（重審 HD-4=a）
-status: draft
+status: in-progress
 type: change-impact-analysis
 date: 2026-07-20
 related-findings: R6（codegraph LINE 推播稽核）
@@ -177,3 +177,15 @@ LINE `userId`（`U` 開頭 33 碼）屬**個資（PII）邊界**——它是可�
 - 建議 S3 加 **feature flag（如 `LINE_UID_ENCRYPT_ENABLED`）**：開啟前雙讀（先試 decrypt，失敗 fallback 當明文）以支援回填期間新舊列並存；回填完成再收斂。
 - **回退**：flag 關閉 → 讀取路徑回明文分支；但**存量已加密列在 flag 關閉後不可讀**——故回退窗僅限「回填尚未大規模執行前」，S4 執行後即為單向。此不對稱性須在 S0 讓業主知悉並納入排期決策。
 - `[待確認]`：是否要求「零停機」回填（影響是否需雙寫過渡層）。
+
+## 11. 進度（實作記錄）
+
+- **§8 決策（業主 2026-07-20）**：HD-G=**有合規驅動** → 做（HD-A=b 加密）；crypto 方案選 **A（複用 pii_crypto 的 app 層 Fernet 模式）**，非 §8 HD-B 原建議 AES-GCM+KMS（專案已標準化 Fernet、零新基建）。HD-C=blind index、HD-E=保留遮蔽尾碼、HD-F=先技師側（客戶側 `saas.line_binding` follow-up）。
+- **實作（branch `feat/cr-0173-line-uid-encryption`）**：
+  - crypto 模組 `api/core/line_uid_crypto.py`：`encrypt`/`decrypt`（Fernet，金鑰 env `LINE_UID_ENC_KEY`）＋`blind_index`（HMAC-SHA256，金鑰 `LINE_UID_BIDX_KEY`），沿用 pii_crypto 的 dev-fallback + loud warning 慣例。
+  - schema（技師庫 `Schema_line_notify.sql`，idempotent）：`technicians` 加 `line_user_id_enc`（Fernet 密文）＋ `line_user_id_bidx`（HMAC）＋ partial index。
+  - `technician_line_service.py`：**寫**（`bind_by_code` 存 enc+bidx、明文設 NULL；換綁去重改 bidx 等值查）＋**讀**（`notify_assignment`/`notify_pool_new`/`get_binding` 經 `_resolve_stored_uid` 解密——**漏一處即把密文送進 LINE、推播全掛**）＋`unbind` 清 enc/bidx。
+  - 回填 `scripts/backfill_tech_line_uid_encryption.py`（app 層 Fernet，SQL 無法跑；冪等）。
+- **過渡機制**：採「**新綁定一律加密 ＋ 讀取 dual-read（enc 優先、legacy 明文回退）**」，未用 §10 建議的 feature flag——加密恆開不破壞現況（dual-read 覆蓋 legacy 未回填列、dev-fallback 覆蓋無金鑰環境），較 flag 簡潔。
+- **驗證**：unit **53 passed**（crypto round-trip／非確定性／blind index ＋ notify 解密後才 push ＋ legacy 明文回退 ＋ bind 明文不入庫/bidx 換綁 ＋ 全 LINE 回歸）；**真環境**：schema 套用本機技師庫（3 欄+index）、crypto round-trip、回填 dry-run（找到 1 legacy 列、唯讀未動）。
+- **剩餘（deploy）**：prod 設 `LINE_UID_ENC_KEY`/`LINE_UID_BIDX_KEY`（Secret Manager；**未設則走 dev-fallback、換機/重啟不可解**）→ 套 schema → 跑回填 → （穩定後另 CR）DROP 明文欄；HD-F 客戶側 `saas.line_binding` 加密為 follow-up CR。

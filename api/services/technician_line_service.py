@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 import aiohttp
 
 import core.db as db_module
+from core import line_uid_crypto
 from core.errors import ApiError
 
 logger = logging.getLogger("api.technician_line_service")
@@ -69,6 +70,13 @@ def _bind_attempt_ok(line_user_id: str) -> bool:
 
 def _hash_code(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _resolve_stored_uid(enc: str | None, plaintext: str | None) -> str | None:
+    """CR-0173 讀出 line_user_id:優先解密 enc(密文),過渡期 enc 空則回 legacy 明文
+    (未回填的舊列)。**所有讀 line_user_id 當 push to 的地方都須經此**,漏一處會把密文
+    送進 LINE API 致推播全掛。"""
+    return line_uid_crypto.decrypt(enc) or plaintext
 
 
 def platform_line_configured() -> bool:
@@ -119,16 +127,20 @@ async def bind_by_code(*, line_user_id: str, code: str) -> dict | None:
     if not row:
         return None
     code_id, technician_id, name = str(row[0]), str(row[1]), row[2]
-    # 換綁唯一性:同一 line_user_id 若已綁其他技師,先自動解除舊綁並記審計
-    # (對齊客服側 line_binding_service.consume_link_token 的換綁邏輯,避免兩技師
-    #  共用同一 LINE userId 導致派工推播推錯人)。純 SQL,不動 schema。
-    # 註:三段 UPDATE 同 conn 但非單一交易;並發下同一 uid 對兩技師的有效碼被同時
-    #   消費仍有窄殘留視窗(best-effort 縱深,非強一致);根治需 DB 層 UNIQUE 約束(defer)。
+    # CR-0173:line_user_id 欄位級加密(推翻 HD-4=a)——存 enc(Fernet 密文)+ bidx(HMAC
+    # 索引),**停寫明文**;等值查(換綁去重)改用 bidx(Fernet 密文非確定性無法等值比對)。
+    enc = line_uid_crypto.encrypt(line_user_id)
+    bidx = line_uid_crypto.blind_index(line_user_id)
+    # 換綁唯一性:同一 line_user_id 若已綁其他技師,先自動解除舊綁並記審計(避免兩技師
+    # 共用同一 LINE userId 導致派工推錯人)。以 bidx 等值查(新加密列)+ 明文(過渡期
+    # 未回填的 legacy 列)雙軌比對。註:三段 UPDATE 同 conn 但非單一交易,並發窄殘留
+    # 視窗屬 best-effort(根治需 DB UNIQUE,defer)。
     dup_cur = await conn.execute(
-        "UPDATE technicians SET line_user_id = NULL "
-        "WHERE line_user_id = %s AND id <> %s::uuid "
+        "UPDATE technicians SET line_user_id = NULL, line_user_id_enc = NULL, "
+        "  line_user_id_bidx = NULL "
+        "WHERE (line_user_id_bidx = %s OR line_user_id = %s) AND id <> %s::uuid "
         "RETURNING id",
-        (line_user_id, technician_id),
+        (bidx, line_user_id, technician_id),
     )
     for old in await dup_cur.fetchall():
         logger.warning(
@@ -136,8 +148,9 @@ async def bind_by_code(*, line_user_id: str, code: str) -> dict | None:
             str(old[0])[:8], technician_id[:8],
         )
     await conn.execute(
-        "UPDATE technicians SET line_user_id = %s WHERE id = %s::uuid",
-        (line_user_id, technician_id),
+        "UPDATE technicians SET line_user_id = NULL, line_user_id_enc = %s, "
+        "  line_user_id_bidx = %s WHERE id = %s::uuid",
+        (enc, bidx, technician_id),
     )
     await conn.execute(
         "UPDATE technician_line_bind_codes SET used_at = NOW() WHERE id = %s::uuid",
@@ -151,14 +164,15 @@ async def bind_by_code(*, line_user_id: str, code: str) -> dict | None:
 async def get_binding(*, technician_id: str) -> dict:
     conn = await db_module.require_tech_conn()
     cur = await conn.execute(
-        "SELECT line_user_id, notify_pool_new FROM technicians WHERE id = %s::uuid",
+        "SELECT line_user_id, notify_pool_new, line_user_id_enc "
+        "FROM technicians WHERE id = %s::uuid",
         (technician_id,),
     )
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "technician not found", 404)
-    lid = row[0]
-    # HD-4=a:明文存、UI 遮蔽——只回綁定狀態與尾碼,不回完整 userId
+    lid = _resolve_stored_uid(row[2], row[0])  # CR-0173:解密 enc(過渡期回退明文)
+    # CR-0173 加密存、UI 遮蔽尾碼(HD-E 保留 UX)——只回綁定狀態與末 6 碼,不回完整 userId
     return {
         "bound": bool(lid),
         "line_user_id_masked": (f"…{lid[-6:]}" if lid else None),
@@ -170,7 +184,8 @@ async def get_binding(*, technician_id: str) -> dict:
 async def unbind(*, technician_id: str) -> None:
     conn = await db_module.require_tech_conn()
     await conn.execute(
-        "UPDATE technicians SET line_user_id = NULL WHERE id = %s::uuid",
+        "UPDATE technicians SET line_user_id = NULL, line_user_id_enc = NULL, "
+        "  line_user_id_bidx = NULL WHERE id = %s::uuid",
         (technician_id,),
     )
 
@@ -252,24 +267,26 @@ async def notify_assignment(*, technician_id: str, wo: dict) -> bool:
     """派單指派推播(HD-3:指派必推)。"""
     conn = await db_module.require_tech_conn()
     cur = await conn.execute(
-        "SELECT line_user_id FROM technicians WHERE id = %s::uuid", (technician_id,))
+        "SELECT line_user_id, line_user_id_enc FROM technicians WHERE id = %s::uuid",
+        (technician_id,))
     row = await cur.fetchone()
-    if not row or not row[0]:
+    uid = _resolve_stored_uid(row[1], row[0]) if row else None  # CR-0173 解密
+    if not uid:
         return False
     text = (
         f"🔧 新工單指派給你:{_wo_summary(wo)}\n"
         f"請開啟師傅站確認接單:{tech_portal_base()}/my-orders"
     )
-    return await _push(row[0], text)
+    return await _push(uid, text)
 
 
 async def notify_pool_new(*, wo: dict) -> int:
     """搶單池新單廣播(HD-3=b 開關、HD-5=a 每單即推)。回實際推送數。"""
     conn = await db_module.require_tech_conn()
     cur = await conn.execute(
-        "SELECT line_user_id FROM technicians "
-        "WHERE line_user_id IS NOT NULL AND notify_pool_new = TRUE "
-        "  AND status = 'active'",
+        "SELECT line_user_id, line_user_id_enc FROM technicians "
+        "WHERE (line_user_id IS NOT NULL OR line_user_id_enc IS NOT NULL) "
+        "  AND notify_pool_new = TRUE AND status = 'active'",
     )
     rows = await cur.fetchall()
     if not rows:
@@ -279,7 +296,8 @@ async def notify_pool_new(*, wo: dict) -> int:
         f"先接先得:{tech_portal_base()}/pool"
     )
     sent = 0
-    for (lid,) in rows:
-        if await _push(lid, text):
+    for (plain, enc) in rows:
+        uid = _resolve_stored_uid(enc, plain)  # CR-0173 解密(過渡期回退明文)
+        if uid and await _push(uid, text):
             sent += 1
     return sent
