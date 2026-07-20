@@ -1,7 +1,7 @@
 ---
 id: CR-0172
 title: 技師派工推播改走 outbox（送達保證）
-status: draft
+status: in-progress
 type: change-impact-analysis
 date: 2026-07-20
 related-findings: R10（codegraph LINE 推播稽核）
@@ -131,3 +131,13 @@ source-report: .claude/context/decisions/codegraph-tech-line-push-trace-2026-07-
 - **灰度**：env flag `TECH_DISPATCH_VIA_OUTBOX`（HD-F）預設 `false`；出問題即刻設回 `false` 回退舊 fire-and-forget，無需回滾部署。
 - **本機可用性**：本機無 outbox worker 時，enqueue 仍 fail-soft 不阻斷派單（比照客戶側），且 flag 預設關閉時走舊路徑，保本地開發不受影響。
 - **[待確認]**：雲端技師鏈是否確為「品牌 api → tech api 兩個 deployment」（source-report S3 斷點標為靜態圖斷、雲端可能跨 deployment）——若是，方案 A 的 worker→內部端點跳仍跨 deployment，需確認 worker 所在 service 能觸達 tech-portal 內部端點的網路路徑與 `TECH_API_BASE_URL` 配置。
+
+## 11. 進度（實作記錄）
+
+- **§8 決策（業主 2026-07-20）**：HD-A=**A**（worker 投 tech-portal 內部端點）；其餘照建議——HD-B 單一 `tech_dispatch_assigned`、HD-C `payload.technician_id` 由端點反查、HD-D 去重不做（歸 CR-0175 機制／另議）、HD-E 池單不納入本 CR、HD-F flag `TECH_DISPATCH_VIA_OUTBOX` 預設 false。
+- **實作（branch `feat/cr-0172-tech-dispatch-outbox`，§9 S1-S3）**：
+  - S1 worker：`_TECH_DISPATCH_ENDPOINT` 映射 ＋ `_process_row` 依 `push_kind` 分派 ＋ `_dispatch_to_tech`（POST tech-portal 內部端點，X-Internal-Token，base/token `.strip()`）。**先於 S3 上線、零副作用**（尚無技師 kind row）。
+  - S2 enqueue：`PushKind` 加 `tech_dispatch_assigned`（無 CHECK、無 migration）。
+  - S3 切換：`work_order_service._dispatch_tech_notify`（flag 開走 `enqueue`、關走舊 `_notify_tech_line`）替換 assign（`:2009`）/ reassign（`:2140`）呼叫；池單（`:615`）維持舊路徑（HD-E）。
+- **驗證**：unit **16 passed**（worker tech 路由／客戶 kind 回歸／缺 env／flag 開關×2 ＋既有回歸）。tech 分派為 plain INSERT（非 strict dedup kind），沿用既驗的 enqueue 路徑。
+- **剩餘**：S4 池單、S5 冪等、S6 移除舊路徑 依 HD-E/HD-D 或 flag 穩定後另辦；**雲端啟用＝設 `TECH_DISPATCH_VIA_OUTBOX=1`**（前提 worker 所在 service 可觸達 tech-api 內部端點，同現行同步路徑的 `TECH_API_BASE_URL` 配置；[待確認] 見 §10）。

@@ -29,6 +29,13 @@ BATCH_SIZE = int(os.getenv("LINE_PUSH_WORKER_BATCH", "20"))
 # Exponential backoff seconds 對應 attempts=1..5：30s / 2min / 8min / 30min / 2hr
 _BACKOFF_SECONDS_BY_ATTEMPT = [30, 120, 480, 1800, 7200]
 
+# CR-0172 HD-A=A：技師派工 push_kind 走 tech-portal 內部端點投遞（非客戶 LINE 直推）。
+# worker 只多一個「投遞目標=HTTP 內部端點」分支，不碰技師權威庫 / 第二 channel token，
+# 由端點沿用現行 notify_assignment（技師庫反查 + 平台官方號推播）。
+_TECH_DISPATCH_ENDPOINT: dict[str, str] = {
+    "tech_dispatch_assigned": "/api/v1/internal/technicians/notify-assign",
+}
+
 
 class LinePushOutboxWorker:
     def __init__(self, interval_seconds: int = DEFAULT_INTERVAL) -> None:
@@ -119,6 +126,24 @@ class LinePushOutboxWorker:
         payload = row[6] if isinstance(row[6], dict) else {}
         attempts = int(row[7])
         max_attempts = int(row[8])
+
+        # CR-0172 HD-A=A：技師派工 kind 走 tech-portal 內部端點投遞（非客戶 LINE 直推），
+        # 由端點沿用技師庫反查 + 平台官方號推播。與客戶側 users.line_user_id 反查分流。
+        if push_kind in _TECH_DISPATCH_ENDPOINT:
+            ok, err = await self._dispatch_to_tech(push_kind, payload)
+            if ok:
+                await self._mark_sent(outbox_id)
+                logger.info(
+                    "outbox tech-dispatch ok: id=%s kind=%s ref=%s",
+                    outbox_id, push_kind, reference_id,
+                )
+            else:
+                await self._mark_failed(outbox_id, attempts, max_attempts, err or "")
+                logger.warning(
+                    "outbox tech-dispatch failed: id=%s kind=%s attempts=%d err=%s",
+                    outbox_id, push_kind, attempts + 1, err,
+                )
+            return
 
         # 1. 取 LINE userId（target_line_id 優先；缺失則從 reference 反查）
         line_uid = target_line_id or await self._resolve_line_uid(
@@ -282,6 +307,40 @@ class LinePushOutboxWorker:
         except ApiException as exc:
             status = getattr(exc, "status", None)
             return False, f"ApiException status={status}"
+        except Exception as exc:  # noqa: BLE001
+            return False, f"{type(exc).__name__}: {exc}"
+
+    async def _dispatch_to_tech(
+        self, push_kind: str, payload: dict,
+    ) -> tuple[bool, str | None]:
+        """CR-0172 HD-A=A：技師派工推播經 outbox 投遞——POST 到 tech-portal 內部端點
+        (X-Internal-Token)，由端點沿用現行技師庫反查 + 平台官方號推播（維持 service
+        邊界，worker 不碰技師庫 / 第二 channel token）。
+
+        env 未配置（TECH_API_BASE_URL / INTERNAL_API_TOKEN）→ (False, ...)，交由 outbox
+        重試 / dead 機制處理（比客戶側同步 fail-soft 多了送達保證）。base/token 讀入
+        .strip()（0719 C-5 尾端換行防護）。
+        """
+        base = (os.getenv("TECH_API_BASE_URL") or "").strip()
+        token = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
+        if not base or not token:
+            return False, "TECH_API_BASE_URL/INTERNAL_API_TOKEN 未配置"
+        path = _TECH_DISPATCH_ENDPOINT.get(push_kind)
+        if not path:
+            return False, f"no tech dispatch endpoint for kind: {push_kind}"
+        try:
+            import aiohttp
+            timeout = aiohttp.ClientTimeout(total=8)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.post(
+                    f"{base.rstrip('/')}{path}",
+                    json=payload,
+                    headers={"X-Internal-Token": token},
+                ) as r:
+                    if r.status == 200:
+                        return True, None
+                    body = (await r.text())[:200]
+                    return False, f"tech notify status={r.status} body={body}"
         except Exception as exc:  # noqa: BLE001
             return False, f"{type(exc).__name__}: {exc}"
 

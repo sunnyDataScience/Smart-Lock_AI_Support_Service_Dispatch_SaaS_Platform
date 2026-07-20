@@ -42,6 +42,9 @@ PushKind = Literal[
     "work_order_document",
     # CR-0095 初始報價推 LINE 給客戶（含 postback 同意/拒絕）
     "quote_proposal",
+    # CR-0172 技師派工推播經 outbox（送達保證）——worker 投 tech-portal 內部端點，
+    # 非客戶 LINE 直推（HD-A=A）。assign/reassign 共用此 kind（HD-B）。
+    "tech_dispatch_assigned",
 ]
 
 # 對齊 chk_push_status CHECK
