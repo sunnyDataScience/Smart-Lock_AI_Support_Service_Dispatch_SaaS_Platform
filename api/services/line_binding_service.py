@@ -206,29 +206,43 @@ async def get_active_binding(
 async def resolve_user_by_line_uid(
     *, tenant_id: str, line_user_id: str,
 ) -> str | None:
-    """LINE webhook 查進度入口：line_user_id → user_id。
+    """LINE webhook 查進度入口：line_user_id → user_id（**嚴格 tenant-scoped**）。
 
-    優先順序：
+    優先順序（皆限於傳入的 tenant_id，不跨租戶）：
       1. saas.line_binding active (manual 主動綁) → user_id
       2. fallback users.line_user_id (legacy auto 路徑)
+
+    CR-0174 R29：step-2 原為 `WHERE line_user_id=%s LIMIT 1`（無 tenant 條件）→ 會跨
+    租戶命中任一 user，是多租戶洩漏破口。改加 `tenant_id` 條件（HD-3=b）；同租戶內若
+    多筆 users 撞同 line_uid（資料異常）則 **fail-closed 拒答**（HD-2），不任意猜。
+    （客戶/品牌 LINE 為單一共用官方帳號〔HD-1 事實〕，webhook 以 default tenant 呼入，
+    非該租戶的 line_uid 查不到即回「尚未綁定」，屬 fail-safe，不跨租戶洩漏。）
     """
     if not await _ensure_conn():
         return None
 
-    # 1. 查 line_binding active
+    # 1. 查 line_binding active（get_active_binding 本就 tenant-scoped）
     binding = await get_active_binding(
         tenant_id=tenant_id, line_user_id=line_user_id,
     )
     if binding:
         return binding["user_id"]
 
-    # 2. fallback users.line_user_id（legacy）
+    # 2. fallback users.line_user_id（legacy auto 路徑）——tenant-scoped + 歧義 fail-closed
     cur = await db_module._conn.execute(
-        "SELECT id FROM users WHERE line_user_id = %s LIMIT 1",
-        (line_user_id,),
+        "SELECT id FROM users WHERE line_user_id = %s AND tenant_id = %s::uuid",
+        (line_user_id, tenant_id),
     )
-    row = await cur.fetchone()
-    return str(row[0]) if row else None
+    rows = await cur.fetchall()
+    if len(rows) == 1:
+        return str(rows[0][0])
+    if len(rows) > 1:
+        logger.warning(
+            "resolve_user_by_line_uid: 同租戶多筆 users 撞同 line_uid → fail-closed 拒答 "
+            "tenant=%s line=%s count=%d",
+            tenant_id, line_user_id[:8], len(rows),
+        )
+    return None
 
 
 # ============================================================
