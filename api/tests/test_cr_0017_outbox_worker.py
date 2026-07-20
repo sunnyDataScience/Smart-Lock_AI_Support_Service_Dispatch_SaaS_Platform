@@ -77,6 +77,50 @@ async def test_push_to_line_text_message_path(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_push_to_line_passes_retry_key(monkeypatch):
+    """CR-0175 C：帶 retry_key 時傳 x_line_retry_key=outbox_id 給 push_message
+    (讓 LINE 對同一 row 的 crash-replay 重送 24h 去重，閉合 R19)。"""
+    monkeypatch.setenv("LINE_CHANNEL_ACCESS_TOKEN", "test-token")
+    pushed = {}
+
+    class FakeApi:
+        async def push_message(self, req, x_line_retry_key=None):
+            pushed["req"] = req
+            pushed["retry_key"] = x_line_retry_key
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+    fake_module = MagicMock()
+    fake_module.AsyncMessagingApi = lambda c: FakeApi()
+    fake_module.AsyncApiClient = lambda cfg: FakeClient()
+    fake_module.Configuration = lambda access_token=None: MagicMock()
+    fake_module.PushMessageRequest = lambda to=None, messages=None: {
+        "to": to, "messages": messages,
+    }
+    fake_module.TextMessage = lambda text=None: {"type": "text", "text": text}
+    fake_module.FlexMessage = lambda alt_text=None, contents=None: {}
+    fake_module.FlexContainer = MagicMock()
+
+    class _ApiExc(Exception):
+        pass
+    fake_module.ApiException = _ApiExc
+
+    with patch.dict("sys.modules", {"linebot.v3.messaging": fake_module}):
+        w = LinePushOutboxWorker()
+        ok, err = await w._push_to_line(
+            "Uxxx", [{"type": "text", "text": "hi"}],
+            retry_key="outbox-uuid-123",
+        )
+    assert ok is True
+    assert pushed["retry_key"] == "outbox-uuid-123"
+
+
+@pytest.mark.asyncio
 async def test_push_to_line_flex_message_path(monkeypatch):
     monkeypatch.setenv("LINE_CHANNEL_ACCESS_TOKEN", "test-token")
     pushed = {}

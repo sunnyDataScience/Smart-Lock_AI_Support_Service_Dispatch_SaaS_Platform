@@ -138,8 +138,9 @@ class LinePushOutboxWorker:
             await self._mark_dead(outbox_id, f"unknown push_kind: {push_kind}")
             return
 
-        # 3. Push to LINE
-        ok, err = await self._push_to_line(line_uid, messages)
+        # 3. Push to LINE（CR-0175 C：帶 x_line_retry_key=outbox_id，讓 LINE 對「同一
+        #    row 的 crash-replay 重送」24h 內去重——閉合 R19 兩步非原子重送缺口）
+        ok, err = await self._push_to_line(line_uid, messages, retry_key=outbox_id)
         if ok:
             await self._mark_sent(outbox_id)
             logger.info(
@@ -230,9 +231,12 @@ class LinePushOutboxWorker:
             return None
 
     async def _push_to_line(
-        self, line_uid: str, messages: list[dict],
+        self, line_uid: str, messages: list[dict], retry_key: str | None = None,
     ) -> tuple[bool, str | None]:
         """呼叫 LINE Messaging API push_message。
+
+        retry_key（CR-0175 C）：傳 outbox_id 當 x_line_retry_key，讓 LINE 對「同一 row
+        的重送」24h 內去重（outbox_id 為 UUID，符合 X-Line-Retry-Key 格式要求）。
 
         Stage 2 placeholder messages 為 dict (TextMessage)；Stage 3 升 Flex
         後 builder 仍回 dict，SDK 端 PushMessageRequest 接受 dict 或 SDK obj。
@@ -269,9 +273,11 @@ class LinePushOutboxWorker:
                 return False, "no valid messages in builder output"
             async with AsyncApiClient(cfg) as api_client:
                 api = AsyncMessagingApi(api_client)
-                await api.push_message(
-                    PushMessageRequest(to=line_uid, messages=sdk_messages),
-                )
+                req = PushMessageRequest(to=line_uid, messages=sdk_messages)
+                if retry_key:
+                    await api.push_message(req, x_line_retry_key=retry_key)
+                else:
+                    await api.push_message(req)
             return True, None
         except ApiException as exc:
             status = getattr(exc, "status", None)
