@@ -272,4 +272,19 @@ NFR 不是「越高越好」，而是「目標 tier 與產品 tier 對齊」。�
 
 ---
 
+〔標注 2026-07-21（codegraph 稽核，不改寫原文，僅新增本對照段）：**下列 NFR 之「🔜 規劃中」已 stale——code 已落地**。原行不動，現況以本段為準。詳 `docs/audit/v1-gap-codegraph-scan-20260721.md`。〕
+
+| NFR（原標記） | 實作現況（codegraph） |
+|---|---|
+| **NFR-Perf-006** WS 跨實例 Redis pub/sub（🔜） | ✅ 已落地（CR-0134）：`ws_hub.py` `start_redis`/`publish`（`REDIS_URL` opt-in 跨實例 fanout） |
+| **策略：多供應商 failover FallbackProvider**（🔜 接上，§Resilience） | ✅ 2026-07-21 已接上：`app_config.py` `build_provider` 包 `FallbackProvider`（`fallback_models` config） |
+| **策略：ws_hub 與 cron worker 遷出進程內狀態**（🔜，§Scalability） | ✅ 已落地：ws_hub Redis 橋（CR-0134）+ cron `distributed_lock.py` PG advisory lock 領導者選舉。多實例水平擴展本身仍待部署驗證 |
+| **NFR-PUB-003** references↔pgvector 同源 CI（🔜） | ✅ 2026-07-21 已落地：`scripts/ci/references-provenance-check.py`（references 側）+ `audit_corpus.py`（corpus 側 bronze provenance）＝兩路都有 gate |
+| **NFR-Sch-002** registry drift CI（🔜） | ✅ 已落地：`migration-drift-check.py` + `.yml`；2026-07-21 補 `schema_migrations` DB 真值對照 |
+| **NFR-Sec-002 / §114** Casdoor OIDC 全面化 + RBAC enforce 逐端點（🔜） | 🟡 **部分**：OIDC 授權碼流 + httpOnly cookie 已落地（CR-0146）、RBAC `role_required` deny-by-default 基線已達成（78+ router；平台/SoD/token/簽章混合守衛）。**未竟**：登入仍發本地 JWT（Casdoor opt-in）、前端 localStorage 未全退場 |
+
+〔標注續：仍為真「未做 / 階段二」者維持原 🔜——§54 讀寫分離 read replica（階段二）、NFR-Avail-009 Kafka 重播（階段二 opt-in）、NFR-Scal-008 多技師併發水平擴展（Redis 橋已備，水平擴展待部署）。〕
+
+---
+
 *文件結尾 — 05_NFR v1.0 / 2026-07-07*
