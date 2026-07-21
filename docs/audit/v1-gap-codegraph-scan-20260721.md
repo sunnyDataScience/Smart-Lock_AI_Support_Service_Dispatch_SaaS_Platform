@@ -33,7 +33,7 @@
 |---|---|---|
 | **FR-AGT-04** 急件 5min timer | **維持現行 SOP prompt** | ✅ **裁決＝非缺口**：現行 LLM+SOP 判急件是刻意設計；規格的「deterministic timer」不採。→ smartlock-docs 應標注「以 SOP 實現（業主 0721 裁決）」，非 🔜。 |
 | **FR-API-16 S2** crypto-shred PII cutover | **等 DB 測試環境再做** | ⏸️ **擱置**（非欠債）：S1 infra 已足當里程碑；S2（11 寫入點 dual-write/read + backfill）待業主可跑 DB 整合測試的環境。CR-0176 §9 S2/S3 為待辦。 |
-| **FR-PLT-02** RBAC resource-level enforce | **我逐一盤 23 router 提角色建議** | 見下「§FR-PLT-02 逐一盤點」——**codegraph 精確盤點後，verifier 的「23 router 無防護」大幅縮水**：絕大多數已有 `require_platform_admin`/`require_internal_token`/`require_sod`/`require_keeper_role`/consumer token/webhook 簽章守衛；真正只 `require_tenant` 的僅 `notifications_v2`（低風險）。 |
+| **FR-PLT-02** RBAC resource-level enforce | **我逐一盤 23 router 提角色建議** | 見下「§FR-PLT-02 逐一盤點」——**codegraph 精確盤點後，verifier「23 router 無防護」全為誤報**：各 router 已有 `require_platform_admin`/`require_internal_token`/`require_sod`/`require_keeper_role`/consumer token/webhook 簽章守衛；最後懷疑的 `notifications_v2` 逐行讀 code 亦為**正確的 self-service tenant scoping**（無 create 端點、寫入綁本人）。**FR-PLT-02 零真缺口。** |
 
 #### §FR-PLT-02 逐一盤點（codegraph 實據，供業主核）
 
@@ -51,9 +51,11 @@ verifier 原稱「23 router 只 `require_tenant`」係**只 grep `role_required`
 | `platform_{monitor,tenants,technicians,vendors}` | `require_platform_admin` | ✅ 平台管理員 | 無需動 |
 | `platform_brand_applications` | 部分公開申請 + `require_platform_admin`（審核） | ✅ 公開申請意圖 + 審核受保護 | 無需動 |
 | `public` | 公開（lookup 等） | ✅ 意圖公開 | 無需動 |
-| **`notifications_v2`** | **僅 `require_tenant`**（create/patch/mark-read） | 🟡 **唯一真只租戶級** | 低風險（通知本為租戶內）；建議：`create` 端點收緊為 `role_required(*OPS_ROLES)`，讀/標記維持 tenant 級。**待業主點頭再改** |
+| **`notifications_v2`** | **僅 `require_tenant`**（patch/bulk/mark-all-read） | ✅ **正確，非缺口** | 逐行讀 code：**無 create 端點**；3 個寫入皆「使用者管理自己的通知」（`user_id=user.user_id` 綁本人 + 跨租戶 guard）＝self-service。收緊成 `role_required` **會誤擋一般使用者讀自己通知**。通知「建立」在 `notifications.py` `POST /api/v1/notifications/push`（平台級，另有守衛） |
 
-**結論**：FR-PLT-02 的「resource-level role_required deny-by-default」基線**實質已達成**（角色/平台/SoD/token/簽章混合守衛）；verifier 誤報。**唯一可收緊點＝`notifications_v2` create**（待業主裁決）。細粒度 `permission_shadow` 矩陣仍 shadow＝**超出 FR-PLT-02 基線的未來增強**，非 v1 缺口。
+**結論**：FR-PLT-02 的「resource-level role_required deny-by-default」基線**已達成**（角色/平台/SoD/token/簽章混合守衛）；verifier「23 router 無防護」**全為誤報**——含最後懷疑的 `notifications_v2`（實為正確的 self-service tenant scoping）。**FR-PLT-02 零真缺口，無需動 code。** 細粒度 `permission_shadow` 矩陣仍 shadow＝**超出 FR-PLT-02 基線的未來增強**，非 v1 缺口。
+
+> 🔍 過程紀錄：業主 0721 一度同意「收緊 notifications_v2 create」，但逐行讀 code 發現**無 create 端點、且收緊會誤擋使用者自服務** → 未套用該改動（讀 code 擋住錯誤指令，不盲從）。
 
 ---
 
