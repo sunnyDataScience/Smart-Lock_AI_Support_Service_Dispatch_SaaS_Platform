@@ -98,7 +98,8 @@ async def main() -> None:
         ("brand /health(無認證基線)", f"{BRAND}/health", {}),
         ("brand GET /api/v1/work-orders?limit=20", f"{BRAND}/api/v1/work-orders?limit=20", h_admin),
         ("brand GET /tenants/{t}/quotes", f"{BRAND}/tenants/{TENANT}/quotes", h_admin),
-        ("brand GET /api/v1/problem-cards?limit=20", f"{BRAND}/api/v1/problem-cards?limit=20", h_admin),
+        # WBS 2.5.1 / ADR-003 步驟2：v1 /problem-cards 已標 DEPRECATED → 遷 tenant-scoped v2
+        ("brand GET /tenants/{t}/problem-cards", f"{BRAND}/tenants/{TENANT}/problem-cards?limit=20", h_admin),
         ("brand GET /tenants/{t}/notifications", f"{BRAND}/tenants/{TENANT}/notifications?limit=20", h_admin),
         ("tech  GET /api/v1/work-orders?limit=20", f"{TECH}/api/v1/work-orders?limit=20", h_tech),
         ("tech  GET me/line-binding", f"{TECH}/api/v1/technicians/me/line-binding", h_tech),
