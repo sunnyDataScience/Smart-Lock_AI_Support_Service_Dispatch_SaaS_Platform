@@ -13,10 +13,11 @@
 
 > 全部以 codegraph 復驗新符號存在（非捏造），DB migration 走拋棄式 PG16 實測。
 
-### ✅ 已補（6）
+### ✅ 已補（7）
 
 | 項目 | 落地 | codegraph/測試佐證 |
 |---|---|---|
+| **FR-API-08** Evidence envelope 加密 | `core/media_crypto.py`（Fernet 位元組加密，env `MEDIA_ENC_KEY`）；`media_service` 上傳 `encrypt_bytes` 落盤、`get_media` `decrypt_bytes` 讀取（dual-read fallback 明文舊檔）；sha256 仍算明文 | 4 unit（round-trip/密文≠明文/dual-read fallback） |
 | **FR-DAT-02** drift DB 對照 | `_check_db_drift`（`scripts/ci/migration-drift-check.py:30`）opt-in（POSTGRES_URI）比對 registry↔`schema_migrations`（檔案未套/幽靈列） | PG16 drift 情境抓「112 未套+999 幽靈」exit=1、clean exit=0；file 模式零依賴不變 |
 | **FR-API-05a** 漸進擴池 | `_apply_progressive_radius`（`dispatch_service.py:91`）5→10→20km 逐級納入、達 min_pool 停、標 radius_band_km，接 `auto_match_dispatch` | 4 unit（5km 停/擴 10km/無座標全納） |
 | **FR-API-05b** 派工分級 SLO | `_bucket_metrics`（`line_push_outbox_worker.py:62`）加 P95 + 派工依 urgency 分級（normal≤30s/emergency≤15s，slo_met 判定）；`_tech_line_wo_summary` 帶 priority | 5 unit（分級 met/breach） |
@@ -24,15 +25,17 @@
 | **NFR-Priv-008** purge_audit 專表 | migration 113 `saas.purge_audit`（append-only trigger + phase CHECK）；`_purge_audit_entry`（`gdpr_forget_service.py:51`）接 soft/hard delete | PG16 insert/UPDATE-DELETE 擋/CHECK 擋 全綠 |
 | **FR-API-14** WS 10 頻道 | 澄清非缺口：9 WS + 1 SSE `diagnostics` = 10（`main.py:463` 註解 + 四站 `sse.ts` 消費） | — |
 
-### ⬜ 待續（誠實，不捏造）
+### ⬜ 待業主裁決 / 需 DB 整合環境（4，誠實不捏造）
 
-| 項目 | 狀態 | 為何未逕自完成 |
+> 這 4 項**刻意不逕自實作**——不是能力做不到，而是「做下去必須捏一個沒被授權的決定」，
+> 違反本目標「不要自己捏造」。每項標明卡在哪。
+
+| 項目 | 卡點 | 需要什麼才能動 |
 |---|---|---|
-| **FR-API-08** Evidence envelope 加密 | 進行中 | media 位元組加密（寫加密+讀解密+金鑰），中面工程 |
-| **FR-API-16 S2** crypto-shred PII cutover | 待續 | 11 個 users 寫入點 dual-write/read + 存量 backfill，面廣且需 DB 整合測試（本機 5433=UAT 庫不可跑）——CR-0176 §9 S2/S3 |
-| **FR-PLT-02** RBAC resource-level enforce | 待業主 | 需先確立 23 個 router 的**正確角色矩陣**；貿然 enforce 會誤擋合法請求＝屬授權設計裁決，不宜自行捏 |
-| **FR-AGT-04** 急件 5min timer | 待業主 | 「deterministic 偵測+強制轉真人 timer」vs 現行 SOP prompt 是**設計選擇**，需業主裁決是否 deterministic 化 |
-| **FR-REF-04** references↔pgvector 同源 | 待釐清 | ADR-030 後 references 為主、RAG 輔助，「同源」定義已變；捏一個淺層 check＝造假，需業主確認語義 |
+| **FR-API-16 S2** crypto-shred PII 欄位 cutover | S1 infra 已建（CR-0176）；S2 要在 **11 個 users 寫入點** dual-write `*_enc` + 讀路徑 dual-read + 存量 backfill，且**必須 DB 整合測試**驗證不破壞既有讀寫 | 業主可跑 DB 整合測試的環境（本機 5433＝UAT 庫，跑全套會污染，見 memory）；CR-0176 §9 S2/S3 |
+| **FR-PLT-02** RBAC resource-level enforce | 23 個 router 只 `require_tenant`。要 enforce 得先有**每端點的正確角色矩陣**；貿然加 `role_required` 會誤擋合法請求 | 業主確認 23 端點各自允許哪些角色（授權設計裁決，不宜由 AI 猜） |
+| **FR-AGT-04** 急件 5min 強制轉真人 timer | 現走 SOP prompt + escalation。要 deterministic 化須加 4 類自動偵測 + `urgency_detected_at` + 5min 計時強制轉接 | 業主裁決「是否 deterministic 化」（現行 SOP 亦為刻意選擇，翻案屬 flow change 需 CIA） |
+| **FR-REF-04** references↔pgvector 同源 | ADR-030（0709）後 references 為主、RAG 轉輔助，「雙路一致性」語義已變 | 業主確認 ADR-030 後「同源檢查」要驗什麼（否則捏一個淺層 check＝造假） |
 
 ---
 
