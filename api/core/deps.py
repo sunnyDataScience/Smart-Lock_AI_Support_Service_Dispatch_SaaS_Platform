@@ -47,11 +47,41 @@ def _extract_bearer(authorization: str | None, request: Request | None = None) -
 
 
 def _decode_any_token(token: str) -> dict:
-    """自簽 HS256 優先;失敗且 OIDC 已配置(CASDOOR_*)→ 驗 Casdoor RS256(CR-0141 D3)。
+    """依 JWT header `alg` 路由驗證器（CR-0177 S1，HD-5 dual-accept）。
 
-    OIDC payload 已由 core.oidc 正規化為同形 dict(sub=users.id 映射),
+    cutover 目標態＝Casdoor **RS256 為第一級公民**；過渡期仍接受自簽 **HS256**
+    （S5 過渡期滿後移除 HS256 分支）。取代原「HS256 先試、失敗才試 OIDC」的優先序：
+    各 token 直達對應驗證器，不必先失敗一次（省一次解碼、log 不再有誤導性失敗）。
+
+    **無 alg-confusion 風險**：兩條路徑各自釘死演算法——`decode_token` →
+    `algorithms=[HS256]`、`verify_oidc_token` → `algorithms=["RS256"]`；偽造 header 的
+    alg 只會被導到對應驗證器並因簽章不符而失敗，無法用公鑰當 HMAC secret 繞過。
+
+    OIDC payload 已由 core.oidc 正規化為同形 dict（sub=users.id 映射），
     下游 jti 撤銷/A2/A3 重查/role_required 零改動。
+    alg 不可判讀（壞 token）→ 保守雙試（沿舊序），行為同舊版。
     """
+    from jose import jwt as _jwt
+
+    alg = ""
+    try:
+        alg = str((_jwt.get_unverified_header(token) or {}).get("alg", "")).upper()
+    except Exception:  # noqa: BLE001 — 壞 token 交由下方驗證器統一報錯
+        alg = ""
+
+    if alg == "RS256":
+        if not oidc_enabled():
+            # 明確錯誤（原版會回傳誤導性的 HS256 解碼失敗）
+            raise OIDCError("收到 RS256 token 但 OIDC 未配置（CASDOOR_* 缺）")
+        try:
+            return verify_oidc_token(token)
+        except OIDCError as e:
+            logger.debug("OIDC 驗證失敗: %s", e)
+            raise
+    if alg == "HS256":
+        return decode_token(token)
+
+    # alg 不可判讀 → 保守雙試（自簽 → OIDC），與舊版一致
     try:
         return decode_token(token)
     except Exception:
