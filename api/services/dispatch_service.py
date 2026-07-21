@@ -4,10 +4,14 @@ operationId 對齊 openapi.yaml：listDispatchCandidates
 
 設計：
   - 依工單 brand / district 對候選技師排序
-  - 綜合分（0~100）= 0.4 × skill_match + 0.3 × distance_factor + 0.3 × rating_factor
+  - 綜合分（0~100，audit FR-API-05 五因子）
+      = 0.35×skill + 0.25×distance + 0.20×rating + 0.10×load + 0.10×fairness
       skill_match     ∈ [0,1]：brand 命中 +1.0；無 brand 資訊 fallback 0.5
       distance_factor ∈ [0,1]：district 命中 1.0；服務區域命中該縣市 0.6；無交集 0.2
       rating_factor   ∈ [0,1]：rating / 5
+      load_factor     ∈ [0,1]：當前在辦工單越少越高（_enrich_workload_fairness 補）
+      fairness_factor ∈ [0,1]：近 7 日承接越少越高（雨露均霑；同上補）
+    （load/fairness 需 DB，於 skill/distance/rating 基礎分後由 enrichment 疊加）
   - distance_km 為示意值（依 district / 服務區交集回 0 / 5 / 15 / 30）
       待 GIS 模組接入後改為 ST_Distance 真實計算
   - availability_eta_minutes：available=15, busy=60, 其他 None
@@ -30,9 +34,14 @@ from services.technician_service import _TECH_SELECT, _tech_row_to_dict
 logger = logging.getLogger("api.dispatch_service")
 
 
-_W_SKILL = 0.4
-_W_DISTANCE = 0.3
-_W_RATING = 0.3
+# audit FR-API-05：派工評分五因子（技能/距離/評分/負載/公平），權重和=1.0。
+# load/fairness 於 _enrich_workload_fairness 疊加（需 DB）；基礎分只算前三者。
+_W_SKILL = 0.35
+_W_DISTANCE = 0.25
+_W_RATING = 0.20
+_W_LOAD = 0.10       # 當前在辦工單越少越高（避免塞給忙碌技師）
+_W_FAIRNESS = 0.10   # 近 7 日承接越少越高（雨露均霑，工作機會分散）
+_LOAD_SATURATION = 5  # 在辦 ≥5 張視為滿載（load factor → 0）
 
 
 def _intersect_lower(a: Iterable[str], b: Iterable[str]) -> bool:
@@ -72,6 +81,21 @@ def _rating_factor(rating: float | None) -> float:
         return 0.0
     r = max(0.0, min(5.0, float(rating)))
     return r / 5.0
+
+
+def _load_factor(active_load: int | None) -> float:
+    """audit FR-API-05：當前在辦工單越少分越高。0 單=1.0，滿載(≥_LOAD_SATURATION)=0.0；
+    None（查無資料）→中性 0.5。"""
+    if active_load is None:
+        return 0.5
+    return max(0.0, 1.0 - min(active_load, _LOAD_SATURATION) / _LOAD_SATURATION)
+
+
+def _fairness_factor(recent_jobs: int | None) -> float:
+    """audit FR-API-05：近 7 日承接越少分越高（雨露均霑）。0 次=1.0；None→中性 0.5。"""
+    if recent_jobs is None:
+        return 0.5
+    return 1.0 / (1.0 + max(0, recent_jobs))
 
 
 def _availability_eta(online_state: str | None) -> int | None:
@@ -187,6 +211,64 @@ async def _enrich_gis_performance(candidates: list[dict], wo_district: str | Non
         if on_time_f is not None and accept_f is not None:
             c["performance_bonus"] = round(20 * (on_time_f + accept_f) / 2, 2)
             c["score"] = round(c.get("score", 0) + c["performance_bonus"], 2)
+    candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
+    return candidates
+
+
+async def _enrich_workload_fairness(candidates: list[dict], tenant_id: str) -> list[dict]:
+    """audit FR-API-05：補「負載」與「公平」兩因子並計入排序、重排。
+
+    負載 = 當前在辦工單數（status assigned/accepted/in_progress）；
+    公平 = 近 7 日承接數（accepted_at 近 7 日）——越少分越高，工作機會分散。
+    查詢失敗（欄位/連線）→ best-effort 略過（候選保留基礎分，不阻斷派工）。
+    """
+    if not candidates or not await _ensure_conn():
+        return candidates
+    ids = [c["technician"].get("id") for c in candidates if c.get("technician", {}).get("id")]
+    if not ids:
+        return candidates
+    load: dict[str, int] = {}
+    recent: dict[str, int] = {}
+    try:
+        cur = await db_module._conn.execute(
+            "SELECT technician_id, COUNT(*) FROM work_orders "
+            "WHERE technician_id = ANY(%s::uuid[]) "
+            "  AND status IN ('assigned','accepted','in_progress') "
+            "GROUP BY technician_id",
+            (ids,),
+        )
+        load = {str(r[0]): int(r[1]) for r in await cur.fetchall()}
+        cur = await db_module._conn.execute(
+            "SELECT technician_id, COUNT(*) FROM work_orders "
+            "WHERE technician_id = ANY(%s::uuid[]) "
+            "  AND accepted_at >= NOW() - INTERVAL '7 days' "
+            "GROUP BY technician_id",
+            (ids,),
+        )
+        recent = {str(r[0]): int(r[1]) for r in await cur.fetchall()}
+    except Exception:  # noqa: BLE001
+        logger.exception("enrich_workload_fairness 查詢失敗；略過 load/fairness 加權")
+        return candidates
+    for c in candidates:
+        tid = c["technician"].get("id")
+        al = load.get(tid, 0)
+        rj = recent.get(tid, 0)
+        lf = _load_factor(al)
+        ff = _fairness_factor(rj)
+        load_contrib = round(_W_LOAD * lf * 100, 2)
+        fair_contrib = round(_W_FAIRNESS * ff * 100, 2)
+        c["active_load"] = al
+        c["recent_jobs_7d"] = rj
+        c["score"] = round(c.get("score", 0) + load_contrib + fair_contrib, 2)
+        bd = c.setdefault("score_breakdown", {})
+        bd["load"] = {
+            "factor": round(lf, 2), "weight": _W_LOAD, "contribution": load_contrib,
+            "rationale": f"當前在辦 {al} 張工單" + ("（滿載）" if al >= _LOAD_SATURATION else ""),
+        }
+        bd["fairness"] = {
+            "factor": round(ff, 2), "weight": _W_FAIRNESS, "contribution": fair_contrib,
+            "rationale": f"近 7 日承接 {rj} 次",
+        }
     candidates.sort(key=lambda x: x.get("score", 0), reverse=True)
     return candidates
 
@@ -357,6 +439,8 @@ async def list_dispatch_candidates(
             c["brand_authorized"] = c["technician"].get("id") in auth_ids
     # CR-0061 審計#10#11：補真實 GIS 距離 + 多維績效並重排
     candidates = await _enrich_gis_performance(candidates, wo_district)
+    # audit FR-API-05：補負載/公平兩因子並重排（前三因子基礎分之上疊加）
+    candidates = await _enrich_workload_fairness(candidates, tenant_id)
     # 已授權者優先（分數次之）;null（無授權資料）視同未授權排序權重,不影響可見性
     candidates.sort(key=lambda c: (c.get("brand_authorized") is True, c.get("score", 0)), reverse=True)
     return {
@@ -418,6 +502,8 @@ async def auto_match_dispatch(
         scored = [c for c in scored if c["technician"].get("id") in _auth_ids]
     # CR-0061：GIS 距離 + 多維績效重排
     scored = await _enrich_gis_performance(scored, pc_district)
+    # audit FR-API-05：補負載/公平兩因子並重排
+    scored = await _enrich_workload_fairness(scored, tenant_id)
 
     boost = 1.05 if urgency == "emergency" else 1.0
     candidates: list[dict] = []

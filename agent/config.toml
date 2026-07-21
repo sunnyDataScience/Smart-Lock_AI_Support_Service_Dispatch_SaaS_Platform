@@ -10,6 +10,10 @@
 model = "vertex_ai/gemini-3.1-flash-lite"
 temperature = 0.7
 max_tokens = 4096
+# 多供應商 failover(ADR-009):主模型連續錯誤→熔斷→依序改用這些 fallback 模型。
+# 空/省略 = 不啟用。範例(Vertex 主模型掛掉退到 Google AI Studio 免 GCP):
+#   fallback_models = ["gemini/gemini-2.5-flash"]
+fallback_models = []
 
 [llm.vertex]
 # 僅當 model 以 vertex_ai/ 開頭時生效
