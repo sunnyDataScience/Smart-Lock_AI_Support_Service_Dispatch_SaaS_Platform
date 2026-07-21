@@ -96,6 +96,15 @@ interface RequestOptions {
   headers?: Record<string, string>;
 }
 
+// ── CR-0177 S3a：統一帶 credentials，讓後端寫的 httpOnly access cookie 隨請求送出 ──
+// 現況仍以 Authorization header 為主（localStorage 過渡）；待自訂網域（web/api 同父網域）
+// 上線並設 api 端 AUTH_COOKIE_DOMAIN 後，cookie 才成為可用來源，屆時方移除 localStorage（S3b）。
+// ⚠️ cookie 依「網域」共用而**不看 port**：prod web/api 為不同 *.run.app hostname 時送不到
+//    （且 run.app 在 Public Suffix List，無法設共用父網域 cookie）——故自訂網域為前置。
+function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, { ...init, credentials: "include" });
+}
+
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
   const url = new URL(path, BASE_URL);
   if (query) {
@@ -300,7 +309,7 @@ async function refreshAccessToken(): Promise<boolean> {
       // CR-0114:平台 console 的 refresh 走平台端點（撤銷/狀態查平台庫）;
       // 依目前 session 的 role 判斷（platform token 只會出現在 console session）。
       const isPlatform = getCurrentSession()?.role === "platform_admin";
-      const res = await fetch(
+      const res = await apiFetch(
         buildUrl(isPlatform ? "/api/v1/platform/auth/refresh" : "/api/v1/auth/refresh"),
         {
           method: "POST",
@@ -407,14 +416,14 @@ async function rawRequest<T>(
   };
   if (options.body !== undefined) init.body = JSON.stringify(options.body);
 
-  let res = await fetch(buildUrl(path, options.query), init);
+  let res = await apiFetch(buildUrl(path, options.query), init);
 
   if (res.status === 401 && !options.skipAuth) {
     const ok = await refreshAccessToken();
     if (ok) {
       const newToken = auth.getAccessToken();
       if (newToken) (init.headers as Record<string, string>)["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(buildUrl(path, options.query), init);
+      res = await apiFetch(buildUrl(path, options.query), init);
     }
     if (res.status === 401) handleSessionExpired(); // 刷新失敗/仍 401 → session 失效，導登入頁
   }
@@ -477,14 +486,14 @@ async function uploadMultipart<T>(
   headers["Idempotency-Key"] = opts?.idempotencyKey ?? newIdempotencyKey();
   // 不設 Content-Type — 讓瀏覽器自動帶 boundary
 
-  let res = await fetch(buildUrl(path), { method: "POST", headers, body: formData });
+  let res = await apiFetch(buildUrl(path), { method: "POST", headers, body: formData });
 
   if (res.status === 401) {
     const ok = await refreshAccessToken();
     if (ok) {
       const newToken = auth.getAccessToken();
       if (newToken) headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(buildUrl(path), { method: "POST", headers, body: formData });
+      res = await apiFetch(buildUrl(path), { method: "POST", headers, body: formData });
     }
     if (res.status === 401) handleSessionExpired();
   }
@@ -509,14 +518,14 @@ async function downloadBlob(
   if (token) headers["Authorization"] = `Bearer ${token}`;
   headers["X-Tenant-ID"] = auth.getTenantId();
 
-  let res = await fetch(buildUrl(path, opts?.query), { method: "GET", headers });
+  let res = await apiFetch(buildUrl(path, opts?.query), { method: "GET", headers });
 
   if (res.status === 401) {
     const ok = await refreshAccessToken();
     if (ok) {
       const newToken = auth.getAccessToken();
       if (newToken) headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(buildUrl(path, opts?.query), { method: "GET", headers });
+      res = await apiFetch(buildUrl(path, opts?.query), { method: "GET", headers });
     }
     if (res.status === 401) handleSessionExpired();
   }
@@ -556,14 +565,14 @@ async function fetchBlobGet(path: string): Promise<{ blob: Blob; contentType: st
   if (token) headers["Authorization"] = `Bearer ${token}`;
   headers["X-Tenant-ID"] = auth.getTenantId();
 
-  let res = await fetch(buildUrl(path), { method: "GET", headers });
+  let res = await apiFetch(buildUrl(path), { method: "GET", headers });
 
   if (res.status === 401) {
     const ok = await refreshAccessToken();
     if (ok) {
       const newToken = auth.getAccessToken();
       if (newToken) headers["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(buildUrl(path), { method: "GET", headers });
+      res = await apiFetch(buildUrl(path), { method: "GET", headers });
     }
     if (res.status === 401) handleSessionExpired();
   }
@@ -608,14 +617,14 @@ async function downloadBlobPost(
     body: JSON.stringify(body),
   };
 
-  let res = await fetch(buildUrl(path), init);
+  let res = await apiFetch(buildUrl(path), init);
 
   if (res.status === 401) {
     const ok = await refreshAccessToken();
     if (ok) {
       const newToken = auth.getAccessToken();
       if (newToken) (init.headers as Record<string, string>)["Authorization"] = `Bearer ${newToken}`;
-      res = await fetch(buildUrl(path), init);
+      res = await apiFetch(buildUrl(path), init);
     }
     if (res.status === 401) handleSessionExpired();
   }

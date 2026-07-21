@@ -11,6 +11,7 @@ import logging
 from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
+from core.auth_cookie import clear_access_cookie, set_access_cookie
 from core.deps import CurrentUser, get_current_user, role_required
 from core.idempotency import (
     IdempotencyContext,
@@ -136,10 +137,24 @@ _ADMIN_WEB_ROLES = [
     summary="管理員登入",
     status_code=200,
 )
-async def login_admin(body: LoginBody) -> dict:
-    return await auth_service.login(
+def _set_login_cookie(response: Response, payload: dict) -> None:
+    """CR-0177 S3a：登入/刷新成功 → 同步寫 httpOnly access cookie。
+
+    與 response body 的 token **並存**（localStorage 過渡期不變，見 core/auth_cookie 說明）；
+    自訂網域上線後設 `AUTH_COOKIE_DOMAIN` 即跨子網域生效，屆時才移除 localStorage（S3b）。
+    """
+    data = (payload or {}).get("data") or {}
+    token = data.get("access_token")
+    if token:
+        set_access_cookie(response, token, int(data.get("expires_in") or 3600))
+
+
+async def login_admin(body: LoginBody, response: Response) -> dict:
+    payload = await auth_service.login(
         email=body.email, password=body.password, allowed_roles=_ADMIN_WEB_ROLES
     )
+    _set_login_cookie(response, payload)
+    return payload
 
 
 @router.post(
@@ -148,11 +163,13 @@ async def login_admin(body: LoginBody) -> dict:
     summary="技師登入（手機號或 Email）",
     status_code=200,
 )
-async def login_technician(body: TechnicianLoginBody) -> dict:
+async def login_technician(body: TechnicianLoginBody, response: Response) -> dict:
     # CR-0099：identifier 解析手機/email；手機多筆相符 → 409（改用 Email）。
-    return await auth_service.login_with_identifier(
+    payload = await auth_service.login_with_identifier(
         body.identifier, body.password, allowed_roles=["technician"]
     )
+    _set_login_cookie(response, payload)
+    return payload
 
 
 @router.post(
@@ -161,8 +178,10 @@ async def login_technician(body: TechnicianLoginBody) -> dict:
     summary="換發 access token",
     status_code=200,
 )
-async def refresh_token(body: RefreshBody) -> dict:
-    return await auth_service.refresh(body.refresh_token)
+async def refresh_token(body: RefreshBody, response: Response) -> dict:
+    payload = await auth_service.refresh(body.refresh_token)
+    _set_login_cookie(response, payload)   # CR-0177 S3a：換發後同步更新 cookie
+    return payload
 
 
 @router.post(
@@ -181,7 +200,9 @@ async def logout(
         access_exp_iso=None,
         refresh_token=(body.refresh_token if body else None),
     )
-    return Response(status_code=204)
+    resp = Response(status_code=204)
+    clear_access_cookie(resp)   # CR-0177 S3a：登出同步清除 httpOnly cookie
+    return resp
 
 
 @router.post(

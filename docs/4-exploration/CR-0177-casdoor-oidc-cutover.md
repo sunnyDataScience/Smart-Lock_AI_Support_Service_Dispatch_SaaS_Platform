@@ -216,7 +216,48 @@ RS256→`verify_oidc_token`（第一級公民）、HS256→`decode_token`（過�
 
 - **S2 SSO 轉主要登入路徑** — ✅ **本機前置已解除**（tokenFormat 修復完成）。四站登入頁預設走 SSO、
   本地密碼降為 break-glass。⚠️ **prod 仍卡 OPS 套 tokenFormat**（見上）。
-- **S3 前端 localStorage auth 退場**（HD-7 只退 auth）：`decodeJwtPayload` 移除、session 全走 claims cookie、四站同步。
+### 🔴 S3 撞到架構級阻斷：cookie 跨網域（2026-07-21 查證）
+
+S3 目標態＝token 只存 httpOnly cookie（XSS 偷不到）。查證發現**在 prod 不會運作**：
+
+| 事實 | 出處 |
+|---|---|
+| prod web＝`smart-lock-web-<projnum>.<region>.run.app` | `scripts/deploy/api.sh:283` |
+| prod api＝`smart-lock-api-*.run.app`（**不同 hostname**） | `api.sh:34-35` |
+| api 動態把 web URL 設為 `CORS_ORIGINS` | `api.sh:270-285`（證實跨源） |
+| SSO callback 設 cookie **未帶 `domain`** → host-only 綁 **web** 網域 | `auth/callback/route.ts:61` |
+| 前端 fetch 原**無** `credentials` | `api.ts`（僅注入 Authorization） |
+
+**cookie 依「網域」共用、不看 port**：本機 web:3000／api:8000 同為 `localhost` → 天然共用
+（本機測起來會「像可行」）；prod 兩個不同 hostname → **cookie 送不到 api**，且 `run.app` 在
+Public Suffix List → **無法**設 `.run.app` 共用父網域 cookie。
+→ 這解釋了 code 內「雙寫：httpOnly cookie（目標態）+ localStorage（過渡）」——cookie 路徑一直是
+理想態，實際 API 認證全靠 localStorage + Authorization header。
+**若貿然移除 localStorage：本機會過、prod 全站 401。**
+
+**業主 2026-07-21 裁決：採「自訂網域」**（web/api 掛同一父網域，cookie 設共用 domain）。
+
+#### ✅ S3a done（code 先就緒，不動現況行為）
+
+- **後端** `api/core/auth_cookie.py`：`set_access_cookie`／`clear_access_cookie`，
+  網域由 **`AUTH_COOKIE_DOMAIN`** 控（未設＝host-only＝**現況行為不變**）、
+  `AUTH_COOKIE_SECURE` 未設時「有共用網域即 Secure」。
+  接線 `routers/auth.py`：`loginAdmin`／`loginTechnician`／`refreshToken` 寫 cookie、`logout` 清 cookie。
+  與 response body 的 token **並存**（過渡期不改前端取用方式）。
+- **前端** 四站 `api.ts` 新增 `apiFetch` wrapper（`credentials:"include"`），11 個呼叫點全數改走，
+  helper 內保留原生 fetch。**四站 tsc 0 errors**。
+- 驗證：unit **8 passed**（env 網域/Secure 推導、cookie 屬性 HttpOnly/SameSite/Path/Domain、清除）。
+
+#### ⬜ S3b（移除 localStorage）— **gated on 自訂網域上線**
+
+**OPS runbook（自訂網域）**：
+1. 取得網域並於 Cloud Run 建 domain mapping：web→`app.<domain>`、api→`api.<domain>`（同父網域）。
+2. api 設 `AUTH_COOKIE_DOMAIN=.<domain>`（含前導點）＋確認 `AUTH_COOKIE_SECURE` 未設或為 true。
+3. `CORS_ORIGINS` 改為 `https://app.<domain>`（`api.sh` 目前動態解析 run.app URL，需一併調整）。
+4. Casdoor application `redirectUris` 加 `https://app.<domain>/auth/callback`。
+5. 驗證：登入後 devtools 確認 cookie 帶 `Domain=.<domain>`、對 api 請求有送出 → 才做 S3b。
+
+S3b 內容：`decodeJwtPayload` 移除、token 不再寫 localStorage、session claims 全走 claims cookie。
 - **S4 break-glass** 本地登入路徑 + 稽核告警（HD-6）。
 - **S5** 過渡期滿移除 HS256 分支（不可逆點）+ 收尾（WBS 2.1.1／Traceability／CHANGELOG）。
 
