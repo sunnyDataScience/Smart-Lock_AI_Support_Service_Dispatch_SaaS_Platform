@@ -214,8 +214,24 @@ RS256→`verify_oidc_token`（第一級公民）、HS256→`decode_token`（過�
 
 ### ⬜ 待續
 
-- **S2 SSO 轉主要登入路徑** — ✅ **本機前置已解除**（tokenFormat 修復完成）。四站登入頁預設走 SSO、
-  本地密碼降為 break-glass。⚠️ **prod 仍卡 OPS 套 tokenFormat**（見上）。
+### ✅ S2 done — SSO 轉主要登入路徑
+
+三個有 SSO 的登入頁（`brand-portal /login`、`platform-console /platform/login`、
+`tech-portal /tech-login`；landing 無登入頁）改為：
+**SSO 按鈕置頂 + 主要樣式** → 分隔線「或使用密碼登入（緊急備援）」→ 密碼表單，
+且**密碼 submit 降為次要樣式**。全部以 `NEXT_PUBLIC_CASDOOR_ENDPOINT` 條件化——
+**未配置 Casdoor 的環境版面與行為完全不變**（零風險回退）。各站保留自身樣式慣例
+（platform `h-10 rounded-lg`／tech `h-11 rounded-full`）。**四站 tsc 0 errors**。
+
+### ✅ S4 done — break-glass 稽核（HD-6）
+
+`auth_service._audit_break_glass_login`：**OIDC 已配置時**的本地密碼登入＝緊急備援 →
+寫 `audit_events`（`event_type=security`／`action=break_glass_local_login`，帶 actor/role/
+tenant/via）＋ `logger.warning`。接線 `login()`（via=email）與 `login_with_identifier()`（via=identifier）。
+**OIDC 未配置則不記**（本地密碼本就是正常路徑，避免稽核噪音）；稽核失敗 **best-effort 不阻斷登入**
+（否則 break-glass 本身失效）。驗證：unit **4 passed**（不記/必記/失敗不阻斷/via 標記）。
+
+⚠️ **prod 仍卡 OPS 套 tokenFormat**（見上）才可讓 prod 走 SSO。
 ### 🔴 S3 撞到架構級阻斷：cookie 跨網域（2026-07-21 查證）
 
 S3 目標態＝token 只存 httpOnly cookie（XSS 偷不到）。查證發現**在 prod 不會運作**：

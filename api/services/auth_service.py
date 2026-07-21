@@ -177,6 +177,42 @@ def _locked_error(minutes: int) -> ApiError:
 _GENERIC_LOGIN_FAIL = "帳號或密碼錯誤"
 
 
+async def _audit_break_glass_login(user: dict, *, via: str) -> None:
+    """CR-0177 S4（HD-6）：SSO 已配置時仍走「本地密碼登入」＝break-glass，留稽核。
+
+    語意：OIDC 未配置 → 本地密碼本就是正常路徑，**不記**（避免噪音）；
+    OIDC 已配置（SSO 為主要路徑）→ 每次本地密碼登入都是緊急備援，**必留痕**供事後追查。
+    best-effort：稽核失敗絕不阻斷登入（否則 break-glass 本身失效）。
+    """
+    try:
+        from core.oidc import oidc_enabled
+
+        if not oidc_enabled():
+            return
+        from services import audit_log_service
+
+        await audit_log_service.log_event(
+            event_type="security",
+            actor_id=user.get("id"),
+            actor_role=user.get("role"),
+            action="break_glass_local_login",
+            target_type="user",
+            target_id=user.get("id"),
+            payload={
+                "via": via,
+                "role": user.get("role"),
+                "tenant_id": user.get("tenant_id"),
+                "reason": "OIDC(SSO) 已配置，仍以本地密碼登入＝緊急備援路徑",
+            },
+        )
+        logger.warning(
+            "break-glass 本地密碼登入（SSO 已配置）user=%s role=%s via=%s",
+            str(user.get("id"))[:8], user.get("role"), via,
+        )
+    except Exception:  # noqa: BLE001 — 稽核失敗不得阻斷登入
+        logger.exception("break-glass 稽核寫入失敗（non-fatal）")
+
+
 async def login(email: str, password: str, *, allowed_roles: list[str]) -> dict:
     user = await _find_user_by_email(email, allowed_roles)
     if not user:
@@ -192,6 +228,7 @@ async def login(email: str, password: str, *, allowed_roles: list[str]) -> dict:
         raise ApiError("UNAUTHENTICATED", _GENERIC_LOGIN_FAIL, 401)
 
     await _reset_login_failures(user["id"], user["role"])
+    await _audit_break_glass_login(user, via="email")   # CR-0177 S4
     return _build_login_payload(
         user_id=user["id"],
         role=user["role"],
@@ -270,6 +307,7 @@ async def login_with_identifier(
         raise ApiError("UNAUTHENTICATED", _GENERIC_LOGIN_FAIL, 401)
 
     await _reset_login_failures(user["id"], user["role"])
+    await _audit_break_glass_login(user, via="identifier")   # CR-0177 S4
     return _build_login_payload(
         user_id=user["id"],
         role=user["role"],
