@@ -701,16 +701,22 @@ async def _log_quote_event_to_conversation(quote_id: str, action: str, result: d
     await conversation_service.append_event_note(conversation_id=conv_id, content=note)
 
 
+# FR-API-02：confirm_token TTL 上限 48h（2 天）——即使報價有效期更長，客戶確認連結
+# 最多 48h（合約 confirm_token TTL=48h）。仍不超過報價有效期（取兩者較小）。
+_CONFIRM_TOKEN_MAX_DAYS = 2
+
+
 def _ttl_days_from(expiry: datetime | None) -> int:
-    """token TTL 對齊報價有效期；無 expiry 則 fallback。至少 1 天。
+    """token TTL＝min(報價有效期, 48h)；無 expiry 則 fallback。至少 1 天、至多 2 天。
 
     用小時粒度 ceil（非 .days 整日截斷）—— 報價剩 6h 時應給能完整覆蓋的天數，
     避免 token 反而比報價長命；已過期報價（remaining ≤ 0）給最小 1 天供唯讀查看。
+    FR-API-02：上限 48h（_CONFIRM_TOKEN_MAX_DAYS），確認連結不長於 2 天。
     """
     if not expiry:
-        return _VIEW_TOKEN_FALLBACK_DAYS
+        return min(_CONFIRM_TOKEN_MAX_DAYS, _VIEW_TOKEN_FALLBACK_DAYS)
     remaining_days = (expiry - datetime.now(timezone.utc)).total_seconds() / 86400
-    return max(1, math.ceil(remaining_days))
+    return max(1, min(_CONFIRM_TOKEN_MAX_DAYS, math.ceil(remaining_days)))
 
 
 async def mint_view_token(*, tenant_id: str, quote_id: str) -> dict:
@@ -773,6 +779,16 @@ async def customer_respond_to_quote(
         # 不洩露歸屬細節，但 log 供稽核
         logger.warning("quote %s respond denied: line_user mismatch", quote_id)
         raise ApiError("FORBIDDEN", "this LINE user does not own the quote", 403)
+    # FR-API-02：冪等——客戶重複點同一決定（已在對應終態）→ 回既有成功，不 409
+    # （防 LIFF 連點/重送造成 STATE_CONFLICT；效果等同 Idempotency-Key 對同決定去重）。
+    _terminal = {"accept": "accepted", "reject": "rejected"}
+    cur_state = ((await (await _conn()).execute(
+        "SELECT state FROM quote WHERE id = %s::uuid "
+        "AND (tenant_id = %s::uuid OR tenant_id IS NULL)",
+        (quote_id, tenant_id))).fetchone() or [None])[0]
+    if cur_state == _terminal[decision]:
+        return {"quote_id": quote_id, "state": cur_state,
+                "decision": decision, "idempotent_replay": True}
     action = "accept" if decision == "accept" else "decline"
     result = await transition(tenant_id=tenant_id, quote_id=quote_id, action=action)
     return {"quote_id": result["id"], "state": result["state"], "decision": decision}

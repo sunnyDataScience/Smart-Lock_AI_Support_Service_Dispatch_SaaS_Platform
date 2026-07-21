@@ -145,8 +145,10 @@ async def upload_media(
     )
     abs_path = MEDIA_ROOT / rel_path
     abs_path.parent.mkdir(parents=True, exist_ok=True)
+    # FR-API-08：證據位元組 envelope 加密後落盤（sha256 仍算明文，見下）。
+    from core import media_crypto
     try:
-        abs_path.write_bytes(file_bytes)
+        abs_path.write_bytes(media_crypto.encrypt_bytes(file_bytes))
     except OSError as e:
         raise ApiError(
             "STORAGE_ERROR", f"failed to write file: {e}", 500
@@ -257,6 +259,9 @@ async def get_media(
             f"Media file missing on storage: {storage_path}",
             404,
         ) from e
+    # FR-API-08：解密回明文；dual-read——舊明文檔（非本金鑰 token）→ 回原位元組。
+    from core import media_crypto
+    data = media_crypto.decrypt_bytes(data) or data
     return data, ct, filename
 
 

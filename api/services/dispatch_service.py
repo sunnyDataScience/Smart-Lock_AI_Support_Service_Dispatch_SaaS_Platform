@@ -83,6 +83,39 @@ def _rating_factor(rating: float | None) -> float:
     return r / 5.0
 
 
+# FR-API-05：候選池 5→10→20km 漸進擴大門檻與最小池大小。
+_PROGRESSIVE_RADII_KM = [5.0, 10.0, 20.0]
+_MIN_DISPATCH_POOL = 3
+
+
+def _apply_progressive_radius(
+    candidates: list[dict], min_pool: int = _MIN_DISPATCH_POOL,
+) -> list[dict]:
+    """FR-API-05：以 gis_distance_km 逐級（5→10→20km）納入候選，達 min_pool 即停；
+    三級仍不足 → 全納（含無座標者）。每候選標 radius_band_km。已 score 排序不變（僅決定
+    「納入池」）。無座標者距離視為 ∞，只在最終全納級進入。"""
+    if not candidates:
+        return candidates
+
+    def _km(c: dict) -> float:
+        d = c.get("gis_distance_km")
+        return float(d) if d is not None else float("inf")
+
+    selected: list[dict] = []
+    for radius in _PROGRESSIVE_RADII_KM:
+        within = [c for c in candidates if _km(c) <= radius]
+        if len(within) >= min_pool:
+            selected = within
+            break
+    if not selected:
+        selected = list(candidates)  # 三級不足 → 全納（radius_band 標 None＝>20km/無座標）
+
+    for c in selected:
+        km = _km(c)
+        c["radius_band_km"] = next((r for r in _PROGRESSIVE_RADII_KM if km <= r), None)
+    return selected
+
+
 def _load_factor(active_load: int | None) -> float:
     """audit FR-API-05：當前在辦工單越少分越高。0 單=1.0，滿載(≥_LOAD_SATURATION)=0.0；
     None（查無資料）→中性 0.5。"""
@@ -504,6 +537,8 @@ async def auto_match_dispatch(
     scored = await _enrich_gis_performance(scored, pc_district)
     # audit FR-API-05：補負載/公平兩因子並重排
     scored = await _enrich_workload_fairness(scored, tenant_id)
+    # FR-API-05：候選池 5→10→20km 漸進擴大（近者優先，不足才擴半徑）
+    scored = _apply_progressive_radius(scored)
 
     boost = 1.05 if urgency == "emergency" else 1.0
     candidates: list[dict] = []

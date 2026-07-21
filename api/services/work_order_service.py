@@ -1384,13 +1384,15 @@ async def _enforce_completion_gate(
 # fail-soft:推播失敗絕不阻斷派單主流程(網頁通知中心照舊為保底)。
 
 def _tech_line_wo_summary(wo: dict) -> dict:
-    """推播內容最小化(CIA §4):區域+品牌型號+單號,絕不含客戶姓名/地址/電話。"""
+    """推播內容最小化(CIA §4):區域+品牌型號+單號,絕不含客戶姓名/地址/電話。
+    priority 供 outbox lag 分級 SLO（FR-API-05b：急件≤15s），非 PII。"""
     return {
         "id": wo.get("id"),
         "document_number": wo.get("document_number"),
         "district": wo.get("district"),
         "brand": wo.get("brand"),
         "model": wo.get("model"),
+        "priority": wo.get("priority"),
     }
 
 
