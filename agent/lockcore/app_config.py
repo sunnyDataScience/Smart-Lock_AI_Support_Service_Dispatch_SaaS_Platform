@@ -44,6 +44,9 @@ class AppConfig:
     db_path: str  # backend="sqlite" 時的檔案路徑;":memory:" = 暫存
     postgres_uri_env: str  # backend="postgres" 時讀此環境變數取連線字串(預設 POSTGRES_URI)
     extractor: str  # "llm"(用 LLM 抽乾淨事實)或 "raw"(整句存,PoC fallback)
+    # 多供應商 failover：主模型連續錯誤→熔斷→依序改試這些 fallback 模型（LiteLLM 字串）。
+    # 空=不啟用（ADR-009；補上 LINE live path 原缺的 failover 接線）。
+    fallback_models: tuple[str, ...] = ()
 
 
 def _auto_vertex_location(model: str, location: str) -> str:
@@ -80,16 +83,27 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         db_path=mem.get("db_path", ":memory:"),
         postgres_uri_env=mem.get("postgres_uri_env", "POSTGRES_URI"),
         extractor=str(mem.get("extractor", "llm")).strip().lower(),
+        fallback_models=tuple(str(m) for m in (llm.get("fallback_models") or [])),
     )
 
 
-def build_provider(cfg: AppConfig):
-    """依設定組出 LiteLLMProvider(vertex 模型會帶 project/location 並設 ADC)。"""
+@dataclass(frozen=True)
+class _FallbackPreset:
+    """給 FallbackProvider 的最小 preset（model 字串路由多供應商）。"""
+
+    model: str
+    max_tokens: int
+    temperature: float
+    reasoning_effort: str | None = None
+
+
+def _make_litellm(cfg: AppConfig, model: str, temperature: float, max_tokens: int):
+    """建單一 LiteLLMProvider(vertex 模型會帶 project/location 並設 ADC)。"""
     from lockcore.providers.base import GenerationSettings
     from lockcore.providers.litellm_provider import LiteLLMProvider
 
     extra_body: dict = {}
-    if cfg.model.startswith("vertex_ai/"):
+    if model.startswith("vertex_ai/"):
         if cfg.credentials_path and cfg.credentials_path.exists():
             os.environ.setdefault("GOOGLE_APPLICATION_CREDENTIALS", str(cfg.credentials_path))
         if cfg.vertex_project:
@@ -99,9 +113,33 @@ def build_provider(cfg: AppConfig):
         if cfg.vertex_location:
             extra_body["vertex_location"] = cfg.vertex_location
 
-    provider = LiteLLMProvider(default_model=cfg.model, extra_body=extra_body)
-    provider.generation = GenerationSettings(temperature=cfg.temperature, max_tokens=cfg.max_tokens)
+    provider = LiteLLMProvider(default_model=model, extra_body=extra_body)
+    provider.generation = GenerationSettings(temperature=temperature, max_tokens=max_tokens)
     return provider
+
+
+def build_provider(cfg: AppConfig):
+    """依設定組出 provider。
+
+    cfg.fallback_models 非空時，把主 provider 包進 FallbackProvider 做多供應商
+    failover（主模型連續錯誤→熔斷→依序試 fallback 模型；ADR-009）。這條原本只在
+    上游 factory.make_provider 有接，LINE live path（本函式）漏接——此處補上。
+    """
+    primary = _make_litellm(cfg, cfg.model, cfg.temperature, cfg.max_tokens)
+    if not cfg.fallback_models:
+        return primary
+
+    from lockcore.providers.fallback_provider import FallbackProvider
+
+    presets = [
+        _FallbackPreset(model=m, max_tokens=cfg.max_tokens, temperature=cfg.temperature)
+        for m in cfg.fallback_models
+    ]
+    return FallbackProvider(
+        primary=primary,
+        fallback_presets=presets,
+        provider_factory=lambda fb: _make_litellm(cfg, fb.model, fb.temperature, fb.max_tokens),
+    )
 
 
 def _pg_uri(cfg: AppConfig) -> str:

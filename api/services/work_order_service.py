@@ -1353,8 +1353,11 @@ async def _enforce_completion_gate(
     acur = await db_module._conn.execute(
         "SELECT customer_address, quote_gate_applied FROM work_orders WHERE id = %s::uuid", (wo_id,))
     arow = await acur.fetchone()
-    if not (arow and arow[0] and str(arow[0]).strip()):
-        raise ApiError("ADDRESS_REQUIRED_FOR_CLOSE", "結案前須有服務地址", 422)
+    # ADR-015②：地址須為「有效值」——非空且達最小長度，擋「.」「x」「-」等佔位字元繞過硬閘
+    _MIN_CLOSE_ADDRESS_LENGTH = 6
+    _addr = str(arow[0]).strip() if (arow and arow[0]) else ""
+    if len(_addr) < _MIN_CLOSE_ADDRESS_LENGTH:
+        raise ApiError("ADDRESS_REQUIRED_FOR_CLOSE", "結案前須有有效服務地址（至少 6 字）", 422)
     # CR-0128/CR-0129（D2a）：完工閘報價分支——標準單須 accepted；**急件補審中可完工**
     # （retrospective_audit_only 佔位或補審已送客戶 audit_due_at 非空）——完工回報是
     # 4h 補審窗起算點（15_SDS §4.5），補審完成擋在結案（confirm_order）。

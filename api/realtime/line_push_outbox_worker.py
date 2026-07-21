@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections import deque
 from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
@@ -28,6 +29,36 @@ DEFAULT_INTERVAL = int(os.getenv("LINE_PUSH_WORKER_INTERVAL", "10"))  # seconds
 BATCH_SIZE = int(os.getenv("LINE_PUSH_WORKER_BATCH", "20"))
 # Exponential backoff seconds 對應 attempts=1..5：30s / 2min / 8min / 30min / 2hr
 _BACKOFF_SECONDS_BY_ATTEMPT = [30, 120, 480, 1800, 7200]
+
+# audit NFR-Perf-009：outbox 送達延遲取樣（enqueue created_at → sent 的 wall-clock 秒），
+# 供 outbox_lag_p99_seconds SLO（p99 ≤ 30s）度量。in-process 滾動視窗；OPS 由
+# get_outbox_lag_metrics() 讀出（可接 /metrics 或週期性日誌），不新增對外端點。
+_LAG_SAMPLES: deque[float] = deque(maxlen=2000)
+
+
+def record_outbox_lag_seconds(seconds: float) -> None:
+    """記一筆送達延遲樣本（秒）。負值/None 忽略。"""
+    if seconds is not None and seconds >= 0:
+        _LAG_SAMPLES.append(float(seconds))
+
+
+def _percentile(sorted_samples: list[float], p: float) -> float:
+    n = len(sorted_samples)
+    idx = min(n - 1, max(0, int(round((p / 100.0) * (n - 1)))))
+    return sorted_samples[idx]
+
+
+def get_outbox_lag_metrics() -> dict:
+    """回 outbox 送達延遲指標：count / p50 / p99（秒）。無樣本 → 值為 None。"""
+    samples = sorted(_LAG_SAMPLES)
+    n = len(samples)
+    if n == 0:
+        return {"count": 0, "p50_seconds": None, "p99_seconds": None}
+    return {
+        "count": n,
+        "p50_seconds": round(_percentile(samples, 50), 3),
+        "p99_seconds": round(_percentile(samples, 99), 3),
+    }
 
 # CR-0172 HD-A=A：技師派工 push_kind 走 tech-portal 內部端點投遞（非客戶 LINE 直推）。
 # worker 只多一個「投遞目標=HTTP 內部端點」分支，不碰技師權威庫 / 第二 channel token，
@@ -101,7 +132,7 @@ class LinePushOutboxWorker:
         # in-process worker，但 future cluster deploy 也安全）。
         cur = await db_module._conn.execute(
             "SELECT id, tenant_id, push_kind, target_line_id, reference_id, "
-            "       reference_table, payload, attempts, max_attempts "
+            "       reference_table, payload, attempts, max_attempts, created_at "
             "FROM line_push_outbox "
             "WHERE status = 'pending' AND next_attempt_at <= NOW() "
             "ORDER BY next_attempt_at ASC "
@@ -126,6 +157,7 @@ class LinePushOutboxWorker:
         payload = row[6] if isinstance(row[6], dict) else {}
         attempts = int(row[7])
         max_attempts = int(row[8])
+        created_at = row[9] if len(row) > 9 else None
 
         # CR-0172 HD-A=A：技師派工 kind 走 tech-portal 內部端點投遞（非客戶 LINE 直推），
         # 由端點沿用技師庫反查 + 平台官方號推播。與客戶側 users.line_user_id 反查分流。
@@ -133,6 +165,7 @@ class LinePushOutboxWorker:
             ok, err = await self._dispatch_to_tech(push_kind, payload)
             if ok:
                 await self._mark_sent(outbox_id)
+                self._record_lag(created_at)
                 logger.info(
                     "outbox tech-dispatch ok: id=%s kind=%s ref=%s",
                     outbox_id, push_kind, reference_id,
@@ -168,6 +201,7 @@ class LinePushOutboxWorker:
         ok, err = await self._push_to_line(line_uid, messages, retry_key=outbox_id)
         if ok:
             await self._mark_sent(outbox_id)
+            self._record_lag(created_at)
             logger.info(
                 "outbox push ok: id=%s kind=%s line=%s ref=%s",
                 outbox_id, push_kind, line_uid[:8], reference_id,
@@ -343,6 +377,20 @@ class LinePushOutboxWorker:
                     return False, f"tech notify status={r.status} body={body}"
         except Exception as exc:  # noqa: BLE001
             return False, f"{type(exc).__name__}: {exc}"
+
+    def _record_lag(self, created_at) -> None:
+        """送達成功時記錄 enqueue(created_at)→sent 的延遲（秒），for outbox_lag_p99 SLO。
+        best-effort，任何解析失敗不影響送達主流程。"""
+        if created_at is None:
+            return
+        try:
+            now = datetime.now(timezone.utc)
+            ca = created_at
+            if getattr(ca, "tzinfo", None) is None:
+                ca = ca.replace(tzinfo=timezone.utc)
+            record_outbox_lag_seconds((now - ca).total_seconds())
+        except Exception:  # noqa: BLE001
+            pass
 
     async def _mark_sent(self, outbox_id: str) -> None:
         await db_module._conn.execute(
