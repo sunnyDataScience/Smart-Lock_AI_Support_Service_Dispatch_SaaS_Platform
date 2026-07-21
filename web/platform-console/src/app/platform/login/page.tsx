@@ -65,6 +65,30 @@ export default function PlatformLoginPage() {
         <IdleLogoutNotice />
 
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
+          {/* CR-0177 S2：SSO 為**主要**登入路徑（置頂 + 主要樣式）；密碼登入降為 break-glass
+              緊急備援（後端 S4 留稽核 break_glass_local_login）。未配置 Casdoor 則版面不變。 */}
+          {process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT && (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  const ep = (process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT ?? "").replace(/\/$/, "");
+                  const cid = process.env.NEXT_PUBLIC_CASDOOR_CLIENT_ID ?? "smartlock-portal-client";
+                  const uri = encodeURIComponent(`${window.location.origin}/auth/callback`);
+                  window.location.href = `${ep}/login/oauth/authorize?client_id=${encodeURIComponent(cid)}&response_type=code&redirect_uri=${uri}&scope=read&state=smartlock`;
+                }}
+                className="h-10 rounded-lg bg-[var(--primary)] text-sm font-semibold text-white transition hover:opacity-90"
+              >
+                {t("sso")}
+              </button>
+              <div className="flex items-center gap-3 text-[12px] text-[var(--text-primary)] opacity-70">
+                <span className="h-px flex-1 bg-[var(--border)]" />
+                <span>或使用密碼登入（緊急備援）</span>
+                <span className="h-px flex-1 bg-[var(--border)]" />
+              </div>
+            </>
+          )}
+
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-[var(--text-primary)]">{t("emailLabel")}</span>
             <input
@@ -97,30 +121,18 @@ export default function PlatformLoginPage() {
             </p>
           )}
 
+          {/* CR-0177 S2：SSO 已配置時密碼登入為備援 → 次要樣式（未配置則維持主要樣式） */}
           <button
             type="submit"
             disabled={loading || !email || password.length < 8}
-            className="h-10 rounded-lg bg-[var(--primary)] text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+            className={
+              process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT
+                ? "h-10 rounded-lg border border-[var(--border)] text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
+                : "h-10 rounded-lg bg-[var(--primary)] text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+            }
           >
             {loading ? t("submitting") : t("submit")}
           </button>
-
-          {/* CR-0166 D8：SSO 三站複製——OIDC 授權碼流（2.1.1-R3，複製自 brand-portal）。
-              NEXT_PUBLIC_CASDOOR_ENDPOINT 配置時顯示；redirect_uri client 端組。 */}
-          {process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT && (
-            <button
-              type="button"
-              onClick={() => {
-                const ep = (process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT ?? "").replace(/\/$/, "");
-                const cid = process.env.NEXT_PUBLIC_CASDOOR_CLIENT_ID ?? "smartlock-portal-client";
-                const uri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-                window.location.href = `${ep}/login/oauth/authorize?client_id=${encodeURIComponent(cid)}&response_type=code&redirect_uri=${uri}&scope=read&state=smartlock`;
-              }}
-              className="h-10 rounded-lg border border-[var(--border)] text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-page)]"
-            >
-              {t("sso")}
-            </button>
-          )}
         </form>
       </div>
     </div>
