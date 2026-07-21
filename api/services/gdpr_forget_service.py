@@ -260,6 +260,12 @@ async def soft_delete(
     if _is_tech:
         await mirror_rows("users", [subject_user_id])
 
+    # CR-0176 crypto-shred：銷毀該 subject 的 DEK（HD-4 tombstone）→ 其加密 PII 密文即刻
+    # 不可復原、且不影響他人。S2 PII 欄位 cutover 後為完整不可讀；DEK 尚未落 PII 之過渡期
+    # 為 no-op（回 False），明文清除仍由上方 UPDATE 兜住（併存，CIA HD-6）。
+    from services import dek_service
+    _shredded = await dek_service.destroy_dek(subject_user_id, actor_user_id)
+
     # 2. UPDATE forget_request status
     upd = await db_module._conn.execute(
         "UPDATE saas.forget_request SET "
@@ -277,7 +283,10 @@ async def soft_delete(
     await _forget_audit(
         action="gdpr_forget_soft_deleted", tenant_id=req["tenant_id"],
         subject_user_id=subject_user_id, actor_user_id=actor_user_id,
-        request_id=request_id, extra={"hard_delete_eligible_at": eligible_at.isoformat()})
+        request_id=request_id, extra={
+            "hard_delete_eligible_at": eligible_at.isoformat(),
+            "dek_crypto_shredded": _shredded,  # CR-0176：本次是否確有 DEK 被銷毀
+        })
     return await _get_request(request_id)
 
 
