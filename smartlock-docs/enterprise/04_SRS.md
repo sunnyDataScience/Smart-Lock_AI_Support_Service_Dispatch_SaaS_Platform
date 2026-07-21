@@ -541,4 +541,22 @@ REST 契約（信封 `ApiResponseGeneric{data, error}` / CursorPage / RFC7807 �
 
 ---
 
+〔標注 2026-07-21（codegraph 稽核，不改寫原文，僅新增本對照段）：**下列 FR 之「🔜 規劃中 / 待確認」標記已 stale——codegraph 證實 code 已落地**。原行文字不動，實作現況以本段為準。詳 `docs/audit/v1-gap-codegraph-scan-20260721.md` 與 `docs/audit/smartlock-docs-capability-coverage-20260721.md`。〕
+
+| FR（原標記） | 實作現況（codegraph file:line） |
+|---|---|
+| **FR-API-19** 急件事後補審引擎（ID 標 🔜） | ✅ 已落地：`work_order_service.py:1251` `_start_retrospective_audit_timer`（完工寫 `audit_due_at=NOW()+4h`）＋結案 gate 擋補審未完＋`sla_monitor.py:342` 逾 4h 升 `ops_manager`、最近 3 件全逾自動開 `emergency_audit_breach` CR；migration 092；`test_cr_0129_retro_audit` 綠 |
+| **FR-AGT-10** debounce/dedup（🔜 接入 live callback） | ✅ 已接 live：`line_gateway.py:122` `_TurnDebouncer`（5.0s 訊息合併）＋ `PostgresWebhookIdempotencyStore`（webhook 去重，永久 PK）接線於 `scripts/line_gateway.py`。註：實作數值 5.0s / 永久 PK，非原文 1.5s / 24h（去重更嚴） |
+| **FR-API-14** WS Redis pub/sub（🔜 遷 Redis） | ✅ 已落地（CR-0134）：`ws_hub.py` `start_redis`/`_redis_reader`/`publish`（`REDIS_URL` opt-in 跨實例 fanout）。頻道數＝9 WS + 1 SSE `diagnostics`＝10（`main.py:463` 註解） |
+| **FR-API-15** 背景批次分散式鎖去重（🔜 Redis 鎖） | ✅ 已落地：`distributed_lock.py` `ensure_leader`（PG advisory lock，非 Redis 但達同效），各 cron worker 呼叫 |
+| **FR-DAT-02** CI drift-check（🔜 規劃中） | ✅ 已落地：`scripts/ci/migration-drift-check.py` + `.github/workflows/migration-drift-check.yml`；2026-07-21 補 registry↔`schema_migrations` DB 真值對照模式（`_check_db_drift`，PG16 實測） |
+| **FR-AGT-07 / FR-DAT-04** RAG embed()+MCP（🔜 規劃中） | ✅ code 已落地：`agent/rag/rag/server.py` `search_product_manual`/`search_similar_cases` + `embedding.py`；唯 prod 啟用 `RAG_TENANT_ID` 待部署。註：ADR-030（0709）已將「RAG cutover 為主軸」descope 為輔助、references 恆為主路徑 |
+| **FR-WEB-02 / FR-PLT-01** OIDC 授權碼流 + httpOnly cookie（🔜 規劃中） | ✅ 授權碼流 + httpOnly cookie 已落地（CR-0146）：`web/*/app/auth/callback/route.ts` `grant_type=authorization_code` + httpOnly cookie。⚠️ **未竟**：登入端仍發本地 HS256 JWT（Casdoor 為 opt-in 雙驗）、前端 localStorage 未全退場（ACT-01 R3）——此半仍為真待辦 |
+| **FR-PLT-05** 多供應商 failover FallbackProvider（🔜 接上） | ✅ 2026-07-21 已接上：`agent/lockcore/app_config.py` `build_provider` 包 `FallbackProvider`（`fallback_models` config，預設空＝行為不變） |
+| **待確認 #3** 派工通知 P95≤30s / 急件≤15s 度量 | ✅ 2026-07-21 度量儀器已補：`line_push_outbox_worker.py` outbox lag P95 + 派工依 urgency 分級 SLO（normal≤30s/emergency≤15s，`slo_met` 判定）。SLO 之生產流量實測驗證仍待 |
+
+〔標注續：仍為真「未做 / 階段二 / 待業主」者不在上表，維持原 🔜——FR-PLT-03 License provisioning 自動化（階段二）、FR-PLT-04 Kafka 事件骨幹上線（階段二 opt-in）、FR-REF-01 refinery 汲取機制（待確認 #2）、FR-API-16 crypto-shred PII 欄位端到端 cutover（S2 待 DB 整合環境）、FR-AGT-04 急件 deterministic timer（業主 0721 裁決維持 SOP，非缺口）。〕
+
+---
+
 *文件結尾 — 04_SRS v1.0 / 2026-07-07*
