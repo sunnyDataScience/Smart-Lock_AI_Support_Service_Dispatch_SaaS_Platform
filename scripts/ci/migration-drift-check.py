@@ -1,14 +1,21 @@
-"""Migration drift-check（CR-0136 / WBS 1.6.1 / ADR-P012 G-10）。
+"""Migration drift-check（CR-0136 / WBS 1.6.1 / ADR-P012 G-10 / FR-DAT-02）。
 
-CI 檔案層守門（部署後 DB 真值另由 apply-schema-prod.sh 寫 schema_migrations）：
+CI 檔案層守門（預設，零 DB 依賴）：
   1. 編號連續且唯一（無跳號/重號——跳號＝合併遺漏、重號＝衝突未解）。
   2. 每支 SQL migration 在 MIGRATION_REGISTRY.md 有登記（新增未登記＝audit 斷鏈）。
   3. registry 無指向不存在檔案的死列（檔案已刪但 registry 殘留）。
 
-退出碼 0=無漂移；1=偵測到漂移（CI block）。純檔案層、零 DB 依賴。
+DB 真值對照（FR-DAT-02 補洞，opt-in）：設 `POSTGRES_URI` 或 `--check-db` 時額外比對
+`SQL/migrations/*.sql`（檔案真相）↔ `public.schema_migrations`（DB 已套真值）：
+  4. 檔案存在但 schema_migrations 無列＝**未套用**（部署漏跑）。
+  5. schema_migrations 有列但檔案不存在＝**幽靈列**（migration 被刪但 DB 已套）。
+未設 env 且無 --check-db 時完全略過 DB 段（保留純檔案層 CI 行為）。
+
+退出碼 0=無漂移；1=偵測到漂移（CI block）。
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -18,6 +25,40 @@ MIG_DIR = ROOT / "SQL" / "migrations"
 REGISTRY = MIG_DIR / "MIGRATION_REGISTRY.md"
 
 _FNAME_RE = re.compile(r"^(\d{3})-[\w-]+\.sql$")
+
+
+def _check_db_drift(versions: dict[str, str], uri: str) -> list[str]:
+    """FR-DAT-02：比對檔案 versions ↔ public.schema_migrations（DB 真值）。
+    連線/psycopg 不可用 → 回 [] 並印跳過訊息（不誤判為漂移）。"""
+    errors: list[str] = []
+    try:
+        import psycopg  # 延遲載入：純檔案層 CI 無此依賴也能跑
+    except ImportError:
+        print("ℹ️  psycopg 不可用 → 略過 DB 真值對照（檔案層檢查照常）")
+        return errors
+    try:
+        with psycopg.connect(uri, connect_timeout=10) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT to_regclass('public.schema_migrations') IS NOT NULL"
+                )
+                if not cur.fetchone()[0]:
+                    print("ℹ️  schema_migrations 表不存在（未套 046+）→ 略過 DB 對照")
+                    return errors
+                cur.execute("SELECT version FROM public.schema_migrations")
+                db_versions = {r[0] for r in cur.fetchall()}
+    except Exception as e:  # noqa: BLE001
+        print(f"ℹ️  DB 連線失敗 → 略過 DB 真值對照（{type(e).__name__}）")
+        return errors
+
+    file_versions = set(versions)
+    for ver in sorted(file_versions - db_versions):
+        errors.append(f"migration 檔案存在但 DB 未套用（schema_migrations 缺列）：{versions[ver]}")
+    for ver in sorted(db_versions - file_versions):
+        errors.append(f"schema_migrations 幽靈列（DB 已套但檔案不存在）：version={ver}")
+    if not errors:
+        print(f"✅ DB 真值對照：{len(file_versions)} 支檔案 ↔ schema_migrations 完全一致")
+    return errors
 
 
 def main() -> int:
@@ -51,6 +92,14 @@ def main() -> int:
         fn = m.group(1)
         if not (MIG_DIR / fn).exists():
             errors.append(f"REGISTRY 死列（檔案不存在）：{fn}")
+
+    # FR-DAT-02：opt-in DB 真值對照（POSTGRES_URI 或 --check-db）
+    db_uri = os.getenv("POSTGRES_URI", "")
+    if "--check-db" in sys.argv or db_uri:
+        if not db_uri:
+            print("ℹ️  --check-db 指定但 POSTGRES_URI 未設 → 略過 DB 對照")
+        else:
+            errors.extend(_check_db_drift(versions, db_uri))
 
     if errors:
         print(f"❌ migration drift 偵測到 {len(errors)} 項：")

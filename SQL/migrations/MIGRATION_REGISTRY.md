@@ -141,5 +141,9 @@
 
 | 111 | `111-line-push-outbox-idempotency.sql` | CR-0175 R13/R19 | 🟢 idempotent（DELETE 重複 + CREATE UNIQUE INDEX IF NOT EXISTS，拋棄式 PG16 驗證 2026-07-20） | 客戶推播 outbox 冪等：line_push_outbox 對「事件型不可重複」的 4 個 push_kind（work_order_assigned/accepted/document、scope_change_result）建 partial unique index `uq_outbox_ref_kind_strict`（reference_id NOT NULL AND status<>'dead'），擋重複 enqueue；`enqueue()` 配 ON CONFLICT DO NOTHING 回既有 id。可更新型 kind（quote/reschedule/scope_change proposal、schedule_conflict）不納入（允許合法重推），由 worker `x_line_retry_key`（CR-0175 C）擋 crash-replay。⚠️ 套用前先跑存量重複盤點（乾淨庫 DELETE 0） |
 
+| 112 | `112-gdpr-dek-registry.sql` | CR-0176 | 🟢 idempotent（CREATE TABLE/INDEX/ADD COLUMN IF NOT EXISTS，拋棄式 PG16 驗證 2026-07-21） | GDPR crypto-shredding per-subject DEK registry：`saas.data_encryption_key`（wrapped_dek 由 KEK 加密、partial unique 保證至多一 active/subject、tombstone CHECK 不變式 status↔wrapped↔destroyed_at）＋`users` 加 display_name_enc/email_enc/phone_enc 三密文欄（S2 dual-write 備妥）。envelope 加密核心見 core/dek_crypto.py + services/dek_service.py |
+
+| 113 | `113-purge-audit-ledger.sql` | NFR-Priv-008 / FR-API-16 | 🟢 idempotent（CREATE TABLE/INDEX IF NOT EXISTS + CREATE OR REPLACE FUNCTION + DROP/CREATE TRIGGER，拋棄式 PG16 驗證 2026-07-21） | two-phase purge 專用 append-only 稽核帳本：`saas.purge_audit`（phase soft_delete_t0/hard_delete_t30、crypto_shredded/physical_deleted、immutability trigger 擋 UPDATE/DELETE），與泛用 audit_events 併存。gdpr_forget_service soft_delete/hard_delete 各落一筆 |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

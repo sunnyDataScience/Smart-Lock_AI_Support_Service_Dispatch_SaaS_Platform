@@ -30,16 +30,27 @@ BATCH_SIZE = int(os.getenv("LINE_PUSH_WORKER_BATCH", "20"))
 # Exponential backoff seconds 對應 attempts=1..5：30s / 2min / 8min / 30min / 2hr
 _BACKOFF_SECONDS_BY_ATTEMPT = [30, 120, 480, 1800, 7200]
 
-# audit NFR-Perf-009：outbox 送達延遲取樣（enqueue created_at → sent 的 wall-clock 秒），
-# 供 outbox_lag_p99_seconds SLO（p99 ≤ 30s）度量。in-process 滾動視窗；OPS 由
-# get_outbox_lag_metrics() 讀出（可接 /metrics 或週期性日誌），不新增對外端點。
-_LAG_SAMPLES: deque[float] = deque(maxlen=2000)
+# audit NFR-Perf-009 / FR-API-05b：outbox 送達延遲取樣（enqueue created_at → sent 秒）。
+# 每筆帶 (seconds, is_dispatch, urgency)，供兩層 SLO 度量：
+#   · 全體 outbox：p50/p95/p99（NFR-Perf-009 p99 ≤ 30s）
+#   · 派工通知（is_dispatch）依 urgency 分級：normal P95 ≤ 30s、emergency P95 ≤ 15s（FR-API-05b）
+# in-process 滾動視窗；OPS 由 get_outbox_lag_metrics() 讀出，不新增對外端點。
+_LAG_SAMPLES: deque[tuple[float, bool, str]] = deque(maxlen=2000)
+
+# 派工通知 push_kind（技師「新工單已派給你」）——FR-API-05b SLO 對象。
+_DISPATCH_KINDS = {"tech_dispatch_assigned"}
+# FR-API-05b 分級 SLO（秒）：一般派工 30s、急件 15s。
+_DISPATCH_SLO_SECONDS = {"normal": 30.0, "emergency": 15.0}
 
 
-def record_outbox_lag_seconds(seconds: float) -> None:
-    """記一筆送達延遲樣本（秒）。負值/None 忽略。"""
+def record_outbox_lag_seconds(
+    seconds: float, push_kind: str | None = None, urgency: str = "normal",
+) -> None:
+    """記一筆送達延遲樣本（秒）。負值/None 忽略。urgency ∈ {normal, emergency}。"""
     if seconds is not None and seconds >= 0:
-        _LAG_SAMPLES.append(float(seconds))
+        is_dispatch = push_kind in _DISPATCH_KINDS
+        u = "emergency" if urgency == "emergency" else "normal"
+        _LAG_SAMPLES.append((float(seconds), is_dispatch, u))
 
 
 def _percentile(sorted_samples: list[float], p: float) -> float:
@@ -48,17 +59,36 @@ def _percentile(sorted_samples: list[float], p: float) -> float:
     return sorted_samples[idx]
 
 
-def get_outbox_lag_metrics() -> dict:
-    """回 outbox 送達延遲指標：count / p50 / p99（秒）。無樣本 → 值為 None。"""
-    samples = sorted(_LAG_SAMPLES)
-    n = len(samples)
+def _bucket_metrics(values: list[float], slo: float | None = None) -> dict:
+    vals = sorted(values)
+    n = len(vals)
     if n == 0:
-        return {"count": 0, "p50_seconds": None, "p99_seconds": None}
-    return {
-        "count": n,
-        "p50_seconds": round(_percentile(samples, 50), 3),
-        "p99_seconds": round(_percentile(samples, 99), 3),
+        d = {"count": 0, "p50_seconds": None, "p95_seconds": None, "p99_seconds": None}
+    else:
+        d = {
+            "count": n,
+            "p50_seconds": round(_percentile(vals, 50), 3),
+            "p95_seconds": round(_percentile(vals, 95), 3),
+            "p99_seconds": round(_percentile(vals, 99), 3),
+        }
+    if slo is not None:
+        d["slo_seconds"] = slo
+        d["slo_met"] = (n == 0) or (d["p95_seconds"] is not None and d["p95_seconds"] <= slo)
+    return d
+
+
+def get_outbox_lag_metrics() -> dict:
+    """回 outbox 送達延遲指標。全體 p50/p95/p99；另拆派工通知依 urgency 分級 + SLO 判定。"""
+    overall = _bucket_metrics([s for s, _d, _u in _LAG_SAMPLES])
+    dispatch = {
+        u: _bucket_metrics(
+            [s for s, d, uu in _LAG_SAMPLES if d and uu == u],
+            slo=_DISPATCH_SLO_SECONDS[u],
+        )
+        for u in ("normal", "emergency")
     }
+    overall["dispatch"] = dispatch
+    return overall
 
 # CR-0172 HD-A=A：技師派工 push_kind 走 tech-portal 內部端點投遞（非客戶 LINE 直推）。
 # worker 只多一個「投遞目標=HTTP 內部端點」分支，不碰技師權威庫 / 第二 channel token，
@@ -165,7 +195,7 @@ class LinePushOutboxWorker:
             ok, err = await self._dispatch_to_tech(push_kind, payload)
             if ok:
                 await self._mark_sent(outbox_id)
-                self._record_lag(created_at)
+                self._record_lag(created_at, push_kind, payload)
                 logger.info(
                     "outbox tech-dispatch ok: id=%s kind=%s ref=%s",
                     outbox_id, push_kind, reference_id,
@@ -201,7 +231,7 @@ class LinePushOutboxWorker:
         ok, err = await self._push_to_line(line_uid, messages, retry_key=outbox_id)
         if ok:
             await self._mark_sent(outbox_id)
-            self._record_lag(created_at)
+            self._record_lag(created_at, push_kind, payload)
             logger.info(
                 "outbox push ok: id=%s kind=%s line=%s ref=%s",
                 outbox_id, push_kind, line_uid[:8], reference_id,
@@ -378,8 +408,9 @@ class LinePushOutboxWorker:
         except Exception as exc:  # noqa: BLE001
             return False, f"{type(exc).__name__}: {exc}"
 
-    def _record_lag(self, created_at) -> None:
-        """送達成功時記錄 enqueue(created_at)→sent 的延遲（秒），for outbox_lag_p99 SLO。
+    def _record_lag(self, created_at, push_kind=None, payload=None) -> None:
+        """送達成功時記錄 enqueue(created_at)→sent 延遲（秒）+ push_kind/urgency，for SLO。
+        urgency 由派工 payload 的 work_order.priority 推導（urgent/emergency→emergency）。
         best-effort，任何解析失敗不影響送達主流程。"""
         if created_at is None:
             return
@@ -388,7 +419,15 @@ class LinePushOutboxWorker:
             ca = created_at
             if getattr(ca, "tzinfo", None) is None:
                 ca = ca.replace(tzinfo=timezone.utc)
-            record_outbox_lag_seconds((now - ca).total_seconds())
+            urgency = "normal"
+            if isinstance(payload, dict):
+                prio = str(
+                    (payload.get("work_order") or {}).get("priority")
+                    or payload.get("priority") or ""
+                ).lower()
+                if prio in ("urgent", "emergency"):
+                    urgency = "emergency"
+            record_outbox_lag_seconds((now - ca).total_seconds(), push_kind, urgency)
         except Exception:  # noqa: BLE001
             pass
 

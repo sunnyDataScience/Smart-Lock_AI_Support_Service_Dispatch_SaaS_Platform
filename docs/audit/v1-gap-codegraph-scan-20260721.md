@@ -9,6 +9,33 @@
 
 ---
 
+## 補洞進度（2026-07-21，branch `feat/cr-0176-gdpr-crypto-shred`）
+
+> 全部以 codegraph 復驗新符號存在（非捏造），DB migration 走拋棄式 PG16 實測。
+
+### ✅ 已補（6）
+
+| 項目 | 落地 | codegraph/測試佐證 |
+|---|---|---|
+| **FR-DAT-02** drift DB 對照 | `_check_db_drift`（`scripts/ci/migration-drift-check.py:30`）opt-in（POSTGRES_URI）比對 registry↔`schema_migrations`（檔案未套/幽靈列） | PG16 drift 情境抓「112 未套+999 幽靈」exit=1、clean exit=0；file 模式零依賴不變 |
+| **FR-API-05a** 漸進擴池 | `_apply_progressive_radius`（`dispatch_service.py:91`）5→10→20km 逐級納入、達 min_pool 停、標 radius_band_km，接 `auto_match_dispatch` | 4 unit（5km 停/擴 10km/無座標全納） |
+| **FR-API-05b** 派工分級 SLO | `_bucket_metrics`（`line_push_outbox_worker.py:62`）加 P95 + 派工依 urgency 分級（normal≤30s/emergency≤15s，slo_met 判定）；`_tech_line_wo_summary` 帶 priority | 5 unit（分級 met/breach） |
+| **FR-API-02** confirm_token 48h + 冪等 | `_ttl_days_from` 上限 `_CONFIRM_TOKEN_MAX_DAYS=2`（48h）；`customer_respond_to_quote` 對同決定冪等回既有成功（免 409） | 5 unit（48h cap 各情境） |
+| **NFR-Priv-008** purge_audit 專表 | migration 113 `saas.purge_audit`（append-only trigger + phase CHECK）；`_purge_audit_entry`（`gdpr_forget_service.py:51`）接 soft/hard delete | PG16 insert/UPDATE-DELETE 擋/CHECK 擋 全綠 |
+| **FR-API-14** WS 10 頻道 | 澄清非缺口：9 WS + 1 SSE `diagnostics` = 10（`main.py:463` 註解 + 四站 `sse.ts` 消費） | — |
+
+### ⬜ 待續（誠實，不捏造）
+
+| 項目 | 狀態 | 為何未逕自完成 |
+|---|---|---|
+| **FR-API-08** Evidence envelope 加密 | 進行中 | media 位元組加密（寫加密+讀解密+金鑰），中面工程 |
+| **FR-API-16 S2** crypto-shred PII cutover | 待續 | 11 個 users 寫入點 dual-write/read + 存量 backfill，面廣且需 DB 整合測試（本機 5433=UAT 庫不可跑）——CR-0176 §9 S2/S3 |
+| **FR-PLT-02** RBAC resource-level enforce | 待業主 | 需先確立 23 個 router 的**正確角色矩陣**；貿然 enforce 會誤擋合法請求＝屬授權設計裁決，不宜自行捏 |
+| **FR-AGT-04** 急件 5min timer | 待業主 | 「deterministic 偵測+強制轉真人 timer」vs 現行 SOP prompt 是**設計選擇**，需業主裁決是否 deterministic 化 |
+| **FR-REF-04** references↔pgvector 同源 | 待釐清 | ADR-030 後 references 為主、RAG 輔助，「同源」定義已變；捏一個淺層 check＝造假，需業主確認語義 |
+
+---
+
 ## 🔴 真・v1 沒做到（該補的活）
 
 | 項目 | 判定 | 還差什麼 | 佐證 file:line | 合約級 | CIA |

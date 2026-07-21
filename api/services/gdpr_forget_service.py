@@ -48,6 +48,27 @@ async def _forget_audit(
         action=action, target_type="user", target_id=subject_user_id, payload=payload)
 
 
+async def _purge_audit_entry(
+    *, phase: str, tenant_id: str, subject_user_id: str, request_id: str,
+    actor_user_id: str | None, crypto_shredded: bool = False,
+    physical_deleted: bool | None = None, detail: dict | None = None,
+) -> None:
+    """NFR-Priv-008：two-phase purge 專用 append-only 稽核，落 saas.purge_audit
+    （與泛用 audit_events 併存，defense in depth）。best-effort，不阻斷主流程。"""
+    import json
+    try:
+        await db_module._conn.execute(
+            "INSERT INTO saas.purge_audit "
+            "  (tenant_id, subject_user_id, forget_request_id, phase, "
+            "   crypto_shredded, physical_deleted, actor_user_id, detail) "
+            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s::uuid, %s::jsonb)",
+            (tenant_id, subject_user_id, request_id, phase, crypto_shredded,
+             physical_deleted, actor_user_id, json.dumps(detail or {})),
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("purge_audit entry 寫入失敗（non-fatal）phase=%s", phase)
+
+
 async def _has_active_legal_hold(subject_user_id: str) -> bool:
     """CR-0164 D2：subject 名下有 legal_hold=true 且未刪的 media → forget 須擋（423）。"""
     cur = await db_module._conn.execute(
@@ -287,6 +308,12 @@ async def soft_delete(
             "hard_delete_eligible_at": eligible_at.isoformat(),
             "dek_crypto_shredded": _shredded,  # CR-0176：本次是否確有 DEK 被銷毀
         })
+    # NFR-Priv-008：T0 專用 purge 帳本
+    await _purge_audit_entry(
+        phase="soft_delete_t0", tenant_id=req["tenant_id"],
+        subject_user_id=subject_user_id, request_id=request_id,
+        actor_user_id=actor_user_id, crypto_shredded=_shredded,
+        detail={"hard_delete_eligible_at": eligible_at.isoformat()})
     return await _get_request(request_id)
 
 
@@ -374,6 +401,12 @@ async def hard_delete(
         request_id=request_id,
         extra={"physical_deleted": physical_deleted,
                "disposition": "physical_delete" if physical_deleted else "anonymized_retained_fk"})
+    # NFR-Priv-008：T+30 專用 purge 帳本
+    await _purge_audit_entry(
+        phase="hard_delete_t30", tenant_id=req["tenant_id"],
+        subject_user_id=subject_user_id, request_id=request_id,
+        actor_user_id=actor_user_id, physical_deleted=physical_deleted,
+        detail={"disposition": "physical_delete" if physical_deleted else "anonymized_retained_fk"})
     return await _get_request(request_id)
 
 
