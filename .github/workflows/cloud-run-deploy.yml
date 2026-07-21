@@ -1,0 +1,79 @@
+# WBS-1.6.1：基礎 CD — 3 Cloud Run 服務（agent / api / web）自動部署 pipeline。
+#
+# 補洞前：部署全靠手動 scripts/deploy/*.sh，18 支 CI 無任何 CD。此 workflow 把既有
+# 部署腳本接成 GitHub Actions CD——manual dispatch 選服務即部署（安全：不在每次 push
+# 盲目 auto-deploy；穩定後可加 push:branches:[main] 觸發）。
+#
+# ⚠️ 啟用前置（OPS，一次性；未設則 auth 步驟明確失敗，不會靜默假成功）：
+#   1. GCP Workload Identity Federation：建 WIF pool/provider 綁本 repo，授權目標 SA。
+#   2. Repo secrets：
+#        GCP_WORKLOAD_IDENTITY_PROVIDER = projects/NNN/locations/global/workloadIdentityPools/POOL/providers/PROVIDER
+#        GCP_SERVICE_ACCOUNT            = deployer@<project>.iam.gserviceaccount.com
+#   3. 目標 SA 需 roles/run.admin + roles/artifactregistry.writer + roles/iam.serviceAccountUser。
+# 部署所需的應用 secrets（API_JWT_SECRET_KEY / POSTGRES_URI / LINE_* / GDPR_DEK_KEK /
+# MEDIA_ENC_KEY 等）由各 deploy 腳本經 Secret Manager 掛載，非本 workflow 職責。
+
+name: cloud-run-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "要部署的服務"
+        required: true
+        type: choice
+        options: [api, agent, web, all]
+        default: api
+      brand:
+        description: "品牌（對應 scripts/deploy/brands/<brand>.env；留空=預設 locksmart）"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write   # WIF 換 GCP token 需要
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      BRAND: ${{ inputs.brand }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # deploy 腳本用 git short SHA 當 image tag
+
+      - name: Authenticate to GCP (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
+
+      - name: Set up uv (agent / api)
+        if: ${{ inputs.service == 'api' || inputs.service == 'agent' || inputs.service == 'all' }}
+        uses: astral-sh/setup-uv@v3
+
+      - name: Set up Node (web)
+        if: ${{ inputs.service == 'web' || inputs.service == 'all' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Deploy api
+        if: ${{ inputs.service == 'api' || inputs.service == 'all' }}
+        run: ./scripts/deploy/api.sh
+
+      - name: Deploy agent
+        if: ${{ inputs.service == 'agent' || inputs.service == 'all' }}
+        run: ./scripts/deploy/agent.sh
+
+      - name: Deploy web
+        if: ${{ inputs.service == 'web' || inputs.service == 'all' }}
+        run: ./scripts/deploy/web.sh

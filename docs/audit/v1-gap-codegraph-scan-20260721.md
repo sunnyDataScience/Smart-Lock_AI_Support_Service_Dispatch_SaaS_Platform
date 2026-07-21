@@ -13,10 +13,12 @@
 
 > 全部以 codegraph 復驗新符號存在（非捏造），DB migration 走拋棄式 PG16 實測。
 
-### ✅ 已補（7）
+### ✅ 已補（9）
 
 | 項目 | 落地 | codegraph/測試佐證 |
 |---|---|---|
+| **WBS-1.6.1** 基礎 CD auto-deploy | `.github/workflows/cloud-run-deploy.yml`（wrap 既有 `scripts/deploy/{api,agent,web}.sh`，manual dispatch 選服務、WIF 認證、Artifact Registry） | YAML 語法驗證 OK（9 steps）；**啟用需 OPS 配 WIF secrets**（deploy-layer，workflow 內已註記前置） |
+| **FR-REF-04** references↔pgvector 同源（業主選：驗 bronze provenance） | `scripts/ci/references-provenance-check.py`（references 側結構完整 + brand/目錄一致 gate）；corpus 側 bronze provenance 由既有 `audit_corpus.py` 稽核＝兩路都有 gate | 對真實 31 個型號 reference 實測 exit=0；references 內容鎖定、無機讀 provenance metadata，故 references 側限結構層（誠實註記於腳本） |
 | **FR-API-08** Evidence envelope 加密 | `core/media_crypto.py`（Fernet 位元組加密，env `MEDIA_ENC_KEY`）；`media_service` 上傳 `encrypt_bytes` 落盤、`get_media` `decrypt_bytes` 讀取（dual-read fallback 明文舊檔）；sha256 仍算明文 | 4 unit（round-trip/密文≠明文/dual-read fallback） |
 | **FR-DAT-02** drift DB 對照 | `_check_db_drift`（`scripts/ci/migration-drift-check.py:30`）opt-in（POSTGRES_URI）比對 registry↔`schema_migrations`（檔案未套/幽靈列） | PG16 drift 情境抓「112 未套+999 幽靈」exit=1、clean exit=0；file 模式零依賴不變 |
 | **FR-API-05a** 漸進擴池 | `_apply_progressive_radius`（`dispatch_service.py:91`）5→10→20km 逐級納入、達 min_pool 停、標 radius_band_km，接 `auto_match_dispatch` | 4 unit（5km 停/擴 10km/無座標全納） |
@@ -25,17 +27,33 @@
 | **NFR-Priv-008** purge_audit 專表 | migration 113 `saas.purge_audit`（append-only trigger + phase CHECK）；`_purge_audit_entry`（`gdpr_forget_service.py:51`）接 soft/hard delete | PG16 insert/UPDATE-DELETE 擋/CHECK 擋 全綠 |
 | **FR-API-14** WS 10 頻道 | 澄清非缺口：9 WS + 1 SSE `diagnostics` = 10（`main.py:463` 註解 + 四站 `sse.ts` 消費） | — |
 
-### ⬜ 待業主裁決 / 需 DB 整合環境（4，誠實不捏造）
+### 🟦 業主 2026-07-21 裁決後最終處置（3）
 
-> 這 4 項**刻意不逕自實作**——不是能力做不到，而是「做下去必須捏一個沒被授權的決定」，
-> 違反本目標「不要自己捏造」。每項標明卡在哪。
-
-| 項目 | 卡點 | 需要什麼才能動 |
+| 項目 | 業主裁決 | 處置 |
 |---|---|---|
-| **FR-API-16 S2** crypto-shred PII 欄位 cutover | S1 infra 已建（CR-0176）；S2 要在 **11 個 users 寫入點** dual-write `*_enc` + 讀路徑 dual-read + 存量 backfill，且**必須 DB 整合測試**驗證不破壞既有讀寫 | 業主可跑 DB 整合測試的環境（本機 5433＝UAT 庫，跑全套會污染，見 memory）；CR-0176 §9 S2/S3 |
-| **FR-PLT-02** RBAC resource-level enforce | 23 個 router 只 `require_tenant`。要 enforce 得先有**每端點的正確角色矩陣**；貿然加 `role_required` 會誤擋合法請求 | 業主確認 23 端點各自允許哪些角色（授權設計裁決，不宜由 AI 猜） |
-| **FR-AGT-04** 急件 5min 強制轉真人 timer | 現走 SOP prompt + escalation。要 deterministic 化須加 4 類自動偵測 + `urgency_detected_at` + 5min 計時強制轉接 | 業主裁決「是否 deterministic 化」（現行 SOP 亦為刻意選擇，翻案屬 flow change 需 CIA） |
-| **FR-REF-04** references↔pgvector 同源 | ADR-030（0709）後 references 為主、RAG 轉輔助，「雙路一致性」語義已變 | 業主確認 ADR-030 後「同源檢查」要驗什麼（否則捏一個淺層 check＝造假） |
+| **FR-AGT-04** 急件 5min timer | **維持現行 SOP prompt** | ✅ **裁決＝非缺口**：現行 LLM+SOP 判急件是刻意設計；規格的「deterministic timer」不採。→ smartlock-docs 應標注「以 SOP 實現（業主 0721 裁決）」，非 🔜。 |
+| **FR-API-16 S2** crypto-shred PII cutover | **等 DB 測試環境再做** | ⏸️ **擱置**（非欠債）：S1 infra 已足當里程碑；S2（11 寫入點 dual-write/read + backfill）待業主可跑 DB 整合測試的環境。CR-0176 §9 S2/S3 為待辦。 |
+| **FR-PLT-02** RBAC resource-level enforce | **我逐一盤 23 router 提角色建議** | 見下「§FR-PLT-02 逐一盤點」——**codegraph 精確盤點後，verifier 的「23 router 無防護」大幅縮水**：絕大多數已有 `require_platform_admin`/`require_internal_token`/`require_sod`/`require_keeper_role`/consumer token/webhook 簽章守衛；真正只 `require_tenant` 的僅 `notifications_v2`（低風險）。 |
+
+#### §FR-PLT-02 逐一盤點（codegraph 實據，供業主核）
+
+verifier 原稱「23 router 只 `require_tenant`」係**只 grep `role_required` 字面、漏算其他守衛**。逐一盤：
+
+| router | 實際守衛（codegraph） | 判定 | 建議 |
+|---|---|---|---|
+| `vouchers_void` | `require_keeper_role` | ✅ 已防護（金流 keeper 角色） | 無需動 |
+| `cancellation` | `require_tenant` + `require_sod_actors` | ✅ SoD 守衛敏感 | 選配：加 `role_required(*OPS)` 縱深 |
+| `device_warranty` | `require_tenant` + `require_sod_actors` | ✅ SoD 守衛 | 選配：同上 |
+| `consumer_v2` | consumer stateless token | ✅ 意圖公開（客戶端 token） | 無需動 |
+| `internal_ingest` | `require_internal_token` | ✅ 服務間 token | 無需動 |
+| `line_webhook` | X-Line-Signature 簽章 | ✅ webhook 驗簽 | 無需動 |
+| `platform_auth` | 登入/公開 | ✅ auth 端點 | 無需動 |
+| `platform_{monitor,tenants,technicians,vendors}` | `require_platform_admin` | ✅ 平台管理員 | 無需動 |
+| `platform_brand_applications` | 部分公開申請 + `require_platform_admin`（審核） | ✅ 公開申請意圖 + 審核受保護 | 無需動 |
+| `public` | 公開（lookup 等） | ✅ 意圖公開 | 無需動 |
+| **`notifications_v2`** | **僅 `require_tenant`**（create/patch/mark-read） | 🟡 **唯一真只租戶級** | 低風險（通知本為租戶內）；建議：`create` 端點收緊為 `role_required(*OPS_ROLES)`，讀/標記維持 tenant 級。**待業主點頭再改** |
+
+**結論**：FR-PLT-02 的「resource-level role_required deny-by-default」基線**實質已達成**（角色/平台/SoD/token/簽章混合守衛）；verifier 誤報。**唯一可收緊點＝`notifications_v2` create**（待業主裁決）。細粒度 `permission_shadow` 矩陣仍 shadow＝**超出 FR-PLT-02 基線的未來增強**，非 v1 缺口。
 
 ---
 
