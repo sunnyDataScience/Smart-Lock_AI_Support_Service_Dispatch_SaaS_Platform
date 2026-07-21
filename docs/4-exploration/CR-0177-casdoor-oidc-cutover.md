@@ -180,6 +180,31 @@ gate: 🛑 停在 §8 等業主裁決，未實作任何 code
 - **S2 的硬前置**：此項未修前不得讓 SSO 轉主要路徑。本機可由 admin API 改；**prod 屬共用 infra 需 OPS**。
 - 附帶確認：`expireInHours=1`／`refreshExpireInHours=720` 與本地 access 60min／refresh 30d 對齊。
 
+#### ✅ tokenFormat 修復 done（2026-07-21，本機已套 + 三項驗收全過）
+
+🚨 **踩到的雷：`tokenFields` 吃 Go struct 欄位名（首字大寫），小寫 JSON 名「靜默失效」**
+——不報錯、`update-application` 回 ok、就是不吐該欄位。四變體實測：
+
+| tokenFields | token 欄位數 | properties | 洩密 |
+|---|---|---|---|
+| `["Owner",…,"Properties"]`（大寫） | 19 | ✅ | 無 |
+| `["Properties"]`（大寫） | 12 | ✅ | 無 |
+| `["properties"]`（小寫） | 11 | ❌ | 無 |
+| `[]`（空） | 11 | ❌ | 無 |
+
+**定案值（本機已套）**：
+```
+tokenFormat = "JWT-Custom"
+tokenFields = ["Owner","Name","DisplayName","Email","Id","Type","Roles","Properties"]
+```
+**驗收三項全過**：① properties 三欄齊全（映射可用）② 無 `password`/`passwordSalt`/`passwordType`/
+`totpSecret`/`recoveryCodes`/`mfa*`/`ldap`/`permissions` ③ 標準 claim（`jti`/`iat`/`exp`/`iss`/`aud`/`sub`）
+齊全 → **本地 `revoked_jti` 撤銷模型可續用，HD-3(a) 確認成立**。
+token 由 80 欄（含憑證類）收斂為 19 欄（純身分/顯示）。
+
+> ⚠️ **prod 待辦（OPS）**：prod Casdoor 的 `smartlock-portal` 需套**完全相同**的
+> `tokenFormat`/`tokenFields`（**注意大小寫**）。未套前 prod 不得讓 SSO 轉主要路徑。
+
 ### ✅ S1 done — 後端 dual-accept（alg 路由）
 
 `core/deps.py:_decode_any_token` 由「HS256 先試、失敗才試 OIDC」改為**依 JWT header `alg` 路由**：
@@ -189,7 +214,8 @@ RS256→`verify_oidc_token`（第一級公民）、HS256→`decode_token`（過�
 
 ### ⬜ 待續
 
-- **S2 SSO 轉主要登入路徑** — **卡在 tokenFormat 修復**（見上）。修好後：四站登入頁預設走 SSO、本地密碼降為 break-glass。
+- **S2 SSO 轉主要登入路徑** — ✅ **本機前置已解除**（tokenFormat 修復完成）。四站登入頁預設走 SSO、
+  本地密碼降為 break-glass。⚠️ **prod 仍卡 OPS 套 tokenFormat**（見上）。
 - **S3 前端 localStorage auth 退場**（HD-7 只退 auth）：`decodeJwtPayload` 移除、session 全走 claims cookie、四站同步。
 - **S4 break-glass** 本地登入路徑 + 稽核告警（HD-6）。
 - **S5** 過渡期滿移除 HS256 分支（不可逆點）+ 收尾（WBS 2.1.1／Traceability／CHANGELOG）。
