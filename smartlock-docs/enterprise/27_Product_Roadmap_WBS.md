@@ -111,7 +111,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 2.3.1 | ✅ 2026-07-10（CR-0139：`refinery/` member——DB 直連汲取 default-deny＋LLM 兩軌分流＋migration 094 Draft Queue 狀態機；7 tests；live LLM 煉製隨 2.3.2 驗。case_entries 表名衝突落 §8-1 待業主，阻 2.3.2）〔標注 2026-07-11：CR-0157 目錄遷至 `knowledge-pipeline/refinery/`〕 | knowledge-refinery 服務：診斷對話輸入汲取（吃 `knowledge_ready` 卡）+ 提煉分流 | DT | 1.2.3 / 1.2.4 | ADR-018；KR P1/05（已整併 15_SDS §9） |
 | 2.3.2 | ✅ 2026-07-10（CR-0140：case_entries 併形 095＋rag 案例查詢修復；FastAPI 審核服務＋UI :8002；Publisher 核可才落地——事實軌 embed+case_entries／行為軌 patch+apply CLI；12 tests。遺留：auth 隨 2.1.1 Casdoor 化） | HITL 審核 UI（draft → 人審 diff → 核可落地 pgvector + skill）| FE+DT | 2.3.1 | ADR-018 §審核層 |
 | 2.3.3 | ✅ 2026-07-13（CR-0167/0168 LiveSkill：skill 從綁 image 改「品牌庫 SSOT＋agent workspace overlay 物化」，發佈後 ≤60s 生效不重佈——migration 106 版控（`saas.skill_revision`/`skill_bundle`/`skill_audit_log`）＋`skills_v2` API（CRUD/publish/回滾）＋`SkillSync` 60s 輪詢物化＋品牌後台「AI 技能」編輯/版本/發佈/回滾＋refinery 行為軌改走 `/internal/skills/ingest`（merge draft 人審發佈）；品質保證回歸測試位元組級不變；api 14＋agent 9＋refinery 7 綠。剩 agent 重佈一次由使用者執行）〔標注 2026-07-13（CR-0167）：本列 LiveSkill 為業主 CR-0167 新能力，原 roadmap 知識線無對應項，依「新增段」補登〕〔標注 2026-07-18：三項追加——①容器缺口修復（compose 缺 `AGENT_TENANT_ID`＋agent image 缺 psycopg，LiveSkill 在容器從未生效，fail-soft 掩蓋；已修＋雲端重佈 checklist 記載）；②rel_path 驗證閘 ASCII 白名單擋出廠中文/括號/加號實檔→品牌後台對產品知識庫存草稿/發佈全 422 死鎖（seed 直 SQL 繞過入庫暗藏），改黑名單制＋回歸測試 2（CR-0167 進度）；③#10 知識庫 UI 三步完結（CR-0171：口語化＋品牌分組收合樹＋型號知識新增精靈——小編表單新增不寫 markdown，存草稿 live 實證含中文檔名整樹 PUT）〕 | Skill 熱更新 LiveSkill：知識版控 + 品牌自維編輯 + pipeline 自動汲取 draft + 熱物化不重佈 | BE+AG+FE | 2.3.2 | ADR-032；CLAUDE.md Arch Lock 條 2 |
-| 2.4.1 | 🔶 方案A/B 已落地（CR-0112：雙 stack＋技師身分權威庫拆分＋投影雙寫＋API_SURFACE 塑形＋tech web；稽核 2026-07-10 查實）。ADR-016 完整形態（OHS API/事件投影/品牌不直連）依業主 0703 裁決隨 AI-2/AI-3 | technician-platform 獨立系統：技師庫 + tech-api + 師傅 web 拆出 | BE+FE | M1 | ADR-016；跨租戶單一身分 |
+| 2.4.1 | 🔶 方案A/B 已落地（CR-0112：雙 stack＋技師身分權威庫拆分＋投影雙寫＋API_SURFACE 塑形＋tech web；稽核 2026-07-10 查實）。ADR-016 完整形態（OHS API/事件投影/品牌不直連）依業主 0703 裁決隨 AI-2/AI-3〔標注 2026-07-22（Plane 對帳輪）：Plane 卡已改 **Done**——0719 tech/platform 上雲＋B1 業主親證（0721 codegraph 稽核輪改卡）；殘項 ADR-016 完整形態本屬階段二 AI-2/AI-3 範圍，階段一範圍已完。原文 🔶 不動，狀態升 ✅ 留待業主確認〕 | technician-platform 獨立系統：技師庫 + tech-api + 師傅 web 拆出 | BE+FE | M1 | ADR-016；跨租戶單一身分 |
 | 2.4.2 | ✅ 2026-07-10 帳面收斂（CR-0115 早已落地：migration 089/090＋三層註冊＋PII 加密＋文件上傳＋平台審核 KYC 區塊＋測試 14+；稽核查實。遺留：雲端套 089/090＋GCS 落點＋tech-register i18n） | 技師 KYC 註冊三層（登入/註冊分離 + 敏感 PII + 文件上傳）| BE+FE | 2.4.1 | CR-0115（七項設計裁決依 §8）|
 | 2.4.3 | ✅ 2026-07-10（CR-0144：/internal/requote-requests＋冪等回放/409＋v+1 supersedes 串鏈＋cs_fallback 降級＋TC-DISPATCH-07 測試 4/4。技師 UI 入口＋cs_fallback 代發起已補（scope-change 舊頁原地改造去定價）；多品牌路由隨 AI-2/AI-3） | OHS requote command 通道（tenant 路由 + 冪等 + 降級）| BE | 2.4.1 / 1.2.1 | ADR-027；FR-TEC-07；TC-DISPATCH-07 |
 | 2.4.4 | ✅ 2026-07-17（CR-0169 技師 LINE 推播全鏈：綁定碼＋webhook HMAC 驗簽＋推播服務（內容最小化無 PII）＋assign/reassign/池單三掛點＋師傅站綁定卡；live E2E＋pytest 6 綠。**剩外部**：業主送件平台 LINE 官方帳號（Messaging＋Login 兩 channel），憑證到手帶 env 重佈即生效）＋（#18 首步：師傅站 PWA 可安裝化——manifest/SW 離線殼/install 橫幅/iOS 手動加入；Playwright 驗證 beforeinstallprompt 可安裝；完整 RN 為月級終態待商業決策）〔標注 2026-07-18：本列為 0715 會議 #14/#18 技師觸達訴求，原 roadmap 無對應項，依「新增段」慣例補登（同 2.3.3 先例）〕 | 技師觸達：平台 LINE 官方號推播（接單即知）＋師傅站 PWA（裝主畫面、全螢幕）；RN APP 為後續終態 | BE+FE | 2.4.1 | CR-0169；0715 會議 §七 |
@@ -130,11 +130,11 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 
 | WBS | 狀態 | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
 |---|---|---|---|---|---|
-| 3.1.1 | ⬜ | Kafka 事件骨幹：`commission.accrued` / 工單投影事件上線（替換 outbox 輪詢）| BE+OPS | 階段閘 | ADR-006 / ADR-017；17_AsyncAPI |
+| 3.1.1 | ⬜〔標注 2026-07-22（Plane 對帳輪）：Plane 卡=**In Progress**——0721 codegraph 稽核證事件骨幹 code 已在，惟 opt-in `KAFKA_BOOTSTRAP` 未啟用=runtime 休眠；非未動工亦非完成〕 | Kafka 事件骨幹：`commission.accrued` / 工單投影事件上線（替換 outbox 輪詢）| BE+OPS | 階段閘 | ADR-006 / ADR-017；17_AsyncAPI |
 | 3.1.2 | ⬜ | 技師工作台改吃 CQRS 投影（跨品牌工單聚合）| BE+FE | 3.1.1 / 2.4.1 | FR-TEC-*；TC-DISPATCH-05 欄位最小化 |
-| 3.2.1 | ⬜ | 期末對帳 reconcile 閘門（品牌計費 vs 平台結算對平）| BE+DT | 3.1.1 | BR-SETTLE-05；FR-E03 |
+| 3.2.1 | ⬜〔標注 2026-07-22（Plane 對帳輪）：Plane 卡=**In Progress**——0721 codegraph 稽核證 reconcile 閘門雛形 code 已在，生產未啟用〕 | 期末對帳 reconcile 閘門（品牌計費 vs 平台結算對平）| BE+DT | 3.1.1 | BR-SETTLE-05；FR-E03 |
 | 3.3.1 | ⬜ | License → provisioning 自動化（開站流程腳本化）| OPS | 2.1.1 | ADR-002（per-brand bundle）|
-| 3.4.1 | ⬜ | 雲端拓撲對齊（tech / platform 面雲端部署 + 技師庫上雲）| OPS | 2.4.1 | 平台 L1 G-01 收斂 |
+| 3.4.1 | ⬜〔標注 2026-07-22（Plane 對帳輪）：Plane 卡=**Done**——0719 tech/platform 面雲端部署＋技師庫上雲，B1 業主親證（0721 稽核輪改卡）；本列經業主確認後可打 ✅〕 | 雲端拓撲對齊（tech / platform 面雲端部署 + 技師庫上雲）| OPS | 2.4.1 | 平台 L1 G-01 收斂 |
 | 3.5.1 | ⬜ | 第 2 品牌租戶開站演練（全流程 dry-run：申請 → 核准 → 開站 → 綁 LINE）| PM+OPS | 3.3.1 | 開站 SOP 文件化；**M3 Release gate** |
 
 ### M4 / M5 平台化（概要層級）
