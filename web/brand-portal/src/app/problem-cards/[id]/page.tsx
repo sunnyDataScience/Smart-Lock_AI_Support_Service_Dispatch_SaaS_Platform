@@ -19,6 +19,7 @@ import FmeaDiagnosisCard from "@/components/problem-cards/FmeaDiagnosisCard";
 import LinkedConversationCard from "@/components/problem-cards/LinkedConversationCard";
 import ResolutionTimeline from "@/components/problem-cards/ResolutionTimeline";
 import ProblemCardDetailSidebar from "@/components/problem-cards/ProblemCardDetailSidebar";
+import { AuthImage, AuthImageLightbox } from "@/components/media/AuthImage";
 import { ApiError, api, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
@@ -170,6 +171,8 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [resolveModalOpen, setResolveModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [convertModalOpen, setConvertModalOpen] = useState(false);
+  // CR-0178 輪次 C：附件照片 lightbox
+  const [previewMediaUrl, setPreviewMediaUrl] = useState<string | null>(null);
   const [diagnosisModalOpen, setDiagnosisModalOpen] = useState(false); // CR-0132 雙 gate 診斷/知識欄位
   const [autoResolveResult, setAutoResolveResult] = useState<ResolveResponse | null>(null);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -884,18 +887,22 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                 </div>
               </div>
 
+              {/* CR-0178 輪次 C：/api/v1/media/{id} 需認證，裸連結點擊 401——
+                  改 AuthImage 縮圖 + lightbox（CR-0179 起 AI 建卡自動帶對話照片，此區高頻） */}
               {card?.media_urls && card.media_urls.length > 0 && (
                 <div className="mt-6 flex flex-col gap-2">
                   <span className="text-[13px] font-medium text-[var(--text-secondary)]">附件</span>
-                  <ul className="list-disc pl-5 text-[13px] text-[#2563EB]">
+                  <div className="flex flex-wrap gap-2">
                     {card.media_urls.map((url) => (
-                      <li key={url}>
-                        <a href={url} target="_blank" rel="noreferrer" className="hover:underline">
-                          {url}
-                        </a>
-                      </li>
+                      <AuthImage
+                        key={url}
+                        url={url}
+                        alt="附件照片"
+                        className="h-32 w-32 cursor-pointer rounded-lg border border-[var(--border)] object-cover"
+                        onClick={() => setPreviewMediaUrl(url)}
+                      />
                     ))}
-                  </ul>
+                  </div>
                 </div>
               )}
             </div>
@@ -945,6 +952,14 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
             setConvertErr(null);
           }}
           onSubmit={handleConvertToWO}
+        />
+      )}
+
+      {previewMediaUrl && (
+        <AuthImageLightbox
+          url={previewMediaUrl}
+          alt="附件照片預覽"
+          onClose={() => setPreviewMediaUrl(null)}
         />
       )}
 

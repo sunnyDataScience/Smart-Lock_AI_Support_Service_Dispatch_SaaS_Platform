@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { Headset, ImageOff, Sparkles } from "lucide-react";
-import { auth } from "@/lib/api";
+import { AuthImage } from "@/components/media/AuthImage";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -10,73 +10,28 @@ type Message = components["schemas"]["Message"];
 
 /**
  * 對話照片（CR-0119）：media_url 指向 GET /api/v1/media/{id}，端點需
- * Bearer token + X-Tenant-ID，<img src> 直連會 401。比照 MediaGallery 的
- * 「帶 token fetch → blob URL」模式顯示；絕對 URL（日後 GCS 簽名 URL）直接用。
+ * Bearer token + X-Tenant-ID，<img src> 直連會 401。
+ * CR-0178 輪次 C：fetch→blob 邏輯抽至共用 <AuthImage>（media/AuthImage.tsx），
+ * 此處僅保留深色泡泡配色的佔位（thin wrapper，避免同款程式碼第 4 份複本）。
  */
 function AuthChatImage({ url, alt }: { url: string; alt: string }) {
-  const [src, setSrc] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  const objectUrlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    setFailed(false);
-    if (/^https?:\/\//.test(url)) {
-      setSrc(url);
-      return;
-    }
-    let cancelled = false;
-    const ac = new AbortController();
-    // || 而非 ??：docker build 會把未設的 env 烘成空字串，?? 接不住（lib/api.ts 同款）
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
-    const token = auth.getAccessToken();
-
-    (async () => {
-      try {
-        const res = await fetch(`${baseUrl}${url}`, {
-          headers: {
-            Authorization: token ? `Bearer ${token}` : "",
-            "X-Tenant-ID": auth.getTenantId(),
-          },
-          signal: ac.signal,
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const blob = await res.blob();
-        const objUrl = URL.createObjectURL(blob);
-        objectUrlRef.current = objUrl;
-        if (!cancelled) setSrc(objUrl);
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-      ac.abort();
-      if (objectUrlRef.current) {
-        URL.revokeObjectURL(objectUrlRef.current);
-        objectUrlRef.current = null;
-      }
-    };
-  }, [url]);
-
-  if (failed) {
-    return (
-      <div className="flex items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-[12px] text-white/80">
-        <ImageOff className="h-4 w-4" />
-        照片載入失敗
-      </div>
-    );
-  }
-  if (!src) {
-    return (
-      <div className="flex h-[160px] w-[220px] items-center justify-center rounded-md bg-white/15 text-[12px] text-white/70">
-        照片載入中…
-      </div>
-    );
-  }
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} decoding="async" className="max-h-[240px] rounded-md" />
+    <AuthImage
+      url={url}
+      alt={alt}
+      className="max-h-[240px] rounded-md"
+      errorNode={
+        <div className="flex items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-[12px] text-white/80">
+          <ImageOff className="h-4 w-4" />
+          照片載入失敗
+        </div>
+      }
+      loadingNode={
+        <div className="flex h-[160px] w-[220px] items-center justify-center rounded-md bg-white/15 text-[12px] text-white/70">
+          照片載入中…
+        </div>
+      }
+    />
   );
 }
 
