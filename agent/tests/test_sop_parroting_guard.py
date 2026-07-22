@@ -50,10 +50,14 @@ def test_handoff_exception_covers_parroting():
     assert "不算主動詢價" in text
 
 
-# ── 版本已 bump（v1.5.0 起含本防護）──
+# ── 版本已 bump（v1.5.0 起含本防護；後續版本只增不減）──
 def test_skill_version_bumped():
+    import re
+
     text = SKILL_MD.read_text(encoding="utf-8")
-    assert "version: 1.5.0" in text
+    m = re.search(r"^version: (\d+)\.(\d+)\.(\d+)$", text, re.M)
+    assert m, "SKILL.md frontmatter 應含 semver version"
+    assert (int(m.group(1)), int(m.group(2))) >= (1, 5)
 
 
 # ── loader 路徑：LLM read_file 實際讀到的內容含新指引 ──

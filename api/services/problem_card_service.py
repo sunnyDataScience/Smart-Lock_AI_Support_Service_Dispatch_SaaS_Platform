@@ -773,6 +773,51 @@ async def _ensure_line_case(*, tenant_id: str, conv_id: str, pc_id: str, summary
         logger.warning("CR-0108 S3 ensure LINE case 失敗（已略過）", exc_info=True)
 
 
+async def _conversation_media_urls(conv_id: str, limit: int = 5) -> list[str]:
+    """CR-0179：反查該對話近 24h 的照片 URL（時間正序）。
+
+    照片由 CR-0119 ingest 管線落 media_files，messages.metadata.image_url 指向
+    /api/v1/media/{id}。session 終身同 conv → 必須加時間窗防陳年舊照；
+    fail-soft：查詢失敗回 []（照片是加值，建卡是主流程）。
+    """
+    try:
+        cur = await db_module._conn.execute(
+            "SELECT COALESCE(metadata->>'image_url', metadata->>'media_url') AS u "
+            "FROM messages "
+            "WHERE conversation_id = %s::uuid "
+            "  AND COALESCE(metadata->>'image_url', metadata->>'media_url') IS NOT NULL "
+            "  AND created_at > NOW() - INTERVAL '24 hours' "
+            "ORDER BY created_at DESC LIMIT %s",
+            (conv_id, limit),
+        )
+        rows = await cur.fetchall()
+        return [r[0] for r in reversed(rows) if r[0]]
+    except Exception:  # noqa: BLE001 — fail-soft：照片反查失敗不擋建卡
+        logger.warning("conversation media 反查失敗（照片略過）：conv=%s", conv_id[:8], exc_info=True)
+        return []
+
+
+async def _merge_media_urls(pc_id: str, new_urls: list[str]) -> None:
+    """CR-0179：media_urls append-only 聯集（沿 TI-M03-07——不覆蓋客服手附證據照）。"""
+    try:
+        mcur = await db_module._conn.execute(
+            "SELECT media_urls FROM problem_cards WHERE id = %s::uuid", (pc_id,)
+        )
+        mrow = await mcur.fetchone()
+        existing_media = mrow[0] if mrow and isinstance(mrow[0], list) else []
+        merged: list[str] = list(existing_media)
+        for u in new_urls:
+            if u not in merged:
+                merged.append(u)
+        if merged != existing_media:
+            await db_module._conn.execute(
+                "UPDATE problem_cards SET media_urls = %s::jsonb WHERE id = %s::uuid",
+                (json.dumps(merged), pc_id),
+            )
+    except Exception:  # noqa: BLE001 — fail-soft
+        logger.warning("media_urls 合併失敗（照片略過）：pc=%s", pc_id[:8], exc_info=True)
+
+
 async def escalation_to_draft_pc(
     *,
     tenant_id: str,
@@ -853,6 +898,12 @@ async def escalation_to_draft_pc(
     # 症狀文字優先取 LLM 抽出的精準症狀，其次客人原話摘要，再否則 agent 轉接理由
     symptom_text = (ai_symptom or excerpt or reason or "").strip()[:1000] or "（客人轉真人，詳見對話）"
 
+    # CR-0179 共同段：反查該對話近 24h 的照片（CR-0119 管線已落 media_files＋
+    # messages.metadata.image_url），掛進草擬卡 media_urls。fail-soft：照片是加值、
+    # 建卡是主流程（比照 CR-0102 電話回填模式）。24h 窗＝session 終身同 conv 的
+    # 防陳年舊照（與冪等 dedup 視窗對齊）；LIMIT 5 防爆量。
+    conv_media = await _conversation_media_urls(conv_id)
+
     # TI-M03-06 / A06：sha256 冪等鍵 + 24h dedup 視窗（抵抗 DLQ/outbox retry 重複建卡）。
     # brand 在 AI 草擬卡多為空，鍵以 conv_id + 症狀 為主。命中 24h 內同鍵 → 回既有（冪等）。
     # CR-0096：只認「仍 active」的卡為 dedup 目標 —— 已轉工單/結案的舊卡不算，
@@ -895,6 +946,9 @@ async def escalation_to_draft_pc(
             "WHERE id = %s::uuid",
             (json.dumps(merged, ensure_ascii=False), idem_key, pc_id),
         )
+        # CR-0179：併卡也補掛照片（append-only 聯集，沿 TI-M03-07 不覆蓋客服手附）
+        if conv_media:
+            await _merge_media_urls(pc_id, conv_media)
         # CR-0108 S3：併入既有 active 卡時，若該卡尚無 Case（pre-S3 舊卡）則補連一張。
         await _ensure_line_case(tenant_id=tenant_id, conv_id=conv_id, pc_id=pc_id, summary=symptom_text)
         card = await get_card(tenant_id=tenant_id, pc_id=pc_id)
@@ -908,9 +962,9 @@ async def escalation_to_draft_pc(
     cur = await db_module._conn.execute(
         "INSERT INTO problem_cards "
         "  (conversation_id, brand, model, category, symptoms, urgency, intent, status, "
-        "   source, ai_missing_fields, idempotency_key, tenant_id) "
+        "   source, ai_missing_fields, idempotency_key, tenant_id, media_urls) "
         "VALUES (%s::uuid, %s, %s, %s, %s::jsonb, %s, 'repair', 'incomplete', "
-        "        'ai_line', %s::jsonb, %s, %s::uuid) "
+        "        'ai_line', %s::jsonb, %s, %s::uuid, %s::jsonb) "
         "RETURNING id",
         (
             conv_id,
@@ -922,6 +976,8 @@ async def escalation_to_draft_pc(
             json.dumps(missing),
             idem_key,
             tenant_id,  # CR-0132：直接租戶欄
+            # CR-0179：近 24h 對話照片掛卡（無照片存 NULL 維持既有語意）
+            json.dumps(conv_media) if conv_media else None,
         ),
     )
     row = await cur.fetchone()

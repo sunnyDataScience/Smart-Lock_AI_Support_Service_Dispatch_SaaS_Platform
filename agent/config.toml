@@ -36,6 +36,15 @@ postgres_uri_env = "POSTGRES_URI"
 # 抽取器:"llm" = 用 LLM 抽乾淨事實(客人鎖=AS701);"raw" = 整句存(PoC fallback)
 extractor = "llm"
 
+[photo_guides]
+# CR-0179 方案 B:樣本圖引導映射(key → 公開 HTTPS 圖 URL,非機密)。
+# AI 依 SOP 在回覆文末輸出 [[photo-guide:<key>]],gateway 剝除標記並附發 ImageMessage。
+# key 全小寫-連字號(避開 reply_guard 型號/價格 regex 形態);圖放 brand-portal
+# public/photo-guides/(部署即有公開 URL);本機測試可改 http://localhost:3000/...。
+# 注意 LINE ImageMessage 硬性要求 HTTPS、original ≤10MB。
+pre-install = "https://smart-lock-web-sjmxp23sqq-de.a.run.app/photo-guides/pre-install.jpg"
+booking-install = "https://smart-lock-web-sjmxp23sqq-de.a.run.app/photo-guides/booking-install.jpg"
+
 [mcp_servers.locksmith-rag]
 # RAG-via-MCP(ADR-010/WBS 2.2.2):語義檢索兩工具(search_product_manual/search_similar_cases)。
 # 啟用條件:RAG_TENANT_ID 與 POSTGRES_URI 環境變數皆有值;缺任一 → 本 server 跳過,

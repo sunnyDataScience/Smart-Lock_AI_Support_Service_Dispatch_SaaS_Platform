@@ -218,6 +218,44 @@ def _encode_media_for_persist(media_paths: list[str] | None) -> dict:
         return {}
 
 
+# CR-0179 方案 B：AI 回覆內的樣本圖標記（SOP 話術輸出，gateway 確定性夾圖）。
+# key 全小寫-連字號（避開 reply_guard 型號/價格 regex 形態）。
+_PHOTO_GUIDE_RE = re.compile(r"\[\[photo-guide:([a-z0-9-]+)\]\]")
+# handle_text_turn 先截 4900 再回：標記若恰被腰斬，剝掉殘尾防外洩。
+_PHOTO_GUIDE_PARTIAL_RE = re.compile(r"\[\[photo-guide:[a-z0-9-]*$")
+_PHOTO_GUIDE_MAX = 4  # LINE reply/push 上限 5 則，扣 1 則文字
+
+
+def _extract_photo_guides(
+    text: str, guide_map: dict[str, str] | None
+) -> tuple[str, list[str]]:
+    """CR-0179：剝除回覆中的 [[photo-guide:key]] 標記，解析為樣本圖 URL 清單。
+
+    未知 key／未配置映射：只剝不夾圖（fail-soft，標記文字絕不外洩給客人）。
+    回 (乾淨文字, 圖 URL 去重保序、上限 4)。
+    """
+    if not text or "[[photo-guide:" not in text:
+        return text, []
+    urls: list[str] = []
+
+    def _swap(m: re.Match) -> str:
+        key = m.group(1)
+        url = (guide_map or {}).get(key)
+        if url:
+            if url not in urls:
+                urls.append(url)
+        else:
+            logger.warning("photo-guide 標記 key 未配置(僅剝除): {}", key)
+        return ""
+
+    cleaned = _PHOTO_GUIDE_RE.sub(_swap, text)
+    cleaned = _PHOTO_GUIDE_PARTIAL_RE.sub("", cleaned)
+    # 剝除後空白收斂（連續空行→單一空行；行尾空白去除）
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned, urls[:_PHOTO_GUIDE_MAX]
+
+
 async def _classify_sentiment_safe(loop: Any, customer_text: str) -> dict | None:
     """CR-0166 R2：turn 內判定客戶情緒（K3'）。失敗回 None（絕不影響回覆/持久化）。
     只在偵測到「負面」時回 payload（節省——中性/正面無需告警）。"""
@@ -768,12 +806,16 @@ def build_webapp(
     channel_access_token: str,
     escalation_store: Any = None,
     idempotency_store: Any = None,
+    photo_guides: dict[str, str] | None = None,
 ):
     """組 aiohttp app:POST /callback 收 LINE webhook。需要 line-bot-sdk(extra: line)。
 
     escalation_store:傳入則 CR-0022 啟用 —— 本輪 agent 轉真人時旁路建 AI 草擬問題卡。
     idempotency_store:傳入則 CR-0166 R1 啟用 —— LINE webhook 重送以 webhookEventId
       去重（mark-first / at-most-once，跨實例/重啟防護）；None 則不去重（行為同前）。
+    photo_guides:傳入則 CR-0179 啟用 —— AI 回覆含 [[photo-guide:key]] 標記時剝除
+      並附發對應樣本圖 ImageMessage（key→公開 HTTPS URL 映射，config.toml [photo_guides]）；
+      None/空=功能關閉（標記仍會被剝除防外洩）。
     """
     from aiohttp import web
     from linebot.v3 import WebhookParser
@@ -783,6 +825,7 @@ def build_webapp(
         AsyncMessagingApi,
         AsyncMessagingApiBlob,
         Configuration,
+        ImageMessage,
         PushMessageRequest,
         ReplyMessageRequest,
         TextMessage,
@@ -797,12 +840,25 @@ def build_webapp(
     parser = WebhookParser(channel_secret)
     config = Configuration(access_token=channel_access_token)
 
-    async def _send_text(user_id: str, reply_token: str | None, text: str) -> None:
+    async def _send_text(
+        user_id: str,
+        reply_token: str | None,
+        text: str,
+        image_urls: list[str] | None = None,
+    ) -> None:
         """優先 reply(免額度;token 一次性、約 1 分鐘失效),失敗改 push 兜底。
 
         CR-0120:debounce 視窗 + turn 的總耗時可能超過 reply token 效期;
         fire 發生在 webhook 返回之後,須自建 ApiClient(callback 的已關閉)。
+        CR-0179:image_urls 有值時附發 ImageMessage(preview 同 URL;LINE 上限 5 則)。
         """
+        messages: list[Any] = []
+        if text:
+            messages.append(TextMessage(text=text))
+        for u in image_urls or []:
+            messages.append(ImageMessage(original_content_url=u, preview_image_url=u))
+        if not messages:
+            return
         async with AsyncApiClient(config) as api_client:
             line_api = AsyncMessagingApi(api_client)
             if reply_token:
@@ -810,14 +866,14 @@ def build_webapp(
                     await line_api.reply_message(
                         ReplyMessageRequest(
                             reply_token=reply_token,
-                            messages=[TextMessage(text=text)],
+                            messages=messages,
                         )
                     )
                     return
                 except Exception:  # noqa: BLE001 — reply 失敗換 push,不放棄
                     logger.warning("LINE reply 失敗,改用 push", exc_info=True)
             await line_api.push_message(
-                PushMessageRequest(to=user_id, messages=[TextMessage(text=text)])
+                PushMessageRequest(to=user_id, messages=messages)
             )
 
     async def _run_merged_turn(key: str, items: list[dict]) -> None:
@@ -871,9 +927,11 @@ def build_webapp(
         except Exception:
             logger.exception("LINE turn 失敗")
             reply = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
-        if reply:
+        # CR-0179:剝除樣本圖標記(乾淨文字流向送出/持久化/兜底三下游,標記不外洩)
+        reply, guide_urls = _extract_photo_guides(reply, photo_guides)
+        if reply or guide_urls:
             try:
-                await _send_text(user_id, reply_token, reply)
+                await _send_text(user_id, reply_token, reply, image_urls=guide_urls)
             except Exception:  # noqa: BLE001 — 回覆失敗仍要持久化,客服才看得到斷點
                 logger.exception("LINE 回覆送出失敗(reply+push 皆敗)")
         # CR-0166 R2:turn 內判定客戶情緒(K3'/合約 4.4a),負面隨持久化送 API 告警。

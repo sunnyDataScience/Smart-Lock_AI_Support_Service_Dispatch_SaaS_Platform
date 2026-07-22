@@ -47,6 +47,10 @@ class AppConfig:
     # 多供應商 failover：主模型連續錯誤→熔斷→依序改試這些 fallback 模型（LiteLLM 字串）。
     # 空=不啟用（ADR-009；補上 LINE live path 原缺的 failover 接線）。
     fallback_models: tuple[str, ...] = ()
+    # CR-0179 方案 B：樣本圖引導映射（key → 公開 HTTPS 圖 URL）。AI 回覆文末輸出
+    # [[photo-guide:<key>]] 標記，gateway 剝除後附發 LINE ImageMessage。
+    # 空=功能關閉。key 全小寫-連字號（避開 reply_guard 型號/價格 regex 形態）。
+    photo_guides: tuple[tuple[str, str], ...] = ()
 
 
 def _auto_vertex_location(model: str, location: str) -> str:
@@ -84,6 +88,9 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         postgres_uri_env=mem.get("postgres_uri_env", "POSTGRES_URI"),
         extractor=str(mem.get("extractor", "llm")).strip().lower(),
         fallback_models=tuple(str(m) for m in (llm.get("fallback_models") or [])),
+        photo_guides=tuple(
+            (str(k), str(v)) for k, v in (data.get("photo_guides") or {}).items()
+        ),
     )
 
 

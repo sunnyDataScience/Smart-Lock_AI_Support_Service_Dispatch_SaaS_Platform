@@ -1,7 +1,7 @@
 ---
 name: locksmith-cs-sop
 description: "Customer-service routing & handoff SOP for 鎖市 LockSmart locksmith bot — decide whether to answer, transfer to a human (transfer_to_human), or dispatch a technician, plus booking and warranty handling. Use on EVERY customer turn to classify intent and apply the red-line decision tree before answering: pricing/refund/explicit human request → transfer to human (never quote prices); warranty promises (free-of-charge / extension / coverage commitment requests) → transfer to human, never self-adjudicate; structural/motor/admin-lost faults → dispatch; install/repair booking → collect required info; generic warranty concept questions → answer as knowledge; out-of-domain → decline. Pairs with locksmith-product-knowledge (facts)."
-version: 1.5.0
+version: 1.6.0
 metadata:
   tags: [customer-service, routing, handoff, dispatch, 派工, 轉真人, sop, locksmith, locksmart]
   pairs-with: [locksmith-product-knowledge]
@@ -38,7 +38,8 @@ and portable — all rules are in `references/` (no database or runtime needed).
    - **紅燈閃「幾次」不明時不屬此類**(v1.5.0):客戶只說「紅燈一直閃/紅燈閃爍」→ 先走第 6 點
      排查追問(閃幾次?品牌型號?),**確認為閃 4 次(馬達異常)才回到本點派工**——
      紅燈閃爍最常見原因是低電量/輸入錯誤,可自助排除,別直接升級派工。
-4. **預約安裝 / 維修**→ 依 `references/booking.md` 收必抓資訊(安裝要**明說「請提供照片」**;
+4. **預約安裝 / 維修**→ 依 `references/booking.md` 收必抓資訊(安裝要**明說「請提供照片」**,
+   並可在文末附 `[[photo-guide:pre-install]]` 讓系統夾發測量示範圖;
    維修要先收品牌型號+症狀+聯絡方式,禁止只說「幫您安排專員」)。**收齊資訊+客戶確認要預約後 → 呼叫 `transfer_to_human`** 送進系統。
 5. **保固問題**→ 分兩類,**先判是哪類再回**:
    - **承諾要求類 = 紅線,同第 2 點處理**:客戶要你「答應/保證/承諾」保固範圍、免費維修、
@@ -70,6 +71,11 @@ and portable — all rules are in `references/` (no database or runtime needed).
 - **回答型問題(操作/故障排除/規格說明)也要收尾追問**:就算已給出說明,只要客戶**未提供品牌型號**,結尾必須**簡短追問品牌型號**,並補一句「**如果方便,請拍張照片或截圖給我們,會更好判斷**」。此收尾**務必精簡**——只問品牌型號 + 邀請照片即可,**不要再列一整張表單**(避免過度追問)。例外:紅線轉真人 / 領域外婉拒不適用。
 
 ## 話術原則(務必遵守)
+
+- **樣本圖引導(v1.6.0)**:請客人拍照時,可在**回覆文末**輸出標記 `[[photo-guide:<key>]]`,
+  系統會自動把標記換成示範圖片發給客人(客人看不到標記文字)。規則:①一則回覆**至多一個**標記
+  ②key 僅限:`pre-install`(施工前評估 6 項測量示範)、`booking-install`(預約安裝流程說明)
+  ③標記只放文末、不放句中 ④非拍照情境不要輸出標記。
 
 - 派工:**先呼叫 `transfer_to_human`**(單一進線鐵律),再明說「需派技師到場」+「由專員聯繫安排時間/費用」;
   **不承諾具體時間、不承諾具體費用**;**派工原因要明確說出**。缺工具呼叫的派工等於沒派。

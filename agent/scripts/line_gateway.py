@@ -77,7 +77,9 @@ def main() -> None:
     # CR-0166 R1：webhook 重送去重（postgres 後端才有跨實例防護，sqlite 回 None＝不去重）
     idem = build_webhook_idempotency_store(cfg)
     app = build_webapp(loop, cfg.tenant, secret, token, escalation_store=esc,
-                       idempotency_store=idem)
+                       idempotency_store=idem,
+                       # CR-0179：樣本圖引導映射（config.toml [photo_guides]；空=關閉）
+                       photo_guides=dict(cfg.photo_guides) or None)
 
     # CR-0167 SkillSync：品牌庫 published skill → workspace/skills overlay（不重佈更新知識）。
     # HD-3 DB 直讀（POSTGRES_URI）；tenant UUID 沿用 AGENT_TENANT_ID（品牌庫租戶）。
