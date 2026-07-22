@@ -13,8 +13,9 @@
  *   本站無自訂 server span 屬性；@vercel/otel 自動 http span 僅含路由/status 等
  *   標準屬性。token 一律走 Authorization header、不入 URL query（SPA 統一由
  *   src/lib/api.ts 注入 Bearer header），cookie 不進 span 屬性——URL 帶 token 的
- *   洩漏面不存在，風險低。深度遮蔽（比照 api `_PIIScrubExporter`）需自訂
- *   SpanProcessor 耦合 OTel SDK 內部行為，為四站共同的已知遞延項（另輪處理）。
+ *   洩漏面不存在，風險低。深度遮蔽已落地：`observability/piiScrub.ts` 自訂
+ *   SpanProcessor（[scrub, 'auto']，出站前遮蔽字串屬性，比照 api
+ *   `_PIIScrubExporter`）——四站共同遞延項本輪銷案。
  */
 
 /**
@@ -31,9 +32,12 @@ export async function register(): Promise<void> {
   try {
     // 動態 import：套件缺失（例如未來被移出依賴）時走 catch 安靜降級
     const { registerOTel } = await import("@vercel/otel");
+    const { PIIScrubSpanProcessor } = await import("./observability/piiScrub");
     registerOTel({
       // OTEL_SERVICE_NAME 可覆寫（與 api setup_observability 同語意）
       serviceName: process.env.OTEL_SERVICE_NAME || "platform-console",
+      // PII 深度遮蔽（25_Monitoring §3）：scrub 在前、'auto'（預設匯出）在後
+      spanProcessors: [new PIIScrubSpanProcessor(), "auto"],
     });
   } catch (error) {
     // 降級 no-op：可觀測性初始化失敗絕不癱瘓站台
