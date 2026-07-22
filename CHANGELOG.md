@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **UAT-0720 輪次 C：殘項清理四件（branch `fix/uat-0720-round-c`，2026-07-22，業主「繼續修吧」）**：①新共用 `AuthImage`/`AuthImageLightbox`（帶 token fetch→blob；絕對 URL 直用）——問題卡附件裸連結（點擊 401）改縮圖+放大、工單「客戶照片」區修破圖、ChatTimeline 同款複本收斂 ②報價回覆話術分流（12 尾巴）：api 加語意化碼 `QUOTE_ALREADY_DECIDED`/`QUOTE_EXPIRED`（冪等回放不變、transition 不動），gateway 依 error_code 給準確話術（先同意後拒絕≠「未送達」），agent 測試 8 案＋api 回歸 2 案 ③問題卡→工單補 `serial` carry-over（CR-0026 獨漏）④時間軸技師接單/排程顯示全名（fetch 抬升單一請求，fallback shortId）。agent 全套 239 passed。
+
 - **UAT-0720 輪次 A2：09 姓名預填收尾＋08 接單指引＋兩份 CIA（branch `fix/uat-0720-round-a2`，2026-07-22，業主「繼續修」）**：①問題卡 `extracted_fields.customer_name` 上 ProblemCard response（`_PC_SELECT` index 30 append-only＋pydantic 手補欄）＋開單 ConvertModal 預填姓名——09 自動帶入三欄（地址/電話/姓名）到齊 ②測試員指引 `docs/uat/tech-accept-flow-guide-20260722.md`（技師在哪接單＋品牌後台在哪看已接單）③CR-0179 CIA：AI 樣本圖＋拍照回傳三方案（🛑 待業主選 A/B/C）④CR-0180 CIA：免責簽署連結 LINE 推播——token/推播/簽署頁基建全在、半天可做，但**會把「待法務定稿」草稿免責文本正式推給客戶**＋新端點屬 contract 變更（🛑 停 §8：法務 gate／token 授權外溢知情／WEB_BASE_URL 部署 parity）。
 
 - **UAT-0720 輪次 A：外部測試修復五項（branch `fix/uat-0720-round-a`，2026-07-22，CR-0178，業主「先做 A」）**：①工單「叫料申請/通知延遲」按鈕依後端 `_SUBFLOW_FROM` 灰化＋提示（原本點了才吃 409）②`accepted_at` 上 WorkOrder envelope（service SELECT index 39＋pydantic model＋openapi.yaml＋四站型別再生），品牌後台 SLA 時間軸「接受」節點顯示接單時間、WorkTimeline 新增「技師接單」事件 ③問題卡開單 ConvertModal 預填聯絡電話（`contact_phone`）＋姓名/電話欄 placeholder 註明留空沿用 ④技師註冊 `register_technician` 鏡射段 R1 加固 fail-soft（原雙庫鏡射失敗→註冊 500 但權威庫已寫入→重試撞 EMAIL_TAKEN 的狀態分裂；即 0720 外測「系統發生問題」活路徑），配套 lifecycle 鏡射順序改 users→technicians（投影 FK 自癒）＋注入測試 ⑤`locksmith-cs-sop` v1.5.0：複誦例句判別（整段貼回 AI 例句不觸發轉真人）＋紅燈閃爍次數不明先排查再派工＋常見症狀先自答，新增結構守線測試 5 案。遺留：SkillSync 已 publish 環境需品牌後台重發佈 SOP 才生效；api component 測試待安全窗跑。
