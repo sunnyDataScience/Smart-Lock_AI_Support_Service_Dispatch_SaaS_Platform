@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Docs
 
+- **OPS 批次日 runbook＋api.sh secrets 烤入（branch `chore/gate-close-ops-day-20260722`，2026-07-22，業主「今天做」）**：6 路偵察 workflow 盤出全部素材後產出 `docs/ops/ops-batch-day-20260722.md`（Step 0-6 一鍵 runbook：secrets→DB 111-114→WIF→依序重佈→backfill→驗證 9 項）＋兩支冪等腳本（`scripts/ops/opsday-20260722-1-secrets.sh` 建 5 把金鑰＋授權、`-3-wif.sh` 建 CD WIF pool/provider/SA＋gh secret）。**`api.sh` 補烤 8 把 secrets**（`GDPR_DEK_KEK`/`USER_PII_BIDX_KEY`/`MEDIA_ENC_KEY`/`LINE_CHANNEL_SECRET`＋tech 面 `LINE_UID_ENC_KEY`/`LINE_UID_BIDX_KEY`＋`TECH_PORTAL_URL` 動態解析＋`PLATFORM_LINE_*` pre-flight）——0720 checklist §1 四項必改全數落實，根治「手動 set-env 被重佈洗掉」。**完成判準改制**（業主裁決）：功能完成＋代理 UAT＝完成，親驗移交外部測試人員 → 1.7.2/2.6.1 兩 gate 收案 Done。雲端基準釐清：0719 後（水位 110）所有 code/migration 111-114 未上雲。明確排除四項（Casdoor prod 無實體／RAG image 缺 mcp+uv／SigNoz 未部署／KYC 金鑰需再加密輪）。
+
 - **LINE 推播 Hardening 批次生產部署 Release Checklist（branch `docs/release-checklist-line-push-hardening`，2026-07-20，業主「一次做完」）**：把本輪 4 個 CR（CR-0175 outbox 冪等／CR-0172 技師派工 outbox／CR-0174 跨租戶反解 fail-closed／CR-0173 技師 line_user_id 加密）+ R24 env 系列的交錯部署依賴，合成單一可執行 runbook `docs/uat/release-checklist-line-push-hardening-20260720.md`。由 codegraph 稽核 workflow（10 agent：5 萃取 + 5 對 code 逐行稽核驗證）產出，每個 env 名/行號/檔名皆對照實際 code。核心＝一條主部署序列（secret→改 api.sh→schema 雙庫→tech-api 先於 brand-api→backfill→flag 維持關）+ 前置盤點 gate SQL + 部署後驗證清單 + 回滾速查 + Top 8 雷。**稽核發現真 gap**：`scripts/deploy/api.sh` 目前**未掛** `LINE_UID_ENC_KEY`/`LINE_UID_BIDX_KEY`/`TECH_PORTAL_URL`（tech 面）與 `LINE_CHANNEL_SECRET`（all 面），手動 set-env 會被下次重佈洗掉 → 列為部署前必改（另 follow-up 收斂為腳本管控）。同時釐清技師側 webhook 缺 secret 是 **403**、客戶側才 **401**。
 
 ### Added

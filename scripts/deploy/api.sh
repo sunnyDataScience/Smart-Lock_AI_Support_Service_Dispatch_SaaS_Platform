@@ -77,6 +77,16 @@ SECRETS="${SECRETS},API_JWT_SECRET_KEY=API_JWT_SECRET_KEY:latest"
 SECRETS="${SECRETS},INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest"
 # LINE_CHANNEL_ACCESS_TOKEN：客服接管後 push 訊息回 LINE（CR-0024 / line_push_service）
 SECRETS="${SECRETS},LINE_CHANNEL_ACCESS_TOKEN=LINE_CHANNEL_ACCESS_TOKEN:latest"
+# LINE_CHANNEL_SECRET：客戶側 OA webhook 驗簽（0720 checklist §1-3：缺=fail-closed 全 401）。
+# secret 本已存在（agent.sh 同名掛載），此處只是補掛 api 面。
+SECRETS="${SECRETS},LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest"
+# CR-0176 GDPR crypto-shred 三把（0722 OPS 批次日烤入）：未掛=走具名 dev fallback
+# （不安全；GDPR_DEK_KEK 換值會使既有 wrapped DEK 解不開→get_or_create fail-loud）。
+# 注意：KYC_ENCRYPTION_KEY 刻意**不掛**——prod 既有 KYC 密文以 dev fallback 加密，
+# 換鑰須先跑再加密輪（見 docs/ops/ops-batch-day-20260722.md §後續）。
+SECRETS="${SECRETS},GDPR_DEK_KEK=GDPR_DEK_KEK:latest"
+SECRETS="${SECRETS},USER_PII_BIDX_KEY=USER_PII_BIDX_KEY:latest"
+SECRETS="${SECRETS},MEDIA_ENC_KEY=MEDIA_ENC_KEY:latest"
 # ── R6 多面上雲：依 API_SURFACE 掛對應面的 DB URI secret（db.py:assert_uri_strict 要求）──
 #   tech 面需 TECH_POSTGRES_URI；platform 面需 PLATFORM_POSTGRES_URI（皆指向共用 lock-ai
 #   實例的 lock_tech / lock_platform database）。品牌面（all/dispatch）走真雙庫（技師身分
@@ -93,6 +103,21 @@ fi
 if [[ "${API_SURFACE}" == "tech" ]]; then
     SECRETS="${SECRETS},PLATFORM_LINE_CHANNEL_SECRET=PLATFORM_LINE_CHANNEL_SECRET:latest"
     SECRETS="${SECRETS},PLATFORM_LINE_CHANNEL_ACCESS_TOKEN=PLATFORM_LINE_CHANNEL_ACCESS_TOKEN:latest"
+    # CR-0173 技師 line_user_id 欄位級加密兩把金鑰（0720 checklist §1-1：不烤入
+    # 會在重佈時洗掉手動掛載→解密/去重全走 dev fallback 假金鑰）
+    SECRETS="${SECRETS},LINE_UID_ENC_KEY=LINE_UID_ENC_KEY:latest"
+    SECRETS="${SECRETS},LINE_UID_BIDX_KEY=LINE_UID_BIDX_KEY:latest"
+    # 0720 checklist §1-2：technician_line_service.tech_portal_base() 未設退
+    # localhost:3001 → 推播深連結壞。動態解析師傅站 URL 烤入。
+    TECH_WEB_SERVICE_NAME="${TECH_WEB_SERVICE_NAME:-lock-tech-web}"
+    _tech_web_url=$(gcloud run services describe "${TECH_WEB_SERVICE_NAME}" \
+        --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
+    if [[ -n "${_tech_web_url}" ]]; then
+        ENV_VARS="${ENV_VARS},TECH_PORTAL_URL=${_tech_web_url}"
+        echo "  TECH_PORTAL_URL=${_tech_web_url}（技師推播深連結）"
+    else
+        echo "  WARN: 找不到 ${TECH_WEB_SERVICE_NAME} URL —— 推播深連結將退 localhost"
+    fi
 fi
 # CR-0169 技師推播的品牌面半邊（0719 雲端 UAT C-4）：品牌 api 的
 # _notify_tech_line 需要 TECH_API_BASE_URL 指向 tech-api，未設=靜默跳過
@@ -171,10 +196,14 @@ preflight_checks() {
         echo "  OK: uv.lock 與 pyproject.toml 同步"
     fi
 
-    local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY" "INTERNAL_API_TOKEN" "LINE_CHANNEL_ACCESS_TOKEN")
+    local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY" "INTERNAL_API_TOKEN" "LINE_CHANNEL_ACCESS_TOKEN" "LINE_CHANNEL_SECRET" "GDPR_DEK_KEK" "USER_PII_BIDX_KEY" "MEDIA_ENC_KEY")
     # R6：依 API_SURFACE 追加對應面 DB URI secret 的存在性檢查（與上方 SECRETS 掛載一致）
     if [[ "${API_SURFACE}" == "tech" || "${MOUNT_TECH_URI:-}" == "1" ]]; then
         required_secrets+=("TECH_POSTGRES_URI")
+    fi
+    if [[ "${API_SURFACE}" == "tech" ]]; then
+        # 0720 checklist §1-4：PLATFORM_LINE_* 補進 pre-flight（原漏檢）＋CR-0173 兩把金鑰
+        required_secrets+=("PLATFORM_LINE_CHANNEL_SECRET" "PLATFORM_LINE_CHANNEL_ACCESS_TOKEN" "LINE_UID_ENC_KEY" "LINE_UID_BIDX_KEY")
     fi
     if [[ "${API_SURFACE}" == "platform" ]]; then
         required_secrets+=("PLATFORM_POSTGRES_URI")
