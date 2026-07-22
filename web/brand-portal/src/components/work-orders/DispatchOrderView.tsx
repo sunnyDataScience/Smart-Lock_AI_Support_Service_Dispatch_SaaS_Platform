@@ -360,6 +360,34 @@ function ConsentPanel({ workOrderId }: { workOrderId: string }) {
   const t = useTranslations(NS);
   const [items, setItems] = useState<ConsentItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // CR-0180：發送簽署連結（LINE 推播；客戶未綁 LINE 回連結供複製）
+  const [sending, setSending] = useState(false);
+  const [sendResult, setSendResult] = useState<{
+    channel: string;
+    publicPath: string;
+  } | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
+
+  const sendLink = useCallback(async () => {
+    setSending(true);
+    setSendError(null);
+    try {
+      const res = await api.post<{
+        data: { notification_sent: boolean; channel: string; public_path: string };
+      }>(
+        tenantPath(`/work-orders/${encodeURIComponent(workOrderId)}/consents:send-link`),
+        {},
+      );
+      setSendResult({
+        channel: res.data.channel,
+        publicPath: res.data.public_path,
+      });
+    } catch (e) {
+      setSendError(friendlyError(e));
+    } finally {
+      setSending(false);
+    }
+  }, [workOrderId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -403,6 +431,35 @@ function ConsentPanel({ workOrderId }: { workOrderId: string }) {
           </div>
         );
       })}
+      {/* CR-0180：任一未簽 → 顯示發送簽署連結按鈕 */}
+      {items.some((c) => !c.accepted) && (
+        <div className="flex flex-col gap-1.5 pt-1">
+          <div>
+            <button
+              onClick={sendLink}
+              disabled={sending}
+              className="inline-flex items-center gap-1.5 rounded-md border border-[var(--primary)] bg-white px-3 py-1.5 text-[12px] font-semibold text-[var(--primary)] transition hover:bg-[var(--bg-page)] disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <PenLine className="h-3.5 w-3.5" />
+              {sending ? t("consent.sending") : t("consent.sendLink")}
+            </button>
+          </div>
+          {sendResult && sendResult.channel === "line" && (
+            <span className="text-[12px] text-[var(--badge-success-fg)]">{t("consent.sentLine")}</span>
+          )}
+          {sendResult && sendResult.channel !== "line" && (
+            <span className="break-all text-[12px] text-[var(--text-secondary)]">
+              {t("consent.sentNoLine")}
+              {typeof window !== "undefined"
+                ? ` ${window.location.origin}${sendResult.publicPath}`
+                : ` ${sendResult.publicPath}`}
+            </span>
+          )}
+          {sendError && (
+            <span className="text-[12px] text-[var(--error)]">{sendError}</span>
+          )}
+        </div>
+      )}
       <span className="text-[11px] text-[var(--text-disabled)]">{t("consent.note")}</span>
     </div>
   );

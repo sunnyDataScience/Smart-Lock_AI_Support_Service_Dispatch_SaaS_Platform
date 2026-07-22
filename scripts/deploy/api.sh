@@ -69,6 +69,11 @@ ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
 # CR-0153(ADR-020):prod 三庫守衛——漏設對應面 URI 直接拒啟,不靜默 fallback
 ENV_VARS="${ENV_VARS},DB_URI_STRICT=1"
 ENV_VARS="${ENV_VARS},API_SURFACE=${API_SURFACE}"
+# CR-0180：客戶面向連結的 base URL（免責簽署連結/quote/track Flex 連結共用 SSOT，
+# line_flex/builders.py 與 consent_service 讀）。預設=雲端 brand-portal 公開網址；
+# 未設會 fallback 到 example.com 死連結（0719 部署參數 parity 雷同源，故烤入）。
+WEB_BASE_URL="${WEB_BASE_URL:-https://smart-lock-web-sjmxp23sqq-de.a.run.app}"
+ENV_VARS="${ENV_VARS},WEB_BASE_URL=${WEB_BASE_URL}"
 
 # ── Secrets（Secret Manager → 環境變數）──
 SECRETS="POSTGRES_URI=POSTGRES_URI:latest"

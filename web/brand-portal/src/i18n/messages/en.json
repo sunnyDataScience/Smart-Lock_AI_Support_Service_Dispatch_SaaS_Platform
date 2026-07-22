@@ -3830,7 +3830,11 @@
           "accepted": "Accepted",
           "awaitingSign": "Awaiting customer signature",
           "note": "Customers sign via the LINE waiver link; this panel shows status only.",
-          "loading": "Loading…"
+          "loading": "Loading…",
+          "sendLink": "Send signing link",
+          "sending": "Sending…",
+          "sentLine": "Signing link pushed to the customer via LINE.",
+          "sentNoLine": "Customer has no LINE binding — copy this link and share it:"
         },
         "billing": {
           "title": "Charges",

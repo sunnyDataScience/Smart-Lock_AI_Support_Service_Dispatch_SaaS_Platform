@@ -8,7 +8,9 @@ upsert 紀錄。文本以常數存（非 legal_text_versions 版本主檔，避�
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 from datetime import datetime, timezone
 
 import core.db as db_module
@@ -120,3 +122,58 @@ async def record_consents(
             (work_order_id, ctype, bool(accepted), now if accepted else None, TEXT_VERSION, ip_address))
     logger.info("consents recorded: wo=%s types=%s ip=%s", work_order_id, list(consents), ip_address)
     return await get_consents(work_order_id=work_order_id, tenant_id=tenant_id)
+
+
+async def send_sign_link(
+    *, work_order_id: str, tenant_id: str, actor_user_id: str | None = None,
+) -> dict:
+    """CR-0180：鑄造簽署連結（public_token）並 LINE 推播給工單客戶。
+
+    業主 2026-07-22 裁決 1-2：草稿文本先跑通流程（開站前換法務定稿文本）。
+    token 複用 work_order_status purpose（CR-0033 既定設計：同 token 亦可查
+    工單進度——CR-0180 §8-2 業主知情沿用，零新 token 邏輯）。
+    客戶未綁 LINE（channel='none'）時仍回 public_path，供後台複製連結傳遞。
+    """
+    from services import line_push_service, public_token
+
+    conn = await _conn()
+    await _assert_wo_in_tenant(conn, work_order_id, tenant_id)
+
+    token = public_token.generate_token(
+        work_order_id, purpose="work_order_status", tenant_id=tenant_id,
+    )
+    # WEB_BASE_URL 同 line_flex/builders.py SSOT（部署 parity：CR-0180 §8-3 已烤入 api.sh）
+    base = os.getenv("WEB_BASE_URL", "https://lock-ai-web.example.com")
+    url = f"{base}/consent/{token}"
+    text = (
+        "【施工免責同意】您好，請於施工前點擊以下連結，"
+        f"閱讀並勾選施工免責同意書：\n{url}\n（連結 30 天內有效）"
+    )
+    sent, channel = await line_push_service.push_to_work_order_customer(
+        tenant_id=tenant_id, work_order_id=work_order_id, text=text,
+        actor_user_id=actor_user_id,
+    )
+    # 事件留痕（照 notify_delay pattern；event_type CHECK 未含專屬值 → 'other'+kind，
+    # 免 migration；完整 token 禁落庫，只留 hash 供稽核比對）
+    payload = {
+        "kind": "consent_link_sent",
+        "channel": channel,
+        "notification_sent": sent,
+        "token_hash": public_token.token_hash_for_audit(token),
+    }
+    await conn.execute(
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
+        "VALUES (%s::uuid, %s::uuid, %s, 'other', %s::jsonb)",
+        (work_order_id, tenant_id, actor_user_id, json.dumps(payload, ensure_ascii=False)),
+    )
+    logger.info(
+        "consent sign link sent: wo=%s channel=%s sent=%s",
+        work_order_id, channel, sent,
+    )
+    return {
+        "notification_sent": sent,
+        "channel": channel,
+        # 照 quote mint_view_token 慣例回 path，前端以 origin 拼完整連結（LINE 失敗備援）
+        "public_path": f"/consent/{token}",
+    }
