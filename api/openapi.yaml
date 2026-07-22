@@ -6605,6 +6605,11 @@ components:
         scheduled_time: { type: string, format: date-time, nullable: true }
         actual_arrival: { type: string, format: date-time, nullable: true }
         completion_time: { type: string, format: date-time, nullable: true }
+        accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: '技師接單時間（accept/claim 時寫入；CR-0178 UAT-0720-08）'
         version:
           type: integer
           nullable: true

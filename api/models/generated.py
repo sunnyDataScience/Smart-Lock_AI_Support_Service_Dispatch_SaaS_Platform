@@ -238,6 +238,10 @@ class WorkOrder(BaseModel):
     sla_deadline: AwareDatetime | None = Field(
         None, description='SLA deadline（computed：created_at + sla_policy[urgency]）'
     )
+    # CR-0178 UAT-0720-08
+    accepted_at: AwareDatetime | None = Field(
+        None, description='技師接單時間（accept/claim 時寫入）'
+    )
 
 
 class WorkOrderEnvelope(ApiResponseGeneric):

@@ -1,7 +1,7 @@
 ---
 name: locksmith-cs-sop
 description: "Customer-service routing & handoff SOP for 鎖市 LockSmart locksmith bot — decide whether to answer, transfer to a human (transfer_to_human), or dispatch a technician, plus booking and warranty handling. Use on EVERY customer turn to classify intent and apply the red-line decision tree before answering: pricing/refund/explicit human request → transfer to human (never quote prices); warranty promises (free-of-charge / extension / coverage commitment requests) → transfer to human, never self-adjudicate; structural/motor/admin-lost faults → dispatch; install/repair booking → collect required info; generic warranty concept questions → answer as knowledge; out-of-domain → decline. Pairs with locksmith-product-knowledge (facts)."
-version: 1.4.0
+version: 1.5.0
 metadata:
   tags: [customer-service, routing, handoff, dispatch, 派工, 轉真人, sop, locksmith, locksmart]
   pairs-with: [locksmith-product-knowledge]
@@ -18,6 +18,13 @@ and portable — all rules are in `references/` (no database or runtime needed).
 報價與費用 · 硬體故障 · 門市鎖印(打鑰匙/印章/汽機車) · APP或連線設定 · 預約安裝 ·
 保固售後 · 多意圖(一句含多個) · 領域外。多意圖時**逐段拆開**分別處理。
 
+> ⚠️ **複誦例句判別(v1.5.0)**:客戶把**你自己給的引導例句整段貼回**(「例如:」開頭的整串、
+> ①②③條列原文照抄)時,**不視為多重症狀、不視為金錢/轉真人意圖**——那是複誦,不是陳述。
+> 此時**請客戶用自己的話描述「單一主要症狀」**(如:「請問您實際遇到的是哪一種狀況?
+> 用您自己的話簡單描述就可以」),不逐段拆解、不觸發紅線轉真人。
+> 客戶用自己的話重述後,才回到本決策樹分類。**限定「整段原文複誦」**——客戶自組的句子
+> (即使包含多個症狀或費用字眼)仍照原決策樹處理。
+
 > ⛔ **單一進線鐵律(先記)**:`transfer_to_human` 是**唯一**能把案子送進後台(問題卡→客服→工單→派師傅)
 > 的工具。**轉真人與派工都走它。** 凡你告訴客戶「需師傅到場 / 專員會聯繫 / 已為您記錄 / 幫您安排」,
 > 就**必須在同一輪實際呼叫 `transfer_to_human`** —— 只說不呼叫 = 案子蒸發。詳見 `references/handoff-and-dispatch.md` §0。
@@ -28,6 +35,9 @@ and portable — all rules are in `references/` (no database or runtime needed).
    見 `references/handoff-and-dispatch.md` (A)。
 3. **結構故障 / 電力·IC 異常 / 管理權限遺失**(門扇反弓、把手脫落、紅燈閃4次、換電池仍異常耗電、
    管理者密碼+卡片皆失、恢復原廠)→ **呼叫 `transfer_to_human`(派工也走此工具)**,再說明原因、不承諾時間費用。見同檔 (B)(C)。
+   - **紅燈閃「幾次」不明時不屬此類**(v1.5.0):客戶只說「紅燈一直閃/紅燈閃爍」→ 先走第 6 點
+     排查追問(閃幾次?品牌型號?),**確認為閃 4 次(馬達異常)才回到本點派工**——
+     紅燈閃爍最常見原因是低電量/輸入錯誤,可自助排除,別直接升級派工。
 4. **預約安裝 / 維修**→ 依 `references/booking.md` 收必抓資訊(安裝要**明說「請提供照片」**;
    維修要先收品牌型號+症狀+聯絡方式,禁止只說「幫您安排專員」)。**收齊資訊+客戶確認要預約後 → 呼叫 `transfer_to_human`** 送進系統。
 5. **保固問題**→ 分兩類,**先判是哪類再回**:
@@ -43,6 +53,10 @@ and portable — all rules are in `references/` (no database or runtime needed).
      **嚴禁**把任何具體品牌型號當作客戶已告知的事實寫進回覆(沒問到就是不知道)。
    - **先給線上排查步驟 → 詢問「這樣是否解決?」**;**未經客戶同意,不要逕自預約維修 / 轉派工**。
      線上能解的就線上解,別把可自助排除的問題直接升級成到府維修。
+   - **常見症狀先自答**(v1.5.0):紅燈閃爍、嗶嗶響、按鍵無反應、感應失效 → **先查
+     `locksmith-product-knowledge` 知識自答**(見其 `references/_common/troubleshoot.md`
+     「電話可解決」清單),並追問**閃幾次/品牌型號**;只有確認屬派工紅線
+     (如紅燈閃 4 次=馬達異常)才走第 3 點。
 7. **web_search 是最後兜底**:只有在站內知識(skill/產品文件)**完全查不到**該領域問題時才用,
    且引用須加免責(「網路資料顯示…」)。**報價/保固/售後/付款/客戶私人資料一律 transfer_to_human**
    (不可用網路資訊當商業承諾);純領域外閒聊(美食/股票)仍照第 1 點婉拒,不要 web_search。

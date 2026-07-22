@@ -152,9 +152,11 @@ async def _change_status_and_audit(
     async def _mirror_best_effort() -> None:
         """回滾後盡力把投影同步回原值（鏡射半套用時復原；仍失敗僅告警不再 raise）。"""
         try:
-            await mirror_rows("technicians", [tech_id])
+            # CR-0178：順序 users → technicians（投影側 FK technicians.user_id→users.id，
+            # 對齊 ensure_technician_projection——投影缺列時先鏡 technicians 必 FK 爆）
             if user_row:
                 await mirror_rows("users", [str(user_row[0])])
+            await mirror_rows("technicians", [tech_id])
         except Exception:  # noqa: BLE001
             logger.exception(
                 "tech lifecycle 回滾後投影補鏡射失敗：tech=%s", tech_id[:8],
@@ -165,9 +167,12 @@ async def _change_status_and_audit(
     # UAT-0718 R1：鏡射失敗＝非原子跨庫寫入——補償回滾權威庫後如實回 500，
     # 不再讓「權威庫已改、投影沒跟上、稽核 0 筆」的分裂狀態靜默存活。
     try:
-        await mirror_rows("technicians", [tech_id])
+        # CR-0178 UAT-0720-11 配套：順序 users → technicians（投影側 FK
+        # technicians.user_id→users.id）——註冊 fail-soft 後投影兩列全缺時，
+        # 核准路徑才能靠 mirror upsert 自癒補建，不會先鏡 technicians 撞 FK。
         if user_row:
             await mirror_rows("users", [str(user_row[0])])
+        await mirror_rows("technicians", [tech_id])
     except Exception as exc:  # noqa: BLE001
         await _revert_authority()
         await _mirror_best_effort()

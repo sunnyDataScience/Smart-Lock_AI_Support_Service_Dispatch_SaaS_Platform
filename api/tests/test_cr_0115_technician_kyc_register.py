@@ -171,3 +171,30 @@ def test_body_rejects_bad_bank_account():
             name="x", phone="0912345678", email="a@b.com",
             password="techpass123", bank_account="abc",
         )
+
+
+@pytest.mark.asyncio
+async def test_register_survives_mirror_failure(client, monkeypatch):
+    """CR-0178 UAT-0720-11：鏡射炸裂 → 註冊仍成功（fail-soft）、權威庫列存在、不回 500。
+
+    背景：雙庫部署下 mirror_rows 失敗原本未捕捉 → 註冊回 500 但權威庫已 commit，
+    技師重試撞 EMAIL_TAKEN 409（幽靈帳號＋投影缺列）。單庫 fallback 時真
+    mirror_rows 是 no-op，失敗路徑只有 monkeypatch 注入蓋得到。
+    """
+    assert await db_module._ensure_conn()
+
+    async def _boom(table, ids):
+        raise RuntimeError("模擬鏡射炸裂（UndefinedColumn 類）")
+
+    monkeypatch.setattr(auth_service, "mirror_rows", _boom)
+    email = f"kyc-{uuid.uuid4().hex[:8]}@example.com"
+    try:
+        res = await auth_service.register_technician(_full_req(email))
+        assert res["data"]["status"] == "pending_approval"
+        # 權威庫列存在（fail-soft 未回滾註冊本體）
+        cur = await db_module._conn.execute(
+            "SELECT 1 FROM users WHERE email = %s AND role = 'technician'", (email,)
+        )
+        assert await cur.fetchone() is not None, "權威庫 users 列應存在"
+    finally:
+        await _cleanup(email)

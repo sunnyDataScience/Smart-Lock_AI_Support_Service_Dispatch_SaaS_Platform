@@ -644,7 +644,8 @@
         "actionFailed": "操作失敗：{error}",
         "requestReschedule": "申請改期",
         "notifyDelay": "通知延遲",
-        "materialRequest": "叫料申請"
+        "materialRequest": "叫料申請",
+        "subflowDisabledHint": "需已派工後才可操作（工單狀態須為已指派／已接單／進行中）"
       },
       "toasts": {
         "accepted": "已接受派工",
@@ -749,6 +750,8 @@
           "scheduledTitle": "預計到場時間",
           "scheduledWithTech": "技師 {shortId} 已排程",
           "scheduledNoTech": "尚未指派技師",
+          "acceptedTitle": "技師接單",
+          "acceptedByTech": "技師 {shortId} 已接單",
           "arrivedTitle": "技師抵達現場",
           "completedTitle": "工單完工",
           "lastUpdatedTitle": "最後更新",

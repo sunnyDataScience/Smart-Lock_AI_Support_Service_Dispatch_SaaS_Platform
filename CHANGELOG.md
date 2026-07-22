@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Fixed
+
+- **UAT-0720 輪次 A：外部測試修復五項（branch `fix/uat-0720-round-a`，2026-07-22，CR-0178，業主「先做 A」）**：①工單「叫料申請/通知延遲」按鈕依後端 `_SUBFLOW_FROM` 灰化＋提示（原本點了才吃 409）②`accepted_at` 上 WorkOrder envelope（service SELECT index 39＋pydantic model＋openapi.yaml＋四站型別再生），品牌後台 SLA 時間軸「接受」節點顯示接單時間、WorkTimeline 新增「技師接單」事件 ③問題卡開單 ConvertModal 預填聯絡電話（`contact_phone`）＋姓名/電話欄 placeholder 註明留空沿用 ④技師註冊 `register_technician` 鏡射段 R1 加固 fail-soft（原雙庫鏡射失敗→註冊 500 但權威庫已寫入→重試撞 EMAIL_TAKEN 的狀態分裂；即 0720 外測「系統發生問題」活路徑），配套 lifecycle 鏡射順序改 users→technicians（投影 FK 自癒）＋注入測試 ⑤`locksmith-cs-sop` v1.5.0：複誦例句判別（整段貼回 AI 例句不觸發轉真人）＋紅燈閃爍次數不明先排查再派工＋常見症狀先自答，新增結構守線測試 5 案。遺留：SkillSync 已 publish 環境需品牌後台重發佈 SOP 才生效；api component 測試待安全窗跑。
+
 ### Docs
 
 - **OPS 批次日 runbook＋api.sh secrets 烤入（branch `chore/gate-close-ops-day-20260722`，2026-07-22，業主「今天做」）**：6 路偵察 workflow 盤出全部素材後產出 `docs/ops/ops-batch-day-20260722.md`（Step 0-6 一鍵 runbook：secrets→DB 111-114→WIF→依序重佈→backfill→驗證 9 項）＋兩支冪等腳本（`scripts/ops/opsday-20260722-1-secrets.sh` 建 5 把金鑰＋授權、`-3-wif.sh` 建 CD WIF pool/provider/SA＋gh secret）。**`api.sh` 補烤 8 把 secrets**（`GDPR_DEK_KEK`/`USER_PII_BIDX_KEY`/`MEDIA_ENC_KEY`/`LINE_CHANNEL_SECRET`＋tech 面 `LINE_UID_ENC_KEY`/`LINE_UID_BIDX_KEY`＋`TECH_PORTAL_URL` 動態解析＋`PLATFORM_LINE_*` pre-flight）——0720 checklist §1 四項必改全數落實，根治「手動 set-env 被重佈洗掉」。**完成判準改制**（業主裁決）：功能完成＋代理 UAT＝完成，親驗移交外部測試人員 → 1.7.2/2.6.1 兩 gate 收案 Done。雲端基準釐清：0719 後（水位 110）所有 code/migration 111-114 未上雲。明確排除四項（Casdoor prod 無實體／RAG image 缺 mcp+uv／SigNoz 未部署／KYC 金鑰需再加密輪）。
