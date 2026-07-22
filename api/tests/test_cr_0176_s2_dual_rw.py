@@ -47,7 +47,8 @@ def mem_registry(monkeypatch):
 
 async def test_encrypt_user_pii_only_given_fields(mem_registry):
     enc = await dek_service.encrypt_user_pii("u-1", None, {"email": "a@b.tw", "phone": None})
-    assert set(enc) == {"email_enc", "phone_enc"}
+    # S5 前置後 email/phone 另帶 bidx 欄（display_name 無）
+    assert set(enc) == {"email_enc", "phone_enc", "email_bidx", "phone_bidx"}
     assert enc["email_enc"] and enc["phone_enc"] is None  # None/空 → 密文 None
 
 
@@ -97,6 +98,7 @@ async def test_dual_write_sql(mem_registry, monkeypatch):
     assert len(calls) == 1
     sql, params = calls[0]
     assert "display_name_enc = %s" in sql and "phone_enc = %s" in sql
+    assert "phone_bidx = %s" in sql  # S5 前置：phone 併寫盲索引
     assert "WHERE id = %s::uuid" in sql
     assert params[-1] == "u-4" and params[1] is None  # phone None → 密文 None
     # 回寫的 display_name 密文可解回原文

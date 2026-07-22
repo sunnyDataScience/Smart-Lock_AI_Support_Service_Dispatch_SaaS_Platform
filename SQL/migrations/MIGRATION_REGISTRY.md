@@ -145,5 +145,7 @@
 
 | 113 | `113-purge-audit-ledger.sql` | NFR-Priv-008 / FR-API-16 | 🟢 idempotent（CREATE TABLE/INDEX IF NOT EXISTS + CREATE OR REPLACE FUNCTION + DROP/CREATE TRIGGER，拋棄式 PG16 驗證 2026-07-21） | two-phase purge 專用 append-only 稽核帳本：`saas.purge_audit`（phase soft_delete_t0/hard_delete_t30、crypto_shredded/physical_deleted、immutability trigger 擋 UPDATE/DELETE），與泛用 audit_events 併存。gdpr_forget_service soft_delete/hard_delete 各落一筆 |
 
+| 114 | `114-user-pii-blind-index.sql` | CR-0176 S5 前置（業主 0722 A1） | 🟢 idempotent（ADD COLUMN/CREATE INDEX IF NOT EXISTS，拋棄式 PG16 驗證 2026-07-22） | users email/phone blind index：`email_bidx`/`phone_bidx`（HMAC-SHA256，金鑰 env `USER_PII_BIDX_KEY`，app 層 core/user_pii_bidx.py 計算）＋partial index——S5 DROP 明文前 login/EMAIL_TAKEN/phone 去重的等值查改雙謂詞（明文 OR bidx）。backfill＝scripts/backfill_user_pii_encryption.py |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

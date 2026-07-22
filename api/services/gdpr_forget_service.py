@@ -274,6 +274,7 @@ async def soft_delete(
     _enc_clear = (
         "" if _is_tech
         else ", display_name_enc = NULL, email_enc = NULL, phone_enc = NULL"
+             ", email_bidx = NULL, phone_bidx = NULL"  # bidx 必清：確定性索引可反證 email 存在過
     )
     await _conn.execute(
         "UPDATE users SET "
