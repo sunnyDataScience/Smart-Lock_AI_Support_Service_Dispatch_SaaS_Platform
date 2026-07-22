@@ -569,4 +569,12 @@ REST 契約（信封 `ApiResponseGeneric{data, error}` / CursorPage / RFC7807 �
 
 ---
 
+〔標注 2026-07-22（agent 域 UAT-0720-01 稽核，業主裁決 3-1「正典讓步」；不改寫原文，僅新增本段。詳 [ADR-033](./14_ADR/ADR-033_轉真人判準_SOP情境式紅線_取代三輪硬計數.md)〕
+
+| 原文 | 裁決與現況 |
+|---|---|
+| **FR-AGT-03**（§3.1）「連續 3 次未釐清升級轉真人」＋ **§2.2.2**「`clarification_attempts ≥ 3` 未釐清 → 升級轉真人」＋ **§2.1** ProblemCard `clarification_attempts`／`clarification_confirmed_at` 欄位 | **三輪硬計數廢止（正典讓步於 SOP 演進）**——`locksmith-cs-sop` SKILL.md Step 3 明文不採「問三次仍缺就轉真人」硬規則，缺項情境式一次列齊；轉真人判準＝紅線觸發即轉（明確要求真人／急迫派工／金錢相關／連續兩次不滿）。`transfer_to_human` 唯一出口（FR-AGT-05）與 deterministic 兜底（NFR-Rel-003 案子不蒸發）**不變**。`clarification_attempts` 計數器 agent/api/DB 皆未實作（欄位為文件孤兒）；Clarify gate「問題釐清了嗎」保留為話術原則、非硬性狀態機轉移。 |
+
+---
+
 *文件結尾 — 04_SRS v1.0 / 2026-07-07*

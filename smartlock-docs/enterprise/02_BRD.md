@@ -220,6 +220,8 @@ sequenceDiagram
 | **Payment / Refund** | deposit_required → paid → pending（對帳）→ 入帳；失敗 / 客戶退款 → refund_requested → 依責任歸屬 5×3 分層裁決 | 更正一律 reversal entry，帳本 append-only |
 | **Evidence** | fresh → active → pending_purge（retention 到期 T0：銷毀金鑰 + 軟刪）→ purged（T+30 天硬刪）；任何時點可 legal_hold | legal_hold 永久且不可逆，解除須 ADR 變更 |
 
+> 〔標注 2026-07-22：本表 ProblemCard「連續 3 次未釐清 → 升級真人」已由 SOP 演進取代（情境式一次列齊缺項＋紅線觸發即轉，[ADR-033](./14_ADR/ADR-033_轉真人判準_SOP情境式紅線_取代三輪硬計數.md)）；resolved 之「客戶明確答覆已釐清」語意保留為話術原則。〕
+
 ---
 
 ## 6. 業務規則（Business Rules）
@@ -237,6 +239,8 @@ sequenceDiagram
 - **BR-AI-04**：AI 禁區 200 題 Eval pipeline，通過率 < 95% 阻擋部署。
 - **BR-AI-05**：AI 不做影像辨識（合約明文禁止）；圖片僅作附件保存，webhook 入口攔截任何 image-to-text 呼叫，違規次數容忍值 = 0。
 - **BR-AI-06**：Prompt Injection 攔截率 ≥ 95%；內容過濾誤攔率 < 1%；輸出限定智慧鎖（該產業）話題。
+
+> 〔標注 2026-07-22：BR-AI-03 硬規則中「資料連 3 次收不齊自動轉」一條由 SOP 演進取代（[ADR-033](./14_ADR/ADR-033_轉真人判準_SOP情境式紅線_取代三輪硬計數.md)）；其餘紅線規則與「`rule_triggered_by` 由確定性引擎寫入、不得由 LLM 自報」之原則不變（現行確定性層＝reply_guard 出口兜底＋gateway handoff fallback）。〕
 
 ### 6.2 問題卡規則（BR-PC）
 
