@@ -20,7 +20,16 @@
 3. ConsentPanel 加「發送簽署連結」按鈕：LINE 推成功顯示已送；客戶未綁 LINE（channel='none'）給 admin 完整連結可複製
 4. 測試：推播文字含連結且 token 可驗、非 LINE 客戶備援、越租戶 404
 
-## §8 Human Decisions Required 🛑
+## §8 Human Decisions Required ✅（業主 2026-07-22 裁決「1-2」）
+
+1. **現在實作、按鈕全員可用**——草稿文本先跑通流程（測試期客戶皆內部人員），正式開站前換法務定稿文本。
+2. token **沿用**既定 work_order_status 複用設計（零改動，知情）。
+3. `WEB_BASE_URL` **烤入 api.sh**（預設=0719 部署報告的 brand-portal 公開網址 `smart-lock-web-sjmxp23sqq-de.a.run.app`，可 env 覆蓋）。
+
+### 進度
+- ✅ 實作完成（branch `feat/uat-0720-round-b`）：`consent_service.send_sign_link()`（鑄 token→組連結→LINE 推→work_order_events 留痕 event_type='other'+kind=consent_link_sent，CHECK 約束不動、免 migration；完整 token 不落庫只留 hash）＋新端點 `POST /tenants/{tid}/work-orders/{id}/consents:send-link`（_DISPATCH_ALLOWED_ROLES＋冪等）＋ConsentPanel「發送簽署連結」按鈕（LINE 成功/未綁 LINE 複製備援/錯誤三態）＋i18n×2＋api.sh 烤入 WEB_BASE_URL＋component 測試 3 案（待安全窗跑）。openapi.yaml 未回填（consents 系列先例一致，型別 SoT=runtime export）。
+
+## §8 原裁決選項（存檔）
 
 1. **草稿法律文本對外**（關鍵）：三段免責文本目前是「待法務定稿」佔位（`TEXT_VERSION=blueprint-draft-2026-06`，法務窗口=Irene）。做了按鈕＝把草稿文本正式推給真實客戶簽。**要等法務定稿才開放此按鈕，還是先上（測試環境/內部驗證用）？**
 2. **token 授權外溢知情**：consent 複用 `work_order_status` token（CR-0033 既定設計）——發簽署連結等於同時發了工單進度查詢授權（同 token 可查工單進度）。維持複用或另立 purpose？（維持＝零改動；另立＝多一段 token 邏輯）

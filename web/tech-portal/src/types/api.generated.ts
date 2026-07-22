@@ -4601,6 +4601,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tenants/{tenantId}/work-orders/{id}/consents:send-link": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 發送免責簽署連結給客戶 v2（CR-0180；鑄 public_token + LINE 推播）
+         * @description 派工單模組 4：後台按鈕主動推簽署連結（客戶未綁 LINE 時回連結供複製）。
+         *
+         *     冪等防連點重推；token 為 stateless HMAC，重發產生並存有效 token
+         *     （皆指向同一工單的 consent upsert，語意無害；稽核靠事件 token_hash）。
+         */
+        post: operations["sendWorkOrderConsentLinkV2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/tenants/{tenantId}/work-orders/{id}:reopen": {
         parameters: {
             query?: never;
@@ -10026,6 +10049,8 @@ export interface components {
             resolved_by?: string | null;
             /** Location */
             location?: string | null;
+            /** Customer Name */
+            customer_name?: string | null;
         };
         /** ProblemCardCreateRequest */
         ProblemCardCreateRequest: {
@@ -24846,6 +24871,44 @@ export interface operations {
             header?: {
                 Authorization?: string | null;
                 "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sendWorkOrderConsentLinkV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
             };
             path: {
                 tenantId: string;

@@ -270,6 +270,32 @@ async def get_work_order_consents_v2(
 
 
 @router.post(
+    "/tenants/{tenantId}/work-orders/{id}/consents:send-link",
+    operation_id="sendWorkOrderConsentLinkV2",
+    summary="發送免責簽署連結給客戶 v2（CR-0180；鑄 public_token + LINE 推播）",
+    tags=["M06 WorkOrder"],
+)
+async def send_work_order_consent_link_v2(
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(role_required(*_DISPATCH_ALLOWED_ROLES)),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """派工單模組 4：後台按鈕主動推簽署連結（客戶未綁 LINE 時回連結供複製）。
+
+    冪等防連點重推；token 為 stateless HMAC，重發產生並存有效 token
+    （皆指向同一工單的 consent upsert，語意無害；稽核靠事件 token_hash）。
+    """
+    _cross_tenant_write(user, tenantId)
+    from services import consent_service
+
+    result = await consent_service.send_sign_link(
+        work_order_id=id, tenant_id=tenantId, actor_user_id=user.user_id,
+    )
+    return {"data": result, "error": None}
+
+
+@router.post(
     "/tenants/{tenantId}/work-orders/{id}:reopen",
     operation_id="reopenWorkOrderV2",
     summary="返修/reopen — 建子單連回原單 v2（CR-0043 / BR-M05-02）",

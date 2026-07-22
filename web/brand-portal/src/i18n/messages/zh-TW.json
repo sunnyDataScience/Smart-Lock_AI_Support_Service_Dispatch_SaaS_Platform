@@ -3830,7 +3830,11 @@
           "accepted": "已同意",
           "awaitingSign": "待客戶簽署",
           "note": "客戶簽署透過 LINE 免責連結，本頁僅顯示狀態。",
-          "loading": "載入中…"
+          "loading": "載入中…",
+          "sendLink": "發送簽署連結",
+          "sending": "發送中…",
+          "sentLine": "已透過 LINE 推播簽署連結給客戶。",
+          "sentNoLine": "客戶未綁定 LINE，請複製以下連結傳給客戶："
         },
         "billing": {
           "title": "費用明細",

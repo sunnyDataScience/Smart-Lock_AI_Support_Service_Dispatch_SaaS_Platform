@@ -389,6 +389,8 @@ sequenceDiagram
 | 13 | 同一對話多個問題 | 同一 active issue 只開一張問題卡；新症狀 / 新設備另開 | UF-02 |
 | 14 | 跨租戶存取嘗試 | api deny-by-default 403/404 + audit 記錄違規嘗試 | 全流程 |
 
+> 〔標注 2026-07-22：本表 #3「資料連 3 次收不齊 → 自動轉真人」與 UF-02 圖中「L3 失敗／連 3 次收不齊」分支已由 SOP 演進取代——缺項情境式一次列齊、紅線觸發即轉（[ADR-033](./14_ADR/ADR-033_轉真人判準_SOP情境式紅線_取代三輪硬計數.md)）；轉真人出口（transfer_to_human 唯一進線）與 deterministic 兜底不變。〕
+
 ---
 
 *相關文件：[07_Journey_Map](./07_Journey_Map.md) · [09_IA](./09_IA.md) · [16_API_Spec](./16_API_Spec.yaml) · [17_AsyncAPI](./17_AsyncAPI.yaml) · 深度參考 `../00_platform/P1/07_workorder_platform_design.md`、`../technician-platform/P1/05_architecture_and_design.md`*

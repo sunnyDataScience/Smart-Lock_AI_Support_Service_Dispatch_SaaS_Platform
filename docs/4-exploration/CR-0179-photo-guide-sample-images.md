@@ -43,7 +43,19 @@
 
 **共同必做（A/B 皆含 C 的掛卡）**：`_forward_escalation_safe` payload 帶本輪 media → `escalation_to_draft_pc` 寫進 `problem_cards.media_urls`。
 
-## §8 Human Decisions Required 🛑
+## §8 Human Decisions Required ✅（業主 2026-07-22 裁決「2-B」）
+
+**選方案 B：gateway 確定性夾圖**（SOP 標記→gateway 偵測附發 ImageMessage，不動白名單）；含共同段（回傳照片掛回問題卡）。樣本圖初期用會議兩張 JPG 起步；存放採可公開 HTTPS URL（實作定案：優先 brand-portal 靜態資產或 GCS，以 config 映射解耦）。
+
+### 進度
+- ✅ 實作完成（branch `feat/uat-0720-round-b`）：
+  - **共同段（照片掛卡）**：採 api 端自查（gateway 不動、零 contract 變更）——`escalation_to_draft_pc` 反查該對話近 24h 照片（`messages.metadata.image_url`，CR-0119 管線既有 URL）→ 新卡 INSERT `media_urls`／併卡 append-only 聯集（沿 TI-M03-07 不覆蓋客服手附）；`_conversation_media_urls`（LIMIT 5＋24h 窗防 session 終身舊照）＋`_merge_media_urls` 皆 fail-soft。
+  - **夾圖段**：`_extract_photo_guides`（剝 `[[photo-guide:key]]` 標記→URL、未知 key 只剝不夾、截斷殘尾防外洩、上限 4 圖）＋`_send_text` 支援 ImageMessage 多則＋`build_webapp(photo_guides=)` kwarg（None=關閉、行為不變）＋`AppConfig.photo_guides`／config.toml `[photo_guides]` 段＋樣本圖上架 `web/brand-portal/public/photo-guides/`（pre-install/booking-install，會議兩張 JPG）。
+  - **SOP**：SKILL.md v1.5.0→1.6.0「樣本圖引導」話術（文末標記、至多一個、key 白名單）。
+  - 測試：`test_photo_guide.py` 12 案（純函式＋webhook 整合＋SKILL 守線）全綠；agent 全套 231 passed。
+- 遺留：①SkillSync 已 publish 環境需品牌後台重發佈 SOP v1.6.0 才生效 ②照片掛卡 component 測試（需真 DB）待安全窗補 ③問題卡詳情頁 media_urls 為裸連結（點擊 401 既有限制），可另卡搬 ChatTimeline AuthChatImage 縮圖 pattern。
+
+## §8 原裁決選項（存檔）
 
 1. **丟圖機制選 A（LLM 工具）或 B（gateway 確定性夾圖，建議）或 C（先只做掛卡）？**
 2. 樣本圖初期集合與存放：用會議兩張 JPG（施工前評估測量／預約安裝）起步？放 GCS 公開 bucket 或 api 靜態目錄？
