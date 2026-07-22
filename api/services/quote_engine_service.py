@@ -789,8 +789,24 @@ async def customer_respond_to_quote(
     if cur_state == _terminal[decision]:
         return {"quote_id": quote_id, "state": cur_state,
                 "decision": decision, "idempotent_replay": True}
+    # CR-0178 UAT-0720-12 尾巴：語意化衝突碼（供 gateway 話術分流，不再一句
+    # 「報價或已失效」誤導）。transition() 本體不動（其他呼叫端不受影響）。
+    _opposite = {"accept": "rejected", "reject": "accepted"}
+    if cur_state == _opposite[decision]:
+        raise ApiError(
+            "QUOTE_ALREADY_DECIDED", f"quote already {cur_state}", 409,
+            details=[{"current_state": cur_state}],
+        )
+    if cur_state == "expired":
+        raise ApiError("QUOTE_EXPIRED", "quote expired", 409)
     action = "accept" if decision == "accept" else "decline"
-    result = await transition(tenant_id=tenant_id, quote_id=quote_id, action=action)
+    try:
+        result = await transition(tenant_id=tenant_id, quote_id=quote_id, action=action)
+    except ApiError as e:
+        # 真過期首擊（transition 內先改 state='expired' 再 raise STATE_CONFLICT）→ 收斂同碼
+        if e.error_code == "STATE_CONFLICT" and "expired" in e.message:
+            raise ApiError("QUOTE_EXPIRED", "quote expired", 409) from e
+        raise
     return {"quote_id": result["id"], "state": result["state"], "decision": decision}
 
 

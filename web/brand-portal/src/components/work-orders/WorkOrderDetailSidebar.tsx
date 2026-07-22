@@ -20,13 +20,15 @@ import type { components } from "@/types/api.generated";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 type Technician = components["schemas"]["Technician"];
-type TechnicianEnvelope = components["schemas"]["TechnicianEnvelope"];
 type Conversation = components["schemas"]["Conversation"];
 type ConversationEnvelope = components["schemas"]["ConversationEnvelope"];
 
 interface Props {
   workOrder?: WorkOrder;
   conversationId?: string;
+  // CR-0178 輪次 C：technician fetch 抬升至 page.tsx（時間軸也要顯示全名，單一請求）
+  technician?: Technician | null;
+  techError?: string | null;
 }
 
 const AVATAR_PALETTE = ["#DBEAFE", "#FEF3C7", "#FCE7F3", "#E0E7FF", "#D1FAE5", "#FEE2E2", "#F3E8FF", "#FFEDD5"];
@@ -44,49 +46,22 @@ function formatPrice(value?: string | null): string {
   return `NT$ ${n.toLocaleString("zh-TW", { maximumFractionDigits: 0 })}`;
 }
 
-export default function WorkOrderDetailSidebar({ workOrder, conversationId }: Props) {
+export default function WorkOrderDetailSidebar({
+  workOrder,
+  conversationId,
+  technician = null,
+  techError = null,
+}: Props) {
   const t = useTranslations("components.workOrders.detailSidebar");
 
   const brandModel = workOrder
     ? `${workOrder.brand || "—"} ${workOrder.model || ""}`.trim()
     : "—";
 
+  // CR-0178 輪次 C：technician 由 page.tsx fetch 後 props 下傳（原本檔內 fetch）
   const technicianId = workOrder?.technician_id ?? null;
-  const [technician, setTechnician] = useState<Technician | null>(null);
-  const [techError, setTechError] = useState<string | null>(null);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [convError, setConvError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!technicianId) {
-      setTechnician(null);
-      setTechError(null);
-      return;
-    }
-    let cancelled = false;
-    setTechError(null);
-    (async () => {
-      try {
-        const res = await api.get<TechnicianEnvelope>(
-          tenantPath(`/technicians/${encodeURIComponent(technicianId)}`),
-        );
-        if (!cancelled) setTechnician(res.data ?? null);
-      } catch (e) {
-        if (cancelled) return;
-        setTechError(
-          e instanceof ApiError
-            ? friendlyError(e)
-            : e instanceof Error
-              ? e.message
-              : String(e),
-        );
-        setTechnician(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [technicianId]);
 
   useEffect(() => {
     if (!conversationId) {

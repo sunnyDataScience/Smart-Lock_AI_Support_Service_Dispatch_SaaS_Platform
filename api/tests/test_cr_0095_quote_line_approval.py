@@ -248,3 +248,58 @@ async def test_customer_respond_ownership_and_accept():
         await svc._assert_quote_accepted(wid, None, None)
     finally:
         await _cleanup(uid, pid)
+
+
+@pytest.mark.asyncio
+async def test_customer_respond_accept_twice_idempotent(client):
+    """CR-0178 UAT-0720-12 主回歸：客戶連點兩次「同意」→ 第二次冪等回放不 409。"""
+    assert await db_module._ensure_conn()
+    owner_line = f"Uidem{uuid.uuid4().hex[:8]}"
+    wid, pid, uid = await _seed_chain(owner_line)
+    try:
+        qid = await _make_quote(wid, pid, "sent")
+        first = await quote_engine_service.customer_respond_to_quote(
+            tenant_id=TID, quote_id=qid, line_user_id=owner_line, decision="accept")
+        assert first["state"] == "accepted"
+        second = await quote_engine_service.customer_respond_to_quote(
+            tenant_id=TID, quote_id=qid, line_user_id=owner_line, decision="accept")
+        assert second.get("idempotent_replay") is True
+        assert second["state"] == "accepted"
+    finally:
+        await _cleanup(uid, pid)
+
+
+@pytest.mark.asyncio
+async def test_customer_respond_conflict_codes(client):
+    """CR-0178 UAT-0720-12 尾巴：語意化衝突碼——先同意後拒絕=QUOTE_ALREADY_DECIDED、
+    過期=QUOTE_EXPIRED（gateway 據此分流話術，不再一句「已失效」誤導）。"""
+    assert await db_module._ensure_conn()
+    owner_line = f"Uconf{uuid.uuid4().hex[:8]}"
+    wid, pid, uid = await _seed_chain(owner_line)
+    try:
+        # 先 accept 後 reject → QUOTE_ALREADY_DECIDED
+        qid = await _make_quote(wid, pid, "sent")
+        await quote_engine_service.customer_respond_to_quote(
+            tenant_id=TID, quote_id=qid, line_user_id=owner_line, decision="accept")
+        with pytest.raises(ApiError) as ei:
+            await quote_engine_service.customer_respond_to_quote(
+                tenant_id=TID, quote_id=qid, line_user_id=owner_line, decision="reject")
+        assert ei.value.error_code == "QUOTE_ALREADY_DECIDED"
+        assert ei.value.status_code == 409
+
+        # sent 但 expiry_at 已過 → accept 首擊即 QUOTE_EXPIRED（transition 內收斂）
+        qid2 = await _make_quote(wid, pid, "sent")
+        await db_module._conn.execute(
+            "UPDATE quote SET expiry_at = NOW() - INTERVAL '1 day' WHERE id = %s::uuid",
+            (qid2,))
+        with pytest.raises(ApiError) as ei2:
+            await quote_engine_service.customer_respond_to_quote(
+                tenant_id=TID, quote_id=qid2, line_user_id=owner_line, decision="accept")
+        assert ei2.value.error_code == "QUOTE_EXPIRED"
+        # 二擊（state 已被改為 expired）→ 前置檢查同碼
+        with pytest.raises(ApiError) as ei3:
+            await quote_engine_service.customer_respond_to_quote(
+                tenant_id=TID, quote_id=qid2, line_user_id=owner_line, decision="accept")
+        assert ei3.value.error_code == "QUOTE_EXPIRED"
+    finally:
+        await _cleanup(uid, pid)

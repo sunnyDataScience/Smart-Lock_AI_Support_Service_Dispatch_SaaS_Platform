@@ -640,6 +640,41 @@ def _apply_handoff_fallback_safe(
         logger.exception("CR-0097 兜底補 escalation 失敗（已略過，不影響客人）")
 
 
+# CR-0178 UAT-0720-12 尾巴：報價回覆失敗話術依 api error_code 分流（不再一句
+# 「報價或已失效」誤導）。未知 code / body 非 JSON → fallback 現句（鐵律不變）。
+_QUOTE_FAIL_FALLBACK = "您的回覆可能未送達（報價或已失效），請稍後再試或洽客服 🙏"
+_QUOTE_FAIL_MSGS: dict[str, str] = {
+    "QUOTE_EXPIRED": (
+        "這份報價單已超過有效期限，無法直接回覆同意/拒絕 🙏 "
+        "如仍需服務，請直接留言，客服將為您重新確認報價。"
+    ),
+    "NOT_FOUND": (
+        "找不到這份報價單，可能已由客服更新或重新開立 🙏 "
+        "請直接留言，客服將協助您確認最新報價。"
+    ),
+    "FORBIDDEN": "這份報價無法由此帳號回覆，若有疑問請直接留言洽客服 🙏",
+}
+# 相反終態（先同意後拒絕/先拒絕後同意）依客戶這次按的方向給話術
+_QUOTE_DECIDED_MSGS: dict[str, str] = {
+    "reject": (
+        "這份報價先前已同意並安排服務囉 ✅ "
+        "如需取消或調整，請直接留言，客服將盡快與您聯繫。"
+    ),
+    "accept": (
+        "這份報價先前已回覆拒絕 🙏 "
+        "如想重新考慮，請直接留言，客服將為您重新確認報價內容。"
+    ),
+}
+
+
+def _quote_fail_reply(status_code: int, body: dict, decision: str) -> str:
+    """依 api 錯誤 body 的扁平 error_code 選話術；未知 → fallback。"""
+    code = str(body.get("error_code") or "").upper()
+    if code == "QUOTE_ALREADY_DECIDED":
+        return _QUOTE_DECIDED_MSGS.get(decision, _QUOTE_FAIL_FALLBACK)
+    return _QUOTE_FAIL_MSGS.get(code, _QUOTE_FAIL_FALLBACK)
+
+
 async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> str | None:
     """CR-0095：解析 LINE 報價 postback（q:a|<quote_id> 同意 / q:r|<quote_id> 拒絕）
     → 旁路 POST 給 API（X-Internal-Token；API 端驗 line_user 擁有此報價 + 走狀態機）。
@@ -671,7 +706,13 @@ async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> st
             )
         if resp.status_code >= 400:
             logger.warning("報價回覆轉發回 {}:{}", resp.status_code, resp.text[:160])
-            return "您的回覆可能未送達（報價或已失效），請稍後再試或洽客服 🙏"
+            try:
+                err_body = resp.json()
+                if not isinstance(err_body, dict):
+                    err_body = {}
+            except Exception:  # noqa: BLE001 — body 非 JSON（proxy 5xx/HTML）→ fallback
+                err_body = {}
+            return _quote_fail_reply(resp.status_code, err_body, decision)
     except Exception:  # noqa: BLE001 — 轉發絕不可影響客人
         logger.warning("報價回覆轉發失敗（已略過）", exc_info=True)
         return "系統忙線中，請稍後再試或洽客服 🙏"
