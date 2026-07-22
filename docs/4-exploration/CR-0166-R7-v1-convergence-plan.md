@@ -41,3 +41,33 @@
 
 > **結論**：R7 的**治理定案**（D5）與**凍結維持**已完成；**實際端點移除**是 metrics-gated 的
 > 未來 op（誠實邊界——不在無 metrics 窗下盲移，避免破壞 server-generated URL 消費）。
+
+---
+
+## §5 caller 歸零查核（2026-07-22，WBS 2.5.1 步驟2 結案）
+
+**方法**：以「v1 handler 自身 summary 標 `[DEPRECATED]`」為權威訊號（API 自己宣告哪些有 v2 後繼），
+而非關鍵字猜測——**關鍵字配對會誤判**，例如 `/api/v1/config`（`system_config.py`：單一設定物件
+GET/PATCH）與 `/tenants/{tid}/m18/configs`（`config_m18.py`：namespace/key＋版本＋canary rollout）
+**並非對等**，硬遷會壞。
+
+**母體**：19 個自我宣告 DEPRECATED 的 v1 端點（audit-logs×2／customers×4／dispatch×2／
+problem-cards×6／roles×2／technicians×2／…）。
+
+**掃描**（排除四類非 caller：`v1-freeze-baseline.json` 凍結登記表、`api/tests/*` 雙掛驗證回歸測試、
+`openapi-runtime.json`／`*_v2.py` docstring 等說明、`.next/` build 產物；並以**路徑邊界比對**
+排除 `/technicians/login`、`/technicians/me/*` 這類被前綴誤配的 D5 例外／非 deprecated 端點）：
+
+| 來源 | 結果 |
+|---|---|
+| 前端四站 | **0 處**（唯一命中 `brand-portal/app/admin/roles/page.tsx:119` 是**註解**，程式碼早已改打 `/tenants/{tid}/rbac/roles`） |
+| agent／knowledge-pipeline | **0 處** |
+| scripts | 1 處 → 本輪已遷：`scripts/dev/load_test.py` 的 `/api/v1/problem-cards` → `/tenants/{TENANT}/problem-cards`（該腳本其餘 v1 呼叫為 auth 例外或未標 deprecated 的自助端點，保留） |
+
+> **✅ 結論：19 個 DEPRECATED v1 端點的真實 caller 全數歸零 → ADR-003 步驟2「遷移」完成。**
+> ADR-003 §24「約 42 個 caller `[待確認]`」為 **stale**——遷移已隨各 CR 增量完成。
+>
+> **步驟3「移除」剩餘 gate**：① 有 v2 對等 ✅ ② 非 auth/platform（D5）✅ ③ caller 歸零 ✅（本次）
+> ④ **deprecation metrics 30 天窗零命中 ⬜（需生產流量，metrics 為 in-memory，本機數據無意義）**
+> ⑤ **移除屬 API contract 變更 → 需 CIA ⬜**。
+> 即：**caller gate 已達成，但仍不可移除**——外部/行動端/腳本消費只有 metrics 能證明。
