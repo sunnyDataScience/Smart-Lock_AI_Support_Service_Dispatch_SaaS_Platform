@@ -559,4 +559,14 @@ REST 契約（信封 `ApiResponseGeneric{data, error}` / CursorPage / RFC7807 �
 
 ---
 
+〔標注 2026-07-22（金流域 codegraph 稽核裁決，業主「照建議」定 C1/D1/E1；不改寫原文，僅新增本段。稽核＝`docs/audit/money-domain-codegraph-audit-20260722.md`〕
+
+| 原文 | 裁決與現況 |
+|---|---|
+| **FR-API-11**「取消費 **5 階段** system 自判」 | **裁決 C1：ADR-0102 為正**——實作為 **6-stage v2**（`cancellation_service.py`，ADR-0102 / FR-0052 / BR-CANCEL-001..008，較新且含測試）。原文 5 階段為 baseline 凍結時點措辭，以 6-stage 為準。 |
+| **FR-API-11 / BR-Set-003**「退款依責任歸屬 **5×3=15 分層**」 | **裁決 D1 查證銷差**：「5×3」＝**5 層金額分層（1k/5k/30k/100k 門檻）× SoD 三維（initiator/approver/executor）**＝ADR-0040 v2（2026-05-28 業主 PARTIAL_UPDATE 拍板：「5 層金額分層＋SoD 三維＋Partial Refund 分類」）。實作完整落地（`refund_service.py` `resolve_tier`＋三維 SoD＋`refund_class` 5 類，`test_refund_sod_5tier.py` 綠）。「×3」**非** refund_class（該 enum 為 5 值，屬 v2 補強第三項）。 |
+| **BR-Set-001 / FR-API-12**「**7 帳本制**」＋ §實體表 Settlement entity（`ledger_type`/`period`/`audit_trail[]`/`partner_id`） | **裁決 E1：文件對齊實作**——會計骨架以「**傳票日記帳（`saas.voucher`：debit/credit 科目＋reason_code＋hash chain＋反向沖銷）＋各域專表**（invoices/settlements/monthly_settlement_batch/dispatcher_commission_statement/payout_rule…）」實現；**`ledger_type` 統一單表設計不採**。7 帳本語意由專表分別承載，跨帳本月結對平走 reconcile 閘門（BR-Set-005，2026-07-22 已串入 `generate_monthly_batch`）。 |
+
+---
+
 *文件結尾 — 04_SRS v1.0 / 2026-07-07*
