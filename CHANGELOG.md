@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Added
+
+- **UAT-0720 輪次 B：業主四裁決落地（branch `feat/uat-0720-round-b`，2026-07-22，裁決「1-2 / 2-B / 3-1 / 4-1」）**：
+  - **CR-0180 免責簽署連結推播（1-2）**：`consent_service.send_sign_link()`（鑄 work_order_status token→組 `{WEB_BASE_URL}/consent/{token}`→LINE 推播→`work_order_events` 留痕 'other'+kind、token 只存 hash）＋`POST .../consents:send-link` 端點＋ConsentPanel「發送簽署連結」按鈕（LINE 成功／未綁 LINE 複製備援）＋**WEB_BASE_URL 烤入 api.sh**（防 example.com 死連結）＋測試 3 案。草稿文本先跑通（開站前換法務定稿）。
+  - **CR-0179 拍照回傳（2-B 方案 B）**：①照片掛卡——escalation 建卡自動帶該對話近 24h 照片進 `problem_cards.media_urls`（api 端自查、append-only、fail-soft）②gateway 確定性夾圖——AI 依 SOP 於文末輸出 `[[photo-guide:key]]`，gateway 剝標記附發 ImageMessage（不動工具白名單；未知 key／未配置只剝不外洩；上限 4 圖）；config.toml `[photo_guides]` 映射＋樣本圖上架 brand-portal `public/photo-guides/`；SOP v1.6.0 話術；`test_photo_guide.py` 12 案、agent 全套 231 passed。
+  - **ADR-033 轉真人判準（3-1 正典讓步）**：FR-AGT-03 三輪硬計數廢止，判準 SSOT＝cs-sop 紅線（transfer 唯一出口／兜底不變；Clarify gate 降為話術原則；`clarification_*` 欄位如實標記未實作）。正典四檔標注（04_SRS 尾段／02_BRD §5.7+§6.1／07_Journey_Map／08_User_Flow），只增不改寫。
+  - **UAT-0720-05 收案（4-1）**：預估值（待覆核）＝報價類目主檔層「編輯即確認」設計，操作路徑已回覆測試員（/admin/quote-catalog），Plane 卡收 Done。
+
 ### Fixed
 
 - **UAT-0720 輪次 A2：09 姓名預填收尾＋08 接單指引＋兩份 CIA（branch `fix/uat-0720-round-a2`，2026-07-22，業主「繼續修」）**：①問題卡 `extracted_fields.customer_name` 上 ProblemCard response（`_PC_SELECT` index 30 append-only＋pydantic 手補欄）＋開單 ConvertModal 預填姓名——09 自動帶入三欄（地址/電話/姓名）到齊 ②測試員指引 `docs/uat/tech-accept-flow-guide-20260722.md`（技師在哪接單＋品牌後台在哪看已接單）③CR-0179 CIA：AI 樣本圖＋拍照回傳三方案（🛑 待業主選 A/B/C）④CR-0180 CIA：免責簽署連結 LINE 推播——token/推播/簽署頁基建全在、半天可做，但**會把「待法務定稿」草稿免責文本正式推給客戶**＋新端點屬 contract 變更（🛑 停 §8：法務 gate／token 授權外溢知情／WEB_BASE_URL 部署 parity）。
