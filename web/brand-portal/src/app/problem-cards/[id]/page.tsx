@@ -25,8 +25,10 @@ import type { components } from "@/types/api.generated";
 
 // UAT P2-8：後端 create/get 已收/回 location（服務地址），惟 api.generated 尚未含
 // 該欄位——依 types/api.local.ts 慣例本地擴充（型別 SoT 更新後可移除）。
+// CR-0178 UAT-0720-09 續：customer_name 同理（extracted_fields.customer_name 投影）。
 type ProblemCard = components["schemas"]["ProblemCard"] & {
   location?: string | null;
+  customer_name?: string | null;
 };
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
 type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
@@ -937,6 +939,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
           error={convertErr}
           initialAddress={card?.location ?? undefined}
           initialPhone={card?.contact_phone ?? undefined}
+          initialName={card?.customer_name ?? undefined}
           onCancel={() => {
             setConvertModalOpen(false);
             setConvertErr(null);
@@ -1232,6 +1235,7 @@ function ConvertModal({
   error,
   initialAddress,
   initialPhone,
+  initialName,
   onCancel,
   onSubmit,
 }: {
@@ -1246,6 +1250,8 @@ function ConvertModal({
   initialAddress?: string;
   /** CR-0178 UAT-0720-09：問題卡已有聯絡電話（contact_phone）時預填（可改；留空送出後端仍 fallback 帶卡上電話） */
   initialPhone?: string;
+  /** CR-0178 UAT-0720-09 續：問題卡已有客戶姓名（extracted_fields.customer_name）時預填（可改） */
+  initialName?: string;
   onCancel: () => void;
   onSubmit: (
     info: {
@@ -1257,7 +1263,7 @@ function ConvertModal({
   ) => Promise<void>;
 }) {
   const [address, setAddress] = useState(initialAddress ?? "");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName ?? "");
   const [phone, setPhone] = useState(initialPhone ?? "");
   const [overrideReason, setOverrideReason] = useState("");
   const canSubmit = address.trim().length > 0 && !pending;
