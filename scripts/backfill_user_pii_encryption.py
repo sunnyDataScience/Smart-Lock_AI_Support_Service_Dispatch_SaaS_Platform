@@ -1,10 +1,11 @@
-"""CR-0176 S3：品牌庫 users 存量 PII 明文 → *_enc 密文 backfill（app 層 Fernet，SQL 無法跑）。
+"""CR-0176 S3：品牌庫 users 存量 PII 明文 → *_enc 密文 + email/phone blind index backfill。
 
-**冪等**：只處理「明文非空且對應 *_enc 為空」的欄位；重跑安全。**不清明文**
+**冪等**：只處理「明文非空且對應 *_enc（或 *_bidx）為空」的欄位；重跑安全。**不清明文**
 （明文於 S5 讀路徑全面 cutover 後才 DROP，見 CIA CR-0176 §9）。
+bidx（0722 業主 A1，migration 114）＝HMAC 盲索引，app 層 Fernet/SQL 皆算不了 HMAC 金鑰版。
 
 用法：
-  POSTGRES_URI=postgresql://... GDPR_DEK_KEK=... \
+  POSTGRES_URI=postgresql://... GDPR_DEK_KEK=... USER_PII_BIDX_KEY=... \
       python scripts/backfill_user_pii_encryption.py [--dry-run]
 
 ⚠️ GDPR_DEK_KEK 須與 api runtime 同一組（prod 由 Secret Manager 注入），否則回填
@@ -24,9 +25,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "api"))
 
 import psycopg  # noqa: E402
-from core import dek_crypto  # noqa: E402
+from core import dek_crypto, user_pii_bidx  # noqa: E402
 
 _PII = (("display_name", "display_name_enc"), ("email", "email_enc"), ("phone", "phone_enc"))
+_BIDX = (("email", "email_bidx"), ("phone", "phone_bidx"))
 
 
 def _resolve_dek(cur, subject_id: str, tenant_id) -> bytes | None:
@@ -74,11 +76,13 @@ def main() -> int:
     with psycopg.connect(uri) as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT id, tenant_id, display_name, email, phone, "
-            "       display_name_enc, email_enc, phone_enc "
+            "       display_name_enc, email_enc, phone_enc, email_bidx, phone_bidx "
             "FROM users "
             "WHERE ((display_name IS NOT NULL AND display_name <> '' AND display_name_enc IS NULL) "
             "    OR (email IS NOT NULL AND email <> '' AND email_enc IS NULL) "
-            "    OR (phone IS NOT NULL AND phone <> '' AND phone_enc IS NULL)) "
+            "    OR (phone IS NOT NULL AND phone <> '' AND phone_enc IS NULL) "
+            "    OR (email IS NOT NULL AND email <> '' AND email_bidx IS NULL) "
+            "    OR (phone IS NOT NULL AND phone <> '' AND phone_bidx IS NULL)) "
             "  AND display_name IS DISTINCT FROM '[REDACTED]'",
         )
         rows = cur.fetchall()
@@ -88,6 +92,9 @@ def main() -> int:
                 missing = [enc for (plain, enc), pv, ev in
                            zip(_PII, (r[2], r[3], r[4]), (r[5], r[6], r[7]))
                            if pv and not ev]
+                missing += [bx for (plain, bx), pv, bv in
+                            zip(_BIDX, (r[3], r[4]), (r[8], r[9]))
+                            if pv and not bv]
                 print(f"  {str(r[0])[:8]}: 缺 {', '.join(missing)}（不寫入）")
             print("dry-run 結束（未建 DEK、未寫入）")
             return 0
@@ -97,13 +104,17 @@ def main() -> int:
             uid, tenant_id = str(r[0]), r[1]
             dek = _resolve_dek(cur, uid, tenant_id)
             if dek is None:
-                skipped += 1  # destroyed：crypto-shred 過，跳過
+                skipped += 1  # destroyed：crypto-shred 過，跳過（enc 與 bidx 皆不建）
                 continue
             sets, params = [], []
             for (plain, enc), pv, ev in zip(_PII, (r[2], r[3], r[4]), (r[5], r[6], r[7])):
                 if pv and not ev:
                     sets.append(f"{enc} = %s")
                     params.append(dek_crypto.encrypt_with_dek(dek, pv))
+            for (plain, bx), pv, bv in zip(_BIDX, (r[3], r[4]), (r[8], r[9])):
+                if pv and not bv:
+                    sets.append(f"{bx} = %s")
+                    params.append(user_pii_bidx.blind_index(pv))
             if sets:
                 cur.execute(
                     f"UPDATE users SET {', '.join(sets)} WHERE id = %s::uuid",

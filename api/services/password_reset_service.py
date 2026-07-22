@@ -89,10 +89,21 @@ async def request_reset(*, email: str, request_ip: str | None = None) -> None:
         logger.error("request_reset: DB unavailable, email=%s", email)
         return
 
-    cur = await conn.execute(
-        "SELECT id, is_active FROM users WHERE email = %s ORDER BY created_at LIMIT 1",
-        (email,),
-    )
+    # CR-0176 S5 前置（A1）：品牌庫雙謂詞（明文 OR bidx）；tech 面走技師權威庫
+    # 無 bidx 欄（延伸範圍）維持明文等值。
+    if _is_tech_surface():
+        cur = await conn.execute(
+            "SELECT id, is_active FROM users WHERE email = %s ORDER BY created_at LIMIT 1",
+            (email,),
+        )
+    else:
+        from core import user_pii_bidx
+
+        cur = await conn.execute(
+            "SELECT id, is_active FROM users "
+            "WHERE (email = %s OR email_bidx = %s) ORDER BY created_at LIMIT 1",
+            (email, user_pii_bidx.blind_index(email)),
+        )
     row = await cur.fetchone()
     if not row:
         logger.info("request_reset: 無此帳號（安靜略過）email=%s", email)

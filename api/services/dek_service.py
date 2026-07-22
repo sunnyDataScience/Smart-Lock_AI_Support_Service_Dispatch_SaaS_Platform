@@ -143,6 +143,12 @@ USER_PII_FIELDS: dict[str, str] = {
     "email": "email_enc",
     "phone": "phone_enc",
 }
+# S5 前置（業主 0722 A1）：email/phone 另補 blind index 欄（migration 114），
+# 供 login/去重等值查——S5 DROP 明文後唯一可查路徑。
+USER_PII_BIDX_FIELDS: dict[str, str] = {
+    "email": "email_bidx",
+    "phone": "phone_bidx",
+}
 
 
 async def encrypt_user_pii(
@@ -150,14 +156,19 @@ async def encrypt_user_pii(
     tenant_id: str | None,
     fields: dict[str, str | None],
 ) -> dict[str, str | None]:
-    """把 users 明文 PII 值加密成 *_enc 欄位值（dual-write 同句寫入用）。
+    """把 users 明文 PII 值轉密文欄＋盲索引欄值（dual-write 同句寫入用）。
 
     fields 的 key 必須 ∈ USER_PII_FIELDS；回傳只含傳入欄位的
-    {"<欄>_enc": 密文|None}。值 None/空白 → None（與明文語意一致）。
+    {"<欄>_enc": 密文|None}，email/phone 另帶 {"<欄>_bidx": 索引|None}。
+    值 None/空白 → None（與明文語意一致）。
     """
+    from core import user_pii_bidx
+
     out: dict[str, str | None] = {}
     for key, value in fields.items():
         out[USER_PII_FIELDS[key]] = await encrypt_pii(subject_user_id, tenant_id, value)
+        if key in USER_PII_BIDX_FIELDS:
+            out[USER_PII_BIDX_FIELDS[key]] = user_pii_bidx.blind_index(value)
     return out
 
 

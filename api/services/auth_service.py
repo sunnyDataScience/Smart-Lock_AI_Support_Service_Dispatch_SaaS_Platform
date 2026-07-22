@@ -49,13 +49,22 @@ async def _find_user_by_email(email: str, role_in: list[str]) -> dict | None:
     """依角色清單查使用者。"""
     conn = await _login_lookup_conn(role_in)
 
+    # CR-0176 S5 前置（A1）：品牌庫雙謂詞（明文 OR bidx）——backfill 前舊列靠明文、
+    # 新列/回填後靠 bidx；S5 DROP 明文後改 bidx-only。技師權威庫無 bidx 欄（延伸範圍）。
+    if role_in == ["technician"]:
+        pred, pred_args = "email = %s", [email]
+    else:
+        from core import user_pii_bidx
+
+        pred = "(email = %s OR email_bidx = %s)"
+        pred_args = [email, user_pii_bidx.blind_index(email)]
     placeholders = ",".join(["%s"] * len(role_in))
     cur = await conn.execute(
         f"SELECT id, email, password_hash, role, tenant_id, is_active, locked_until "
         f"FROM users "
-        f"WHERE email = %s AND role IN ({placeholders}) "
+        f"WHERE {pred} AND role IN ({placeholders}) "
         f"LIMIT 1",
-        (email, *role_in),
+        (*pred_args, *role_in),
     )
     row = await cur.fetchone()
     if not row:
@@ -245,12 +254,20 @@ async def _find_users_by_phone(phone: str, role_in: list[str]) -> list[dict]:
     # CR-0164 B：技師手機登入亦查權威庫（投影已無 phone/password_hash）
     conn = await _login_lookup_conn(role_in)
 
+    # CR-0176 S5 前置（A1）：同 _find_user_by_email 的雙謂詞策略
+    if role_in == ["technician"]:
+        pred, pred_args = "phone = %s", [phone]
+    else:
+        from core import user_pii_bidx
+
+        pred = "(phone = %s OR phone_bidx = %s)"
+        pred_args = [phone, user_pii_bidx.blind_index(phone)]
     placeholders = ",".join(["%s"] * len(role_in))
     cur = await conn.execute(
         f"SELECT id, email, password_hash, role, tenant_id, is_active, locked_until "
         f"FROM users "
-        f"WHERE phone = %s AND role IN ({placeholders})",
-        (phone, *role_in),
+        f"WHERE {pred} AND role IN ({placeholders})",
+        (*pred_args, *role_in),
     )
     rows = await cur.fetchall()
     return [
@@ -548,9 +565,12 @@ async def admin_reset_password(*, email: str, tenant_id: str) -> str:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
+    from core import user_pii_bidx
+
     cur = await db_module._conn.execute(
-        "SELECT id, role FROM users WHERE email = %s AND tenant_id = %s::uuid LIMIT 1",
-        (email, tenant_id),
+        "SELECT id, role FROM users "
+        "WHERE (email = %s OR email_bidx = %s) AND tenant_id = %s::uuid LIMIT 1",
+        (email, user_pii_bidx.blind_index(email), tenant_id),
     )
     row = await cur.fetchone()
     if not row:
@@ -765,8 +785,11 @@ async def create_staff_user(req: dict, *, tenant_id: str) -> dict:
     if len(password) < 8:
         raise ApiError("VALIDATION_ERROR", "password must be at least 8 characters", 422)
 
+    from core import user_pii_bidx
+
     cur = await db_module._conn.execute(
-        "SELECT 1 FROM users WHERE email = %s AND role = %s LIMIT 1", (email, role)
+        "SELECT 1 FROM users WHERE (email = %s OR email_bidx = %s) AND role = %s LIMIT 1",
+        (email, user_pii_bidx.blind_index(email), role),
     )
     if await cur.fetchone():
         raise ApiError(
@@ -783,10 +806,11 @@ async def create_staff_user(req: dict, *, tenant_id: str) -> dict:
     )
     await db_module._conn.execute(
         "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active, "
-        "  display_name_enc, email_enc, phone_enc) "
-        "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE, %s, %s, %s)",
+        "  display_name_enc, email_enc, phone_enc, email_bidx, phone_bidx) "
+        "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s)",
         (user_id, tenant_id, name, phone, email, pw_hash, role,
-         enc["display_name_enc"], enc["email_enc"], enc["phone_enc"]),
+         enc["display_name_enc"], enc["email_enc"], enc["phone_enc"],
+         enc["email_bidx"], enc["phone_bidx"]),
     )
     return {
         "data": {
@@ -870,9 +894,11 @@ async def register_vendor(req: dict, *, initial_status: str = "active") -> dict:
         )
 
     # CR-0090：依角色限定（同 email 可同時為技師與廠商，但廠商角色內唯一）
+    from core import user_pii_bidx
+
     cur = await db_module._conn.execute(
-        "SELECT 1 FROM users WHERE email = %s AND role = 'vendor' LIMIT 1",
-        (email,),
+        "SELECT 1 FROM users WHERE (email = %s OR email_bidx = %s) AND role = 'vendor' LIMIT 1",
+        (email, user_pii_bidx.blind_index(email)),
     )
     if await cur.fetchone():
         raise ApiError(
@@ -893,10 +919,11 @@ async def register_vendor(req: dict, *, initial_status: str = "active") -> dict:
     async with db_module._conn.transaction():
         await db_module._conn.execute(
             "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active, "
-            "  display_name_enc, email_enc, phone_enc) "
-            "VALUES (%s::uuid, %s::uuid, 'requestor', %s, %s, %s, %s, 'vendor', TRUE, %s, %s, %s)",
+            "  display_name_enc, email_enc, phone_enc, email_bidx, phone_bidx) "
+            "VALUES (%s::uuid, %s::uuid, 'requestor', %s, %s, %s, %s, 'vendor', TRUE, %s, %s, %s, %s, %s)",
             (user_id, tenant_id, name, phone, email, pw_hash,
-             enc["display_name_enc"], enc["email_enc"], enc["phone_enc"]),
+             enc["display_name_enc"], enc["email_enc"], enc["phone_enc"],
+             enc["email_bidx"], enc["phone_bidx"]),
         )
         # 代建（active）視同即刻核准 → 記 approved_at；approved_by 留 NULL
         # （FK 指品牌 users，平台管理員不在其中 —— 同平台核准時代的既有慣例）。

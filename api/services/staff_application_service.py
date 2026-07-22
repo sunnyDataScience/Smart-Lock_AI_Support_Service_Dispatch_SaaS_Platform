@@ -136,10 +136,12 @@ async def approve(*, tenant_id: str, app_id: str, reviewer_id: str, role: str) -
     async with conn.transaction():
         await conn.execute(
             "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, "
-            "password_hash, role, is_active, display_name_enc, email_enc, phone_enc) "
-            "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE, %s, %s, %s)",
+            "password_hash, role, is_active, display_name_enc, email_enc, phone_enc, "
+            "email_bidx, phone_bidx) "
+            "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE, %s, %s, %s, %s, %s)",
             (new_user_id, tenant_id, name, phone, email, password_hash, role,
-             enc["display_name_enc"], enc["email_enc"], enc["phone_enc"]),
+             enc["display_name_enc"], enc["email_enc"], enc["phone_enc"],
+             enc["email_bidx"], enc["phone_bidx"]),
         )
         await conn.execute(
             "UPDATE staff_applications SET status='approved', assigned_role=%s, "

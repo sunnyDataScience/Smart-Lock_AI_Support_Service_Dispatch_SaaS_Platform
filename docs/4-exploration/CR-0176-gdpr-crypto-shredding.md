@@ -180,17 +180,28 @@ KEK（master，Secret Manager / KMS，全系統一把）
 - ✅ **S3 script done（同輪）**：`scripts/backfill_user_pii_encryption.py`（sync psycopg、
   冪等 WHERE 明文非空∧enc 空、**destroyed DEK 絕不重建**、[REDACTED] 列跳過、KEK 不符
   exit 3 fail-loud、--dry-run 不建 DEK；**不清明文**）。**prod 實跑待業主環境**。
-- ⬜ **S5 pending**：列表讀路徑切換＋ DROP 明文欄（不可逆點）。**新盤出的 S5 前置**：
-  - ⚠️ email/phone 有 **WHERE 等值查詢**（login `auth_service.py:54/:250`、EMAIL_TAKEN
-    去重、phone 去重 `customer_service.py:383`、password_reset）——DROP 前須先建
-    **blind index**（比照 CR-0173 bidx）或明確裁決保留該兩欄明文。
-  - ⚠️ `users.address` 有寫讀點但不在 HD-2 users 欄位清單（歸 work_orders phase 2 脈絡）
-    ——S5 前需業主澄清 address 歸屬。
+- ✅ **S5 前置 blind index done（2026-07-22 業主裁決 A1，branch `feat/cr-0176-s5-blind-index`）**：
+  - `core/user_pii_bidx.py`（HMAC-SHA256，env `USER_PII_BIDX_KEY`，僅 strip 不做大小寫
+    正規化——鏡射既有明文等值語意）＋ migration **114**（`email_bidx`/`phone_bidx`＋
+    partial index，拋棄式 PG16 實測冪等）。
+  - `encrypt_user_pii` 併出 bidx 欄 → 9 個寫入點自動/顯式帶入；soft_delete 同句清
+    bidx（確定性索引可反證 email 存在過，forget 必清）。
+  - **7 個等值查詢點改雙謂詞**（明文 OR bidx；技師庫路徑維持明文＝延伸範圍）：
+    `_find_user_by_email`／`_find_users_by_phone`（login 共用 helper，staff_application
+    亦經此）／create_staff_user・register_vendor EMAIL_TAKEN 去重／admin_reset_password
+    ／password_reset（brand 面）／customer phone 去重。
+  - backfill 腳本擴充：同輪補 bidx（destroyed DEK/[REDACTED] 列同樣跳過）。
+  - unit **21 passed**（bidx 確定性/金鑰相依/strip＋helper 併出＋dual-write SQL＋全回歸）。
+- 🟦 **HD-8（業主 0722 裁決 B1）**：`users.address` 歸 **work_orders 客戶欄 phase 2**
+  ——屆時連同 customer_address 一起加密，S2/S5 不納。
+- ⬜ **S5 pending（剩餘）**：列表讀路徑切換 → prod backfill 實跑驗證 → 查詢切 bidx-only
+  → DROP 明文欄 migration（不可逆點，獨立步）。
 - ⬜ **範圍延伸**：work_orders 客戶欄（HD-2 phase 2）、技師/平台庫 users（ADR-020 三庫；
   技師列品牌庫投影由 `mirror_rows` 整列覆蓋，enc 恆 NULL＝回退明文，待技師庫同款覆蓋）。
 
 > **S2/S3 驗證**：unit **17 passed**（S2 新增 6：enc-first／明文回退／shred fail-closed／
 > dual-write SQL／空 no-op ＋ 既有 11 回歸），皆 in-memory 不碰 DB；DB 整合測試（真
 > migration 112 庫上 9 寫入點 round-trip）留業主環境。
-> **deploy**：prod 設 `GDPR_DEK_KEK`（Secret Manager）→ **先套 migration 112 再佈本輪
-> code**（寫入點已引用 *_enc 欄，順序顛倒會 500）→ 跑 S3 backfill（同一組 KEK）。
+> **deploy**：prod 設 `GDPR_DEK_KEK`＋`USER_PII_BIDX_KEY`（Secret Manager）→
+> **先套 migration 112＋114 再佈本輪 code**（寫入/查詢點已引用 *_enc／*_bidx 欄，
+> 順序顛倒會 500）→ 跑 S3 backfill（同一組金鑰）。

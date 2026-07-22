@@ -379,10 +379,14 @@ async def create_customer(*, tenant_id: str, payload: dict) -> dict:
     # 視為重複（避免同人不同來源誤建雙主檔）。normalize：去頭尾空白。
     phone = data.get("phone")
     if phone and str(phone).strip():
+        # CR-0176 S5 前置（A1）：雙謂詞（明文 OR bidx）
+        from core import user_pii_bidx
+
         cur = await db_module._conn.execute(
             "SELECT id FROM users "
-            "WHERE phone = %s AND tenant_id = %s::uuid AND role = 'line_user'",
-            (str(phone).strip(), tenant_id),
+            "WHERE (phone = %s OR phone_bidx = %s) "
+            "  AND tenant_id = %s::uuid AND role = 'line_user'",
+            (str(phone).strip(), user_pii_bidx.blind_index(str(phone).strip()), tenant_id),
         )
         if await cur.fetchone():
             raise ApiError(
