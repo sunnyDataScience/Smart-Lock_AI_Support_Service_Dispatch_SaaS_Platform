@@ -931,11 +931,12 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
         />
       )}
 
-      {convertModalOpen && (
+      {convertModalOpen && card && (
         <ConvertModal
           pending={actionPending === "convert"}
           error={convertErr}
           initialAddress={card?.location ?? undefined}
+          initialPhone={card?.contact_phone ?? undefined}
           onCancel={() => {
             setConvertModalOpen(false);
             setConvertErr(null);
@@ -1230,6 +1231,7 @@ function ConvertModal({
   pending,
   error,
   initialAddress,
+  initialPhone,
   onCancel,
   onSubmit,
 }: {
@@ -1242,6 +1244,8 @@ function ConvertModal({
   } | null;
   /** UAT P2-8：問題卡已有服務地址（location）時預填（可改） */
   initialAddress?: string;
+  /** CR-0178 UAT-0720-09：問題卡已有聯絡電話（contact_phone）時預填（可改；留空送出後端仍 fallback 帶卡上電話） */
+  initialPhone?: string;
   onCancel: () => void;
   onSubmit: (
     info: {
@@ -1254,7 +1258,7 @@ function ConvertModal({
 }) {
   const [address, setAddress] = useState(initialAddress ?? "");
   const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(initialPhone ?? "");
   const [overrideReason, setOverrideReason] = useState("");
   const canSubmit = address.trim().length > 0 && !pending;
   const submit = (override?: string) =>
@@ -1300,7 +1304,7 @@ function ConvertModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={80}
-              placeholder="客戶姓名"
+              placeholder="客戶姓名（留空沿用問題卡／客戶資料）"
               className="rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] outline-none focus:border-[var(--primary)]"
             />
           </label>
@@ -1311,7 +1315,7 @@ function ConvertModal({
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               maxLength={30}
-              placeholder="09xx-xxx-xxx"
+              placeholder="09xx-xxx-xxx（留空沿用問題卡／客戶資料）"
               className="rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 py-2 text-[13px] outline-none focus:border-[var(--primary)]"
             />
           </label>

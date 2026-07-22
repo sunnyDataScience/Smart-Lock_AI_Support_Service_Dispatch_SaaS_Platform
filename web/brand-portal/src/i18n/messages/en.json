@@ -644,7 +644,8 @@
         "actionFailed": "Action failed: {error}",
         "requestReschedule": "Request Reschedule",
         "notifyDelay": "Notify Delay",
-        "materialRequest": "Material Request"
+        "materialRequest": "Material Request",
+        "subflowDisabledHint": "Available only after dispatch (status must be assigned / accepted / in progress)"
       },
       "toasts": {
         "accepted": "Dispatch accepted",
@@ -749,6 +750,8 @@
           "scheduledTitle": "Estimated arrival",
           "scheduledWithTech": "Technician {shortId} scheduled",
           "scheduledNoTech": "No technician assigned",
+          "acceptedTitle": "Technician accepted",
+          "acceptedByTech": "Technician {shortId} accepted the order",
           "arrivedTitle": "Technician arrived on site",
           "completedTitle": "Work order completed",
           "lastUpdatedTitle": "Last updated",

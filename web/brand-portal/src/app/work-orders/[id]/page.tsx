@@ -152,6 +152,14 @@ const RESCHEDULE_FROM: ReadonlySet<WorkOrderStatus> = new Set([
   "in_progress",
 ]);
 
+// 子流程（通知延遲/叫料申請）：對齊後端 _SUBFLOW_FROM
+//（api/services/work_order_service.py:2525 — assigned | accepted | in_progress）
+const SUBFLOW_FROM: ReadonlySet<WorkOrderStatus> = new Set([
+  "assigned",
+  "accepted",
+  "in_progress",
+]);
+
 const ESCALATE_LEVEL_VALUES: readonly EscalateLevel[] = [
   "operations_manager",
   "tenant_admin",
@@ -199,7 +207,7 @@ const SLA_STAGES: ReadonlyArray<{
 }> = [
   { key: "created", threshold: 0, timeField: "created_at" }, // inquiring
   { key: "dispatched", threshold: 1, timeField: "scheduled_time" }, // assigned
-  { key: "accepted", threshold: 2 }, // accepted（accepted_at 未上 envelope，無時間）
+  { key: "accepted", threshold: 2, timeField: "accepted_at" }, // accepted（CR-0178 上 envelope）
   { key: "inProgress", threshold: 3, timeField: "actual_arrival" }, // in_progress
   { key: "completed", threshold: 4, timeField: "completion_time" }, // completed
   { key: "confirmed", threshold: 5 }, // closed
@@ -628,6 +636,7 @@ type BadgeKind = "system" | "technician" | "schedule" | "complete";
 type TimelineEventKey =
   | "created"
   | "scheduled"
+  | "accepted"
   | "arrived"
   | "completed"
   | "lastUpdated";
@@ -636,7 +645,7 @@ interface TimelineEvent {
   color: string;
   badge: BadgeKind;
   eventKey: TimelineEventKey;
-  detailKey?: "createdFromPc" | "scheduledWithTech" | "scheduledNoTech" | "lastUpdatedDetail";
+  detailKey?: "createdFromPc" | "scheduledWithTech" | "scheduledNoTech" | "acceptedByTech" | "lastUpdatedDetail";
   detailParams?: Record<string, string | number>;
   time: string | null | undefined;
 }
@@ -651,6 +660,7 @@ const BADGE_TONE: Record<BadgeKind, { textColor: string; bg: string }> = {
 const EVENT_TITLE_KEY: Record<TimelineEventKey, string> = {
   created: "created",
   scheduled: "scheduledTitle",
+  accepted: "acceptedTitle",
   arrived: "arrivedTitle",
   completed: "completedTitle",
   lastUpdated: "lastUpdatedTitle",
@@ -684,6 +694,20 @@ function buildEvents(
         ? { shortId: order.technician_id.slice(0, 8) }
         : undefined,
       time: order.scheduled_time,
+    });
+  }
+
+  // CR-0178 UAT-0720-08：技師接單事件（accepted_at 上 envelope 後可顯示）
+  if (order.accepted_at) {
+    list.push({
+      color: "#3B82F6",
+      badge: "technician",
+      eventKey: "accepted",
+      detailKey: order.technician_id ? "acceptedByTech" : undefined,
+      detailParams: order.technician_id
+        ? { shortId: order.technician_id.slice(0, 8) }
+        : undefined,
+      time: order.accepted_at,
     });
   }
 
@@ -1656,6 +1680,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const canConfirm = order ? CONFIRM_FROM.has(order.status) : false;
   const canSignature = order ? SIGNATURE_FROM.has(order.status) : false;
   const canReschedule = order ? RESCHEDULE_FROM.has(order.status) : false;
+  // CR-0178 UAT-0720-07：叫料/通知延遲須已派工後（對齊後端 _SUBFLOW_FROM，避免點了才吃 409）
+  const canSubflow = order ? SUBFLOW_FROM.has(order.status) : false;
   const anyAction =
     canAccept ||
     canAssign ||
@@ -1863,7 +1889,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                     setActionError(null);
                     setActionMode("notifyDelay");
                   }}
-                  disabled={actionPending !== null}
+                  disabled={actionPending !== null || !canSubflow}
+                  title={!canSubflow ? tActions("subflowDisabledHint") : undefined}
                   className="inline-flex items-center gap-2 rounded-md border border-[#F59E0B] bg-white px-4 py-2 text-[13px] font-semibold text-[#92400E] transition hover:bg-[#FEF3C7] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <TriangleAlert className="h-4 w-4" />
@@ -1874,7 +1901,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
                     setActionError(null);
                     setActionMode("materialRequest");
                   }}
-                  disabled={actionPending !== null}
+                  disabled={actionPending !== null || !canSubflow}
+                  title={!canSubflow ? tActions("subflowDisabledHint") : undefined}
                   className="inline-flex items-center gap-2 rounded-md border border-[#10B981] bg-white px-4 py-2 text-[13px] font-semibold text-[#065F46] transition hover:bg-[#D1FAE5] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <Upload className="h-4 w-4" />

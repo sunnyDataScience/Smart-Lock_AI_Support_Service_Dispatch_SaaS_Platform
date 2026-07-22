@@ -13,7 +13,13 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** 管理員登入 */
+        /**
+         * 管理員登入
+         * @description CR-0177 S3a：登入/刷新成功 → 同步寫 httpOnly access cookie。
+         *
+         *     與 response body 的 token **並存**（localStorage 過渡期不變，見 core/auth_cookie 說明）；
+         *     自訂網域上線後設 `AUTH_COOKIE_DOMAIN` 即跨子網域生效，屆時才移除 localStorage（S3b）。
+         */
         post: operations["loginAdmin"];
         delete?: never;
         options?: never;
@@ -2046,6 +2052,9 @@ export interface paths {
         /**
          * 取技師近 N 日 workload heatmap（A37 候選詳情 drawer）
          * @description A37 排班熱力圖端點 — admin 看候選技師近 30 日 daily workload + load_intensity 分級。
+         *
+         *     CR/0719 UAT C-7：原守衛 require_tenant 無 role 檢查 → 任何技師 token 可讀同儕
+         *     workload（IDOR）。改 DISPATCH_ROLES（admin/ops/dispatcher 派工方管理視角）。
          */
         get: operations["getTechnicianWorkloadHeatmap"];
         put?: never;
@@ -11986,6 +11995,11 @@ export interface components {
              * @description SLA deadline（computed：created_at + sla_policy[urgency]）
              */
             sla_deadline?: string | null;
+            /**
+             * Accepted At
+             * @description 技師接單時間（accept/claim 時寫入）
+             */
+            accepted_at?: string | null;
         };
         /** WorkOrderAssignRequest */
         WorkOrderAssignRequest: {
@@ -13206,7 +13220,9 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["LoginBody"];
+                "application/json": {
+                    [key: string]: unknown;
+                };
             };
         };
         responses: {
@@ -13216,9 +13232,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

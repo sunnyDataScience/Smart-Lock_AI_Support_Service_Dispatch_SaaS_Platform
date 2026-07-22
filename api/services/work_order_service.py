@@ -139,6 +139,9 @@ def _wo_row_to_dict(row: tuple) -> dict:
         out["completion_summary"] = row[37]
     if len(row) > 38 and row[38]:
         out["function_tests"] = row[38]
+    # CR-0178 UAT-0720-08：技師接單時間（39）
+    if len(row) > 39 and row[39] is not None:
+        out["accepted_at"] = row[39].isoformat()
     return out
 
 
@@ -175,7 +178,9 @@ _WO_SELECT = (
     # CR-0047（index 35）：保固到期日；CR-0050（index 36）：教學紀錄
     "wo.warranty_expiry_date, wo.teaching_note, "
     # CR-0100（index 37/38）：完工乾淨摘要 + 功能測試逐項結果
-    "wo.completion_summary, wo.function_tests"
+    "wo.completion_summary, wo.function_tests, "
+    # CR-0178 UAT-0720-08（index 39）：技師接單時間（accept/claim 寫入，上 envelope 供時間軸）
+    "wo.accepted_at"
 )
 
 # UAT P1-1:手建問題卡(電話進線)無 conversation → 整鏈改 LEFT JOIN,
