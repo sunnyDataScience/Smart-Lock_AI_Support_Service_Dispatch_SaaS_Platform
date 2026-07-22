@@ -68,7 +68,10 @@ describe("instrumentation register()（OTLP opt-in）", () => {
     await register();
 
     expect(registerOTelMock).toHaveBeenCalledTimes(1);
-    expect(registerOTelMock).toHaveBeenCalledWith({ serviceName: "landing" });
+    const cfg = registerOTelMock.mock.calls[0][0];
+    expect(cfg.serviceName).toBe("landing");
+    expect(cfg.spanProcessors?.[1]).toBe("auto"); // 預設匯出保留在後
+    expect(typeof cfg.spanProcessors?.[0]?.onEnd).toBe("function"); // PII scrub 在前
     expect(warnSpy).not.toHaveBeenCalled();
   });
 
@@ -79,9 +82,7 @@ describe("instrumentation register()（OTLP opt-in）", () => {
 
     await register();
 
-    expect(registerOTelMock).toHaveBeenCalledWith({
-      serviceName: "landing-uat",
-    });
+    expect(registerOTelMock.mock.calls[0][0].serviceName).toBe("landing-uat");
   });
 
   it("registerOTel throw → 降級 no-op + warning，絕不向外 throw", async () => {

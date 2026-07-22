@@ -45,6 +45,41 @@ def _coerce_decimal(v) -> str:
 # Generate monthly batch (HD-2 cron 觸發或 manual)
 # ============================================================
 
+async def _assert_reconcile_gate(tenant_id: str) -> None:
+    """BR-SETTLE-05 期末對帳閘門：mismatch>0 → 阻月結（RECONCILE_GATE_UNMET 409）。
+
+    比照 CR-0132 Gate① 前例：M18 config 開關（namespace=settlement_policy，
+    `reconcile_gate_enforce`，**預設 off**——沿用現行「ops 手動打 reconciliation-gate
+    端點」行為，業主確認 Kafka 投影穩定後開啟）。開啟時重用
+    `event_reconcile_service.reconcile_commission`（Kafka 未啟用＝skipped、
+    gate_pass=True fail-open by design，單庫/無事件不誤擋）。
+    """
+    from services import config_m18_service, event_reconcile_service
+
+    try:
+        cfg = await config_m18_service.read_global_value(namespace="settlement_policy")
+    except Exception:  # noqa: BLE001 — config 讀取失敗視同未配置（gate 預設 off）
+        cfg = None
+    if not (isinstance(cfg, dict) and cfg.get("reconcile_gate_enforce")):
+        return
+
+    result = await event_reconcile_service.reconcile_commission(tenant_id=tenant_id)
+    if result.get("gate_pass", True):
+        return
+    raise ApiError(
+        "RECONCILE_GATE_UNMET",
+        "期末對帳閘門未過（BR-SETTLE-05）——品牌計費 vs 技師平台結算不對平，"
+        f"mismatched={len(result.get('mismatched', []))} "
+        f"missing={len(result.get('missing', []))}；先處理對帳例外再產月結批次",
+        409,
+        details=[
+            {"field": "reconciliation", "issue": "mismatch", "gate": "settle",
+             "mismatched": result.get("mismatched", []),
+             "missing": result.get("missing", [])},
+        ],
+    )
+
+
 async def generate_monthly_batch(
     *,
     tenant_id: str,
@@ -68,6 +103,10 @@ async def generate_monthly_batch(
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     if period_month < 1 or period_month > 12:
         raise ApiError("VALIDATION_ERROR", "period_month must be 1..12", 422)
+
+    # BR-SETTLE-05：對帳閘門先於任何寫入（service 層把關＝settlements_v2 與
+    # monthly_settlements_v2 兩個觸發入口一次涵蓋）
+    await _assert_reconcile_gate(tenant_id)
 
     # 1. UPSERT batch
     cur = await db_module._conn.execute(

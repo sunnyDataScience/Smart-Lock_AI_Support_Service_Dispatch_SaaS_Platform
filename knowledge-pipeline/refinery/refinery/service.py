@@ -1,10 +1,13 @@
 """HITL 審核服務 — FastAPI backend + 靜態審核 UI(WBS 2.3.2/CR-0140 D4)。
 
 ADR-018:獨立容器服務 + 自有 web 操作介面(否決掛進既有 web/api)。
-interim auth(Casdoor OIDC 隨 2.1.1 替換,CIA 記遺留):
-  - 登入=代理 api `/api/v1/auth/login`(LOCK_API_BASE_URL,同 stack 網路)
-  - 驗證=HS256 共驗 `API_JWT_SECRET_KEY`;角色白名單 admin/operations_manager/reviewer
-  - token tenant 必須等於本服務 REFINERY_TENANT_ID(per-brand 隔離)
+auth(2026-07-22 Casdoor 化——2.3.2 收案遺留銷案,比照 api deps._decode_any_token):
+  - 驗證=JWT header alg 路由:RS256→Casdoor OIDC(oidc.py,opt-in 三 env 齊備才收)、
+    HS256→interim 共驗 `API_JWT_SECRET_KEY`(S5 過渡期滿隨 api 一併移除);
+    各路徑釘死演算法,無 alg-confusion。
+  - 登入=代理 api `/api/v1/auth/login`(LOCK_API_BASE_URL,同 stack 網路,break-glass 備援)
+  - 角色白名單 admin/operations_manager/reviewer;token tenant 必須等於
+    本服務 REFINERY_TENANT_ID(per-brand 隔離)——兩驗證路徑共用同一套下游檢查
 
 啟動:REFINERY_TENANT_ID=<uuid> POSTGRES_URI=... API_JWT_SECRET_KEY=... \
        uv run uvicorn refinery.service:app --port 8002
@@ -20,7 +23,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from jose import JWTError, jwt
 from pydantic import BaseModel
 
-from . import db, embedding, review
+from . import db, embedding, oidc, review
 
 _REVIEW_ROLES = {"admin", "operations_manager", "reviewer"}
 _STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
@@ -40,6 +43,27 @@ except Exception:  # noqa: BLE001 — 防禦性:觀測層掛掉服務照常啟�
 # ── auth ─────────────────────────────────────────────────────────────────────
 
 def _decode(token: str) -> dict:
+    """JWT header alg 路由（比照 api deps._decode_any_token）:RS256→OIDC、HS256→interim。
+
+    各路徑釘死 algorithms（RS256 只驗公鑰、HS256 只驗共享 secret），無 alg-confusion;
+    header 不可判讀→401。OIDC 未配置時 RS256 token 一律 401（不誤入 HS256 路徑）。
+    """
+    try:
+        alg = (jwt.get_unverified_header(token).get("alg") or "").upper()
+    except JWTError:
+        raise HTTPException(401, detail={"error_code": "UNAUTHENTICATED",
+                                         "message": "token 無效或過期"})
+
+    if alg == "RS256":
+        if not oidc.oidc_enabled():
+            raise HTTPException(401, detail={"error_code": "UNAUTHENTICATED",
+                                             "message": "OIDC 未配置,RS256 token 不受理"})
+        try:
+            return oidc.verify_oidc_token(token)
+        except oidc.OIDCError:
+            raise HTTPException(401, detail={"error_code": "UNAUTHENTICATED",
+                                             "message": "token 無效或過期"})
+
     secret = os.environ.get("API_JWT_SECRET_KEY")
     if not secret:
         raise HTTPException(503, detail={"error_code": "AUTH_UNCONFIGURED",
