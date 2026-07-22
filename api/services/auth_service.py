@@ -709,12 +709,26 @@ async def register_technician(req: dict) -> dict:
 
     # 投影鏡射（順序 users → technicians，投影側 FK technicians→users）
     # 注意：technician_kyc 敏感 PII **不鏡射**到品牌庫（§8-1 最小揭露）。
-    await mirror_rows("users", [user_id])
-    await mirror_rows("technicians", [technician_id])
-    # UAT-0718 W3-3：自填證照同步鏡射品牌庫投影（表在 tech_mirror 白名單）——
-    # 原本只落權威庫，平台/品牌審核頁「技能認證矩陣」讀投影恆空，審核者看不到證照。
-    if cert_ids:
-        await mirror_rows("technician_certification", cert_ids)
+    # CR-0178 UAT-0720-11 R1 加固：權威庫已 commit，跨庫投影非原子——鏡射失敗
+    # fail-soft（註冊仍成功）＋大聲留痕待補償：核准前投影無剛性消費者（審核讀
+    # 權威庫；派工前 ensure_technician_projection 自癒；核准時 lifecycle mirror
+    # upsert 補建缺列）。原本未捕捉 → 註冊回 500 但權威庫已寫入，技師重試撞
+    # EMAIL_TAKEN 409（幽靈帳號＋投影缺列的狀態分裂）。
+    try:
+        await mirror_rows("users", [user_id])
+        await mirror_rows("technicians", [technician_id])
+        # UAT-0718 W3-3：自填證照同步鏡射品牌庫投影（表在 tech_mirror 白名單）——
+        # 原本只落權威庫，平台/品牌審核頁「技能認證矩陣」讀投影恆空，審核者看不到證照。
+        if cert_ids:
+            await mirror_rows("technician_certification", cert_ids)
+    except Exception:  # noqa: BLE001 — fail-soft：鏡射失敗不擋註冊
+        logger.error(
+            "技師註冊投影鏡射失敗（權威庫已寫入、投影待補）：tech=%s user=%s "
+            "——跑 scripts/db/split-tech-db.sh --verify 檢查漂移",
+            technician_id[:8],
+            user_id[:8],
+            exc_info=True,
+        )
 
     # CR-0115 §8-2a：簽發兩階段文件上傳 token（Tier 3；明文僅出現在本 response，
     # 落庫只存 SHA-256）。fail-soft：migration 090 未套的異質部署註冊仍成功、僅少 token。
