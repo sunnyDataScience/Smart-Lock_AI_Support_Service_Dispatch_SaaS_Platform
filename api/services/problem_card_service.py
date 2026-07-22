@@ -128,6 +128,8 @@ def _pc_row_to_dict(row: tuple) -> dict:
         "resolved_by": str(row[28]) if len(row) > 28 and row[28] else None,
         # UAT P2-8：location 欄位早已落庫（create 有收），但 get/list 一直沒回
         "location": row[29] if len(row) > 29 else None,
+        # CR-0178 UAT-0720-09 續：客戶姓名（extracted_fields.customer_name；開單 ConvertModal 預填用）
+        "customer_name": row[30] if len(row) > 30 else None,
     }
 
 
@@ -141,7 +143,9 @@ _PC_SELECT = (
     "pc.root_cause, pc.root_cause_category, pc.corrective_action, pc.verification, "
     "pc.disposition, pc.firmware_version, pc.serial, pc.resolved_by, "
     # UAT P2-8（index 29，append-only 保既有索引不變）：服務地址
-    "pc.location"
+    "pc.location, "
+    # CR-0178 UAT-0720-09 續（index 30，append-only）：客戶姓名（手建卡落 extracted_fields.customer_name）
+    "pc.extracted_fields->>'customer_name'"
 )
 
 

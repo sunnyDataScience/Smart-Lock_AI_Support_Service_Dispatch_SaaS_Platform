@@ -147,6 +147,8 @@ class ProblemCard(BaseModel):
     resolved_by: str | None = None
     # UAT P2-8：服務地址（create 一直有收，補接回 response；regen 後須重加）
     location: str | None = None
+    # CR-0178 UAT-0720-09 續：客戶姓名（extracted_fields.customer_name 投影；regen 後須重加）
+    customer_name: str | None = None
 
 
 class ProblemCardPage(CursorPage):
