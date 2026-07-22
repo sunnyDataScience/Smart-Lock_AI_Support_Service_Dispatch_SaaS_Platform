@@ -32,6 +32,7 @@ import {
   URGENCY_TONE,
 } from "@/components/work-orders/WorkOrdersTable";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { AuthImage, AuthImageLightbox } from "@/components/media/AuthImage";
 import { ApiError, api, getCurrentSession, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import type { components } from "@/types/api.generated";
@@ -98,6 +99,7 @@ type ProblemCardStatus = components["schemas"]["ProblemCardStatus"];
 type Message = components["schemas"]["Message"];
 type MessagePage = components["schemas"]["MessagePage"];
 type Technician = components["schemas"]["Technician"];
+type TechnicianEnvelope = components["schemas"]["TechnicianEnvelope"];
 
 const ACCEPT_FROM: ReadonlySet<WorkOrderStatus> = new Set(["assigned"]);
 const ASSIGN_FROM: ReadonlySet<WorkOrderStatus> = new Set(["inquiring", "assigned"]);
@@ -516,6 +518,8 @@ function LineMediaGallery({ conversationId }: { conversationId?: string }) {
   const [items, setItems] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // CR-0178 輪次 C：照片 lightbox（media 端點需認證，不可 <a> 直開）
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!conversationId) return;
@@ -592,26 +596,23 @@ function LineMediaGallery({ conversationId }: { conversationId?: string }) {
         </div>
       )}
 
+      {/* CR-0178 輪次 C：/api/v1/media/{id} 需認證，img 直塞相對路徑=破圖、
+          <a> 直開=401——改 AuthImage + lightbox */}
       {items.length > 0 && (
         <div className="flex flex-wrap gap-3">
           {items.map((m) => (
-            <a
+            <div
               key={m.id}
-              href={m.media_url ?? undefined}
-              target="_blank"
-              rel="noreferrer"
               className="group flex flex-col gap-1"
               title={t("submittedAt", { time: formatDateTime(m.created_at) })}
             >
               <div className="relative h-[128px] w-[128px] overflow-hidden rounded-lg border border-[var(--border)] bg-[#F1F5F9]">
-                {m.type === "image" ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={m.media_url ?? ""}
+                {m.type === "image" && m.media_url ? (
+                  <AuthImage
+                    url={m.media_url}
                     alt={t("imageAlt")}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]"
+                    className="h-full w-full cursor-pointer object-cover transition-transform group-hover:scale-[1.03]"
+                    onClick={() => setPreviewUrl(m.media_url ?? null)}
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center text-[12px] text-[var(--text-secondary)]">
@@ -622,9 +623,17 @@ function LineMediaGallery({ conversationId }: { conversationId?: string }) {
               <span className="text-[11px] text-[var(--text-disabled)]">
                 {formatDateTime(m.created_at)}
               </span>
-            </a>
+            </div>
           ))}
         </div>
+      )}
+
+      {previewUrl && (
+        <AuthImageLightbox
+          url={previewUrl}
+          alt={t("imageAlt")}
+          onClose={() => setPreviewUrl(null)}
+        />
       )}
     </div>
   );
@@ -669,9 +678,13 @@ const EVENT_TITLE_KEY: Record<TimelineEventKey, string> = {
 function buildEvents(
   order: WorkOrder | null,
   statusLabel: (status: string) => string,
+  // CR-0178 輪次 C：技師全名（fetch 未回/失敗 fallback shortId，永不空白）
+  technicianName: string | null = null,
 ): TimelineEvent[] {
   if (!order) return [];
   const list: TimelineEvent[] = [];
+  const techName =
+    technicianName ?? (order.technician_id ? order.technician_id.slice(0, 8) : null);
 
   list.push({
     color: "#94A3B8",
@@ -689,10 +702,8 @@ function buildEvents(
       color: "#F43F5E",
       badge: "schedule",
       eventKey: "scheduled",
-      detailKey: order.technician_id ? "scheduledWithTech" : "scheduledNoTech",
-      detailParams: order.technician_id
-        ? { shortId: order.technician_id.slice(0, 8) }
-        : undefined,
+      detailKey: techName ? "scheduledWithTech" : "scheduledNoTech",
+      detailParams: techName ? { name: techName } : undefined,
       time: order.scheduled_time,
     });
   }
@@ -703,10 +714,8 @@ function buildEvents(
       color: "#3B82F6",
       badge: "technician",
       eventKey: "accepted",
-      detailKey: order.technician_id ? "acceptedByTech" : undefined,
-      detailParams: order.technician_id
-        ? { shortId: order.technician_id.slice(0, 8) }
-        : undefined,
+      detailKey: techName ? "acceptedByTech" : undefined,
+      detailParams: techName ? { name: techName } : undefined,
       time: order.accepted_at,
     });
   }
@@ -748,11 +757,17 @@ function buildEvents(
   });
 }
 
-function WorkTimeline({ order }: { order: WorkOrder | null }) {
+function WorkTimeline({
+  order,
+  technician,
+}: {
+  order: WorkOrder | null;
+  technician: Technician | null;
+}) {
   const t = useTranslations("pages.workOrderDetail.timeline");
   const tCommon = useTranslations("common");
   const tStatus = useTranslations("status.workOrder");
-  const events = buildEvents(order, (s) => tStatus(s));
+  const events = buildEvents(order, (s) => tStatus(s), technician?.name ?? null);
   return (
     <div className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-6">
       <div className="flex items-center justify-between">
@@ -1307,6 +1322,42 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
   const [actionToast, setActionToast] = useState<string | null>(null);
   // UAT P1-2：指派回 409 QUOTE_NOT_ACCEPTED（報價同意 gate）→ Modal 內展開強制派工區塊
   const [assignQuoteGateBlocked, setAssignQuoteGateBlocked] = useState(false);
+  // CR-0178 輪次 C：technician fetch 抬升自 WorkOrderDetailSidebar（時間軸顯示
+  // 技師全名，單一請求 props 下傳；fetch 未回/失敗時時間軸 fallback shortId）
+  const [technician, setTechnician] = useState<Technician | null>(null);
+  const [techError, setTechError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const technicianId = order?.technician_id ?? null;
+    if (!technicianId) {
+      setTechnician(null);
+      setTechError(null);
+      return;
+    }
+    let cancelled = false;
+    setTechError(null);
+    (async () => {
+      try {
+        const res = await api.get<TechnicianEnvelope>(
+          tenantPath(`/technicians/${encodeURIComponent(technicianId)}`),
+        );
+        if (!cancelled) setTechnician(res.data ?? null);
+      } catch (e) {
+        if (cancelled) return;
+        setTechError(
+          e instanceof ApiError
+            ? friendlyError(e)
+            : e instanceof Error
+              ? e.message
+              : String(e),
+        );
+        setTechnician(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [order?.technician_id]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1963,7 +2014,7 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
             onLoaded={setProblemCard}
           />
           <LineMediaGallery conversationId={problemCard?.conversation_id ?? undefined} />
-          <WorkTimeline order={order} />
+          <WorkTimeline order={order} technician={technician} />
           <ConversationThread conversationId={problemCard?.conversation_id ?? undefined} />
           <CompletionReport order={order} />
           <ExceptionRecords workOrderId={order?.id} />
@@ -1972,6 +2023,8 @@ export default function WorkOrderDetailPage({ params }: PageProps) {
         <WorkOrderDetailSidebar
           workOrder={order ?? undefined}
           conversationId={problemCard?.conversation_id ?? undefined}
+          technician={technician}
+          techError={techError}
         />
       </div>
 

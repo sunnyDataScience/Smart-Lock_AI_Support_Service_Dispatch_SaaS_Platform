@@ -443,7 +443,9 @@ async def create_from_problem_card(
         # UAT P1-1：手建卡（無對話）→ LEFT JOIN；tenant guard 改用 pc.tenant_id
         # （CR-0132 直接租戶欄）；contact_phone/extracted_fields 供客戶資訊 fallback
         "       pc.brand, pc.model, pc.category, pc.media_urls, pc.emergency_class, "
-        "       pc.location, pc.contact_phone, pc.extracted_fields "
+        "       pc.location, pc.contact_phone, pc.extracted_fields, "
+        # CR-0178 UAT-0720-09 續 2：序號一併帶入（原 CR-0026 只複製 brand/model/媒體，獨漏 serial）
+        "       pc.serial "
         "FROM problem_cards pc "
         "LEFT JOIN conversations c ON pc.conversation_id = c.id "
         "LEFT JOIN users u ON c.user_id = u.id "
@@ -457,7 +459,7 @@ async def create_from_problem_card(
 
     (pc_status, pc_urgency, user_address, user_name, user_phone,
      pc_brand, pc_model, pc_category, pc_media, pc_emergency_class,
-     pc_location, pc_contact_phone, pc_extracted) = row
+     pc_location, pc_contact_phone, pc_extracted, pc_serial) = row
 
     # UAT P1-1：手建卡客戶資訊 fallback——caller > 卡上(extracted/contact_phone) > user profile
     pc_customer_name = None
@@ -521,16 +523,18 @@ async def create_from_problem_card(
             "INSERT INTO work_orders "
             "  (problem_card_id, status, priority, "
             "   customer_name, customer_phone, customer_address, created_by, document_number, "
-            "   brand, model, problem_type, service_category, photos, tenant_id, quote_gate_applied) "
+            "   brand, model, problem_type, service_category, photos, tenant_id, quote_gate_applied, "
+            "   serial_number) "
             "VALUES (%s::uuid, 'created', %s, %s, %s, %s, "
             "        %s::uuid, generate_wo_number(%s), "
-            "        %s, %s, %s, %s, %s::jsonb, %s::uuid, TRUE) "
+            "        %s, %s, %s, %s, %s::jsonb, %s::uuid, TRUE, %s) "
             "RETURNING id",
             # CR-0043：problem_type 留 pc.category（問題本質）；service_category 另映射 enum（修死欄 bug）
             # CR-0128：quote_gate_applied=TRUE——gate 後新單，結案硬閘驗報價確認（存量單 FALSE 豁免）
             (pc_id, priority, final_name, final_phone, final_address, created_by, final_address,
              pc_brand, pc_model, pc_category, _map_service_category(pc_category),
-             json.dumps(pc_media, ensure_ascii=False) if pc_media else None, tenant_id),
+             json.dumps(pc_media, ensure_ascii=False) if pc_media else None, tenant_id,
+             pc_serial or None),
         )
     except Exception as exc:
         from psycopg import errors as _pg_errors
