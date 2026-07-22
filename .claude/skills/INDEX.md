@@ -23,7 +23,7 @@ sunnydata-{lifecycle-phase}
 | VERIFY (安全) | **sunnydata-security** | OWASP 分類 + 實作 checklist + 語言特定實踐 | 安全審查、auth、輸入處理 |
 | VERIFY (審查) | **sunnydata-code-review** | 驗證 → 發起 review → 消化回饋 | 完成任務、commit/PR 前 |
 | SHIP (基礎設施) | **sunnydata-infrastructure** | Docker + CI/CD + 部署策略 + 生產就緒 | 容器化、部署規劃 |
-| SHIP (分支) | **sunnydata-branch-lifecycle** | 建立 worktree → 收尾分支 (merge/PR/cleanup) | 功能隔離、分支收尾 |
+| SHIP (分支) | **sunnydata-branch-lifecycle** | L1/L2 短命分支 → 選用 worktree → 線性整合/PR/cleanup | 中高風險或並行工作；L0 不使用 |
 | DEBUG | **sunnydata-debugging** | 四階段結構化除錯 | bug、測試失敗、異常行為 |
 | RESEARCH | **sunnydata-deep-research** | 多來源深度研究 (firecrawl/exa MCP) | 複雜問題調查 |
 | ORCHESTRATE | **sunnydata-parallel-agents** | 獨立任務平行派發 | 2+ 個不相關問題同時處理 |

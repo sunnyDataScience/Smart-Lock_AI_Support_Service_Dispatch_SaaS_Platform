@@ -53,9 +53,14 @@ e2e-validation-specialist   # agent (Agent tool): E2E 測試
 ## 快速模式（小功能/Bug 修復）
 
 ```
-[describe task]  →  sunnydata-testing  →  /verify quick
+[確認為 L0、位於乾淨的授權整合分支]
+    → 實作／sunnydata-testing（需要時）
+    → /verify quick 或 scoped verification
+    → self-review diff
+    → 原子 commit
 ```
-讓 AI 自動載入 writing-plans skill；無需顯式 `/plan`。
+
+L0 不建立功能分支或 PR。L1／L2 才使用 `sunnydata-branch-lifecycle`；完整判斷見 `rules/git-workflow.md`。快速模式不代表跳過驗證，只是讓驗證與風險成比例。
 
 ---
 
@@ -130,8 +135,8 @@ e2e-validation-specialist   # agent (Agent tool): E2E 測試
 | 規則 | 強制內容 |
 | :--- | :--- |
 | coding-style | 不可變性、檔案大小限制、錯誤處理 |
-| development-workflow | 研究先行、Plan-TDD-Review 流程 |
-| git-workflow | Conventional Commits、PR 流程 |
+| development-workflow | 風險分級、L0 快速通道、L1/L2 Plan-TDD-Review 流程 |
+| git-workflow | Conventional Commits、L0/L1/L2 風險分級、短命分支與 PR gate |
 | security | 每次 commit 前安全檢查清單 |
 | testing | 80%+ 覆蓋率、TDD 強制 |
 | performance | 模型選擇、context 管理 |

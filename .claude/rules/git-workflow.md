@@ -108,81 +108,110 @@ chore(deps): bump fastapi to 0.115.0
 - 每個 commit 可獨立 review、獨立 revert
 - 禁止「fix」「update」「misc」等無意義 subject
 
-## 分支策略
+## 分支策略：風險分級的輕量主線制
 
-### 保護分支
-- `main`/`master` 禁止直接 commit — 所有變更透過 PR 合入
-- 發現在保護分支上時，**立即停止**並詢問使用者
+PR 是 review 與風險控制工具，不是每個修改的固定儀式。詳細決策與量測基線見 `.claude/context/decisions/branch-strategy-2026-07-23.md`。
 
-### 命名慣例
+### 分支角色
 
-格式：`<type>/<short-description>`
+| 分支 | 角色 | 直接 commit |
+| :--- | :--- | :--- |
+| `main`／`master` | release／production 主線 | 禁止；永遠走 PR |
+| `dev`／`dev-ding` | 使用者指定的整合主線 | 僅限 L0 低風險修改 |
+| `<type>/<short>` | L1／L2 或需要隔離的短命分支 | 可以，完成後整合並刪除 |
+| `release/*`／`hotfix/*` | 正式發版或 production incident | 依 release／incident 程序 |
 
-範例：
-- `feat/user-auth`
-- `fix/market-data-cache`
-- `refactor/api-response-format`
-- `chore/update-dependencies`
+`dev` 與 `dev-ding` 是不同擁有者／工作線；**不得為了方便把其中一條整條 merge 到另一條**。跨線移動只允許已確認範圍的 commit（例如 cherry-pick）或指定目錄／檔案。
 
-### 分支生命週期
+### 風險等級
 
+#### L0：可直接在授權整合分支提交
+
+必須同時符合：
+
+- 不觸發 CIA 的 flow／contract／data／architecture 七面向。
+- 不涉及權限、個資、加密、金流、部署、production 或破壞性操作。
+- 範圍集中、容易回復、沒有其他協作者正在修改同一區域。
+- 有明確且可在約 10 分鐘內完成的 scoped／quick verification。
+
+常見例子：文件、typo、註解、格式、產生檔、測試資料、單一模組內的小修正，以及不改既有介面的可回復小功能。
+
+#### L1：短命分支，PR 視 review 價值決定
+
+多檔行為修改、共用模組 refactor、相依套件更新，或需要第二人判斷取捨。分支應在同一工作天完成；有 reviewer、CI gate 或跨人協作時開 PR，否則可在使用者授權後以 rebase + fast-forward／squash 線性整合。
+
+#### L2：強制短命分支與 PR
+
+- 命中 `.claude/rules/change-governance.md` 的 CIA 條件。
+- API／DB／domain／外部整合／架構邊界變動。
+- auth、RBAC、個資、加密、金流、派工安全或 deployment／infra。
+- 跨團隊 ownership、難以回復或要合入 `main`／`master`。
+
+無法確定時提高一級；不得只用行數或檔案數判斷風險。
+
+### AI 分支決策
+
+- L0 且位於乾淨、已追蹤遠端的授權整合分支：直接工作，不再固定詢問是否開分支。
+- L1／L2、並行任務或需要隔離：建立 `<type>/<short-description>`，必要時使用 worktree。
+- 只有目標分支不明、工作區不乾淨或使用者要求與保護規則衝突時才停止詢問。
+- push、PR、merge、遠端分支刪除須有使用者明確授權；「上傳 GitHub」「上推」視為 push 授權，不自動包含 PR 或 merge。
+
+### 快速通道（L0）
+
+```bash
+git status --short --branch
+git pull --rebase origin <integration-branch>
+# 實作 + scoped/quick verification + self-review
+git commit -m "<type>(<scope>): <subject>"
+# 僅在使用者明確要求時 push
 ```
-main ──┬── feat/xxx ──── PR ──→ main
-       ├── fix/yyy  ──── PR ──→ main
-       └── refactor/zzz ─ PR ──→ main
-```
 
-- 一個分支做一件事 — 與 commit 原則一致
-- 分支壽命越短越好 — 長壽命分支 = merge conflict
-- 完成後載入 sunnydata-branch-lifecycle skill 收尾
+若 pull 後產生衝突、測試失敗或範圍擴大，立即停止快速通道並升級為 L1／L2。
 
-### 禁止
+### 短命分支命名與壽命
 
-- 禁止 `git stash` 作為工作流替代品（stash 只用於臨時中斷）
-- 禁止在功能分支混做不相關任務
-- 禁止 force push 到共享分支（除非明確請求且確認影響）
+格式：`<type>/<short-description>`，例如 `feat/user-auth`、`fix/market-data-cache`。一個分支只做一件事，理想壽命數小時、最長一個工作天。
+
+禁止：
+
+- 用 `git stash` 取代任務隔離。
+- 在功能分支混做不相關任務。
+- force push 共享／整合分支。
+- 為單一低風險 commit 製造 `--no-ff` merge commit。
 
 ## Pull Request 流程
 
-### 前置條件（建立 PR 前必須全部滿足）
+### 何時一定要 PR
 
-- [ ] 所有測試通過（unit + integration + E2E）
-- [ ] commit 歷史已審計（WHY/WHAT/IMPACT body 完整）
-- [ ] 已自我 review 完整 diff：`git diff <base>...HEAD`
-- [ ] 無殘留 debug code（console.log、TODO hack、commented-out code）
-- [ ] PR 大小合理 — 超過 400 行 diff 或 10+ 檔案時，考慮拆分
+- 所有進入 `main`／`master` 的變更。
+- 所有 L2 變更。
+- branch protection／ruleset 要求 PR。
+- 使用者、CODEOWNERS 或負責人明確要求 review。
 
-### 品質標準
+L0 不需要 PR；L1 依 review 是否能實際降低風險決定，不以形式合規取代判斷。
 
-標題：`<type>(<scope>): <subject>`（< 70 字元）
+### 前置條件
 
-Body 結構（每個區段必填）：
+- [ ] 受影響範圍的測試與必要 CI 通過
+- [ ] commit 歷史已審計
+- [ ] 已 self-review 完整 diff：`git diff <base>...HEAD`
+- [ ] 無 debug code、機密或非任務檔案
+- [ ] 變更維持小批次；若難以在一次 review 理解就拆分
 
-| 區段 | 內容 |
-| :--- | :--- |
-| **Background** | 為什麼做這個 PR — 問題、動機、關聯 issue |
-| **Changes** | 核心決策和取捨（不是 file list） |
-| **Impact** | 破壞性變更、migration、受影響模組 |
-| **Test Plan** | 具體驗證步驟 checklist |
+### PR 品質標準
 
-### 提交步驟
-
-1. 確認前置條件全部滿足
-2. `git push -u origin <branch>`
-3. `gh pr create`（使用上述 Body 結構）
-4. 載入 sunnydata-code-review skill 進行 self-review
-5. 指定 reviewer（如適用）
+標題：`<type>(<scope>): <subject>`（< 70 字元）。Body 說明 Background、Changes、Impact 與 Test Plan；純小型 L1 可精簡，但不得省略風險與驗證結果。
 
 ### Merge 策略
 
-| 場景 | 策略 | 理由 |
+| 場景 | 預設策略 | 理由 |
 | :--- | :--- | :--- |
-| 功能分支（1-3 commits，邏輯清晰） | Merge commit | 保留完整歷史 |
-| 功能分支（多個零散 commit） | Squash merge | 合併為一個乾淨 commit |
-| 長期分支同步 | Rebase | 保持線性歷史 |
-| Hotfix | Merge commit | 可追溯修復點 |
+| 一般短命 PR | Squash merge | 一個任務在主線形成一個可回復 commit |
+| 多個 commit 均可獨立回復 | Rebase merge | 保留有價值的線性 commit |
+| 本地短命分支整合 | Rebase 後 fast-forward，或 squash | 不製造無資訊 merge node |
+| Release／hotfix／需要拓樸稽核 | Merge commit | 保留真正有治理意義的整合點 |
 
-Merge 後刪除遠端分支：`git push origin --delete <branch>`
+Merge 後刪除短命分支。GitHub repo 設定建議預設啟用 squash、視需要啟用 rebase，避免一般功能 PR 使用 merge commit。
 
 ## 版本管理
 

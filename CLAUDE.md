@@ -90,8 +90,8 @@ cd agent && python scripts/line_gateway.py               # LINE webhook 通道�
   2. `CHANGELOG.md` `[Unreleased]` 段 → Added / Changed / Decisions 對應條目
   3. 有架構決策 → 新開 ADR（**append-only，舊的標 `status: superseded` + `superseded_by:`，不改舊內容**）
 - Commit message 依 type 分層（見 `.claude/rules/git-workflow.md`）：`feat` 三段 WHY/WHAT/IMPACT；`fix` WHY + root cause；`docs`/`chore` 一行夠
-- **永不在 `main` / `dev` 直接 commit** — 先開 `<type>/<short>` 分支（2026-07-08 起主線= `dev`；`dev_new_arch` 已收斂，僅留雲端備份）
-- **push 由使用者執行**，Claude 只 commit
+- **`main` / `master` 永不直接 commit**；`dev` / `dev-ding` 採風險分級：L0 低風險小改可直接建立原子 commit，L1/L2 才開 `<type>/<short>` 短命分支，詳見 `.claude/rules/git-workflow.md`（`dev_new_arch` 已收斂，僅留雲端備份）
+- **push、PR、merge 與遠端分支刪除須使用者明確授權**；使用者說「上傳 GitHub／上推」只代表 push，不自動包含 PR 或 merge
 - 文件 6 tier 規則：`.claude/rules/context-stability.md`
 </important>
 

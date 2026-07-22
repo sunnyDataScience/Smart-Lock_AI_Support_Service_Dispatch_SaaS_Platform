@@ -5,7 +5,7 @@
 > `changelog-sync` 亦未安裝於 `.claude/skills/`（實裝清單見該目錄 INDEX.md，12 個 sunnydata-*）。
 > 讀到這些名稱時視為「概念流程」而非可呼叫 skill；本檔待整體改版。
 
-> **版本:** v5.5 | **更新:** 2026-05-15
+> **版本:** v5.6 | **更新:** 2026-07-23
 
 ---
 
@@ -83,8 +83,8 @@
 | 規則 | 內容 |
 | :--- | :--- |
 | coding-style | 不可變性、檔案大小、錯誤處理 |
-| development-workflow | 研究先行 → Plan → TDD → Review |
-| git-workflow | Conventional Commits、PR 流程 |
+| development-workflow | 先判斷風險；L0 快速通道，L1/L2 標準流程 |
+| git-workflow | Conventional Commits、風險分級快速通道、短命分支與 PR gate |
 | security | commit 前安全檢查 |
 | testing | 80%+ 覆蓋率、TDD |
 | performance | 模型選擇、Context 管理 |

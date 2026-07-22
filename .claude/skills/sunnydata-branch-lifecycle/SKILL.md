@@ -1,6 +1,6 @@
 ---
 name: sunnydata-branch-lifecycle
-description: Git branch lifecycle management — create isolated worktrees for feature work, then finish with structured merge/PR/cleanup options. Use when starting feature work that needs isolation or when implementation is complete and ready to integrate.
+description: Risk-based Git branch lifecycle management for L1/L2 changes, parallel work, or work that needs isolation. Do not use for L0 direct commits on an authorized integration branch.
 ---
 
 > **繁體中文說明**：本技能整合了 `sp-using-git-worktrees` 與 `sp-finishing-a-development-branch` 兩個技能，涵蓋分支從建立、隔離工作到完成整合的完整生命週期。
@@ -9,21 +9,49 @@ description: Git branch lifecycle management — create isolated worktrees for f
 
 ## Overview
 
-One skill for the full branch lifecycle: **Create → Work → Close**
+One skill for the lifecycle of work that actually needs a branch: **Classify → Create → Work → Close**
 
-- **Phase 1** sets up an isolated git worktree so you can work without disturbing the current workspace.
+- **Phase 0** confirms that the task is L1/L2 or otherwise needs isolation.
+- **Phase 1** creates a short-lived branch; a worktree is optional and only used for real parallel/isolation needs.
 - **Phase 2** verifies completion, presents structured integration options, and cleans up.
 
-**Core principle:** Systematic isolation at the start + verified closure at the end = no lost work, no polluted branches.
+**Core principle:** Branching ceremony must be proportional to risk. L0 stays on the authorized integration branch; L1/L2 gets systematic isolation and verified closure.
 
-**Announce at start of Phase 1:** "I'm using the branch-lifecycle skill to set up an isolated workspace."
+## Phase 0: Check Whether a Branch Is Needed
+
+Read `.claude/rules/git-workflow.md` first.
+
+| Situation | Action |
+|---|---|
+| L0, clean authorized `dev`/`dev-ding` integration branch | Do not invoke this skill; use the direct-commit quick path |
+| L1 or L2 | Continue to Phase 1 |
+| Parallel agent/human tasks touching different scopes | Continue to Phase 1; worktree recommended |
+| Dirty workspace or target branch unclear | Stop and report; do not hide the state with stash |
+| `main`/`master` | Continue to Phase 1; PR is mandatory |
+
+Do not classify by line count alone. CIA triggers, security, data, money, deployment, and architecture are always L2.
+
+**Announce at start of Phase 1:** "I'm using the branch-lifecycle skill for this L1/L2 short-lived branch."
 **Announce at start of Phase 2:** "I'm using the branch-lifecycle skill to complete this work."
 
 ---
 
-## Phase 1: Create Worktree
+## Phase 1: Create a Short-Lived Branch
 
-### Directory Selection
+### Isolation Decision
+
+Use the current workspace when it is clean and no concurrent task needs it:
+
+```bash
+git switch <integration-branch>
+git pull --ff-only origin <integration-branch>
+git switch -c <type>/<short-description>
+git config branch.$(git branch --show-current).sunnydata-base <integration-branch>
+```
+
+Use a worktree only when another task must continue in the current workspace, multiple agents/humans are working concurrently, or the user explicitly requests isolation. If none applies, skip directly to baseline verification.
+
+### Worktree Directory Selection (Only When Needed)
 
 Follow this priority order strictly:
 
@@ -55,7 +83,7 @@ No worktree directory found. Where should I create worktrees?
 Which would you prefer?
 ```
 
-### Safety Verification
+### Worktree Safety Verification
 
 **For project-local directories (`.worktrees` or `worktrees`) — MUST verify ignored:**
 
@@ -72,7 +100,7 @@ This prevents worktree contents from being accidentally committed to the reposit
 
 **For global directory (`~/.config/superpowers/worktrees`):** No `.gitignore` check needed — it is outside the project entirely.
 
-### Creation Steps
+### Worktree Creation Steps
 
 **1. Detect project name:**
 
@@ -84,10 +112,12 @@ project=$(basename "$(git rev-parse --show-toplevel)")
 
 ```bash
 # Project-local
-git worktree add .worktrees/<branch-name> -b <branch-name>
+git worktree add .worktrees/<branch-name> -b <branch-name> <integration-branch>
 
 # Global
-git worktree add ~/.config/superpowers/worktrees/$project/<branch-name> -b <branch-name>
+git worktree add ~/.config/superpowers/worktrees/$project/<branch-name> -b <branch-name> <integration-branch>
+
+git config branch.<branch-name>.sunnydata-base <integration-branch>
 
 cd <worktree-path>
 ```
@@ -123,6 +153,8 @@ Ready to implement <feature-name>
 
 | Situation | Action |
 |-----------|--------|
+| L0 direct commit | Do not create a branch/worktree |
+| L1/L2 without concurrent work | Create a short-lived branch in current workspace |
 | `.worktrees/` exists | Use it (verify ignored) |
 | `worktrees/` exists | Use it (verify ignored) |
 | Both exist | Use `.worktrees/` |
@@ -176,17 +208,17 @@ User may choose to proceed as-is or fix. Do not block — this is advisory, not 
 ### Step 3: Determine Base Branch
 
 ```bash
-git merge-base HEAD main 2>/dev/null || git merge-base HEAD master 2>/dev/null
+git config --get branch.$(git branch --show-current).sunnydata-base
 ```
 
-Or confirm with user: "This branch split from main — is that correct?"
+Prefer the authorized integration branch (`dev` or `dev-ding`) recorded when the branch was created. Use `main`/`master` only for release/hotfix work. If the base cannot be derived from task context, tracking data, or reflog, confirm with the user; do not guess between `dev` and `dev-ding`.
 
 ### Step 4: Present Exactly 4 Options
 
 ```
 Implementation complete. What would you like to do?
 
-1. Merge back to <base-branch> locally
+1. Integrate linearly into <base-branch> locally
 2. Push and create a Pull Request
 3. Keep the branch as-is (I'll handle it later)
 4. Discard this work
@@ -198,17 +230,20 @@ Do not add explanation — keep options concise.
 
 ### Step 5: Execute Choice
 
-#### Option 1 — Merge Locally
+#### Option 1 — Linear Local Integration
 
 ```bash
-git checkout <base-branch>
-git pull
-git merge <feature-branch>
+git switch <base-branch>
+git pull --ff-only origin <base-branch>
+git switch <feature-branch>
+git rebase <base-branch>
+git switch <base-branch>
+git merge --ff-only <feature-branch>
 <test command>          # verify merged result
 git branch -d <feature-branch>
 ```
 
-Then: proceed to Step 5 (cleanup worktree).
+If the branch contains noisy fixup commits, squash them before integration instead of creating a merge commit. Never use `--no-ff` merely to record a one-commit task. Then proceed to cleanup.
 
 #### Option 2 — Push and Create PR
 
@@ -276,6 +311,14 @@ EOF
 
 After PR is created, invoke `sunnydata-code-review` skill for structured self-review.
 
+When the PR is approved, prefer:
+
+```bash
+gh pr merge --squash --delete-branch
+```
+
+Use rebase merge only when the individual commits are independently valuable. Reserve merge commits for release/hotfix or an explicit topology-audit requirement.
+
 Then: proceed to Step 5 (cleanup worktree).
 
 #### Option 3 — Keep As-Is
@@ -323,7 +366,7 @@ git worktree remove <worktree-path>
 
 | Option | Merge | Push | Keep Worktree | Delete Branch |
 |--------|-------|------|---------------|---------------|
-| 1. Merge locally | yes | no | no | yes (soft) |
+| 1. Linear local integration | yes | no | no | yes (soft) |
 | 2. Create PR | no | yes | yes | no |
 | 3. Keep as-is | no | no | yes | no |
 | 4. Discard | no | no | no | yes (force) |
@@ -333,8 +376,9 @@ git worktree remove <worktree-path>
 ## Quick Reference: When to Use Each Phase
 
 ```
-Need to start isolated feature work?
-  └─ Yes → Phase 1: Create Worktree
+Does risk/isolation require a branch?
+  ├─ No (L0) → Direct-commit quick path; do not use this skill
+  └─ Yes → Phase 1: Create short-lived branch (worktree optional)
        └─ Work until implementation complete
             └─ All tests passing? → Phase 2: Finish Branch
 
@@ -351,14 +395,18 @@ Interrupted mid-work on a worktree?
 ## Red Flags
 
 **Never:**
+- Create a branch/PR solely because a file changed when the task is L0
 - Create a project-local worktree without verifying it is ignored
 - Skip baseline test verification in Phase 1
 - Proceed to Phase 2 options while tests are failing
 - Delete work (Option 4) without typed `discard` confirmation
 - Force-push without explicit user request
 - Proceed with failing tests after merge (Option 1)
+- Create a `--no-ff` merge commit for a one-commit low-risk branch
 
 **Always:**
+- Classify risk before creating a branch
+- Keep short-lived branches under one working day where practical
 - Directory priority: existing > CLAUDE.md > ask
 - Auto-detect dependencies from manifest files
 - Present exactly 4 options in Phase 2
@@ -369,9 +417,9 @@ Interrupted mid-work on a worktree?
 ## Integration
 
 **Called by:**
-- `sunnydata-design` (Phase 1) — REQUIRED when design approved and implementation follows
-- `sunnydata-design` (Phase 3) — REQUIRED before and after executing task batches
-- `sp-subagent-driven-development` — REQUIRED bookends for task execution
+- `sunnydata-design` — only when the approved implementation is L1/L2 or needs isolation
+- parallel/subagent development — when concurrent work needs separate worktrees
+- explicit user request for branch/PR lifecycle management
 
 **Pairs with:**
 - `sunnydata-code-review` skill — run Phase 1 of sunnydata-code-review before finalizing Phase 2 here
