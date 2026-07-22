@@ -49,6 +49,7 @@
 
 ### 進度
 - ✅ 輪次 A 實作完成（本檔）：agent pytest 18 passed（含新守線 5 案）、brand-portal tsc 乾淨、i18n JSON 合法、api 語法檢查通過。api 新增 component 測試（需真 DB）待安全窗執行——UAT 期間不對 5433 跑（pytest 污染 UAT 庫既有雷）。
+- ✅ 輪次 A2（branch `fix/uat-0720-round-a2`，業主「繼續修」）：**09 姓名預填收尾**——`extracted_fields->>'customer_name'` 上 ProblemCard response（_PC_SELECT index 30 append-only＋serializer＋generated.py 手補欄）＋ConvertModal `initialName` 預填；**08 殘項**——測試員指引 `docs/uat/tech-accept-flow-guide-20260722.md`（接單入口＋後台可見性對照）；**13 CIA**＝CR-0179（丟圖機制 A/B/C 三案，停 §8）；**06 前半段 CIA**＝CR-0180（簽署連結推播——基建全在半天可做，但涉草稿法律文本對外＋新端點，停 §8 三決策）。tsc＋api 語法綠。
 
 ## §9 遺留與後續
 
