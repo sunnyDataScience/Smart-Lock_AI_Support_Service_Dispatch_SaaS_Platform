@@ -133,3 +133,67 @@ async def destroy_dek(subject_user_id: str, actor_user_id: str | None = None) ->
     if destroyed:
         logger.info("crypto-shred: DEK destroyed for subject=%s", subject_user_id)
     return destroyed
+
+
+# ── CR-0176 S2：品牌庫 users PII 欄位 dual-write / dual-read ───────────────
+# 範圍＝CIA HD-2 phase 1：users 三欄（migration 112 已備妥對應 *_enc 欄）。
+# work_orders 客戶欄（phase 2）與技師/平台庫 users（ADR-020 三庫）為範圍延伸。
+USER_PII_FIELDS: dict[str, str] = {
+    "display_name": "display_name_enc",
+    "email": "email_enc",
+    "phone": "phone_enc",
+}
+
+
+async def encrypt_user_pii(
+    subject_user_id: str,
+    tenant_id: str | None,
+    fields: dict[str, str | None],
+) -> dict[str, str | None]:
+    """把 users 明文 PII 值加密成 *_enc 欄位值（dual-write 同句寫入用）。
+
+    fields 的 key 必須 ∈ USER_PII_FIELDS；回傳只含傳入欄位的
+    {"<欄>_enc": 密文|None}。值 None/空白 → None（與明文語意一致）。
+    """
+    out: dict[str, str | None] = {}
+    for key, value in fields.items():
+        out[USER_PII_FIELDS[key]] = await encrypt_pii(subject_user_id, tenant_id, value)
+    return out
+
+
+async def dual_write_user_pii(
+    subject_user_id: str,
+    tenant_id: str | None,
+    fields: dict[str, str | None],
+) -> None:
+    """INSERT 後補寫品牌庫 users 的 *_enc 欄（id 由 RETURNING 才確定的場合）。
+
+    設計上 enc 只會「缺」不會「舊」：與明文同交易時原子；交易外中斷時 enc 留
+    NULL → dual-read 回退明文、S3 backfill 兜底。UPDATE 場合請改用
+    encrypt_user_pii 併入同一句 UPDATE（避免明文已變、enc 補寫失敗的 stale）。
+    """
+    if not fields:
+        return
+    enc = await encrypt_user_pii(subject_user_id, tenant_id, fields)
+    sets = ", ".join(f"{col} = %s" for col in enc)
+    await db_module._conn.execute(
+        f"UPDATE users SET {sets} WHERE id = %s::uuid",
+        (*enc.values(), subject_user_id),
+    )
+
+
+async def decrypt_user_pii_row(subject_user_id: str, row: dict) -> dict:
+    """dual-read：enc 優先、明文回退（CIA §9 S2）。回新 dict，*_enc 欄一律剝除。
+
+    - enc 有值 → 解密為明文；DEK 已銷毀（crypto-shred）→ **None，不回退明文**
+      （fail-closed：銷毀即不可讀；正常 forget 流程明文同步已清，此為防禦深度）。
+    - enc 無值（backfill 前/舊列）→ 保留明文欄現值（過渡窗明文仍權威）。
+    """
+    out = dict(row)
+    for plain_col, enc_col in USER_PII_FIELDS.items():
+        if enc_col not in row:
+            continue
+        cipher = out.pop(enc_col)
+        if cipher:
+            out[plain_col] = await decrypt_pii(subject_user_id, cipher)
+    return out

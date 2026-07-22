@@ -269,12 +269,18 @@ async def soft_delete(
         rrow = await rcur.fetchone()
         _is_tech = bool(rrow) and rrow[0] == "technician"
     _conn = await db_module.require_tech_conn() if _is_tech else db_module._conn
+    # CR-0176 S2：品牌庫列同句清空 *_enc 密文（早於 hard delete 的 defense in depth；
+    # dual-read 因此回退到 [REDACTED] 明文而非 None）。技師權威庫無 enc 欄（延伸範圍）。
+    _enc_clear = (
+        "" if _is_tech
+        else ", display_name_enc = NULL, email_enc = NULL, phone_enc = NULL"
+    )
     await _conn.execute(
         "UPDATE users SET "
         "  display_name = '[REDACTED]', "
         "  email = '[REDACTED-' || id::text || ']', "
         "  phone = NULL, "
-        "  updated_at = NOW() "
+        f"  updated_at = NOW(){_enc_clear} "
         "WHERE id = %s::uuid",
         (subject_user_id,),
     )

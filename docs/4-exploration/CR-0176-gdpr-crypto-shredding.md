@@ -162,12 +162,35 @@ KEK（master，Secret Manager / KMS，全系統一把）
   ＋ 無 DEK no-op ＋ 重用 active（5）；皆純函式/in-memory registry，不碰 DB。
   migration 112 **拋棄式 Postgres 16 實測**（DDL／ON CONFLICT 匹配 partial index 去重／
   tombstone／CHECK 反例全綠）。
-- ⬜ **S2 pending**：PII 欄位 dual-write/read cutover（11 個 users 寫入點＋讀路徑，
-  面廣且需 DB 整合測試——另開增量）。
-- ⬜ **S3 pending**：存量明文 backfill（app 層 Fernet，比照 CR-0173 backfill 腳本）。
-- ⬜ **S5 pending**：讀路徑全面 cutover 後 DROP 明文欄（不可逆點，S1-S4 穩定後）。
-- ⬜ **範圍延伸**：work_orders 客戶欄（HD-2 phase 2）、技師/平台庫 users（ADR-020 三庫）。
+- ✅ **S2 done（2026-07-22，branch `feat/cr-0176-s2-pii-cutover`）**：品牌庫 users 三欄
+  dual-write/read cutover——
+  - helper（`dek_service.py`）：`USER_PII_FIELDS`／`encrypt_user_pii`（同句寫入用）／
+    `dual_write_user_pii`（RETURNING 後補寫，enc「只缺不舊」不 stale）／
+    `decrypt_user_pii_row`（**enc 優先、明文回退；DEK 已銷毀＝None fail-closed 不回退明文**）。
+  - **9 個品牌庫寫入點全接**（偵察窮盡對帳：CIA 原記 11 點中 #1 register_technician、
+    #6 create_technician 落技師權威庫＝延伸範圍，本輪 9 點）：create_staff_user／
+    register_vendor（enc 同句 INSERT）、update_profile（同句 UPDATE，技師列跳過）、
+    create_conversation upsert（同交易補寫）、staff_application approve（交易內同句）、
+    create_customer（RETURNING＋同交易補寫）、update_customer（整體取代＝三欄全量、同交易）、
+    escalation phone 回填（RETURNING＋best-effort）、gdpr soft_delete（**改為同句清空
+    *_enc**——早於 hard delete 的 defense in depth，dual-read 回退 [REDACTED]）。
+  - 讀路徑參考接線 2 處：`get_profile`（/auth/me）＋ `_fetch_customer_row`（單筆客戶）。
+    **列表讀路徑（list_customers/list_staff_users/conversations）過渡窗維持明文**（明文
+    仍權威且與密文同值），S5 一併切換。
+- ✅ **S3 script done（同輪）**：`scripts/backfill_user_pii_encryption.py`（sync psycopg、
+  冪等 WHERE 明文非空∧enc 空、**destroyed DEK 絕不重建**、[REDACTED] 列跳過、KEK 不符
+  exit 3 fail-loud、--dry-run 不建 DEK；**不清明文**）。**prod 實跑待業主環境**。
+- ⬜ **S5 pending**：列表讀路徑切換＋ DROP 明文欄（不可逆點）。**新盤出的 S5 前置**：
+  - ⚠️ email/phone 有 **WHERE 等值查詢**（login `auth_service.py:54/:250`、EMAIL_TAKEN
+    去重、phone 去重 `customer_service.py:383`、password_reset）——DROP 前須先建
+    **blind index**（比照 CR-0173 bidx）或明確裁決保留該兩欄明文。
+  - ⚠️ `users.address` 有寫讀點但不在 HD-2 users 欄位清單（歸 work_orders phase 2 脈絡）
+    ——S5 前需業主澄清 address 歸屬。
+- ⬜ **範圍延伸**：work_orders 客戶欄（HD-2 phase 2）、技師/平台庫 users（ADR-020 三庫；
+  技師列品牌庫投影由 `mirror_rows` 整列覆蓋，enc 恆 NULL＝回退明文，待技師庫同款覆蓋）。
 
-> **本增量＝基礎設施 + forget 整合 + 完整單元證明**。crypto-shred 的密碼學核心與
-> per-subject 隔離已鎖成回歸測試；PII 欄位全站 cutover（S2）落地後即端到端不可讀。
-> **deploy**：prod 設 `GDPR_DEK_KEK`（Secret Manager；未設走 dev fallback＝不安全）→ 套 migration 112。
+> **S2/S3 驗證**：unit **17 passed**（S2 新增 6：enc-first／明文回退／shred fail-closed／
+> dual-write SQL／空 no-op ＋ 既有 11 回歸），皆 in-memory 不碰 DB；DB 整合測試（真
+> migration 112 庫上 9 寫入點 round-trip）留業主環境。
+> **deploy**：prod 設 `GDPR_DEK_KEK`（Secret Manager）→ **先套 migration 112 再佈本輪
+> code**（寫入點已引用 *_enc 欄，順序顛倒會 500）→ 跑 S3 backfill（同一組 KEK）。

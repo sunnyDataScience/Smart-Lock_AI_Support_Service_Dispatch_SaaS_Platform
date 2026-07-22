@@ -211,19 +211,28 @@ async def create_conversation(
         return conv, False
 
     # 2. Upsert user (line_user_id UNIQUE 約束)
-    cur = await db_module._conn.execute(
-        "INSERT INTO users (line_user_id, display_name, tenant_id, role, last_active_at) "
-        "VALUES (%s, %s, %s::uuid, 'line_user', NOW()) "
-        "ON CONFLICT (line_user_id) DO UPDATE SET "
-        "  display_name = COALESCE(EXCLUDED.display_name, users.display_name), "
-        "  last_active_at = NOW() "
-        "RETURNING id",
-        (line_user_id, display_name, tenant_id),
-    )
-    user_row = await cur.fetchone()
-    if not user_row:
-        raise ApiError("INTERNAL_ERROR", "Failed to upsert user", 500)
-    user_id = str(user_row[0])
+    #    CR-0176 S2：帶 display_name 時同交易補 dual-write（COALESCE 語意＝沒帶名字
+    #    不動明文，enc 亦不動；交易保證 enc 不落後明文）。
+    async with db_module._conn.transaction():
+        cur = await db_module._conn.execute(
+            "INSERT INTO users (line_user_id, display_name, tenant_id, role, last_active_at) "
+            "VALUES (%s, %s, %s::uuid, 'line_user', NOW()) "
+            "ON CONFLICT (line_user_id) DO UPDATE SET "
+            "  display_name = COALESCE(EXCLUDED.display_name, users.display_name), "
+            "  last_active_at = NOW() "
+            "RETURNING id",
+            (line_user_id, display_name, tenant_id),
+        )
+        user_row = await cur.fetchone()
+        if not user_row:
+            raise ApiError("INTERNAL_ERROR", "Failed to upsert user", 500)
+        user_id = str(user_row[0])
+        if display_name:
+            from services import dek_service
+
+            await dek_service.dual_write_user_pii(
+                user_id, tenant_id, {"display_name": display_name}
+            )
 
     # 3. INSERT conversation + 自動 doc number
     cur = await db_module._conn.execute(

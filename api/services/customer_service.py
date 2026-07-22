@@ -400,9 +400,16 @@ async def create_customer(*, tenant_id: str, payload: dict) -> dict:
         f"VALUES ({', '.join(placeholders)}) "
         f"RETURNING id"
     )
-    cur = await db_module._conn.execute(sql, args)
-    row = await cur.fetchone()
-    new_id = str(row[0])
+    # CR-0176 S2：id 由 DB 生成 → RETURNING 後同交易補 dual-write（原子）
+    from services import dek_service
+
+    async with db_module._conn.transaction():
+        cur = await db_module._conn.execute(sql, args)
+        row = await cur.fetchone()
+        new_id = str(row[0])
+        pii = {k: data.get(k) for k in dek_service.USER_PII_FIELDS if k in data}
+        if pii:
+            await dek_service.dual_write_user_pii(new_id, tenant_id, pii)
 
     # Fetch full row through the read pipeline so聚合計數欄位（皆為 0）一致
     return await _fetch_customer_row(tenant_id=tenant_id, customer_id=new_id)
@@ -430,10 +437,19 @@ async def update_customer(
         f"WHERE id = %s::uuid AND tenant_id = %s::uuid AND role = 'line_user' "
         f"RETURNING id"
     )
-    cur = await db_module._conn.execute(sql, args)
-    row = await cur.fetchone()
-    if not row:
-        raise ApiError("NOT_FOUND", "Customer not found", 404)
+    # CR-0176 S2：整體取代語意 → 三個 PII 欄全量 dual-write（未提供＝明文 NULL、enc 亦
+    # NULL）；與明文同交易，404 時一併回滾（避免為不存在/跨租戶 id 建 DEK）。
+    from services import dek_service
+
+    async with db_module._conn.transaction():
+        cur = await db_module._conn.execute(sql, args)
+        row = await cur.fetchone()
+        if not row:
+            raise ApiError("NOT_FOUND", "Customer not found", 404)
+        await dek_service.dual_write_user_pii(
+            customer_id, tenant_id,
+            {k: data.get(k) for k in dek_service.USER_PII_FIELDS},
+        )
 
     return await _fetch_customer_row(
         tenant_id=tenant_id, customer_id=customer_id
@@ -450,4 +466,32 @@ async def _fetch_customer_row(*, tenant_id: str, customer_id: str) -> dict:
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "Customer not found", 404)
-    return _row_to_customer(row)
+    data = _row_to_customer(row)
+
+    # CR-0176 S2 dual-read（單筆讀參考接線：enc 優先、明文回退；列表路徑 S5 一併切換）
+    ecur = await db_module._conn.execute(
+        "SELECT display_name_enc, email_enc, phone_enc FROM users WHERE id = %s::uuid",
+        (customer_id,),
+    )
+    erow = await ecur.fetchone()
+    if erow and any(erow):
+        from services import dek_service
+
+        merged = await dek_service.decrypt_user_pii_row(
+            customer_id,
+            {
+                "display_name": row[1],
+                "email": data.get("email"),
+                "phone": data["phone"],
+                "display_name_enc": erow[0],
+                "email_enc": erow[1],
+                "phone_enc": erow[2],
+            },
+        )
+        data["phone"] = merged["phone"]
+        data["display_name"] = _derive_display_name(
+            merged["display_name"], merged["phone"], customer_id
+        )
+        if "email" in data:
+            data["email"] = merged["email"]
+    return data
