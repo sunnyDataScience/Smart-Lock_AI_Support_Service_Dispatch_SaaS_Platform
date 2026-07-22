@@ -829,12 +829,21 @@ async def escalation_to_draft_pc(
     ai_phone = _normalize_tw_mobile(snapshot.get("phone"))
     if ai_phone:
         try:
-            await db_module._conn.execute(
+            cur = await db_module._conn.execute(
                 "UPDATE users SET phone = %s, updated_at = NOW() "
                 "WHERE id = (SELECT user_id FROM conversations WHERE id = %s::uuid) "
-                "  AND (phone IS NULL OR phone = '')",
+                "  AND (phone IS NULL OR phone = '') "
+                "RETURNING id",
                 (ai_phone, conv_id),
             )
+            urow = await cur.fetchone()
+            if urow:
+                # CR-0176 S2：phone dual-write（同 try 內 best-effort，失敗不阻斷建卡）
+                from services import dek_service
+
+                await dek_service.dual_write_user_pii(
+                    str(urow[0]), None, {"phone": ai_phone}
+                )
         except Exception:  # noqa: BLE001 — 電話回填失敗不可阻斷建卡主流程
             logger.warning("CR-0102 回填 users.phone 失敗（已略過）", exc_info=True)
     # 症狀文字優先取 LLM 抽出的精準症狀，其次客人原話摘要，再否則 agent 轉接理由

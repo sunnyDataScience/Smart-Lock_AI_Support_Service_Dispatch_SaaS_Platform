@@ -450,21 +450,31 @@ async def get_profile(*, user_id: str) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     cur = await db_module._conn.execute(
-        "SELECT id, display_name, email, phone, role, tenant_id "
+        "SELECT id, display_name, email, phone, role, tenant_id, "
+        "       display_name_enc, email_enc, phone_enc "
         "FROM users WHERE id = %s::uuid LIMIT 1",
         (user_id,),
     )
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "User not found", 404)
-    return {
-        "id": str(row[0]),
-        "display_name": row[1],
-        "email": row[2],
-        "phone": row[3],
-        "role": row[4],
-        "tenant_id": str(row[5]) if row[5] else None,
-    }
+    # CR-0176 S2 dual-read：enc 優先、明文回退（helper 會剝除 *_enc 欄）
+    from services import dek_service
+
+    return await dek_service.decrypt_user_pii_row(
+        str(row[0]),
+        {
+            "id": str(row[0]),
+            "display_name": row[1],
+            "email": row[2],
+            "phone": row[3],
+            "role": row[4],
+            "tenant_id": str(row[5]) if row[5] else None,
+            "display_name_enc": row[6],
+            "email_enc": row[7],
+            "phone_enc": row[8],
+        },
+    )
 
 
 async def update_profile(
@@ -481,24 +491,36 @@ async def update_profile(
 
     sets: list[str] = []
     params: list = []
+    changed: dict[str, str | None] = {}
     if display_name is not None:
         dn = display_name.strip()
         if not dn or len(dn) > 100:
             raise ApiError("VALIDATION_ERROR", "display_name 須為 1–100 字", 422)
         sets.append("display_name = %s")
         params.append(dn)
+        changed["display_name"] = dn
     if phone is not None:
         ph = phone.strip()
         if len(ph) > 50:
             raise ApiError("VALIDATION_ERROR", "phone 過長（上限 50 字）", 422)
         sets.append("phone = %s")
         params.append(ph or None)
+        changed["phone"] = ph or None
     if not sets:
         return await get_profile(user_id=user_id)
 
-    params.append(user_id)
     profile = await get_profile(user_id=user_id)  # 先取 role 供寫入路由（不存在即 404）
     conn = await _users_write_conn(profile["role"])
+    # CR-0176 S2：品牌庫列 enc 與明文同句 UPDATE（原子）；技師列走權威庫（無 enc 欄，
+    # 屬三庫延伸範圍）不 dual-write。
+    if profile["role"] != "technician" and changed:
+        from services import dek_service
+
+        enc = await dek_service.encrypt_user_pii(user_id, profile.get("tenant_id"), changed)
+        for col, val in enc.items():
+            sets.append(f"{col} = %s")
+            params.append(val)
+    params.append(user_id)
     await conn.execute(
         f"UPDATE users SET {', '.join(sets)}, updated_at = NOW() WHERE id = %s::uuid",
         tuple(params),
@@ -753,10 +775,18 @@ async def create_staff_user(req: dict, *, tenant_id: str) -> dict:
 
     user_id = str(uuid.uuid4())
     pw_hash = hash_password(password)
+    # CR-0176 S2：PII dual-write——密文欄與明文同句 INSERT（單句原子，無 stale 窗）
+    from services import dek_service
+
+    enc = await dek_service.encrypt_user_pii(
+        user_id, tenant_id, {"display_name": name, "email": email, "phone": phone}
+    )
     await db_module._conn.execute(
-        "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active) "
-        "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE)",
-        (user_id, tenant_id, name, phone, email, pw_hash, role),
+        "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active, "
+        "  display_name_enc, email_enc, phone_enc) "
+        "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE, %s, %s, %s)",
+        (user_id, tenant_id, name, phone, email, pw_hash, role,
+         enc["display_name_enc"], enc["email_enc"], enc["phone_enc"]),
     )
     return {
         "data": {
@@ -854,11 +884,19 @@ async def register_vendor(req: dict, *, initial_status: str = "active") -> dict:
     pw_hash = hash_password(password)
     tenant_id = "00000000-0000-0000-0000-000000000001"
 
+    # CR-0176 S2：PII dual-write（enc 與明文同句 INSERT）
+    from services import dek_service
+
+    enc = await dek_service.encrypt_user_pii(
+        user_id, tenant_id, {"display_name": name, "email": email, "phone": phone}
+    )
     async with db_module._conn.transaction():
         await db_module._conn.execute(
-            "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active) "
-            "VALUES (%s::uuid, %s::uuid, 'requestor', %s, %s, %s, %s, 'vendor', TRUE)",
-            (user_id, tenant_id, name, phone, email, pw_hash),
+            "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, password_hash, role, is_active, "
+            "  display_name_enc, email_enc, phone_enc) "
+            "VALUES (%s::uuid, %s::uuid, 'requestor', %s, %s, %s, %s, 'vendor', TRUE, %s, %s, %s)",
+            (user_id, tenant_id, name, phone, email, pw_hash,
+             enc["display_name_enc"], enc["email_enc"], enc["phone_enc"]),
         )
         # 代建（active）視同即刻核准 → 記 approved_at；approved_by 留 NULL
         # （FK 指品牌 users，平台管理員不在其中 —— 同平台核准時代的既有慣例）。

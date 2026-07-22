@@ -127,12 +127,19 @@ async def approve(*, tenant_id: str, app_id: str, reviewer_id: str, role: str) -
         raise ApiError("EMAIL_TAKEN", f"Email {email} 已是 {role} 帳號", 409)
 
     new_user_id = str(uuid.uuid4())
+    # CR-0176 S2：PII dual-write（enc 與明文同句 INSERT，交易內原子）
+    from services import dek_service
+
+    enc = await dek_service.encrypt_user_pii(
+        new_user_id, tenant_id, {"display_name": name, "email": email, "phone": phone}
+    )
     async with conn.transaction():
         await conn.execute(
             "INSERT INTO users (id, tenant_id, tenant_type, display_name, phone, email, "
-            "password_hash, role, is_active) "
-            "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE)",
-            (new_user_id, tenant_id, name, phone, email, password_hash, role),
+            "password_hash, role, is_active, display_name_enc, email_enc, phone_enc) "
+            "VALUES (%s::uuid, %s::uuid, 'platform', %s, %s, %s, %s, %s, TRUE, %s, %s, %s)",
+            (new_user_id, tenant_id, name, phone, email, password_hash, role,
+             enc["display_name_enc"], enc["email_enc"], enc["phone_enc"]),
         )
         await conn.execute(
             "UPDATE staff_applications SET status='approved', assigned_role=%s, "
