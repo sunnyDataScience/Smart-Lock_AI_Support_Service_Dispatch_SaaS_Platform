@@ -45,7 +45,9 @@
 
 ## §8 Human Decisions Required ✅（業主 2026-07-22 裁決「2-B」）
 
-**選方案 B：gateway 確定性夾圖**（SOP 標記→gateway 偵測附發 ImageMessage，不動白名單）；含共同段（回傳照片掛回問題卡）。樣本圖初期用會議兩張 JPG 起步；存放採可公開 HTTPS URL（實作定案：優先 brand-portal 靜態資產或 GCS，以 config 映射解耦）。
+**選方案 B：gateway 確定性夾圖**（SOP 標記→gateway 偵測附發 ImageMessage，不動白名單）；含共同段（回傳照片掛回問題卡）。**樣本圖正式素材＝會議附的兩張 JPG（業主 2026-07-23 確認：Mira GDrive 給的就這兩張，非佔位）**：施工前評估 6 項測量示範、電子鎖預約安裝流程。存放採 brand-portal 靜態資產（`public/photo-guides/`，部署即有公開 HTTPS URL），config 映射解耦。
+
+**品牌專屬修正（業主 2026-07-23）**：測量圖上有 Chatlock logo、量測部位針對 Chatlock 這款鎖——agent 支援 6 品牌（3E/Chatlock/Dormakaba/Kaadas/Milre/Philips），無差別丟會對其他品牌客戶丟錯圖（量錯部位）。裁決「先只做 Chatlock 這張，其他品牌純文字引導」：①key 標品牌 `pre-install`→`chatlock-pre-install`（檔名同步）②SOP v1.6.0→v1.7.0 第 4 點加品牌 gate（**確認客戶鎖為 Chatlock 才附標記**，其他品牌純文字）③config 移除未用的 `booking-install`（檔案留 public/ 備用，SOP 不主動引導）④留 per-brand 樣本圖擴充位（其他品牌測量圖到位再加 key）。
 
 ### 進度
 - ✅ 實作完成（branch `feat/uat-0720-round-b`）：
