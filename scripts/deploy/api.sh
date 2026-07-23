@@ -32,7 +32,15 @@ fi
 PROJECT_ID="${PROJECT_ID:-cedar-scope-489604-g3}"
 REGION="${REGION:-asia-east1}"
 SERVICE_NAME="${SERVICE_NAME:-smart-lock-api}"
-WEB_SERVICE_NAME="${WEB_SERVICE_NAME:-smart-lock-web}"   # 解析 web URL → CORS_ORIGINS
+# CORS 對應的 web 服務依 api 服務名對映（0723 UAT：lock-tech-api / lock-platform-api
+# 依 R6 runbook 重佈時未帶 WEB_SERVICE_NAME → 吃到 smart-lock-web 預設 → CORS 烤成
+# 品牌網址，技師站/平台 console 瀏覽器登入被 preflight 全擋。顯式 export 仍可覆寫。）
+case "${SERVICE_NAME}" in
+    lock-tech-api)     _DEFAULT_WEB="lock-tech-web" ;;
+    lock-platform-api) _DEFAULT_WEB="lock-platform-web" ;;
+    *)                 _DEFAULT_WEB="smart-lock-web" ;;
+esac
+WEB_SERVICE_NAME="${WEB_SERVICE_NAME:-${_DEFAULT_WEB}}"   # 解析 web URL → CORS_ORIGINS
 REPO="${REPO:-lock-ai-repo}"
 
 # Image tag: git short SHA + timestamp（支援 rollback）

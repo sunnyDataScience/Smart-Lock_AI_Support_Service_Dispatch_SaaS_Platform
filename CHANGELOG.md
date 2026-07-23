@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **deploy 腳本 api/web 服務名對映（branch `fix/api-deploy-cors-parity`，2026-07-23/24）**：0723 業主回報師傅站雲端無法登入。雙層根因，同一 parity 病：①`api.sh` 的 `WEB_SERVICE_NAME` 預設寫死 `smart-lock-web` → 0722 依 R6 runbook 重佈後 `lock-tech-api`/`lock-platform-api` 的 `CORS_ORIGINS` 烤成品牌後台網址；②`web.sh` 的 `API_SERVICE_NAME` 預設寫死 `smart-lock-api` → `lock-tech-web`/`lock-platform-web` bundle 內 `NEXT_PUBLIC_API_BASE_URL` 全指品牌 api（build-time 烤入，改 env 無效）。兩層疊加＝技師站／平台 console 瀏覽器登入被 CORS preflight 全擋（API 直打正常，故 0723 curl 代測未攔到；UI 級 CORS 屬代測盲區）。修：兩腳本皆依服務名/站台 case 對映預設值（顯式 export 仍可覆寫）；雲端兩 api 已熱修 env，兩 web 需重建重佈。附帶：三站帳號密碼重設（各自獨立新密碼＋撤舊 session），密碼檔 `admin-credentials-*.md` 入 gitignore。
+
 - **UAT-0720 輪次 C：殘項清理四件（branch `fix/uat-0720-round-c`，2026-07-22，業主「繼續修吧」）**：①新共用 `AuthImage`/`AuthImageLightbox`（帶 token fetch→blob；絕對 URL 直用）——問題卡附件裸連結（點擊 401）改縮圖+放大、工單「客戶照片」區修破圖、ChatTimeline 同款複本收斂 ②報價回覆話術分流（12 尾巴）：api 加語意化碼 `QUOTE_ALREADY_DECIDED`/`QUOTE_EXPIRED`（冪等回放不變、transition 不動），gateway 依 error_code 給準確話術（先同意後拒絕≠「未送達」），agent 測試 8 案＋api 回歸 2 案 ③問題卡→工單補 `serial` carry-over（CR-0026 獨漏）④時間軸技師接單/排程顯示全名（fetch 抬升單一請求，fallback shortId）。agent 全套 239 passed。
 
 - **UAT-0720 輪次 A2：09 姓名預填收尾＋08 接單指引＋兩份 CIA（branch `fix/uat-0720-round-a2`，2026-07-22，業主「繼續修」）**：①問題卡 `extracted_fields.customer_name` 上 ProblemCard response（`_PC_SELECT` index 30 append-only＋pydantic 手補欄）＋開單 ConvertModal 預填姓名——09 自動帶入三欄（地址/電話/姓名）到齊 ②測試員指引 `docs/uat/tech-accept-flow-guide-20260722.md`（技師在哪接單＋品牌後台在哪看已接單）③CR-0179 CIA：AI 樣本圖＋拍照回傳三方案（🛑 待業主選 A/B/C）④CR-0180 CIA：免責簽署連結 LINE 推播——token/推播/簽署頁基建全在、半天可做，但**會把「待法務定稿」草稿免責文本正式推給客戶**＋新端點屬 contract 變更（🛑 停 §8：法務 gate／token 授權外溢知情／WEB_BASE_URL 部署 parity）。

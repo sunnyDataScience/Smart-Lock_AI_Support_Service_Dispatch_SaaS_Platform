@@ -6,6 +6,7 @@
 !.env.local.example
 !.env.gcp.example
 credentials.json
+admin-credentials-*.md
 
 # Python
 __pycache__/
