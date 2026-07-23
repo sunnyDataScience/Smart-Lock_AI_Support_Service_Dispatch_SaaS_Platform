@@ -98,8 +98,12 @@ def test_skill_md_photo_guide_guidance_present():
     )
     text = skill_md.read_text(encoding="utf-8")
     assert "[[photo-guide:<key>]]" in text or "[[photo-guide:" in text
-    assert "pre-install" in text
+    # 品牌專屬 key（業主 2026-07-23：測量圖 Chatlock 專屬，其他品牌純文字）
+    assert "chatlock-pre-install" in text
     assert "至多一個" in text
+    # 守線：SOP 必須明文限定「僅 Chatlock 品牌」+ 其他品牌純文字，防丟錯品牌圖
+    assert "Chatlock" in text
+    assert "其他品牌" in text
 
 
 # ── webhook 整合（真簽章 + patch LINE API）────────────────

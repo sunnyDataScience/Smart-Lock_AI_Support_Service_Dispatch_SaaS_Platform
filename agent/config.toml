@@ -42,8 +42,11 @@ extractor = "llm"
 # key 全小寫-連字號(避開 reply_guard 型號/價格 regex 形態);圖放 brand-portal
 # public/photo-guides/(部署即有公開 URL);本機測試可改 http://localhost:3000/...。
 # 注意 LINE ImageMessage 硬性要求 HTTPS、original ≤10MB。
-pre-install = "https://smart-lock-web-sjmxp23sqq-de.a.run.app/photo-guides/pre-install.jpg"
-booking-install = "https://smart-lock-web-sjmxp23sqq-de.a.run.app/photo-guides/booking-install.jpg"
+#
+# 品牌專屬(業主 2026-07-23 定):測量圖的量測部位因鎖具品牌而異,key 帶品牌前綴,
+# SOP 僅在**確認客戶的鎖為該品牌**時引導使用;其他品牌尚無專屬圖 → 純文字引導拍照。
+# agent 目前支援 6 品牌(3E/Chatlock/Dormakaba/Kaadas/Milre/Philips),目前僅 Chatlock 有圖。
+chatlock-pre-install = "https://smart-lock-web-sjmxp23sqq-de.a.run.app/photo-guides/chatlock-pre-install.jpg"
 
 [mcp_servers.locksmith-rag]
 # RAG-via-MCP(ADR-010/WBS 2.2.2):語義檢索兩工具(search_product_manual/search_similar_cases)。

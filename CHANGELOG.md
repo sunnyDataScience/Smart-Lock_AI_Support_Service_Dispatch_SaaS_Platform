@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **UAT-0720-13 樣本圖品牌 gate（branch `fix/uat-0720-photo-guide-brand-gate`，2026-07-23，CR-0179）**：業主確認測量圖為 Chatlock 品牌專屬（logo＋量測部位特定），agent 支援 6 品牌無差別丟會誤導其他品牌客戶。修：key `pre-install`→`chatlock-pre-install`（檔名同步）、SOP v1.6.0→**v1.7.0** 第 4 點加品牌 gate（確認鎖為 Chatlock 才附標記，其他品牌純文字引導）、config 移除未用 `booking-install`（檔案留備用）、守線測試加「僅 Chatlock／其他品牌」斷言。
+
 - **UAT-0720 輪次 B：業主四裁決落地（branch `feat/uat-0720-round-b`，2026-07-22，裁決「1-2 / 2-B / 3-1 / 4-1」）**：
   - **CR-0180 免責簽署連結推播（1-2）**：`consent_service.send_sign_link()`（鑄 work_order_status token→組 `{WEB_BASE_URL}/consent/{token}`→LINE 推播→`work_order_events` 留痕 'other'+kind、token 只存 hash）＋`POST .../consents:send-link` 端點＋ConsentPanel「發送簽署連結」按鈕（LINE 成功／未綁 LINE 複製備援）＋**WEB_BASE_URL 烤入 api.sh**（防 example.com 死連結）＋測試 3 案。草稿文本先跑通（開站前換法務定稿）。
   - **CR-0179 拍照回傳（2-B 方案 B）**：①照片掛卡——escalation 建卡自動帶該對話近 24h 照片進 `problem_cards.media_urls`（api 端自查、append-only、fail-soft）②gateway 確定性夾圖——AI 依 SOP 於文末輸出 `[[photo-guide:key]]`，gateway 剝標記附發 ImageMessage（不動工具白名單；未知 key／未配置只剝不外洩；上限 4 圖）；config.toml `[photo_guides]` 映射＋樣本圖上架 brand-portal `public/photo-guides/`；SOP v1.6.0 話術；`test_photo_guide.py` 12 案、agent 全套 231 passed。
