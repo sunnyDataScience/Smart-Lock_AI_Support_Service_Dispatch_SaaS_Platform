@@ -1,10 +1,11 @@
 ---
 title: 測試計畫（Test Plan）
-version: 1.0
+version: 1.1
 status: active
 owner: QA Lead
-last-updated: 2026-07-10
+last-updated: 2026-07-23
 upstream:
+  - smartlock-docs/enterprise/04_SRS.md
   - smartlock-docs/00_platform/P1/05_platform_architecture_L1.md
   - smartlock-docs/00_platform/P2/09_integration_data_flow.md
   - smartlock-docs/api/P3/13_security_checklist.md
@@ -12,12 +13,13 @@ upstream:
   - smartlock-docs/web/P3/13_security_checklist.md
   - smartlock-docs/data-pipeline/P3/13_security_checklist.md
   - smartlock-docs/enterprise/05_NFR.md
+  - smartlock-docs/enterprise/20_Test_Cases.md
 ---
 
 # 19. 測試計畫（Test Plan）
 
 > 本文件回答：本平台**測什麼、用什麼策略與工具、在哪些環境測、各階段進入/退出條件為何、覆蓋率與品質門禁如何定義**。
-> 測試案例明細見 [./20_Test_Cases.md](./20_Test_Cases.md)；FR ↔ TC 對映見 [./21_Traceability_Matrix.md](./21_Traceability_Matrix.md)；驗收框架見 [./22_UAT_Report.md](./22_UAT_Report.md)。
+> QA 執行以 [./規格統控整理/SmartLock_整合測試計畫.xlsx](./規格統控整理/SmartLock_整合測試計畫.xlsx) ⑧「客戶需求與測試情境」及⑨「測試案例與執行紀錄」為主；領域檢核與端到端旅程收於隱藏附錄 C，需求/QTM/架構追溯收於隱藏附錄 A/B 與 [./20_Test_Cases.md](./20_Test_Cases.md) §2.1，供 QA Lead/SA 審核。驗收框架見 [./22_UAT_Report.md](./22_UAT_Report.md)。
 
 ## 1. 文件元資訊
 
@@ -26,6 +28,29 @@ upstream:
 | 對應需求文件 | [./04_SRS.md](./04_SRS.md)（FR 編號源）· [./05_NFR.md](./05_NFR.md)（SLO/指標源）· [./03_PRD.md](./03_PRD.md)（KPI 驗收源）|
 | 讀者 | QA Lead、各子系統開發、Release Manager、業主（品質門禁裁決）|
 | 維護節奏 | 每 release cycle 覆核；門檻變更須業主簽核 |
+| 受控基線 | 65 FR + 106 NFR；TS-01～TS-12；171 筆 QTM；QA 追溯缺口 0，含未核定門檻者明確阻擋通過簽核 |
+| 追溯主鍵 | `04_SRS/05_NFR REQ ID` → `QTM-<REQ ID>` → `TS` → 指定 `TC` → SIT/UAT 證據 |
+
+### 1.1 受控系統測試情境基線
+
+<!-- BEGIN GENERATED QA SCENARIO BASELINE -->
+> 此表與《SmartLock_整合測試計畫.xlsx》隱藏附錄 C 的端到端旅程同源；QA 需求情境見⑧、逐項執行見⑨，完整治理追溯見隱藏附錄 A 與 `20_Test_Cases.md` §2.1。
+
+| 情境 ID | 情境 | 優先 | 主要測試方法 | 關聯 REQ 數 | 追溯基線 |
+|---|---|---|---|---:|---|
+| TS-01 | LINE AI 自助與轉真人 | P0 | 送文字/照片/急件/假簽章/重送→對話、問題卡、escalation 對帳 | 12 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-02 | 問題卡→報價→開單 | P0 | 草擬卡→補齊→quote v1→送客→確認→CS 1-click→WO created | 11 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-03 | 自動派工與技師接單 | P0 | 5→10→20km 媒合→指派→技師接/拒/逾時→品牌狀態與投影對帳 | 7 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-04 | 現場、加價、requote 與結案 | P0 | 到場→施工→三種加價邊界→客戶接/拒→存證→結案 gate | 4 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-05 | 收款、退款、帳本與結算 | P0 | 收款→對帳→退款分層→月結→commission event→reconcile | 4 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-06 | 技師註冊、KYC 與生命週期 | P0 | 註冊→敏感文件→審核→品牌授權→排班→停權/復權 | 3 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-07 | 知識精煉－人工審核完整流程 | P0 | 汲取→提煉→diff→核可/拒絕→雙路發布→來源/租戶對帳 | 15 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-08 | 租戶、OIDC、RBAC 與 License 開通 | P0 | 品牌申請→核准→org/License→bundle/建庫/綁 LINE→角色矩陣負測 | 35 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-09 | 資料、migration 與 audit 可重現 | P0 | 從空庫/舊版套 migration→重套→注入 drift→跑 raw/bronze/silver→驗 hash | 37 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-10 | 安全、隱私與合約不可違反條件 | P0 | 全端點矩陣→攻擊/跨租戶→forget/legal hold→影像 double gate→Family review | 66 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-11 | 效能、容量、降級與可觀測 | P1 | 階梯壓測→斷 LLM/Redis/Kafka/OHS/Casdoor→觀察降級、lag、alert、recovery | 64 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-12 | Flow/Vertical Pack/Agent Config 治理 | P1 | 匯入 pack→非法 DSL→高風險操作需人工審核→canary→SLO halt→還原→audit 對帳 | 2 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+<!-- END GENERATED QA SCENARIO BASELINE -->
 
 ## 2. 測試範圍
 
@@ -37,8 +62,8 @@ upstream:
 | **api**（FastAPI 派工控制平面）| 80+ 端點契約、工單/報價/派工/結算狀態機、RBAC enforce、SoD、冪等、GDPR | `../api/P1/05_architecture_and_design.md` |
 | **web**（Next.js 多站前端）| 多 portal 路由 gate（UX 層）、E2E 使用者旅程、a11y、後端授權為唯一邊界之驗證 | `../web/P3/13_security_checklist.md` |
 | **data-pipeline**（Medallion + SQL migration）| bronze-only sourcing、migration 冪等/drift、三庫一致性 | `../data-pipeline/P3/13_security_checklist.md` |
-| **knowledge-refinery**（知識精煉 HITL）| draft 審核後寫入、未核可零落地、references ↔ pgvector 同源 | `../knowledge-refinery/P1/05_architecture_and_design.md` |
-| **technician-platform**（技師共享池）| OHS 媒合 API、Kafka 事件、工單 CQRS 投影欄位最小化、佣金結算對帳 | `../technician-platform/P1/05_architecture_and_design.md` |
+| **knowledge-refinery**（知識精煉 HITL）| draft 審核後寫入、OIDC reviewer、LiveSkill draft、未核可零落地、references ↔ pgvector 同源 | `../../knowledge-pipeline/refinery/`；`./15_SDS.md` §9 |
+| **technician-platform**（技師共享池）| `API_SURFACE=tech` 路由面、tech authority、現行媒合與目標 OHS 差異、Kafka opt-in、CQRS 投影、佣金對帳 | `../../api/`；`../../web/tech-portal/`；`../../SQL/tech_authority/`；`./15_SDS.md` §7 |
 | **00_platform**（整合層）| 跨系統整合點（LINE/Vertex/Casdoor/Kafka）、四方 RBAC、可觀測性 SLI | `../00_platform/P2/09_integration_data_flow.md` |
 
 ### 2.2 Out-of-Scope（明列）
@@ -86,7 +111,7 @@ upstream:
 | api | `cd api && uv run pytest -m unit`（PR gate）；`-m component`（需 live DB + 全 migration）| — | component 套件排 nightly |
 | web | TypeScript strict + lint | `cd web/<站台> && npx playwright test`（`web/<站台>/tests/e2e/`，四站拆分後各自持有，ADR-028）| Playwright 為唯一 E2E 框架 |
 | data-pipeline | pytest（migration 冪等 / drift 驗證）| — | drift-check 進 CI 為 P0 行動項 |
-| technician-platform / knowledge-refinery | pytest + 契約測試 | Playwright（師傅 web / 審核 UI）| 🔜 規劃中隨系統獨立部署補齊 |
+| technician-platform / knowledge-refinery | `api/tests/test_technician_*` + `knowledge-pipeline/refinery/tests/` | `web/tech-portal/tests/e2e/` + refinery 人工審核旅程 | 程式已落地；Kafka、OIDC/License、refinery 排程與 CD 依部署條件列 PARTIAL |
 
 命名慣例：測試檔 `test_<主題>.py`；CR 對應測試 `test_cr_NNNN_<slug>.py`；E2E spec `<flow>.spec.ts`。
 
@@ -202,4 +227,4 @@ Admin 後台 + 師傅 web + 客戶 LIFF 全面 **WCAG 2.2 AA**：對比 ≥ 4.5:
 
 ---
 
-*文件結尾 — 19_Test_Plan.md v1.0 / 2026-07-07*
+*文件結尾 — 19_Test_Plan.md v1.1 / 2026-07-23*

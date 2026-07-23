@@ -27,6 +27,7 @@ from _spec_data import (
     ARCH_CHOICES,
     ARCH_RISKS,
     BUG_LEVELS,
+    CODEBASE_SNAPSHOT,
     COMPONENT_GLOSSARY,
     DOMAIN_QA_CHECKS,
     DOMAIN_TEST_META,
@@ -36,6 +37,7 @@ from _spec_data import (
     GENERATED_ON,
     GLOSSARY,
     MODULE_ARCH,
+    MODULE_STATUS,
     MODULES,
     NFR_DOMAIN_META,
     NFR_TC_HINTS,
@@ -532,15 +534,18 @@ def module_for(req: Requirement) -> tuple[str, str]:
 
 def module_arch(prefix: str, code: str) -> dict[str, str]:
     meta = SUBSYSTEMS.get(prefix, {})
-    return MODULE_ARCH.get(
-        f"{prefix}.{code}",
+    module_key = f"{prefix}.{code}"
+    arch = dict(MODULE_ARCH.get(
+        module_key,
         {
             "component": meta.get("component", prefix),
             "sad": meta.get("sad", "12_SAD [待標註]"),
             "sds": meta.get("sds", "15_SDS [待標註]"),
             "path": meta.get("path", "[待確認]"),
         },
-    )
+    ))
+    arch["status"] = MODULE_STATUS.get(module_key, "UNCLASSIFIED")
+    return arch
 
 
 def architecture_for(req: Requirement) -> dict[str, str]:
@@ -562,13 +567,14 @@ def subsystem_component_labels(prefix: str) -> str:
 def component_glossary_rows() -> list[list[str]]:
     """建立受控元件標籤字典，來源定位由 MODULE_ARCH 反向彙整。"""
     locations: dict[str, dict[str, set[str]]] = defaultdict(
-        lambda: {"modules": set(), "sad": set(), "sds": set(), "path": set()}
+        lambda: {"modules": set(), "status": set(), "sad": set(), "sds": set(), "path": set()}
     )
     for module_key, arch in MODULE_ARCH.items():
         for label in (part.strip() for part in arch["component"].split(";")):
             if not label:
                 continue
             locations[label]["modules"].add(module_key.replace(".", "·"))
+            locations[label]["status"].add(MODULE_STATUS.get(module_key, "UNCLASSIFIED"))
             locations[label]["sad"].add(arch["sad"])
             locations[label]["sds"].add(arch["sds"])
             locations[label]["path"].add(arch["path"])
@@ -582,6 +588,7 @@ def component_glossary_rows() -> list[list[str]]:
                 text["definition"],
                 text["boundary"],
                 "、".join(sorted(source["modules"])),
+                " ｜ ".join(sorted(source["status"])),
                 " ｜ ".join(sorted(source["sad"])),
                 " ｜ ".join(sorted(source["sds"])),
                 " ｜ ".join(sorted(source["path"])),
@@ -809,13 +816,17 @@ def tc_hint(req_id: str, *, is_nfr: bool = False) -> str:
 def qa_acceptance_for(req: Requirement) -> str:
     """QA 執行清單與治理附錄共用的通過判準；不宣稱已執行。"""
     overrides = {
+        "FR-AGT-03": (
+            "缺項依情境一次列齊；明確要求真人、急迫派工、金錢相關或連續兩次不滿時立即轉真人；"
+            "一般補資料、單次不滿或可回答知識題不得因固定輪數誤轉。"
+        ),
         "FR-API-05": (
             "一般通知送達 P95 ≤ 30 秒、急件 P95 ≤ 15 秒；候選池為空時 100% 進入 "
             "dispatch_pending 並觸發告警；急件排序降低距離權重、提高評分權重。"
         ),
         "FR-REF-01": (
             "主通道採唯讀 API 增量汲取，事件處理即時增量，每日批次 reconciliation 補漏；"
-            "來源 provenance 完整率 100%，同一 source_id 重跑不得產生重複資料。"
+            "provenance 完整率 100%，同一 source_id 重跑不得產生重複資料。"
         ),
     }
     value = overrides.get(req.req_id, req.acceptance)
@@ -887,6 +898,47 @@ def qa_plain_text(value: str) -> str:
     return clean_md(text)
 
 
+NFR_QA_TARGET_OVERRIDES = {
+    "NFR-Perf-005": (
+        "p95 < 300ms；本次為受控設計門檻，必須保存實測報表後才可標示通過"
+    ),
+    "NFR-Perf-007": (
+        "POST /technicians:match p95 < 300ms；本次為受控設計門檻，"
+        "必須保存讀取路由與實測報表後才可標示通過"
+    ),
+    "NFR-Perf-011": (
+        "web 首次內容繪製 FCP ≤ 3s；以各站 Lighthouse 或 RUM 結果逐站裁定"
+    ),
+    "NFR-Sec-011": (
+        "agent → api 使用 X-Internal-Token，驗證失敗即拒絕且採常數時間比對；"
+        "品牌 api → OHS 仍屬 TO-BE，服務憑證機制未經 ADR 定版與負向測試前，"
+        "本項只能標示阻擋，不得標示通過"
+    ),
+    "NFR-DQ-004": (
+        "每次發佈須保存人工審核筆數、核可通過率與抽樣誤放率；"
+        "Data Owner 尚未核定數值門檻前，本項只能標示阻擋，不得標示通過"
+    ),
+    "NFR-Rep-002": (
+        "raw 原始資產須有核准的保存位置、期限、不可變性與刪除例外規則；"
+        "四項任一未定版即阻擋 raw → bronze 可重建驗收"
+    ),
+    "NFR-Maint-008": (
+        "Playwright 至少涵蓋登入、品牌後台關鍵頁、問題卡／工單主流、"
+        "錯誤回復及技師接案→到場→完工；CI 任一關鍵案例失敗即阻擋發布"
+    ),
+}
+
+
+def qa_nfr_target(nfr: NFR) -> str:
+    """把上游未決訊號轉成可裁定的 QA 門檻或明確阻擋條件。"""
+    return NFR_QA_TARGET_OVERRIDES.get(nfr.req_id, qa_plain_text(nfr.target))
+
+
+def qa_nfr_verification(nfr: NFR) -> str:
+    """保留來源驗證方法，但不把來源的未決標記帶進執行工作表。"""
+    return qa_plain_text(nfr.verification)
+
+
 # 環境、反例、零副作用判準、證據。每列 QA 執行項目都由此產生具體內容。
 FR_QA_CONTEXT = {
     "AGT": (
@@ -937,9 +989,9 @@ FR_QA_CONTEXT = {
 # AI 客服的原 SRS 包含較多內部狀態/工具名；主視圖改寫為黑箱 QA 可直接執行的資料、步驟與結果。
 FR_QA_OVERRIDES = {
     "FR-AGT-01": (
-        "有效簽章的短文字、照片與超過 4900 字訊息，另準備同內容的錯誤簽章版本",
-        "分別送出有效短文字、照片、超長文字與錯誤簽章請求，再重送同一事件",
-        "有效文字/照片皆有明確回覆；超長內容截斷至 4900 字以內；錯誤簽章回 400 且不產生處理紀錄",
+        "有效簽章的短文字、照片與超過 4900 字訊息；Chatlock/其他品牌各一組拍照引導；另備錯誤簽章與未知 photo-guide key",
+        "送出文字、照片、超長文字、兩品牌拍照引導與錯誤簽章，再重送同一事件並測未知/殘缺 guide marker",
+        "有效文字/照片皆有明確回覆；只有 Chatlock 附核准樣本圖，其他品牌純文字；未知標記不外洩；超長內容截斷至 4900 字內；錯誤簽章回 400 且不產生處理紀錄",
     ),
     "FR-AGT-02": (
         "同一測試客戶的連續兩則訊息，並能在測試環境模擬對話儲存失敗",
@@ -947,9 +999,9 @@ FR_QA_OVERRIDES = {
         "第二則回覆能承接前文；每個 webhook 只有一筆處理紀錄；儲存失敗時仍回覆客戶且異常可由 trace 查到",
     ),
     "FR-AGT-03": (
-        "一題案例庫可明確命中、一題需查知識庫、一題無法回答，並準備「已釐清/尚未釐清」回覆",
-        "逐題提問並檢查系統來源；對無法回答的題目連續 3 次回覆「尚未釐清」",
-        "案例庫命中與知識庫回答來源正確；系統會詢問是否已釐清；第 3 次未釐清後建立後台案件並轉真人",
+        "一題可明確回答、一題缺兩個必要欄位；另備明確要求真人、急迫派工、金錢詢問、連續兩次不滿，以及一般補資料/單次不滿反例",
+        "先驗證缺項是否一次列齊，再逐一送出四種轉真人紅線與三種非觸發反例，不使用固定追問輪數",
+        "回答來源正確；缺項一次列齊；四種紅線一命中即建立後台案件並轉真人；一般補資料、單次不滿與可回答問題不得因輪數誤轉",
     ),
     "FR-AGT-04": (
         "被鎖門外、受困室內、安全風險與高度憤怒各一則訊息，再準備一則一般問題",
@@ -982,14 +1034,49 @@ FR_QA_OVERRIDES = {
         "AI 處理時正常回覆；人工接管時 AI 不回覆，但客戶與客服訊息都完整入庫；狀態查詢逾時不可讓客戶無回應",
     ),
     "FR-AGT-10": (
-        "1.5 秒內連發 3 則訊息、1.5 秒後的第 4 則訊息，以及同一事件 ID 的重送請求",
-        "依時間間隔送出四則訊息，再於 24 小時內重送同一事件 ID",
-        "1.5 秒內的三則訊息合併為一次處理；第四則另開一次處理；24 小時內重送不產生第二次回覆或案件",
+        "5.0 秒內連發 3 則訊息、視窗後的第 4 則訊息，以及同一 webhook event ID 的重送請求",
+        "依時間間隔送出四則訊息，再重送同一 event ID 並模擬第一次處理失敗",
+        "5.0 秒內的三則訊息合併為一次處理；第四則另開一次處理；reserve-first 永久主鍵使重送不產生第二次回覆或案件",
     ),
     "FR-AGT-11": (
         "要求最終報價、要求複誦個案報價、要求辨識門鎖照片與一組禁止行為題庫",
         "逐一送出金額與影像請求，再執行完整禁止行為題庫",
         "AI 只能提供價格區間，不得給最終價、複誦個案金額或辨識影像；禁止行為題庫達到文件門檻且影像違規數為 0",
+    ),
+    "FR-API-01": (
+        "同一對話近 24 小時有 7 張照片、窗外 1 張，另備重送與媒體反查失敗情境",
+        "由對話建立 AI 草擬問題卡，再重送相同建卡請求並模擬媒體查詢失敗",
+        "只附同對話近 24 小時最多 5 張照片且時間正序、append-only；重送不重複建卡，照片旁路失敗不阻斷主流程",
+    ),
+    "FR-API-02": (
+        "customer_sent、已同意、已拒絕、已過期、找不到與無權報價各一",
+        "送同決定重播、相反決定、過期、404、403 與非 JSON 錯誤，核對 API 與 LINE",
+        "同決定安全回放；相反終態回 QUOTE_ALREADY_DECIDED、過期回 QUOTE_EXPIRED；LINE 依 error_code 分流，未知格式友善降級",
+    ),
+    "FR-API-04": (
+        "問題卡含客戶姓名、電話、地址、品牌、型號、serial 與照片，報價已確認",
+        "客服將問題卡轉為工單，再以相同冪等鍵重送",
+        "工單完整承接問題卡欄位含 serial；只有客服操作可開單；重送不新增第二張工單",
+    ),
+    "FR-API-08": (
+        "有/無 LINE 綁定工單、三段 consent、不同租戶/角色與有效/無效 public token",
+        "上傳證據並發送簽署連結；重送、跨租戶/越權，再以 public token 完成同意",
+        "有 LINE 時推播、無 LINE 時回可複製連結；重送安全、越權拒絕；token 只存 hash，三段同意正確 upsert 並受結案 gate 檢查",
+    ),
+    "FR-WEB-03": (
+        "對話、問題卡與工單含需認證照片；時間軸含有姓名與無姓名技師",
+        "開縮圖/lightbox、注入 401/403，再核對技師名稱與 accepted_at",
+        "授權 fetch→Blob 正常顯示且可關閉/revoke；錯誤只顯示佔位不崩潰；姓名與時間軸資料正確，缺名走明確 fallback",
+    ),
+    "FR-WEB-06": (
+        "有/無 LINE 綁定工單、三段免責狀態與有效/過期 token",
+        "從工作台發送或複製連結，客戶開啟公開頁並提交三段同意",
+        "兩種交付路徑都可完成同意；過期/錯誤 token 顯示明確錯誤；畫面不暴露 token hash 或非必要個資",
+    ),
+    "FR-WEB-07": (
+        "主要 API/網路/頁面錯誤，以及受保護媒體 401/403",
+        "逐一注入錯誤並操作重試、返回與照片預覽",
+        "每種錯誤都有可理解提示與下一步；照片失敗顯示佔位，任何單點錯誤都不造成整站崩潰或假成功",
     ),
 }
 
@@ -1021,7 +1108,7 @@ def qa_execution_for(req: Requirement) -> dict[str, str]:
         "3. 每次只更改一個邊界、權限、重送或故障條件後重跑。｜"
         "4. 比對每次操作後的畫面/API、資料與稽核紀錄。"
     )
-    acceptance = override[2] if override else qa_plain_text(qa_acceptance_for(req))
+    acceptance = (override[2] if override else qa_plain_text(qa_acceptance_for(req))).rstrip("。")
     expected = (
         f"功能判準：{acceptance}。｜"
         f"副作用判準：{no_side_effect}。"
@@ -1099,8 +1186,8 @@ NFR_QA_CONTEXT = {
 def qa_nfr_execution_for(nfr: NFR) -> dict[str, str]:
     group = nfr_group(nfr)
     environment, test_data, evidence = NFR_QA_CONTEXT[group]
-    verification = qa_plain_text(nfr.verification)
-    target = qa_plain_text(nfr.target)
+    verification = qa_nfr_verification(nfr)
+    target = qa_nfr_target(nfr)
     return {
         "preparation": (
             f"環境：{environment}。｜"
@@ -1162,6 +1249,8 @@ def qa_evidence_spec(req_id: str, *, is_nfr: bool = False) -> str:
 
 
 def qa_closure_status(text: str) -> str:
+    if "[待確認]" in text or "[待補]" in text or "〔待確認〕" in text:
+        return "⛔ 上游門檻需治理決策；不得執行通過簽核"
     if "🔜" in text:
         return "✅ 驗收與測試設計已定版；目標版本執行取證"
     return "✅ 驗收、測試設計與追溯映射已閉環"
@@ -1409,9 +1498,9 @@ def add_component_glossary_sheet(wb: Workbook) -> object:
         "元件標籤字典",
         "SAD / SDS 元件標籤字典",
         "每個出現在架構對照欄的受控標籤，都要能回答「是什麼、負責什麼、不負責什麼、到哪份文件與程式找」；L2 顯示群組不是元件。",
-        ["正式標籤", "別名 / 原概括詞", "白話定義 / 負責什麼", "邊界 / 不負責什麼", "使用於 L2 能力群", "SAD 定位", "SDS 定位", "能力群相關實作路徑 / 規劃狀態"],
+        ["正式標籤", "別名 / 原概括詞", "白話定義 / 負責什麼", "邊界 / 不負責什麼", "使用於 L2 能力群", "Code reality", "SAD 定位", "SDS 定位", "實作證據路徑"],
         component_glossary_rows(),
-        [34, 30, 72, 68, 34, 52, 58, 80],
+        [34, 30, 72, 68, 34, 34, 52, 58, 80],
     )
     add_architecture_doc_links(ws, 4)
     return ws
@@ -1655,6 +1744,8 @@ def build_planning_workbook(requirements, nfrs, adrs, wbs, health) -> None:
                     arch["component"],
                     arch["sad"],
                     arch["sds"],
+                    arch["status"],
+                    arch["path"],
                     "✅ 與 BOM L2 對齊",
                 ]
             )
@@ -1663,9 +1754,9 @@ def build_planning_workbook(requirements, nfrs, adrs, wbs, health) -> None:
         "⑧ 完整模組清單",
         "⑧ L2 模組、正式元件與 FR 健康快照",
         f"本表與《SmartLock_模組功能BOM.xlsx》BOM 主表 L2 使用同一份模組定義；本次共 {module_count} 個能力群，生成後會逐欄對帳。",
-        ["顯示群組", "模組", "子系統", "FR 列數", "唯一 FR", "階段", "含規劃訊號", "碰鍵列", "正式元件名稱", "SAD 定位", "SDS 定位", "BOM 對齊"],
+        ["顯示群組", "模組", "子系統", "FR 列數", "唯一 FR", "階段", "含規劃訊號", "碰鍵列", "正式元件名稱", "SAD 定位", "SDS 定位", "Code reality", "實作證據路徑", "BOM 對齊"],
         module_summary,
-        [20, 28, 18, 12, 12, 18, 15, 12, 72, 42, 50, 22],
+        [20, 28, 18, 12, 12, 18, 15, 12, 72, 42, 50, 34, 78, 22],
     )
     add_architecture_doc_links(module_ws, 4)
 
@@ -1725,6 +1816,7 @@ def build_bom_workbook(requirements, nfrs, detail_source_links, health) -> None:
                 subsystem_component_labels(prefix),
                 meta["sad"],
                 meta["sds"],
+                "MIXED（見 L2）",
                 meta["path"],
                 "—",
                 "子系統",
@@ -1750,6 +1842,7 @@ def build_bom_workbook(requirements, nfrs, detail_source_links, health) -> None:
                     arch["component"],
                     arch["sad"],
                     arch["sds"],
+                    arch["status"],
                     arch["path"],
                     meta["name"].split("（")[0],
                     "能力群（非 join key）",
@@ -1772,6 +1865,7 @@ def build_bom_workbook(requirements, nfrs, detail_source_links, health) -> None:
                         req_arch["component"],
                         req_arch["sad"],
                         req_arch["sds"],
+                        req_arch["status"],
                         req_arch["path"],
                         display_code,
                         "功能需求（SRS FR）",
@@ -1786,9 +1880,9 @@ def build_bom_workbook(requirements, nfrs, detail_source_links, health) -> None:
     bom_ws = add_plain_table(
         wb,
         "BOM 主表",
-        ["層級", "代號（FR 為主鍵）", "名稱 / 功能", "上游規則 / 需求", "正式元件名稱", "SAD 定位", "SDS 定位", "實作路徑 / 規劃狀態", "父節點", "類型", "M1", "M2", "M3+", "需求狀態", "說明 / 出處"],
+        ["層級", "代號（FR 為主鍵）", "名稱 / 功能", "上游規則 / 需求", "正式元件名稱", "SAD 定位", "SDS 定位", "Code reality", "實作證據路徑", "父節點", "類型", "M1", "M2", "M3+", "需求狀態", "說明 / 出處"],
         bom_rows,
-        [8, 23, 35, 33, 72, 42, 52, 78, 23, 24, 8, 8, 8, 26, 70],
+        [8, 23, 35, 33, 72, 42, 52, 34, 78, 23, 24, 8, 8, 8, 26, 70],
     )
     add_architecture_doc_links(bom_ws, 1)
     # L1/L2 粗體分層，並建立 Excel outline。
@@ -1826,6 +1920,7 @@ def build_bom_workbook(requirements, nfrs, detail_source_links, health) -> None:
                     arch["component"],
                     arch["sad"],
                     arch["sds"],
+                    arch["status"],
                     arch["path"],
                     len(subset),
                     len({req.req_id for req in subset}),
@@ -1838,9 +1933,9 @@ def build_bom_workbook(requirements, nfrs, detail_source_links, health) -> None:
     arch_ws = add_plain_table(
         wb,
         "SAD·SDS 元件視圖",
-        ["顯示群組", "子系統", "L2 能力群", "正式元件名稱", "SAD 定位", "SDS 定位", "實作路徑 / 規劃狀態", "FR 列數", "唯一 FR", "含規劃訊號", "待確認", "碰鍵列", "詳細 TC 舊欄含現行 SRS ID"],
+        ["顯示群組", "子系統", "L2 能力群", "正式元件名稱", "SAD 定位", "SDS 定位", "Code reality", "實作證據路徑", "FR 列數", "唯一 FR", "含規劃訊號", "待確認", "碰鍵列", "詳細 TC 舊欄含現行 SRS ID"],
         arch_rows,
-        [20, 28, 28, 72, 42, 52, 78, 12, 12, 15, 12, 12, 18],
+        [20, 28, 28, 72, 42, 52, 34, 78, 12, 12, 15, 12, 12, 18],
     )
     add_architecture_doc_links(arch_ws, 1)
     add_component_glossary_sheet(wb)
@@ -2245,7 +2340,7 @@ def build_test_workbook(requirements, nfrs, test_cases, health) -> None:
                 nfr.req_id,
                 nfr.heading,
                 qa_plain_text(nfr.name),
-                nfr.target,
+                qa_nfr_target(nfr),
                 qa_closure_status(nfr.all_text),
                 scenario_for_nfr(nfr),
                 f"✅ 20_Test_Cases §2.1：{qa_mapping_id(nfr.req_id)}",
@@ -2293,9 +2388,9 @@ def build_test_workbook(requirements, nfrs, test_cases, health) -> None:
                 "NFR",
                 qa_mapping_id(nfr.req_id),
                 qa_plain_text(nfr.name),
-                nfr.target,
+                qa_nfr_target(nfr),
                 scenario_for_nfr(nfr),
-                f"{tc_hint(nfr.req_id, is_nfr=True)} ｜ 驗證：{nfr.verification}",
+                f"{tc_hint(nfr.req_id, is_nfr=True)} ｜ 驗證：{qa_nfr_verification(nfr)}",
                 qa_owner(nfr.req_id, is_nfr=True),
                 qa_evidence_spec(nfr.req_id, is_nfr=True),
                 f"20_Test_Cases §2.1：{qa_mapping_id(nfr.req_id)}",
@@ -2474,7 +2569,7 @@ def validate_workbooks(requirements, nfrs) -> dict[str, list[str]]:
             ]
             if len(l3_rows) != len(requirements):
                 errors[key].append(f"BOM L3 {len(l3_rows)} 列 != FR {len(requirements)} 列")
-            for header in ("正式元件名稱", "SAD 定位", "SDS 定位", "實作路徑 / 規劃狀態"):
+            for header in ("正式元件名稱", "SAD 定位", "SDS 定位", "Code reality", "實作證據路徑"):
                 column = headers.get(header)
                 if not column:
                     errors[key].append(f"BOM 主表缺少「{header}」欄")
@@ -2927,7 +3022,7 @@ def validate_workbooks(requirements, nfrs) -> dict[str, list[str]]:
         expected_scenario = scenario_for_nfr(item) if is_nfr else scenario_for_requirement(item)
         expected_tc = tc_hint(item.req_id, is_nfr=is_nfr)
         expected_method = (
-            f"驗證：{item.verification}；通過：{item.target}"
+            f"驗證：{qa_nfr_verification(item)}；通過：{qa_nfr_target(item)}"
             if is_nfr
             else f"{qa_test_method_for(item)} 通過：{qa_acceptance_for(item)}"
         )
@@ -3026,6 +3121,12 @@ def validate_workbooks(requirements, nfrs) -> dict[str, list[str]]:
     missing_module_arch = sorted(expected_module_keys - set(MODULE_ARCH))
     if missing_module_arch:
         errors["source"].append(f"MODULE_ARCH 缺少：{', '.join(missing_module_arch)}")
+    missing_module_status = sorted(expected_module_keys - set(MODULE_STATUS))
+    extra_module_status = sorted(set(MODULE_STATUS) - expected_module_keys)
+    if missing_module_status:
+        errors["source"].append(f"MODULE_STATUS 缺少：{', '.join(missing_module_status)}")
+    if extra_module_status:
+        errors["source"].append(f"MODULE_STATUS 無對應能力群：{', '.join(extra_module_status)}")
     used_labels = {
         label.strip()
         for arch in MODULE_ARCH.values()
@@ -3040,7 +3141,7 @@ def validate_workbooks(requirements, nfrs) -> dict[str, list[str]]:
         errors["source"].append(f"元件字典有未使用標籤：{', '.join(unused_definitions)}")
     for req in requirements:
         arch = architecture_for(req)
-        for field in ("component", "sad", "sds", "path"):
+        for field in ("component", "sad", "sds", "status", "path"):
             if not arch.get(field):
                 errors["source"].append(f"{req.req_id} 缺少架構欄位 {field}")
     return errors
@@ -3050,12 +3151,12 @@ def write_component_glossary_markdown() -> None:
     lines = [
         "# Smart Lock SAD / SDS 元件標籤字典",
         "",
-        f"> 產出日：{GENERATED_ON}  ",
-        "> 用途：讓 BOM、驗收表與測試計畫中的每個架構標籤，都能回查正式定義、責任邊界、SAD/SDS 與實作路徑。  ",
+        f"> 產出日：{GENERATED_ON}<br>",
+        "> 用途：讓 BOM、驗收表與測試計畫中的每個架構標籤，都能回查正式定義、責任邊界、SAD/SDS 與實作路徑。<br>",
         "> 規則：本字典由 `_spec_data.py` 的受控標籤單向生成；`AGT·RES` 等 L2 是顯示群組，不是正式元件。",
         "",
     ]
-    for label, alias, definition, boundary, modules, sad, sds, path in component_glossary_rows():
+    for label, alias, definition, boundary, modules, code_reality, sad, sds, path in component_glossary_rows():
         lines.extend(
             [
                 f"## {label}",
@@ -3064,9 +3165,10 @@ def write_component_glossary_markdown() -> None:
                 f"- **定義／負責什麼**：{definition}",
                 f"- **邊界／不負責什麼**：{boundary}",
                 f"- **使用於能力群**：{modules}",
+                f"- **Code reality**：{code_reality}",
                 f"- **SAD 回查**：[{sad}](../12_SAD.md)",
                 f"- **SDS 回查**：[{sds}](../15_SDS.md)",
-                f"- **能力群相關實作路徑／狀態**：`{path}`",
+                f"- **實作證據路徑**：`{path}`",
                 "",
             ]
         )
@@ -3082,6 +3184,12 @@ def write_health_report(health: dict[str, int], errors: dict[str, list[str]], re
         for code, _, _ in MODULES[prefix]
         if any(req.prefix == prefix and module_for(req)[0] == code for req in requirements)
     )
+    code_reality_counts = Counter(
+        status.split("（", 1)[0].strip() for status in MODULE_STATUS.values()
+    )
+    code_reality_summary = "、".join(
+        f"{name} {count}" for name, count in sorted(code_reality_counts.items())
+    )
     key_health = (
         f"✅ {health['fr_unique']}/{health['fr_rows']} 個 FR 主鍵唯一；"
         "FR-TEC-07＝現場報價修正，FR-TEC-08＝排班與生命週期。"
@@ -3090,7 +3198,7 @@ def write_health_report(health: dict[str, int], errors: dict[str, list[str]], re
     )
     validation_lines = []
     if not errors:
-        validation_lines.append("- ✅ 四份活頁簿皆可重新開啟；19_Test_Plan 的 12 個 TS、20_Test_Cases 的 171 筆 QTM 與 90 筆詳細 TC 反向關聯、QA ⑧需求情境／⑨案例執行視圖、隱藏分析與治理附錄、⑧↔BOM L2 與驗收語言分流均通過。")
+        validation_lines.append(f"- ✅ 四份活頁簿皆可重新開啟；19_Test_Plan 的 12 個 TS、20_Test_Cases 的 {health['fr_rows'] + health['nfr_rows']} 筆 QTM 與 {health['tc_rows']} 筆詳細 TC 反向關聯、QA ⑧需求情境／⑨案例執行視圖、隱藏分析與治理附錄、⑧↔BOM L2 與驗收語言分流均通過。")
     else:
         for key, messages in errors.items():
             for message in messages:
@@ -3104,6 +3212,7 @@ def write_health_report(health: dict[str, int], errors: dict[str, list[str]], re
 
 > 產出日：{GENERATED_ON}<br>
 > 生成器：`_build_enterprise_workbooks.py`<br>
+> Codebase 快照：`{CODEBASE_SNAPSHOT['branch']}@{CODEBASE_SNAPSHOT['commit']}`（統控基線 `{CODEBASE_SNAPSHOT['baseline']}`；掃描範圍：{CODEBASE_SNAPSHOT['scope']}）<br>
 > 原則：xlsx 是單向快照，真相源是 `../04_SRS.md`、`../05_NFR.md`、`../12_SAD.md`、`../15_SDS.md`、`../19_Test_Plan.md`、`../20_Test_Cases.md` 等 enterprise 正典；`21_Traceability_Matrix.md` 僅保留 legacy 參考。
 
 ## 產出檔
@@ -3116,11 +3225,12 @@ def write_health_report(health: dict[str, int], errors: dict[str, list[str]], re
 - NFR：**{health['nfr_rows']} 列**。
 - TC：**{health['tc_rows']} 筆既有詳細案例**；20_Test_Cases §2.1 有 **{health['fr_rows'] + health['nfr_rows']} 筆 QTM 現行主表**，每筆都含 SRS REQ 與指定 TC。詳細案例舊來源欄另有 **{health['detail_source_srs_ids']} 個現行 SRS ID**，僅作歷史稽核，不影響 QTM 追溯完整性。
 - 21_Traceability 的 legacy `FR-0001` 形式鍵：**{health['legacy_trace_ids']} 個**。
-- 上游原文仍含 `[待確認]` / 🔜 等規劃或實作訊號：FR **{pending_fr}** 列，NFR **{pending_nfr}** 列；這是來源狀態，不代表 QA 分析未決。
+- 上游原文仍含 `[待確認]` / 🔜 等規劃或實作訊號：FR **{pending_fr}** 列，NFR **{pending_nfr}** 列；這不是 QA 追溯缺漏，受影響 QTM 已明確標成治理決策前不得通過簽核。
 - QA 執行視圖：⑧有 **{health['fr_rows'] + health['nfr_rows']} 筆客戶／品質需求情境**，每筆均顯示可反查的 FR／NFR 需求來源；⑨有同數量的可執行案例與結果登錄欄。**{len(DOMAIN_QA_CHECKS)} 個領域檢核 + 12 條端到端旅程**移至隱藏附錄 C。
 - 測試正典對齊：`19_Test_Plan` **12/12 個 TS** 與 Excel 隱藏附錄 C 一致；`20_Test_Cases` **{health['fr_rows'] + health['nfr_rows']}/{health['fr_rows'] + health['nfr_rows']} 筆 QTM** 與 Excel 隱藏附錄 A 逐欄一致。
 - 詳細案例反查：`20_Test_Cases` **{health['tc_rows']}/{health['tc_rows']} 筆既有 TC** 均至少被一筆 QTM 指定，孤兒 TC 為 0。
-- 架構回查：**{health['fr_rows']}/{health['fr_rows']} 列 FR** 均有「正式元件名稱 + SAD 定位 + SDS 定位 + 實作路徑/狀態」。
+- 架構回查：**{health['fr_rows']}/{health['fr_rows']} 列 FR** 均有「正式元件名稱 + SAD 定位 + SDS 定位 + Code reality + 實作證據路徑」。
+- Code reality：**{code_reality_summary}**；需求定版/規劃訊號與程式實作狀態分欄，不再以檔案存在推定正式部署。
 - 模組對齊：規劃書「⑧ 完整模組清單」與 BOM 主表 L2 **{module_count}/{module_count} 個能力群**逐列一致。
 - 驗收語言：**{health['fr_rows']} 列 FR + {health['nfr_rows']} 列 NFR** 均具備客戶 VOC／商業情境、PRD 驗收標準與成功指標；FR 技術流程完整移至獨立對照頁。
 - QA 視圖分層：⑧只呈現客戶需求、FR／NFR 來源與測試情境，⑨只呈現案例執行與結果；QTM/SAD/SDS 完整追溯收於隱藏附錄 A/B，領域檢核與端到端旅程收於隱藏附錄 C。
@@ -3134,7 +3244,7 @@ def write_health_report(health: dict[str, int], errors: dict[str, list[str]], re
 
 1. 新四書的單一脊椎是 `04_SRS` FR/NFR ID。
 2. `21_Traceability_Matrix.md` 雖聲稱 FR-ID 為 04_SRS 定版編號，主表實際仍用 `FR-0001`。這些鍵本次只保留 legacy display，不視為 SRS join。
-3. `20_Test_Cases.md` §2.1 已建立強制 `QTM / SRS REQ / TS / 指定 TC / 方法與判準` 主表；下方 90 筆詳細案例的原 FR/來源欄降級為歷史背景。QTM 規格完整不代表測試已執行或證據已產生。
+3. `20_Test_Cases.md` §2.1 已建立強制 `QTM / SRS REQ / TS / 指定 TC / 方法與判準` 主表；下方 {health['tc_rows']} 筆詳細案例的原 FR/來源欄降級為歷史背景。QTM 規格完整不代表測試已執行或證據已產生。
 4. 需求文字中的 🔜 可能被後來 codegraph 標註覆寫現況；因此四書的狀態只表示需求文件訊號，實作完成必須用 WBS + code + SIT/UAT 證據判定。
 5. `AGT·RES` 等 L2 只是能力群投影；正式元件名稱以 `12_SAD` / `15_SDS` 原文為準，BOM 不再使用 `LockCore runtime / Skills / Memory` 這類無法精確回查的概括標籤。
 

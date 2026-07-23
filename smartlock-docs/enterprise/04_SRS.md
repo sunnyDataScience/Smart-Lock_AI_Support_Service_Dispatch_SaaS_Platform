@@ -353,7 +353,7 @@ stateDiagram-v2
 | FR-TEC-05 | 技師視角工單投影（CQRS）| Kafka `workorder.*` | 訂閱各品牌工單生命週期事件 → 本地投影（摘要/地址/狀態/時窗/金額，欄位最小化）→ 師傅工作台讀投影 | 不整包複製品牌敏感資料；投影隱私審查 | ADR-P014 §2.2 |
 | FR-TEC-06 | 佣金結算主體（Settlement）| `commission.accrued` 消費 | 品牌 per-job 計費（Billing 留品牌）發事件 → 技師平台彙總跨品牌 statement / 對帳 / payout | 期末 reconcile 閘門（品牌計費 vs 平台彙總）| ADR-P014 §2.1；FR-API-12 |
 | FR-TEC-07 🔜 | 現場報價修正發起（requote command）| 技師＝工單 assignee 且工單 on_site / in_progress | 師傅 web 發起（事由分類 + 項目 diff，不含金額）→ tech-api 驗身分狀態 → OHS 同步呼叫品牌 api `/internal/requote-requests`（tenant 路由 + request_id 冪等）→ 品牌引擎建 quote v+1 | 非 assignee / 狀態不符 → 403；技師端零定價權；狀態經工單投影回工作台 | ADR-027；15_SDS §4.4 |
-| FR-TEC-07 | 排班與生命週期管理 | 技師有效 | 排班/可用性設定；停權/認證撤銷即時廣播 `technician.certification_revoked` | 各品牌訂閱後更新派工可用性 | ADR-P004 §5 |
+| FR-TEC-08 | 排班與生命週期管理 | 技師有效 | 排班/可用性設定；停權/認證撤銷即時廣播 `technician.certification_revoked` | 各品牌訂閱後更新派工可用性 | ADR-P004 §5 |
 
 ### 3.7 00_platform（平台整合層）
 
