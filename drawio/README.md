@@ -2,7 +2,7 @@
 
 > 對象:**Smart Lock AI 客服與派工 SaaS 平台**(正典文件 `smartlock-docs/enterprise/` 00–27)。
 > 用途:每個子資料夾內的 `prompt.md` 是**自然語言生成 prompt**,可直接貼給 drawio AI(Help →「Generate diagram」/ draw.io Copilot)或當人工繪製規格;**實際產出以 `.drawio` 為準**(由 `_build_drawio.py` 程式化生成)。
-> 讀法:**top-down**——從 `00_總覽` 的商業模式開始,逐層往下到 `04_流程圖`。
+> 讀法:**top-down**——從 `00_總覽` 的商業模式與 `06_參考架構` 的端到端視角開始，再逐層往下到執行與流程設計。
 
 ---
 
@@ -10,17 +10,18 @@
 
 > 由 `_build_drawio.py` 依本規範自動產出;修改後執行 `python3 _build_drawio.py` 重生。**絕不手改 .drawio**(重生會覆蓋)。
 
-- **`smartlock-platform-architecture.drawio`** — 單檔 **14 分頁**,一次匯入全部。分頁依**閱讀序**排列:主 deck(11 張關鍵-flow)在前、附錄(3 張戰略/能力)在後。
+- **`smartlock-platform-architecture.drawio`** — 單檔 **16 分頁**，一次匯入全部。分頁依**閱讀序**排列：高階總覽與主要設計圖在前，策略、能力與元件目錄附錄在後。
 - **各子資料夾同名單張檔**(如 `03_執行層/03-1_container.drawio`)——需要單張時開這個。
+- **`06_參考架構/*.svg`／`*.png`** — SVG 由同一份 Draw.io 幾何與內容自動產生，PNG 為正式審閱匯出；可直接放入簡報或文件，Draw.io 仍是可編輯正典。
 
-**主 deck 閱讀序**:`00-1 商業心智 → 00-2 Context → 01-1 部署三分層 → 03-1 Container 主錨 → 03-2 agent 元件 → 03-3 api 元件 → 04-3 Sequence(工單全程)→ 03-4 State Machines → 04-2 跨系統資料流 → 04-4 知識精煉閉環 → 05-1 共用核心 Kernel`。
-**附錄**:`A=01-2 平台核心 vs Vertical Pack(階段二)· B=02-1 知識能力分層 · C=02-2 AI 邊界紅線`。
+**主 deck 閱讀序**：`00-1 商業心智 → 00-2 Context → 06-1 高階端到端參考架構 → 01-1 部署三分層 → 03-1 Container 主錨 → 03-2 agent 元件 → 03-3 api 元件 → 04-3 Sequence(工單全程) → 03-4 State Machines → 04-2 跨系統資料流 → 04-4 知識精煉閉環 → 05-1 共用核心 Kernel`。
+**附錄**：`A=01-2 平台核心 vs Vertical Pack（階段二）· B=02-1 知識能力分層 · C=02-2 AI 邊界紅線 · D=06-2 L2 元件責任與介面目錄`。
 
 版面檢查:`python3 _analyze_layout.py -v`(量測連線交叉+穿越節點)。
 
 ## 子資料夾(繪製順序)
 
-| # | 子資料夾 | 圖(共 14 張)| 對應正典文件 |
+| # | 子資料夾 | 圖（共 16 張）| 對應正典文件 |
 |---|---|---|---|
 | 00 | `00_總覽/` | 商業模式心智模型、System Context (C4 L1) | 00_Product_Strategy · 02_BRD §2/§5 · 12_SAD |
 | 01 | `01_平台層/` | 部署三分層(bundle×共用×License 附加);**核心 vs Pack → 附錄A(階段二)** | 12_SAD §2 · ADR-001/002 |
@@ -28,6 +29,7 @@
 | 03 | `03_執行層/` | Container 主錨 (C4 L2)、agent 元件、api 元件、State Machines | 12_SAD · 15_SDS §4-§6 |
 | 04 | `04_流程圖/` | 跨系統資料流 DAG、Sequence(工單全程)、知識精煉閉環 | 00_platform/P2/09 · 02_BRD §5.5/§5.6 |
 | 05 | `05_共用核心/` | 平台共用核心 Kernel(工單引擎/身分/金流軌/可觀測/事件骨幹)| 15_SDS §3 · 13_Security |
+| 06 | `06_參考架構/` | 高階端到端參考架構、L2 元件責任與介面目錄 | 02_BRD · 12_SAD · 15_SDS |
 
 ---
 
@@ -58,6 +60,15 @@
 - **橫切支撐(共用服務→各區)** = 點線、淡色
 - 狀態圖用正交圓角轉移線、時序圖用直線訊息;其餘連線走**直線散開**(不用正交,避免疊線)。
 - 每張圖右下(或空白處)放**圖例**,列出該圖實際用到的配色與線型。
+
+`06-1` 是 Solution Architecture Overview，依端到端資料語意使用四種專用路徑：
+
+- **藍色實線**：即時互動／同步交易（LINE、REST、WebSocket、Flex）。
+- **綠色虛線**：AI Metadata／非同步領域事件（Internal JSON、Kafka／AsyncAPI）。
+- **紫色虛線**：控制、設定、身分、安全與可觀測資料。
+- **橘色虛線**：SQL、Outbox、pgvector、事件重播與證據保存。
+
+工業視覺常見的 `Video／Metadata／Control／Storage` 在本產品中分別類比為 `即時互動／領域事件／控制治理／持久化與重播證據`，不得把互動 payload 與事件 metadata 合併成同一條線。
 
 ---
 

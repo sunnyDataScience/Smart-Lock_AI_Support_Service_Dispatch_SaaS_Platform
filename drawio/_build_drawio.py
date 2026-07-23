@@ -4,10 +4,10 @@
 Smart Lock 平台 — drawio 架構圖生成器
 =========================================
 依 drawio/README.md 全域視覺規範 + 各子資料夾 prompt.md,
-生成 14 張 Smart Lock AI 客服與派工 SaaS 平台架構圖(正典來源 smartlock-docs/enterprise/)。
+生成 16 張 Smart Lock AI 客服與派工 SaaS 平台架構圖(正典來源 smartlock-docs/enterprise/)。
 
 輸出:
-  1. drawio/smartlock-platform-architecture.drawio   ← 單檔多分頁,一次匯入全部 14 張
+  1. drawio/smartlock-platform-architecture.drawio   ← 單檔多分頁,一次匯入全部 16 張
   2. 各子資料夾同名單張檔 (依 README 命名慣例,如 03-1_container.drawio)
 
 執行:  python3 _build_drawio.py
@@ -87,6 +87,40 @@ def state_style(color):                  # UML 狀態
     f, s = FILL[color]
     return f"rounded=1;arcSize=40;whiteSpace=wrap;html=1;fillColor={f};strokeColor={s};"
 
+
+def ref_zone(header_fill="#F8FAFC", stroke="#CBD5E1"):
+    """06 高階參考架構的 L1 責任區：白底、淡色表頭、低裝飾。"""
+    return (
+        "swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;"
+        f"fillColor=#FFFFFF;swimlaneFillColor={header_fill};strokeColor={stroke};"
+        "fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;"
+    )
+
+
+def ref_component(stroke="#64748B", fill="#FFFFFF", dashed=False):
+    d = "dashed=1;dashPattern=5 4;" if dashed else ""
+    return (
+        "rounded=1;arcSize=8;whiteSpace=wrap;html=1;"
+        f"fillColor={fill};strokeColor={stroke};fontColor=#0F172A;"
+        f"fontSize=10;spacing=5;{d}"
+    )
+
+
+def ref_store(stroke="#EA580C"):
+    return (
+        "rounded=1;arcSize=8;whiteSpace=wrap;html=1;"
+        f"fillColor=#FFF7ED;strokeColor={stroke};fontColor=#7C2D12;"
+        "fontSize=9;spacing=4;"
+    )
+
+
+def ref_card(stroke, fill):
+    return (
+        "rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;"
+        f"fillColor={fill};strokeColor={stroke};fontColor=#0F172A;"
+        "fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;"
+    )
+
 # ---------------------------------------------------------------------------
 # 線型 style (README「線型」)
 # ---------------------------------------------------------------------------
@@ -98,6 +132,29 @@ E_DASH  = "html=1;endArrow=classic;dashed=1;strokeColor=#6C8EBF;fontSize=10;"   
 E_DOT   = "html=1;endArrow=open;dashed=1;dashPattern=1 4;strokeColor=#999999;fontSize=10;"              # 橫切支撐 (點線)
 E_STATE = "edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;endFill=1;strokeColor=#555555;fontSize=10;"                    # 狀態轉移(狀態圖保留正交)
 E_STRAIGHT = "html=1;endArrow=classic;endFill=1;strokeColor=#333333;fontSize=10;"                                                          # 直線 (sequence)
+
+# 06 高階參考架構專用資料路徑。
+# 工業視覺語意轉譯：Video→即時互動、Metadata→領域事件、Control→治理、Storage→重播/證據。
+E_REF_INTERACTION = (
+    "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;"
+    "html=1;strokeWidth=2.5;endArrow=classic;endFill=1;"
+    "strokeColor=#2563EB;fontColor=#1E3A8A;fontSize=9;"
+)
+E_REF_EVENT = (
+    "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;"
+    "html=1;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;dashPattern=6 4;"
+    "strokeColor=#16A34A;fontColor=#166534;fontSize=9;"
+)
+E_REF_CONTROL = (
+    "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;"
+    "html=1;strokeWidth=2;endArrow=open;endFill=0;dashed=1;dashPattern=3 4;"
+    "strokeColor=#9333EA;fontColor=#6B21A8;fontSize=9;"
+)
+E_REF_STORAGE = (
+    "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;"
+    "html=1;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;dashPattern=8 4;"
+    "strokeColor=#EA580C;fontColor=#9A3412;fontSize=9;"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -1301,6 +1358,599 @@ def d_04_4():
     return ("d04_4", "04-4 知識精煉閉環（HITL MLOps）", c)
 
 
+def d_06_1():
+    """Solution Architecture Overview：L1 責任區 + L2 元件 + 四種資料路徑。"""
+    P = "r1"
+    c = [
+        title(
+            f"{P}_ttl",
+            "06-1 高階端到端參考架構  ·  Logical Components + Data Flow + Integration",
+            x=25,
+            w=1450,
+        ),
+        subtitle(
+            f"{P}_sub",
+            "Smart Lock AI 客服與派工 SaaS｜工業視覺語意轉譯：即時互動、領域事件、控制治理、持久化/重播/證據",
+            x=25,
+            w=1500,
+        ),
+    ]
+
+    zones = {
+        "z1": ("Z1  Actors & Inbound Signals", 25, 75, 220, 700, "#F8FAFC", "#94A3B8"),
+        "z2": ("Z2  Channel & AI Runtime", 260, 75, 295, 700, "#EFF6FF", "#60A5FA"),
+        "z3": ("Z3  Interaction & Event Distribution", 570, 75, 310, 700, "#F0FDF4", "#4ADE80"),
+        "z4": ("Z4  Domain Services & Data", 895, 75, 440, 700, "#FFF7ED", "#FB923C"),
+        "z5": ("Z5  Applications & External Systems", 1350, 75, 325, 700, "#F8FAFC", "#64748B"),
+        "z6": ("Z6  Cross-Cutting Management Capabilities", 25, 800, 1650, 220, "#FAF5FF", "#C084FC"),
+    }
+    for zid, (label, x, y, w, h, fill, stroke) in zones.items():
+        c.append(node(f"{P}_{zid}", label, x, y, w, h, ref_zone(fill, stroke)))
+
+    # Z1 — 外部角色與訊號（不承擔業務狀態）
+    z1 = f"{P}_z1"
+    c.extend(
+        [
+            node(f"{P}_cust", "Customer Interaction Signal\nLINE 詢問 · LIFF/postback 決策", 15, 55, 190, 75, ref_component("#64748B", "#FFFFFF"), parent=z1),
+            node(f"{P}_ops", "Brand Operations Decision\n問題卡 · 報價 · 派工 · 結算", 15, 175, 190, 75, ref_component("#64748B", "#FFFFFF"), parent=z1),
+            node(f"{P}_techsig", "Technician Field Action\n接單 · 到場 · requote · 存證", 15, 295, 190, 75, ref_component("#64748B", "#FFFFFF"), parent=z1),
+            node(f"{P}_know", "Knowledge & Diagnostic Source\n產品素材 · 三方診斷對話", 15, 415, 190, 75, ref_component("#64748B", "#FFFFFF"), parent=z1),
+            node(
+                f"{P}_z1note",
+                "Signal only\n角色意圖在此表達；\n業務真相一律由 Z4 擁有",
+                15,
+                545,
+                190,
+                95,
+                ref_component("#94A3B8", "#F8FAFC", dashed=True),
+                parent=z1,
+            ),
+        ]
+    )
+
+    # Z2 — Channel / AI Runtime
+    z2 = f"{P}_z2"
+    c.extend(
+        [
+            node(f"{P}_gw", "LINE Gateway\n驗簽 · dedup · handover", 15, 55, 125, 90, ref_component("#2563EB", "#EFF6FF"), parent=z2),
+            node(f"{P}_agent", "LockCore Agent Runtime\nTurn · Skill · Memory · Tools", 155, 55, 125, 90, ref_component("#2563EB", "#EFF6FF"), parent=z2),
+            node(f"{P}_rag", "RAG-MCP Knowledge Access\ntenant ACL · pgvector citation", 15, 205, 265, 80, ref_component("#2563EB", "#FFFFFF"), parent=z2),
+            node(f"{P}_model", "LiteLLM Model Gateway\nprovider routing · fallback · budget", 15, 330, 265, 80, ref_component("#2563EB", "#FFFFFF"), parent=z2),
+            node(
+                f"{P}_z2note",
+                "責任紅線\nAI 只做對話判斷、知識回覆與 transfer_to_human；\n不擁有 final quote／工單／派工／金流真相",
+                15,
+                480,
+                265,
+                115,
+                ref_component("#B91C1C", "#FEF2F2", dashed=True),
+                parent=z2,
+            ),
+        ]
+    )
+
+    # Z3 — Integration / Distribution
+    z3 = f"{P}_z3"
+    c.extend(
+        [
+            node(f"{P}_api", "API / ACL Integration Gateway\nOIDC/S2S · tenant/role guard · idempotency", 15, 55, 280, 90, ref_component("#16A34A", "#F0FDF4"), parent=z3),
+            node(f"{P}_rt", "Realtime WS\n+ Redis fan-out", 15, 190, 130, 80, ref_component("#16A34A", "#FFFFFF"), parent=z3),
+            node(f"{P}_outbox", "Reliable Outbox\nLINE / notification retry", 165, 190, 130, 80, ref_component("#16A34A", "#FFFFFF"), parent=z3),
+            node(f"{P}_kafka", "Event Backbone  🔜\nKafka · AsyncAPI · replay", 15, 330, 280, 85, ref_component("#16A34A", "#F0FDF4", dashed=True), parent=z3),
+            node(f"{P}_ohs", "Technician OHS Adapter\nmatch/query · requote command · ACL", 15, 465, 280, 85, ref_component("#16A34A", "#FFFFFF"), parent=z3),
+            node(
+                f"{P}_z3note",
+                "機制分工：Outbox＝可靠副作用｜Kafka＝跨系統事實｜Redis＝暫態 fan-out",
+                15,
+                590,
+                280,
+                65,
+                ref_component("#15803D", "#F0FDF4", dashed=True),
+                parent=z3,
+            ),
+        ]
+    )
+
+    # Z4 — Domain / Data
+    z4 = f"{P}_z4"
+    c.extend(
+        [
+            node(
+                f"{P}_brand",
+                "Brand Domain Services\nProblem Card · Quote · Work Order · Dispatch · Billing\n品牌交易與規則唯一權威",
+                15,
+                55,
+                270,
+                100,
+                ref_component("#EA580C", "#FFF7ED"),
+                parent=z4,
+            ),
+            node(
+                f"{P}_tech",
+                "Technician Platform\n技師身分/准入/媒合 · Work Order CQRS · Settlement",
+                15,
+                190,
+                270,
+                90,
+                ref_component("#EA580C", "#FFFFFF"),
+                parent=z4,
+            ),
+            node(
+                f"{P}_ref",
+                "Knowledge Refinery + HITL\nRaw/Bronze/Silver · provenance · 人審核可發布",
+                15,
+                320,
+                270,
+                90,
+                ref_component("#EA580C", "#FFFFFF"),
+                parent=z4,
+            ),
+            node(f"{P}_dbb", "Brand DB + pgvector\nSQL · JSONB · Outbox\n唯一事實語料", 300, 55, 125, 100, ref_store(), parent=z4),
+            node(f"{P}_dbt", "Technician DB\n技能 · KYC · 排班\nEncrypted PII", 300, 190, 125, 90, ref_store(), parent=z4),
+            node(f"{P}_obj", "Platform DB /\nEvidence Store\nLicense · GCS object\nhash · retention", 300, 320, 125, 90, ref_store(), parent=z4),
+            node(
+                f"{P}_z4note",
+                "隔離原則：品牌不直連技師庫；跨域只走 OHS／event；CQRS 投影欄位最小化",
+                15,
+                590,
+                410,
+                65,
+                ref_component("#C2410C", "#FFF7ED", dashed=True),
+                parent=z4,
+            ),
+        ]
+    )
+
+    # Z5 — Applications / External
+    z5 = f"{P}_z5"
+    c.extend(
+        [
+            node(f"{P}_appline", "LINE / LIFF / Flex\nMessaging API · 客戶確認", 15, 55, 295, 80, ref_component("#475569", "#FFFFFF"), parent=z5),
+            node(f"{P}_appbrand", "Brand Operations Portal\n對話 · 報價 · 派工 · 對帳", 15, 175, 295, 80, ref_component("#475569", "#FFFFFF"), parent=z5),
+            node(f"{P}_apptech", "Technician Portal\n准入 · 接單 · 現場 · statement", 15, 295, 295, 80, ref_component("#475569", "#FFFFFF"), parent=z5),
+            node(f"{P}_appplat", "Platform Console\n租戶 · License · 治理", 15, 415, 295, 80, ref_component("#475569", "#FFFFFF"), parent=z5),
+            node(
+                f"{P}_external",
+                "External Shared Services\nCasdoor OIDC/JWKS · LLM Providers HTTPS\nGCP Runtime / Secret / Object Storage",
+                15,
+                535,
+                295,
+                100,
+                ref_component("#475569", "#F8FAFC"),
+                parent=z5,
+            ),
+        ]
+    )
+
+    # Z6 — Cross-cutting management
+    z6 = f"{P}_z6"
+    cross = [
+        ("dev", "Channel & Client Management\nLINE OA 綁定 · webhook health\n技師客戶端准入"),
+        ("cfg", "Configuration\n品牌 · 模型 · SLA\nChannel · feature flag"),
+        ("sec", "Security & Governance\nOIDC · RBAC/SoD · S2S\nTenant ACL · PII policy"),
+        ("obs", "Observability & Operations\nOTel · LLM trace · SLO\nAlert · audit · runbook"),
+        ("cp", "Control Plane\nProvisioning · License\nVertical Pack · rollout"),
+    ]
+    for i, (cid, label) in enumerate(cross):
+        c.append(
+            node(
+                f"{P}_{cid}",
+                label,
+                20 + i * 320,
+                55,
+                290,
+                95,
+                ref_component("#9333EA", "#FAF5FF"),
+                parent=z6,
+            )
+        )
+
+    # ── 藍色實線：即時互動／交易請求 ────────────────────────────────
+    c.extend(
+        [
+            edge(
+                f"{P}_i1",
+                f"{P}_cust",
+                f"{P}_gw",
+                "LINE Webhook JSON\nX-Line-Signature",
+                E_REF_INTERACTION,
+                pts=[(135, 225), (338, 225)],
+            ),
+            edge(
+                f"{P}_i2",
+                f"{P}_gw",
+                f"{P}_agent",
+                "Normalized Turn JSON",
+                E_REF_INTERACTION,
+                pts=[(338, 245), (478, 245)],
+            ),
+            edge(
+                f"{P}_i3",
+                f"{P}_agent",
+                f"{P}_api",
+                "HTTPS Internal JSON",
+                E_REF_INTERACTION,
+                pts=[(478, 245), (725, 245)],
+            ),
+            edge(
+                f"{P}_i4",
+                f"{P}_api",
+                f"{P}_brand",
+                "REST JSON\nIdempotency-Key",
+                E_REF_INTERACTION,
+                pts=[(725, 245), (1115, 245)],
+            ),
+            edge(
+                f"{P}_i5",
+                f"{P}_outbox",
+                f"{P}_appline",
+                "Messaging API / Flex JSON",
+                E_REF_INTERACTION,
+                pts=[(885, 305), (885, 65), (1340, 65), (1340, 170)],
+            ),
+            edge(
+                f"{P}_i6",
+                f"{P}_rt",
+                f"{P}_appbrand",
+                "WebSocket JSON",
+                E_REF_INTERACTION,
+                pts=[(650, 255), (885, 255), (1340, 255), (1340, 290)],
+            ),
+            edge(
+                f"{P}_i7",
+                f"{P}_tech",
+                f"{P}_apptech",
+                "REST / WebSocket JSON",
+                E_REF_INTERACTION,
+                pts=[(1115, 370), (1340, 370), (1340, 410)],
+            ),
+            edge(
+                f"{P}_i8",
+                f"{P}_ops",
+                f"{P}_api",
+                "HTTPS Command JSON",
+                E_REF_INTERACTION,
+                pts=[(250, 288), (250, 675), (560, 675), (560, 170)],
+            ),
+            edge(
+                f"{P}_i9",
+                f"{P}_techsig",
+                f"{P}_ohs",
+                "Field Command JSON\nEvidence Metadata",
+                E_REF_INTERACTION,
+                pts=[(250, 408), (250, 710), (560, 710), (560, 583)],
+            ),
+            edge(
+                f"{P}_i10",
+                f"{P}_agent",
+                f"{P}_model",
+                "OpenAI-compatible JSON",
+                E_REF_INTERACTION,
+                pts=[(548, 170), (548, 445)],
+            ),
+            edge(
+                f"{P}_i11",
+                f"{P}_model",
+                f"{P}_external",
+                "HTTPS Model Request",
+                E_REF_INTERACTION,
+                pts=[(560, 445), (560, 750), (1340, 750), (1340, 660)],
+            ),
+            edge(
+                f"{P}_i12",
+                f"{P}_ohs",
+                f"{P}_tech",
+                "HTTPS OHS Command JSON\nS2S Credential",
+                E_REF_INTERACTION,
+                pts=[(890, 583), (890, 310)],
+            ),
+        ]
+    )
+
+    # ── 綠色虛線：AI metadata／domain event ─────────────────────────
+    c.extend(
+        [
+            edge(
+                f"{P}_e1",
+                f"{P}_agent",
+                f"{P}_api",
+                "Escalation Metadata\nInternal JSON",
+                E_REF_EVENT,
+                pts=[(555, 225), (565, 225), (565, 215), (585, 215)],
+            ),
+            edge(
+                f"{P}_e2",
+                f"{P}_brand",
+                f"{P}_kafka",
+                "workorder.* / dispatch.*\nAsyncAPI JSON",
+                E_REF_EVENT,
+                pts=[(890, 180), (890, 448)],
+            ),
+            edge(
+                f"{P}_e3",
+                f"{P}_kafka",
+                f"{P}_tech",
+                "dispatch.* ↔ technician.*\nAsyncAPI JSON",
+                E_REF_EVENT + "startArrow=classic;startFill=1;",
+                pts=[(885, 448), (885, 310)],
+            ),
+            edge(f"{P}_e4", f"{P}_kafka", f"{P}_rt", "Projection Update\nRedis Event", E_REF_EVENT),
+            edge(
+                f"{P}_e5",
+                f"{P}_know",
+                f"{P}_ref",
+                "Provenance / Diagnostic Metadata",
+                E_REF_EVENT,
+                pts=[(250, 528), (250, 730), (890, 730), (890, 455)],
+            ),
+            edge(f"{P}_e6", f"{P}_agent", f"{P}_rag", "MCP Query / Citation", E_REF_EVENT),
+            edge(f"{P}_e7", f"{P}_rag", f"{P}_agent", "Tenant-filtered Result", E_REF_EVENT, pts=[(550, 320), (550, 235)]),
+        ]
+    )
+
+    # ── 橘色虛線：持久化／重播／證據 ───────────────────────────────
+    c.extend(
+        [
+            edge(f"{P}_s1", f"{P}_brand", f"{P}_dbb", "SQL / JSONB / Outbox", E_REF_STORAGE),
+            edge(f"{P}_s2", f"{P}_tech", f"{P}_dbt", "SQL / Encrypted PII", E_REF_STORAGE),
+            edge(
+                f"{P}_s3",
+                f"{P}_ref",
+                f"{P}_dbb",
+                "Chunk / Embedding /\nSkill Patch",
+                E_REF_STORAGE,
+                pts=[(1188, 440), (1188, 180)],
+            ),
+            edge(
+                f"{P}_s4",
+                f"{P}_brand",
+                f"{P}_obj",
+                "Evidence Object + Hash",
+                E_REF_STORAGE,
+                pts=[(1115, 245), (1330, 245), (1330, 440)],
+            ),
+            edge(
+                f"{P}_s5",
+                f"{P}_brand",
+                f"{P}_outbox",
+                "Transactional Outbox Row",
+                E_REF_STORAGE,
+                pts=[(890, 195), (890, 305)],
+            ),
+            edge(
+                f"{P}_s6",
+                f"{P}_kafka",
+                f"{P}_obj",
+                "Event Log / Replay Checkpoint",
+                E_REF_STORAGE,
+                pts=[(885, 500), (885, 510), (1258, 510), (1258, 485)],
+            ),
+        ]
+    )
+
+    # ── 紫色虛線：控制／設定／安全／可觀測 ─────────────────────────
+    c.extend(
+        [
+            edge(
+                f"{P}_c1",
+                f"{P}_dev",
+                f"{P}_gw",
+                "LINE OA / client policy",
+                E_REF_CONTROL,
+                pts=[(195, 790), (250, 790), (250, 110), (342, 110)],
+            ),
+            edge(
+                f"{P}_c2",
+                f"{P}_cfg",
+                f"{P}_agent",
+                "Versioned runtime config",
+                E_REF_CONTROL,
+                pts=[(515, 790), (560, 790), (560, 110), (478, 110)],
+            ),
+            edge(
+                f"{P}_c3",
+                f"{P}_sec",
+                f"{P}_api",
+                "OIDC / RBAC / S2S /\ntenant policy",
+                E_REF_CONTROL,
+                pts=[(835, 790), (885, 790), (885, 110), (725, 110)],
+            ),
+            edge(
+                f"{P}_c4",
+                f"{P}_agent",
+                f"{P}_obs",
+                "OTLP / LLM trace /\ncorrelation ID",
+                E_REF_CONTROL,
+                pts=[(555, 200), (555, 780), (1155, 780)],
+            ),
+            edge(
+                f"{P}_c5",
+                f"{P}_appplat",
+                f"{P}_cp",
+                "Governance command\nOIDC",
+                E_REF_CONTROL,
+                pts=[(1340, 530), (1340, 790), (1475, 790)],
+            ),
+        ]
+    )
+
+    c += legend(
+        P,
+        25,
+        1035,
+        [
+            ("edge", E_REF_INTERACTION, "藍實線 = 即時互動 / 同步交易（LINE、REST、WS、Flex）"),
+            ("edge", E_REF_EVENT, "綠虛線 = AI metadata / 非同步領域事件（Internal JSON、Kafka）"),
+            ("edge", E_REF_CONTROL, "紫虛線 = 控制 / 設定 / 身分 / 安全 / 可觀測"),
+            ("edge", E_REF_STORAGE, "橘虛線 = SQL / Outbox / pgvector / replay / evidence"),
+            ("fill", "white", "🔜 虛線元件框 = 參考目標能力，落地狀態另依證據對帳"),
+        ],
+        w=520,
+        ttl="資料路徑與狀態圖例",
+    )
+    c.append(
+        node(
+            f"{P}_principles",
+            "架構鐵律\n"
+            "① AI 不擁有報價/工單/派工/金流真相　② 品牌不直連技師庫　"
+            "③ 同步查詢與非同步事實分流　④ Outbox/Kafka/Redis 各有單一責任　"
+            "⑤ 所有箭頭均標方向、協定或資料格式",
+            570,
+            1040,
+            1105,
+            105,
+            ref_component("#334155", "#F8FAFC"),
+        )
+    )
+    return ("d06_1", "06-1 高階端到端參考架構", c)
+
+
+def d_06_2():
+    """將 06-1 的 L2 元件畫成可獨立取用的責任卡。"""
+    P = "r2"
+    c = [
+        title(f"{P}_ttl", "06-2 L2 Component Catalog  ·  Responsibility + Interface", x=25, w=1300),
+        subtitle(
+            f"{P}_sub",
+            "每張卡可獨立搬入簡報、SAD、ADR 或細化圖；只保留責任與主要介面，不展開 class / endpoint / pod / table。",
+            x=25,
+            w=1500,
+        ),
+    ]
+
+    groups = [
+        (
+            "g1",
+            "Z1 Actors & Inbound Signals",
+            25,
+            75,
+            520,
+            420,
+            "#F8FAFC",
+            "#64748B",
+            [
+                ("Customer Interaction Signal", "客戶訊息、LIFF/postback 決策", "LINE webhook JSON"),
+                ("Brand Operations Decision", "問題卡、報價、派工、結算操作", "Browser / REST JSON"),
+                ("Technician Field Action", "接單、到場、requote、施工存證", "Web command / evidence metadata"),
+                ("Knowledge & Diagnostic Source", "產品素材與三方診斷原始來源", "URL / transcript / provenance"),
+            ],
+        ),
+        (
+            "g2",
+            "Z2 Channel & AI Runtime",
+            570,
+            75,
+            520,
+            420,
+            "#EFF6FF",
+            "#2563EB",
+            [
+                ("LINE Gateway", "驗簽、去重、handover 與通道交付", "HTTPS / X-Line-Signature"),
+                ("LockCore Agent Runtime", "Turn、Skill、Memory、Tool allowlist", "Normalized Turn / Internal JSON"),
+                ("RAG-MCP Knowledge Access", "tenant-filtered 語意檢索與引用", "MCP / pgvector result"),
+                ("LiteLLM Model Gateway", "模型路由、fallback、timeout 與 budget", "HTTPS / OpenAI-compatible JSON"),
+            ],
+        ),
+        (
+            "g3",
+            "Z3 Interaction & Event Distribution",
+            1115,
+            75,
+            560,
+            420,
+            "#F0FDF4",
+            "#16A34A",
+            [
+                ("API / ACL Integration Gateway", "同步 command/query、身分與租戶守衛", "REST / OIDC / S2S / RFC7807"),
+                ("Realtime WS + Redis", "跨實例暫態 fan-out", "WebSocket JSON / Redis pub-sub"),
+                ("Reliable Outbox Delivery", "可靠 LINE/通知副作用與 retry", "Outbox row / Flex JSON"),
+                ("Event Backbone 🔜", "跨系統事實、重播與最終一致", "Kafka / AsyncAPI JSON"),
+                ("Technician OHS Adapter", "隔離品牌域與技師域", "HTTPS OHS / S2S credential"),
+            ],
+        ),
+        (
+            "g4",
+            "Z4 Domain Services & Data",
+            25,
+            525,
+            650,
+            590,
+            "#FFF7ED",
+            "#EA580C",
+            [
+                ("Brand Domain Services", "Problem Card、Quote、Work Order、Dispatch、Billing 權威", "Domain command/event / SQL"),
+                ("Technician Platform", "技師真相、媒合、CQRS、Settlement", "OHS / Kafka / REST-WS"),
+                ("Knowledge Refinery + HITL", "Medallion、provenance、人審與發布", "Bronze/Silver / Draft / Patch"),
+                ("Brand DB + pgvector", "交易、對話、Outbox、唯一事實語料", "PostgreSQL / JSONB / pgvector"),
+                ("Technician DB", "技師、KYC、技能、排班、結算真相", "PostgreSQL / encrypted PII"),
+                ("Platform DB / Evidence Store", "License、平台治理與證據保存", "PostgreSQL / GCS object + hash"),
+            ],
+        ),
+        (
+            "g5",
+            "Z5 Applications & External Systems",
+            700,
+            525,
+            470,
+            590,
+            "#F8FAFC",
+            "#475569",
+            [
+                ("LINE / LIFF / Flex", "客戶互動、報價確認與通知交付", "Messaging API / LIFF / Flex JSON"),
+                ("Brand Operations Portal", "對話、報價、派工與對帳工作台", "OIDC / REST / WebSocket"),
+                ("Technician Portal", "准入、接單、現場與 statement", "OIDC / REST / WebSocket"),
+                ("Platform Console", "租戶、License 與治理操作", "OIDC / Platform API"),
+                ("External Shared Services", "IdP、模型供應商與 GCP runtime", "OIDC/JWKS / HTTPS / Cloud API"),
+            ],
+        ),
+        (
+            "g6",
+            "Z6 Cross-Cutting Management",
+            1195,
+            525,
+            480,
+            590,
+            "#FAF5FF",
+            "#9333EA",
+            [
+                ("Control Plane", "Provisioning、License、Pack、rollout", "Versioned control command"),
+                ("Configuration", "品牌、模型、SLA、通道與 feature 設定", "Config registry / secret ref"),
+                ("Channel & Client Management", "LINE OA、webhook 與技師客戶端准入", "Credential / health / client state"),
+                ("Security & Governance", "OIDC、RBAC/SoD、S2S、tenant、PII", "JWT/JWKS / policy / audit"),
+                ("Observability & Operations", "OTel、LLM trace、SLO、alert、runbook", "OTLP / trace ID / dashboard"),
+            ],
+        ),
+    ]
+
+    for gid, label, x, y, w, h, fill, stroke, cards in groups:
+        parent = f"{P}_{gid}"
+        c.append(node(parent, label, x, y, w, h, ref_zone(fill, stroke)))
+        cols = 2
+        gap = 12
+        card_w = (w - 30 - gap) / cols
+        rows = math.ceil(len(cards) / cols)
+        card_h = min(145, (h - 70 - (rows - 1) * 14) / rows)
+        for i, (name, responsibility, interface) in enumerate(cards):
+            col = i % cols
+            row = i // cols
+            cx = 15 + col * (card_w + gap)
+            cy = 55 + row * (card_h + 14)
+            c.append(
+                node(
+                    f"{parent}_c{i}",
+                    f"{name}\n\n責任：{responsibility}\n\n介面：{interface}",
+                    cx,
+                    cy,
+                    card_w,
+                    card_h,
+                    ref_card(stroke, "#FFFFFF"),
+                    parent=parent,
+                )
+            )
+
+    return ("d06_2", "06-2 L2 元件責任與介面目錄", c)
+
+
 # ---------------------------------------------------------------------------
 # 組裝與輸出
 # ---------------------------------------------------------------------------
@@ -1318,11 +1968,12 @@ def wrap_mxfile(diagrams):
     return "\n".join(parts)
 
 
-# 順序 = 閱讀序:主 deck(11 張關鍵-flow)先,附錄(3 張戰略/能力)後。
+# 順序 = 閱讀序：總覽與參考架構先，主要設計圖居中，能力附錄最後。
 BUILDERS = [
     # ── 主 deck ──
     ("00_總覽", "00-1_mindmap", d_00_1),                    # 商業模式心智模型(開場)
     ("00_總覽", "00-2_system-context", d_00_2),             # C4 L1 Context
+    ("06_參考架構", "06-1_end-to-end-reference", d_06_1),   # Solution Architecture Overview
     ("01_平台層", "01-1_deployment-layers", d_01_1),        # 部署三分層
     ("03_執行層", "03-1_container", d_03_1),                # C4 L2 部署主錨
     ("03_執行層", "03-2_agent-components", d_03_2),         # agent(LockCore)元件
@@ -1336,6 +1987,7 @@ BUILDERS = [
     ("01_平台層", "01-2_core-vs-pack", d_01_2),             # 附錄A(階段二)
     ("02_能力資產層", "02-1_knowledge-layers", d_02_1),     # 附錄B
     ("02_能力資產層", "02-2_ai-guardrails", d_02_2),        # 附錄C
+    ("06_參考架構", "06-2_component-catalog", d_06_2),      # 附錄D：L2 元件責任卡
 ]
 
 
@@ -1346,9 +1998,17 @@ def main():
         diagrams.append((did, name, cells))
         single = wrap_mxfile([(did, name, cells)])
         path = os.path.join(BASE, folder, f"{fname}.drawio")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(single)
         print(f"  ✓ {folder}/{fname}.drawio")
+
+        if folder == "06_參考架構":
+            from _render_reference_svg import render_drawio_to_svg
+
+            svg_path = os.path.join(BASE, folder, f"{fname}.svg")
+            render_drawio_to_svg(single, svg_path)
+            print(f"  ✓ {folder}/{fname}.svg")
 
     combined = wrap_mxfile(diagrams)
     cpath = os.path.join(BASE, "smartlock-platform-architecture.drawio")
