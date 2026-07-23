@@ -131,12 +131,6 @@ _ADMIN_WEB_ROLES = [
 ]
 
 
-@router.post(
-    "/auth/login",
-    operation_id="loginAdmin",
-    summary="管理員登入",
-    status_code=200,
-)
 def _set_login_cookie(response: Response, payload: dict) -> None:
     """CR-0177 S3a：登入/刷新成功 → 同步寫 httpOnly access cookie。
 
@@ -149,6 +143,12 @@ def _set_login_cookie(response: Response, payload: dict) -> None:
         set_access_cookie(response, token, int(data.get("expires_in") or 3600))
 
 
+@router.post(
+    "/auth/login",
+    operation_id="loginAdmin",
+    summary="管理員登入",
+    status_code=200,
+)
 async def login_admin(body: LoginBody, response: Response) -> dict:
     payload = await auth_service.login(
         email=body.email, password=body.password, allowed_roles=_ADMIN_WEB_ROLES
