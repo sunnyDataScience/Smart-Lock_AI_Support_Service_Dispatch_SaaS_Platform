@@ -36,7 +36,7 @@ fi
 PROJECT_ID="${PROJECT_ID:-cedar-scope-489604-g3}"
 REGION="${REGION:-asia-east1}"
 SERVICE_NAME="${SERVICE_NAME:-smart-lock-web}"
-API_SERVICE_NAME="${API_SERVICE_NAME:-smart-lock-api}"   # 解析 api URL 烤入前端
+API_SERVICE_NAME="${API_SERVICE_NAME:-}"   # 解析 api URL 烤入前端；預設依 WEB_APP 對映（見下）
 REPO="${REPO:-lock-ai-repo}"
 
 # Image tag: git short SHA + timestamp（支援 rollback）
@@ -59,6 +59,16 @@ TIMEOUT=60         # web 是 SSR，不需要 long-running request
 # 先讀本機 web/<app>/.env.production（如有），fallback 到預設值
 # 檔案層拆分（2026-07-09）：WEB_APP 選站台目錄（預設 brand-portal = Cloud Run smart-lock-web 現況）
 WEB_APP="${WEB_APP:-brand-portal}"
+# API base 依站台對映（0723 UAT：tech-portal / platform-console 依 R6 runbook 部署時
+# 未帶 API_SERVICE_NAME → bundle 烤成品牌 smart-lock-api → 技師站/平台 console 瀏覽器
+# 登入被 CORS preflight 全擋。NEXT_PUBLIC_* 為 build-time 烤入，錯了只能重建。）
+if [[ -z "${API_SERVICE_NAME}" ]]; then
+    case "${WEB_APP}" in
+        tech-portal)      API_SERVICE_NAME="lock-tech-api" ;;
+        platform-console) API_SERVICE_NAME="lock-platform-api" ;;
+        *)                API_SERVICE_NAME="smart-lock-api" ;;
+    esac
+fi
 WEB_DIR="web/${WEB_APP}"
 WEB_ENV_FILE="${WEB_DIR}/.env.production"
 if [[ -f "${WEB_ENV_FILE}" ]]; then
