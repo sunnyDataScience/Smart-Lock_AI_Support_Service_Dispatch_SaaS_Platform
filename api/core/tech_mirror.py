@@ -63,7 +63,15 @@ _USERS_PROJECTION_COLS = [
 # 排班/資料編輯)。維持其餘欄位缺失大聲失敗(漂移偵測)，僅顯式列出的私有
 # 欄跳過。未來在權威庫加「品牌庫不需要」的欄位時，必須同步登記到這裡。
 _TECH_PRIVATE_COLS: dict[str, set[str]] = {
-    "technicians": {"line_user_id", "notify_pool_new"},
+    # CR-0169：line_user_id / notify_pool_new；CR-0173：line_user_id_enc /
+    # line_user_id_bidx（0724 prod 技師註冊 500 補登記——加密欄同屬綁定隱私，
+    # 品牌庫投影不該有，漏登記＝SELECT * 鏡射 UndefinedColumn 炸所有技師身分寫入）。
+    "technicians": {
+        "line_user_id",
+        "notify_pool_new",
+        "line_user_id_enc",
+        "line_user_id_bidx",
+    },
 }
 
 

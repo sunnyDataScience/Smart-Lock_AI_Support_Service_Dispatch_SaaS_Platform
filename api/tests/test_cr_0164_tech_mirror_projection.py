@@ -42,3 +42,27 @@ def test_login_lookup_routes_technician_to_authority():
     src = inspect.getsource(auth_service._login_lookup_conn)
     assert 'role_in == ["technician"]' in src
     assert "require_tech_conn" in src
+
+
+def test_technicians_private_cols_cover_line_binding_columns():
+    """technicians 私有欄登記須含 CR-0169 綁定欄＋CR-0173 加密欄。
+
+    0724 prod 技師註冊 500 根因：CR-0173 在權威庫 technicians 加
+    line_user_id_enc/bidx 但未登記到 _TECH_PRIVATE_COLS → SELECT * 鏡射
+    把加密欄帶進品牌庫 INSERT → UndefinedColumn 炸所有技師身分寫入。
+    權威庫新增「品牌庫不需要」的欄位時必須同步登記（見 tech_mirror.py 註解）。
+    """
+    drop = tech_mirror._TECH_PRIVATE_COLS["technicians"]
+    for col in ("line_user_id", "notify_pool_new",
+                "line_user_id_enc", "line_user_id_bidx"):
+        assert col in drop, f"technicians 私有欄漏登記 {col}（鏡射會 UndefinedColumn）"
+
+
+def test_drop_private_cols_strips_technicians_line_columns():
+    """_drop_private_cols 實際剔除 technicians 的綁定/加密欄，保留其餘欄。"""
+    cols = ["id", "display_name", "line_user_id", "notify_pool_new",
+            "line_user_id_enc", "line_user_id_bidx", "status"]
+    rows = [("t-1", "林師傅", "U123", True, "enc-blob", "bidx-hex", "active")]
+    kept_cols, kept_rows = tech_mirror._drop_private_cols("technicians", cols, rows)
+    assert kept_cols == ["id", "display_name", "status"]
+    assert kept_rows == [("t-1", "林師傅", "active")]
