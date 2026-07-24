@@ -1,0 +1,97 @@
+flowchart LR
+  subgraph Z1["Z1 Actors & Inbound Signals"]
+    S_LINE["Customer Interaction Signal"]
+    S_OPS["Brand Operations Decision"]
+    S_TECH["Technician Field Action"]
+    S_KNOW["Knowledge & Diagnostic Source"]
+  end
+  subgraph Z2["Z2 Channel & AI Runtime"]
+    GW["LINE Gateway"]
+    AG["LockCore Agent Runtime"]
+    RAG["RAG-MCP Knowledge Access"]
+    MODEL["LiteLLM Model Gateway"]
+  end
+  subgraph Z3["Z3 Interaction & Event Distribution"]
+    API["API / ACL Integration Gateway"]
+    RT["Realtime WS + Redis"]
+    OUTBOX["Reliable Outbox Delivery"]
+    KAFKA["Event Backbone"]
+    OHS["Technician OHS Adapter"]
+  end
+  subgraph Z4["Z4 Domain Services & Data"]
+    BRAND["Brand Domain Services"]
+    TECH["Technician Platform"]
+    REF["Knowledge Refinery + HITL"]
+    DBB[("Brand DB + pgvector")]
+    DBT[("Technician DB")]
+    OBJ[("Platform DB / Evidence Store")]
+  end
+  subgraph Z5["Z5 Applications & External Systems"]
+    APP_LINE["LINE / LIFF / Flex"]
+    APP_BRAND["Brand Operations Portal"]
+    APP_TECH["Technician Portal"]
+    APP_PLATFORM["Platform Console"]
+    EXT["Casdoor / LLM Providers / GCP"]
+  end
+  subgraph Z6["Z6 Cross-Cutting Management"]
+    CP["Control Plane"]
+    CFG["Configuration"]
+    DEV["Channel & Client Management"]
+    SEC["Security & Governance"]
+    OBS["Observability & Operations"]
+  end
+
+  S_LINE -->|"LINE webhook JSON + X-Line-Signature"| GW
+  GW -->|"Normalized Message / Turn"| AG
+  AG -->|"HTTPS internal JSON + service token"| API
+  API -->|"REST JSON + Idempotency-Key"| BRAND
+  OUTBOX -->|"Reply / Push / Flex JSON"| APP_LINE
+  RT -->|"WebSocket JSON"| APP_BRAND
+  TECH -->|"REST + WebSocket JSON"| APP_TECH
+  S_OPS -->|"Browser command"| API
+  S_TECH -->|"Field command / evidence metadata"| OHS
+  AG -->|"OpenAI-compatible JSON"| MODEL
+  MODEL -->|"HTTPS model request"| EXT
+  OHS -->|"HTTPS OHS command JSON / S2S"| TECH
+
+  AG -.->|"Escalation / Problem Card metadata"| API
+  BRAND -.->|"workorder.* / dispatch.* / commission.*"| KAFKA
+  KAFKA -.->|"AsyncAPI event / at-least-once"| TECH
+  TECH -.->|"technician.* / settlement.*"| KAFKA
+  KAFKA -.->|"projection update / Redis event"| RT
+  S_KNOW -.->|"provenance / diagnostic metadata"| REF
+  AG -.->|"MCP query + citation"| RAG
+  RAG -.->|"tenant-filtered result"| AG
+
+  BRAND -.->|"SQL / JSONB / outbox"| DBB
+  TECH -.->|"SQL / encrypted PII"| DBT
+  REF -.->|"chunk + embedding / skill patch"| DBB
+  BRAND -.->|"evidence object + hash"| OBJ
+  BRAND -.->|"transactional outbox row"| OUTBOX
+  KAFKA -.->|"event log / replay checkpoint"| OBJ
+
+  DEV -.->|"LINE OA / client policy"| GW
+  CFG -.->|"Versioned runtime config"| AG
+  SEC -.->|"OIDC / RBAC / S2S / tenant policy"| API
+  AG -.->|"OTLP / LLM trace / correlation ID"| OBS
+  APP_PLATFORM -.->|"Governance command / OIDC"| CP
+
+  classDef source fill:#F8FAFC,stroke:#64748B,color:#0F172A;
+  classDef runtime fill:#EFF6FF,stroke:#2563EB,color:#0F172A;
+  classDef distribution fill:#F0FDF4,stroke:#16A34A,color:#0F172A;
+  classDef domain fill:#FFF7ED,stroke:#EA580C,color:#0F172A;
+  classDef app fill:#F8FAFC,stroke:#475569,color:#0F172A;
+  classDef management fill:#FAF5FF,stroke:#9333EA,color:#0F172A;
+  classDef store fill:#FFF7ED,stroke:#EA580C,color:#0F172A;
+  class S_LINE,S_OPS,S_TECH,S_KNOW source;
+  class GW,AG,RAG,MODEL runtime;
+  class API,RT,OUTBOX,KAFKA,OHS distribution;
+  class BRAND,TECH,REF domain;
+  class DBB,DBT,OBJ store;
+  class APP_LINE,APP_BRAND,APP_TECH,APP_PLATFORM,EXT app;
+  class CP,CFG,DEV,SEC,OBS management;
+
+  linkStyle 0,1,2,3,4,5,6,7,8,9,10,11 stroke:#2563EB,stroke-width:2.5px;
+  linkStyle 12,13,14,15,16,17,18,19 stroke:#16A34A,stroke-width:2px,stroke-dasharray:6 4;
+  linkStyle 20,21,22,23,24,25 stroke:#EA580C,stroke-width:2px,stroke-dasharray:8 4;
+  linkStyle 26,27,28,29,30 stroke:#9333EA,stroke-width:2px,stroke-dasharray:3 4;

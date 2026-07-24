@@ -1,9 +1,9 @@
 ---
 title: 系統架構設計文件（SAD）— Smart Lock AI 客服與派工 SaaS 平台
-version: 1.0
+version: 1.1
 status: active
 owner: 平台架構師
-last-updated: 2026-07-10
+last-updated: 2026-07-23
 upstream:
   - smartlock-docs/00_platform/P1/05_platform_architecture_L1.md
   - smartlock-docs/00_platform/P2/09_integration_data_flow.md
@@ -144,9 +144,12 @@ flowchart TB
 | line_gateway（LINE 通道 + webapp）| Python 3.11 / aiohttp / line-bot-sdk v3 | 8000（本機）/ 8080（容器）| `POST /callback` 唯一入站門 |
 | AgentLoop / AgentRunner | LockCore（fork 自 `HKUDS/nanobot`）| — | Turn 狀態機 + tool-using LLM 迴圈 |
 | LiteLLMProvider | litellm ≥ 1.70 | — | 單一供應商層，model 字串路由多家 |
-| MemoryManager + Store / EscalationStore | SQLite FTS5 / Postgres pg_trgm | — | per-user 記憶 + 轉真人稽核 |
-| SkillsLoader + 2 builtin skills | Agent Skills 標準（SKILL.md + references）| — | `locksmith-product-knowledge` / `locksmith-cs-sop` |
-| 記憶 DB（Postgres schema `agent.*`）| Cloud SQL pgvector | 5432 | backend=postgres 時 |
+| MemoryManager + Store / EscalationStore | SQLite FTS5（預設）/ Postgres pg_trgm（可配置）| — | per-user 記憶 + 轉真人稽核 |
+| ReplyGuard / SentimentClassifier | Python | — | 回覆紅線出口守衛；負面情緒旁路分類 |
+| SkillsLoader + 2 builtin skills / SkillSync | Agent Skills 標準（SKILL.md + references）| — | builtin + workspace overlay；只同步 DB 已發布版本 |
+| Photo Guide resolver / Quote postback mapper | `line_gateway.py` 決定性旁路 | — | Chatlock-only 樣本圖；依 API error_code 產客戶話術 |
+| WebhookIdempotencyStore | SQLite / Postgres | — | reserve-first 永久 event PK，避免 webhook 重送副作用 |
+| 記憶 DB（Postgres schema `agent.*`）| Cloud SQL pgvector | 5432 | `memory.backend=postgres` 時；非預設必備 |
 
 ### 4.2 api（FastAPI 派工營運控制平面）
 
@@ -165,14 +168,14 @@ flowchart TB
 
 ### 4.3 web（Next.js 多站前端）
 
-單一 codebase 以 `APP_MODE` 建置為多 portal（web ADR-001）：〔標注 2026-07-10：ADR-028（2026-07-09）已改為四站完全獨立專案——`web/{brand-portal,tech-portal,landing,platform-console}` 各自 lockfile／Dockerfile／docker-compose，supersedes ADR-023；本段「單一 codebase 多 portal」描述已成歷史。〕
+依 ADR-028，Web 已拆成四個獨立 Next.js 專案：`web/{brand-portal,tech-portal,landing,platform-console}`；各站有自己的 lockfile、Dockerfile 與 docker-compose。四站仍複製一致語意的 AuthGuard、API client、cache、realtime 與 generated types，但不是同一份可直接共用的 runtime code。
 
-| Portal | Host Port | APP_MODE | REST base |
+| Portal / 專案 | Host Port | APP_MODE | REST base |
 |---|---|---|---|
-| dispatch-web | 3000 | `dispatch` | :8001 |
-| tech-web（PWA 響應式）| 3001 | `tech` | :8002 |
-| platform-web | 3003 | `platform` | :8003 |
-| landing-web（一頁式無登入態）| 3002 | `landing` | :8001 + :8003 |
+| `web/brand-portal` | 3000 | `dispatch` | :8001 |
+| `web/tech-portal`（PWA 響應式）| 3001 | `tech` | :8002 |
+| `web/platform-console` | 3003 | `platform` | :8003 |
+| `web/landing`（一頁式無登入態）| 3002 | `landing` | :8001 + :8003 |
 
 技術棧：Next.js 15 / React 19 / TypeScript strict / Tailwind v4；容器內一律 EXPOSE 8080（standalone `node server.js`）。
 
@@ -191,10 +194,11 @@ flowchart TB
 | Container | 說明 |
 |---|---|
 | 技師 web（technician-web）| Next.js `APP_MODE=tech`，Casdoor OIDC，跨品牌共用一套 |
-| 技師平台 api | FastAPI / psycopg3；OHS API + Kafka client + OIDC 驗證 🔜 規劃中獨立部署（Phase 2）|
+| 技師平台 api | 與 `api/` 共用 codebase，以 `API_SURFACE=tech` 裁切路由、停背景 worker；`web/tech-portal/docker-compose.yml` 可形成獨立 tech runtime stack |
 | 技師庫 `lock_tech` | pgvector pg17；技師身分域**單一真相** |
-| 事件層（Kafka producer/consumer）| 技師狀態事件發布 + 派工/工單事件訂閱 🔜 規劃中（Phase 3）|
-| 師傅即時推播（WS + Redis）| 派工到手 / 工單變更推播 🔜 規劃中 `[待確認]` 歸屬 |
+| 現行媒合 | `api/services/dispatch_service.py` 直接讀 tech authority 並評分；目標 OHS/MatchingService 獨立邊界仍為 To-Be |
+| 事件層（Kafka producer/consumer）| `api/core/event_bus.py` + `api/realtime/event_consumer.py` 已存在；需 `KAFKA_BOOTSTRAP` 才啟用 |
+| 師傅即時推播（WS + Redis）| 技師站目前仍可連品牌 API 即時面；投影尚未證明為所有畫面的唯一 read path |
 
 ### 4.6 data-pipeline（離線 Medallion 數據中台 + DB Schema）
 
@@ -202,10 +206,11 @@ flowchart TB
 
 | 單元 | 說明 |
 |---|---|
-| `data/pipeline/{source_to_raw,raw_to_bronze,bronze_to_silver}/` | CLI batch（yt-dlp / Whisper / LLM 語意 chunking）〔標注 2026-07-10：ADR-029（2026-07-09）已將 `data/` 改名為 `knowledge-pipeline/`。〕|
-| `data/llms/` | LLM provider factory（vertexai/openai/anthropic/ollama）|
-| `SQL/Schema*.sql` + `SQL/migrations/*.sql` | 基底 schema（22 表 + 9 擴充）+ 87 個 forward-only migration〔標注 2026-07-10：migration 現已累計至 097。〕|
-| `SQL/platform/Schema_platform.sql` | 平台庫獨立 schema（3 表）|
+| `knowledge-pipeline/pipeline/{source_to_raw,raw_to_bronze,bronze_to_silver,silver_to_knowledge}/` | CLI batch（yt-dlp / Whisper / LLM 語意 chunking）|
+| `knowledge-pipeline/llms/` | LLM provider factory（vertexai/openai/anthropic/ollama）|
+| `agent/rag/rag/` | MCP RAG server、tenant default-deny、pgvector store；部署需 `RAG_TENANT_ID` |
+| `SQL/Schema*.sql` + `SQL/migrations/*.sql` | forward-only migration 已登記至 114；實際環境以 `schema_migrations` 為準 |
+| `SQL/platform/` / `SQL/tech_authority/` | 平台治理 schema + License entitlement；技師權威與 CQRS projection schema |
 
 ---
 
@@ -482,7 +487,7 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 ### Phase 2 — 身分 / 知識 / 技師平台（下月）
 - **Casdoor 導入**（ADR-P003）：各 api 改 OIDC、web 改授權碼流、org = 品牌租戶、租戶自助開帳。
 - **RAG-via-MCP 語義層**（agent ADR-004）：`embed()` + cosine query + MCP server；語料灌注。
-- **technician-platform 獨立部署**（ADR-P004）：獨立服務 + 自有庫 + OHS API。
+- **technician-platform 邏輯/部署邊界**（ADR-P004）：現行為共用 `api` codebase 的 `API_SURFACE=tech` + 自有庫 + 獨立 tech stack；OHS/MatchingService 邊界仍待拆出。
 - **讀寫分離**（ADR-P007）：read replica + 讀路由。
 
 ### Phase 3 — 事件骨幹與治理健壯化（Q3）
@@ -516,4 +521,22 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 
 ---
 
-*文件結尾 — 12_SAD.md v1.0 / 2026-07-07*
+## 15. Codebase 現況對帳（2026-07-23）
+
+> 快照：`dev-ding@5a9f7914`。本節的 AS-BUILT / PARTIAL / TO-BE 是程式現況，不取代 SRS/Roadmap 的需求狀態；檔案存在也不等於 production 已部署。
+
+| 範圍 | Code reality | 主要證據 | 啟用/缺口 |
+|---|---|---|---|
+| agent | AS-BUILT | `agent/lockcore/`、`agent/scripts/line_gateway.py` | RAG 需 `RAG_TENANT_ID`；FallbackProvider 已接線但預設備援清單空 |
+| api | AS-BUILT + opt-in 整合 | `api/main.py`、`api/core/`、`api/services/`、`api/realtime/` | Redis/Kafka 依環境設定；三庫正式面應開 `DB_URI_STRICT=1` |
+| web | AS-BUILT（四個獨立專案）| `web/{brand-portal,tech-portal,landing,platform-console}/` | OIDC cookie 與 legacy local token 仍在過渡 |
+| data/RAG | AS-BUILT + opt-in | `knowledge-pipeline/`、`agent/rag/rag/`、`SQL/` | migration registry 至 114；環境真相看 `schema_migrations` |
+| refinery | PARTIAL | `knowledge-pipeline/refinery/` | 服務/OIDC/Publisher 已有；排程、compose secrets、OTel optional deps、CD 未完整 |
+| technician-platform | PARTIAL | `API_SURFACE=tech`、`web/tech-portal/`、`SQL/tech_authority/` | 獨立部署 stack 已有；OHS 邊界與 Kafka 投影全面採用尚未完成 |
+| 平台治理 | PARTIAL / TO-BE 混合 | `infra/casdoor/`、M18/LiveSkill、四站 OTel | SigNoz collector/IaC、完整 provisioning、Flow DSL/FlowEditor 仍待完成 |
+
+本次逐元件狀態、定義與證據路徑由 `規格統控整理/SAD_SDS元件標籤字典.md` 受控生成；完整掃描結論見 `規格統控整理/Codebase現況掃描_2026-07-23.md`。
+
+---
+
+*文件結尾 — 12_SAD.md v1.1 / 2026-07-23*

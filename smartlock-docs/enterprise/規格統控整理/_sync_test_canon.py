@@ -14,6 +14,8 @@ from _build_enterprise_workbooks import (
     qa_acceptance_for,
     qa_closure_status,
     qa_mapping_id,
+    qa_nfr_target,
+    qa_nfr_verification,
     qa_test_method_for,
     scenario_for_nfr,
     scenario_for_requirement,
@@ -123,7 +125,9 @@ def render_qtm_mapping(requirements, nfrs) -> str:
                     test_priority(nfr.req_id, nfr.all_text),
                     scenario_for_nfr(nfr),
                     markdown_cell(tc_hint(nfr.req_id, is_nfr=True)),
-                    markdown_cell(f"驗證：{nfr.verification}；通過：{nfr.target}"),
+                    markdown_cell(
+                        f"驗證：{qa_nfr_verification(nfr)}；通過：{qa_nfr_target(nfr)}"
+                    ),
                     markdown_cell(qa_closure_status(nfr.all_text)),
                 ]
             )

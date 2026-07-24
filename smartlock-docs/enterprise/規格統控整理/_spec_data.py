@@ -4,7 +4,13 @@
 enterprise 正典 Markdown。本檔只放顯示分群、管理視角與 QA 場景。
 """
 
-GENERATED_ON = "2026-07-22"
+GENERATED_ON = "2026-07-23"
+CODEBASE_SNAPSHOT = {
+    "branch": "dev-ding",
+    "commit": "5a9f7914",
+    "baseline": "ddc6f986",
+    "scope": "agent、api、web 四站、knowledge-pipeline/refinery、SQL、infra、scripts 與 enterprise 正典",
+}
 
 # 驗收控制表的 PM／業務語言投影。
 #
@@ -16,7 +22,7 @@ GENERATED_ON = "2026-07-22"
 FR_BUSINESS_COPY = {
     "FR-AGT-01": {
         "voc": "客戶透過 LINE 詢問時，希望訊息能被可靠接收並得到明確回覆，不因格式或系統異常失聯。",
-        "prd_acceptance": "當客戶傳送文字或照片時，合法訊息會進入客服流程並收到回覆；無效來源被拒絕，系統異常時仍有友善說明。",
+        "prd_acceptance": "當客戶傳送文字或照片時，合法訊息會進入客服流程並收到回覆；Chatlock 安裝前拍照引導可附核准樣本圖，其他品牌維持純文字；無效來源被拒絕，系統異常時仍有友善說明。",
     },
     "FR-AGT-02": {
         "voc": "客戶希望每次對話都能承接上文，不需反覆重述同一問題。",
@@ -24,7 +30,7 @@ FR_BUSINESS_COPY = {
     },
     "FR-AGT-03": {
         "voc": "客戶需要先獲得可自助解決的建議；若仍未解決，希望系統主動確認並安排人員協助。",
-        "prd_acceptance": "當問題卡資訊完整時，客戶會先收到相符的解決建議並被詢問是否已釐清；連續三次未釐清時自動轉人工。",
+        "prd_acceptance": "當問題資訊不足時，系統依當下情境一次列齊必要問題；客戶明確要求真人、急迫派工、涉及金錢或連續兩次表達不滿時立即轉人工，不採固定追問輪數。",
     },
     "FR-AGT-04": {
         "voc": "遇到被鎖在外、受困、安全風險或高度負面情緒時，客戶希望立即得到人員協助，不要繼續與 AI 周旋。",
@@ -60,11 +66,11 @@ FR_BUSINESS_COPY = {
     },
     "FR-API-01": {
         "voc": "客服需要將零散對話整理成完整案情，並在資訊確認後才進入報價與派工。",
-        "prd_acceptance": "AI 可草擬問題卡，客服能補齊與確認；未達完整度或未經客服確認時，不得自動轉成工單。",
+        "prd_acceptance": "AI 可草擬問題卡，並將同一對話近 24 小時內最多 5 張客戶照片附上供客服檢視；客服能補齊與確認，未達完整度或未經客服確認時不得自動轉成工單。",
     },
     "FR-API-02": {
         "voc": "客戶希望收到清楚、可確認的報價；品牌希望報價經過內部核准，且不暴露成本資訊。",
-        "prd_acceptance": "報價必須依序完成內部核准、客戶送達與客戶確認；保固或專案報價不得由 AI 直接送出，客戶畫面不顯示成本欄位。",
+        "prd_acceptance": "報價必須依序完成內部核准、客戶送達與客戶確認；重複同一決定安全回放，相反決定、過期、無權或找不到報價時顯示對應說明；保固或專案報價不得由 AI 直接送出，客戶畫面不顯示成本欄位。",
     },
     "FR-API-03": {
         "voc": "客服需要一致且可追溯的計價結果；若自動計價暫時不可用，仍要能安全完成報價。",
@@ -72,7 +78,7 @@ FR_BUSINESS_COPY = {
     },
     "FR-API-04": {
         "voc": "客服希望在客戶同意報價後快速建立工單，同時避免重複建單或 AI 未經授權自行開單。",
-        "prd_acceptance": "報價已獲客戶確認或符合急件例外時，客服可一次操作建立工單；重複送出不產生第二張工單，並留下建單來源。",
+        "prd_acceptance": "報價已獲客戶確認或符合急件例外時，客服可一次操作建立工單；問題卡中的客戶姓名、電話、地址、品牌、型號與序號會帶入工單，重複送出不產生第二張工單並留下建單來源。",
     },
     "FR-API-05": {
         "voc": "客戶與派工人員希望系統快速找到合適且可服務的技師，急件應優先處理，無人可派時不能靜默失敗。",
@@ -88,7 +94,7 @@ FR_BUSINESS_COPY = {
     },
     "FR-API-08": {
         "voc": "客戶與品牌都需要完整的到府、施工、材料與簽名記錄，作為驗收、保固與爭議處理依據。",
-        "prd_acceptance": "技師可上傳到場與施工證據、登錄受控材料並取得客戶簽名；證據不齊或現場範圍變更未完成必要確認時不得結案。",
+        "prd_acceptance": "技師可上傳到場與施工證據、登錄受控材料；客服可將三段免責簽署連結推送到 LINE，未綁 LINE 時可複製連結交付；證據、簽署或現場範圍變更確認不齊時不得結案。",
     },
     "FR-API-09": {
         "voc": "品牌希望只有資訊、報價與必要審核都完整的工單才能結案，避免事後無法對帳或處理爭議。",
@@ -144,7 +150,7 @@ FR_BUSINESS_COPY = {
     },
     "FR-WEB-03": {
         "voc": "派工人員需要在同一個工作台掌握待派、進行中與超時案件，即時通道中斷時仍能工作。",
-        "prd_acceptance": "派工人員可查看工單看板、待派佇列與即時更新；即時連線中斷時畫面不崩潰，仍可查詢與完成核心作業。",
+        "prd_acceptance": "派工人員可查看工單看板、待派佇列、技師全名與需授權照片的縮圖/放大檢視；即時連線中斷或照片載入失敗時畫面不崩潰，仍可查詢與完成核心作業。",
     },
     "FR-WEB-04": {
         "voc": "主管需要看懂服務量、SLA 與例外趨勢，並能匯出可對帳的報表支援管理決策。",
@@ -156,11 +162,11 @@ FR_BUSINESS_COPY = {
     },
     "FR-WEB-06": {
         "voc": "客戶希望在 LINE 內看懂報價、條款與服務進度，並以明確動作表示同意。",
-        "prd_acceptance": "客戶可查看報價明細、分層閱讀條款、勾選同意並追蹤工單進度；簡化備援方式也會準確記錄客戶同意來源。",
+        "prd_acceptance": "客戶可由 LINE 或備援連結查看報價與三段免責條款、勾選同意並追蹤工單進度；公開 token 僅保存雜湊稽核，畫面遮蔽不必要個資。",
     },
     "FR-WEB-07": {
         "voc": "使用者遇到網路或服務異常時，需要知道發生什麼事、是否可重試，而不是看到空白頁面。",
-        "prd_acceptance": "任一主要 API、網路或頁面錯誤都顯示可理解的狀態、影響與下一步建議；錯誤不導致整個應用程式崩潰。",
+        "prd_acceptance": "任一主要 API、網路、頁面或需認證媒體載入錯誤都顯示可理解的狀態、影響與下一步建議；錯誤不導致整個應用程式崩潰。",
     },
     "FR-DAT-01": {
         "voc": "內容營運與稽核人員需要知識資料來源清楚、可重建，不因重跑處理而重複或失真。",
@@ -280,9 +286,9 @@ SUBSYSTEMS = {
     "AGT": {
         "name": "agent（LockCore AI 客服）",
         "short": "AI 客服",
-        "component": "line_gateway; AgentLoop / AgentRunner; LiteLLMProvider; MemoryManager + Store / EscalationStore; SkillsLoader + 2 builtin skills; 記憶 DB",
-        "sad": "12_SAD §4.1 L138–149",
-        "sds": "15_SDS §5.1 L358–374; 附錄 L724–729",
+        "component": "line_gateway; AgentLoop / AgentRunner; LiteLLMProvider; MemoryManager + Store / EscalationStore; SkillsLoader + 2 builtin skills; Photo Guide resolver; 記憶 DB",
+        "sad": "12_SAD §4.1",
+        "sds": "15_SDS §5.1–5.4；附錄",
         "path": "agent/lockcore/; agent/scripts/line_gateway.py",
         "description": "LINE 進線、Turn 編排、知識檢索、記憶、轉真人與 AI 邊界治理。",
     },
@@ -290,8 +296,8 @@ SUBSYSTEMS = {
         "name": "api（派工營運控制平面）",
         "short": "派工控制",
         "component": "FastAPI dispatch / tech / platform surfaces",
-        "sad": "12_SAD §4.2 L151–164",
-        "sds": "15_SDS §6.1 L422–472; 附錄 L730–733",
+        "sad": "12_SAD §4.2",
+        "sds": "15_SDS §4、§6；附錄",
         "path": "api/routers/; api/services/; api/core/; api/realtime/",
         "description": "問題卡、報價、工單、派工、現場存證、金流結算、隱私與稽核。",
     },
@@ -299,17 +305,17 @@ SUBSYSTEMS = {
         "name": "web（多站前端）",
         "short": "多站前端",
         "component": "dispatch-web / tech-web / landing-web / platform-web / LIFF",
-        "sad": "12_SAD §4.3 L166–177",
-        "sds": "15_SDS §8.1 L564–578; 附錄 L734–735",
-        "path": "web/src/components/; web/src/lib/; web/types/",
+        "sad": "12_SAD §4.3",
+        "sds": "15_SDS §8；附錄",
+        "path": "web/{brand-portal,tech-portal,landing,platform-console}/src/",
         "description": "品牌營運、師傅、平台維運與消費者 LIFF 介面。",
     },
     "DAT": {
         "name": "data-pipeline（資料與 schema）",
         "short": "資料平台",
         "component": "Medallion pipeline / PostgreSQL / pgvector / migrations",
-        "sad": "12_SAD §4.6 L199–208",
-        "sds": "15_SDS §3.1 L81–124; 附錄 L736",
+        "sad": "12_SAD §4.6",
+        "sds": "15_SDS §3.1、§9；附錄",
         "path": "knowledge-pipeline/pipeline/; knowledge-pipeline/storage/; SQL/",
         "description": "raw→bronze→silver、三庫物理隔離、語義語料、migration 與跨系統同步。",
     },
@@ -317,26 +323,26 @@ SUBSYSTEMS = {
         "name": "knowledge-refinery（知識精煉）",
         "short": "知識精煉",
         "component": "Refinery service / HITL review UI / Publisher",
-        "sad": "12_SAD §4.4 L179–187",
-        "sds": "15_SDS §9.1 L603–619; 附錄 L736–737",
+        "sad": "12_SAD §4.4",
+        "sds": "15_SDS §9；附錄",
         "path": "knowledge-pipeline/refinery/; knowledge-pipeline/pipeline/",
         "description": "診斷與素材汲取、LLM 事實/行為分流、HITL 審核與雙路發佈。",
     },
     "TEC": {
         "name": "technician-platform（技師共享池）",
         "short": "技師平台",
-        "component": "technician API / OHS / technician web / lock_tech",
-        "sad": "12_SAD §4.5 L189–197",
-        "sds": "15_SDS §7.1 L503–518; 附錄 L738",
-        "path": "technician-platform 獨立 codebase（SDS 尚待確認）",
+        "component": "API_SURFACE=tech / OHS / technician web / lock_tech",
+        "sad": "12_SAD §4.2、§4.5",
+        "sds": "15_SDS §6.1、§7；附錄",
+        "path": "api/{main.py,routers/,services/,core/,realtime/}; web/tech-portal/; SQL/tech_authority/",
         "description": "跨租戶技師身分、KYC、品牌授權、媒合、工單投影與結算。",
     },
     "PLT": {
         "name": "00_platform（平台整合層）",
         "short": "平台核心",
         "component": "Casdoor / Kafka / Redis / SigNoz / OPIK / Config Registry",
-        "sad": "12_SAD §8.1–8.3 L353–376; §9 L384–401",
-        "sds": "15_SDS §2–3 L34–205; §10–11 L639–677",
+        "sad": "12_SAD §8–9",
+        "sds": "15_SDS §2–3、§10–11",
         "path": "跨系統共用平台；依各正式元件所屬路徑",
         "description": "身分與 License、事件骨幹、可觀測性、模型編排、工單積木與配置治理。",
     },
@@ -396,197 +402,236 @@ MODULES = {
 # 元件名稱沿用 12_SAD / 15_SDS 用語；L2 不是新的架構元件或追溯主鍵。
 MODULE_ARCH = {
     "AGT.CHN": {
-        "component": "line_gateway; AgentLoop; AgentRunner",
-        "sad": "12_SAD §4.1 L138–149",
-        "sds": "15_SDS §5.1 L358–374",
+        "component": "line_gateway; Photo Guide resolver; Quote postback message mapper; WebhookIdempotencyStore; AgentLoop; AgentRunner",
+        "sad": "12_SAD §4.1",
+        "sds": "15_SDS §5.1、§5.3",
         "path": "agent/lockcore/channels/line_gateway.py; agent/lockcore/agent/{loop,runner}.py",
     },
     "AGT.RES": {
-        "component": "AgentLoop; AgentRunner; ToolRegistry; EscalationStore",
-        "sad": "12_SAD §4.1 L145–148",
-        "sds": "15_SDS §5.1 L367–374; §5.3",
+        "component": "AgentLoop; AgentRunner; ReplyGuard; SentimentClassifier; ToolRegistry; EscalationStore",
+        "sad": "12_SAD §4.1",
+        "sds": "15_SDS §5.1、§5.3",
         "path": "agent/lockcore/agent/{loop,runner,tools}/; agent/lockcore/agent/user_memory/escalation.py",
     },
     "AGT.KNW": {
-        "component": "ContextBuilder; MemoryManager + Store; SkillsLoader + 2 builtin skills; 記憶 DB",
-        "sad": "12_SAD §4.1 L147–149",
-        "sds": "15_SDS §5.1 L368, L372–374",
+        "component": "ContextBuilder; MemoryManager + Store; SkillsLoader + 2 builtin skills; SkillSync; 記憶 DB",
+        "sad": "12_SAD §4.1",
+        "sds": "15_SDS §5.1",
         "path": "agent/lockcore/agent/context.py; agent/lockcore/agent/user_memory/; agent/lockcore/skills/",
     },
     "AGT.GOV": {
         "component": "AgentRunner; LiteLLMProvider + FallbackProvider; ToolRegistry; SkillsLoader + 2 builtin skills",
-        "sad": "12_SAD §4.1 L145–148; §9 L395, L407",
-        "sds": "15_SDS §5.1 L369–374; §5.4",
+        "sad": "12_SAD §4.1、§9",
+        "sds": "15_SDS §5.1、§5.4",
         "path": "agent/lockcore/agent/runner.py; agent/lockcore/providers/; agent/lockcore/agent/tools/; agent/lockcore/skills/",
     },
     "API.CASE": {
-        "component": "tenant-scoped routers; Service Layer（problem_card / quote）; core/db.py",
-        "sad": "12_SAD §4.2 L151–164",
-        "sds": "15_SDS §4.2 L225–252; §4.6 L292–354; §6.1 L422–472",
-        "path": "api/routers/; api/services/; api/core/db.py",
+        "component": "tenant-scoped routers; Service Layer（problem_card / quote）; Conversation media collector; core/db.py",
+        "sad": "12_SAD §4.2",
+        "sds": "15_SDS §4.2、§4.6、§6.1",
+        "path": "api/routers/; api/services/{problem_card_service,quote_engine_service}.py; api/core/db.py",
     },
     "API.WO": {
-        "component": "Service Layer（work_order）; Flow DSL executor; domain blocks / primitives; core/db.py",
-        "sad": "12_SAD §4.2 L151–164; §9 L397",
-        "sds": "15_SDS §3.3–3.5 L144–188; §4.1–4.2 L209–252; §6.1 L444–466",
-        "path": "api/services/work_order_service.py; api/routers/; api/core/db.py",
+        "component": "Service Layer（work_order）; Consent link service; Flow DSL executor; domain blocks / primitives; core/db.py",
+        "sad": "12_SAD §4.2、§9",
+        "sds": "15_SDS §3.3–3.5、§4.1–4.2、§6.1",
+        "path": "api/services/{work_order_service,consent_service}.py; api/routers/work_orders_v2.py; api/core/db.py",
     },
     "API.DISP": {
-        "component": "Service Layer（dispatch）; Redis pub/sub; Kafka; 分散式排程",
-        "sad": "12_SAD §4.2 L151–164; §8.1–8.2 L353–372",
-        "sds": "15_SDS §6.1 L444–466; §6.3 L484–492; §11.1 L648–660",
-        "path": "api/services/dispatch*; api/realtime/; Kafka integration",
+        "component": "Service Layer（dispatch）; dispatch_service candidate scoring; Redis pub/sub; Kafka; PG Advisory Cron Leader; 分散式排程",
+        "sad": "12_SAD §4.2、§8",
+        "sds": "15_SDS §6.1、§6.3、§11.1",
+        "path": "api/services/{dispatch_service,dispatch_log_service}.py; api/routers/dispatch_v2.py; api/realtime/; api/core/event_bus.py",
     },
     "API.FIN": {
         "component": "Service Layer（invoice / settlement）; core/db.py; Kafka",
-        "sad": "12_SAD §4.2 L151–164; §9 L401",
-        "sds": "15_SDS §4.2 L250–252; §6.1 L444–466; §7.3 L554–560",
-        "path": "api/services/{invoice,settlement}*; api/core/db.py",
+        "sad": "12_SAD §4.2、§9",
+        "sds": "15_SDS §4.2、§6.1、§7.3",
+        "path": "api/services/{invoice_service,settlement_service,reconciliation_service,technician_statement_service}.py; api/core/{db,event_bus}.py",
     },
     "API.INT": {
-        "component": "internal_ingest.py; WebSocket 端點; Redis pub/sub; Kafka; line_push_service + outbox worker",
-        "sad": "12_SAD §4.2 L151–164",
-        "sds": "15_SDS §6.1 L432–466; §6.2–6.3 L474–492; §11 L648–677",
-        "path": "api/routers/internal_ingest.py; api/realtime/; api/services/line_push_service*",
+        "component": "internal_ingest.py; WebSocket 端點; Redis pub/sub; EventBusProducer; Kafka; line_push_service + outbox worker",
+        "sad": "12_SAD §4.2",
+        "sds": "15_SDS §6.1–6.3、§11",
+        "path": "api/routers/internal_ingest.py; api/realtime/; api/services/{line_push_service,line_push_outbox_service}.py; api/core/event_bus.py",
     },
     "API.GOV": {
-        "component": "守衛鏈; core/errors.py; core/idempotency.py; Middleware",
-        "sad": "12_SAD §4.2 L151–164; §9 L393",
-        "sds": "15_SDS §6.1 L428–472; §6.4 L494–499",
-        "path": "api/core/{deps,errors,idempotency,auth,pii_crypto}.py; api/main.py",
+        "component": "API_SURFACE router filter; Three-DB Connection Router; DBPoolScopeMiddleware; DEKService + PII blind index + purge ledger; 守衛鏈; core/errors.py; core/idempotency.py; Middleware",
+        "sad": "12_SAD §4.2、§9",
+        "sds": "15_SDS §6.1、§6.4",
+        "path": "api/main.py; api/core/{deps,errors,idempotency,auth,pii_crypto,db}.py",
     },
     "WEB.SHELL": {
         "component": "AuthGuard; appMode gate; rolePolicy",
-        "sad": "12_SAD §4.3 L166–177",
-        "sds": "15_SDS §8.1 L564–578; §8.2–8.3 L580–599",
-        "path": "web/src/components/layout/AuthGuard.tsx; web/src/lib/{appMode,rolePolicy}.ts",
+        "sad": "12_SAD §4.3",
+        "sds": "15_SDS §8.1–8.3",
+        "path": "web/{brand-portal,tech-portal,landing,platform-console}/src/components/layout/AuthGuard.tsx; 各站 src/lib/{appMode,rolePolicy}.ts",
     },
     "WEB.OPS": {
-        "component": "api client; cache; realtime",
-        "sad": "12_SAD §4.3 L166–177",
-        "sds": "15_SDS §8.1 L575–578; §8.3 L593–599",
-        "path": "web/src/lib/{api,cache,realtime}.ts",
+        "component": "api client; cache; realtime; AuthImage / AuthImageLightbox; ConsentPanel",
+        "sad": "12_SAD §4.3",
+        "sds": "15_SDS §8.1、§8.3",
+        "path": "web/brand-portal/src/{lib/,components/media/AuthImage.tsx,components/work-orders/DispatchOrderView.tsx}",
     },
     "WEB.AUD": {
         "component": "rolePolicy; api client; 型別（api.generated.ts）",
-        "sad": "12_SAD §4.3 L166–177",
-        "sds": "15_SDS §8.1 L570–578",
-        "path": "web/src/lib/{rolePolicy,api}.ts; web/types/api.generated.ts",
+        "sad": "12_SAD §4.3",
+        "sds": "15_SDS §8.1",
+        "path": "web/{brand-portal,platform-console}/src/lib/{rolePolicy,api}.ts; 各站 src/types/api.generated.ts",
     },
     "WEB.CX": {
-        "component": "api client; cache; realtime",
-        "sad": "12_SAD §4.3 L166–177",
-        "sds": "15_SDS §8.1 L575–578; §8.3 L593–599",
-        "path": "web/src/lib/{api,cache,realtime}.ts",
+        "component": "api client; cache; realtime; AuthImage / AuthImageLightbox; ConsentPanel",
+        "sad": "12_SAD §4.3",
+        "sds": "15_SDS §8.1、§8.3",
+        "path": "web/brand-portal/src/{lib/,components/media/AuthImage.tsx,components/work-orders/DispatchOrderView.tsx,app/consent/}",
     },
     "DAT.MED": {
         "component": "source_to_raw; raw_to_bronze; bronze_to_silver; storage（raw/bronze/silver）",
-        "sad": "12_SAD §4.6 L199–208",
-        "sds": "15_SDS §9.1 L611–613; 附錄 L736",
+        "sad": "12_SAD §4.6",
+        "sds": "15_SDS §9.1；附錄",
         "path": "knowledge-pipeline/pipeline/; knowledge-pipeline/storage/",
     },
     "DAT.SCH": {
         "component": "SQL/Schema*.sql; forward-only migrations; platform schema; core/db.py",
-        "sad": "12_SAD §4.2 L160–162; §4.6 L207–208",
-        "sds": "15_SDS §3.1 L81–124; §6.1 L448–451",
-        "path": "SQL/Schema*.sql; SQL/migrations/*.sql; SQL/platform/Schema_platform.sql",
+        "component": "SQL/Schema*.sql; forward-only migrations; platform schema; Tech DB router + mirror; core/db.py",
+        "sad": "12_SAD §4.2、§4.6",
+        "sds": "15_SDS §3.1、§6.1",
+        "path": "SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py",
     },
     "DAT.RAG": {
         "component": "MCP RAG server; 品牌庫 pgvector; rag_manual_chunks / case_entries",
-        "sad": "12_SAD §8.1 L353–361; §9 L407",
-        "sds": "15_SDS §5.1 L376; §9.1 L617–619; §11.3 L677",
-        "path": "rag MCP service; SQL migrations; knowledge-pipeline/refinery/",
+        "sad": "12_SAD §5、§8–9",
+        "sds": "15_SDS §5.1、§9.1、§11.3",
+        "path": "agent/rag/rag/; SQL/Schema_rag.sql; knowledge-pipeline/refinery/refinery/{publisher,embedding}.py",
     },
     "DAT.SYNC": {
         "component": "Medallion pipeline; Kafka; outbox; provenance / audit",
-        "sad": "12_SAD §4.2 L164; §4.6 L199–208; §8.2 L372",
-        "sds": "15_SDS §6.3–6.4 L484–499; §9.3 L631–635; §11 L648–677",
-        "path": "knowledge-pipeline/; api/realtime/; Kafka integration",
+        "sad": "12_SAD §4.2、§4.6、§8.2",
+        "sds": "15_SDS §6.3–6.4、§9.3、§11",
+        "path": "knowledge-pipeline/pipeline/silver_to_knowledge/; api/core/event_bus.py; api/realtime/event_consumer.py; api/services/line_push_outbox_service.py",
     },
     "REF.INTAKE": {
         "component": "汲取層; raw_to_bronze; bronze_to_silver",
-        "sad": "12_SAD §4.4 L179–187",
-        "sds": "15_SDS §9.1 L603–613; §9.3 L631–635",
-        "path": "knowledge-pipeline/refinery/; knowledge-pipeline/pipeline/{raw_to_bronze,bronze_to_silver}/",
+        "sad": "12_SAD §4.4",
+        "sds": "15_SDS §9.1、§9.3",
+        "path": "knowledge-pipeline/refinery/refinery/{intake,run_intake,entitlement}.py; knowledge-pipeline/pipeline/{raw_to_bronze,bronze_to_silver}/",
     },
     "REF.REFINE": {
         "component": "提煉分流器; Draft Queue",
-        "sad": "12_SAD §4.4 L183–187",
-        "sds": "15_SDS §9.1 L614–615; §9.3 L631–635",
-        "path": "knowledge-pipeline/refinery/",
+        "sad": "12_SAD §4.4",
+        "sds": "15_SDS §9.1、§9.3",
+        "path": "knowledge-pipeline/refinery/refinery/{refine,store}.py",
     },
     "REF.HITL": {
-        "component": "Draft Queue; 審核 UI backend",
-        "sad": "12_SAD §4.4 L183–187",
-        "sds": "15_SDS §9.1 L615–616; §9.2 L621–629",
-        "path": "knowledge-pipeline/refinery/",
+        "component": "Draft Queue; 審核 UI backend; Casdoor reviewer auth",
+        "sad": "12_SAD §4.4",
+        "sds": "15_SDS §9.1–9.2",
+        "path": "knowledge-pipeline/refinery/refinery/{service,review,oidc}.py; knowledge-pipeline/refinery/static/index.html",
     },
     "REF.PUB": {
-        "component": "Publisher; 品牌庫 pgvector; SkillsLoader + 2 builtin skills",
-        "sad": "12_SAD §4.4 L183–187",
-        "sds": "15_SDS §9.1 L617–619; §9.3 L631–635",
-        "path": "knowledge-pipeline/refinery/; agent/lockcore/skills/*/references/",
+        "component": "Publisher; behavior patch artifact; LiveSkill DB ingest; 品牌庫 pgvector; SkillsLoader + 2 builtin skills",
+        "sad": "12_SAD §4.4",
+        "sds": "15_SDS §9.1、§9.3",
+        "path": "knowledge-pipeline/refinery/refinery/{publisher,apply_behavior,embedding}.py; api/routers/internal_skills.py; agent/lockcore/skills/",
     },
     "TEC.ID": {
-        "component": "self-service routers; 守衛鏈; technician_service; certification/kyc_service; lock_tech",
-        "sad": "12_SAD §4.5 L189–197",
-        "sds": "15_SDS §7.1 L503–518; §7.2 L550–552",
-        "path": "technician-platform 獨立 codebase（SDS 附錄 L738 尚待確認）",
+        "component": "API_SURFACE router filter; self-service routers; 守衛鏈; technician_service; certification/kyc_service; Tech DB router + mirror; lock_tech",
+        "sad": "12_SAD §4.2、§4.5",
+        "sds": "15_SDS §6.1、§7.1–7.2",
+        "path": "api/main.py; api/routers/{technicians_v2,platform_technicians,technician_certifications_v2,technician_lifecycle_v2}.py; api/services/technician_{service,kyc_service,certification_service,lifecycle_service}.py; api/core/{db,tech_mirror}.py; SQL/tech_authority/; web/tech-portal/",
     },
     "TEC.MATCH": {
-        "component": "OHS API routers; matching_service; schedule_service; WebSocket 端點; 事件層",
-        "sad": "12_SAD §4.5 L189–197",
-        "sds": "15_SDS §4.4 L258–279; §7.1 L503–518; §7.2 L522–548",
-        "path": "technician-platform 獨立 codebase（SDS 附錄 L738 尚待確認）",
+        "component": "OHS API routers; dispatch_service candidate scoring; schedule_service; WebSocket 端點; 事件層",
+        "sad": "12_SAD §4.2、§4.5",
+        "sds": "15_SDS §4.4、§7.1–7.2",
+        "path": "api/routers/{dispatch_v2,technicians_v2}.py; api/services/{dispatch_service,technician_schedule_service}.py; api/realtime/; web/tech-portal/",
     },
     "TEC.PROJ": {
-        "component": "事件層; 技師工單 read-model; WebSocket 端點",
-        "sad": "12_SAD §4.5 L193–197; §8.2 L369, L372",
-        "sds": "15_SDS §7.1 L513–518; §7.3 L554–560; §11.1 L648–660",
-        "path": "technician-platform 獨立 codebase（SDS 附錄 L738 尚待確認）",
+        "component": "事件層; EventConsumerWorker; technician_workorder_projection; 技師工單 read-model; WebSocket 端點",
+        "sad": "12_SAD §4.5、§8.2",
+        "sds": "15_SDS §7.1、§7.3、§11.1",
+        "path": "api/core/event_bus.py; api/realtime/event_consumer.py; SQL/tech_authority/Schema_cqrs_projection.sql; web/tech-portal/",
     },
     "TEC.SET": {
-        "component": "commission_settlement_service; 技師工單 read-model; Kafka",
-        "sad": "12_SAD §4.5 L189–197; §9 L401",
-        "sds": "15_SDS §7.1 L515–518; §7.3 L554–560; §11.1 L648–660",
-        "path": "technician-platform 獨立 codebase（SDS 附錄 L738 尚待確認）",
+        "component": "technician settlement services; technician_commission_projection; EventConsumerWorker; Kafka",
+        "sad": "12_SAD §4.5、§9",
+        "sds": "15_SDS §7.1、§7.3、§11.1",
+        "path": "api/services/{technician_commission_service,technician_statement_service,reconciliation_service,reconciliation_v2_service}.py; api/realtime/event_consumer.py; SQL/tech_authority/Schema_cqrs_projection.sql",
     },
     "PLT.IAM": {
-        "component": "Casdoor; 平台維運 console; 守衛鏈; License provisioning",
-        "sad": "12_SAD §8.2–8.3 L363–376; §9 L390, L393",
-        "sds": "15_SDS §2.1 L40–56; §6.1 L437–442; §11.2 L662–670",
-        "path": "web/platform-console; api platform surface; Casdoor deployment/config",
+        "component": "Casdoor; 平台維運 console; 守衛鏈; License Entitlement Gate; License provisioning",
+        "sad": "12_SAD §8.2–8.3、§9",
+        "sds": "15_SDS §2.1、§6.1、§11.2",
+        "path": "web/platform-console/; api/main.py（API_SURFACE=platform）; infra/casdoor/; web/platform-console/docker-compose.yml",
     },
     "PLT.EVT": {
         "component": "Kafka; Redis pub/sub; WebSocket 端點; 分散式排程",
-        "sad": "12_SAD §4.2 L164; §8.1–8.2 L353–372; §9 L394",
-        "sds": "15_SDS §6.1 L453–466; §6.3 L484–492; §11 L648–677",
-        "path": "api/realtime/; Kafka/Redis integration",
+        "sad": "12_SAD §4.2、§8–9",
+        "sds": "15_SDS §6.1、§6.3、§11",
+        "path": "api/core/event_bus.py; api/realtime/; web/brand-portal/docker-compose.yml（events profile）",
     },
     "PLT.LLM": {
         "component": "LiteLLMProvider + FallbackProvider; Model Orchestration Layer",
-        "sad": "12_SAD §4.1 L146; §9 L395, L407",
-        "sds": "15_SDS §2.2 L68; §5.1 L370; §13 L707",
+        "sad": "12_SAD §4.1、§9",
+        "sds": "15_SDS §2.2、§5.1、§13",
         "path": "agent/lockcore/providers/{litellm_provider,fallback_provider}.py",
     },
     "PLT.OBS": {
-        "component": "SigNoz; OPIK; OpenTelemetry",
-        "sad": "12_SAD §8.2 L363–372; §9 L389",
-        "sds": "15_SDS §12 L681–696（韌性與觀測證據使用面）",
-        "path": "集中共用可觀測性部署（非單一應用路徑）",
+        "component": "SigNoz; OPIK; OpenTelemetry; PIIScrubSpanProcessor",
+        "sad": "12_SAD §8.2、§9",
+        "sds": "15_SDS §12",
+        "path": "web/{brand-portal,tech-portal,landing,platform-console}/src/{instrumentation.ts,observability/piiScrub.ts}; agent/lockcore/observability/; knowledge-pipeline/refinery/refinery/observability.py",
     },
     "PLT.FLOW": {
         "component": "Flow DSL executor; domain blocks / primitives; Vertical Pack; FlowEditor",
-        "sad": "12_SAD §9 L396–398",
-        "sds": "15_SDS §2.1 L36–59; §3.2–3.7 L126–205; §10 L639–644",
+        "sad": "12_SAD §9",
+        "sds": "15_SDS §2.1、§3.2–3.7、§10",
         "path": "待 M4 實作；目前為 SDS 設計元件",
     },
     "PLT.CFG": {
-        "component": "Agent Configuration Studio / Config Registry; Vertical Pack; HITL 審核骨架",
-        "sad": "12_SAD §9 L396, L398, L400",
-        "sds": "15_SDS §3.2 L126–142; §10 L639–644; §13 L704–709",
-        "path": "待 M4/M5 實作；目前為 SAD/ADR/SDS 設計元件",
+        "component": "Agent Configuration Studio / Config Registry; M18 Config Registry; Skill Revision Registry; Vertical Pack; HITL 審核骨架",
+        "sad": "12_SAD §9",
+        "sds": "15_SDS §3.2、§10、§13",
+        "path": "api/services/config_m18_service.py; api/routers/{config_m18,internal_skills}.py; web/brand-portal/src/components/knowledge-base/（部分落地）",
     },
+}
+
+# 需求狀態來自 SRS/Roadmap；以下是 2026-07-23 對 commit 5a9f7914 的 code reality。
+# AS-BUILT = 核心 code 與測試路徑存在；PARTIAL = 需部署參數/事件骨幹/安全窗或尚有設計邊界未收斂；
+# TO-BE = 目前只有 SAD/SDS/ADR 設計，不能用「需求已定版」推定已實作。
+MODULE_STATUS = {
+    "AGT.CHN": "AS-BUILT",
+    "AGT.RES": "AS-BUILT",
+    "AGT.KNW": "AS-BUILT",
+    "AGT.GOV": "AS-BUILT",
+    "API.CASE": "AS-BUILT",
+    "API.WO": "AS-BUILT",
+    "API.DISP": "PARTIAL（Kafka/Redis 依部署設定啟用）",
+    "API.FIN": "PARTIAL（跨系統事件依 Kafka 啟用）",
+    "API.INT": "PARTIAL（Redis/Kafka 依部署設定啟用）",
+    "API.GOV": "AS-BUILT",
+    "WEB.SHELL": "PARTIAL（OIDC cookie 與 legacy token 過渡）",
+    "WEB.OPS": "AS-BUILT",
+    "WEB.AUD": "AS-BUILT",
+    "WEB.CX": "AS-BUILT",
+    "DAT.MED": "AS-BUILT",
+    "DAT.SCH": "AS-BUILT",
+    "DAT.RAG": "PARTIAL（RAG_TENANT_ID opt-in）",
+    "DAT.SYNC": "PARTIAL（Kafka opt-in）",
+    "REF.INTAKE": "PARTIAL（批次 CLI，尚無排程部署）",
+    "REF.REFINE": "PARTIAL（服務已落地，部署流程未完整）",
+    "REF.HITL": "PARTIAL（OIDC 可用，compose 仍採過渡設定）",
+    "REF.PUB": "PARTIAL（LiveSkill 預設路徑需 token；git 為 fallback）",
+    "TEC.ID": "AS-BUILT（獨立部署 stack／共用 api codebase）",
+    "TEC.MATCH": "PARTIAL（媒合已落地；獨立 OHS 邊界未拆）",
+    "TEC.PROJ": "PARTIAL（Kafka opt-in；畫面尚非全由投影供應）",
+    "TEC.SET": "PARTIAL（投影與跨品牌事件依 Kafka 啟用）",
+    "PLT.IAM": "PARTIAL（Casdoor/config 存在；provisioning 未完整）",
+    "PLT.EVT": "PARTIAL（Redis/Kafka opt-in）",
+    "PLT.LLM": "AS-BUILT",
+    "PLT.OBS": "PARTIAL（instrumentation 已落地；集中 collector/IaC 缺）",
+    "PLT.FLOW": "TO-BE（M4 設計）",
+    "PLT.CFG": "PARTIAL（M18/LiveSkill 已落地；完整 Studio 未完成）",
 }
 
 # 出現於 MODULE_ARCH.component 的每個分號分隔標籤都必須在此有定義。
@@ -594,8 +639,23 @@ MODULE_ARCH = {
 COMPONENT_GLOSSARY = {
     "line_gateway": {
         "alias": "LINE 通道閘道",
-        "definition": "LINE 通道閘道：接收 webhook、驗證 X-Line-Signature、分派訊息/事件，並將回覆送回 LINE。",
+        "definition": "LINE 通道閘道：接收 webhook、驗證 X-Line-Signature、分派文字/照片/postback，並將文字與核准圖片回覆送回 LINE。",
         "boundary": "只負責通道整合與旁路轉發；不負責主要 AI 推理、定價或開工單。",
+    },
+    "Photo Guide resolver": {
+        "alias": "品牌照片樣本圖解析器",
+        "definition": "解析 AI 回覆文末的 photo-guide 標記、剝除內部標記並按設定附加 LINE ImageMessage；目前只核准 Chatlock 安裝前樣本圖。",
+        "boundary": "只呈現預先核准的品牌靜態圖片；不讀取或辨識客戶照片，也不允許未設定品牌自行附圖。",
+    },
+    "Quote postback message mapper": {
+        "alias": "報價回覆錯誤話術分類器",
+        "definition": "依 QUOTE_EXPIRED、QUOTE_ALREADY_DECIDED、NOT_FOUND、FORBIDDEN 等 API error_code 產生對客戶可理解的 LINE 回覆。",
+        "boundary": "只映射終態與錯誤話術；報價狀態機、權限與冪等仍由品牌 API 執行。",
+    },
+    "WebhookIdempotencyStore": {
+        "alias": "LINE webhook 冪等保留庫",
+        "definition": "在處理 LINE event 前以 mark-first 方式保留 event ID，重送時直接略過，避免重複回覆或建卡。",
+        "boundary": "只治理 webhook 重播；不代替報價、工單與金流 mutation 的 Idempotency-Key。",
     },
     "AgentLoop": {
         "alias": "LockCore runtime（產品層）",
@@ -606,6 +666,14 @@ COMPONENT_GLOSSARY = {
         "alias": "LockCore runtime（通用執行層）",
         "definition": "通用 Agent 執行器：在有界迴圈內呼叫模型、處理 tool calls，並在每輪執行上下文治理。",
         "boundary": "不知道報價、派工等產品流程；產品狀態由 AgentLoop、Skill 與 API 約束。",
+    },
+    "ReplyGuard": {
+        "definition": "Agent 回覆出口守衛：攔截確定金額、錯誤型號、假稱已轉真人等違規輸出，必要時重生或轉人工。",
+        "boundary": "是模型輸出的最後安全層；不取代 API 的報價、派工與權限硬閘。",
+    },
+    "SentimentClassifier": {
+        "definition": "在不阻斷主回覆的前提下判定負面情緒並產生告警所需資料。",
+        "boundary": "只做情緒分類與旁路告警；不單獨決定報價、派工或工單狀態。",
     },
     "ContextBuilder": {
         "alias": "LockCore runtime（上下文層）",
@@ -626,7 +694,7 @@ COMPONENT_GLOSSARY = {
     },
     "MemoryManager + Store": {
         "alias": "Memory",
-        "definition": "長期記憶管理與存儲層：載入/寫回客戶已確認事實，讀寫必須同帶 tenant_id + user_id。",
+        "definition": "長期記憶管理與存儲層：載入/寫回客戶已確認事實，讀寫必須同帶 tenant_id + user_id；預設 SQLite，可配置 PostgreSQL。",
         "boundary": "不等於當次 session 原始對話，不可跨租戶或使用者共用。",
     },
     "EscalationStore": {
@@ -637,6 +705,10 @@ COMPONENT_GLOSSARY = {
         "alias": "Skills",
         "definition": "Agent 行為規範載入器：載入 product-knowledge 與 cs-sop，定義判斷、查資料、轉真人與紅線。",
         "boundary": "管「怎麼做」；不是長期對話記憶，也不是所有長尾事實的唯一資料庫。",
+    },
+    "SkillSync": {
+        "definition": "輪詢品牌庫已發布的 skill revision，以原子交換同步到 workspace overlay，讓新版本在執行期生效。",
+        "boundary": "只同步已發布版本且失敗時保留舊版；不自行核准 draft，也不覆寫平台保護層。",
     },
     "記憶 DB": {
         "alias": "Memory backend",
@@ -651,21 +723,55 @@ COMPONENT_GLOSSARY = {
         "definition": "問題卡與報價服務層：管理診斷卡 gate、報價狀態、版本與不可否認快照。",
         "boundary": "不讓 Agent 或技師端直接定價；品牌 API 仍是報價權威。",
     },
+    "Conversation media collector": {
+        "alias": "對話照片掛卡器",
+        "definition": "AI 建問題卡時反查同一對話近 24 小時內最多 5 張照片，依時間排序附加到 media_urls。",
+        "boundary": "只掛接已持久化媒體 URL，採 append-only 且查詢失敗略過；不做任何影像辨識。",
+    },
     "Service Layer（work_order）": {
         "definition": "工單服務層：建立工單、驗狀態轉移/gate、寫入時間軸並觸發副作用。",
         "boundary": "不允許 AI 繞過客戶確認與 HITL 直接轉工單。",
     },
+    "Consent link service": {
+        "alias": "免責同意簽署連結服務",
+        "definition": "為工單產生公開簽署 token、保存 token hash 稽核並透過 LINE 推送；無 LINE 綁定時回傳可複製連結。",
+        "boundary": "只負責交付簽署入口與稽核；簽署內容、角色/租戶授權與結案 gate 仍由 API 驗證。",
+    },
     "Service Layer（dispatch）": {
         "definition": "派工服務層：執行候選查詢、指派、接單 SLA、擴大範圍與狀態更新。",
         "boundary": "不在品牌庫雙寫技師權威資料；媒合應經 OHS 與事件契約。",
+    },
+    "dispatch_service candidate scoring": {
+        "alias": "現行媒合評分器",
+        "definition": "現行派工服務直接由技師權威資料評估技能、品牌授權、距離、評分、工作量與公平性，產生候選排序。",
+        "boundary": "這是共用 API codebase 的 interim 實作；目標 OHS/MatchingService 獨立服務邊界尚未拆出。",
     },
     "Service Layer（invoice / settlement）": {
         "definition": "帳單、收付、對帳與結算邏輯：管理金額狀態、冪等、reversal 與帳本一致性。",
         "boundary": "Billing 真相留品牌側；跨品牌技師 Settlement 由 technician-platform 匯總。",
     },
     "core/db.py": {
-        "definition": "API 資料庫基礎層：管理連線池、交易邊界與讀寫分離。",
+        "definition": "API 資料庫基礎層：管理品牌庫、技師權威庫與平台庫的連線取得、交易邊界及安全 fallback。",
         "boundary": "不放領域流程決策；業務交易應由 service 層調用。",
+    },
+    "API_SURFACE router filter": {
+        "alias": "API 部署面塑形器",
+        "definition": "同一 FastAPI codebase 依 API_SURFACE=dispatch/tech/platform 裁切路由與背景 worker，形成三個可獨立部署面。",
+        "boundary": "只縮小部署暴露面，不是授權邊界；每個保留端點仍須 RBAC、租戶或平台守衛。",
+    },
+    "Three-DB Connection Router": {
+        "alias": "三庫連線路由",
+        "definition": "依資料權威將連線導向品牌庫、lock_tech 或 lock_platform，並可用 DB_URI_STRICT 阻止必要 URI 缺失時啟動。",
+        "boundary": "治理資料庫選擇與 fail-closed；不代表 production migration 或 backfill 已完成。",
+    },
+    "DBPoolScopeMiddleware": {
+        "definition": "在 request 生命週期建立與回收資料庫 pool scope，避免跨請求連線狀態滲漏。",
+        "boundary": "只治理連線資源生命週期；不決定資料權威或業務交易內容。",
+    },
+    "DEKService + PII blind index + purge ledger": {
+        "alias": "個資密鑰與清除稽核套件",
+        "definition": "以每使用者 DEK、blind index 與 append-only purge ledger 支援個資查找、加密、忘卻與清除證據。",
+        "boundary": "程式與 migration 存在不等於正式 KEK、backfill 與 production 部署已驗證。",
     },
     "internal_ingest.py": {
         "definition": "Agent 與內部服務使用的 /internal/* 入口，接收對話、轉人與報價回應等旁路資料。",
@@ -680,12 +786,24 @@ COMPONENT_GLOSSARY = {
         "boundary": "不保證長期持久與重播；需重播的事件應使用 Kafka 或資料庫。",
     },
     "Kafka": {
-        "definition": "持久、可重播的跨系統事件骨幹，傳遞 technician.*、dispatch.*、workorder.* 與 commission.* 等事件。",
+        "definition": "持久、可重播的跨系統事件骨幹；現行 producer/consumer 實作 topic 為 workorder.lifecycle、commission.accrued、technician.lifecycle。",
         "boundary": "不代替低延遲同步查詢（OHS/REST），也不代替各領域真相資料庫。",
+    },
+    "EventBusProducer": {
+        "definition": "將受控領域事件序列化並發布到 Kafka；未設定 KAFKA_BOOTSTRAP 時按設計不啟用。",
+        "boundary": "只發布已定義 topic 的事件；不保證所有設計中的萬用 wildcard topic 均已實作。",
+    },
+    "EventConsumerWorker": {
+        "definition": "消費 Kafka 工單生命週期與佣金事件，使用 event_consumer_dedup 冪等更新技師 CQRS 投影。",
+        "boundary": "需 KAFKA_BOOTSTRAP 才啟動；不把 projection 當成品牌工單或計費的命令真相。",
     },
     "分散式排程": {
         "definition": "跨實例協調 SLA、GDPR 硬刪、自動結案與 LINE outbox 等背景工作，並以鎖避免重複執行。",
         "boundary": "只觸發已定義任務；不把關鍵業務真相只留在 scheduler 記憶體。",
+    },
+    "PG Advisory Cron Leader": {
+        "definition": "以 PostgreSQL advisory lock 選出單一排程 leader，避免多實例重複執行背景工作。",
+        "boundary": "只協調任務執行權；不取代任務本身的冪等、重試與稽核。",
     },
     "line_push_service + outbox worker": {
         "definition": "LINE 出站推播與可重試佇列：業務交易先寫 outbox，worker 後送並記錄結果。",
@@ -722,6 +840,16 @@ COMPONENT_GLOSSARY = {
     "api client": {
         "definition": "Web 統一 HTTP client：注入 Bearer、X-Tenant-ID、Idempotency-Key，處理 refresh 與錯誤信封。",
         "boundary": "不在瀏覽器內繞過 API 授權，也不將客戶端狀態當作服務端真相。",
+    },
+    "AuthImage / AuthImageLightbox": {
+        "alias": "需認證媒體縮圖與預覽",
+        "definition": "對相對媒體 URL 以 Bearer + X-Tenant-ID fetch 後建立 Blob URL，統一呈現縮圖、錯誤佔位與放大預覽。",
+        "boundary": "只在品牌後台呈現受保護圖片；不把 token 放進 img src，也不繞過媒體 API 授權。",
+    },
+    "ConsentPanel": {
+        "alias": "工單免責同意面板",
+        "definition": "品牌工作台顯示三段免責同意狀態，並讓授權人員發送或複製客戶簽署連結。",
+        "boundary": "是操作與狀態顯示元件；不在前端自行判定簽署有效性或結案。",
     },
     "cache": {
         "definition": "Web GET 請求共享 in-flight 與短期 staleTime 快取，mutation 後可主動失效。",
@@ -803,9 +931,21 @@ COMPONENT_GLOSSARY = {
         "definition": "提供 draft 狀態轉移、diff 呈現、核可、駁回與 re-refine 的 HITL 後端。",
         "boundary": "不自動把 LLM 產物當真相；核可與發布仍是兩個可稽核步驟。",
     },
+    "Casdoor reviewer auth": {
+        "definition": "Refinery 審核服務可依環境使用 Casdoor RS256 OIDC 驗證 reviewer claims，並保留 HS256 過渡模式。",
+        "boundary": "只驗證審核者身分與角色；compose 未提供 OIDC 設定時不可宣稱已完成正式切換。",
+    },
     "Publisher": {
         "definition": "核可後的雙軌發布器：事實 embed 後寫 pgvector；行為產生 append-only Skill patch/artifact。",
         "boundary": "只發布 approved draft；不跳過 provenance、tenant 過濾或人審 gate。",
+    },
+    "behavior patch artifact": {
+        "definition": "行為軌核可後產生 target_path + content 的受控 artifact，保存於 draft provenance，交由 apply CLI 消費。",
+        "boundary": "artifact 仍不是已發布 skill；必須經 LiveSkill draft/人工發布或明確 git fallback 才生效。",
+    },
+    "LiveSkill DB ingest": {
+        "definition": "apply_behavior 預設呼叫 internal skills ingest，將核可 artifact 以加性合併建立品牌 skill draft，再由後台人工發布。",
+        "boundary": "需要 LOCK_API_BASE_URL 與 INTERNAL_API_TOKEN；缺少時只可走明確標示的 git fallback。",
     },
     "self-service routers": {
         "definition": "技師端自助 API：註冊、profile、技能/品牌授權、認證上傳、排班與工作台。",
@@ -827,10 +967,6 @@ COMPONENT_GLOSSARY = {
         "definition": "品牌 API 查詢技師共享池的同步契約入口，包含技師查詢、媒合、排班與認證查詢。",
         "boundary": "主要做低延遲讀/媒合；指派與接單真相經業務命令及 Kafka 事件收斂。",
     },
-    "matching_service": {
-        "definition": "依技能、地區、品牌授權、認證、可用性、評分與工作量排序技師候選。",
-        "boundary": "返回候選不等於已指派；不繞過 active、授權與認證 gate。",
-    },
     "schedule_service": {
         "definition": "管理技師排班、可用時段、接單後工作量與行程狀態。",
         "boundary": "不直接決定品牌工單狀態；跨系統變更經事件與投影對齊。",
@@ -839,17 +975,34 @@ COMPONENT_GLOSSARY = {
         "definition": "technician-platform 的 Kafka producer/consumer 與投影更新層，發技師狀態並收派工、工單與結算事件。",
         "boundary": "只以契約事件跨界；不直接連線或改寫品牌庫。",
     },
+    "technician_workorder_projection": {
+        "definition": "lock_tech 中由 workorder.lifecycle 事件維護的技師工單最小化投影。",
+        "boundary": "只供技師查詢且 Kafka opt-in；不取代品牌工單真相，也尚未證明所有畫面都只讀此投影。",
+    },
     "技師工單 read-model": {
         "definition": "由品牌 workorder.* 事件建立的最小化 CQRS 查詢投影，供技師工作台顯示。",
         "boundary": "只複製任務所需欄位；不是工單命令真相，不複製品牌全量敏感資料。",
     },
-    "commission_settlement_service": {
-        "definition": "匯總各品牌 commission.accrued，建立技師跨品牌 statement、payout 與期末對帳。",
-        "boundary": "不重算品牌工單的 Billing 明細；差異以 reconcile gate 收斂。",
+    "technician_commission_projection": {
+        "definition": "lock_tech 中由 commission.accrued 事件維護的技師佣金 CQRS 投影。",
+        "boundary": "只在 Kafka consumer 啟用時更新；不等於完整跨品牌 payout 已完成。",
+    },
+    "technician settlement services": {
+        "definition": "現行技師佣金、statement 與 reconciliation 服務集合，提供逐案佣金與對帳視圖。",
+        "boundary": "目前為 partial/interim；不宣稱不存在的單一 commission_settlement_service 或完整跨品牌出款已落地。",
+    },
+    "Tech DB router + mirror": {
+        "alias": "技師權威庫路由與相容鏡射",
+        "definition": "以 TECH_POSTGRES_URI 將技師身分寫入 lock_tech，並在過渡期按順序鏡射必要相容列到品牌側。",
+        "boundary": "lock_tech 才是技師權威；鏡射是 interim 相容機制，不是長期雙寫架構。",
     },
     "Casdoor": {
         "definition": "集中式 IdP 與開通治理：提供 OIDC、租戶 org、角色 claims 與 License subscription。",
         "boundary": "發行身分與角色資訊；資源層授權仍由各 API deny-by-default enforce。",
+    },
+    "License Entitlement Gate": {
+        "definition": "依平台庫 tenant license entitlement 判定租戶是否可使用選購能力；正式環境缺設定應 fail-closed。",
+        "boundary": "是應用層授權檢查；不等於部署 per-brand bundle 的 provisioning 自動化。",
     },
     "平台維運 console": {
         "definition": "Super Admin 使用的中央管理前端，處理品牌申請、租戶治理、License 與跨品牌營運視角。",
@@ -871,6 +1024,10 @@ COMPONENT_GLOSSARY = {
         "definition": "服務不綁供應商的 metrics、logs、traces 儀表化與傳輸標準。",
         "boundary": "是觀測資料契約與傳輸層；不是 dashboard 或業務稽核帳本本身。",
     },
+    "PIIScrubSpanProcessor": {
+        "definition": "四站 Web 在 trace 匯出前遮蔽 email、電話、地址、token，並將 LINE UID 雜湊化。",
+        "boundary": "只治理 observability 出站資料；不代替 API 回應遮蔽、資料庫加密或 GDPR 刪除。",
+    },
     "Flow DSL executor": {
         "definition": "讀取 Vertical Pack 的宣告式 flow，驗 guard、執行 block、持久化狀態/事件並掛 SLA timer。",
         "boundary": "只執行可驗證 DSL；拒絕任意 inline code，也不把 UI 編輯器當執行後端。",
@@ -890,6 +1047,14 @@ COMPONENT_GLOSSARY = {
     "Agent Configuration Studio / Config Registry": {
         "definition": "管理 skill、RAG 權限、prompt、品牌設定與版本/分階段發布的中央配置能力。",
         "boundary": "租戶只可改客製層；安全、金額、工具白名單等保護層不可 override。",
+    },
+    "M18 Config Registry": {
+        "definition": "已落地的配置服務與路由，管理受控 namespace、版本、canary 與回復流程。",
+        "boundary": "只涵蓋現行 M18 配置能力；不等於完整 FlowEditor 或跨產業 Studio 已完成。",
+    },
+    "Skill Revision Registry": {
+        "definition": "以 skill_revisions 保存品牌 skill draft/published 版本，供 SkillSync 取得已發布內容。",
+        "boundary": "版本庫不自行核准內容；發布權限、保護層與稽核仍由 API/後台治理。",
     },
     "HITL 審核骨架": {
         "definition": "共用的 draft→diff→人審→核可/駁回→發布模式，同時支援知識精煉與 AI Onboarding Compiler。",
@@ -1055,7 +1220,7 @@ DOMAIN_QA_CHECKS = {
     "AGT": (
         "1. 有效簽章應受理；錯誤簽章應拒絕且不建案。\n"
         "2. 可命中知識的問題應引用正確來源；無法回答時應詢問或轉人，不得編造。\n"
-        "3. 連續 3 次未釐清或命中急件時，應建立後台案件並轉真人。\n"
+        "3. 缺項應依情境一次列齊；明確要求真人、急迫派工、金錢相關或連續兩次不滿時，應建立後台案件並轉真人，不採固定三輪計數。\n"
         "4. 不同品牌/客戶不得讀到對方對話與記憶。\n"
         "5. 同一事件重送不得重複回覆、建案或轉人。",
         "準備正常/錯誤簽章、可/不可命中問題、急件、跨品牌與重送輸入；逐組核對回覆、後台案件、轉人紀錄與重複資料數。",
@@ -1133,7 +1298,7 @@ DOMAIN_QA_CHECKS = {
 }
 
 SCENARIO_PASS_CRITERIA = {
-    "TS-01": "正常訊息有回覆且只處理一次；錯誤簽章不建案；三次未釐清與急件均建立後台案件並轉真人。",
+    "TS-01": "正常訊息有回覆且只處理一次；錯誤簽章不建案；缺項依情境一次列齊，命中明確真人、急迫派工、金錢或連續兩次不滿任一紅線即建立後台案件並轉真人。",
     "TS-02": "未完整資料不得報價；報價與規則快照一致；只有客服明確操作能開單；拒絕或越權不改變狀態。",
     "TS-03": "候選者全數符合品牌、技能、距離與可用條件；接/拒/逾時正確同步；無候選者時進入待處理並告警。",
     "TS-04": "加價落在正確審批層級；技師無法直接定價；客戶拒絕時不套用新價；存證缺一不得結案。",
@@ -1154,15 +1319,18 @@ ARCH_RISKS = [
     ["架構", "R-06", "技師平台/OHS 是派工關鍵依賴", "全品牌無法自動媒合", "OHS SLO + cache/queue 降級待裁定 + 契約測試", "12_SAD §12 / 05_NFR Failure Modes"],
     ["契約", "CT-01", "FR-TEC 主鍵碰撞已治理", "報價修正保留 FR-TEC-07；排班生命週期改為 FR-TEC-08", "生成器驗證 FR 全數唯一，QA 映射以新鍵輸出", "04_SRS:355-356"],
     ["契約", "CT-02", "21_Traceability 聲稱使用 SRS FR，主表卻是 FR-0001 舊鍵", "FR→TC 無法直接 join，覆蓋率易被高估", "新增 SRS FR 欄或將舊鍵明確降級為 legacy display", "21_Traceability §2"],
-    ["契約", "CT-03", "20_Test_Cases 已建立 171 筆 QTM 正式 SRS REQ→TC 鍵", "90 筆詳細 TC 的舊 FR/來源欄不再承擔現行追溯", "QTM 列數與唯一鍵納入生成驗證；無 QTM 視為文件遺漏", "20_Test_Cases §2.1"],
+    ["契約", "CT-03", "20_Test_Cases 已建立 171 筆 QTM 正式 SRS REQ→TC 鍵", "97 筆詳細 TC 的舊 FR/來源欄不再承擔現行追溯", "QTM 列數與唯一鍵納入生成驗證；無 QTM 視為文件遺漏", "20_Test_Cases §2.1"],
     ["實作", "IM-01", "文件中既有🔜規劃中文字，又有 2026-07-21 codegraph 標注已落地", "直接以關鍵字統計會誤判實作率", "四書僅表示「需求定版/規劃訊號」，實作完成以 WBS/code/SIT 證據另對帳", "05_NFR 末段 / 27_Roadmap"],
+    ["實作", "IM-02", "technician-platform 是獨立部署 stack，但後端共用 api codebase", "若仍寫成待確認的獨立 codebase，SAD/SDS 與程式無法對回", "Current 標 API_SURFACE=tech + lock_tech；Target OHS 邊界另列 To-Be", "12_SAD §4.5 / 15_SDS §7"],
+    ["契約", "CT-04", "consents:send-link 已進 runtime router/generated types，但 static OpenAPI SSOT 未回填", "靜態契約、SDK 與 runtime 可能漂移", "回填 api/openapi.yaml 與 16_API_Spec，跑 schema diff 後才可關閉", "api/routers/work_orders_v2.py / 16_API_Spec"],
+    ["部署", "DP-01", "Redis/Kafka/RAG/OIDC/Refinery/Observability 多項為 code-present 或 opt-in", "檔案存在會被誤判為 production 已啟用", "Code reality 用 PARTIAL；以部署 env、migration、SIT 與 dashboard 證據升級狀態", "Codebase現況掃描_2026-07-23"],
     ["驗收", "QA-01", "部分 SRS/NFR 仍含 [待確認] 量化門檻", "測試可執行但無法客觀判定 pass/fail", "由 PM/Architect 在 UAT 前將門檻、量測點、資料集與 owner 定版", "04_SRS / 05_NFR"],
 ]
 
 # QTM 正式映射所指定的 TC；詳細 TC 舊來源欄只作歷史稽核。
 FR_TC_HINTS = {
-    "FR-AGT-01": "TC-CS-AI-01/02",
-    "FR-AGT-03": "TC-CS-AI-03",
+    "FR-AGT-01": "TC-CS-AI-01/02/11",
+    "FR-AGT-03": "TC-CS-AI-03/12",
     "FR-AGT-04": "TC-CS-AI-04 + TC-COMPLIANCE-07",
     "FR-AGT-05": "TC-CS-AI-04/10",
     "FR-AGT-06": "TC-SEC-MEM-01",
@@ -1171,14 +1339,14 @@ FR_TC_HINTS = {
     "FR-AGT-09": "TC-CS-AI-04/10",
     "FR-AGT-10": "TC-CS-AI-08/09 + TC-EXC-01",
     "FR-AGT-11": "TC-CS-AI-05~07 + TC-COMPLIANCE-06",
-    "FR-API-01": "TC-WO-01/03 + TC-QUOTE-06",
-    "FR-API-02": "TC-QUOTE-01~08",
+    "FR-API-01": "TC-WO-01/03/13 + TC-QUOTE-06",
+    "FR-API-02": "TC-QUOTE-01~09",
     "FR-API-03": "TC-QUOTE-01/04/05 + 定價引擎 unit",
-    "FR-API-04": "TC-WO-01~03/08/09",
+    "FR-API-04": "TC-WO-01~03/08/09/13",
     "FR-API-05": "TC-DISPATCH-01",
     "FR-API-06": "TC-DISPATCH-02",
     "FR-API-07": "TC-DISPATCH-04 + TC-WO-10",
-    "FR-API-08": "TC-ONSITE-01~05 + TC-WO-04~07",
+    "FR-API-08": "TC-ONSITE-01~05 + TC-WO-04~07/14",
     "FR-API-09": "TC-WO-04~07 + TC-DISPATCH-08",
     "FR-API-10": "金流 provider contract + TC-SEC-IDEM-01",
     "FR-API-11": "TC-WO-12 + TC-SETTLE-02~05",
@@ -1192,11 +1360,11 @@ FR_TC_HINTS = {
     "FR-API-19": "TC-DISPATCH-08",
     "FR-WEB-01": "Playwright APP_MODE route isolation",
     "FR-WEB-02": "TC-SEC-WEB-01/02 + role-ui-isolation",
-    "FR-WEB-03": "TC-DISPATCH-03/04 + WS E2E",
+    "FR-WEB-03": "TC-DISPATCH-03/04 + TC-WEB-MEDIA-01 + TC-WEB-OPS-01 + WS E2E",
     "FR-WEB-04": "reports suite + UAT dashboard",
     "FR-WEB-05": "TC-SETTLE-07 + audit-events E2E",
-    "FR-WEB-06": "TC-QUOTE-01/04/05/07/08 + TC-A11Y-01",
-    "FR-WEB-07": "error-boundary/offline E2E",
+    "FR-WEB-06": "TC-QUOTE-01/04/05/07/08 + TC-WO-14 + TC-A11Y-01",
+    "FR-WEB-07": "TC-WEB-MEDIA-01 + error-boundary/offline E2E",
     "FR-DAT-01": "TC-COMPLIANCE-08",
     "FR-DAT-02": "TC-SEC-PIPE-01",
     "FR-DAT-03": "TC-EXC-05 + TC-SEC-TENANT-01",

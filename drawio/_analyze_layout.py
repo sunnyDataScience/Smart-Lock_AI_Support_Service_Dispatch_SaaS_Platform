@@ -3,9 +3,9 @@
 """
 Layout analyzer — 量測每張 .drawio 的連線交錯程度,供「減少交錯」迭代驗證。
 偵測:
-  (A) edge–edge 交叉  : 兩條不共端點的連線,其中心直線段相交
-  (B) edge 穿越節點   : 連線直線段穿過「非其端點」的節點方框
-中心直線段是 drawio 正交繞線的代理指標;數字下降 = 版面更乾淨。
+  (A) edge–edge 交叉  : 兩條不共端點的連線，其實際 waypoint 線段相交
+  (B) edge 穿越節點   : 任一實際線段穿過「非其端點」的節點方框
+有 waypoint 時依實際折線量測；無 waypoint 時才以端點中心直線作代理。
 """
 import xml.etree.ElementTree as ET
 import glob, os
@@ -85,14 +85,21 @@ def analyze(path):
                         "w": float(g.get("width")), "h": float(g.get("height"))}
             cells[cid] = {"parent": c.get("parent"), "geom": geom,
                           "edge": c.get("edge"), "vertex": c.get("vertex"),
-                          "source": c.get("source"), "target": c.get("target")}
+                          "source": c.get("source"), "target": c.get("target"),
+                          "points": [
+                              (float(p.get("x", 0)), float(p.get("y", 0)))
+                              for p in (
+                                  g.findall("Array[@as='points']/mxPoint")
+                                  if g is not None else []
+                              )
+                          ]}
         for cid, c in cells.items():
             if c["vertex"] == "1" and c["geom"] is not None:
                 vertices.append(cid)
             if c["edge"] == "1" and c.get("source") and c.get("target"):
                 edges.append(cid)
 
-        # 端點中心
+        # 端點中心 + 明示 waypoint；未明示時維持中心直線代理。
         segs = []
         for e in edges:
             s, t = cells[e]["source"], cells[e]["target"]
@@ -100,18 +107,22 @@ def analyze(path):
                 continue
             cs, ct = center(cells, s), center(cells, t)
             if cs and ct:
-                segs.append((e, s, t, cs, ct))
+                segs.append((e, s, t, [cs, *cells[e]["points"], ct]))
 
         # (A) edge-edge 交叉
         cross = 0
         cross_pairs = []
         for i in range(len(segs)):
             for j in range(i+1, len(segs)):
-                e1, s1, t1, a1, b1 = segs[i]
-                e2, s2, t2, a2, b2 = segs[j]
+                e1, s1, t1, path1 = segs[i]
+                e2, s2, t2, path2 = segs[j]
                 if {s1, t1} & {s2, t2}:      # 共端點不算交錯
                     continue
-                if seg_intersect(a1, b1, a2, b2):
+                if any(
+                    seg_intersect(path1[a], path1[a + 1], path2[b], path2[b + 1])
+                    for a in range(len(path1) - 1)
+                    for b in range(len(path2) - 1)
+                ):
                     cross += 1
                     cross_pairs.append((e1, e2))
 
@@ -138,7 +149,7 @@ def analyze(path):
                 cur = cells.get(cur, {}).get("parent")
             return False
 
-        for e, s, t, a, b in segs:
+        for e, s, t, path in segs:
             for v, rect in leaf:
                 if v in (s, t):
                     continue
@@ -147,7 +158,10 @@ def analyze(path):
                 # 收縮矩形避免僅擦邊
                 rx, ry, rw, rh = rect
                 shrink = (rx+6, ry+6, max(rw-12, 1), max(rh-12, 1))
-                if seg_rect(a, b, shrink):
+                if any(
+                    seg_rect(path[index], path[index + 1], shrink)
+                    for index in range(len(path) - 1)
+                ):
                     pierce += 1
                     pierce_list.append((e, v))
 

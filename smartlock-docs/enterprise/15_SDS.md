@@ -1,9 +1,9 @@
 ---
 title: 軟體詳細設計書（SDS）— Smart Lock AI 客服與派工 SaaS 平台
-version: 1.0
+version: 1.1
 status: active
 owner: 平台架構師
-last-updated: 2026-07-10
+last-updated: 2026-07-23
 upstream:
   - smartlock-docs/00_platform/P1/07_workorder_platform_design.md
   - smartlock-docs/00_platform/P2/09_integration_data_flow.md
@@ -364,6 +364,9 @@ agent 為單一 Python 進程（aiohttp），核心引擎 LockCore 採「三層�
 | 元件 | 檔案 | 職責 |
 |---|---|---|
 | line_gateway | `lockcore/channels/line_gateway.py` | `POST /callback` 驗簽（X-Line-Signature）、訊息型別分派、Reply、`/internal/*` 旁路橋接 |
+| Photo Guide resolver | `lockcore/channels/line_gateway.py` `_extract_photo_guides` + `config.toml [photo_guides]` | 剝除 `photo-guide` 標記並附核准 ImageMessage；目前 Chatlock-only，未知 key fail-soft |
+| Quote postback message mapper | `lockcore/channels/line_gateway.py` `_quote_fail_reply` | 依 `QUOTE_EXPIRED` / `QUOTE_ALREADY_DECIDED` / 404 / 403 等 error_code 產精確客戶話術 |
+| WebhookIdempotencyStore | `lockcore/app_config.py` + `user_memory/postgres_store.py` | reserve-first 永久 event PK；重送在進 Turn 前略過 |
 | AgentLoop | `lockcore/agent/loop.py` | 產品層 Turn 狀態機（8 態），一個 webhook = 一個 turn |
 | ContextBuilder | `lockcore/agent/context.py` | 組 system prompt：identity → Customer Memory → always-skills → skill 摘要（漸進式揭露）|
 | AgentRunner | `lockcore/agent/runner.py` | 通用 tool-using LLM 迴圈（無產品層概念），context governance 每輪執行 |
@@ -371,7 +374,8 @@ agent 為單一 Python 進程（aiohttp），核心引擎 LockCore 採「三層�
 | ToolRegistry | `lockcore/agent/tools/` | 工具白名單 `CS_TOOL_ALLOWLIST` 6 項：`read_file / list_dir / find_files / grep / web_search / transfer_to_human` |
 | MemoryManager + Store | `lockcore/agent/user_memory/` | per-user 記憶：BUILD 注入 / SAVE 寫回；Postgres schema `agent.*`（pg_trgm/GIN）；讀寫必帶 tenant+user_id，缺則 raise（default deny）|
 | EscalationStore | `lockcore/agent/user_memory/escalation.py` | 轉真人稽核紀錄（含 facts_snapshot JSON）|
-| SkillsLoader + 2 builtin skills | `lockcore/skills/` | Agent Skills 標準（SKILL.md + references）：`locksmith-product-knowledge`（事實層）+ `locksmith-cs-sop`（行為層，紅線決策樹）|
+| ReplyGuard / SentimentClassifier | `lockcore/agent/{reply_guard,sentiment}.py` | 攔截價格/型號/假轉接等違規回覆；負面情緒旁路分類 |
+| SkillsLoader + 2 builtin skills / SkillSync | `lockcore/skills/` + `lockcore/agent/skill_sync.py` | builtin + workspace overlay；輪詢並原子交換 DB 已發布 skill revision |
 
 長尾逐型號事實檢索走 **RAG-via-MCP** 查 pgvector 唯一事實語料（`rag_manual_chunks` / `case_entries`；manual 表原名撞 kb-v2 表，CR-0142 改名自持）；skill 只留行為 + 精選事實（🔜 規劃中，語義層依 agent ADR-004 分階段建置，filesystem references 於品質 gate 通過前為 fallback）。〔標注 2026-07-10：本句「fallback／cutover」語意已被 ADR-030（2026-07-09 業主裁決）取代——filesystem references 永為 agent 主路徑、cutover 取消、RAG 引用率轉輔助品質指標〕
 
@@ -396,6 +400,8 @@ stateDiagram-v2
 
 **LINE 訊息 → Turn → 回覆**：LINE `POST /callback` → 驗簽（失敗 400）→ 查 api `GET /internal/conversations/handover-state`（阻塞 5s、fail-soft；人工接管中則 AI 靜默）→ `AgentLoop._process_message` 跑 Turn → BUILD 注入 `<memory>` 客戶事實 + skill 摘要 → AgentRunner 有界迴圈（chat → tool_calls → 執行工具）→ SAVE 記憶寫回 → 回覆前 `POST /internal/conversations/ingest`（fire-and-forget 20s）→ sentinel/空回覆轉友善話術、單則 > 4900 字截斷 → `reply_message`。
 
+**照片與品牌樣本圖**：客戶照片只經媒體持久化旁路，不送 vision；AI 若依 cs-sop 在回覆文末輸出 `[[photo-guide:chatlock-pre-install]]`，gateway 先剝除標記，再由 `[photo_guides]` 白名單附 ImageMessage。品牌 gate 在 Skill 明定「只有已確認 Chatlock」；其他品牌維持純文字。未知 key、標記截斷或圖片設定缺失均只略過圖片，不外洩標記、不阻斷文字回覆。
+
 **Escalation 轉真人（含兜底）**：cs-sop 紅線（金錢/要真人/急件/派工）→ LLM 呼叫 `transfer_to_human(reason, brand, model, symptom)` → 拉 per-user facts + 偵測 `is_explicit` → 寫 EscalationStore → 回核對表單（原封不動回覆客戶）。**兜底路徑**：LLM 生成「已為您安排師傅」話術卻未呼叫工具時，gateway 偵測承諾話術 + 本輪 escalation 未新增 → deterministic 補抽品牌/型號/症狀/手機 → 程式補一筆 escalation。兩路皆 `POST /internal/escalations/ingest` → api 建 AI 草擬問題卡（→ 客服 → 工單 → 派工）。
 
 **LINE postback 微格式契約**（客戶點 Flex 按鈕 → agent `/callback` 依前綴 deterministic fan-out 旁路呼 api，見 [CR-0121](../../docs/4-exploration/CR-0121-line-webhook-routing.md) 方案 A / ADR-011 類別 2）：
@@ -405,6 +411,8 @@ stateDiagram-v2
 | `q:a\|<quote_id>` / `q:r\|<quote_id>` | 報價同意 / 拒絕（CR-0095）| `POST /internal/quotes/{id}:customer-respond` |
 | `r:c\|…` / `r:r\|…` | 改約 confirm / reject | 🔜 `POST /internal/reschedule/*` |
 | `s:a\|…` / `s:r\|…` | 範圍變更 accept / reject | 🔜 `POST /internal/scope-change/*` |
+
+報價同決定重送由 API 冪等回放；相反終態回 `QUOTE_ALREADY_DECIDED`，過期回 `QUOTE_EXPIRED`。gateway 依扁平 `error_code` 顯示對應話術，非 JSON 或未知 code 才使用通用 fallback。
 
 ### 5.4 錯誤處理與重試
 
@@ -446,7 +454,7 @@ flowchart TD
         LINEOUT["line_push_service + outbox worker（fail-soft + retry）"]
     end
     subgraph CORE["Core / Infra"]
-        DB["core/db.py — 連線池 + 交易邊界"]
+        DB["core/db.py — 三庫連線路由 + 交易邊界"]
         ERR["core/errors.py — RFC7807 problem+json"]
         MODELS["Pydantic v2 — ApiResponseGeneric / CursorPage"]
     end
@@ -479,17 +487,21 @@ flowchart TD
 
 **agent internal ingest**：agent `POST /internal/conversations/ingest`（X-Internal-Token）→ `require_internal_token`：token 未設 → 503 fail-closed；不符 → 401 → `_resolve_tenant_id` → 旁路持久化 conversations/messages 或 escalation 建 AI 草擬問題卡（`source='ai_line'`）。**AI 永不自轉工單**——confirm/convert 一律走客服認證端點。
 
+**問題卡照片與轉工單欄位承接**：AI 建卡時 `problem_card_service._conversation_media_urls` 反查同一 conversation 近 24h 照片，依時間正序最多 5 張 append 到 `problem_cards.media_urls`；查詢失敗只略過照片。客服 convert 時 `work_order_service.create_work_order` 在鎖定問題卡後承接客戶姓名/電話/地址、品牌、型號與 `serial`，並以 transaction + idempotency 防重。
+
+**免責同意連結**：品牌後台 `POST /tenants/{tenantId}/work-orders/{id}/consents:send-link` → 角色/租戶守衛 → `consent_service.send_sign_link` 產 public token 與 hash audit → 已綁 LINE 則 push，否則回 `public_path` 供人工複製。客戶在 `/consent/{token}` 讀取並 upsert 三段 consent；token 明文不進稽核資料。
+
 **LINE 入站單一路徑**：LINE webhook 唯一入站為 agent `/callback`；postback 由 agent fan-out 至 api `/internal/*`。api 不設 LINE 入站端點；出站 Push 走 LINE outbox worker。
 
 ### 6.3 即時與背景
 
 | 機制 | 設計 | 交付期 |
 |---|---|---|
-| WS 推播 | Redis pub/sub fan-out——事件跨實例廣播，支援水平擴展 | 🔜 Phase 2 導入（ADR-P007）|
-| 事件骨幹 | Kafka producer/consumer：`workorder.*` / `dispatch.*` / `commission.accrued` 等（§11.1）| 🔜 Phase 2 導入 |
-| 背景任務 | 分散式排程 + 分散式鎖（SLA 掃描 / GDPR 硬刪 / 自動結案 / canary）| 🔜 Phase 2 導入 |
-| DB 連線 | psycopg3 連線池 + 顯式交易邊界；讀寫分離（清單/查詢走 replica）| 🔜 Phase 2 導入 |
-| LINE 推播 | outbox worker：fail-soft + retry，推播失敗不阻斷業務寫入 | Phase 1 |
+| WS 推播 | Redis pub/sub fan-out——事件跨實例廣播，支援水平擴展 | PARTIAL：程式已落地；需 `REDIS_URL` |
+| 事件骨幹 | Kafka producer/consumer：現行 topic `workorder.lifecycle` / `commission.accrued` / `technician.lifecycle` | PARTIAL：程式與 projection schema 已落地；需 `KAFKA_BOOTSTRAP` |
+| 背景任務 | 多個 cron worker + PostgreSQL advisory lock leader | AS-BUILT；仍須各任務冪等與部署 SIT |
+| DB 連線 | 品牌/技師/平台三庫連線路由 + request-scoped pool；`DB_URI_STRICT` 可拒絕缺 URI | PARTIAL：read replica 未由 codebase 證實 |
+| LINE 推播 | outbox worker：fail-soft + retry + outbox 冪等，推播失敗不阻斷業務寫入 | AS-BUILT |
 
 ### 6.4 錯誤處理
 
@@ -504,18 +516,20 @@ flowchart TD
 
 ### 7.1 L3 元件
 
-獨立系統 + 自有庫 `lock_tech`（技師身分/技能/品牌授權/認證/排班/評分/佣金 profile 的單一真相）；含獨立師傅 web（上線註冊 / 工作台 / 技師後台，跨品牌共用，不進品牌 bundle）。
+邏輯上是獨立系統 + 自有庫 `lock_tech`（技師身分/技能/品牌授權/認證/排班/評分/佣金 profile 的單一真相），部署上有獨立 `tech-db + tech-api + tech-web` stack；但 codebase 實際共用 `api/`，由 `API_SURFACE=tech` 裁切路由並停用品牌背景 worker，前端為獨立 `web/tech-portal/`。
 
 | 元件群 | 內容 |
 |---|---|
-| OHS API routers | `GET /technicians` · `POST /technicians:match` · 排班/認證查詢（各品牌 api 消費）|
+| API_SURFACE router filter | `api/main.py` 保留技師路由白名單；塑形不是授權邊界 |
+| OHS API routers（目標邊界）| `GET /technicians` · `POST /technicians:match` · 排班/認證查詢；獨立 OHS service 尚未拆出 |
 | self-service routers | 上線註冊 / profile / 技能授權 / 認證上傳 / 排班設定 / 工作台 |
 | WS 端點 | `/realtime/pool/{tech_id}` 師傅即時推播（Redis pub/sub 撐）[待確認：推播歸屬技師平台或品牌 api] |
 | 守衛鏈 | Casdoor OIDC bearer 驗證（技師 = 跨租戶身分）→ role enforce（deny-by-default）；OHS 服務憑證 [待確認：OIDC client-credentials vs internal token] |
-| Service 層 | `technician_service`（身分/技能/授權）· `matching_service`（技能/地區/授權/可用性排序）· `schedule_service` · `certification/kyc_service`（Fernet 加密敏感欄位）· `rating_service` / `commission_settlement_service` |
-| 事件層 | producer：`technician.{registered,certified,brand_authorized,availability_changed,assignment_accepted,rating_updated}`；consumer：`dispatch.assigned` → 更新排班/工作量、`workorder.completed` → 評分/佣金基礎、`settlement.generated` → statement；read-model：技師工單投影 |
+| Service 層 | `technician_service`、KYC/認證/生命週期/品牌授權/排班/LINE；現行候選評分在品牌 `dispatch_service` 直接讀 tech authority |
+| Tech DB router + mirror | `core/db.py` 依 `TECH_POSTGRES_URI` 導向權威庫；`core/tech_mirror.py` 保留過渡相容鏡射 |
+| 事件與投影 | `core/event_bus.py` + `realtime/event_consumer.py`；現行 topic `workorder.lifecycle` / `commission.accrued` / `technician.lifecycle`，更新 `technician_workorder_projection` / `technician_commission_projection`；`KAFKA_BOOTSTRAP` opt-in |
 
-**品牌不直連技師庫**——整合三路：① 品牌 api → OHS API（同步查詢/媒合）；② 技師平台 → Kafka 發布技師狀態事件（單一真相的最終一致廣播）；③ 技師平台 ← Kafka 訂閱派工/工單事件。品牌側以 ACL adapter 包裝 OHS 呼叫，技師領域模型不外溢。
+**目標架構**仍是品牌不直連技師庫，改經 OHS + Kafka；**現行 interim** 的 `dispatch_service` 會透過三庫連線路由直接查 tech authority。SAD/SDS 與 BOM 必須同時標出 current/target，不能把目標 OHS 當成已完成。
 
 ### 7.2 關鍵序列
 
@@ -565,21 +579,20 @@ technician-platform = **品牌事件的 CQRS 消費端**：命令端（工單/�
 
 ### 8.1 L3 元件
 
-單一 Next.js codebase（App Router、全 client component 的 SPA），build-time `APP_MODE` 塑出多個 portal；無 BFF、無自有 DB，瀏覽器直連 api。
+四個獨立 Next.js 專案（`brand-portal` / `tech-portal` / `landing` / `platform-console`），各自 build、lockfile、Dockerfile 與 compose；四站複製相同語意的 guard/client/cache/realtime/types。無 BFF、無自有 DB，瀏覽器直連對應 API surface。
 
 | 元件 | 檔案 | 職責 |
 |---|---|---|
-| AuthGuard | `src/components/layout/AuthGuard.tsx` | 掛 root layout 的 client-side 路由守衛：crossModeRedirect → token 檢查 → role gate |
-| appMode gate | `src/lib/appMode.ts` | APP_MODE 分站：判定當前 build 是否服務此路徑，否則導向對方 portal |
-| rolePolicy | `src/lib/rolePolicy.ts` | route→roles longest-prefix 政策表（UX 層；真正授權在 api `role_required`）|
-| api client | `src/lib/api.ts` | 統一 fetch：Bearer / X-Tenant-ID / Idempotency-Key 注入、401 refresh（依 role 分流端點）、錯誤信封解析 |
-| cache | `src/lib/cache.ts` | GET 共享 in-flight + 30s staleTime；mutation 後 `cacheInvalidate("GET:")` 廣域清除 |
-| realtime | `src/lib/realtime.ts` | WS 訂閱層：一 channel 一 socket、backoff 重連、未配置靜默降級 |
-| 型別 | `types/api.generated.ts` | 由 `openapi.yaml` 生成，防契約漂移 |
+| AuthGuard / appMode / rolePolicy | 各站 `src/components/layout/AuthGuard.tsx`、`src/lib/{appMode,rolePolicy}.ts` | 跨站導向、token/role UX gate；後端仍是唯一授權邊界 |
+| api client / cache / realtime | 各站 `src/lib/{api,cache,realtime}.ts` | 憑證與租戶 header、短期快取、WS backoff 與靜默降級 |
+| 型別 | 各站 `src/types/api.generated.ts` | 由 runtime OpenAPI 生成；不得手改代替契約 SSOT |
+| AuthImage / AuthImageLightbox | `web/brand-portal/src/components/media/AuthImage.tsx` | 對受保護媒體做授權 fetch→Blob URL、縮圖/失敗佔位/lightbox/revoke |
+| ConsentPanel | `web/brand-portal/src/components/work-orders/DispatchOrderView.tsx` | 顯示三段 consent 狀態、發送 LINE 或提供複製連結 |
+| PIIScrubSpanProcessor | 各站 `src/observability/piiScrub.ts` | trace 匯出前遮 email/電話/地址/token，LINE UID hash |
 
 ### 8.2 APP_MODE 分站機制
 
-`NEXT_PUBLIC_APP_MODE` 於 Docker build ARG 烤入 bundle（runtime 不可改）；值域 `all | dispatch | platform | landing`（品牌 bundle 前端只含 dispatch；師傅端 web 歸 technician-platform，見 §7）。
+`NEXT_PUBLIC_APP_MODE` 仍作各專案的 build-time 路徑保護與相容設定；主要隔離已由四個獨立專案/Docker image 達成。品牌 bundle 只部署 `brand-portal`，師傅端歸 `tech-portal`。
 
 | mode | 允許路由 | 其餘導向 |
 |---|---|---|
@@ -726,19 +739,23 @@ draft → pending → approved（Publisher 落地）
 | agent | 工具（白名單 6 項）| `agent/lockcore/agent/tools/`（filesystem / search / web / transfer）|
 | agent | per-user 記憶 + escalation | `agent/lockcore/agent/user_memory/{manager,store,postgres_store,escalation}.py` |
 | agent | 知識 skill | `agent/lockcore/skills/locksmith-{product-knowledge,cs-sop}/` |
-| agent | LINE 通道 / 啟動點 | `agent/lockcore/channels/line_gateway.py` · `agent/scripts/line_gateway.py` |
+| agent | LINE 通道 / 啟動點 / Photo Guide / Quote mapper | `agent/lockcore/channels/line_gateway.py` · `agent/scripts/line_gateway.py` · `agent/config.toml` |
+| agent | ReplyGuard / Sentiment / SkillSync / webhook 冪等 | `agent/lockcore/agent/{reply_guard,sentiment,skill_sync}.py` · `agent/lockcore/agent/user_memory/postgres_store.py` |
 | api | 守衛鏈 / 錯誤 / 冪等 / DB | `api/core/{deps,errors,idempotency,db,auth,pii_crypto}.py` |
 | api | 路由 / 服務分層 | `api/routers/`（tenant-scoped）· `api/services/`（業務 + SQL）|
 | api | 即時 / 背景 worker | `api/realtime/`（WS hub、LINE outbox、SLA 等 worker）|
 | api | API schema | `api/models/generated.py`（由 openapi.yaml 生成）|
-| web | gate 層 | `web/src/components/layout/AuthGuard.tsx` · `web/src/lib/{appMode,rolePolicy}.ts` |
-| web | 消費層 | `web/src/lib/{api,cache,realtime,sse}.ts` · `web/types/api.generated.ts` |
+| api | 三庫 / tech mirror / event bus / CQRS consumer | `api/core/{db,tech_mirror,event_bus}.py` · `api/realtime/event_consumer.py` |
+| api | consent / problem-card media / 工單欄位承接 | `api/services/{consent_service,problem_card_service,work_order_service}.py` · `api/routers/work_orders_v2.py` |
+| web | 四站 gate / 消費層 | `web/{brand-portal,tech-portal,landing,platform-console}/src/{components/layout,lib,types}/` |
+| web | 認證媒體 / consent / OTel PII scrub | `web/brand-portal/src/components/{media/AuthImage.tsx,work-orders/DispatchOrderView.tsx}` · 各站 `src/{instrumentation.ts,observability/piiScrub.ts}` |
 | knowledge-refinery | Medallion pipeline | `knowledge-pipeline/pipeline/{raw_to_bronze,bronze_to_silver}/` · `knowledge-pipeline/llms/` · `knowledge-pipeline/storage/{raw,bronze,silver}/`（原 `data/`，2026-07-09 ADR-029 改名）|
 | knowledge-refinery | 精煉服務 / 審核 UI / Publisher | `refinery/`（uv workspace member，2026-07-10 CR-0139/0140 落地）〔標注 2026-07-11：CR-0157 遷至 `knowledge-pipeline/refinery/`，member 路徑同步更新，服務性質不變〕|
-| technician-platform | OHS API / 事件層 / 投影 | 獨立服務 codebase [待確認：P4 結構指南待建] |
+| technician-platform | tech runtime stack | 共用 `api/` codebase（`API_SURFACE=tech`）+ `web/tech-portal/` + `SQL/tech_authority/`；`web/tech-portal/docker-compose.yml` 為獨立部署拓撲 |
+| technician-platform | 現行媒合 / 目標 OHS | 現行 `api/services/dispatch_service.py` 直讀 tech authority；OHS/MatchingService 獨立服務邊界為 To-Be |
 
 深度參考：各系統 as-is 逐系統設計（P1/05、P2/06、P3/13、P4/08）已整併進本 enterprise 組合，原文封存於 git baseline `238f6fce`（`git show 238f6fce:smartlock-docs/{system}/P1/05_architecture_and_design.md`）。grounded 技術債座標見 [12_SAD](./12_SAD.md) §12 附錄，安全發現見 [13_Security_Architecture](./13_Security_Architecture.md) §8.6。
 
 ---
 
-*文件結尾 — 15_SDS 軟體詳細設計書 v1.0 / 2026-07-07*
+*文件結尾 — 15_SDS 軟體詳細設計書 v1.1 / 2026-07-23*
