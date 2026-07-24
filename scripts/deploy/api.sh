@@ -104,7 +104,10 @@ SECRETS="${SECRETS},MEDIA_ENC_KEY=MEDIA_ENC_KEY:latest"
 #   tech 面需 TECH_POSTGRES_URI；platform 面需 PLATFORM_POSTGRES_URI（皆指向共用 lock-ai
 #   實例的 lock_tech / lock_platform database）。品牌面（all/dispatch）走真雙庫（技師身分
 #   寫權威庫，tech_mirror）時設 MOUNT_TECH_URI=1 一併掛入。
-if [[ "${API_SURFACE}" == "tech" || "${MOUNT_TECH_URI:-}" == "1" ]]; then
+#   platform 面也需 TECH_POSTGRES_URI（0724 split-brain 實案：平台 console 是技師
+#   生命週期操作面，漏掛時 onboard-approve 寫進投影庫、權威庫仍 pending →
+#   平台頁顯示啟用中但技師登入 ACCOUNT_PENDING_APPROVAL；db.py 守衛已同步收緊）。
+if [[ "${API_SURFACE}" == "tech" || "${API_SURFACE}" == "platform" || "${MOUNT_TECH_URI:-}" == "1" ]]; then
     SECRETS="${SECRETS},TECH_POSTGRES_URI=TECH_POSTGRES_URI:latest"
 fi
 if [[ "${API_SURFACE}" == "platform" ]]; then
@@ -211,7 +214,7 @@ preflight_checks() {
 
     local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY" "INTERNAL_API_TOKEN" "LINE_CHANNEL_ACCESS_TOKEN" "LINE_CHANNEL_SECRET" "GDPR_DEK_KEK" "USER_PII_BIDX_KEY" "MEDIA_ENC_KEY")
     # R6：依 API_SURFACE 追加對應面 DB URI secret 的存在性檢查（與上方 SECRETS 掛載一致）
-    if [[ "${API_SURFACE}" == "tech" || "${MOUNT_TECH_URI:-}" == "1" ]]; then
+    if [[ "${API_SURFACE}" == "tech" || "${API_SURFACE}" == "platform" || "${MOUNT_TECH_URI:-}" == "1" ]]; then
         required_secrets+=("TECH_POSTGRES_URI")
     fi
     if [[ "${API_SURFACE}" == "tech" ]]; then

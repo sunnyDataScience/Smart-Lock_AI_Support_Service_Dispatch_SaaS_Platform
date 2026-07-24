@@ -78,8 +78,15 @@ def assert_uri_strict() -> None:
         missing.append(_uri_env)
     if surface == "tech" and not os.getenv(_TECH_URI_ENV):
         missing.append(_TECH_URI_ENV)
-    if surface == "platform" and not os.getenv(_PLATFORM_URI_ENV):
-        missing.append(_PLATFORM_URI_ENV)
+    if surface == "platform":
+        if not os.getenv(_PLATFORM_URI_ENV):
+            missing.append(_PLATFORM_URI_ENV)
+        # 0724 split-brain 實案：平台面是技師生命週期操作面（onboard-approve/
+        # 停權/終止寫技師權威庫）。漏掛 TECH_POSTGRES_URI 時 require_tech_conn
+        # fallback 主庫 → 核准寫進投影、權威庫仍 pending，平台頁顯示啟用中
+        # 但技師登入被拒（ACCOUNT_PENDING_APPROVAL）。依 ADR-020 fail-fast。
+        if not os.getenv(_TECH_URI_ENV):
+            missing.append(_TECH_URI_ENV)
     if missing:
         raise RuntimeError(
             f"DB_URI_STRICT=1 拒絕啟動(API_SURFACE={surface}):缺 {', '.join(missing)}"

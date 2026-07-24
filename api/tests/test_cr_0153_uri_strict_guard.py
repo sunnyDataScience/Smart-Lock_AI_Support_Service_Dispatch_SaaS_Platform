@@ -39,7 +39,23 @@ def test_strict_platform_surface_requires_platform_uri(monkeypatch):
     monkeypatch.setenv("API_SURFACE", "platform")
     monkeypatch.setenv("POSTGRES_URI", "postgresql://x/y")
     monkeypatch.delenv("PLATFORM_POSTGRES_URI", raising=False)
+    monkeypatch.setenv("TECH_POSTGRES_URI", "postgresql://x/tech")
     with pytest.raises(RuntimeError, match="PLATFORM_POSTGRES_URI"):
         assert_uri_strict()
     monkeypatch.setenv("PLATFORM_POSTGRES_URI", "postgresql://x/pf")
+    assert_uri_strict()
+
+
+def test_strict_platform_surface_requires_tech_uri(monkeypatch):
+    """0724 split-brain 實案：平台面操作技師生命週期（寫權威庫），漏掛
+    TECH_POSTGRES_URI 時核准寫進投影庫——平台頁顯示啟用中、技師登入仍
+    ACCOUNT_PENDING_APPROVAL。平台面必須同時要求技師庫 URI（fail-fast）。"""
+    monkeypatch.setenv("DB_URI_STRICT", "1")
+    monkeypatch.setenv("API_SURFACE", "platform")
+    monkeypatch.setenv("POSTGRES_URI", "postgresql://x/y")
+    monkeypatch.setenv("PLATFORM_POSTGRES_URI", "postgresql://x/pf")
+    monkeypatch.delenv("TECH_POSTGRES_URI", raising=False)
+    with pytest.raises(RuntimeError, match="TECH_POSTGRES_URI"):
+        assert_uri_strict()
+    monkeypatch.setenv("TECH_POSTGRES_URI", "postgresql://x/tech")
     assert_uri_strict()
