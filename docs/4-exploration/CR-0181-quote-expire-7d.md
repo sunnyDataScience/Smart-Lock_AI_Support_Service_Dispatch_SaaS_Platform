@@ -90,7 +90,8 @@
 ### 進度
 
 - ✅ §9 步驟 1–4 done（feat/cr-0181-quote-expire-7d）：code 三常數＋migration 115（雙情境冪等驗證：054→115→115、全新庫→115→115）＋openapi 六處＋runtime spec 重匯＋四站型別再生（tsc 全綠）＋正典標注 ×6（04_SRS/08_User_Flow×2/02_BRD/03_PRD×2/20_Test_Cases）＋測試 3 檔（unit 347 passed）。對抗性覆核 2 lens 完成，4 should-fix 全數修正（生效條件矛盾統一為「無條件套 115＋重佈」、openapi 錨點措辭、115 namespace 防呆、正典補標注）。
-- ⏳ §9 步驟 5 待業主：`!` 執行 `~/apply-quote-expire-7d.sh`（套 115 → 驗證 → 重佈 smart-lock-api）。
+- ✅ §9 步驟 5 done（0725 上版）：migration 115 套 prod 品牌庫（schema_migrations 留痕）＋smart-lock-api 重佈（image `7471bfa6-20260725-1313`／revision 00028-hzh，health 200）。
+- ✅ UAT 通過（0725）：admin API 對真實工單 TP-000030 建 draft——一般/急件 expiry_at 皆 **+7.00 天**；測試 draft DELETE 200 無殘留。Plane LOCK-59 收 Done。
 
 ## §9 Suggested Implementation Order
 
