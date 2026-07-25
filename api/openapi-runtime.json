@@ -435,8 +435,6 @@
           },
           "token": {
             "description": "註冊 response 回傳的一次性上傳 token",
-            "maxLength": 128,
-            "minLength": 16,
             "title": "Token",
             "type": "string"
           }
@@ -596,6 +594,35 @@
           "email"
         ],
         "title": "BrandApplicationBody",
+        "type": "object"
+      },
+      "BrandAuthGrantBody": {
+        "properties": {
+          "cert_expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "認證到期日（YYYY-MM-DD，可選）",
+            "title": "Cert Expires At"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "BrandAuthGrantBody",
         "type": "object"
       },
       "BulkBody": {
@@ -4035,6 +4062,51 @@
         "title": "HotTopic",
         "type": "object"
       },
+      "IngestRequest": {
+        "properties": {
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "object"
+          },
+          "merge": {
+            "default": false,
+            "description": "加性合併進現有 skill（保留既有檔，只新增/更新）",
+            "title": "Merge",
+            "type": "boolean"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "skill_name": {
+            "description": "skill 目錄名（kebab-case）",
+            "title": "Skill Name",
+            "type": "string"
+          },
+          "tenant_id": {
+            "description": "租戶 UUID",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "skill_name",
+          "files"
+        ],
+        "title": "IngestRequest",
+        "type": "object"
+      },
       "IngestTurnRequest": {
         "description": "LINE agent gateway 旁路持久化一輪對話的 request body（方案 A）。\n\n對應 POST /api/v1/internal/conversations/ingest（require_internal_token）。\n把「客人訊息 + AI 回覆」寫進 conversations/messages，使工單/對話後台可重新\n渲染對話歷史。session_id 為冪等鍵（同 user 同 tenant 穩定 → 復用同一對話）。",
         "properties": {
@@ -4083,6 +4155,45 @@
               }
             ],
             "title": "Media Mime"
+          },
+          "sentiment_confidence": {
+            "anyOf": [
+              {
+                "maximum": 1.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentiment Confidence"
+          },
+          "sentiment_keywords": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentiment Keywords"
+          },
+          "sentiment_label": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sentiment Label"
           },
           "session_id": {
             "maxLength": 255,
@@ -4855,6 +4966,52 @@
         "title": "Level",
         "type": "string"
       },
+      "LicenseUpdateBody": {
+        "description": "CR-0166 R3：租戶 License 更新（平台管理員）。全欄選填，未帶＝不變。",
+        "properties": {
+          "entitled_modules": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "開通模組（core 自動保留）：refinery/studio/compiler",
+            "title": "Entitled Modules"
+          },
+          "license_expires_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "到期 ISO 時間（null=無期限）",
+            "title": "License Expires At"
+          },
+          "plan_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "free/standard/pro/enterprise",
+            "title": "Plan Tier"
+          }
+        },
+        "title": "LicenseUpdateBody",
+        "type": "object"
+      },
       "LineBot": {
         "properties": {
           "greeting_message_enabled": {
@@ -4982,6 +5139,29 @@
           }
         },
         "title": "LogoutBody",
+        "type": "object"
+      },
+      "LookupBody": {
+        "description": "公開申請進度查詢(email + 申請編號雙精確匹配)。",
+        "properties": {
+          "application_id": {
+            "description": "申請編號(UUID)",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Application Id",
+            "type": "string"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "application_id"
+        ],
+        "title": "LookupBody",
         "type": "object"
       },
       "Manual": {
@@ -5219,6 +5399,19 @@
               }
             ],
             "title": "Media Url"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "訊息附掛 metadata 原樣帶出（UAT R3-3；至少含 sender_role 供前端區分 AI／真人客服）",
+            "title": "Metadata"
           },
           "role": {
             "$ref": "#/components/schemas/MessageRole"
@@ -5942,9 +6135,16 @@
             "title": "Ai Missing Fields"
           },
           "brand": {
-            "maxLength": 50,
-            "title": "Brand",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
           },
           "category": {
             "title": "Category",
@@ -5976,9 +6176,16 @@
             "title": "Contact Phone"
           },
           "conversation_id": {
-            "format": "uuid",
-            "title": "Conversation Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
           },
           "corrective_action": {
             "anyOf": [
@@ -5995,6 +6202,17 @@
             "format": "date-time",
             "title": "Created At",
             "type": "string"
+          },
+          "customer_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Name"
           },
           "disposition": {
             "anyOf": [
@@ -6067,6 +6285,17 @@
             ],
             "title": "Knowledge Ready"
           },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
           "media_urls": {
             "anyOf": [
               {
@@ -6084,9 +6313,16 @@
             "title": "Media Urls"
           },
           "model": {
-            "maxLength": 100,
-            "title": "Model",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
           },
           "resolution_channel": {
             "anyOf": [
@@ -6206,9 +6442,6 @@
         },
         "required": [
           "id",
-          "conversation_id",
-          "brand",
-          "model",
           "symptom",
           "category",
           "urgency",
@@ -6222,9 +6455,16 @@
       "ProblemCardCreateRequest": {
         "properties": {
           "brand": {
-            "maxLength": 50,
-            "title": "Brand",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brand"
           },
           "category": {
             "anyOf": [
@@ -6238,9 +6478,40 @@
             "title": "Category"
           },
           "conversation_id": {
-            "format": "uuid",
-            "title": "Conversation Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conversation Id"
+          },
+          "customer_name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Name"
+          },
+          "customer_phone": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Phone"
           },
           "door_status": {
             "anyOf": [
@@ -6290,9 +6561,16 @@
             "title": "Media Urls"
           },
           "model": {
-            "maxLength": 100,
-            "title": "Model",
-            "type": "string"
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
           },
           "network_status": {
             "anyOf": [
@@ -6328,9 +6606,6 @@
           }
         },
         "required": [
-          "conversation_id",
-          "brand",
-          "model",
           "symptom",
           "urgency"
         ],
@@ -6739,6 +7014,21 @@
         "title": "ProposeFixBody",
         "type": "object"
       },
+      "PublishRequest": {
+        "properties": {
+          "version": {
+            "description": "要發佈的版本號",
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "PublishRequest",
+        "type": "object"
+      },
       "PushBody": {
         "properties": {
           "body": {
@@ -6770,6 +7060,18 @@
               }
             ],
             "title": "Data"
+          },
+          "related_entity": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Related Entity"
           },
           "target_id": {
             "title": "Target Id",
@@ -6860,6 +7162,11 @@
       },
       "ReasonBody": {
         "properties": {
+          "force": {
+            "default": false,
+            "title": "Force",
+            "type": "boolean"
+          },
           "notes": {
             "anyOf": [
               {
@@ -6950,6 +7257,41 @@
               }
             ],
             "title": "Platform Fee"
+          },
+          "reject_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reject Reason"
+          },
+          "rejected_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected At"
+          },
+          "rejected_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rejected By"
           },
           "status": {
             "$ref": "#/components/schemas/ReconciliationStatus"
@@ -7067,11 +7409,28 @@
         "title": "ReconciliationPage",
         "type": "object"
       },
+      "ReconciliationRejectRequest": {
+        "description": "UAT-0718 W1-2 已釘契約：駁回原因必填（≥3 字）。手動 additive。",
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ReconciliationRejectRequest",
+        "type": "object"
+      },
       "ReconciliationStatus": {
         "enum": [
           "pending",
           "approved",
-          "disputed"
+          "disputed",
+          "rejected"
         ],
         "title": "ReconciliationStatus",
         "type": "string"
@@ -7634,6 +7993,7 @@
           },
           "item_diffs": {
             "items": {},
+            "minItems": 1,
             "title": "Item Diffs",
             "type": "array"
           },
@@ -7671,7 +8031,8 @@
           "request_id",
           "work_order_id",
           "technician_id",
-          "reason"
+          "reason",
+          "item_diffs"
         ],
         "title": "RequoteBody",
         "type": "object"
@@ -8277,6 +8638,21 @@
         "title": "RolesEnvelope",
         "type": "object"
       },
+      "RollbackRequest": {
+        "properties": {
+          "target_version": {
+            "description": "要回滾到的版本號",
+            "minimum": 1.0,
+            "title": "Target Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target_version"
+        ],
+        "title": "RollbackRequest",
+        "type": "object"
+      },
       "RolloutRequest": {
         "description": "POST body — start rollout.\n\nobservation_minutes_per_stage: default 15, hard floor 10 (HD-01).\nValues < 10 are clamped to 10 (not rejected) with an info log in service.",
         "properties": {
@@ -8297,6 +8673,35 @@
           "strategy"
         ],
         "title": "RolloutRequest",
+        "type": "object"
+      },
+      "SaveDraftRequest": {
+        "properties": {
+          "files": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "檔案樹 {相對路徑: 內容}，含 SKILL.md 與 references/*",
+            "title": "Files",
+            "type": "object"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "版本備註",
+            "title": "Note"
+          }
+        },
+        "required": [
+          "files"
+        ],
+        "title": "SaveDraftRequest",
         "type": "object"
       },
       "Scope": {
@@ -9362,6 +9767,7 @@
         "properties": {
           "item_diffs": {
             "items": {},
+            "minItems": 1,
             "title": "Item Diffs",
             "type": "array"
           },
@@ -9382,7 +9788,8 @@
           }
         },
         "required": [
-          "reason"
+          "reason",
+          "item_diffs"
         ],
         "title": "TechRequoteBody",
         "type": "object"
@@ -10723,8 +11130,8 @@
         "title": "ValidationError",
         "type": "object"
       },
-      "VendorRegisterBody": {
-        "description": "發案者（品牌商/鎖店/經銷商）註冊（CR-0029）。",
+      "VendorCreateBody": {
+        "description": "平台代建廠商帳號（釘定契約：name/company_name/tax_id/phone/email/password）。\n\nvendor_type 與 address 選填（additive；未帶 vendor_type 預設 brand）。",
         "properties": {
           "address": {
             "anyOf": [
@@ -10773,13 +11180,13 @@
             "type": "string"
           },
           "vendor_type": {
+            "default": "brand",
             "description": "brand/locksmith/distributor",
             "title": "Vendor Type",
             "type": "string"
           }
         },
         "required": [
-          "vendor_type",
           "name",
           "company_name",
           "tax_id",
@@ -10787,7 +11194,7 @@
           "email",
           "password"
         ],
-        "title": "VendorRegisterBody",
+        "title": "VendorCreateBody",
         "type": "object"
       },
       "VoidVoucherBody": {
@@ -11374,6 +11781,19 @@
       },
       "WorkOrder": {
         "properties": {
+          "accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "技師接單時間（accept/claim 時寫入）",
+            "title": "Accepted At"
+          },
           "actual_arrival": {
             "anyOf": [
               {
@@ -12146,6 +12566,18 @@
             ],
             "title": "Payment Method"
           },
+          "problem_type": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Problem Type"
+          },
           "purchase_date": {
             "anyOf": [
               {
@@ -12264,6 +12696,22 @@
           "has_more"
         ],
         "title": "WorkOrderPage",
+        "type": "object"
+      },
+      "WorkOrderRejectRequest": {
+        "properties": {
+          "reason": {
+            "description": "拒單原因（必填）",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "WorkOrderRejectRequest",
         "type": "object"
       },
       "WorkOrderReopenRequest": {
@@ -12499,13 +12947,19 @@
             "type": "string"
           },
           "gps": {
-            "$ref": "#/components/schemas/_ArrivalGps",
-            "description": "GPS 到場座標"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/_ArrivalGps"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "GPS 到場座標（無定位時可省略）"
           }
         },
         "required": [
-          "arrived_at",
-          "gps"
+          "arrived_at"
         ],
         "title": "_ArrivalEventRequest",
         "type": "object"
@@ -12564,6 +13018,18 @@
       },
       "_CaseCreateRequest": {
         "properties": {
+          "conversation_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "來源對話 id（可空）",
+            "title": "Conversation Id"
+          },
           "customer_id": {
             "anyOf": [
               {
@@ -12609,6 +13075,18 @@
             ],
             "title": "Customer Phone"
           },
+          "problem_card_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "關聯問題卡 id（可空）",
+            "title": "Problem Card Id"
+          },
           "source_channel": {
             "description": "進線渠道：line/phone/web/referral",
             "title": "Source Channel",
@@ -12625,6 +13103,18 @@
             ],
             "description": "需求摘要",
             "title": "Summary"
+          },
+          "work_order_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "關聯工單 id（可空）",
+            "title": "Work Order Id"
           }
         },
         "required": [
@@ -13608,6 +14098,25 @@
         "title": "_MonthlyTriggerBody",
         "type": "object"
       },
+      "_NotifyAssignBody": {
+        "properties": {
+          "technician_id": {
+            "title": "Technician Id",
+            "type": "string"
+          },
+          "work_order": {
+            "additionalProperties": true,
+            "title": "Work Order",
+            "type": "object"
+          }
+        },
+        "required": [
+          "technician_id",
+          "work_order"
+        ],
+        "title": "_NotifyAssignBody",
+        "type": "object"
+      },
       "_NotifyDelayBody": {
         "properties": {
           "delay_minutes": {
@@ -13652,6 +14161,20 @@
         "title": "_NotifyDelayBodyV2",
         "type": "object"
       },
+      "_NotifyPoolBody": {
+        "properties": {
+          "work_order": {
+            "additionalProperties": true,
+            "title": "Work Order",
+            "type": "object"
+          }
+        },
+        "required": [
+          "work_order"
+        ],
+        "title": "_NotifyPoolBody",
+        "type": "object"
+      },
       "_OpenExceptionRequest": {
         "properties": {
           "description": {
@@ -13693,6 +14216,148 @@
           "exception_type"
         ],
         "title": "_OpenExceptionRequest",
+        "type": "object"
+      },
+      "_PayoutRuleBody": {
+        "description": "拆帳規則寫入 body（白名單/比例/日期驗證在 service 層）。\n\nrule_id 僅 create 用；base_payout ≥ 0；夜間/急件加成率為 0~1 比例。",
+        "properties": {
+          "base_payout": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "基礎拆帳（內部成本，≥ 0）",
+            "title": "Base Payout"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "maxLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "effective_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "生效日（ISO YYYY-MM-DD）",
+            "title": "Effective Date"
+          },
+          "expiry_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "失效日（ISO；須 ≥ 生效日）",
+            "title": "Expiry Date"
+          },
+          "level_id": {
+            "anyOf": [
+              {
+                "maxLength": 10,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "LV-A / LV-B / LV-C",
+            "title": "Level Id"
+          },
+          "night_surcharge_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "夜間加成率（0~1 比例）",
+            "title": "Night Surcharge Pct"
+          },
+          "rule_id": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "規則代碼（create 必填）",
+            "title": "Rule Id"
+          },
+          "service_code": {
+            "anyOf": [
+              {
+                "maxLength": 40,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Code"
+          },
+          "service_name": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Name"
+          },
+          "urgent_surcharge_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "急件加成率（0~1 比例）",
+            "title": "Urgent Surcharge Pct"
+          }
+        },
+        "title": "_PayoutRuleBody",
+        "type": "object"
+      },
+      "_PoolNotifyBody": {
+        "properties": {
+          "notify_pool_new": {
+            "title": "Notify Pool New",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "notify_pool_new"
+        ],
+        "title": "_PoolNotifyBody",
         "type": "object"
       },
       "_ProposeRescheduleRequest": {
@@ -13814,7 +14479,7 @@
         "properties": {
           "urgent": {
             "default": false,
-            "description": "急件 → 有效期 3d",
+            "description": "急件 → 有效期 7d（CR-0181 與一般拉平；原 3d）",
             "title": "Urgent",
             "type": "boolean"
           }
@@ -14451,23 +15116,6 @@
         "title": "ApproveBody",
         "type": "object"
       },
-      "routers__platform_vendors__RejectBody": {
-        "properties": {
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          }
-        },
-        "title": "RejectBody",
-        "type": "object"
-      },
       "routers__reconciliations_v2__ReviewBody": {
         "properties": {
           "note": {
@@ -14631,7 +15279,7 @@
     "description": "Phase 1 MVP. Contract SSOT (frozen V1.1): api/openapi.yaml + openapi-smart-lock-saas.yaml. NOTE: legacy /api/v1 routes were generated from the now-deleted docs/02-design/specs/openapi.yaml; spec-alignment migration in progress (see docs/_audit/spec-code-gap-audit-2026-06-01.md).",
     "title": "Smart Lock AI — Admin REST API",
     "version": "0.2.0",
-    "x-exported-at": "2026-07-10T04:24:25.782065+00:00",
+    "x-exported-at": "2026-07-25T01:05:26.520196+00:00",
     "x-exported-by": "scripts/ops/export_openapi.py"
   },
   "openapi": "3.1.0",
@@ -15064,6 +15712,109 @@
           }
         },
         "summary": "核准對帳並建立結算（pending → approved + settlement INSERT）",
+        "tags": [
+          "accounting"
+        ]
+      }
+    },
+    "/api/v1/accounting/reconciliations/{id}:reject": {
+      "post": {
+        "description": "僅 pending 可駁（其餘 409，語意同 approve）；reason ≥3 字必填。",
+        "operationId": "rejectReconciliation",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconciliationRejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rejectreconciliation",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "駁回對帳（pending → rejected + 審計欄位；UAT-0718 W1-2）",
         "tags": [
           "accounting"
         ]
@@ -19536,6 +20287,190 @@
         ]
       }
     },
+    "/api/v1/internal/skills/ingest": {
+      "post": {
+        "operationId": "ingestSkillRevision",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Internal-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Ingestskillrevision",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "內部：knowledge-pipeline 汲取 skill 為 draft（HD-2：人工發佈）",
+        "tags": [
+          "knowledge_base",
+          "internal"
+        ]
+      }
+    },
+    "/api/v1/internal/technicians/notify-assign": {
+      "post": {
+        "operationId": "internalNotifyTechnicianAssign",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Internal-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_NotifyAssignBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Internalnotifytechnicianassign",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "派單指派 LINE 推播(internal;fail-soft)",
+        "tags": [
+          "M05 Technician"
+        ]
+      }
+    },
+    "/api/v1/internal/technicians/notify-pool": {
+      "post": {
+        "operationId": "internalNotifyTechnicianPool",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Internal-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Internal-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_NotifyPoolBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Internalnotifytechnicianpool",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "搶單池新單 LINE 廣播(internal;開關過濾)",
+        "tags": [
+          "M05 Technician"
+        ]
+      }
+    },
     "/api/v1/inventory/items": {
       "get": {
         "operationId": "listInventoryItems",
@@ -20636,6 +21571,504 @@
         },
         "summary": "刪除手冊（連同 chunks 透過 FK CASCADE 一併移除）",
         "tags": [
+          "knowledge_base"
+        ]
+      }
+    },
+    "/api/v1/knowledge-base/skills": {
+      "get": {
+        "operationId": "listSkills",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Listskills",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "AI 技能列表（每 skill 最新/發佈版本＋狀態）",
+        "tags": [
+          "knowledge_base",
+          "knowledge_base"
+        ]
+      }
+    },
+    "/api/v1/knowledge-base/skills/{name}": {
+      "get": {
+        "operationId": "getSkill",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Version"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Getskill",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "取得 skill 檔案樹（預設最新版本，可指定 version）",
+        "tags": [
+          "knowledge_base",
+          "knowledge_base"
+        ]
+      },
+      "put": {
+        "operationId": "saveSkillDraft",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Saveskilldraft",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "存 skill 草稿（at-most-one draft/skill，覆蓋既有草稿）",
+        "tags": [
+          "knowledge_base",
+          "knowledge_base"
+        ]
+      }
+    },
+    "/api/v1/knowledge-base/skills/{name}/publish": {
+      "post": {
+        "operationId": "publishSkill",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Publishskill",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "發佈 skill 版本（驗證閘＋bump stamp→SkillSync 60s 內生效）",
+        "tags": [
+          "knowledge_base",
+          "knowledge_base"
+        ]
+      }
+    },
+    "/api/v1/knowledge-base/skills/{name}/revisions": {
+      "get": {
+        "operationId": "listSkillRevisions",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Listskillrevisions",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "skill 版本歷史（diff / rollback 選單）",
+        "tags": [
+          "knowledge_base",
+          "knowledge_base"
+        ]
+      }
+    },
+    "/api/v1/knowledge-base/skills/{name}/rollback": {
+      "post": {
+        "operationId": "rollbackSkill",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollbackRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Rollbackskill",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "回滾至指定 skill 版本（重新發佈舊版本）",
+        "tags": [
+          "knowledge_base",
           "knowledge_base"
         ]
       }
@@ -21743,6 +23176,50 @@
         ]
       }
     },
+    "/api/v1/platform/brand-applications:lookup": {
+      "post": {
+        "description": "UAT R2 W3-6 免 email 自助:申請人憑送出時取得的申請編號 + email 查進度。\n\n不匹配一律 generic 404(防列舉);rejected 才回 review_notes(駁回理由),\n核准備註不外洩。per-IP in-memory 輕量限流(service 層)。",
+        "operationId": "lookupBrandApplication",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LookupBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Lookupbrandapplication",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "品牌申請進度查詢(公開;email+申請編號雙匹配,防列舉 404)",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
     "/api/v1/platform/me": {
       "get": {
         "operationId": "getPlatformMe",
@@ -22448,6 +23925,228 @@
         ]
       }
     },
+    "/api/v1/platform/technicians/{technicianId}/brand-authorizations": {
+      "get": {
+        "operationId": "listPlatformTechnicianBrandAuthorizations",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "technicianId",
+            "required": true,
+            "schema": {
+              "title": "Technicianid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Listplatformtechnicianbrandauthorizations",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "師傅品牌授權列表",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/technicians/{technicianId}/brand-authorizations/{brand}": {
+      "delete": {
+        "operationId": "platformRevokeTechnicianBrandAuthorization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "technicianId",
+            "required": true,
+            "schema": {
+              "title": "Technicianid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "brand",
+            "required": true,
+            "schema": {
+              "title": "Brand",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "reason",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Reason"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Platformrevoketechnicianbrandauthorization",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "撤銷師傅某品牌授權（軟撤，保留歷史）",
+        "tags": [
+          "platform"
+        ]
+      },
+      "put": {
+        "operationId": "platformGrantTechnicianBrandAuthorization",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "technicianId",
+            "required": true,
+            "schema": {
+              "title": "Technicianid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "brand",
+            "required": true,
+            "schema": {
+              "title": "Brand",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandAuthGrantBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Platformgranttechnicianbrandauthorization",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "授權師傅某品牌（冪等 upsert）",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
     "/api/v1/platform/technicians/{technicianId}/certifications": {
       "get": {
         "operationId": "listPlatformTechnicianCertifications",
@@ -22902,6 +24601,67 @@
           }
         },
         "summary": "解密顯示敏感 PII 全值（每次揭露寫稽核）",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/technicians/{technicianId}:issue-upload-token": {
+      "post": {
+        "description": "UAT R2 W3-5:師傅離開註冊頁後無法自行補傳文件 → 平台管理員補發\n上傳 token,轉交師傅至師傅站 /upload-docs/{token} 補件(復用註冊流程\n既有的憑 token 公開上傳端點)。token 明文僅此 response 一次性顯示。",
+        "operationId": "platformIssueTechnicianUploadToken",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "technicianId",
+            "required": true,
+            "schema": {
+              "title": "Technicianid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Platformissuetechnicianuploadtoken",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "補發文件上傳 token（免 email 補件連結，一次性明文回傳）",
         "tags": [
           "platform"
         ]
@@ -23391,6 +25151,134 @@
         ]
       }
     },
+    "/api/v1/platform/tenants/{tenantId}/license": {
+      "get": {
+        "operationId": "getPlatformTenantLicense",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Getplatformtenantlicense",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "租戶 License 與已開通模組",
+        "tags": [
+          "platform"
+        ]
+      },
+      "put": {
+        "operationId": "updatePlatformTenantLicense",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LicenseUpdateBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Updateplatformtenantlicense",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "更新租戶 License（訂閱級距／模組開通／到期日）",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
     "/api/v1/platform/tenants/{tenantId}:reactivate": {
       "post": {
         "operationId": "reactivatePlatformTenant",
@@ -23572,85 +25460,14 @@
             "description": "Validation Error"
           }
         },
-        "summary": "跨品牌廠商清單（平台審核用）",
+        "summary": "跨品牌廠商清單（平台管理用）",
         "tags": [
           "platform"
         ]
-      }
-    },
-    "/api/v1/platform/vendors/{vendorId}:approve": {
+      },
       "post": {
-        "operationId": "platformApproveVendor",
+        "operationId": "platformCreateVendor",
         "parameters": [
-          {
-            "in": "path",
-            "name": "vendorId",
-            "required": true,
-            "schema": {
-              "title": "Vendorid",
-              "type": "string"
-            }
-          },
-          {
-            "in": "header",
-            "name": "Authorization",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Authorization"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Platformapprovevendor",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "核准廠商（pending_approval → active）",
-        "tags": [
-          "platform"
-        ]
-      }
-    },
-    "/api/v1/platform/vendors/{vendorId}:reject": {
-      "post": {
-        "operationId": "platformRejectVendor",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "vendorId",
-            "required": true,
-            "schema": {
-              "title": "Vendorid",
-              "type": "string"
-            }
-          },
           {
             "in": "header",
             "name": "Authorization",
@@ -23672,19 +25489,19 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/routers__platform_vendors__RejectBody"
+                "$ref": "#/components/schemas/VendorCreateBody"
               }
             }
           },
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
                   "additionalProperties": true,
-                  "title": "Response Platformrejectvendor",
+                  "title": "Response Platformcreatevendor",
                   "type": "object"
                 }
               }
@@ -23702,7 +25519,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "拒絕廠商（pending_approval → rejected）",
+        "summary": "平台代建廠商帳號（建立即啟用，取代自助註冊）",
         "tags": [
           "platform"
         ]
@@ -27131,6 +28948,57 @@
         ]
       }
     },
+    "/api/v1/technicians/line-webhook": {
+      "post": {
+        "operationId": "technicianLineWebhook",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "X-Line-Signature",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Line-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Technicianlinewebhook",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "平台 LINE 官方號 webhook(綁定碼訊息)",
+        "tags": [
+          "M05 Technician"
+        ]
+      }
+    },
     "/api/v1/technicians/login": {
       "post": {
         "operationId": "loginTechnician",
@@ -27481,6 +29349,87 @@
         ]
       }
     },
+    "/api/v1/technicians/me/commission-statements": {
+      "get": {
+        "operationId": "listMyCommissionStatements",
+        "parameters": [
+          {
+            "description": "最多回傳期數（月）",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "description": "最多回傳期數（月）",
+              "maximum": 60,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Listmycommissionstatements",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "技師本人佣金對帳單（月彙總；UAT P2-5 補端點，讀 R4 佣金投影）",
+        "tags": [
+          "dispatch"
+        ]
+      }
+    },
     "/api/v1/technicians/me/dashboard-summary": {
       "get": {
         "operationId": "getMyDashboardSummary",
@@ -27545,6 +29494,271 @@
         "summary": "技師決策屏聚合（今日/本週收入、本月毛額、完成率、到場時間、客戶評價；CR-0088）",
         "tags": [
           "dispatch"
+        ]
+      }
+    },
+    "/api/v1/technicians/me/line-bind-code": {
+      "post": {
+        "operationId": "issueTechnicianLineBindCode",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Issuetechnicianlinebindcode",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "簽發 LINE 綁定碼(6 位,TTL 10 分鐘,舊碼作廢)",
+        "tags": [
+          "M05 Technician"
+        ]
+      }
+    },
+    "/api/v1/technicians/me/line-binding": {
+      "delete": {
+        "operationId": "deleteTechnicianLineBinding",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "解除 LINE 綁定",
+        "tags": [
+          "M05 Technician"
+        ]
+      },
+      "get": {
+        "operationId": "getTechnicianLineBinding",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Gettechnicianlinebinding",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "查 LINE 綁定狀態(userId 遮蔽)",
+        "tags": [
+          "M05 Technician"
+        ]
+      },
+      "patch": {
+        "operationId": "updateTechnicianLineBinding",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_PoolNotifyBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Updatetechnicianlinebinding",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "池內新單推播開關(HD-3=b)",
+        "tags": [
+          "M05 Technician"
         ]
       }
     },
@@ -28132,7 +30346,7 @@
     },
     "/api/v1/technicians/{technician_id}/workload-heatmap": {
       "get": {
-        "description": "A37 排班熱力圖端點 — admin 看候選技師近 30 日 daily workload + load_intensity 分級。",
+        "description": "A37 排班熱力圖端點 — admin 看候選技師近 30 日 daily workload + load_intensity 分級。\n\nCR/0719 UAT C-7：原守衛 require_tenant 無 role 檢查 → 任何技師 token 可讀同儕\nworkload（IDOR）。改 DISPATCH_ROLES（admin/ops/dispatcher 派工方管理視角）。",
         "operationId": "getTechnicianWorkloadHeatmap",
         "parameters": [
           {
@@ -28257,83 +30471,6 @@
           }
         },
         "summary": "廠商/品牌商登入（發案者，CR-0029；與後台角色隔離）",
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/api/v1/vendors/register": {
-      "post": {
-        "operationId": "registerVendor",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "Idempotency-Key",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Idempotency-Key"
-            }
-          },
-          {
-            "in": "header",
-            "name": "X-Tenant-ID",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Tenant-Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/VendorRegisterBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "201": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Registervendor",
-                  "type": "object"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "廠商/品牌商註冊（發案者，CR-0029）",
         "tags": [
           "auth"
         ]
@@ -34273,6 +36410,84 @@
         ]
       }
     },
+    "/tenants/{tenantId}/accounting/reconciliation-gate": {
+      "get": {
+        "description": "回 {checked, matched, mismatched, missing, gate_pass}。\nKafka 未啟用時 skipped=true（無投影不誤報）；mismatch>0 → gate_pass=false 應阻結算。",
+        "operationId": "commissionReconcileGateV2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Commissionreconcilegatev2",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "期末對帳閘門：品牌佣金 vs 技師平台投影對平（CR-0166 R4）",
+        "tags": [
+          "M12 Reconciliation",
+          "M09 Accounting"
+        ]
+      }
+    },
     "/tenants/{tenantId}/accounting/reconciliations": {
       "get": {
         "operationId": "listReconciliationsV2",
@@ -35630,6 +37845,95 @@
           }
         },
         "summary": "匯出稽核事件（tenant-scoped v2）",
+        "tags": [
+          "M17 Audit"
+        ]
+      }
+    },
+    "/tenants/{tenantId}/audit/verify": {
+      "get": {
+        "description": "CR-0164 A：把既有 audit_log_service.verify_audit_chain 接上 API（原為死機制）。\n\naudit_events 為部署層級事件（無 tenant_id），鏈為全域——tenant path 僅供\n授權對齊（admin gate + ADR-0030 cross-tenant guard）；驗的是整條部署鏈。\n回 {checked, valid, broken_at}；valid=False 時 broken_at 為第一個竄改/斷鏈列 id。",
+        "operationId": "verifyAuditChainV2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Verifyauditchainv2",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "稽核 hash-chain 完整性驗證（NFR-Aud-001；偵測竄改/斷鏈）",
         "tags": [
           "M17 Audit"
         ]
@@ -44239,7 +46543,7 @@
         ]
       },
       "put": {
-        "description": "建 config_version(state='draft')。\n\nheader X-Initiator required（draft 只需發起人，不強制雙簽）。\nproposed_value 先經 namespace.json_schema 驗證（422 CONFIG_SCHEMA_INVALID on fail）。",
+        "description": "建 config_version(state='draft')。\n\nheader X-Initiator required（draft 只需發起人，不強制雙簽）。\nproposed_value 先經 namespace.json_schema 驗證（422 CONFIG_SCHEMA_INVALID on fail）。\nCR-0166 R1：靜態 gate 放寬 OPS_ROLES，service 依 namespace owner_role_codes 動態縮權。",
         "operationId": "createConfigDraft",
         "parameters": [
           {
@@ -45770,6 +48074,287 @@
           }
         },
         "summary": "師傅拆帳規則主檔 v2（CR-0037；base_payout 僅後台可見）",
+        "tags": [
+          "M04 Quote",
+          "M12 Settlement"
+        ]
+      },
+      "post": {
+        "operationId": "createPayoutRuleV2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_PayoutRuleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Createpayoutrulev2",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "新增拆帳規則（UAT-0718 W1-6；硬性稽核）",
+        "tags": [
+          "M04 Quote",
+          "M12 Settlement"
+        ]
+      }
+    },
+    "/tenants/{tenantId}/payout-rules/{ruleId}": {
+      "delete": {
+        "operationId": "deletePayoutRuleV2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ruleId",
+            "required": true,
+            "schema": {
+              "title": "Ruleid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Deletepayoutrulev2",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "停用拆帳規則（軟刪 deleted_at；硬性稽核）",
+        "tags": [
+          "M04 Quote",
+          "M12 Settlement"
+        ]
+      },
+      "patch": {
+        "operationId": "updatePayoutRuleV2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ruleId",
+            "required": true,
+            "schema": {
+              "title": "Ruleid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/_PayoutRuleBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Updatepayoutrulev2",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "編輯拆帳規則（partial；編輯後 is_mock=FALSE；硬性稽核）",
         "tags": [
           "M04 Quote",
           "M12 Settlement"
@@ -48719,6 +51304,22 @@
               ],
               "title": "X-Tenant-Id"
             }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "responses": {
@@ -48804,6 +51405,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -48902,6 +51519,22 @@
               ],
               "title": "X-Tenant-Id"
             }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "requestBody": {
@@ -48997,6 +51630,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -49094,6 +51743,22 @@
               ],
               "title": "X-Tenant-Id"
             }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
           }
         ],
         "responses": {
@@ -49179,6 +51844,22 @@
                 }
               ],
               "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
             }
           }
         ],
@@ -49996,6 +52677,18 @@
             }
           },
           {
+            "description": "csv / pdf",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "default": "csv",
+              "description": "csv / pdf",
+              "title": "Format",
+              "type": "string"
+            }
+          },
+          {
             "description": "KPI 期間：today/7d/30d/90d",
             "in": "query",
             "name": "period",
@@ -50084,9 +52777,10 @@
               "application/json": {
                 "schema": {}
               },
+              "application/pdf": {},
               "text/csv": {}
             },
-            "description": "CSV stream"
+            "description": "CSV / PDF stream"
           },
           "403": {
             "description": "缺乏匯出權限或跨 tenant 存取"
@@ -50095,7 +52789,7 @@
             "description": "參數錯誤"
           }
         },
-        "summary": "匯出 KPI / 營收 / 技師排行 / 結算報表（tenant-scoped v2；CSV stream）",
+        "summary": "匯出 KPI / 營收 / 技師排行 / 結算報表（tenant-scoped v2；CSV stream / PDF）",
         "tags": [
           "Reports",
           "Reports"
@@ -52865,9 +55559,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "additionalProperties": true,
-                "title": "Body",
-                "type": "object"
+                "$ref": "#/components/schemas/SopDraftCreateRequest"
               }
             }
           },
@@ -55667,7 +58359,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "廠商列表 v2（品牌唯讀；核准/拒絕已移平台 console）",
+        "summary": "廠商列表 v2（品牌唯讀；廠商帳號由平台代建）",
         "tags": [
           "M14 Vendor",
           "M14 Vendor"
@@ -56420,20 +59112,23 @@
             }
           },
           {
-            "description": "工單狀態（dispatched/completed/refunded/disputed 等）",
+            "description": "工單狀態，可重複帶多值取聯集（UAT R3-7；例 status=assigned&status=confirmed）；向後相容單值",
             "in": "query",
             "name": "status",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "description": "工單狀態（dispatched/completed/refunded/disputed 等）",
+              "description": "工單狀態，可重複帶多值取聯集（UAT R3-7；例 status=assigned&status=confirmed）；向後相容單值",
               "title": "Status"
             }
           },
@@ -56892,6 +59587,109 @@
           }
         },
         "summary": "後台唯讀取得工單三段免責同意狀態 v2（CR-0091；複用 consent_service）",
+        "tags": [
+          "M06 WorkOrder",
+          "M06 WorkOrder"
+        ]
+      }
+    },
+    "/tenants/{tenantId}/work-orders/{id}/consents:send-link": {
+      "post": {
+        "description": "派工單模組 4：後台按鈕主動推簽署連結（客戶未綁 LINE 時回連結供複製）。\n\n冪等防連點重推；token 為 stateless HMAC，重發產生並存有效 token\n（皆指向同一工單的 consent upsert，語意無害；稽核靠事件 token_hash）。",
+        "operationId": "sendWorkOrderConsentLinkV2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Sendworkorderconsentlinkv2",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "發送免責簽署連結給客戶 v2（CR-0180；鑄 public_token + LINE 推播）",
         "tags": [
           "M06 WorkOrder",
           "M06 WorkOrder"
@@ -59261,6 +62059,117 @@
           }
         },
         "summary": "強制改派 v2（Flow 8；assigned | accepted | in_progress 收回 → assigned）",
+        "tags": [
+          "M06 WorkOrder",
+          "M06 WorkOrder"
+        ]
+      }
+    },
+    "/tenants/{tenantId}/work-orders/{id}:reject": {
+      "post": {
+        "description": "技師拒絕本人被派的工單 → 回 created 池，擴大候選（UF-04/TC-DISPATCH-02）。\n後台改派走 :reassign（不混用）。",
+        "operationId": "rejectWorkOrderV2",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenantId",
+            "required": true,
+            "schema": {
+              "title": "Tenantid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Tenant-ID",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Tenant-Id"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkOrderRejectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkOrderEnvelope"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "技師拒單 v2（tenant-scoped，assigned → created 回派工池）",
         "tags": [
           "M06 WorkOrder",
           "M06 WorkOrder"

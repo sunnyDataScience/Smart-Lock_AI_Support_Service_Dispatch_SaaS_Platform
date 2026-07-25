@@ -309,6 +309,8 @@ stateDiagram-v2
 | FR-API-18 | 例外審批收件匣 + SoD | 例外事件 | 例外案件（reschedule / exception_case / dispute）集中收件匣；敏感操作 `X-Initiator/X-Approver/X-Executor` 任二相同 → 403 | SoD 違反 100% 阻擋 | BR-CR-*；NFR-Aud |
 | FR-API-19 🔜 | 急件事後補審引擎 | WO 帶 `emergency_class` + onsite 結束 | 建 `retrospective_audit` 任務（due=onsite_end+PT4H，掛 SLA timer）→ 小編補審佇列 → 補送 `retrospective_audit_only` quote → 客戶 LIFF 事後確認 / 紙本 | 逾 4h audit alert 升主管；同品牌連 ≥3 次逾時自動開 ChangeRequest；結案 gate 檢 `retrospective_quote_audit_complete` | BR-WO-004；15_SDS §4.5 |
 
+〔標注 2026-07-25（0723 會議決議＋業主裁決「都改七天、expire 保留」，CR-0181；不改寫原文，僅新增本段）：FR-API-02 之 `confirm_token TTL=48h` 已修訂為 **7 天**——客戶常隔數日回應，48h 連結先死造成流程卡住。同輪報價有效期一般 14 天／急件 3 天（BR-M04-05）統一改 **7 天**（M18 config `quote_validity_policy`＋migration 115）；expired 報價單**保留不清除**（會議原議「過 7 天完全清掉」經業主推翻）。as-built＝`_CONFIRM_TOKEN_MAX_DAYS=7`、validity fallback 7/7。〕
+
 ### 3.3 web（多站前端）
 
 | 編號 | 需求 | 前置條件 | 主流程 | 後置條件與驗收 | 追溯 |

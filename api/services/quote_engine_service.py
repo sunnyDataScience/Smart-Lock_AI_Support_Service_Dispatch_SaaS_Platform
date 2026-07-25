@@ -41,13 +41,13 @@ _TRANSITIONS = {
     "audit_complete": ({"retrospective_audit_only", "sent"}, "accepted"),
 }
 
-# 有效期（BR-M04-05）：一般 14d、急件 3d（CR-0044 已知規格；以下為 config fallback 預設）
-_VALIDITY_DAYS_NORMAL = 14
-_VALIDITY_DAYS_URGENT = 3
+# 有效期：一般/急件統一 7d（CR-0181 業主裁決，取代 BR-M04-05 的 14d/3d；config fallback 預設）
+_VALIDITY_DAYS_NORMAL = 7
+_VALIDITY_DAYS_URGENT = 7
 
 
 async def _validity_days(urgent: bool) -> int:
-    """CR-0044：有效期讀 M18 config quote_validity_policy（缺則 fallback 14/3，不寫死）。"""
+    """CR-0044：有效期讀 M18 config quote_validity_policy（缺則 fallback 7/7，不寫死）。"""
     from services import config_m18_service
 
     cfg = await config_m18_service.read_global_value(namespace="quote_validity_policy")
@@ -701,17 +701,17 @@ async def _log_quote_event_to_conversation(quote_id: str, action: str, result: d
     await conversation_service.append_event_note(conversation_id=conv_id, content=note)
 
 
-# FR-API-02：confirm_token TTL 上限 48h（2 天）——即使報價有效期更長，客戶確認連結
-# 最多 48h（合約 confirm_token TTL=48h）。仍不超過報價有效期（取兩者較小）。
-_CONFIRM_TOKEN_MAX_DAYS = 2
+# confirm_token TTL 上限 7 天（CR-0181 業主裁決，取代 FR-API-02 原 48h）——客戶常隔數日
+# 才回應，48h 連結先死造成流程卡住。仍不超過報價有效期（取兩者較小）。
+_CONFIRM_TOKEN_MAX_DAYS = 7
 
 
 def _ttl_days_from(expiry: datetime | None) -> int:
-    """token TTL＝min(報價有效期, 48h)；無 expiry 則 fallback。至少 1 天、至多 2 天。
+    """token TTL＝min(報價有效期, 7d)；無 expiry 則 fallback。至少 1 天、至多 7 天。
 
     用小時粒度 ceil（非 .days 整日截斷）—— 報價剩 6h 時應給能完整覆蓋的天數，
     避免 token 反而比報價長命；已過期報價（remaining ≤ 0）給最小 1 天供唯讀查看。
-    FR-API-02：上限 48h（_CONFIRM_TOKEN_MAX_DAYS），確認連結不長於 2 天。
+    CR-0181：上限 7 天（_CONFIRM_TOKEN_MAX_DAYS），原 FR-API-02 的 48h 已修訂。
     """
     if not expiry:
         return min(_CONFIRM_TOKEN_MAX_DAYS, _VIEW_TOKEN_FALLBACK_DAYS)

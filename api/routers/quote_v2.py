@@ -35,7 +35,7 @@ def _cost(user: CurrentUser) -> bool:
 
 
 class _QuoteCreateBody(BaseModel):
-    urgent: bool = Field(default=False, description="急件 → 有效期 3d")
+    urgent: bool = Field(default=False, description="急件 → 有效期 7d（CR-0181 與一般拉平；原 3d）")
 
 
 class _AddLineBody(BaseModel):

@@ -95,6 +95,8 @@ LINE 發訊 →「門鎖沒電打不開」→ AI 意圖分類 → 判定急件�
 | **急件事後補審** | 急件跳過報價直接開單施工 → onsite 結束 4h 內小編補送 retrospective 報價 → 客戶 LIFF 事後確認 / 紙本簽 → 解鎖結案 audit gate |
 | **現場報價修正 re-quote** | 師傅到府複核發現線上報價與現場不符（估價誤差 / 加價 / 改項）→ 加價 ≥ 501 元暫停施工 → 系統自動建報價 v+1（快照串鏈）→ 分層核可（501–2000 小編 / >2000 主管；減價或同額修正直接送）→ 客戶 LIFF 確認 → 復工並更新料件；拒絕 → 按原報價完工 |
 
+> 〔標注 2026-07-25（CR-0181 業主裁決）：上表「confirm token TTL 48h」已修訂為 **7 天**（＝min(報價剩餘有效期, 7d)）；報價有效期一般/急件統一 7 天。〕
+
 ### 6.3 技師上架與工作情境
 
 線上註冊（姓名 / 電話 / 專長）→ `pending_approval` → 後台核准 → `active` 可被派工（另有拒絕 / 暫停 / 復權 / 終止四種轉移，皆留稽核；terminated 不可逆）。日常：師傅 web 工作台看跨品牌派工（🔜 規劃中：Kafka 工單投影，Phase 3）→ 接單 → 到場 → 門檢 → 加價 re-quote → 完工回報 → 月結單一 statement。
@@ -145,6 +147,8 @@ LINE 發訊 →「門鎖沒電打不開」→ AI 意圖分類 → 判定急件�
 | FR-C04 | 客戶 LIFF 確認：明細 + 條款漸進揭露 + checkbox 同意；`POST /quotes/{id}/customer-confirm`（Idempotency-Key + confirm token TTL 48h）；consent 方式記錄（liff_full / flex_simple_fallback）| P0 |
 | FR-C05 | AI 報價邊界 server-side 強制：AI 訊息用 server 模板（無自由文金額）；保固 / 建案案件 AI 觸發送出 → 403 | P0 |
 | FR-C06 | 急件 retrospective 報價：4h 內補送 + 事後確認；逾時 audit alert 升級；定價規則變更走 ChangeRequest 四級授權矩陣（[02_BRD](./02_BRD.md) §6.3）| P0 |
+
+> 〔標注 2026-07-25（CR-0181 業主裁決）：FR-C01「expired（48h）」與 FR-C04「confirm token TTL 48h」均已修訂為 **7 天**（有效期自建立時錨定、token=min(剩餘有效期, 7d)）；expired 單保留不清除。〕
 
 ### 7.4 現場維修
 

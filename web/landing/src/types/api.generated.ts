@@ -13,13 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /**
-         * 管理員登入
-         * @description CR-0177 S3a：登入/刷新成功 → 同步寫 httpOnly access cookie。
-         *
-         *     與 response body 的 token **並存**（localStorage 過渡期不變，見 core/auth_cookie 說明）；
-         *     自訂網域上線後設 `AUTH_COOKIE_DOMAIN` 即跨子網域生效，屆時才移除 localStorage（S3b）。
-         */
+        /** 管理員登入 */
         post: operations["loginAdmin"];
         delete?: never;
         options?: never;
@@ -12855,7 +12849,7 @@ export interface components {
         _QuoteCreateBody: {
             /**
              * Urgent
-             * @description 急件 → 有效期 3d
+             * @description 急件 → 有效期 7d（CR-0181 與一般拉平；原 3d）
              * @default false
              */
             urgent: boolean;
@@ -13245,9 +13239,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    [key: string]: unknown;
-                };
+                "application/json": components["schemas"]["LoginBody"];
             };
         };
         responses: {
@@ -13257,7 +13249,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */

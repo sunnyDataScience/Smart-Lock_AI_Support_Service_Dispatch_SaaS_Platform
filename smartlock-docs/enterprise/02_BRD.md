@@ -220,6 +220,8 @@ sequenceDiagram
 | **Payment / Refund** | deposit_required → paid → pending（對帳）→ 入帳；失敗 / 客戶退款 → refund_requested → 依責任歸屬 5×3 分層裁決 | 更正一律 reversal entry，帳本 append-only |
 | **Evidence** | fresh → active → pending_purge（retention 到期 T0：銷毀金鑰 + 軟刪）→ purged（T+30 天硬刪）；任何時點可 legal_hold | legal_hold 永久且不可逆，解除須 ADR 變更 |
 
+> 〔標注 2026-07-25（CR-0181 業主裁決「都改七天、expire 保留」）：Quote 列「expired（48h）」已修訂——報價有效期一般/急件統一 **7 天**（自建立時錨定），confirm_token TTL 亦 48h→7 天；expired 單保留不清除。Conversation 列之 48h auto_closed（BR-CONV-01）為對話域，不在本裁決範圍、維持原樣；code 中報價過期與對話結案**無連動**。〕
+
 > 〔標注 2026-07-22：本表 ProblemCard「連續 3 次未釐清 → 升級真人」已由 SOP 演進取代（情境式一次列齊缺項＋紅線觸發即轉，[ADR-033](./14_ADR/ADR-033_轉真人判準_SOP情境式紅線_取代三輪硬計數.md)）；resolved 之「客戶明確答覆已釐清」語意保留為話術原則。〕
 
 ---

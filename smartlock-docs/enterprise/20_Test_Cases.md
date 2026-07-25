@@ -282,6 +282,8 @@ upstream:
 | TC-QUOTE-08 | FR-0042 | 同 Idempotency-Key 重送 customer-confirm | 重送 POST | 200 冪等回放；不重觸發工單建立、audit 不重複 | 例外 | P0 |
 | TC-QUOTE-09 | FR-API-02 / CR-0178 | customer_sent、已同意、已拒絕、已過期與不存在/無權報價 fixture | 先送同決定重播，再送相反決定、過期、404、403 與非 JSON 錯誤 | 同決定安全回放；相反終態 409 `QUOTE_ALREADY_DECIDED`、過期 409 `QUOTE_EXPIRED`；LINE 依 error_code 顯示精確話術，未知格式走友善 fallback | 狀態+例外 | P0 |
 
+> 〔標注 2026-07-25（CR-0181 業主裁決「都改七天、expire 保留」）：**TC-QUOTE-05 出題請改用新規格**——①「超過 48h」改為「超過報價有效期 **7 天**（一般/急件同）」②as-built 過期機制是客戶操作時的 **lazy 檢查**（accept 當下判 `expiry_at` 逾期 → 改 expired + 409/410），**無 cron tick、無 `expired_by_cron` audit**——驗證方式＝把 fixture `expiry_at` 撥到過去後客戶操作，勿等排程；③expired 單保留不清除。用 48h 舊條件測會產生假 finding。〕
+
 ## 6. 派工與現場案例（TC-DISPATCH / TC-ONSITE）
 
 派工經 **OHS API + Kafka 事件**（品牌 api → technician-platform，不直連技師庫；`ADR-P004` / `ADR-P014`）。

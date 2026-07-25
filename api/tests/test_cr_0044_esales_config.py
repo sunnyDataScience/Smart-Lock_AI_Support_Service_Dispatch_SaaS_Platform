@@ -2,7 +2,8 @@
 
 業主 2026-06-19 裁決：取消費 SoT 衝突採 esales（S3=500/S4=800）；已決定值入 config。
 - 純函式：DEFAULT_CANCELLATION_CONFIG s3/s4 已校正
-- component（需 migration 054）：get_cancellation_config 反映 500/800；有效期讀 config 14/3
+- component（需 migration 054＋115）：get_cancellation_config 反映 500/800；有效期讀 config 7/7
+  （CR-0181 統一 7 天；DB 未套 115 時 config 仍為 054 的 14/3，本測試會紅——先套 migration）
 """
 
 from __future__ import annotations
@@ -37,5 +38,6 @@ async def test_get_cancellation_config_reflects_esales():
 @pytest.mark.asyncio
 async def test_validity_days_from_config():
     assert await db_module._ensure_conn()
-    assert await quote_engine_service._validity_days(False) == 14
-    assert await quote_engine_service._validity_days(True) == 3
+    # CR-0181：一般/急件統一 7 天（DB 無 quote_validity_policy 時走 code fallback 7/7）
+    assert await quote_engine_service._validity_days(False) == 7
+    assert await quote_engine_service._validity_days(True) == 7

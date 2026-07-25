@@ -29,7 +29,7 @@
 | 008-rls | _(reserved, renumbered)_ | P2-β | 🔒 預留 | RLS session config（SET ROLE / set_config per-request + non-owner app role）— 原佔用 008 編號已被 pricing-rules-v2 使用，請改用 014 或下一可用編號 |
 | 009 | `009-data-corrections-v2.sql` | Track B S5 | ✅ done | data_corrections tenant-scoped review queue：CREATE TABLE IF NOT EXISTS + 補 reviewed_by/reviewed_at/review_note + 補 tenant_id（方案 B 就地補）+ backfill NULL→dev tenant + idx_dc_tenant_status_created。resolved 第四態 + require_admin（CR-0004 §8 HD-1~HD-5 / ADR-0029 / ADR-0030）|
 | 010 | `010-vouchers-void.sql` | Track B S7 | ✅ done | saas.voucher + saas.voucher_void_event（紅字沖銷 append-only；hash chain V1 issuer_party/legal_basis/hash_prev/hash_self；append-only trigger BR-AUDIT-007；backfill public.vouchers → saas.voucher）ADR-VCH-001/002 / CR-0004 §8 HD-VCH-001~004 |
-| 010-quote | _(reserved, renumbered)_ | P3 | 🔒 預留 | quote_version（lifecycle 狀態機 + 14d/3d TTL；對照 spec DDL saas.quote_version）— 原佔用 010 編號已被 vouchers-void 使用，請改用 014 或下一可用編號 |
+| 010-quote | _(reserved, renumbered)_ | P3 | 🔒 預留 | quote_version（lifecycle 狀態機 + ~~14d/3d~~ **7d/7d TTL——CR-0181 業主裁決 2026-07-25 統一 7 天，見 115**；對照 spec DDL saas.quote_version）— 原佔用 010 編號已被 vouchers-void 使用，請改用 014 或下一可用編號 |
 | 011 | _(reserved)_ | P3 | 🔒 預留 | M18 config governance 四表（namespace / version / rollout / audit）|
 | 012 | _(reserved)_ | P3 | 🔒 預留 | sync 6 模組（outbox + idempotency + human gate）|
 | 013 | _(reserved)_ | P3 | 🔒 預留 | dgs / change_request / exceptions inbox |
@@ -146,6 +146,8 @@
 | 113 | `113-purge-audit-ledger.sql` | NFR-Priv-008 / FR-API-16 | 🟢 idempotent（CREATE TABLE/INDEX IF NOT EXISTS + CREATE OR REPLACE FUNCTION + DROP/CREATE TRIGGER，拋棄式 PG16 驗證 2026-07-21） | two-phase purge 專用 append-only 稽核帳本：`saas.purge_audit`（phase soft_delete_t0/hard_delete_t30、crypto_shredded/physical_deleted、immutability trigger 擋 UPDATE/DELETE），與泛用 audit_events 併存。gdpr_forget_service soft_delete/hard_delete 各落一筆 |
 
 | 114 | `114-user-pii-blind-index.sql` | CR-0176 S5 前置（業主 0722 A1） | 🟢 idempotent（ADD COLUMN/CREATE INDEX IF NOT EXISTS，拋棄式 PG16 驗證 2026-07-22） | users email/phone blind index：`email_bidx`/`phone_bidx`（HMAC-SHA256，金鑰 env `USER_PII_BIDX_KEY`，app 層 core/user_pii_bidx.py 計算）＋partial index——S5 DROP 明文前 login/EMAIL_TAKEN/phone 去重的等值查改雙謂詞（明文 OR bidx）。backfill＝scripts/backfill_user_pii_encryption.py |
+
+| 115 | `115-quote-validity-7d.sql` | CR-0181（0723 會議決議＋業主 0725 裁決） | 🟢 idempotent（value 比對後 retire＋WHERE NOT EXISTS 補插，拋棄式 PG16 驗證 2026-07-25：二套 UPDATE 0/INSERT 0） | 報價有效期一般/急件統一 7 天：retire 054 種的 `quote_validity_policy` 14/3 全域 active row → 插入 7/7 active（M18 治理外直寫，與 054 同途徑）＋namespace description 更新。落庫＝**品牌庫**。配套 code：validity fallback 7/7＋confirm_token TTL 上限 48h→7d（後者需重佈 api）；expired 單保留不清除（業主推翻會議清除決議） |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

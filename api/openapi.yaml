@@ -51,7 +51,7 @@ info:
       - 409 QUOTE_STATE_INVALID (ADR-0062)
       - 409 QUOTE_VERSION_STALE (ADR-0065)
       - 409 URGENT_WINDOW_EXPIRED (ADR-0066)
-      - 410 QUOTE_EXPIRED (ADR-0064; 48h TTL)
+      - 410 QUOTE_EXPIRED (ADR-0064; 7d TTL, CR-0181 revised from 48h)
       - 410 AUDIT_WINDOW_EXPIRED (ADR-0066; 4h)
       - 422 PC_UNIQUE_VIOLATION (ADR-0036)
       - 422 SCOPE_OVERLAP (ADR-0060)
@@ -492,7 +492,8 @@ paths:
       operationId: customerConfirmQuote
       description: |
         ADR-0064 LIFF Token & Idempotency.
-        `confirm_token` TTL = 48h (quote lifetime); expired token → 401 LIFF_TOKEN_EXPIRED.
+        `confirm_token` TTL = 7d (quote lifetime; CR-0181 revised FR-API-02 from 48h);
+        expired token → 401 LIFF_TOKEN_EXPIRED.
         Idempotency-Key is REQUIRED so accidental double-tap on LIFF or flex one-tap
         retries do not double-confirm.
         Version conflict (the customer is confirming an older version) → 409
@@ -516,7 +517,7 @@ paths:
           description: QUOTE_VERSION_STALE — accepted_version != current quote.version
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
         '410':
-          description: QUOTE_EXPIRED — quote 48h TTL passed
+          description: QUOTE_EXPIRED — quote 7d TTL passed (CR-0181)
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
         '422':
           description: QUOTE_STATE_INVALID — quote is not in customer_sent state
@@ -5391,7 +5392,7 @@ components:
               draft → (:approve) → internal_approved → (:send-to-customer) → customer_sent
                 → (/customer-confirm) → customer_confirmed
               draft|internal_approved|customer_sent → (/reject) → rejected
-              customer_sent → (TTL 48h) → expired
+              customer_sent → (validity 7d from creation, CR-0181) → expired (row retained, never purged)
               any non-terminal → (:supersede) → superseded (+ new draft row)
               emergency carve-out → (/retrospective-audit) → retrospective_audit_only
         amount_breakdown:
@@ -5428,7 +5429,7 @@ components:
         ttl_expires_at:
           type: string
           format: date-time
-          description: '48h TTL from customer_sent (ADR-0064)'
+          description: '7d validity anchored at quote creation (ADR-0064; CR-0181 revised from 48h — normal/urgent both 7d, M18 config quote_validity_policy overridable; confirm_token TTL = min(remaining validity, 7d) minted at send)'
         confirm_token:
           type: string
           nullable: true
@@ -5486,7 +5487,7 @@ components:
       properties:
         confirm_token:
           type: string
-          description: 'opaque server-issued token; TTL = quote 48h'
+          description: 'opaque server-issued token; TTL = quote lifetime (7d cap, CR-0181)'
         accepted_version:
           type: integer
           minimum: 1

@@ -1,6 +1,6 @@
 """P1-C quote namespace 佔位 — DEFAULT_CONFIG 回歸護欄（無 DB，純 unit）。
 
-BR-M04-05 / FR-0042：報價有效期 14d（一般）/ 3d（急件）。
+CR-0181：報價有效期一般/急件統一 7d（原 BR-M04-05 / FR-0042 為 14d/3d）。
 """
 
 import pytest
@@ -16,14 +16,14 @@ def test_quote_namespace_exists():
 
 @pytest.mark.unit
 def test_quote_standard_ttl_days():
-    """一般報價有效期應為 14 天（BR-M04-05）。"""
-    assert DEFAULT_CONFIG["quote"]["standard_ttl_days"] == 14
+    """一般報價有效期應為 7 天（CR-0181）。"""
+    assert DEFAULT_CONFIG["quote"]["standard_ttl_days"] == 7
 
 
 @pytest.mark.unit
 def test_quote_urgent_ttl_days():
-    """急件報價有效期應為 3 天（BR-M04-05）。"""
-    assert DEFAULT_CONFIG["quote"]["urgent_ttl_days"] == 3
+    """急件報價有效期應為 7 天（CR-0181 與一般拉平）。"""
+    assert DEFAULT_CONFIG["quote"]["urgent_ttl_days"] == 7
 
 
 @pytest.mark.unit
