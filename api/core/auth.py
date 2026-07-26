@@ -27,6 +27,26 @@ _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 TokenType = Literal["access", "refresh"]
 
+# CR-0182：token 面向（portal claim）——跨面守衛用（UAT-0723-F2：技師 token 讀 brand
+# 客戶 PII/金流）。刻意不用標準 JWT `aud` 欄：jose.jwt.decode 未帶 audience 參數時會
+# 自動驗 aud → JWTClaimsError 破壞既有 decode（拋棄式測試證實）；亦避與部署塑形
+# `surface`（API_SURFACE，明示非安全邊界）撞名。
+# 推導方向：枚舉 non-brand（technician→tech、platform_*→platform），其餘→brand（含
+# vendor，業主 0726 D2a）；空/缺 role→None（呼叫端 deny，異常 token 不落最敏感的 brand）。
+_TECH_PORTAL_ROLES = frozenset({"technician"})
+_PLATFORM_PORTAL_ROLES = frozenset({"platform_admin", "platform_keeper"})
+
+
+def portal_for_role(role: str | None) -> str | None:
+    """role → token 面向（brand/tech/platform）；空/未知回 None（呼叫端 deny）。"""
+    if not role:
+        return None
+    if role in _TECH_PORTAL_ROLES:
+        return "tech"
+    if role in _PLATFORM_PORTAL_ROLES:
+        return "platform"
+    return "brand"
+
 
 def _cfg():
     return load_config().auth
@@ -74,6 +94,11 @@ def create_token(
         "exp": int(exp.timestamp()),
         "jti": jti,
     }
+    # CR-0182：寫入面向（belt）；判定端（get_current_user）對缺 portal 的 token 亦由
+    # role 即時推導（braces），故部署後 1h 內舊 access token 無 portal 亦被正確歸類。
+    _portal = portal_for_role(role)
+    if _portal is not None:
+        payload["portal"] = _portal
     secret = require_env(cfg.get("jwt_secret_env", "API_JWT_SECRET_KEY"))
     token = jwt.encode(payload, secret, algorithm=cfg.get("jwt_algorithm", "HS256"))
     return token, jti, exp

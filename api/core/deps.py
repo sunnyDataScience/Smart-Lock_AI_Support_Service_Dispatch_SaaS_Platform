@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from fastapi import Depends, Header, Request
 
-from core.auth import decode_token, is_jti_revoked, load_user_security_state
+from core.auth import decode_token, is_jti_revoked, load_user_security_state, portal_for_role
 from core.errors import ApiError
 from core.oidc import OIDCError, oidc_enabled, verify_oidc_token
 from core.tenant import resolve_tenant_id
@@ -24,6 +24,18 @@ class CurrentUser:
     tenant_id: str
     jti: str
     token_type: str
+
+
+# CR-0182（UAT-0723-F2）：跨面 token 守衛。三面共用 JWT secret，技師 token 過去可直接
+# 讀 brand-api 客戶 PII/金流。本服務只接受 ALLOWED_TOKEN_PORTALS 列出的面向 token。
+#   - env 未設/空 → None → 不強制（本機單體、pytest 之 API_SURFACE=all 沿用既有行為）
+#   - 雲端各服務顯式設定：brand-api=brand、tech-api=tech、platform-api=platform（api.sh）
+#   刻意獨立於 API_SURFACE（=部署塑形，all 同時是單體/測試模式，復用會自我失效）。
+def _allowed_portals() -> frozenset[str] | None:
+    raw = os.environ.get("ALLOWED_TOKEN_PORTALS", "").strip()
+    if not raw:
+        return None
+    return frozenset(p.strip() for p in raw.split(",") if p.strip())
 
 
 # ACT-01 地基(CR-0141 D5):R2 薄回調 handler 會把 token 寫進 httpOnly cookie;
@@ -115,9 +127,25 @@ async def get_current_user(
             status_code=401,
         )
 
+    token_role = payload.get("role")
+
+    # CR-0182（UAT-0723-F2）：跨面守衛。缺 portal 的 token（部署後 1h 內舊 access token、
+    # 或 SSO token——oidc.verify_oidc_token 不經 create_token）由 role 即時推導（braces）。
+    # portal 為 None（空/未知 role）或不在本服務允許集 → 403，不落最敏感的 brand。
+    # 掛在 get_current_user 單點即涵蓋所有受保護 HTTP 端點（含 F2 目標 bare require_tenant）。
+    # 範圍＝HTTP-only；WS 授權由 verify_ws_token/authorize_channel 另行把關。
+    _allowed = _allowed_portals()
+    if _allowed is not None:
+        portal = payload.get("portal") or portal_for_role(token_role)
+        if portal not in _allowed:
+            raise ApiError(
+                error_code="CROSS_PORTAL_FORBIDDEN",
+                message="Token is not valid for this service surface",
+                status_code=403,
+            )
+
     # CR-0114：platform_admin 的 revoked_jti/users 住平台庫 → 依 token role 路由查詢
     # （未配置平台庫時 fallback 主連線，行為同舊版）。
-    token_role = payload.get("role")
     jti = payload.get("jti")
     if jti and await is_jti_revoked(jti, token_role):
         raise ApiError(

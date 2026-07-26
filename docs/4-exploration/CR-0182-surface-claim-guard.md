@@ -72,7 +72,11 @@ brand-api / tech-api / platform-api **共用 JWT secret**，且 token payload �
 
 ### 進度
 - ✅ 雲端複現 F2、根因定位、95 端點掃描、設計對 code 三 lens 核實（17 findings）、CIA 完成。
-- 🛑 等 D1–D4 裁決後才動 code（auth 契約變更，依 change-governance 不先斬後奏）。
+- ✅ **業主裁決 2026-07-26：D1(a) 獨立 env／D2(a) vendor 併 brand／D3(a) 三面對稱／D4(a) 殘留另開 CR**。
+- **實作期修正 — claim 改名 `aud`→`portal`**：拋棄式測試證實用標準 JWT `aud` 欄會被 `jose.jwt.decode`（未帶 audience 參數）自動驗證而拋 `JWTClaimsError: Invalid audience`，破壞既有 decode。改自訂欄 `portal`（值 brand/tech/platform），同時避開與部署塑形 `surface` 撞名。對應：env＝`ALLOWED_TOKEN_PORTALS`、錯誤碼＝`CROSS_PORTAL_FORBIDDEN`。
+- **role→portal 推導方向**：枚舉 non-brand（technician→tech、platform_admin/platform_keeper→platform），其餘→brand（含 vendor per D2a），**空/缺 role→deny**（異常 token）。此方向可用性安全（不誤 deny 合法品牌角色），且正確隔離真實威脅（技師/平台 token 永不落 brand）。
+- ✅ **實作完成**（commit 見分支）：`core/auth.py` portal_for_role + create_token 寫 portal；`core/deps.py:get_current_user` 守衛（缺 portal 即時推導、`ALLOWED_TOKEN_PORTALS` 允許集、403 短路於 DB 前）；`api.sh` 三面對映烤 env；`test_cr_0182_portal_guard.py` 12 案全綠；openapi 錯誤碼 + CHANGELOG Security 段。基線比對確認零新增測試失敗（既有 15 紅＝本機 pytest 庫缺 migration 114 `email_bidx`，與本 CR 無關）。
+- ⏳ 待部署：先佈 code（未設 env 零行為變化）→ 雲端三服務重佈帶 env → F2 探針複驗 403。
 
 ## §9 Suggested Implementation Order（待 §8 裁決後定案，暫定）
 

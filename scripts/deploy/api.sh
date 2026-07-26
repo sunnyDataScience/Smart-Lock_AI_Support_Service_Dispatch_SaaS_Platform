@@ -77,6 +77,17 @@ ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
 # CR-0153(ADR-020):prod 三庫守衛——漏設對應面 URI 直接拒啟,不靜默 fallback
 ENV_VARS="${ENV_VARS},DB_URI_STRICT=1"
 ENV_VARS="${ENV_VARS},API_SURFACE=${API_SURFACE}"
+# CR-0182（UAT-0723-F2）：跨面 token 守衛——本服務只接受對應面向的 token（技師 token
+# 過去可讀 brand 客戶 PII/金流）。刻意獨立於 API_SURFACE：後者是部署塑形（all 同時=本機
+# 單體/pytest 模式），復用會自我失效。未設=不強制（本機/測試沿用）。tech/platform 面對稱
+# 設定（業主 0726 D3a），順帶擋反向越權。可用 ALLOWED_TOKEN_PORTALS 覆寫。
+case "${API_SURFACE}" in
+    tech)      _DEFAULT_PORTALS="tech" ;;
+    platform)  _DEFAULT_PORTALS="platform" ;;
+    *)         _DEFAULT_PORTALS="brand" ;;   # all / dispatch（雲端品牌服務）→ 僅收 brand
+esac
+ALLOWED_TOKEN_PORTALS="${ALLOWED_TOKEN_PORTALS:-${_DEFAULT_PORTALS}}"
+ENV_VARS="${ENV_VARS},ALLOWED_TOKEN_PORTALS=${ALLOWED_TOKEN_PORTALS}"
 # CR-0180：客戶面向連結的 base URL（免責簽署連結/quote/track Flex 連結共用 SSOT，
 # line_flex/builders.py 與 consent_service 讀）。預設=雲端 brand-portal 公開網址；
 # 未設會 fallback 到 example.com 死連結（0719 部署參數 parity 雷同源，故烤入）。

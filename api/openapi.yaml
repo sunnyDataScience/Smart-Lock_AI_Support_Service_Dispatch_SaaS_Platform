@@ -41,6 +41,9 @@ info:
     Error code catalogue (cross-endpoint):
       - 401 LIFF_TOKEN_EXPIRED (ADR-0064)
       - 403 CROSS_TENANT_WRITE (ADR-0030)
+      - 403 CROSS_PORTAL_FORBIDDEN (CR-0182 / UAT-0723-F2; token 面向不符本服務——token
+        帶 `portal` claim (brand|tech|platform)，服務以 ALLOWED_TOKEN_PORTALS 強制；
+        HTTP-only，WS 授權另由 authorize_channel 把關)
       - 403 AI_FORBIDDEN_ACTION (ADR-0031 / 0047)
       - 403 AI_FORBIDDEN_QUOTE_CREATE (ADR-0063)
       - 403 AI_FORBIDDEN_FINAL_QUOTE (ADR-0063)
