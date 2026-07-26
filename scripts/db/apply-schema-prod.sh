@@ -2,8 +2,12 @@
 # ============================================================
 # scripts/db/apply-schema-prod.sh
 #   把完整 schema（Schema.sql + Schema_*.sql + migrations/*.sql）依正規順序
-#   套用到目標 DB。全部 idempotent（ADD COLUMN IF NOT EXISTS 等），已存在的略過。
+#   套用到**單一目標 DB**。全部 idempotent（ADD COLUMN IF NOT EXISTS 等），已存在的略過。
 #   **不灌 demo seed**（prod 只補 schema，不動業務資料）。
+#
+#   ⚠️ 多庫（品牌/技師/平台）分流請改用 apply-schema-routed.sh（LOCK-62 item 2）——
+#      本單庫腳本把所有 migration 套同一庫，是 0724/0725「該落技師庫卻只套品牌庫」地雷
+#      的根源。routed 版讀 migration 檔頭 `-- migrate-targets:` 分流並逐庫記帳。
 #
 #   順序對齊 scripts/dev/quickstart.sh：
 #     1) SQL/Schema.sql

@@ -1,4 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════════════════
+-- migrate-targets: brand,tech  (LOCK-62：技師表在品牌庫與技師庫皆存在，兩庫皆須套用)
 -- 090-technician-registration-documents.sql — 師傅 KYC 文件上傳(CR-0115 S-upload)
 --
 -- 業主裁決(CR-0115 §8-2):(a) 兩階段 —— 先送基本資料建 pending 帳號 → 回

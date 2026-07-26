@@ -1,4 +1,5 @@
 -- 080-technician-level.sql
+-- migrate-targets: brand,tech  (LOCK-62：技師表在品牌庫與技師庫皆存在，兩庫皆須套用)
 -- WHY（CR-0104 / 師傅詳情頁假資料轉真 / 業主裁決「等級=後台手動指派」）：
 --   technicians 表無 level 欄，technician_service 對所有技師硬補常數 "C"（_DEFAULT_LEVEL）→
 --   個資卡「等級」全技師同值、是假的。業主裁決採「手動指派」：等級成為 per-technician 可儲存、

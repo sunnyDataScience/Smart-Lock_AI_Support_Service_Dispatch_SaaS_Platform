@@ -1,4 +1,5 @@
 -- 064-tech-gis-performance.sql
+-- migrate-targets: brand,tech  (LOCK-62：技師表在品牌庫與技師庫皆存在，兩庫皆須套用)
 -- WHY（CR-0061 / 審計 #10 #11 / BR-M06/BR-M07-03）：媒合 distance 為示意值非真實計算；排序只用單一
 --   rating，未納 on-time/acceptance 多維績效。沿 mock-first 補技師座標 + 績效欄，媒合用 Haversine 真距離
 --   + 多維績效進排序。（PostGIS 未裝，用純數學 Haversine + 區域中心點近似，不依賴 ST_Distance。）

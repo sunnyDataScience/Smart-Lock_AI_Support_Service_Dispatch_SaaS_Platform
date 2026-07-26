@@ -15,7 +15,10 @@
 >     000-baseline + 063/064/080/081/084/089/090（逐一驗證 schema 存在）；platform 記 000-baseline。
 >   - **已知遞延缺口**：114（users.email_bidx/phone_bidx）於 tech/platform **未套**——login 對
 >     tech/platform 走純明文謂詞（刻意，見 auth_service），待 CR-0176 S5 bidx cutover 才補欄+backfill。
->   - 落庫目標＝brand/tech/platform；apply 工具鏈的「依落庫分流+逐庫記帳」仍待補（LOCK-62 item 2）。
+>   - **落庫分流（LOCK-62 item 2，2026-07-26 完成）**：`scripts/db/apply-schema-routed.sh` 讀 migration
+>     檔頭 `-- migrate-targets: brand|tech|platform`（可逗號多庫；未標＝brand 向下相容）分流到對應庫
+>     URI 並逐庫記帳。已標注 063/064/080/081/089/090＝`brand,tech`（技師表兩庫皆有）。其餘 migration
+>     的完整落庫標注＝item 3（尤其動 users 者跨庫適用性須逐一判：users 在三庫用途不同）。
 >
 > 釐清語意：**🟢 idempotent = 「設計可安全重套」，≠「已套用」**。
 > 已確認的漂移（盤點實測 dev DB）：

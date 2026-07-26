@@ -1,4 +1,5 @@
 -- 063-tech-skill-brand-auth.sql
+-- migrate-targets: brand,tech  (LOCK-62：技師表在品牌庫與技師庫皆存在，兩庫皆須套用)
 -- WHY（CR-0060 / 審計 #12 #13 / BR-M07-01 / BR-M06）：技師僅 capabilities JSONB 自由清單，無
 --   結構化技能矩陣/等級、無品牌授權（媒合用 capabilities 充當）。spec 要技能矩陣(A/B/C 級) +
 --   品牌授權(原廠認證)。沿會議「mock 先做可動態改」授權建資料模型 + seed 示範資料（is_mock）。

@@ -1,4 +1,5 @@
 -- 081-technician-certification.sql
+-- migrate-targets: brand,tech  (LOCK-62：技師表在品牌庫與技師庫皆存在，兩庫皆須套用)
 -- WHY（CR-0104 / 師傅詳情頁假資料轉真 / 業主裁決「認證矩陣=建完整認證模組」）：
 --   詳情頁「技能認證矩陣」5 列全寫死於前端（認證項目/品牌/取得日/到期日/狀態），與真實技師無關。
 --   既有 technician_brand_authorization（063）為「品牌授權」（dispatch 媒合過濾用，UNIQUE(tech,brand)
