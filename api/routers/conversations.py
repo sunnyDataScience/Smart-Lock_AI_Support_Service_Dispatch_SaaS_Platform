@@ -88,7 +88,7 @@ async def create_conversation(
 )
 async def get_conversation(
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES, "reviewer")),
 ) -> dict:
     conv = await conversation_service.get_conversation(
         tenant_id=user.tenant_id, conv_id=id,

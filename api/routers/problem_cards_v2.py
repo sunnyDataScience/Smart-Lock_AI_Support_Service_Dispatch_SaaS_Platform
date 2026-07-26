@@ -63,7 +63,7 @@ async def list_problem_cards_v2(
     created_after: str | None = Query(default=None, description="建立時間下限 ISO 8601"),
     keyword: str | None = Query(default=None, description="關鍵字搜尋（location/brand/model 模糊）"),
     source: str | None = Query(default=None, description="來源過濾（human / ai_line）— CR-0022 AI 草擬佇列"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES, "reviewer")),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

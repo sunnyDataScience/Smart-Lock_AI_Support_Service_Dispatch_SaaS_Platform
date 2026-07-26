@@ -80,7 +80,7 @@ async def list_(
     dispatcher_user_id: str | None = Query(default=None),
     status: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.list_statements(
@@ -98,7 +98,7 @@ async def list_(
 async def get_(
     tenantId: str = Path(...),
     statementId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return {"data": await svc._get(statementId)}

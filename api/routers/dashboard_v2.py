@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import DashboardPeriod, DashboardStats
 from services import dashboard_service
@@ -38,7 +38,7 @@ async def get_dashboard_stats_v2(
         default=DashboardPeriod.field_7d,
         description="統計時段：today / 7d / 30d / 90d",
     ),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES, "reviewer")),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

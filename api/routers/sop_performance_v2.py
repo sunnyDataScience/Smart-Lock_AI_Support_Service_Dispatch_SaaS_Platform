@@ -11,7 +11,7 @@ import logging
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, role_required
 from core.errors import ApiError
 from services import sop_performance_service as svc
 
@@ -29,7 +29,7 @@ router = APIRouter()
 async def get_sop_metrics(
     tenantId: str = Path(...),
     window_days: int = Query(default=30, ge=1, le=365),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

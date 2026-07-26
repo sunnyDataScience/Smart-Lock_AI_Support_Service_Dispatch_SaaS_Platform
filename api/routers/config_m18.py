@@ -118,7 +118,7 @@ async def _require_sod_two(
 async def list_config_namespaces(
     tenantId: str = Path(...),
     namespace: str | None = Query(default=None, description="可選 namespace filter（exact match）"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError("CROSS_TENANT_WRITE", "Path tenantId 與 token claim 不符", 403)
@@ -344,7 +344,7 @@ async def list_config_audit(
     key: str = Path(...),
     cursor: str | None = Query(default=None, description="上頁末 audit id（bigint string）"),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError("CROSS_TENANT_WRITE", "Path tenantId 與 token claim 不符", 403)

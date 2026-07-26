@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Path
 
 from fastapi import Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import payout_rule_service, quote_catalog_service
 
@@ -28,7 +28,7 @@ _COST_VISIBLE_ROLES = {"admin", "operations_manager"}  # SA-01：死角色移除
 )
 async def get_quote_catalog_v2(
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError("CROSS_TENANT_READ", "Path tenantId does not match authenticated tenant", 403)
@@ -65,7 +65,7 @@ async def list_payout_rules_v2(
 
 from pydantic import BaseModel, Field  # noqa: E402
 
-from core.deps import OPS_ROLES, role_required  # noqa: E402
+from core.deps import OPS_ROLES  # noqa: E402
 from core.idempotency import IdempotencyContext, idempotency_guard  # noqa: E402
 
 _KIND_BY_SEGMENT = {"services": "service", "materials": "material", "surcharges": "surcharge"}

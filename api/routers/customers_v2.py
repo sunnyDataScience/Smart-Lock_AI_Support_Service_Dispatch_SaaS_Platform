@@ -50,7 +50,7 @@ async def list_customers_v2(
     device_brand: str | None = Query(default=None, description="主要設備品牌"),
     warranty_status: str | None = Query(default=None, description="保固狀態 active/expired/none"),
     preferred_technician_id: str | None = Query(default=None, description="偏好技師 UUID"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required("admin", "operations_manager", "customer_service")),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

@@ -133,7 +133,7 @@ async def list_kb_documents(
     brand: str | None = Query(default=None, description="品牌過濾（對映 brand_scope）"),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     """GET /kb/documents — 依 doc_type 分派到 case_service / manual_service。
 
@@ -293,7 +293,7 @@ async def get_kb_document(
             "若未給則先查 case 再查 manual"
         ),
     ),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     """GET /kb/documents/{docId} — 先嘗試 case，再嘗試 manual。
 

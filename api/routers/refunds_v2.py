@@ -124,7 +124,7 @@ async def submit_refund_decision_v2(
 async def get_refund_sod(
     tenantId: str = Path(...),
     refundId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
@@ -216,7 +216,7 @@ async def agent_initiate_refund_v2(
 )
 async def list_refunds_v2(
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     status: str | None = Query(default=None),

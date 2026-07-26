@@ -29,7 +29,7 @@ import os
 from fastapi import APIRouter, Depends, Header, Path, Query
 from pydantic import BaseModel
 
-from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import OPS_ROLES, REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import (
@@ -149,7 +149,7 @@ async def list_exceptions(
     reconciliation_id: str | None = Query(default=None),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.list_exceptions(
@@ -171,7 +171,7 @@ async def list_exceptions(
 async def get_exception(
     tenantId: str = Path(...),
     excId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return {"data": await svc.get_exception(tenant_id=tenantId, exception_id=excId)}

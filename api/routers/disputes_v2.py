@@ -127,7 +127,7 @@ async def list_disputes_v2(
     work_order_id: str | None = Query(default=None, description="工單 UUID filter"),
     cursor: str | None = Query(default=None, description="上頁末 cursor（opaque base64）"),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
@@ -159,7 +159,7 @@ async def list_disputes_v2(
 async def get_dispute_v2(
     tenantId: str = Path(...),
     disputeId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

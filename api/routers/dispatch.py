@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query, Response
 
-from core.deps import DISPATCH_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import DISPATCH_ROLES, CurrentUser, role_required
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
     DispatchAssignRequest,
@@ -49,7 +49,7 @@ async def list_dispatch_candidates(
     levels: list[str] | None = Query(default=None),
     exclude_circuit: bool = Query(default=True),
     rating_min: float | None = Query(default=None, ge=0.0, le=5.0),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
     response.headers["Deprecation"] = "true"

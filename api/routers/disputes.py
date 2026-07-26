@@ -35,7 +35,7 @@ async def list_disputes(
     status: DisputeStatus | None = Query(default=None),
     dispute_type: DisputeType | None = Query(default=None),
     work_order_id: str | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     page = await dispute_service.list_disputes(
         tenant_id=user.tenant_id,
@@ -60,7 +60,7 @@ async def list_disputes(
 )
 async def get_dispute(
     id: str,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     dispute = await dispute_service.get_dispute(tenant_id=user.tenant_id, dispute_id=id)
     return {"data": Dispute(**dispute).model_dump(mode="json")}

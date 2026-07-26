@@ -15,7 +15,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import BACKOFFICE_ROLES, CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
+from core.deps import BACKOFFICE_ROLES, DISPATCH_ROLES, CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -97,7 +97,7 @@ async def list_work_orders(
     response_model=DispatchQueueSnapshot,
 )
 async def get_dispatch_queue(
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> dict:
     """必須註冊在 /work-orders/{id} 之前，否則 'dispatch-queue' 會被當成 id。"""
     return await work_order_service.get_dispatch_queue_snapshot(

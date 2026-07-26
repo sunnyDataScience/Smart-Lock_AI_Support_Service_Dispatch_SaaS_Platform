@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from models.generated import DashboardPeriod, DashboardStats
 from services import dashboard_service
 
@@ -22,7 +22,7 @@ router = APIRouter()
 )
 async def get_dashboard_stats(
     period: DashboardPeriod = Query(default=DashboardPeriod.field_7d),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES, "reviewer")),
 ) -> dict:
     stats = await dashboard_service.get_stats(
         tenant_id=user.tenant_id,

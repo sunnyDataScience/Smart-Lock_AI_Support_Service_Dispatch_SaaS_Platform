@@ -13,7 +13,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import customer_satisfaction_service as svc
 
@@ -37,7 +37,7 @@ async def get_customer_satisfaction_report(
         default=None,
         description="統計迄日（含）；與 start_date 搭配。",
     ),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if (start_date is None) != (end_date is None):
         raise ApiError(

@@ -12,7 +12,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, role_required
 from core.errors import ApiError
 from services import operational_kpi_service as svc
 
@@ -30,7 +30,7 @@ router = APIRouter()
 async def get_operational_kpi_report(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if (start_date is None) != (end_date is None):
         raise ApiError(

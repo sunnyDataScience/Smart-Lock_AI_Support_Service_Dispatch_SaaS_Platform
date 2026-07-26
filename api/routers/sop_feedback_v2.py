@@ -13,7 +13,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel
 
-from core.deps import CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
+from core.deps import CurrentUser, OPS_ROLES, TECH_ACTION_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from services import sop_feedback_service as svc
 
@@ -74,7 +74,7 @@ async def list_feedback(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.list_feedback(
@@ -95,7 +95,7 @@ async def get_summary(
     sopId: str = Path(...),
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.get_sop_summary(

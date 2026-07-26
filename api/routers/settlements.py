@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from models.generated import (
     Settlement,
     SettlementPage,
@@ -31,7 +31,7 @@ async def list_settlements(
     limit: int = Query(default=20, ge=1, le=100),
     status: SettlementStatus | None = Query(default=None),
     technician_id: str | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     page = await settlement_service.list_settlements(
         tenant_id=user.tenant_id,

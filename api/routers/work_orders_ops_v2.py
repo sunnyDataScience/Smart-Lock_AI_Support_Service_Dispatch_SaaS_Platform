@@ -35,7 +35,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import BACKOFFICE_ROLES, CurrentUser, TECH_ACTION_ROLES, require_tenant, role_required
+from core.deps import BACKOFFICE_ROLES, CurrentUser, DISPATCH_ROLES, TECH_ACTION_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.generated import (
@@ -152,7 +152,7 @@ async def list_work_order_pool_v2(
 )
 async def get_dispatch_queue_v2(
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> dict:
     _cross_tenant_read(user, tenantId)
 
@@ -338,7 +338,7 @@ async def list_work_order_events_v2(
 async def list_pending_material_requests_v2(
     tenantId: str = Path(...),
     limit: int = Query(default=100, ge=1, le=500),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> dict:
     """跨工單列出近期 material_request 事件（排除 completed/confirmed/cancelled WO）。
 

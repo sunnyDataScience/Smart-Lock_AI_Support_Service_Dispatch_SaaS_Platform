@@ -18,7 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 
 logger = logging.getLogger("api.lifespan_health")
 
@@ -95,7 +95,7 @@ def _collect_monitors() -> dict[str, Any]:
     response_model=dict,
 )
 async def get_health(
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     monitors = _collect_monitors()
     total = len(monitors)

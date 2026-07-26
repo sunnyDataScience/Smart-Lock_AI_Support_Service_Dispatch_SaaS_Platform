@@ -21,7 +21,7 @@ from fastapi import APIRouter, Depends, Header, Path
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
-from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import OPS_ROLES, REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import monthly_settlement_service as svc
@@ -108,7 +108,7 @@ async def generate_batch(
 async def get_batch(
     tenantId: str = Path(...),
     batchId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return {"data": await svc._get_batch(batchId)}
@@ -127,7 +127,7 @@ async def get_batch(
 async def export_csv(
     tenantId: str = Path(...),
     batchId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> PlainTextResponse:
     _guard_tenant(user, tenantId)
     csv_text = await svc.export_batch_csv(batch_id=batchId, tenant_id=tenantId)

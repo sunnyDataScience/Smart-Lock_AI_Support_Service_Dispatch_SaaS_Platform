@@ -25,7 +25,7 @@ import logging
 from fastapi import APIRouter, Depends, Header, Path, Query
 from pydantic import BaseModel
 
-from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import OPS_ROLES, REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import reconciliation_v2_service as svc
@@ -72,7 +72,7 @@ async def list_reconciliations_v2(
     technician_id: str | None = Query(default=None, description="技師 UUID filter"),
     cursor: str | None = Query(default=None, description="上頁末 cursor（opaque base64）"),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
@@ -104,7 +104,7 @@ async def list_reconciliations_v2(
 async def get_reconciliation_v2(
     tenantId: str = Path(...),
     reconId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

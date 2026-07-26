@@ -26,7 +26,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import OPS_ROLES, REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import monthly_settlement_service, settlement_service
@@ -92,7 +92,7 @@ async def trigger_monthly_settlement(
 )
 async def list_settlements_v2(
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=100),
     status: str | None = Query(default=None, description="pending|paid|failed"),

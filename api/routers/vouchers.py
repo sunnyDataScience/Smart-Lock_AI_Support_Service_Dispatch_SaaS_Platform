@@ -12,7 +12,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import REVIEW_ROLES, CurrentUser, role_required
 from models.generated import Voucher, VoucherPage
 from services import voucher_service
 
@@ -30,7 +30,7 @@ async def list_vouchers(
     limit: int = Query(default=20, ge=1, le=100),
     posting_date_start: date | None = Query(default=None),
     posting_date_end: date | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     page = await voucher_service.list_vouchers(
         tenant_id=user.tenant_id,
@@ -60,7 +60,7 @@ async def list_vouchers(
 )
 async def export_voucher(
     voucher_id: str,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> Response:
     voucher = await voucher_service.get_voucher(
         tenant_id=user.tenant_id,

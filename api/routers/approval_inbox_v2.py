@@ -12,7 +12,7 @@ import logging
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import approval_inbox_service as svc
 
@@ -34,7 +34,7 @@ async def list_approval_inbox(
         description="scope_change|refund|dispute|reschedule|recon_exception|all",
     ),
     limit: int = Query(default=100, ge=1, le=500),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES, "reviewer")),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

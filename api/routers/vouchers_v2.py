@@ -21,7 +21,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, REVIEW_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import Voucher, VoucherPage
 from services import voucher_service
@@ -42,7 +42,7 @@ async def list_vouchers_v2(
     limit: int = Query(default=20, ge=1, le=100),
     posting_date_start: date | None = Query(default=None),
     posting_date_end: date | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -83,7 +83,7 @@ async def list_vouchers_v2(
 async def export_voucher_v2(
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> Response:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

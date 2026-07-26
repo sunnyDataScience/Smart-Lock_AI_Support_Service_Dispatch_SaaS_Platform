@@ -119,7 +119,7 @@ async def list_inventory_items_v2(
     ),
     cursor: str | None = Query(default=None, description="上頁末 cursor（opaque base64）"),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
@@ -395,7 +395,7 @@ async def list_inventory_transactions_v2(
         description="purchase / consume / return / adjust",
     ),
     limit: int = Query(default=50, ge=1, le=200),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

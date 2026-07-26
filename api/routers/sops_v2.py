@@ -230,7 +230,7 @@ async def _write_sop_audit_log(
 )
 async def list_sop_drafts_v2(
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     status: str | None = Query(default=None, description="pending_review|approved|rejected|adopted"),
@@ -360,7 +360,7 @@ async def delete_sop_draft_v2(
 )
 async def list_family_reviews_v2(
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     action: str | None = Query(default=None, description="approved|rejected"),

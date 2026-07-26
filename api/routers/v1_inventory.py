@@ -20,7 +20,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Request
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from middleware.deprecation import get_v1_hit_metrics
 
 logger = logging.getLogger("api.v1_inventory")
@@ -58,7 +58,7 @@ def _collect_v1_routes(app) -> list[dict[str, Any]]:
 )
 async def list_v1_inventory(
     request: Request,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     items = _collect_v1_routes(request.app)
     return {
@@ -75,7 +75,7 @@ async def list_v1_inventory(
 )
 async def list_no_traffic(
     request: Request,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     """列 mounted 但 metrics 顯示 0 hit 的 v1 endpoint。
 

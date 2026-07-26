@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from models.generated import (
     Invoice,
     InvoiceEnvelope,
@@ -32,7 +32,7 @@ async def list_invoices(
     limit: int = Query(default=20, ge=1, le=100),
     status: InvoiceStatus | None = Query(default=None),
     work_order_id: str | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     page = await invoice_service.list_invoices(
         tenant_id=user.tenant_id,
@@ -56,7 +56,7 @@ async def list_invoices(
 )
 async def get_invoice(
     id: str,
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     inv = await invoice_service.get_invoice(tenant_id=user.tenant_id, invoice_id=id)
     return {"data": Invoice(**inv).model_dump(mode="json")}

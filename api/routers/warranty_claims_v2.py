@@ -96,7 +96,7 @@ async def create_warranty_claim_v2(
 )
 async def list_warranty_claims_v2(
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     status: str | None = Query(default=None),

@@ -21,7 +21,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import REVIEW_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import (
     Invoice,
@@ -57,7 +57,7 @@ async def list_invoices_v2(
     created_after: str | None = Query(default=None, description="建立時間下限 ISO 8601"),
     created_before: str | None = Query(default=None, description="建立時間上限 ISO 8601"),
     payment_method: str | None = Query(default=None, description="付款方式 (credit_card/bank_transfer/cash/line_pay/other)"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -95,7 +95,7 @@ async def list_invoices_v2(
 async def get_invoice_v2(
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

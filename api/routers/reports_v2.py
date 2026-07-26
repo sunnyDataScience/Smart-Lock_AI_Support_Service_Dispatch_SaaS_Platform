@@ -18,7 +18,7 @@ from datetime import date
 from fastapi import APIRouter, Depends, Path, Query
 from fastapi.responses import Response, StreamingResponse
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import DashboardPeriod, KpiReport, RevenueSummary
 from services import kpi_service, report_export_service, revenue_service
@@ -52,7 +52,7 @@ async def get_report_kpi(
         default=None,
         description="統計迄日（含），與 start_date 搭配使用；提供時覆蓋 period。",
     ),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -94,7 +94,7 @@ async def get_report_revenue(
         default=None,
         description="統計迄日（含），與 start_date 搭配使用。",
     ),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import technician_certification_service as cert_service
 
@@ -38,7 +38,7 @@ def _guard_tenant(user: CurrentUser, tenant_id: str, write: bool) -> None:
 async def list_certifications(
     tenantId: str = Path(...),
     techId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId, write=False)
     items = await cert_service.list_certifications(

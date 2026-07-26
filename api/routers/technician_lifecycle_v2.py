@@ -15,7 +15,7 @@ import logging
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import technician_lifecycle_service as svc
 
@@ -45,7 +45,7 @@ async def list_lifecycle_events(
     tech_id: str | None = Query(default=None),
     event_type: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.list_lifecycle_events(

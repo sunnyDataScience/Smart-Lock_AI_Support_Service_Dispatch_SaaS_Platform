@@ -14,7 +14,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from models.generated import DashboardPeriod, KpiReport
 from services import kpi_service
 
@@ -37,7 +37,7 @@ async def get_kpi_report(
         default=None,
         description="統計迄日（含），與 start_date 搭配使用；提供時覆蓋 period。",
     ),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     report = await kpi_service.get_kpi_report(
         tenant_id=user.tenant_id,

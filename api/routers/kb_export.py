@@ -62,7 +62,7 @@ async def start_kb_export(
 async def get_kb_export(
     request: Request,
     job_id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     job = await kb_export_service.get_export(
         tenant_id=user.tenant_id, job_id=job_id,
@@ -77,7 +77,7 @@ async def get_kb_export(
 )
 async def download_kb_export(
     job_id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> Response:
     content, filename = await kb_export_service.download_export(
         tenant_id=user.tenant_id, job_id=job_id,

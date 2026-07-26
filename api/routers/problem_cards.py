@@ -42,7 +42,7 @@ async def list_problem_cards(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     conversation_id: str | None = Query(default=None, description="過濾特定對話下的問題卡"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES, "reviewer")),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
     response.headers["Deprecation"] = "true"

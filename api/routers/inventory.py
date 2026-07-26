@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import OPS_ROLES, CurrentUser, role_required
 from models.generated import InventoryItem, InventoryItemPage, InventoryStockStatus
 from services import inventory_service
 
@@ -31,7 +31,7 @@ async def list_inventory_items(
     limit: int = Query(default=20, ge=1, le=100),
     stock_status: InventoryStockStatus | None = Query(default=None),
     category: str | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     page = await inventory_service.list_items(
         cursor=cursor,

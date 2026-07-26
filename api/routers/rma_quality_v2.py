@@ -83,7 +83,7 @@ async def list_findings(
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.list_findings(
@@ -104,7 +104,7 @@ async def brand_summary(
     brand: str | None = Query(default=None),
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.get_brand_summary(
@@ -124,7 +124,7 @@ async def technician_summary(
     technicianId: str = Path(...),
     start_date: date | None = Query(default=None),
     end_date: date | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.get_technician_summary(

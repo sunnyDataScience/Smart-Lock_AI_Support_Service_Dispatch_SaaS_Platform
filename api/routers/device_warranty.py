@@ -20,7 +20,14 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Path, Response
 
-from core.deps import CurrentUser, SodActors, require_sod_actors, require_tenant
+from core.deps import (
+    BACKOFFICE_ROLES,
+    CurrentUser,
+    SodActors,
+    require_sod_actors,
+    require_tenant,
+    role_required,
+)
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.internal import (
@@ -55,7 +62,7 @@ def _guard_cross_tenant(user: CurrentUser, tenant_id: str) -> None:
 async def get_device_warranty(
     tenantId: str = Path(...),
     deviceId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     _guard_cross_tenant(user, tenantId)
 

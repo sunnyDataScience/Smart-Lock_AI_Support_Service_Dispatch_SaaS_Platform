@@ -59,7 +59,7 @@ async def list_dispatch_candidates_v2(
     levels: list[str] | None = Query(default=None),
     exclude_circuit: bool = Query(default=True),
     rating_min: float | None = Query(default=None, ge=0.0, le=5.0),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

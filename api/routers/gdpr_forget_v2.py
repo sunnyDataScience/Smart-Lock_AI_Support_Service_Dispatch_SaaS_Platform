@@ -85,7 +85,7 @@ async def list_requests(
     tenantId: str = Path(...),
     status: str | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return await svc.list_forget_requests(

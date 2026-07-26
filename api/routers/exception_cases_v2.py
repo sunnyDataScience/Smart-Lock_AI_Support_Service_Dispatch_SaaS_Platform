@@ -15,7 +15,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Path, Query
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from services import exception_service
 
@@ -79,7 +79,7 @@ async def list_exception_cases(
     severity: str | None = Query(default=None),
     work_order_id: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     _guard(user, tenantId)
     return await exception_service.list_exceptions(
@@ -100,7 +100,7 @@ async def list_exception_cases(
 async def get_exception_case(
     tenantId: str = Path(...),
     exceptionId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     _guard(user, tenantId)
     return await exception_service.get_exception(tenant_id=tenantId, exception_id=exceptionId)

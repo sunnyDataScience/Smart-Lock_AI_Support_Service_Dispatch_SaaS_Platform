@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from models.generated import (
     DispatchAction,
     DispatchLog,
@@ -32,7 +32,7 @@ async def list_dispatch_logs(
     limit: int = Query(default=50, ge=1, le=200),
     work_order_id: str | None = Query(default=None),
     action: DispatchAction | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     page = await dispatch_log_service.list_dispatch_logs(
         tenant_id=user.tenant_id,

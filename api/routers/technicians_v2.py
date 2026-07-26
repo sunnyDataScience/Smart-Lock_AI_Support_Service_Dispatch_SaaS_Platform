@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant
+from core.deps import BACKOFFICE_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from models.generated import (
     Technician,
@@ -56,7 +56,7 @@ async def list_technicians_v2(
     service_region: str | None = Query(default=None, description="服務區域"),
     rating_min: float | None = Query(default=None, ge=0.0, le=5.0, description="最低評分"),
     keyword: str | None = Query(default=None, description="關鍵字搜尋（name/phone/email 模糊）"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -95,7 +95,7 @@ async def list_technicians_v2(
 async def get_technician_v2(
     tenantId: str = Path(...),
     techId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES, "reviewer")),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -121,7 +121,7 @@ async def get_technician_schedule_v2(
     tenantId: str = Path(...),
     techId: str = Path(...),
     month: str = Query(..., description="YYYY-MM"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
 ) -> dict:
     """CIA-additive（2026-07-02 師傅測試修復）：後台技師詳情頁「本週排班」原為
     hardcoded mock（固定 2026/04/20-26 早晚班），本端點供其接真資料。

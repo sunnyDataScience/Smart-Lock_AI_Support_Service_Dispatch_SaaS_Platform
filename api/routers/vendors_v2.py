@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path, Query
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import CurrentUser, OPS_ROLES, require_tenant, role_required
 from core.errors import ApiError
 from services import vendor_service
 
@@ -48,7 +48,7 @@ async def get_vendor_self_v2(
 async def list_vendors_v2(
     tenantId: str = Path(...),
     status: str | None = Query(default=None, description="pending_approval/active/suspended/rejected"),
-    user: CurrentUser = Depends(require_tenant),
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _cross_tenant(user, tenantId)
     return await vendor_service.list_vendors(tenant_id=tenantId, status=status)
