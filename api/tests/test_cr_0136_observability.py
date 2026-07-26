@@ -32,9 +32,16 @@ def test_observability_failsoft_on_bad_config(monkeypatch):
 
 
 def test_migration_drift_check_passes():
-    """migration drift-check（檔案層守門）退出碼 0。"""
+    """migration drift-check（**檔案層**守門）退出碼 0。
+
+    只驗檔案層（編號/登記/死列）——刻意剔除 DB URI env，避免對本機 pytest 庫（常
+    落後數支 migration）做 DB 真值對照而假紅（LOCK-62 多庫 DB 對照屬部署/opt-in 段）。
+    """
+    import os
     root = Path(__file__).resolve().parents[2]
+    env = {k: v for k, v in os.environ.items()
+           if k not in ("POSTGRES_URI", "TECH_POSTGRES_URI", "PLATFORM_POSTGRES_URI")}
     r = subprocess.run(
         ["python", str(root / "scripts" / "ci" / "migration-drift-check.py")],
-        capture_output=True, text=True)
+        capture_output=True, text=True, env=env)
     assert r.returncode == 0, r.stdout + r.stderr

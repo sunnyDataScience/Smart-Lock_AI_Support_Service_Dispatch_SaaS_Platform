@@ -99,3 +99,11 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
     echo "log: ${LOG_FILE}"
 fi
 for t in "${!SKIPPED[@]}"; do echo "WARN: target=$t 有 migration 但 URI 未設，未套用該庫"; done
+
+if [[ "${DRY_RUN}" -eq 0 ]]; then
+    echo ""
+    echo "== 自我驗證：多庫 migration drift-check（依 migrate-targets 對三庫比對）=="
+    # POSTGRES_URI/TECH_POSTGRES_URI/PLATFORM_POSTGRES_URI 已在 env → 直接對照各庫
+    python3 "${PROJECT_ROOT}/scripts/ci/migration-drift-check.py" || \
+        echo "  ⚠️ drift-check 報漂移（見上）——套用後仍有落差，人工確認"
+fi

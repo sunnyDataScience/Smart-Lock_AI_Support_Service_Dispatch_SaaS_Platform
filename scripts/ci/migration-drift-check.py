@@ -5,11 +5,15 @@ CI 檔案層守門（預設，零 DB 依賴）：
   2. 每支 SQL migration 在 MIGRATION_REGISTRY.md 有登記（新增未登記＝audit 斷鏈）。
   3. registry 無指向不存在檔案的死列（檔案已刪但 registry 殘留）。
 
-DB 真值對照（FR-DAT-02 補洞，opt-in）：設 `POSTGRES_URI` 或 `--check-db` 時額外比對
-`SQL/migrations/*.sql`（檔案真相）↔ `public.schema_migrations`（DB 已套真值）：
-  4. 檔案存在但 schema_migrations 無列＝**未套用**（部署漏跑）。
-  5. schema_migrations 有列但檔案不存在＝**幽靈列**（migration 被刪但 DB 已套）。
-未設 env 且無 --check-db 時完全略過 DB 段（保留純檔案層 CI 行為）。
+DB 真值對照（FR-DAT-02 補洞 + LOCK-62 多庫，opt-in）：設對應庫 URI 時額外比對
+`SQL/migrations/*.sql`（檔案真相，依 `-- migrate-targets:` 分流）↔ 各庫
+`public.schema_migrations`（DB 已套真值）：
+  4. 檔案（target 含該庫）存在但該庫 schema_migrations 無列＝**未套用**（部署漏跑）。
+  5. 該庫 schema_migrations 有編號列但檔案不存在＝**幽靈列**（migration 被刪但 DB 已套）。
+多庫（LOCK-62）：`POSTGRES_URI`=品牌庫、`TECH_POSTGRES_URI`=技師庫、`PLATFORM_POSTGRES_URI`=平台庫。
+migration 檔頭 `-- migrate-targets: brand|tech|platform`（未標＝brand）決定該檔應落哪些庫——
+CI 依此對每個已設 URI 的庫各自對照，抓 089/090/035/105 類「該落技師庫卻沒套」漂移。
+未設任何 URI 且無 --check-db 時完全略過 DB 段（保留純檔案層 CI 行為）。
 
 退出碼 0=無漂移；1=偵測到漂移（CI block）。
 """
@@ -25,39 +29,54 @@ MIG_DIR = ROOT / "SQL" / "migrations"
 REGISTRY = MIG_DIR / "MIGRATION_REGISTRY.md"
 
 _FNAME_RE = re.compile(r"^(\d{3})-[\w-]+\.sql$")
+_TARGETS_RE = re.compile(r"^--\s*migrate-targets:\s*", re.IGNORECASE)
+_VER_RE = re.compile(r"^\d{3}$")  # 幽靈列只比對真編號（排除 000-baseline 等 marker）
 
 
-def _check_db_drift(versions: dict[str, str], uri: str) -> list[str]:
-    """FR-DAT-02：比對檔案 versions ↔ public.schema_migrations（DB 真值）。
-    連線/psycopg 不可用 → 回 [] 並印跳過訊息（不誤判為漂移）。"""
+def _targets_of(fn: str) -> set[str]:
+    """讀 migration 檔頭 `-- migrate-targets:`（可逗號多庫）；未標＝{brand}。"""
+    path = MIG_DIR / fn
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines()[:15]:
+            if _TARGETS_RE.match(line.strip()):
+                raw = _TARGETS_RE.sub("", line.strip())
+                raw = re.split(r"[^a-zA-Z,]", raw, 1)[0]  # 濾掉行內 (LOCK-62…) 註解
+                return {t.strip().lower() for t in raw.split(",") if t.strip()}
+    except OSError:
+        pass
+    return {"brand"}
+
+
+def _check_db_drift(label: str, uri: str, expected: dict[str, str]) -> list[str]:
+    """比對「target 含本庫的檔案」↔ 本庫 public.schema_migrations（DB 真值）。
+    connect/psycopg 不可用 → 回 [] 並印跳過訊息（不誤判為漂移）。expected: {ver: fn}。"""
     errors: list[str] = []
     try:
         import psycopg  # 延遲載入：純檔案層 CI 無此依賴也能跑
     except ImportError:
-        print("ℹ️  psycopg 不可用 → 略過 DB 真值對照（檔案層檢查照常）")
+        print(f"ℹ️  psycopg 不可用 → 略過 {label} 庫 DB 真值對照")
         return errors
     try:
         with psycopg.connect(uri, connect_timeout=10) as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT to_regclass('public.schema_migrations') IS NOT NULL"
-                )
+                cur.execute("SELECT to_regclass('public.schema_migrations') IS NOT NULL")
                 if not cur.fetchone()[0]:
-                    print("ℹ️  schema_migrations 表不存在（未套 046+）→ 略過 DB 對照")
+                    print(f"ℹ️  {label} 庫 schema_migrations 表不存在（未 baseline）→ 略過")
                     return errors
                 cur.execute("SELECT version FROM public.schema_migrations")
                 db_versions = {r[0] for r in cur.fetchall()}
     except Exception as e:  # noqa: BLE001
-        print(f"ℹ️  DB 連線失敗 → 略過 DB 真值對照（{type(e).__name__}）")
+        print(f"ℹ️  {label} 庫連線失敗 → 略過 DB 真值對照（{type(e).__name__}）")
         return errors
 
-    file_versions = set(versions)
-    for ver in sorted(file_versions - db_versions):
-        errors.append(f"migration 檔案存在但 DB 未套用（schema_migrations 缺列）：{versions[ver]}")
-    for ver in sorted(db_versions - file_versions):
-        errors.append(f"schema_migrations 幽靈列（DB 已套但檔案不存在）：version={ver}")
+    exp_versions = set(expected)
+    for ver in sorted(exp_versions - db_versions):
+        errors.append(f"[{label}] migration 該落本庫但 DB 未套用：{expected[ver]}")
+    # 幽靈列：只比對真編號 marker 排除（000-baseline 等非 \d{3} 不算）
+    for ver in sorted(v for v in (db_versions - exp_versions) if _VER_RE.match(v)):
+        errors.append(f"[{label}] schema_migrations 幽靈列（DB 已套但無對應本庫檔案）：version={ver}")
     if not errors:
-        print(f"✅ DB 真值對照：{len(file_versions)} 支檔案 ↔ schema_migrations 完全一致")
+        print(f"✅ {label} 庫 DB 真值對照：{len(exp_versions)} 支目標檔案 ↔ schema_migrations 一致")
     return errors
 
 
@@ -93,13 +112,22 @@ def main() -> int:
         if not (MIG_DIR / fn).exists():
             errors.append(f"REGISTRY 死列（檔案不存在）：{fn}")
 
-    # FR-DAT-02：opt-in DB 真值對照（POSTGRES_URI 或 --check-db）
-    db_uri = os.getenv("POSTGRES_URI", "")
-    if "--check-db" in sys.argv or db_uri:
-        if not db_uri:
-            print("ℹ️  --check-db 指定但 POSTGRES_URI 未設 → 略過 DB 對照")
-        else:
-            errors.extend(_check_db_drift(versions, db_uri))
+    # FR-DAT-02 + LOCK-62：opt-in 多庫 DB 真值對照（依 migrate-targets 分流）
+    targets_by_ver = {ver: _targets_of(fn) for ver, fn in versions.items()}
+    db_uris = {
+        "brand": os.getenv("POSTGRES_URI", ""),
+        "tech": os.getenv("TECH_POSTGRES_URI", ""),
+        "platform": os.getenv("PLATFORM_POSTGRES_URI", ""),
+    }
+    any_uri = any(db_uris.values())
+    if "--check-db" in sys.argv or any_uri:
+        if not any_uri:
+            print("ℹ️  --check-db 指定但無任何庫 URI（POSTGRES_URI/TECH_POSTGRES_URI/PLATFORM_POSTGRES_URI）→ 略過 DB 對照")
+        for label, uri in db_uris.items():
+            if not uri:
+                continue
+            expected = {ver: fn for ver, fn in versions.items() if label in targets_by_ver[ver]}
+            errors.extend(_check_db_drift(label, uri, expected))
 
     if errors:
         print(f"❌ migration drift 偵測到 {len(errors)} 項：")

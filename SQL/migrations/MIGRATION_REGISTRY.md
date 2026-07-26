@@ -29,7 +29,12 @@
 >     先前 baseline audit「13 表」僅數 public schema、漏數 saas。故 020（建此表）/105（ALTER CHECK）補標 `brand,tech`
 >     （原誤判 brand-only）。**第二顆活缺口**：105 的 CHECK 增補（brand_auth_granted/revoked）未套技師庫此表 →
 >     `technician_brand_auth_service` 授/撤證寫入 CheckViolation → grant/revoke 500。已補套 105 到 lock_tech
->     （CHECK 現含全 10 event_type）+ 記 020/105 入 ledger。技師庫套用清單現＝000-baseline + 020/035/063/064/080/081/084/089/090/105。
+>     （CHECK 現含全 10 event_type）+ 記 020/105 入 ledger。
+>   - **多庫 drift-check（LOCK-62，2026-07-26）**：`migration-drift-check.py` 擴為依 migrate-targets 對三庫
+>     各自比對 schema_migrations（設對應庫 URI 時；CI 僅檔案層）。首跑抓到 2 筆 ledger 落差並補齊：
+>     技師庫補 086（is_active backfill，已套+記）、平台庫補記 084（帳號安全欄早已存在，僅 ledger 缺）。
+>     `apply-schema-routed.sh` 套用後自我跑此 drift-check。技師庫套用清單＝000-baseline + 020/035/063/064/
+>     080/081/084/086/089/090/105（11 支）；平台庫＝000-baseline + 084。三庫 drift-check 現全綠。
 >
 > 釐清語意：**🟢 idempotent = 「設計可安全重套」，≠「已套用」**。
 > 已確認的漂移（盤點實測 dev DB）：

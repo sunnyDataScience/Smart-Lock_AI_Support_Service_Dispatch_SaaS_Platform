@@ -1,8 +1,11 @@
 name: Migration Drift Check
 
 # CR-0136 / WBS 1.6.1 / ADR-P012 G-10：SQL migration 檔案層守門——編號唯一、
-# 全數登記 REGISTRY、無死列。部署後 DB 真值另由 apply-schema-prod.sh 寫
-# schema_migrations（046）。純檔案層零 DB 依賴。
+# 全數登記 REGISTRY、無死列。純檔案層零 DB 依賴（CI 無 prod DB）。
+# LOCK-62：drift-check 另支援**多庫 DB 真值對照**（依 migration 檔頭 migrate-targets
+# 對品牌/技師/平台三庫各自比對 schema_migrations，抓「該落技師庫卻沒套」漂移）——
+# opt-in，需 POSTGRES_URI/TECH_POSTGRES_URI/PLATFORM_POSTGRES_URI；由 apply-schema-routed.sh
+# 套用後自我驗證，或部署 gate 帶 secrets 執行。CI 此 job 僅跑檔案層。
 on:
   push:
     branches: [dev, main, dev-ding]
