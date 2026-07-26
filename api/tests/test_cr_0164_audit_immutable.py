@@ -48,11 +48,12 @@ async def test_trigger_blocks_update_and_delete():
 
 @pytest.mark.asyncio
 async def test_verify_endpoint_shape_and_auth(client, admin_headers):
-    """verify 端點 200 + {checked,valid,broken_at}；cross-tenant 403。"""
+    """verify 端點 200 + {checked,valid,broken_at,breaks,checkpoint}；cross-tenant 403。"""
     r = await client.get(VERIFY_PATH, headers=admin_headers)
     assert r.status_code == 200, r.text
     data = r.json()["data"]
-    assert set(data.keys()) == {"checked", "valid", "broken_at"}
+    # CR-0184：回應增 breaks/checkpoint（向下相容超集）
+    assert set(data.keys()) == {"checked", "valid", "broken_at", "breaks", "checkpoint"}
     assert isinstance(data["checked"], int) and isinstance(data["valid"], bool)
 
     rc = await client.get(CROSS_VERIFY, headers=admin_headers)

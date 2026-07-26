@@ -149,5 +149,7 @@
 
 | 115 | `115-quote-validity-7d.sql` | CR-0181（0723 會議決議＋業主 0725 裁決） | 🟢 idempotent（value 比對後 retire＋WHERE NOT EXISTS 補插，拋棄式 PG16 驗證 2026-07-25：二套 UPDATE 0/INSERT 0） | 報價有效期一般/急件統一 7 天：retire 054 種的 `quote_validity_policy` 14/3 全域 active row → 插入 7/7 active（M18 治理外直寫，與 054 同途徑）＋namespace description 更新。落庫＝**品牌庫**。配套 code：validity fallback 7/7＋confirm_token TTL 上限 48h→7d（後者需重佈 api）；expired 單保留不清除（業主推翻會議清除決議） |
 
+| 116 | `116-audit-chain-checkpoint.sql` | CR-0184（UAT-0723-F3） | 🟢 idempotent（CREATE TABLE/INDEX IF NOT EXISTS，拋棄式 PG16 二套驗證 2026-07-26） | audit hash-chain re-baseline checkpoint 表 `audit_chain_checkpoint`（baseline_entry_hash/row_id/created_at＋note）。落庫＝**品牌庫**（audit_events 所在，部署層級全域鏈）。修 F3：CR-0166 lock 前並發競態造成 5 個歷史鏈分叉（07-06/07-12），採非破壞式 re-baseline——記已知良好基準雜湊，verify 從基準後起驗（歷史凍結不刪）；配套 verify 增強（回報所有斷點＋use_checkpoint）＋POST checkpoint 端點（admin-only） |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

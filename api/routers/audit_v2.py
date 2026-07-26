@@ -84,13 +84,15 @@ async def list_audit_events_v2(
 async def verify_audit_chain_v2(
     tenantId: str = Path(...),
     limit: int = Query(default=1000, ge=1, le=10000),
+    use_checkpoint: bool = Query(default=True, description="CR-0184：有 checkpoint 時只驗基準之後；False 驗全鏈"),
     user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     """CR-0164 A：把既有 audit_log_service.verify_audit_chain 接上 API（原為死機制）。
 
     audit_events 為部署層級事件（無 tenant_id），鏈為全域——tenant path 僅供
     授權對齊（admin gate + ADR-0030 cross-tenant guard）；驗的是整條部署鏈。
-    回 {checked, valid, broken_at}；valid=False 時 broken_at 為第一個竄改/斷鏈列 id。
+    CR-0184：有 re-baseline checkpoint 時只驗基準列之後（use_checkpoint=False 驗全鏈）；
+    回 {checked, valid, broken_at, breaks:[所有斷點], checkpoint}。
     """
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
@@ -98,8 +100,30 @@ async def verify_audit_chain_v2(
             "Path tenantId does not match authenticated tenant",
             403,
         )
-    result = await audit_log_service.verify_audit_chain(limit=limit)
+    result = await audit_log_service.verify_audit_chain(limit=limit, use_checkpoint=use_checkpoint)
     return {"data": result}
+
+
+class _CreateCheckpointBody(BaseModel):
+    note: str | None = Field(default=None, max_length=500, description="再基準原因/備註")
+
+
+@router.post(
+    "/tenants/{tenantId}/audit/checkpoint",
+    operation_id="createAuditChainCheckpointV2", status_code=201,
+    summary="建 audit hash-chain re-baseline checkpoint（CR-0184；admin-only）",
+)
+async def create_audit_chain_checkpoint_v2(
+    body: _CreateCheckpointBody,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
+) -> dict:
+    """以目前鏈末為新基準建 checkpoint——歷史斷鏈（如 pre-CR-0166 並發分叉）下重建
+    往後可驗證的乾淨鏈。歷史保留不刪；verify 之後只驗基準之後的鏈段。"""
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError("CROSS_TENANT_WRITE", "Path tenantId does not match authenticated tenant", 403)
+    cp = await audit_log_service.create_chain_checkpoint(note=body.note, created_by=user.user_id)
+    return {"data": cp}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

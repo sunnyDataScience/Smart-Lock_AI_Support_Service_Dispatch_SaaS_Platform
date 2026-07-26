@@ -90,5 +90,7 @@ async def test_audit_chain_detects_payload_tampering():
 async def test_verify_audit_chain_api_shape():
     assert await db_module._ensure_conn()
     out = await als.verify_audit_chain(limit=50)
-    assert set(out.keys()) == {"checked", "valid", "broken_at"}
+    # CR-0184：新增 breaks（所有斷點）＋checkpoint（re-baseline 資訊）；原欄位保留向下相容
+    assert set(out.keys()) == {"checked", "valid", "broken_at", "breaks", "checkpoint"}
     assert isinstance(out["checked"], int) and isinstance(out["valid"], bool)
+    assert isinstance(out["breaks"], list)

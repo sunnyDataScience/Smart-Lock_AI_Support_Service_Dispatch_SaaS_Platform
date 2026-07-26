@@ -92,24 +92,97 @@ async def _chain_fields(
     return prev_hash, _compute_entry_hash(prev_hash, content), payload_json
 
 
-async def verify_audit_chain(*, limit: int = 1000) -> dict:
-    """驗證 audit hash chain 完整性（只驗有 entry_hash 的鏈段，依時序）。
-
-    回 {checked, valid, broken_at}：broken_at 為第一個對不上的列 id（valid=True 時 None）。
-    偵測兩類竄改：(1) 列內容被改 → entry_hash 重算不符；(2) 列被刪/插 → prev_hash 鏈接斷。
-    """
+async def get_latest_checkpoint() -> dict | None:
+    """取最新 re-baseline checkpoint（CR-0184）；無則 None。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     cur = await db_module._conn.execute(
+        "SELECT id, baseline_entry_hash, baseline_row_id, baseline_created_at, note, created_at "
+        "FROM audit_chain_checkpoint ORDER BY created_at DESC, id DESC LIMIT 1"
+    )
+    row = await cur.fetchone()
+    if not row:
+        return None
+    return {
+        "id": str(row[0]),
+        "baseline_entry_hash": row[1],
+        "baseline_row_id": str(row[2]) if row[2] else None,
+        "baseline_created_at": row[3].isoformat() if row[3] else None,
+        "note": row[4],
+        "created_at": row[5].isoformat() if row[5] else None,
+    }
+
+
+async def create_chain_checkpoint(*, note: str | None = None, created_by: str | None = None) -> dict:
+    """建 re-baseline checkpoint（CR-0184）：以目前鏈末（最新 entry_hash）為新基準。
+
+    在鏈 advisory lock 內快照鏈末，確保基準列與其後不會被同時寫入的新事件插隊。
+    verify(use_checkpoint=True) 之後只驗此基準列「之後」的鏈段——歷史（含 pre-CR-0166
+    並發分叉）保留不刪、視為凍結基準。用於在歷史斷鏈下重建往後可驗證的乾淨鏈。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+    async with db_module._conn.transaction():
+        await _acquire_chain_lock()
+        cur = await db_module._conn.execute(
+            "SELECT id, entry_hash, created_at FROM audit_events "
+            "WHERE entry_hash IS NOT NULL ORDER BY created_at DESC, id DESC LIMIT 1"
+        )
+        tip = await cur.fetchone()
+        baseline_hash = tip[1] if tip else _AUDIT_GENESIS
+        baseline_id = tip[0] if tip else None
+        baseline_at = tip[2] if tip else None
+        ins = await db_module._conn.execute(
+            "INSERT INTO audit_chain_checkpoint "
+            "(baseline_entry_hash, baseline_row_id, baseline_created_at, note, created_by) "
+            "VALUES (%s, %s, %s, %s, %s::uuid) RETURNING id, created_at",
+            (baseline_hash, baseline_id, baseline_at, note, created_by),
+        )
+        cp = await ins.fetchone()
+    return {
+        "id": str(cp[0]),
+        "baseline_entry_hash": baseline_hash,
+        "baseline_row_id": str(baseline_id) if baseline_id else None,
+        "baseline_created_at": baseline_at.isoformat() if baseline_at else None,
+        "note": note,
+        "created_at": cp[1].isoformat() if cp[1] else None,
+    }
+
+
+async def verify_audit_chain(*, limit: int = 1000, use_checkpoint: bool = True) -> dict:
+    """驗證 audit hash chain 完整性（只驗有 entry_hash 的鏈段，依時序）。
+
+    偵測兩類竄改：(1) 列內容被改 → entry_hash 重算不符；(2) 列被刪/插/分叉 →
+    prev_hash 不接前一列。CR-0184 增強：
+      - use_checkpoint（預設 True）：有 re-baseline checkpoint 時，只驗基準列「之後」
+        的鏈段（expected_prev 從 baseline_entry_hash 起）；歷史凍結不驗。
+      - 回報**所有**斷點（breaks 陣列），非只第一個；遇斷後 resync（以該列 entry_hash
+        為新起點續驗）以找出後續斷點。broken_at 保留為第一個斷點（向下相容）。
+    回 {checked, valid, broken_at, breaks:[...], checkpoint:{...}|None}。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    checkpoint = await get_latest_checkpoint() if use_checkpoint else None
+    where = "entry_hash IS NOT NULL"
+    args: list = []
+    expected_prev = _AUDIT_GENESIS
+    if checkpoint and checkpoint["baseline_created_at"]:
+        # 只驗基準列「之後」：(created_at, id) > (baseline_created_at, baseline_row_id)
+        where += " AND (created_at, id) > (%s::timestamptz, %s::uuid)"
+        args.extend([checkpoint["baseline_created_at"], checkpoint["baseline_row_id"]])
+        expected_prev = checkpoint["baseline_entry_hash"]
+
+    cur = await db_module._conn.execute(
         "SELECT id, event_type, actor_id, actor_role, action, target_type, target_id, "
         "       payload, prev_hash, entry_hash "
-        "FROM audit_events WHERE entry_hash IS NOT NULL "
+        f"FROM audit_events WHERE {where} "
         "ORDER BY created_at ASC, id ASC LIMIT %s",
-        (limit,),
+        (*args, limit),
     )
     rows = await cur.fetchall()
-    expected_prev = _AUDIT_GENESIS
     checked = 0
+    breaks: list[str] = []
     for r in rows:
         checked += 1
         payload_json = json.dumps(r[7], ensure_ascii=False, sort_keys=True) if r[7] is not None else None
@@ -118,11 +191,17 @@ async def verify_audit_chain(*, limit: int = 1000) -> dict:
             str(r[6]) if r[6] else None, payload_json,
         )
         recomputed = _compute_entry_hash(r[8] or _AUDIT_GENESIS, content)
-        # (1) 內容竄改：entry_hash 對不上；(2) 鏈接斷：prev_hash 不接前一列
         if recomputed != r[9] or (r[8] or _AUDIT_GENESIS) != expected_prev:
-            return {"checked": checked, "valid": False, "broken_at": str(r[0])}
+            breaks.append(str(r[0]))
+        # resync：以本列 entry_hash 為後續 expected_prev（斷後續驗，找出所有斷點）
         expected_prev = r[9]
-    return {"checked": checked, "valid": True, "broken_at": None}
+    return {
+        "checked": checked,
+        "valid": len(breaks) == 0,
+        "broken_at": breaks[0] if breaks else None,
+        "breaks": breaks,
+        "checkpoint": checkpoint,
+    }
 
 
 _VALID_LOG_TYPES = {
