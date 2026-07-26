@@ -8,6 +8,15 @@
 > 「是否已套用某環境」的**唯一真實來源 = `public.schema_migrations` 表**（由 046 建立、apply 腳本每套即留痕）。
 > 查某環境真實狀態：`SELECT version, applied_at, note FROM schema_migrations ORDER BY version;`。
 >
+> **多庫水位（LOCK-62，2026-07-26 盤點+baseline）**：三庫在同一 Cloud SQL 實例 lock-ai。
+>   - **品牌庫 lock-ai-db**：`schema_migrations` 健康（~114 登記、max 116）。
+>   - **技師庫 lock_tech / 平台庫 lock_platform**：原**無** `schema_migrations`（表全 ad-hoc 手套，
+>     0724/0725 兩顆 migration 地雷之根源）。0726 已建 ledger + baseline 回填：tech 記
+>     000-baseline + 063/064/080/081/084/089/090（逐一驗證 schema 存在）；platform 記 000-baseline。
+>   - **已知遞延缺口**：114（users.email_bidx/phone_bidx）於 tech/platform **未套**——login 對
+>     tech/platform 走純明文謂詞（刻意，見 auth_service），待 CR-0176 S5 bidx cutover 才補欄+backfill。
+>   - 落庫目標＝brand/tech/platform；apply 工具鏈的「依落庫分流+逐庫記帳」仍待補（LOCK-62 item 2）。
+>
 > 釐清語意：**🟢 idempotent = 「設計可安全重套」，≠「已套用」**。
 > 已確認的漂移（盤點實測 dev DB）：
 > - **035 / 045** 先前標 🟢 idempotent 但 dev DB **未套用** → `test_password_reset` / `test_cr_0037` 直接 `UndefinedTable` FAIL；**2026-06-19 已補套** dev 並記入 schema_migrations。
