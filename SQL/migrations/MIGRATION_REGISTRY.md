@@ -25,6 +25,11 @@
 >   - **item 3 揪出並修的活缺口**：035 password_reset_tokens 只在品牌庫——技師 forgot-password 在 tech-api
 >     （`_reset_conn` 於 tech surface 路由技師庫）會 UndefinedTable。已補套 035 到 lock_tech（表已建、記入 ledger）。
 >     platform 無 forgot-password 流程且平台庫缺 uuid-ossp，故 035＝brand,tech 不含 platform。
+>   - **audit 補正（0726 sweep）**：技師庫**有 saas schema**（`saas.technician_lifecycle_event`，9 列生產在用）——
+>     先前 baseline audit「13 表」僅數 public schema、漏數 saas。故 020（建此表）/105（ALTER CHECK）補標 `brand,tech`
+>     （原誤判 brand-only）。**第二顆活缺口**：105 的 CHECK 增補（brand_auth_granted/revoked）未套技師庫此表 →
+>     `technician_brand_auth_service` 授/撤證寫入 CheckViolation → grant/revoke 500。已補套 105 到 lock_tech
+>     （CHECK 現含全 10 event_type）+ 記 020/105 入 ledger。技師庫套用清單現＝000-baseline + 020/035/063/064/080/081/084/089/090/105。
 >
 > 釐清語意：**🟢 idempotent = 「設計可安全重套」，≠「已套用」**。
 > 已確認的漂移（盤點實測 dev DB）：

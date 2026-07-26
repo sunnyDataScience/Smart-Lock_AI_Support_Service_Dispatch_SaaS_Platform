@@ -1,4 +1,5 @@
 -- 105-tech-lifecycle-brand-auth-events.sql
+-- migrate-targets: brand,tech  (LOCK-62 item3 補正：saas.technician_lifecycle_event 技師庫 saas schema 實存)
 --
 -- WHY（CR-0166 R1-4 品牌授權撤證 API）：
 --   technician_brand_auth_service 的 grant/revoke 寫 saas.technician_lifecycle_event

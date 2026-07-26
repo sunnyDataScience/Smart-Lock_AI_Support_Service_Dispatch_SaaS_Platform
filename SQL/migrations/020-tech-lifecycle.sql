@@ -1,4 +1,5 @@
 -- ============================================================================
+-- migrate-targets: brand,tech  (LOCK-62 item3 補正：saas.technician_lifecycle_event 技師庫 saas schema 實存)
 -- 020-tech-lifecycle.sql — FR-0044 Phase II MVP: Technician Lifecycle
 -- ============================================================================
 -- 目的：師傅 onboarding / suspend / reactivate / terminate 完整生命週期
