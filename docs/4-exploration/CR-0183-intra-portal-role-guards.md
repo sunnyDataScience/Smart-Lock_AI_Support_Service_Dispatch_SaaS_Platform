@@ -44,8 +44,8 @@ CR-0182 的 `portal` 守衛關閉了**跨面**越權（技師 token 進不了 br
 
 ### 進度
 - ✅ 分類（6 agent + 對抗驗證）→ 套用（8 agent，55 檔 84 守衛）→ 獨立驗證（語法/import/spot-check/測試/基線比對）全過。
-- ⏳ 待部署 smart-lock-api（brand 域端點所在）+ 雲端探針（cs token 讀 refunds → 403）+ Plane LOCK-61 收 Done。
-- 🛑 D1（data_corrections）待業主裁決。
+- ✅ **上線並驗證（0726）**：smart-lock-api 重佈（image d79df108-20260726，rev 00030-hnd，health OK）。雲端探針：cs → refunds/vouchers/m18-configs = **403 FORBIDDEN**；cs → customers = **200**（白名單精準）；dispatcher → settlements = **403**；真 admin → 全守衛端點 = **200**（未破壞）。Plane LOCK-61 收 Done。
+- 🛑 D1（data_corrections）待業主裁決；其餘 CR 完成。
 
 ## §9 Suggested Implementation Order
 
