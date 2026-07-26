@@ -35,5 +35,5 @@
 
 1. ✅ migration 116＋service（checkpoint CRUD＋verify 增強）＋router（use_checkpoint＋POST checkpoint）。
 2. ✅ 測試（整合＋pytest＋既有 shape 更新）。
-3. ⏳ 部署 smart-lock-api → 建 prod checkpoint（POST）→ verify(use_checkpoint) 應 valid:true。
-4. ⏳ Plane F3 收 Done。
+3. ✅ **上線並驗證（0726）**：migration 116 套品牌庫＋smart-lock-api 重佈（rev 00032-bgf, health OK）。verify(use_checkpoint=false)＝checked=143/valid=False/**breaks=6**（增強：一次列出全部歷史斷點）；建 checkpoint（id b5ce477e，baseline=93b2f65b 目前鏈末）；verify(use_checkpoint=true)＝checked=0/**valid=True**（F3 修復）。歷史保留不刪，仍可 use_checkpoint=false 稽核。
+4. ✅ Plane F3 收 Done。**CR 完成。**
