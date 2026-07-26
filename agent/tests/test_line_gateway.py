@@ -103,6 +103,110 @@ def test_promised_handoff_still_catches_unconditional_dispatch():
     assert _promised_handoff("已為您轉接真人專員，若還有問題會再協助") is True
 
 
+# ── 語料回歸（2026-07-26 誤判修正）───────────────────────────────────────
+# 兩個方向都要守：
+#   假陽性 → 問診回覆被當承諾 → 補建 escalation → 對話翻接管 → **AI 永久靜音**（產線 bug）
+#   假陰性 → 真承諾沒被接住 → 案子靜默蒸發（原設計明訂此後果更嚴重，不可為修 bug 而放寬）
+_PROMISE_TRUE_CASES = [
+    # 完成式（案子已交棒）
+    ("完成式-轉接", "好的，這部分我已幫您轉接給真人專員處理 🙋"),
+    ("完成式-安排", "已為您安排專員，將與您聯繫"),
+    ("完成式-登記", "已為您登記這次的報修，專員會盡快聯繫您"),
+    ("完成式-通報", "已通報專員，請您稍候"),
+    ("完成式+句尾條件詞", "已為您轉接真人專員，若還有問題會再協助"),
+    ("完成式-已請師傅", "我已請師傅明天過去看看"),
+    # 無條件的實際交棒
+    ("無條件-安排師傅", "我幫您安排師傅到府維修"),
+    ("無條件-需要派工", "您的情況需要安排師傅到場，我們會請專員與您聯繫"),
+    ("無條件-派技師", "這屬於馬達異常，必須派技師到場處理"),
+    ("無條件-結構派工", "門扇反弓屬結構問題，會安排師傅到府調整"),
+    ("無條件-轉接", "這部分我為您轉接給專員處理"),
+    ("無條件-由專員", "由專員為您報價，我請他與您聯繫"),
+    # 真承諾 + 句尾補述（hedge 在 marker 之後，不得抑制——假陰性守線）
+    ("真承諾+句尾可能修飾時間", "我這邊會請專員與您聯繫，可能需要一點時間"),
+    ("真承諾+句尾問句", "我們會安排師傅到場，請問您方便的時間是？"),
+    # 多句混合：首句已是真承諾
+    ("混合-首句真承諾", "我先為您安排師傅到府。如果後續還有問題，再評估是否需要更換鎖體。"),
+]
+
+_PROMISE_FALSE_CASES = [
+    # 條件句提議（產線 bug 根源；真實 LLM 問診收尾極常見）
+    ("產線原句", "如果確認型號後仍無法解決，請告知我，我們會評估是否需要為您安排專員到府處理。"),
+    ("條件-如果+可能", "如果仍無法排除，可能需要派師傅到府"),
+    ("條件-若在前句", "若確認型號後仍無法解決，會安排技師"),
+    ("條件-看情況", "看情況我們再評估是否安排專員"),
+    ("條件-視情況", "視情況可能需要安排師傅"),
+    ("條件-倘若", "倘若電池換過仍異常，就需要派技師檢查"),
+    ("條件-萬一", "萬一還是打不開，我們再安排師傅過去"),
+    ("混合-兩句皆條件", "先請您確認型號。若仍無法解決，我們會安排專員聯繫您。"),
+    # 真實 LLM 問診回覆（本輪 live probe 實際產出，舊版 3/4 會誤判靜音）
+    ("真實-Dormakaba問診",
+     "收到，感謝您提供品牌為 Dormakaba。請問目前門鎖的狀況是：完全沒反應嗎？還是有出現錯誤"
+     "提示？請告訴我目前的具體狀態，這對判斷是否需要安排師傅到府非常關鍵。"),
+    ("真實-紅燈閃爍問診",
+     "請問您使用的品牌與型號為何？我會先為您查詢對應的故障排除方式。"
+     "若狀況需要專業師傅現場檢修，我也能協助安排。"),
+    ("真實-按鍵無反應問診",
+     "請問您的電子鎖品牌與型號為何？若問題依然無法解決，我們也會協助您安排師傅到府檢修。"),
+    # 徵詢同意的問句（SOP：未經客戶同意不得逕自派工）
+    ("問句-嗎", "請問需要我為您安排專員嗎？"),
+    ("問句-要不要", "要不要幫您安排師傅過去看看呢？"),
+    ("問句-需不需要", "需不需要我幫您轉接專員？"),
+    ("問句-是否", "請問是否要為您安排技師到府？"),
+    # 否定
+    ("否定-不用派師傅", "這種狀況通常不用派師傅，先試著重新設定看看"),
+    # 純資訊／排查
+    ("純資訊", "您的鎖是 Dormakaba AS701，可以長按設定鍵重設"),
+    ("純排查", "請先確認電池是否還有電，並嘗試重新輸入密碼"),
+    ("純排查-電池", "紅燈閃爍最常見的原因是低電量，請先更換電池試試"),
+    ("純追問", "請問您的電子鎖是什麼品牌與型號呢？"),
+    ("空字串", ""),
+]
+
+
+@pytest.mark.parametrize("label,text", _PROMISE_TRUE_CASES, ids=[c[0] for c in _PROMISE_TRUE_CASES])
+def test_promised_handoff_corpus_true(label, text):
+    """真承諾必須接住——漏接＝案子靜默蒸發（比誤建卡嚴重）。"""
+    assert _promised_handoff(text) is True, f"假陰性（真承諾被吞→案子蒸發）：{label}"
+
+
+@pytest.mark.parametrize("label,text", _PROMISE_FALSE_CASES, ids=[c[0] for c in _PROMISE_FALSE_CASES])
+def test_promised_handoff_corpus_false(label, text):
+    """條件／問句／否定／純資訊不得誤判——誤判＝對話翻接管、AI 永久靜音。"""
+    assert _promised_handoff(text) is False, f"假陽性（誤判→對話被靜音）：{label}"
+
+
+def test_conditional_offer_creates_no_escalation_end_to_end():
+    """端到端守線：問診條件句跑完兜底後**不得**新增 escalation。
+
+    這是產線 bug 的完整鏈路——兜底補 escalation → API 建卡時把 conversation 翻
+    escalated → gateway 查 handover-state 就永久暫停 AI。守住這裡＝守住整條鏈。
+    """
+    store = _mk_store()
+    diagnostic_reply = (
+        "收到，感謝您提供品牌為 Dormakaba。請問目前門鎖的狀況是完全沒反應，還是有錯誤提示？"
+        "這對判斷是否需要安排師傅到府非常關鍵。"
+    )
+    _apply_handoff_fallback_safe(
+        store, "locksmart", "U-diag", "Dormakaba", diagnostic_reply, 0
+    )
+    assert store.list_for_user("locksmart", "U-diag") == [], (
+        "問診條件句不該補 escalation（會導致對話被翻成人工接管、AI 靜音）"
+    )
+
+
+def test_real_promise_still_creates_escalation_end_to_end():
+    """端到端反向守線：真承諾沒呼叫工具時，兜底仍須補 escalation（防案子蒸發）。"""
+    store = _mk_store()
+    _apply_handoff_fallback_safe(
+        store, "locksmart", "U-promise", "我的鎖壞了",
+        "您的情況需要安排師傅到場，我們會請專員與您聯繫", 0
+    )
+    assert len(store.list_for_user("locksmart", "U-promise")) == 1, (
+        "真承諾必須補 escalation，否則案子靜默蒸發"
+    )
+
+
 def _mk_store():
     from lockcore.agent.user_memory.escalation import EscalationStore
 

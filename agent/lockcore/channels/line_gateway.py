@@ -506,37 +506,78 @@ _SOFT_HANDOFF_MARKERS: tuple[str, ...] = (
     "會與您聯繫", "將與您聯繫",
     "安排師傅", "安排技師", "派師傅", "派技師", "師傅到府", "技師到府", "請師傅到",
 )
-# 條件／評估語氣：同一句出現這些字＝AI 尚未決定交棒（在問診／給條件），不是承諾。
+# 條件／評估語氣：**出現在 marker 之前**＝AI 尚未決定交棒（在問診／給條件），不是承諾。
+# 位置感知的理由：中文條件句一律前置（「若X，就安排師傅」），而 marker 之後的修飾詞多是
+# 補述（「會請專員聯繫，可能需要一點時間」——『可能』修飾時間，不是修飾要不要交棒）。
 _HANDOFF_HEDGE_MARKERS: tuple[str, ...] = (
     "是否", "評估", "如果", "如需", "若", "可能", "或許",
     "視情況", "看情況", "要不要", "需不需要", "是不是", "再評估", "再決定",
+    "假如", "倘若", "萬一",
 )
+# 否定：同一子句內否定該動作（「通常不用派師傅」）＝沒有要交棒。子句級（非整句前綴），
+# 免得「不用擔心，我已經安排師傅了」被誤吞。
+_HANDOFF_NEGATION_MARKERS: tuple[str, ...] = (
+    "不用", "不需要", "不必", "毋須", "無需", "免",
+)
+# 徵詢問句（「要不要幫您安排師傅呢？」）＝提議待客戶同意，SOP 明訂未經同意不得逕自派工。
+_CLAUSE_SPLIT_RE = re.compile(r"[，,、；;]")
+_INTERROGATIVE_HINTS: tuple[str, ...] = ("嗎", "呢")
 # 相容保留（外部若引用舊名）：完成式＋未完成式合集，僅供既有 import 不炸；判定改走 _promised_handoff。
 _HANDOFF_PROMISE_MARKERS: tuple[str, ...] = (
     _DEFINITIVE_HANDOFF_MARKERS + _SOFT_HANDOFF_MARKERS
 )
-# 句子切分（保留逗號串起的條件句在同句內：「若X，會安排技師」屬同一句 → hedge 生效）。
-_SENTENCE_SPLIT_RE = re.compile(r"[。！？!?\n]+")
+# 句子切分（保留句末標點，供問句判定）。逗號串起的條件句仍屬同一句 → hedge 前置規則生效。
+_SENTENCE_RE = re.compile(r"[^。！？!?\n]+[。！？!?]?")
+
+
+def _clause_at(sentence: str, idx: int) -> str:
+    """取 sentence 中位置 idx 所屬的子句（以逗號／頓號／分號切）。"""
+    start = 0
+    for m in _CLAUSE_SPLIT_RE.finditer(sentence):
+        if m.start() > idx:
+            return sentence[start:m.start()]
+        start = m.end()
+    return sentence[start:]
+
+
+def _is_interrogative(clause: str) -> bool:
+    """子句是否為徵詢問句（含 嗎/呢，或以問號收尾）。"""
+    c = clause.strip()
+    return c.endswith(("？", "?")) or any(h in c for h in _INTERROGATIVE_HINTS)
 
 
 def _promised_handoff(reply: str) -> bool:
     """AI 回應是否「承諾了轉接/安排師傅」（偵測說了卻沒呼叫工具的蒸發）。
 
-    句級判定：完成式承諾（已…）一律 True；未完成式的安排／派工語彙，**同一句**若帶
-    條件／評估語氣（是否／評估／如果／若／可能…）＝提議非承諾 → 不算（CR-0097 誤判修正，
-    2026-07-26：問診條件句「會評估是否需要安排專員」被誤當承諾、錯翻人工接管、AI 靜音）。
+    位置感知判定（CR-0097 誤判修正，2026-07-26）：
+    - 完成式承諾（已轉接／已安排…）→ 一律算承諾。
+    - 未完成式的安排／派工語彙，逐個出現位置檢查，任一「未被抑制」即算承諾；抑制條件：
+      ① marker **之前**出現條件／評估語氣（若／如果／評估／是否／可能…）＝條件句提議
+      ② marker 所在子句含否定（通常**不用**派師傅）
+      ③ marker 所在子句是徵詢問句（要不要幫您安排師傅**呢？**）——SOP 明訂未經同意不得逕自派工
+
+    位置感知的必要性：整句比對會把「會請專員與您聯繫，**可能**需要一點時間」誤判成提議
+    （假陰性＝真案子蒸發，比誤建卡嚴重），而條件句「**若**仍無法解決，會安排技師」必須抑制。
     """
     if not reply:
         return False
-    for sentence in _SENTENCE_SPLIT_RE.split(reply):
-        if not sentence:
+    for sentence in _SENTENCE_RE.findall(reply):
+        if not sentence.strip():
             continue
         if any(m in sentence for m in _DEFINITIVE_HANDOFF_MARKERS):
             return True
-        if any(m in sentence for m in _SOFT_HANDOFF_MARKERS) and not any(
-            h in sentence for h in _HANDOFF_HEDGE_MARKERS
-        ):
-            return True
+        for marker in _SOFT_HANDOFF_MARKERS:
+            start = 0
+            while (idx := sentence.find(marker, start)) >= 0:
+                start = idx + 1
+                if any(h in sentence[:idx] for h in _HANDOFF_HEDGE_MARKERS):
+                    continue  # 條件句提議（條件前置）
+                clause = _clause_at(sentence, idx)
+                if any(n in clause for n in _HANDOFF_NEGATION_MARKERS):
+                    continue  # 否定該動作
+                if _is_interrogative(clause):
+                    continue  # 徵詢客戶同意
+                return True
     return False
 
 
