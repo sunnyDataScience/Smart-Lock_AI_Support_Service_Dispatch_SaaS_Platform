@@ -490,21 +490,54 @@ async def _forward_escalation_safe(
 # 不呼叫 transfer_to_human，案子靜默蒸發（後台收不到問題卡）。偵測「AI 承諾轉接 + 本輪
 # escalation 未新增（=沒呼叫工具）」→ 程式補一筆 escalation，讓既有 _forward_escalation
 # 仍建問題卡。承諾話術用「完成式/指派式」字樣，降低純資訊提及的誤判。
-_HANDOFF_PROMISE_MARKERS: tuple[str, ...] = (
-    "已幫您轉接", "已為您轉接", "已轉接", "幫您轉接", "轉接給真人", "轉接給專員",
-    "已為您安排", "已幫您安排", "為您安排專員", "安排專員",
-    "已登記", "已為您登記",
-    "專員會", "專員將", "由專員", "請專員", "真人專員", "專員聯繫", "專員與您",
+# 完成式／已成事的承諾（一律視為真承諾，不受 hedge 影響）：出現＝案子已被交棒。
+_DEFINITIVE_HANDOFF_MARKERS: tuple[str, ...] = (
+    "已幫您轉接", "已為您轉接", "已轉接", "已為您轉接給",
+    "已為您安排", "已幫您安排", "已安排專員", "已通報專員",
+    "已登記", "已為您登記", "已為您記錄並轉", "已請師傅", "已派師傅",
+)
+# 未完成式的「轉接／安排／派工」語彙：**只有在同一句沒有條件／評估語氣時**才算承諾。
+# 問診回覆常出現「(如果…)會評估是否需要安排專員」這種條件句——那是提議、不是承諾，
+# 誤判會把對話錯翻成人工接管、AI 從此靜音（LINE 螢幕出現「已由真人專員接手」）。
+_SOFT_HANDOFF_MARKERS: tuple[str, ...] = (
+    "幫您轉接", "轉接給真人", "轉接給專員",
+    "為您安排專員", "安排專員",
+    "專員會", "專員將", "由專員", "請專員", "專員聯繫", "專員與您",
     "會與您聯繫", "將與您聯繫",
     "安排師傅", "安排技師", "派師傅", "派技師", "師傅到府", "技師到府", "請師傅到",
 )
+# 條件／評估語氣：同一句出現這些字＝AI 尚未決定交棒（在問診／給條件），不是承諾。
+_HANDOFF_HEDGE_MARKERS: tuple[str, ...] = (
+    "是否", "評估", "如果", "如需", "若", "可能", "或許",
+    "視情況", "看情況", "要不要", "需不需要", "是不是", "再評估", "再決定",
+)
+# 相容保留（外部若引用舊名）：完成式＋未完成式合集，僅供既有 import 不炸；判定改走 _promised_handoff。
+_HANDOFF_PROMISE_MARKERS: tuple[str, ...] = (
+    _DEFINITIVE_HANDOFF_MARKERS + _SOFT_HANDOFF_MARKERS
+)
+# 句子切分（保留逗號串起的條件句在同句內：「若X，會安排技師」屬同一句 → hedge 生效）。
+_SENTENCE_SPLIT_RE = re.compile(r"[。！？!?\n]+")
 
 
 def _promised_handoff(reply: str) -> bool:
-    """AI 回應是否「承諾了轉接/安排師傅」（偵測說了卻沒呼叫工具的蒸發）。"""
+    """AI 回應是否「承諾了轉接/安排師傅」（偵測說了卻沒呼叫工具的蒸發）。
+
+    句級判定：完成式承諾（已…）一律 True；未完成式的安排／派工語彙，**同一句**若帶
+    條件／評估語氣（是否／評估／如果／若／可能…）＝提議非承諾 → 不算（CR-0097 誤判修正，
+    2026-07-26：問診條件句「會評估是否需要安排專員」被誤當承諾、錯翻人工接管、AI 靜音）。
+    """
     if not reply:
         return False
-    return any(m in reply for m in _HANDOFF_PROMISE_MARKERS)
+    for sentence in _SENTENCE_SPLIT_RE.split(reply):
+        if not sentence:
+            continue
+        if any(m in sentence for m in _DEFINITIVE_HANDOFF_MARKERS):
+            return True
+        if any(m in sentence for m in _SOFT_HANDOFF_MARKERS) and not any(
+            h in sentence for h in _HANDOFF_HEDGE_MARKERS
+        ):
+            return True
+    return False
 
 
 # CR-0097+：兜底品牌/型號補抽。CR-0098 自動填只在 LLM 正確呼叫 transfer_to_human(brand=,model=)

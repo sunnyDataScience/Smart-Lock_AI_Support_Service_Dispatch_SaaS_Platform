@@ -79,6 +79,30 @@ def test_promised_handoff_ignores_plain_info():
     assert _promised_handoff("") is False
 
 
+def test_promised_handoff_ignores_conditional_offer():
+    """條件／評估語氣的『安排專員/派師傅』提議＝非承諾（CR-0097 誤判修正 2026-07-26）。
+
+    產線實案：問診回覆結尾『會評估是否需要為您安排專員到府處理』被誤判 → 對話錯翻
+    人工接管、AI 從此靜音（客人下一則只收到罐頭『已由真人專員接手』）。
+    """
+    # 產線那句原文（結尾條件句）
+    assert _promised_handoff(
+        "如果確認型號後仍無法解決，請告知我，我們會評估是否需要為您安排專員到府處理。"
+    ) is False
+    # 各種條件／評估語氣的提議都不算承諾
+    assert _promised_handoff("如果仍無法排除，可能需要派師傅到府") is False
+    assert _promised_handoff("若確認型號後仍無法解決，會安排技師") is False
+    assert _promised_handoff("看情況我們再評估是否安排專員") is False
+
+
+def test_promised_handoff_still_catches_unconditional_dispatch():
+    """無條件語氣的實際派工／轉接承諾仍要偵測到（避免修過頭讓真案蒸發）。"""
+    # 無 hedge 的實際安排（真的該補卡）
+    assert _promised_handoff("您的情況需要安排師傅到場，我們會請專員與您聯繫") is True
+    # 完成式一律算承諾，即使句中另含條件詞
+    assert _promised_handoff("已為您轉接真人專員，若還有問題會再協助") is True
+
+
 def _mk_store():
     from lockcore.agent.user_memory.escalation import EscalationStore
 
