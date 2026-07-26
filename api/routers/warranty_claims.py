@@ -37,7 +37,9 @@ async def list_warranty_claims(
     status: WarrantyClaimStatus | None = Query(default=None),
     customer_id: str | None = Query(default=None),
     work_order_id: str | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：v2 孿生端點已上守衛、本 legacy 端點漏掛，
+    # 兩者皆掛載 → 低權限角色改打 legacy 路徑即可繞過。對齊 v2 守衛。
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     page = await warranty_service.list_warranty_claims(
         tenant_id=user.tenant_id,
@@ -105,7 +107,9 @@ async def create_warranty_claim(
 )
 async def get_warranty_claim(
     id: str,
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：v2 孿生端點已上守衛、本 legacy 端點漏掛，
+    # 兩者皆掛載 → 低權限角色改打 legacy 路徑即可繞過。對齊 v2 守衛。
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     claim = await warranty_service.get_warranty_claim(tenant_id=user.tenant_id, claim_id=id)
     return {"data": WarrantyClaim(**claim).model_dump(mode="json")}

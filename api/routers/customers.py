@@ -40,7 +40,9 @@ async def list_customers(
     response: Response,
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：legacy 端點原僅 require_tenant，v2 孿生已上守衛
+    # → 低權限角色改打 /api/v1/customers 即可繞過。對齊 v2 與 rolePolicy。
+    user: CurrentUser = Depends(role_required("admin", "operations_manager", "customer_service")),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
     response.headers["Deprecation"] = "true"
@@ -97,7 +99,8 @@ async def create_customer(
 async def get_customer(
     response: Response,
     id: str = Path(),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：同上，對齊 v2 GET /tenants/{tid}/customers/{id}。
+    user: CurrentUser = Depends(role_required("admin", "operations_manager", "customer_service")),
 ) -> dict:
     # D3：雙掛過渡期 Deprecation header（CR-0002-α）
     response.headers["Deprecation"] = "true"

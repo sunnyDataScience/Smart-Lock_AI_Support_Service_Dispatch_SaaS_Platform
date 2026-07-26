@@ -43,7 +43,10 @@ async def list_refund_requests(
     limit: int = Query(default=20, ge=1, le=100),
     status: RefundRequestStatus | None = Query(default=None),
     work_order_id: str | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：本 legacy 端點原僅 require_tenant，而 v2 孿生端點
+    # （/tenants/{tid}/refunds）已上 REVIEW_ROLES → 低權限角色改打 legacy 即可繞過。
+    # 對齊 v2 與前端 rolePolicy `/admin/refunds`=[admin, operations_manager, reviewer]。
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     page = await refund_service.list_refund_requests(
         tenant_id=user.tenant_id,
@@ -108,7 +111,8 @@ async def create_refund_request(
 )
 async def get_refund_request(
     id: str,
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：同上，對齊 v2 GET /tenants/{tid}/refunds/{id}。
+    user: CurrentUser = Depends(role_required(*REVIEW_ROLES)),
 ) -> dict:
     refund = await refund_service.get_refund_request(tenant_id=user.tenant_id, refund_id=id)
     return {"data": RefundRequest(**refund).model_dump(mode="json")}

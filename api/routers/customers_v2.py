@@ -86,7 +86,9 @@ async def list_customers_v2(
 )
 async def customer_stats_v2(
     tenantId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：同檔的 list 端點已上守衛，本 stats 卻漏掛 → 不一致。
+    # 對齊 list 與前端 rolePolicy `/admin/customers`=[admin, operations_manager, customer_service]。
+    user: CurrentUser = Depends(role_required("admin", "operations_manager", "customer_service")),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -141,7 +143,8 @@ async def create_customer_v2(
 async def get_customer_v2(
     tenantId: str = Path(...),
     id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：明細含 PII 聚合（工單/評分/投訴/退款），守衛不得弱於 list。
+    user: CurrentUser = Depends(role_required("admin", "operations_manager", "customer_service")),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

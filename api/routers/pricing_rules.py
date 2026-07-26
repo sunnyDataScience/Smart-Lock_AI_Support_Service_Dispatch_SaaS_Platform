@@ -33,7 +33,9 @@ async def list_pricing_rules(
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     brand: str | None = Query(default=None),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：v2 孿生端點已上守衛、本 legacy 端點漏掛，
+    # 兩者皆掛載 → 低權限角色改打 legacy 路徑即可繞過。對齊 v2 守衛。
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     page = await pricing_rule_service.list_pricing_rules(
         tenant_id=user.tenant_id,
