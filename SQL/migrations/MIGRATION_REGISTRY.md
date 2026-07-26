@@ -17,8 +17,14 @@
 >     tech/platform 走純明文謂詞（刻意，見 auth_service），待 CR-0176 S5 bidx cutover 才補欄+backfill。
 >   - **落庫分流（LOCK-62 item 2，2026-07-26 完成）**：`scripts/db/apply-schema-routed.sh` 讀 migration
 >     檔頭 `-- migrate-targets: brand|tech|platform`（可逗號多庫；未標＝brand 向下相容）分流到對應庫
->     URI 並逐庫記帳。已標注 063/064/080/081/089/090＝`brand,tech`（技師表兩庫皆有）。其餘 migration
->     的完整落庫標注＝item 3（尤其動 users 者跨庫適用性須逐一判：users 在三庫用途不同）。
+>     URI 並逐庫記帳。
+>   - **完整標注（item 3，2026-07-26 完成）**：23 個碰 tech/platform/users 表的 migration 逐一判定，
+>     非純 brand 者＝`brand,tech`（035/063/064/080/081/086/089/090）、`brand,tech,platform`（084 帳號安全欄）；
+>     其餘（動 users 但屬客戶彙總/GDPR客戶PII/報價工單FK）維持 brand。規則：CREATE/ALTER 到該庫實際有的表才
+>     +該庫；只 FK-引用不算；users 按語意分（帳號安全/登入閘跨庫，客戶/brand 專屬只 brand）。
+>   - **item 3 揪出並修的活缺口**：035 password_reset_tokens 只在品牌庫——技師 forgot-password 在 tech-api
+>     （`_reset_conn` 於 tech surface 路由技師庫）會 UndefinedTable。已補套 035 到 lock_tech（表已建、記入 ledger）。
+>     platform 無 forgot-password 流程且平台庫缺 uuid-ossp，故 035＝brand,tech 不含 platform。
 >
 > 釐清語意：**🟢 idempotent = 「設計可安全重套」，≠「已套用」**。
 > 已確認的漂移（盤點實測 dev DB）：

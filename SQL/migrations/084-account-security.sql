@@ -1,4 +1,5 @@
 -- 084-account-security.sql
+-- migrate-targets: brand,tech,platform  (LOCK-62 item3：users 帳號安全欄 failed_login/locked/password_changed 三庫皆須)
 -- Phase I 帳號安全（A1 登入防爆破 / A3 改密碼撤 session）
 --
 -- A1：failed_login_attempts + locked_until —— 登入連續失敗鎖定。

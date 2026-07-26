@@ -1,4 +1,5 @@
 -- 035-password-reset-tokens.sql
+-- migrate-targets: brand,tech  (LOCK-62 item3：password_reset 僅 brand/tech surface；platform 無 forgot-password 流程且平台庫缺 uuid-ossp)
 -- CR-0025 / ADR-0114：使用者自助忘記密碼 — 一次性 reset token。
 -- 流程：request-password-reset 簽發高熵 token（只存雜湊）→ 寄 email →
 --       confirm-password-reset 驗 token（未過期/未用）→ 改密碼 + 標 used + 撤 refresh。

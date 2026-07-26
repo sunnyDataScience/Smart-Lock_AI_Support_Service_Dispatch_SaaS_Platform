@@ -1,4 +1,5 @@
 -- 086: 技師登入資格資料校正（backfill，冪等）
+-- migrate-targets: brand,tech  (LOCK-62 item3：users.is_active 登入閘 backfill 對技師權威庫亦須套)
 --
 -- 背景（2026-07-02 師傅端測試修復，branch fix/tech-login-status-gate）：
 --   technicians.status（生命週期）與 users.is_active（登入檢查點）原本脫鉤——
