@@ -76,7 +76,7 @@ brand-api / tech-api / platform-api **共用 JWT secret**，且 token payload �
 - **實作期修正 — claim 改名 `aud`→`portal`**：拋棄式測試證實用標準 JWT `aud` 欄會被 `jose.jwt.decode`（未帶 audience 參數）自動驗證而拋 `JWTClaimsError: Invalid audience`，破壞既有 decode。改自訂欄 `portal`（值 brand/tech/platform），同時避開與部署塑形 `surface` 撞名。對應：env＝`ALLOWED_TOKEN_PORTALS`、錯誤碼＝`CROSS_PORTAL_FORBIDDEN`。
 - **role→portal 推導方向**：枚舉 non-brand（technician→tech、platform_admin/platform_keeper→platform），其餘→brand（含 vendor per D2a），**空/缺 role→deny**（異常 token）。此方向可用性安全（不誤 deny 合法品牌角色），且正確隔離真實威脅（技師/平台 token 永不落 brand）。
 - ✅ **實作完成**（commit 見分支）：`core/auth.py` portal_for_role + create_token 寫 portal；`core/deps.py:get_current_user` 守衛（缺 portal 即時推導、`ALLOWED_TOKEN_PORTALS` 允許集、403 短路於 DB 前）；`api.sh` 三面對映烤 env；`test_cr_0182_portal_guard.py` 12 案全綠；openapi 錯誤碼 + CHANGELOG Security 段。基線比對確認零新增測試失敗（既有 15 紅＝本機 pytest 庫缺 migration 114 `email_bidx`，與本 CR 無關）。
-- ⏳ 待部署：先佈 code（未設 env 零行為變化）→ 雲端三服務重佈帶 env → F2 探針複驗 403。
+- ✅ **上線並驗證（0726）**：三服務重佈（smart-lock-api 00029-6fh／lock-tech-api 00008-9ff／lock-platform-api 00008-27s，image bf5eb7d1-20260726，health 全綠）。雲端四象限探針：F2 本體 tech→brand /customers,/refunds = **403 CROSS_PORTAL_FORBIDDEN**（原 200 已關閉）；品牌未誤殺 admin→brand = 200；技師未誤殺 tech→tech pool/me = 200；反向 D3a admin→tech = **403**（對稱防禦生效）。Plane LOCK-57 收 Done、LOCK-61 開 D4a follow-up。**CR 完成。**
 
 ## §9 Suggested Implementation Order（待 §8 裁決後定案，暫定）
 
