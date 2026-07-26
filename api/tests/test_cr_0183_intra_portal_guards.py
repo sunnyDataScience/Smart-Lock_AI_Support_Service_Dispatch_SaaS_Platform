@@ -36,6 +36,7 @@ CASES = [
     (f"/tenants/{TID}/customers?limit=1", "reviewer", "customer_service"),         # customers admin/ops/cs（reviewer 不在）
     (f"/tenants/{TID}/m18/configs", "operations_manager", "admin"),                # config 治理 admin-only
     (f"/tenants/{TID}/reports/kpi", "customer_service", "operations_manager"),     # 報表 OPS_ROLES
+    (f"/tenants/{TID}/data-corrections", "customer_service", "operations_manager"),  # HD-4：ops 可讀、cs 擋（業主 0726）
 ]
 
 

@@ -16,7 +16,7 @@ import logging
 
 from fastapi import APIRouter, Body, Depends, Path, Query
 
-from core.deps import FULL_ACCESS_ROLES, CurrentUser, require_tenant, role_required
+from core.deps import FULL_ACCESS_ROLES, OPS_ROLES, CurrentUser, require_tenant, role_required
 from services import data_corrections_service
 
 logger = logging.getLogger("api.routers.data_corrections")
@@ -36,7 +36,9 @@ async def list_data_corrections(
     ),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183/HD-4：資料修正 review queue 讀取＝tenant operator（ops）可讀（業主 0726
+    # 維持 HD-4，不收 admin-only）；OPS_ROLES 擋掉 cs/reviewer/dispatcher/technician/vendor。
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     page = await data_corrections_service.list_corrections(
         status=status or None,

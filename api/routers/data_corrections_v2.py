@@ -29,7 +29,7 @@ import logging
 from fastapi import APIRouter, Body, Depends, Path, Query
 from pydantic import BaseModel
 
-from core.deps import CurrentUser, require_tenant, role_required
+from core.deps import OPS_ROLES, CurrentUser, require_tenant, role_required
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from services import data_corrections_v2_service as svc
@@ -64,7 +64,9 @@ async def list_data_corrections_v2(
     ),
     cursor: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183/HD-4：資料修正 review queue 讀取＝tenant operator（ops）可讀（業主 0726
+    # 維持 HD-4，不收 admin-only）；OPS_ROLES 擋掉 cs/reviewer/dispatcher/technician/vendor。
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:

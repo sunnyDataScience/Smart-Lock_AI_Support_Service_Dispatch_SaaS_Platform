@@ -38,14 +38,14 @@ CR-0182 的 `portal` 守衛關閉了**跨面**越權（技師 token 進不了 br
 
 | # | 端點 | 議題 | 建議 |
 |---|---|---|---|
-| **D1** | `data_corrections(_v2)` GET | 收成 admin-only 會**推翻既有 HD-4 決策**（明訂「tenant operator=ops 可讀」）——治理衝突，本 CR **未動**（維持 require_tenant） | 維持 HD-4（ops 可讀，用 `OPS_ROLES` 只擋 cs/viewer/technician）vs 收 admin-only（`FULL_ACCESS_ROLES`）。裁決後補守衛。 |
+| **D1** | `data_corrections(_v2)` GET | 收成 admin-only 會**推翻既有 HD-4 決策**（明訂「tenant operator=ops 可讀」）——治理衝突 | ✅ **業主 0726 裁決：維持 HD-4，用 `OPS_ROLES`**（branch `fix/cr-0183-data-corrections-hd4`）——ops 可讀，擋掉 cs/reviewer/dispatcher/technician/vendor。測試案補 1。 |
 
 其餘 needs-owner 項（brand-b2b/dispatcher-commission 的 OPS-vs-REVIEW、v1-inventory/lifespan 的 OPS-vs-admin）皆已套安全預設（match write-guard），**兩種選擇都擋掉低權限角色**，安全目標已達成；若你偏好更嚴可再收，非阻斷。
 
 ### 進度
 - ✅ 分類（6 agent + 對抗驗證）→ 套用（8 agent，55 檔 84 守衛）→ 獨立驗證（語法/import/spot-check/測試/基線比對）全過。
 - ✅ **上線並驗證（0726）**：smart-lock-api 重佈（image d79df108-20260726，rev 00030-hnd，health OK）。雲端探針：cs → refunds/vouchers/m18-configs = **403 FORBIDDEN**；cs → customers = **200**（白名單精準）；dispatcher → settlements = **403**；真 admin → 全守衛端點 = **200**（未破壞）。Plane LOCK-61 收 Done。
-- 🛑 D1（data_corrections）待業主裁決；其餘 CR 完成。
+- ✅ **D1 收尾（0726）**：業主裁決維持 HD-4，`data_corrections(_v2)` 兩 list 端點補 `OPS_ROLES`（ops 可讀、擋 cs/其他低權限）；15 專測 pass、app import OK。**CR 全數完成**（剩餘 15 個 require_tenant-only 皆 Category B，技師合法讀、CR-0182 已擋跨面，刻意保留）。待部署 smart-lock-api。
 
 ## §9 Suggested Implementation Order
 
