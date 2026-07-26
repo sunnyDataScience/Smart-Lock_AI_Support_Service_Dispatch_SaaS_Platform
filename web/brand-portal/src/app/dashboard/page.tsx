@@ -178,7 +178,13 @@ export default function DashboardPage() {
           query: { limit: TECHNICIANS_LIMIT },
         });
         if (cancelled) return;
-        setTechnicians(res.items ?? []);
+        // 只保留在職技師（status='active'）再交給狀態分佈圖。
+        // WHY：technicians 端點回傳全部狀態（含 terminated/rejected/suspended/
+        // pending_approval/inactive），而這些人的 availability 欄位一律預設
+        // 'available' → 圖表會把離職／未過審／停權者全算成「可用」，與同頁 KPI
+        // 「在線技師 online/total」（後端只計 status='active'）互相矛盾，營運會誤判人力。
+        // 對齊後端 technician_service.dashboard 統計口徑（total_count = active 數）。
+        setTechnicians((res.items ?? []).filter((t) => t.status === "active"));
       } catch (e) {
         if (!cancelled) setTechniciansError(describeError(e));
       } finally {
