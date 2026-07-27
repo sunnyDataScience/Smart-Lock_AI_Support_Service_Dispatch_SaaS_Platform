@@ -1,0 +1,53 @@
+name: Web lint + typecheck
+
+# 前端四站的 ESLint 與 TypeScript 守門。
+#
+# 為什麼新增：2026-07-27 稽核發現四站 package.json 都宣告了 `npm run lint`，但**沒有
+# 任何 ESLint 設定檔與 eslint 依賴** —— `next lint` 會跳互動式設定提問並卡住，等於
+# 前端從來沒有真正 lint 過，CI 也沒有任何一條 job 跑它。型別方面 `tsc --noEmit` 四站
+# 皆綠但同樣無人守。本 workflow 補上這兩道 gate，避免設定補完後再度荒廢。
+#
+# 判準：
+#   - typecheck 必須零錯（tsc --noEmit）。
+#   - lint 必須零 error；warning 允許存在（既有技術債如 no-explicit-any / unused-vars
+#     已在各站 eslint.config.mjs 降為 warn 並持續曝光），要收緊時逐條調回 error。
+
+on:
+  pull_request:
+    paths:
+      - 'web/**'
+      - '.github/workflows/web-lint-typecheck.yml'
+  push:
+    branches: [main, dev, dev-ding]
+    paths:
+      - 'web/**'
+      - '.github/workflows/web-lint-typecheck.yml'
+
+jobs:
+  lint-typecheck:
+    name: ${{ matrix.station }} — lint + tsc
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false          # 一站壞不遮蔽其他站的結果
+      matrix:
+        station: [brand-portal, tech-portal, platform-console, landing]
+    defaults:
+      run:
+        working-directory: web/${{ matrix.station }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: web/${{ matrix.station }}/package-lock.json
+
+      - name: Install deps
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: ESLint（zero-error gate；warning 為既有技術債）
+        run: npx eslint . --max-warnings=-1
