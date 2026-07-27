@@ -22,17 +22,23 @@
  */
 
 import { cacheGet, cacheClear, cacheInvalidate } from "./cache";
+import {
+  ApiError,
+  type ApiErrorResponse,
+} from "@smartlock/shared-contract/errors";
+import { apiBaseUrl } from "./runtimeConfig";
+export { ApiError };
+export type { ApiErrorResponse } from "@smartlock/shared-contract/errors";
 
 // 用 || 而非 ??：Docker build-arg 未傳時 ENV 會是空字串 ""（非 undefined），
 // 需讓空字串也 fallback 到本機預設（?? 只攔 null/undefined，會放過 ""）。
-const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
-
-const STORAGE_KEYS = {
-  access: "smartlock.access_token",
-  refresh: "smartlock.refresh_token",
-  tenant: "smartlock.tenant_id",
-  email: "smartlock.email",
-} as const;
+const LEGACY_SESSION_KEYS = [
+  "smartlock.access_token",
+  "smartlock.refresh_token",
+  "smartlock.tenant_id",
+  "smartlock.email",
+] as const;
+let accessTokenMemory: string | null = null;
 
 /**
  * ApiErrorResponse — superset interface compatible with:
@@ -42,49 +48,6 @@ const STORAGE_KEYS = {
  * All fields are optional so both old and new response shapes parse without throwing.
  * Callers MUST NOT fetch the `type` URI — it is an identifier string only (D5 decision).
  */
-export interface ApiErrorResponse {
-  // RFC7807 fields (new — application/problem+json)
-  type?: string;
-  title?: string;
-  status?: number;
-  detail?: string;
-  instance?: string;
-
-  // Legacy extension members (backward-compat)
-  error_code?: string;
-  message?: string;
-  details?: unknown;
-  request_id?: string;
-  timestamp?: string;
-}
-
-/** Derive error_code from RFC7807 type URI (urn:smartlock:error:{code} → upper CODE). */
-function deriveCodeFromType(type: string | undefined): string | undefined {
-  if (!type) return undefined;
-  // Format: urn:smartlock:error:validation_error → VALIDATION_ERROR
-  const match = /^urn:smartlock:error:(.+)$/.exec(type);
-  if (!match) return undefined;
-  return match[1].toUpperCase();
-}
-
-export class ApiError extends Error {
-  status: number;
-  errorCode: string;
-  details?: unknown;
-  requestId?: string;
-  constructor(status: number, body: ApiErrorResponse) {
-    // Prefer detail (RFC7807) → message (legacy) → title (RFC7807) → fallback
-    const msg = body.detail ?? body.message ?? body.title ?? `HTTP ${status}`;
-    super(msg);
-    this.status = status;
-    // Prefer error_code (legacy extension member) → derive from type URI → "UNKNOWN"
-    this.errorCode = body.error_code ?? deriveCodeFromType(body.type) ?? "UNKNOWN";
-    this.details = body.details;
-    // Prefer request_id (legacy) → instance (RFC7807 — may be path, not ID)
-    this.requestId = body.request_id ?? body.instance;
-  }
-}
-
 interface RequestOptions {
   query?: Record<string, string | number | boolean | undefined>;
   body?: unknown;
@@ -97,16 +60,14 @@ interface RequestOptions {
 }
 
 // ── CR-0177 S3a：統一帶 credentials，讓後端寫的 httpOnly access cookie 隨請求送出 ──
-// 現況仍以 Authorization header 為主（localStorage 過渡）；待自訂網域（web/api 同父網域）
-// 上線並設 api 端 AUTH_COOKIE_DOMAIN 後，cookie 才成為可用來源，屆時方移除 localStorage（S3b）。
-// ⚠️ cookie 依「網域」共用而**不看 port**：prod web/api 為不同 *.run.app hostname 時送不到
-//    （且 run.app 在 Public Suffix List，無法設共用父網域 cookie）——故自訂網域為前置。
+// Browser 走同站 /api-proxy 時 cookie 由 Web origin 保存並由 server proxy 轉送；
+// 直連 API／WebSocket 才需要同父網域的 AUTH_COOKIE_DOMAIN。
 function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   return fetch(input, { ...init, credentials: "include" });
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = new URL(path, BASE_URL);
+  const url = new URL(path.replace(/^\/+/, ""), `${apiBaseUrl()}/`);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
@@ -115,22 +76,16 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
   return url.toString();
 }
 
-function readToken(key: string): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem(key);
-}
-
-function writeToken(key: string, value: string | null) {
+function removeLegacySessionStorage() {
   if (typeof window === "undefined") return;
-  if (value === null) window.localStorage.removeItem(key);
-  else window.localStorage.setItem(key, value);
+  for (const key of LEGACY_SESSION_KEYS) window.localStorage.removeItem(key);
 }
 
 // ── CR-0166 D8-a：localStorage 退場（業主裁決 B——可讀 claims cookie）──────────
 // getCurrentSession / getTenantId 原同步依賴 localStorage（30+ 頁）。改由非 httpOnly
 // 的 smartlock_claims cookie 提供 role/tenant/email（非機密——本就在 JWT 內、可讀）。
-// auth token 仍走 httpOnly cookie（SSO）+ Authorization header（localStorage 過渡）；
-// 本步只退場「前端 session claims 的 localStorage 依賴」。單一寫入點 = auth.setTokens。
+// auth token 只走 HttpOnly cookie；一次性 legacy migration 讀舊 access token、建立
+// claims cookie 後立即清 storage，且不再寫回。
 // UAT-1(2026-07-18):cookie 名帶 APP_MODE 後綴——localhost 各站共用 cookie jar
 // (cookie 不隔離 port),原單一名字讓「登入任一站」覆寫其他站的 session role
 // (:3001 技師登入 → :3000 讀到 role=technician → 誤導向)。後綴由 build 時
@@ -152,7 +107,7 @@ function writeClaimsCookie(claims: ClaimsCookie | null) {
   }
   const value = encodeURIComponent(JSON.stringify(claims));
   const secure = window.location.protocol === "https:" ? "; secure" : "";
-  document.cookie = `${CLAIMS_COOKIE}=${value}; path=/; max-age=3600; samesite=lax${secure}`;
+  document.cookie = `${CLAIMS_COOKIE}=${value}; path=/; max-age=2592000; samesite=lax${secure}`;
 }
 
 function readClaimsCookie(): ClaimsCookie | null {
@@ -179,16 +134,13 @@ function readClaimsCookie(): ClaimsCookie | null {
 export const FALLBACK_TENANT_ID = "00000000-0000-0000-0000-000000000001";
 
 export const auth = {
-  getAccessToken: () => readToken(STORAGE_KEYS.access),
-  getRefreshToken: () => readToken(STORAGE_KEYS.refresh),
-  // CR-0166 D8-a：tenant 優先讀 claims cookie，退回 localStorage（過渡），再退回預設。
-  getTenantId: () =>
-    readClaimsCookie()?.tenantId ?? readToken(STORAGE_KEYS.tenant) ?? FALLBACK_TENANT_ID,
-  getEmail: () => readClaimsCookie()?.email ?? readToken(STORAGE_KEYS.email),
-  setTokens(access: string, refresh: string) {
-    writeToken(STORAGE_KEYS.access, access);
-    writeToken(STORAGE_KEYS.refresh, refresh);
-    // CR-0166 D8-a：解 JWT 寫 claims cookie（單一寫入點——SSO 與密碼登入皆走此）
+  getAccessToken: () => accessTokenMemory,
+  getRefreshToken: () => null,
+  getTenantId: () => readClaimsCookie()?.tenantId ?? FALLBACK_TENANT_ID,
+  getEmail: () => readClaimsCookie()?.email ?? null,
+  setTokens(access: string, _refresh?: string) {
+    accessTokenMemory = access || null;
+    removeLegacySessionStorage();
     const payload = decodeJwtPayload(access);
     if (payload) {
       writeClaimsCookie({
@@ -198,33 +150,35 @@ export const auth = {
         email:
           typeof payload.email === "string"
             ? payload.email
-            : readToken(STORAGE_KEYS.email),
+            : readClaimsCookie()?.email ?? null,
       });
     }
   },
   setTenantId(tenantId: string) {
-    writeToken(STORAGE_KEYS.tenant, tenantId);
-    // 同步更新 claims cookie 的 tenant（sso-complete 會另外呼叫此）
     const c = readClaimsCookie();
     if (c) writeClaimsCookie({ ...c, tenantId });
   },
   setEmail(email: string) {
-    writeToken(STORAGE_KEYS.email, email);
     const c = readClaimsCookie();
     if (c) writeClaimsCookie({ ...c, email });
   },
+  setSessionClaims(session: CurrentSession) {
+    writeClaimsCookie(session);
+  },
   clear() {
-    writeToken(STORAGE_KEYS.access, null);
-    writeToken(STORAGE_KEYS.refresh, null);
-    writeToken(STORAGE_KEYS.email, null);
-    writeClaimsCookie(null); // CR-0166 D8-a：登出清 claims cookie
+    accessTokenMemory = null;
+    removeLegacySessionStorage();
+    writeClaimsCookie(null);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("smartlock.session_event", `logout:${Date.now()}`);
+    }
   },
 };
 
 /**
  * tenantPath — 組出 tenant-scoped v2 路徑 `/tenants/{tenantId}/{suffix}`。
  *
- * tenantId 來源與 X-Tenant-ID header 一致（auth.getTenantId()：localStorage →
+ * tenantId 來源與 X-Tenant-ID header 一致（auth.getTenantId()：claims cookie →
  * 退回預設租戶）。P3 caller 遷移用：把 legacy `/api/v1/foo` 改成
  * `tenantPath("/foo")` 即可，header / Idempotency-Key 仍由 client 自動注入。
  *
@@ -234,8 +188,8 @@ export const auth = {
  *   api.get(tenantPath("/work-orders"))            // → /tenants/{tid}/work-orders
  *   cacheInvalidate("GET:")  // cache key 含完整 URL，用廣域 prefix 清，勿用 path-prefix
  *
- * 注意 tenant 來源差異：本 helper 走 `auth.getTenantId()`（localStorage，與
- * X-Tenant-ID header 一致）；頁面層的 `resolveTenantId()` 走 JWT claim。多數情境兩者
+ * 注意 tenant 來源差異：本 helper 走 `auth.getTenantId()`（claims cookie，與
+ * X-Tenant-ID header 一致）；頁面層的 `resolveTenantId()` 走 session claim。多數情境兩者
  * 相同，但若刻意需要與 header 對齊請用 tenantPath，需與 session 角色一致請用 resolveTenantId。
  */
 export function tenantPath(suffix: string): string {
@@ -275,15 +229,52 @@ export function getCurrentSession(): CurrentSession | null {
       email: claims.email,
     };
   }
-  const token = auth.getAccessToken();
-  if (!token) return null;
-  const payload = decodeJwtPayload(token);
-  if (!payload) return null;
-  const sub = typeof payload.sub === "string" ? payload.sub : null;
-  const role = typeof payload.role === "string" ? payload.role : null;
-  const tenantId =
-    typeof payload.tenant_id === "string" ? payload.tenant_id : null;
-  return { userId: sub, role, tenantId, email: auth.getEmail() };
+  if (typeof window !== "undefined") {
+    const legacy = window.localStorage.getItem("smartlock.access_token");
+    if (legacy) {
+      auth.setTokens(legacy);
+      return readClaimsCookie();
+    }
+  }
+  return null;
+}
+
+export async function bootstrapSession(): Promise<CurrentSession | null> {
+  const existing = getCurrentSession();
+  if (existing) return existing;
+  const platform = process.env.NEXT_PUBLIC_APP_MODE === "platform";
+  const sessionPath = platform
+    ? "/api/v2/platform/auth/session"
+    : "/api/v2/auth/session";
+  let response = await apiFetch(buildUrl(sessionPath));
+  if (response.status === 401) {
+    const refreshPath = platform
+      ? "/api/v1/platform/auth/refresh"
+      : "/api/v1/auth/refresh";
+    const refreshed = await apiFetch(buildUrl(refreshPath), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Auth-Response-Mode": "cookie",
+      },
+      body: JSON.stringify({}),
+    });
+    if (!refreshed.ok) return null;
+    response = await apiFetch(buildUrl(sessionPath));
+  }
+  if (!response.ok) return null;
+  const payload = (await response.json()) as {
+    data?: { user_id?: string; role?: string; tenant_id?: string };
+  };
+  if (!payload.data?.user_id || !payload.data.role) return null;
+  const session: CurrentSession = {
+    userId: payload.data.user_id,
+    role: payload.data.role,
+    tenantId: payload.data.tenant_id ?? null,
+    email: null,
+  };
+  auth.setSessionClaims(session);
+  return session;
 }
 
 /**
@@ -291,7 +282,7 @@ export function getCurrentSession(): CurrentSession | null {
  *
  * 收斂 11+ 個 page / component 內 inline 重抄的
  * `getCurrentSession()?.tenantId ?? "00000000-…-0001"`。
- * 來源語意刻意對齊原 caller（JWT claim，而非 auth.getTenantId() 的 localStorage）。
+ * 來源語意刻意對齊原 caller（session claim，而非任意 request tenant）。
  */
 export function resolveTenantId(): string {
   return getCurrentSession()?.tenantId ?? FALLBACK_TENANT_ID;
@@ -301,9 +292,6 @@ let refreshInFlight: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
-  const token = auth.getRefreshToken();
-  if (!token) return false;
-
   refreshInFlight = (async () => {
     try {
       // CR-0114:平台 console 的 refresh 走平台端點（撤銷/狀態查平台庫）;
@@ -313,14 +301,14 @@ async function refreshAccessToken(): Promise<boolean> {
         buildUrl(isPlatform ? "/api/v1/platform/auth/refresh" : "/api/v1/auth/refresh"),
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: token }),
+          headers: {
+            "Content-Type": "application/json",
+            "X-Auth-Response-Mode": "cookie",
+          },
+          body: JSON.stringify({}),
         },
       );
       if (!res.ok) return false;
-      const data = (await res.json()) as { data?: { access_token: string; refresh_token: string } };
-      if (!data.data) return false;
-      auth.setTokens(data.data.access_token, data.data.refresh_token);
       return true;
     } catch {
       return false;
@@ -356,9 +344,8 @@ async function getFreshAccessToken(): Promise<string | null> {
   return token;
 }
 
-// Session 失效（access + refresh 皆過期/無效）→ 清 token 並導去對應入口的登入頁。
-// 為何需要：AuthGuard 只驗「token 存在」不驗「是否過期」，隔夜後過期 token 仍會放行頁面，
-// 頁面拿過期 token 一路 401（refresh 也失敗）就白屏。在 API 層統一兜底，任何 portal 皆適用。
+// Session 失效（access + refresh cookie 皆過期/無效）→ 清 claims 並導登入。
+// AuthGuard 會 bootstrap；API 層仍統一承接並發 401，避免頁面白屏。
 function loginPathForCurrentLocation(): string {
   if (typeof window === "undefined") return "/login";
   const p = window.location.pathname;
@@ -678,8 +665,9 @@ export const api = {
 
 export interface LoginResponse {
   data: {
-    access_token: string;
-    refresh_token: string;
+    authenticated?: boolean;
+    access_token?: string;
+    refresh_token?: string;
     token_type: string;
     expires_in: number;
   };
@@ -687,11 +675,13 @@ export interface LoginResponse {
 }
 
 export async function login(email: string, password: string): Promise<LoginResponse> {
+  auth.clear();
   const res = await request<LoginResponse>("POST", "/api/v1/auth/login", {
     body: { email, password },
     skipAuth: true,
+    headers: { "X-Auth-Response-Mode": "cookie" },
   });
-  auth.setTokens(res.data.access_token, res.data.refresh_token);
+  if (!(await bootstrapSession())) throw new Error("Cookie session bootstrap failed");
   auth.setEmail(email);
   return res;
 }
@@ -704,11 +694,13 @@ export async function loginTechnician(
   identifier: string,
   password: string,
 ): Promise<LoginResponse> {
+  auth.clear();
   const res = await request<LoginResponse>("POST", "/api/v1/technicians/login", {
     body: { identifier: identifier.trim(), password },
     skipAuth: true,
+    headers: { "X-Auth-Response-Mode": "cookie" },
   });
-  auth.setTokens(res.data.access_token, res.data.refresh_token);
+  if (!(await bootstrapSession())) throw new Error("Cookie session bootstrap failed");
   auth.setEmail(identifier);
   return res;
 }
@@ -719,11 +711,13 @@ export async function loginVendor(
   email: string,
   password: string,
 ): Promise<LoginResponse> {
+  auth.clear();
   const res = await request<LoginResponse>("POST", "/api/v1/vendors/login", {
     body: { email, password },
     skipAuth: true,
+    headers: { "X-Auth-Response-Mode": "cookie" },
   });
-  auth.setTokens(res.data.access_token, res.data.refresh_token);
+  if (!(await bootstrapSession())) throw new Error("Cookie session bootstrap failed");
   auth.setEmail(email);
   return res;
 }
@@ -734,21 +728,22 @@ export async function loginPlatformAdmin(
   email: string,
   password: string,
 ): Promise<LoginResponse> {
+  auth.clear();
   const res = await request<LoginResponse>("POST", "/api/v1/platform/auth/login", {
     body: { email, password },
     skipAuth: true,
+    headers: { "X-Auth-Response-Mode": "cookie" },
   });
-  auth.setTokens(res.data.access_token, res.data.refresh_token);
+  if (!(await bootstrapSession())) throw new Error("Cookie session bootstrap failed");
   auth.setEmail(email);
   return res;
 }
 
 // 平台管理員登出（撤銷寫平台庫 revoked_jti）
 export async function logoutPlatformAdmin(): Promise<void> {
-  const refresh = auth.getRefreshToken();
   try {
     await request("POST", "/api/v1/platform/auth/logout", {
-      body: refresh ? { refresh_token: refresh } : undefined,
+      body: {},
     });
   } catch {
     // ignore — clear local state regardless
@@ -775,10 +770,9 @@ export async function confirmPasswordReset(token: string, newPassword: string): 
 }
 
 export async function logout(): Promise<void> {
-  const refresh = auth.getRefreshToken();
   try {
     await request("POST", "/api/v1/auth/logout", {
-      body: refresh ? { refresh_token: refresh } : undefined,
+      body: {},
     });
   } catch {
     // ignore — clear local state regardless

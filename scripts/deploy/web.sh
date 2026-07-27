@@ -44,7 +44,7 @@ GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 TIMESTAMP=$(date +%Y%m%d-%H%M)
 IMAGE_TAG="${GIT_SHA}-${TIMESTAMP}"
 IMAGE_BASE="asia-east1-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE_NAME}"
-IMAGE="${IMAGE_BASE}:${IMAGE_TAG}"
+IMAGE="${IMAGE_OVERRIDE:-${IMAGE_BASE}:${IMAGE_TAG}}"
 
 # ── Cloud Run 設定 ──
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-lock-ai@${PROJECT_ID}.iam.gserviceaccount.com}"
@@ -76,6 +76,28 @@ if [[ -f "${WEB_ENV_FILE}" ]]; then
 fi
 # Runtime 環境變數（不需要 build-time）
 ENV_VARS="NODE_ENV=production"
+WEB_SECRET_ARGS=()
+# ADR-038 build-once：API target 改由 Next same-origin proxy 在 runtime 讀取；值不烤入
+# browser bundle，staging/prod 才能使用同一 image digest。
+if [[ -n "${API_BASE_URL:-}" ]]; then
+    ENV_VARS="${ENV_VARS},API_BASE_URL=${API_BASE_URL}"
+fi
+if [[ -n "${PLATFORM_API_BASE_URL:-}" ]]; then
+    ENV_VARS="${ENV_VARS},PLATFORM_API_BASE_URL=${PLATFORM_API_BASE_URL}"
+fi
+# Runtime SSO 保持在 image 外，staging/production 可用同一 digest 接不同 IdP client。
+# 兩個非機密值必須同時存在才掛 secret；缺任一即維持密碼 break-glass 模式。
+if [[ -n "${CASDOOR_ENDPOINT:-}" && -n "${CASDOOR_CLIENT_ID:-}" ]]; then
+    ENV_VARS="${ENV_VARS},CASDOOR_ENDPOINT=${CASDOOR_ENDPOINT}"
+    ENV_VARS="${ENV_VARS},CASDOOR_CLIENT_ID=${CASDOOR_CLIENT_ID}"
+    CASDOOR_CLIENT_SECRET_NAME="${CASDOOR_CLIENT_SECRET_NAME:-CASDOOR_CLIENT_SECRET}"
+    WEB_SECRET_ARGS+=(
+        "--set-secrets=CASDOOR_CLIENT_SECRET=${CASDOOR_CLIENT_SECRET_NAME}:latest"
+    )
+fi
+if [[ -n "${AUTH_COOKIE_DOMAIN:-}" ]]; then
+    ENV_VARS="${ENV_VARS},AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN}"
+fi
 
 # ── 切到 PROJECT_ROOT（docker build context）──
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -157,6 +179,10 @@ build_and_push() {
     local api_url realtime_url
     api_url=$(gcloud run services describe "${API_SERVICE_NAME}" \
         --region="${REGION}" --format='value(status.url)' 2>/dev/null || true)
+    if [[ "${PROMOTION_BUILD:-0}" == "1" ]]; then
+        # promotion image 不可含 staging hostname；browser 改走 /api-proxy。
+        api_url=""
+    fi
     if [[ -z "${api_url}" ]]; then
         echo "  WARN: 找不到 ${API_SERVICE_NAME} URL —— web 會 fallback 到 localhost、即時推送停用。"
         echo "        請先部署 api 再部 web。"
@@ -184,6 +210,9 @@ build_and_push() {
         if [[ -z "${peer_url}" ]]; then
             echo "  WARN: 找不到 peer 服務 ${peer_service} —— 跨站連結退回站內路由。"
         fi
+    fi
+    if [[ "${PROMOTION_BUILD:-0}" == "1" ]]; then
+        peer_url=""
     fi
     echo "  NEXT_PUBLIC_APP_MODE=${app_mode}"
     echo "  NEXT_PUBLIC_PEER_PORTAL_URL=${peer_url}"
@@ -223,6 +252,7 @@ deploy_to_cloud_run() {
         --max-instances="${MAX_INSTANCES}" \
         --timeout="${TIMEOUT}" \
         --set-env-vars="${ENV_VARS}" \
+        "${WEB_SECRET_ARGS[@]}" \
         --allow-unauthenticated \
         --quiet
 

@@ -186,6 +186,20 @@ function BrandLoginForm({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [ssoEnabled, setSsoEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/auth/sso-config", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data: { enabled?: boolean }) => {
+        if (active) setSsoEnabled(data.enabled === true);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -209,19 +223,16 @@ function BrandLoginForm({
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4">
-      {/* CR-0177 S2：SSO 為**主要**登入路徑（NEXT_PUBLIC_CASDOOR_ENDPOINT 配置時置頂 + 主要樣式）；
+      {/* CR-0177 S2：SSO 為**主要**登入路徑（runtime Casdoor 配置時置頂 + 主要樣式）；
           密碼登入降為 break-glass 緊急備援（後端 S4 對其留稽核 break_glass_local_login）。
           未配置 Casdoor 的環境＝維持密碼為主，版面不變。
           redirect_uri 須於 client 端組（SSR 無 window → 空值 bug，E2E 抓到） */}
-      {process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT && (
+      {ssoEnabled && (
         <>
           <button
             type="button"
             onClick={() => {
-              const ep = (process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT ?? "").replace(/\/$/, "");
-              const cid = process.env.NEXT_PUBLIC_CASDOOR_CLIENT_ID ?? "smartlock-portal-client";
-              const uri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-              window.location.href = `${ep}/login/oauth/authorize?client_id=${encodeURIComponent(cid)}&response_type=code&redirect_uri=${uri}&scope=read&state=smartlock`;
+              window.location.assign("/auth/start");
             }}
             className="flex h-11 items-center justify-center rounded-lg bg-[var(--primary)] text-sm font-medium text-white transition hover:bg-[var(--primary-hover)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2"
           >
@@ -283,7 +294,7 @@ function BrandLoginForm({
         type="submit"
         disabled={loading || !email || !password}
         className={
-          process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT
+          ssoEnabled
             ? "h-11 rounded-lg border border-[var(--border)] text-sm font-medium text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 disabled:opacity-50"
             : "h-11 rounded-lg bg-[var(--primary)] text-sm font-medium text-white transition hover:bg-[var(--primary-hover)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] focus-visible:ring-offset-2 disabled:opacity-50"
         }

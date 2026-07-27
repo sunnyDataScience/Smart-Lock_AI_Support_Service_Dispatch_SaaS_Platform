@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:smartlock:schema:release-manifest:v1",
+  "title": "Smart Lock Cloud Run release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "release_id",
+    "environment",
+    "component",
+    "commit_sha",
+    "image",
+    "image_digest",
+    "resource_kind",
+    "resource_name",
+    "revision",
+    "previous_revision",
+    "migration_versions",
+    "migration_evidence",
+    "config_references",
+    "secret_references",
+    "health_url",
+    "operator",
+    "evidence",
+    "rollback",
+    "observation_window_minutes",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "release_id": { "type": "string", "minLength": 8 },
+    "environment": { "enum": ["staging", "production"] },
+    "component": {
+      "enum": [
+        "api",
+        "agent",
+        "brand-web",
+        "tech-web",
+        "platform-web",
+        "landing",
+        "worker-job"
+      ]
+    },
+    "commit_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "image": {
+      "type": "string",
+      "pattern": "^.+@sha256:[0-9a-f]{64}$"
+    },
+    "image_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "resource_kind": { "enum": ["service", "job"] },
+    "resource_name": { "type": "string", "minLength": 1 },
+    "revision": { "type": "string" },
+    "previous_revision": { "type": "string" },
+    "migration_versions": {
+      "type": "array",
+      "description": "This commit's required migration files; migration_evidence proves the target databases were actually applied and checked.",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "migration_evidence": {
+      "type": "string",
+      "pattern": "^(https://|gs://).+"
+    },
+    "config_references": {
+      "type": "array",
+      "items": { "type": "string" },
+      "uniqueItems": true
+    },
+    "secret_references": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*:[^:]+$" },
+      "uniqueItems": true
+    },
+    "health_url": { "type": "string" },
+    "operator": { "type": "string", "minLength": 1 },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(https://|gs://).+"
+      },
+      "required": ["workflow_run", "health", "smoke", "bola", "worker"]
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "database_strategy"],
+      "properties": {
+        "command": { "type": "string", "minLength": 1 },
+        "database_strategy": { "const": "forward-fix-or-restore; never down-migrate in place" }
+      }
+    },
+    "observation_window_minutes": { "type": "integer", "minimum": 15 },
+    "created_at": { "type": "string", "format": "date-time" }
+  }
+}

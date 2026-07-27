@@ -518,5 +518,5 @@ async def _write_audit(
                 actor_role,
             ),
         )
-    except Exception:
+    except Exception:  # noqa: BLE001 — best-effort audit 不得反向阻擋已完成的主操作
         logger.warning("skill_audit_log write failed (non-fatal)", exc_info=True)

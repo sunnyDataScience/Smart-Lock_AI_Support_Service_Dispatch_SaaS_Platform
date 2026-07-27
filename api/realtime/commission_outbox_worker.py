@@ -115,6 +115,23 @@ class CommissionOutboxWorker:
         for row in rows:
             await self._process_row(row)
 
+    async def get_job_sli(self) -> dict[str, float | int]:
+        """由 durable outbox 讀 oldest pending 與 dead-letter 累計。"""
+        if not await _ensure_conn():
+            return {}
+        cur = await db_module._conn.execute(
+            "SELECT "
+            "COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - "
+            "  MIN(created_at) FILTER (WHERE status = 'pending'))), 0), "
+            "count(*) FILTER (WHERE status = 'dead') "
+            "FROM commission_event_outbox"
+        )
+        row = await cur.fetchone()
+        return {
+            "oldest_pending_seconds": max(0.0, float(row[0] or 0)),
+            "retry_exhausted_total": int(row[1] or 0),
+        }
+
     async def _process_row(self, row: tuple) -> None:
         outbox_id = str(row[0])
         event_id = str(row[1])

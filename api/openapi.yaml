@@ -1,8 +1,16 @@
 openapi: 3.1.0
 info:
   title: Smart Lock SaaS Platform API
-  version: 2.4.0
+  version: 2.5.0
   description: |
+    v2.5.0 (2026-07-27): CR-0190 / ADR-034～036.
+    - New brand/technician/platform user preference endpoints with key allowlist,
+      16 KiB limit, stable Idempotency-Key and version CAS conflict.
+    - New platform service principal/credential lifecycle endpoints; opaque
+      credential is hash-only at rest and plaintext is visible once.
+    - New `serviceCredential` scheme (`X-Service-Credential`) for internal callers;
+      `X-Internal-Token` is migration fallback only.
+
     v2.4.0 (2026-07-10): M2 契約銷案（實作已落地、契約補登）per CR-0143 / CR-0144.
     - New /tenants/{tenantId}/role-assignments 4 端點（SoD 雙簽 propose/list/:approve/:reject）
       per CR-0143 (2026-07-10)（13_Security §3.1 / saas.role_assignment）
@@ -138,6 +146,8 @@ tags:
   - name: M09 Data Corrections  # Track B S5: tenant-scoped DataCorrections review queue v2 (CR-0004 §8 / ADR-0029 / ADR-0030)
   - name: M17 Role Assignments  # M2: SoD 雙簽角色指派 propose/list/approve/reject (CR-0143 2026-07-10 / 13_Security §3.1)
   - name: Requote  # M2: OHS 現場報價修正 command internal + browser 入口 (CR-0144 2026-07-10 / ADR-027)
+  - name: Preferences  # CR-0190: 三庫同步偏好 + version CAS
+  - name: Service Identity  # CR-0190: platform-only service principal lifecycle
 
 paths:
   ## --- LINE Bot intake / observability ---
@@ -2803,6 +2813,199 @@ paths:
         '403': { description: CROSS_TENANT_WRITE or insufficient dispatch role }
         '404': { description: Work order not found in tenant }
 
+  /tenants/{tenantId}/me/preferences:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+    get:
+      tags: [Preferences]
+      summary: 列出品牌人員跨裝置偏好
+      description: 只回傳目前 tenant 與登入 principal 的 allowlisted 跨裝置偏好。
+      operationId: listBrandUserPreferences
+      responses:
+        '200':
+          description: Preference list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferenceListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /tenants/{tenantId}/me/preferences/{preferenceKey}:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - $ref: '#/components/parameters/PreferenceKey'
+    put:
+      tags: [Preferences]
+      summary: 以 version CAS 儲存品牌人員偏好
+      description: 使用 expected_version CAS 與 Idempotency-Key 更新單一 allowlisted 偏好。
+      operationId: putBrandUserPreference
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreferencePutBody' }
+      responses:
+        '200':
+          description: Preference created/updated or same-action replay
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferenceEnvelope' }
+        '409':
+          description: CONCURRENT_MODIFICATION with current_version/current
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
+        '422': { $ref: '#/components/responses/SchemaInvalid' }
+
+  /api/v2/technicians/me/preferences:
+    get:
+      tags: [Preferences]
+      summary: 列出技師權威庫跨裝置偏好
+      description: 從技師權威庫列出目前登入技師自己的 allowlisted 跨裝置偏好。
+      operationId: listTechnicianPreferences
+      responses:
+        '200':
+          description: Preference list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferenceListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v2/technicians/me/preferences/{preferenceKey}:
+    parameters: [{ $ref: '#/components/parameters/PreferenceKey' }]
+    put:
+      tags: [Preferences]
+      summary: 以 version CAS 儲存技師權威庫偏好
+      description: 使用 expected_version CAS 與 Idempotency-Key 更新目前技師的單一偏好。
+      operationId: putTechnicianPreference
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreferencePutBody' }
+      responses:
+        '200':
+          description: Preference created/updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferenceEnvelope' }
+        '409':
+          description: CONCURRENT_MODIFICATION
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/v2/platform/me/preferences:
+    get:
+      tags: [Preferences]
+      summary: 列出平台管理員權威庫跨裝置偏好
+      description: 從平台權威庫列出目前登入平台管理員自己的跨裝置偏好。
+      operationId: listPlatformPreferences
+      responses:
+        '200':
+          description: Preference list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferenceListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /api/v2/platform/me/preferences/{preferenceKey}:
+    parameters: [{ $ref: '#/components/parameters/PreferenceKey' }]
+    put:
+      tags: [Preferences]
+      summary: 以 version CAS 儲存平台管理員權威庫偏好
+      description: 使用 expected_version CAS 與 Idempotency-Key 更新目前平台管理員的單一偏好。
+      operationId: putPlatformPreference
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PreferencePutBody' }
+      responses:
+        '200':
+          description: Preference created/updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PreferenceEnvelope' }
+        '409':
+          description: CONCURRENT_MODIFICATION
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/v2/platform/service-principals:
+    get:
+      tags: [Service Identity]
+      summary: 列出 service principals；永不回傳 credential secret/hash
+      description: 僅回傳機器身分與憑證 metadata；secret 與 hash 永不離開服務端。
+      operationId: listServicePrincipals
+      responses:
+        '200':
+          description: Service principal metadata list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServicePrincipalListEnvelope' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [Service Identity]
+      summary: 建立 principal 並一次性簽發第一把 credential
+      description: 建立 workload principal；明文 credential 僅在成功建立的這次回應顯示。
+      operationId: createServicePrincipal
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServicePrincipalCreateBody' }
+      responses:
+        '201':
+          description: Plaintext credential is visible once
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IssuedServiceCredentialEnvelope' }
+        '409':
+          description: Name conflict or idempotency replay secret unavailable
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/v2/platform/service-credentials/{credentialId}:rotate:
+    parameters:
+      - { name: credentialId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Service Identity]
+      summary: 輪替 credential，允許 0～86400 秒 overlap
+      description: 簽發新 credential，舊 credential 僅在指定 overlap 秒數內保持有效。
+      operationId: rotateServiceCredential
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceCredentialRotateBody' }
+      responses:
+        '200':
+          description: New plaintext credential is visible once
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IssuedServiceCredentialEnvelope' }
+        '404': { description: Active credential not found }
+        '409':
+          description: Idempotency replay secret unavailable
+          content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+  /api/v2/platform/service-credentials/{credentialId}:revoke:
+    parameters:
+      - { name: credentialId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [Service Identity]
+      summary: 立即撤銷 credential
+      description: 立即撤銷指定 credential 並寫入操作者、理由與請求 ID 稽核資料。
+      operationId: revokeServiceCredential
+      parameters: [{ $ref: '#/components/parameters/IdempotencyKey' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceCredentialRevokeBody' }
+      responses:
+        '200': { description: Credential revoked }
+        '404': { description: Credential not found }
+
   ## --- W5 Invoices v2 (CR-0003 P2-W5 / M11 Invoice) ---
 
   /tenants/{tenantId}/accounting/invoices:
@@ -4959,6 +5162,12 @@ components:
       name: limit
       in: query
       schema: { type: integer, default: 20, maximum: 100 }
+    PreferenceKey:
+      name: preferenceKey
+      in: path
+      required: true
+      schema: { type: string }
+      description: Portal-specific allowlisted preference key
 
   responses:
     StateConflict:
@@ -5004,8 +5213,96 @@ components:
       type: apiKey
       in: header
       name: X-Internal-Token
-      description: '服務間憑證（technician-platform / agent → api；CR-0144 2026-07-10）。fail-closed：env 未設回 503 INTERNAL_AUTH_NOT_CONFIGURED、不符回 401 INTERNAL_AUTH_FAILED；常數時間比對。'
+      description: 'Legacy migration fallback only（CR-0190/ADR-036）；production 使用量須連續一個 release window 為零後移除。'
+    serviceCredential:
+      type: apiKey
+      in: header
+      name: X-Service-Credential
+      description: 'Per-workload opaque credential：hash-only at rest，驗 audience/scope/tenant/expiry/revoke/audit；驗證失敗不得降級 legacy token。'
   schemas:
+    PreferencePutBody:
+      type: object
+      required: [value, expected_version]
+      properties:
+        value:
+          description: Portal-specific allowlisted JSON value; max 16 KiB
+        expected_version: { type: integer, minimum: 0 }
+    UserPreference:
+      type: object
+      required: [id, portal, preference_key, value, version, last_action_id, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        portal: { type: string, enum: [brand, tech, platform] }
+        preference_key: { type: string }
+        value: {}
+        version: { type: integer, minimum: 1 }
+        last_action_id: { type: string, format: uuid }
+        updated_at: { type: string, format: date-time }
+    PreferenceEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/UserPreference' }
+    PreferenceListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/UserPreference' }
+    ServicePrincipalCreateBody:
+      type: object
+      required: [name, audiences, scopes, credential_expires_at]
+      properties:
+        name: { type: string, minLength: 3, maxLength: 120, pattern: '^[a-z0-9][a-z0-9._-]+$' }
+        description: { type: [string, 'null'], maxLength: 500 }
+        audiences: { type: array, minItems: 1, maxItems: 10, items: { type: string } }
+        scopes: { type: array, minItems: 1, maxItems: 50, items: { type: string } }
+        allowed_tenant_ids: { type: array, maxItems: 500, items: { type: string, format: uuid } }
+        allow_all_tenants: { type: boolean, default: false }
+        credential_expires_at: { type: string, format: date-time }
+    ServiceCredentialRotateBody:
+      type: object
+      required: [expires_at]
+      properties:
+        expires_at: { type: string, format: date-time }
+        overlap_seconds: { type: integer, minimum: 0, maximum: 86400, default: 0 }
+    ServiceCredentialRevokeBody:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 300 }
+    IssuedServiceCredential:
+      type: object
+      required: [credential_id, credential, credential_prefix, expires_at, secret_visible_once]
+      properties:
+        principal_id: { type: string, format: uuid }
+        credential_id: { type: string, format: uuid }
+        credential: { type: string, writeOnly: true, description: Plaintext visible once }
+        credential_prefix: { type: string }
+        expires_at: { type: string, format: date-time }
+        secret_visible_once: { type: boolean, const: true }
+    IssuedServiceCredentialEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/IssuedServiceCredential' }
+    ServicePrincipalListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            required: [id, name, status, audiences, scopes, active_credentials]
+            properties:
+              id: { type: string, format: uuid }
+              name: { type: string }
+              status: { type: string }
+              audiences: { type: array, items: { type: string } }
+              scopes: { type: array, items: { type: string } }
+              active_credentials: { type: integer, minimum: 0 }
     # --- Sentiment Alerts (CR-0003 P2-W2 / FR-0018 / ADR-0048) ---
     SentimentAlertStatus:
       type: string

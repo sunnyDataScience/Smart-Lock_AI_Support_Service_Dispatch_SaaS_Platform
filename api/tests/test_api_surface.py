@@ -24,6 +24,8 @@ def test_default_surface_mounts_everything():
     assert any(p.startswith("/api/v1/accounting/invoices") for p in paths)
     # 技師面同樣在
     assert "/api/v1/technicians/login" in paths
+    assert "/api/v2/auth/session" in paths
+    assert "/api/v2/technicians/me/preferences" in paths
     assert any(p.startswith("/tenants/{tenantId}/work-orders") for p in paths)
 
 
@@ -37,6 +39,8 @@ def test_default_surface_mounts_everything():
         "/api/v1/technicians/login",
         "/api/v1/technicians/register",
         "/api/v1/technicians/me/availability",
+        "/api/v2/auth/session",
+        "/api/v2/technicians/me/preferences",
         "/api/v1/work-orders/pool",
         "/api/v1/work-orders/{wo_id}/door-check",
         "/api/v1/problem-cards/{card_id}",
@@ -115,6 +119,7 @@ def test_tech_surface_simulated_filter_on_real_routes():
         "/api/v1/platform/technicians/{technicianId}:onboard-approve",
         "/api/v1/platform/technicians/{technicianId}:suspend",
         "/api/v1/platform/brand-applications",
+        "/api/v2/platform/service-principals",
         "/api/v1/technicians/register",
         "/api/v1/technicians/registration-documents",  # CR-0115 孿生公開寫端點
     ],
@@ -153,7 +158,7 @@ def test_dispatch_surface_simulated_filter_on_real_routes():
     dropped = {
         getattr(r, "path", "") for r in main.app.router.routes
     } - kept
-    assert not any(p.startswith("/api/v1/platform") for p in kept)
+    assert not any(p.startswith(("/api/v1/platform", "/api/v2/platform")) for p in kept)
     assert "/api/v1/technicians/register" not in kept
     assert "/api/v1/technicians/registration-documents" not in kept  # CR-0115 孿生端點
     assert "/api/v1/technicians/login" in kept
@@ -161,6 +166,7 @@ def test_dispatch_surface_simulated_filter_on_real_routes():
     assert any(p.startswith("/tenants/{tenantId}/technicians") for p in kept)
     # 剔除的每一條都屬兩類之一(平台前綴 or 師傅公開寫端點 register/registration-documents)
     assert all(
-        p.startswith("/api/v1/platform") or p.startswith("/api/v1/technicians/regist")
+        p.startswith(("/api/v1/platform", "/api/v2/platform"))
+        or p.startswith("/api/v1/technicians/regist")
         for p in dropped
     ), dropped

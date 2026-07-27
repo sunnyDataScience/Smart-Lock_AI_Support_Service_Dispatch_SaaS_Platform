@@ -6,8 +6,9 @@
   2. `/internal/escalations/ingest`（CR-0022 / ADR-0112）— agent transfer_to_human 後
      旁路建一張 AI 草擬問題卡（source='ai_line'），供客服人審 → confirm → convert。
 
-認證：`require_internal_token`（X-Internal-Token header 比對 INTERNAL_API_TOKEN
-環境變數，fail closed）。不走 JWT/tenant header —— tenant_id 由 body 帶入。
+認證：各端點以 `service_credential_required` 驗證 X-Service-Credential 的 audience /
+scope / tenant grant；遷移期間缺少新 header 時才接受並計量 X-Internal-Token。
+新 credential 驗證失敗不得降級。不走真人 JWT —— tenant_id 由 body 帶入後再驗 grant。
 
 設計原則（對齊架構鎖）：
   - agent 核心與 CS_TOOL_ALLOWLIST 不變；寫入只發生在「通道旁路」這一層。
@@ -23,7 +24,11 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from core.deps import require_internal_token
+from core.deps import service_credential_required
+from services.service_credential_service import (
+    ServicePrincipalContext,
+    assert_tenant_scope,
+)
 from models.internal import EscalationIngestRequest, IngestTurnRequest
 from services import conversation_service, problem_card_service
 
@@ -67,10 +72,14 @@ def _resolve_tenant_id(raw: str) -> str:
 )
 async def ingest_conversation_turn(
     body: IngestTurnRequest,
-    _auth: None = Depends(require_internal_token),
+    auth: ServicePrincipalContext = Depends(
+        service_credential_required("conversations:write")
+    ),
 ) -> dict:
+    tenant_id = _resolve_tenant_id(body.tenant_id)
+    assert_tenant_scope(auth, tenant_id)
     result = await conversation_service.ingest_turn(
-        tenant_id=_resolve_tenant_id(body.tenant_id),
+        tenant_id=tenant_id,
         line_user_id=body.line_user_id,
         session_id=body.session_id,
         user_text=body.user_text,
@@ -100,14 +109,18 @@ async def ingest_conversation_turn(
 async def get_handover_state(
     tenant_id: str = Query(..., description="租戶 UUID 或別名"),
     session_id: str = Query(..., description="對話 session_id（外部冪等鍵）"),
-    _auth: None = Depends(require_internal_token),
+    auth: ServicePrincipalContext = Depends(
+        service_credential_required("conversations:read")
+    ),
 ) -> dict:
     """gateway 在跑 turn 前查此端點：escalated=true 時 AI 暫停（Phase 1 全暫停）。
 
     查無對話 → escalated=false（agent 照常回，fail-soft 友善預設）。
     """
+    resolved_tenant_id = _resolve_tenant_id(tenant_id)
+    assert_tenant_scope(auth, resolved_tenant_id)
     result = await conversation_service.get_handover_state(
-        tenant_id=_resolve_tenant_id(tenant_id),
+        tenant_id=resolved_tenant_id,
         session_id=session_id,
     )
     return {"data": result, "error": None}
@@ -121,10 +134,14 @@ async def get_handover_state(
 )
 async def ingest_escalation(
     body: EscalationIngestRequest,
-    _auth: None = Depends(require_internal_token),
+    auth: ServicePrincipalContext = Depends(
+        service_credential_required("escalations:write")
+    ),
 ) -> dict:
+    tenant_id = _resolve_tenant_id(body.tenant_id)
+    assert_tenant_scope(auth, tenant_id)
     result = await problem_card_service.escalation_to_draft_pc(
-        tenant_id=_resolve_tenant_id(body.tenant_id),
+        tenant_id=tenant_id,
         line_user_id=body.line_user_id,
         session_id=body.session_id,
         reason=body.reason,
@@ -151,7 +168,9 @@ async def ingest_escalation(
 async def customer_respond_quote(
     quote_id: str,
     body: dict,
-    _auth: None = Depends(require_internal_token),
+    auth: ServicePrincipalContext = Depends(
+        service_credential_required("quotes:write")
+    ),
 ) -> dict:
     """agent 收 LINE postback（q:a|/q:r|）→ 旁路呼此端點。
 
@@ -161,6 +180,7 @@ async def customer_respond_quote(
     from services import quote_engine_service
 
     tenant_id = _resolve_tenant_id((body or {}).get("tenant_id", ""))
+    assert_tenant_scope(auth, tenant_id)
     line_user_id = (body or {}).get("line_user_id")
     decision = (body or {}).get("decision")
     if not line_user_id or decision not in {"accept", "reject"}:

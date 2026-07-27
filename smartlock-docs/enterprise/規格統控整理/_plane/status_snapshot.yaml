@@ -1,0 +1,844 @@
+# GENERATED — 由 _plane/writeback.py 從 Plane 拉取，請勿手改。
+# 這是四書之外的第五份檔，只承載「狀態」，不承載規格。
+# 四個狀態軸各有唯一 owner，彼此不得互推（見 _build_workbooks.py 鐵律）。
+source:
+  instance: "http://10.137.80.45:8787"
+  workspace: acme-god-damn
+  project_id: 7608536c-5401-4acc-90f1-f99d12fbcc75
+  generated_at: "2026-07-27 21:05:33+0800"
+coverage:
+  total: 237
+  covered: 171
+  uncovered: 66
+axes:
+  # axis1 需求定版（owner=SA）—— 規格側算出，非 Plane 擁有
+  axis1:
+    FR-AGT-01: finalized
+    FR-AGT-02: finalized
+    FR-AGT-03: finalized
+    FR-AGT-04: finalized
+    FR-AGT-05: finalized
+    FR-AGT-06: finalized
+    FR-AGT-07: partial
+    FR-AGT-08: finalized
+    FR-AGT-09: finalized
+    FR-AGT-10: partial
+    FR-AGT-11: finalized
+    FR-API-01: finalized
+    FR-API-02: finalized
+    FR-API-03: finalized
+    FR-API-04: finalized
+    FR-API-05: tbd
+    FR-API-06: finalized
+    FR-API-07: finalized
+    FR-API-08: finalized
+    FR-API-09: finalized
+    FR-API-10: finalized
+    FR-API-11: finalized
+    FR-API-12: finalized
+    FR-API-13: finalized
+    FR-API-14: partial
+    FR-API-15: partial
+    FR-API-16: finalized
+    FR-API-17: finalized
+    FR-API-18: finalized
+    FR-API-19: planned
+    FR-DAT-01: finalized
+    FR-DAT-02: partial
+    FR-DAT-03: finalized
+    FR-DAT-04: partial
+    FR-DAT-05: finalized
+    FR-DAT-06: finalized
+    FR-PLT-01: partial
+    FR-PLT-02: partial
+    FR-PLT-03: partial
+    FR-PLT-04: partial
+    FR-PLT-05: partial
+    FR-PLT-06: finalized
+    FR-PLT-07: partial
+    FR-PLT-08: partial
+    FR-PLT-09: finalized
+    FR-REF-01: tbd
+    FR-REF-02: finalized
+    FR-REF-03: finalized
+    FR-REF-04: partial
+    FR-REF-05: finalized
+    FR-TEC-01: finalized
+    FR-TEC-02: finalized
+    FR-TEC-03: finalized
+    FR-TEC-04: finalized
+    FR-TEC-05: finalized
+    FR-TEC-06: finalized
+    FR-TEC-07: planned
+    FR-TEC-08: finalized
+    FR-WEB-01: finalized
+    FR-WEB-02: partial
+    FR-WEB-03: finalized
+    FR-WEB-04: finalized
+    FR-WEB-05: finalized
+    FR-WEB-06: finalized
+    FR-WEB-07: finalized
+    NFR-A11y-001: finalized
+    NFR-A11y-002: finalized
+    NFR-A11y-003: finalized
+    NFR-A11y-004: finalized
+    NFR-A11y-005: finalized
+    NFR-Aud-001: finalized
+    NFR-Aud-002: finalized
+    NFR-Aud-003: finalized
+    NFR-Aud-004: finalized
+    NFR-Aud-005: finalized
+    NFR-Aud-006: finalized
+    NFR-Aud-007: finalized
+    NFR-Avail-001: finalized
+    NFR-Avail-002: finalized
+    NFR-Avail-003: finalized
+    NFR-Avail-004: finalized
+    NFR-Avail-005: finalized
+    NFR-Avail-006: finalized
+    NFR-Avail-007: finalized
+    NFR-Avail-008: finalized
+    NFR-Avail-009: finalized
+    NFR-Avail-010: finalized
+    NFR-Avail-011: finalized
+    NFR-Comp-001: finalized
+    NFR-Comp-002: finalized
+    NFR-Comp-003: finalized
+    NFR-Comp-004: finalized
+    NFR-DORA-001: finalized
+    NFR-DORA-002: finalized
+    NFR-DORA-003: finalized
+    NFR-DQ-001: finalized
+    NFR-DQ-002: finalized
+    NFR-DQ-003: finalized
+    NFR-DQ-004: finalized
+    NFR-Maint-001: finalized
+    NFR-Maint-002: finalized
+    NFR-Maint-003: finalized
+    NFR-Maint-004: finalized
+    NFR-Maint-005: finalized
+    NFR-Maint-006: finalized
+    NFR-Maint-007: finalized
+    NFR-Maint-008: finalized
+    NFR-Obs-001: finalized
+    NFR-Obs-002: finalized
+    NFR-Obs-003: finalized
+    NFR-Obs-004: finalized
+    NFR-Obs-005: finalized
+    NFR-PUB-001: finalized
+    NFR-PUB-002: finalized
+    NFR-PUB-003: finalized
+    NFR-PUB-004: finalized
+    NFR-Perf-001: finalized
+    NFR-Perf-002: finalized
+    NFR-Perf-003: finalized
+    NFR-Perf-004: finalized
+    NFR-Perf-005: finalized
+    NFR-Perf-006: finalized
+    NFR-Perf-007: finalized
+    NFR-Perf-008: finalized
+    NFR-Perf-009: finalized
+    NFR-Perf-010: finalized
+    NFR-Perf-011: finalized
+    NFR-Perf-012: finalized
+    NFR-Priv-001: finalized
+    NFR-Priv-002: finalized
+    NFR-Priv-003: finalized
+    NFR-Priv-004: finalized
+    NFR-Priv-005: finalized
+    NFR-Priv-006: finalized
+    NFR-Priv-007: finalized
+    NFR-Priv-008: finalized
+    NFR-Priv-009: finalized
+    NFR-Priv-010: finalized
+    NFR-Rel-001: finalized
+    NFR-Rel-002: finalized
+    NFR-Rel-003: finalized
+    NFR-Rep-001: finalized
+    NFR-Rep-002: finalized
+    NFR-SLA-001: finalized
+    NFR-SLA-002: finalized
+    NFR-SLA-003: finalized
+    NFR-Scal-001: finalized
+    NFR-Scal-002: finalized
+    NFR-Scal-003: finalized
+    NFR-Scal-004: finalized
+    NFR-Scal-005: finalized
+    NFR-Scal-006: finalized
+    NFR-Scal-007: finalized
+    NFR-Scal-008: finalized
+    NFR-Sch-001: finalized
+    NFR-Sch-002: finalized
+    NFR-Sch-003: finalized
+    NFR-Sec-001: finalized
+    NFR-Sec-002: finalized
+    NFR-Sec-003: finalized
+    NFR-Sec-004: finalized
+    NFR-Sec-005: finalized
+    NFR-Sec-006: finalized
+    NFR-Sec-007: finalized
+    NFR-Sec-008: finalized
+    NFR-Sec-009: finalized
+    NFR-Sec-010: finalized
+    NFR-Sec-011: finalized
+    NFR-Sec-012: finalized
+    NFR-Sec-013: finalized
+    NFR-Sec-014: finalized
+  # axis2 工程證據（owner=RD）—— Plane WBS 卡 state
+  axis2:
+    1.1.1: Done
+    1.1.2: Done
+    1.1.3: Done
+    1.2.1: Done
+    1.2.2: Done
+    1.2.3: Done
+    1.2.4: Done
+    1.3.1: Done
+    1.4.1: In Progress
+    1.5.1: Done
+    1.6.1: In Progress
+    1.7.1: Done
+    1.7.2: Done
+    2.1.1: In Progress
+    2.1.2: Done
+    2.2.1: Done
+    2.2.2: Done
+    2.3.1: Done
+    2.3.2: Done
+    2.3.3: Done
+    2.4.1: In Progress
+    2.4.2: Done
+    2.4.3: Done
+    2.4.4: Done
+    2.5.1: In Progress
+    2.6.1: In Progress
+    3.1.1: Todo
+    3.1.2: Todo
+    3.2.1: Todo
+    3.3.1: Todo
+    3.4.1: Todo
+    3.5.1: Todo
+    3.6.1: Todo
+    3.6.2: Todo
+    3.6.3: Todo
+    3.6.4: Todo
+    3.6.5: Todo
+    3.6.6: Todo
+    3.6.7: Todo
+    3.6.8: Todo
+    "4.1": Todo
+    "4.2": Todo
+    "4.3": Todo
+    "4.4": Todo
+    "4.5": Todo
+    "4.6": Todo
+    "4.7": Todo
+  # axis3_req 測試執行·依需求（owner=QA）—— requirement-coverage rollup（worst-wins）
+  axis3_req:
+    FR-AGT-01: open
+    FR-AGT-02: open
+    FR-AGT-03: open
+    FR-AGT-04: open
+    FR-AGT-05: open
+    FR-AGT-06: open
+    FR-AGT-07: open
+    FR-AGT-08: open
+    FR-AGT-09: open
+    FR-AGT-10: open
+    FR-AGT-11: open
+    FR-API-01: open
+    FR-API-02: open
+    FR-API-03: open
+    FR-API-04: open
+    FR-API-05: open
+    FR-API-06: open
+    FR-API-07: open
+    FR-API-08: open
+    FR-API-09: open
+    FR-API-10: open
+    FR-API-11: open
+    FR-API-12: open
+    FR-API-13: open
+    FR-API-14: open
+    FR-API-15: open
+    FR-API-16: open
+    FR-API-17: open
+    FR-API-18: open
+    FR-API-19: open
+    FR-DAT-01: open
+    FR-DAT-02: open
+    FR-DAT-03: open
+    FR-DAT-04: open
+    FR-DAT-05: open
+    FR-DAT-06: open
+    FR-PLT-01: open
+    FR-PLT-02: open
+    FR-PLT-03: open
+    FR-PLT-04: open
+    FR-PLT-05: open
+    FR-PLT-06: open
+    FR-PLT-07: open
+    FR-PLT-08: open
+    FR-PLT-09: open
+    FR-REF-01: open
+    FR-REF-02: open
+    FR-REF-03: open
+    FR-REF-04: open
+    FR-REF-05: open
+    FR-TEC-01: open
+    FR-TEC-02: open
+    FR-TEC-03: open
+    FR-TEC-04: open
+    FR-TEC-05: open
+    FR-TEC-06: open
+    FR-TEC-07: open
+    FR-TEC-08: open
+    FR-WEB-01: open
+    FR-WEB-02: open
+    FR-WEB-03: open
+    FR-WEB-04: open
+    FR-WEB-05: open
+    FR-WEB-06: open
+    FR-WEB-07: open
+    NFR-A11y-001: open
+    NFR-A11y-002: open
+    NFR-A11y-003: open
+    NFR-A11y-004: open
+    NFR-A11y-005: open
+    NFR-Aud-001: open
+    NFR-Aud-002: open
+    NFR-Aud-003: open
+    NFR-Aud-004: open
+    NFR-Aud-005: open
+    NFR-Aud-006: open
+    NFR-Aud-007: open
+    NFR-Avail-001: open
+    NFR-Avail-002: open
+    NFR-Avail-003: open
+    NFR-Avail-004: open
+    NFR-Avail-005: open
+    NFR-Avail-006: open
+    NFR-Avail-007: open
+    NFR-Avail-008: open
+    NFR-Avail-009: open
+    NFR-Avail-010: open
+    NFR-Avail-011: open
+    NFR-Comp-001: open
+    NFR-Comp-002: open
+    NFR-Comp-003: open
+    NFR-Comp-004: open
+    NFR-DORA-001: open
+    NFR-DORA-002: open
+    NFR-DORA-003: open
+    NFR-DQ-001: open
+    NFR-DQ-002: open
+    NFR-DQ-003: open
+    NFR-DQ-004: open
+    NFR-Maint-001: open
+    NFR-Maint-002: open
+    NFR-Maint-003: open
+    NFR-Maint-004: open
+    NFR-Maint-005: open
+    NFR-Maint-006: open
+    NFR-Maint-007: open
+    NFR-Maint-008: open
+    NFR-Obs-001: open
+    NFR-Obs-002: open
+    NFR-Obs-003: open
+    NFR-Obs-004: open
+    NFR-Obs-005: open
+    NFR-PUB-001: open
+    NFR-PUB-002: open
+    NFR-PUB-003: open
+    NFR-PUB-004: open
+    NFR-Perf-001: open
+    NFR-Perf-002: open
+    NFR-Perf-003: open
+    NFR-Perf-004: open
+    NFR-Perf-005: open
+    NFR-Perf-006: open
+    NFR-Perf-007: open
+    NFR-Perf-008: open
+    NFR-Perf-009: open
+    NFR-Perf-010: open
+    NFR-Perf-011: open
+    NFR-Perf-012: open
+    NFR-Priv-001: open
+    NFR-Priv-002: open
+    NFR-Priv-003: open
+    NFR-Priv-004: open
+    NFR-Priv-005: open
+    NFR-Priv-006: open
+    NFR-Priv-007: open
+    NFR-Priv-008: open
+    NFR-Priv-009: open
+    NFR-Priv-010: open
+    NFR-Rel-001: open
+    NFR-Rel-002: open
+    NFR-Rel-003: open
+    NFR-Rep-001: open
+    NFR-Rep-002: open
+    NFR-SLA-001: open
+    NFR-SLA-002: open
+    NFR-SLA-003: open
+    NFR-Scal-001: open
+    NFR-Scal-002: open
+    NFR-Scal-003: open
+    NFR-Scal-004: open
+    NFR-Scal-005: open
+    NFR-Scal-006: open
+    NFR-Scal-007: open
+    NFR-Scal-008: open
+    NFR-Sch-001: open
+    NFR-Sch-002: open
+    NFR-Sch-003: open
+    NFR-Sec-001: open
+    NFR-Sec-002: open
+    NFR-Sec-003: open
+    NFR-Sec-004: open
+    NFR-Sec-005: open
+    NFR-Sec-006: open
+    NFR-Sec-007: open
+    NFR-Sec-008: open
+    NFR-Sec-009: open
+    NFR-Sec-010: open
+    NFR-Sec-011: open
+    NFR-Sec-012: open
+    NFR-Sec-013: open
+    NFR-Sec-014: open
+    SC-01: open
+    SC-02: open
+    SC-03: open
+    SC-04: open
+    SC-05: open
+    SC-06: open
+    SC-07: open
+    SC-08: open
+    SC-09: open
+    SC-10: open
+    SC-11: open
+    SC-12: open
+    SC-13: open
+    SC-14: open
+    SC-15: open
+    SC-16: open
+    SC-17: open
+    SC-18: open
+    SC-19: open
+    WBS-1.1.1: open
+    WBS-1.1.2: open
+    WBS-1.1.3: open
+    WBS-1.2.1: open
+    WBS-1.2.2: open
+    WBS-1.2.3: open
+    WBS-1.2.4: open
+    WBS-1.3.1: open
+    WBS-1.4.1: open
+    WBS-1.5.1: open
+    WBS-1.6.1: open
+    WBS-1.7.1: open
+    WBS-1.7.2: open
+    WBS-2.1.1: open
+    WBS-2.1.2: open
+    WBS-2.2.1: open
+    WBS-2.2.2: open
+    WBS-2.3.1: open
+    WBS-2.3.2: open
+    WBS-2.3.3: open
+    WBS-2.4.1: open
+    WBS-2.4.2: open
+    WBS-2.4.3: open
+    WBS-2.4.4: open
+    WBS-2.5.1: open
+    WBS-2.6.1: open
+    WBS-3.1.1: open
+    WBS-3.1.2: open
+    WBS-3.2.1: open
+    WBS-3.3.1: open
+    WBS-3.4.1: open
+    WBS-3.5.1: open
+    WBS-3.6.1: open
+    WBS-3.6.2: open
+    WBS-3.6.3: open
+    WBS-3.6.4: open
+    WBS-3.6.5: open
+    WBS-3.6.6: open
+    WBS-3.6.7: open
+    WBS-3.6.8: open
+    WBS-4.1: open
+    WBS-4.2: open
+    WBS-4.3: open
+    WBS-4.4: open
+    WBS-4.5: open
+    WBS-4.6: open
+    WBS-4.7: open
+  # axis3_case 測試執行·依案例（owner=QA）—— run_case latest_status
+  axis3_case:
+    TC-AGT-RAG-01:
+      latest_status: open
+      scripts: [SC-15]
+    TC-AGT-TURN-01:
+      latest_status: open
+      scripts: [SC-01, SC-10]
+    TC-COMPLIANCE-01:
+      latest_status: open
+      scripts: [SC-19]
+    TC-COMPLIANCE-02:
+      latest_status: open
+      scripts: [SC-19]
+    TC-COMPLIANCE-03:
+      latest_status: open
+      scripts: [SC-19]
+    TC-COMPLIANCE-04:
+      latest_status: open
+      scripts: [SC-19]
+    TC-COMPLIANCE-05:
+      latest_status: open
+      scripts: [SC-16]
+    TC-COMPLIANCE-06:
+      latest_status: open
+      scripts: [SC-01, SC-06]
+    TC-COMPLIANCE-07:
+      latest_status: open
+      scripts: [SC-03]
+    TC-COMPLIANCE-08:
+      latest_status: open
+      scripts: [SC-15]
+    TC-CS-AI-01:
+      latest_status: open
+      scripts: [SC-02, SC-17]
+    TC-CS-AI-02:
+      latest_status: open
+      scripts: [SC-02]
+    TC-CS-AI-03:
+      latest_status: open
+      scripts: [SC-01, SC-15]
+    TC-CS-AI-04:
+      latest_status: open
+      scripts: [SC-03, SC-10]
+    TC-CS-AI-05:
+      latest_status: open
+      scripts: [SC-01]
+    TC-CS-AI-06:
+      latest_status: open
+      scripts: [SC-01, SC-04, SC-06]
+    TC-CS-AI-07:
+      latest_status: open
+      scripts: [SC-01]
+    TC-CS-AI-08:
+      latest_status: open
+      scripts: [SC-01]
+    TC-CS-AI-09:
+      latest_status: open
+      scripts: [SC-01, SC-02]
+    TC-CS-AI-10:
+      latest_status: open
+      scripts: [SC-02, SC-10]
+    TC-CS-AI-11:
+      latest_status: open
+      scripts: [SC-01]
+    TC-CS-AI-12:
+      latest_status: open
+      scripts: [SC-02]
+    TC-DISPATCH-01:
+      latest_status: open
+      scripts: [SC-05, SC-12, SC-14]
+    TC-DISPATCH-02:
+      latest_status: open
+      scripts: [SC-05]
+    TC-DISPATCH-03:
+      latest_status: open
+      scripts: [SC-02, SC-05, SC-06, SC-10]
+    TC-DISPATCH-04:
+      latest_status: open
+      scripts: [SC-05]
+    TC-DISPATCH-05:
+      latest_status: open
+      scripts: [SC-05, SC-06, SC-13]
+    TC-DISPATCH-06:
+      latest_status: open
+      scripts: [SC-05, SC-12, SC-14]
+    TC-DISPATCH-07:
+      latest_status: open
+      scripts: [SC-07]
+    TC-DISPATCH-08:
+      latest_status: open
+      scripts: [SC-03]
+    TC-DISPATCH-09:
+      latest_status: open
+      scripts: [SC-05, SC-14]
+    TC-EXC-01:
+      latest_status: open
+      scripts: [SC-02, SC-09, SC-11, SC-19]
+    TC-EXC-02:
+      latest_status: open
+      scripts: [SC-18]
+    TC-EXC-05:
+      latest_status: open
+      scripts: [SC-17]
+    TC-EXC-06:
+      latest_status: open
+      scripts: [SC-05, SC-13, SC-14]
+    TC-NFR-PERF-01:
+      latest_status: open
+      scripts: [SC-01, SC-05, SC-18]
+    TC-NFR-PUB-01:
+      latest_status: open
+      scripts: [SC-15]
+    TC-NFR-REL-01:
+      latest_status: open
+      scripts: [SC-02, SC-03]
+    TC-NFR-SCAL-01:
+      latest_status: open
+      scripts: [SC-05]
+    TC-NFR-SLA-01:
+      latest_status: open
+      scripts: [SC-05, SC-06]
+    TC-ONSITE-01:
+      latest_status: open
+      scripts: [SC-06]
+    TC-ONSITE-02:
+      latest_status: open
+      scripts: [SC-07]
+    TC-ONSITE-03:
+      latest_status: open
+      scripts: [SC-07]
+    TC-ONSITE-04:
+      latest_status: open
+      scripts: [SC-07]
+    TC-ONSITE-05:
+      latest_status: open
+      scripts: [SC-06]
+    TC-ONSITE-06:
+      latest_status: open
+      scripts: [SC-06, SC-07]
+    TC-ONSITE-07:
+      latest_status: open
+      scripts: [SC-07]
+    TC-PAYMENT-01:
+      latest_status: open
+      scripts: [SC-08]
+    TC-PERF-01:
+      latest_status: open
+      scripts: [SC-01, SC-02]
+    TC-PERF-03:
+      latest_status: open
+      scripts: [SC-05]
+    TC-PLT-CFG-01:
+      latest_status: open
+      scripts: [SC-18]
+    TC-PLT-FLOW-01:
+      latest_status: open
+      scripts: [SC-18]
+    TC-PLT-PROV-01:
+      latest_status: open
+      scripts: [SC-17]
+    TC-PLT-SURFACE-01:
+      latest_status: open
+      scripts: [SC-12, SC-14, SC-17]
+    TC-QUOTE-01:
+      latest_status: open
+      scripts: [SC-04]
+    TC-QUOTE-02:
+      latest_status: open
+      scripts: [SC-04]
+    TC-QUOTE-03:
+      latest_status: open
+      scripts: [SC-04]
+    TC-QUOTE-04:
+      latest_status: open
+      scripts: [SC-04, SC-07, SC-08]
+    TC-QUOTE-05:
+      latest_status: open
+      scripts: [SC-04]
+    TC-QUOTE-06:
+      latest_status: open
+      scripts: [SC-03]
+    TC-QUOTE-07:
+      latest_status: open
+      scripts: [SC-04]
+    TC-QUOTE-08:
+      latest_status: open
+      scripts: [SC-04]
+    TC-QUOTE-09:
+      latest_status: open
+      scripts: [SC-04]
+    TC-REF-PUBLISH-01:
+      latest_status: open
+      scripts: [SC-15, SC-16]
+    TC-REF-SPLIT-01:
+      latest_status: open
+      scripts: [SC-15]
+    TC-SEC-IDEM-01:
+      latest_status: open
+      scripts: [SC-08]
+    TC-SEC-INT-01:
+      latest_status: open
+      scripts: [SC-02, SC-10]
+    TC-SEC-MEM-01:
+      latest_status: open
+      scripts: [SC-01, SC-02, SC-19]
+    TC-SEC-RBAC-01:
+      latest_status: open
+      scripts: [SC-11, SC-16]
+    TC-SEC-RBAC-03:
+      latest_status: open
+      scripts: [SC-18]
+    TC-SEC-SOD-01:
+      latest_status: open
+      scripts: [SC-08, SC-11]
+    TC-SEC-TOOL-01:
+      latest_status: open
+      scripts: [SC-01]
+    TC-SEC-WEB-02:
+      latest_status: open
+      scripts: [SC-12, SC-17]
+    TC-SETTLE-01:
+      latest_status: open
+      scripts: [SC-09]
+    TC-SETTLE-02:
+      latest_status: open
+      scripts: [SC-06, SC-08, SC-09]
+    TC-SETTLE-03:
+      latest_status: open
+      scripts: [SC-08, SC-11]
+    TC-SETTLE-04:
+      latest_status: open
+      scripts: [SC-08]
+    TC-SETTLE-05:
+      latest_status: open
+      scripts: [SC-08]
+    TC-SETTLE-06:
+      latest_status: open
+      scripts: [SC-08]
+    TC-SETTLE-07:
+      latest_status: open
+      scripts: [SC-11, SC-18, SC-19]
+    TC-SETTLE-08:
+      latest_status: open
+      scripts: [SC-13]
+    TC-TEC-LIFE-01:
+      latest_status: open
+      scripts: [SC-12]
+    TC-TEC-REVOKE-01:
+      latest_status: open
+      scripts: [SC-14]
+    TC-WEB-REPORT-01:
+      latest_status: open
+      scripts: [SC-08, SC-09]
+    TC-WEB-SURFACE-01:
+      latest_status: open
+      scripts: [SC-12, SC-17]
+    TC-WO-01:
+      latest_status: open
+      scripts: [SC-03, SC-04]
+    TC-WO-02:
+      latest_status: open
+      scripts: [SC-04]
+    TC-WO-03:
+      latest_status: open
+      scripts: [SC-04]
+    TC-WO-04:
+      latest_status: open
+      scripts: [SC-06]
+    TC-WO-05:
+      latest_status: open
+      scripts: [SC-06]
+    TC-WO-06:
+      latest_status: open
+      scripts: [SC-06]
+    TC-WO-07:
+      latest_status: open
+      scripts: [SC-06]
+    TC-WO-08:
+      latest_status: open
+      scripts: [SC-06]
+    TC-WO-12:
+      latest_status: open
+      scripts: [SC-08]
+    TC-WO-13:
+      latest_status: open
+      scripts: [SC-02]
+    TC-WO-14:
+      latest_status: open
+      scripts: [SC-06]
+  # axis3_script 測試執行·依驗收腳本（owner=QA）—— TestRun 進度
+  axis3_script:
+    SC-01:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 13, \"passed\": 0, \"skipped\": 0, \"total\": 13}"
+      run_status: active
+    SC-02:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 12, \"passed\": 0, \"skipped\": 0, \"total\": 12}"
+      run_status: active
+    SC-03:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 6, \"passed\": 0, \"skipped\": 0, \"total\": 6}"
+      run_status: active
+    SC-04:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 12, \"passed\": 0, \"skipped\": 0, \"total\": 12}"
+      run_status: active
+    SC-05:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 12, \"passed\": 0, \"skipped\": 0, \"total\": 12}"
+      run_status: active
+    SC-06:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 15, \"passed\": 0, \"skipped\": 0, \"total\": 15}"
+      run_status: active
+    SC-07:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 7, \"passed\": 0, \"skipped\": 0, \"total\": 7}"
+      run_status: active
+    SC-08:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 11, \"passed\": 0, \"skipped\": 0, \"total\": 11}"
+      run_status: active
+    SC-09:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 4, \"passed\": 0, \"skipped\": 0, \"total\": 4}"
+      run_status: active
+    SC-10:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 5, \"passed\": 0, \"skipped\": 0, \"total\": 5}"
+      run_status: active
+    SC-11:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 5, \"passed\": 0, \"skipped\": 0, \"total\": 5}"
+      run_status: active
+    SC-12:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 6, \"passed\": 0, \"skipped\": 0, \"total\": 6}"
+      run_status: active
+    SC-13:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 3, \"passed\": 0, \"skipped\": 0, \"total\": 3}"
+      run_status: active
+    SC-14:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 6, \"passed\": 0, \"skipped\": 0, \"total\": 6}"
+      run_status: active
+    SC-15:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 6, \"passed\": 0, \"skipped\": 0, \"total\": 6}"
+      run_status: active
+    SC-16:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 3, \"passed\": 0, \"skipped\": 0, \"total\": 3}"
+      run_status: active
+    SC-17:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 6, \"passed\": 0, \"skipped\": 0, \"total\": 6}"
+      run_status: active
+    SC-18:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 6, \"passed\": 0, \"skipped\": 0, \"total\": 6}"
+      run_status: active
+    SC-19:
+      progress: "{\"blocked\": 0, \"failed\": 0, \"open\": 7, \"passed\": 0, \"skipped\": 0, \"total\": 7}"
+      run_status: active
+  # axis4 業務驗收（owner=業主）—— Plane SC 卡 state
+  axis4:
+    SC-01: Backlog
+    SC-02: Backlog
+    SC-03: Backlog
+    SC-04: Backlog
+    SC-05: Backlog
+    SC-06: Backlog
+    SC-07: Backlog
+    SC-08: Backlog
+    SC-09: Backlog
+    SC-10: Backlog
+    SC-11: Backlog
+    SC-12: Backlog
+    SC-13: Backlog
+    SC-14: Backlog
+    SC-15: Backlog
+    SC-16: Backlog
+    SC-17: Backlog
+    SC-18: Backlog
+    SC-19: Backlog

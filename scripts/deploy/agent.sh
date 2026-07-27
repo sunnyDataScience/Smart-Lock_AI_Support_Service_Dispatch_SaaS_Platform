@@ -37,7 +37,7 @@ GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 TIMESTAMP=$(date +%Y%m%d-%H%M)
 IMAGE_TAG="${GIT_SHA}-${TIMESTAMP}"
 IMAGE_BASE="asia-east1-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE_NAME}"
-IMAGE="${IMAGE_BASE}:${IMAGE_TAG}"
+IMAGE="${IMAGE_OVERRIDE:-${IMAGE_BASE}:${IMAGE_TAG}}"
 
 # ── Cloud Run 設定 ──
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-lock-ai@${PROJECT_ID}.iam.gserviceaccount.com}"
@@ -78,6 +78,11 @@ SECRETS="${SECRETS},OPIK_API_KEY=OPIK_API_KEY:latest"
 SECRETS="${SECRETS},OPIK_WORKSPACE=OPIK_WORKSPACE:latest"
 # INTERNAL_API_TOKEN：agent 旁路寫 api + 查接管狀態的內部認證（與 api 同值）
 SECRETS="${SECRETS},INTERNAL_API_TOKEN=INTERNAL_API_TOKEN:latest"
+# ADR-036 漸進遷移：環境完成 principal bootstrap 後開啟；應用會優先使用，
+# legacy token 保留到 production usage metric 連續一個 release window 為 0。
+if [[ "${USE_SERVICE_CREDENTIALS:-0}" == "1" ]]; then
+    SECRETS="${SECRETS},AGENT_API_SERVICE_CREDENTIAL=AGENT_API_SERVICE_CREDENTIAL:latest"
+fi
 
 # ── 切到 PROJECT_ROOT（uv workspace 根，docker build context）──
 # 新 Dockerfile 是 multi-stage uv build，需要 PROJECT_ROOT 才能拿到
@@ -209,6 +214,9 @@ preflight_checks() {
 
     # 檢查必要 secrets 存在
     local required_secrets=("LINE_CHANNEL_SECRET" "LINE_CHANNEL_ACCESS_TOKEN" "POSTGRES_URI" "OPIK_API_KEY" "OPIK_WORKSPACE" "INTERNAL_API_TOKEN")
+    if [[ "${USE_SERVICE_CREDENTIALS:-0}" == "1" ]]; then
+        required_secrets+=("AGENT_API_SERVICE_CREDENTIAL")
+    fi
     for secret in "${required_secrets[@]}"; do
         if gcloud secrets describe "${secret}" &>/dev/null; then
             echo "  OK: Secret ${secret}"
@@ -322,7 +330,7 @@ if $DEPLOY; then
     # 使用最新 tagged image（build 剛推的，或 deploy-only 用 latest）
     local_image="${IMAGE}"
     if ! $BUILD; then
-        local_image="${IMAGE_BASE}:latest"
+        local_image="${IMAGE_OVERRIDE:-${IMAGE_BASE}:latest}"
     fi
 
     # 動態解析 api 的 Cloud Run URL → LOCK_API_BASE_URL（橋接/查接管狀態目標）

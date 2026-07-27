@@ -67,6 +67,21 @@ _HANDOVER_NOTICE_COOLDOWN_SEC = 600.0  # 10 分鐘
 _handover_notice_at: dict[str, float] = {}
 
 
+def _bridge_credential() -> str:
+    """新 agent principal credential 優先；migration window 才讀 shared token。"""
+    return (
+        os.environ.get("AGENT_API_SERVICE_CREDENTIAL")
+        or os.environ.get("INTERNAL_API_TOKEN")
+        or ""
+    ).strip()
+
+
+def _bridge_auth_headers(credential: str) -> dict[str, str]:
+    if (os.environ.get("AGENT_API_SERVICE_CREDENTIAL") or "").strip():
+        return {"X-Service-Credential": credential}
+    return {"X-Internal-Token": credential}
+
+
 def _should_notify_handover(session_key: str) -> bool:
     """接管期間本則是否該送「請稍候」提示(冷卻節流,避免洗版)。fail-open。"""
     try:
@@ -291,7 +306,7 @@ async def _persist_turn_safe(
     base_url = os.environ.get("LOCK_API_BASE_URL")
     # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 會留 \n），
     # 含換行的 token 放進 HTTP header 會被 httpx 拒（Illegal header value）。
-    token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
+    token = _bridge_credential()
     if not (base_url and token):
         return  # 未設定 bridge → 安靜略過
     payload = {
@@ -326,7 +341,7 @@ async def _post_ingest(base_url: str, token: str, payload: dict) -> bool:
             resp = await client.post(
                 f"{base_url.rstrip('/')}/api/v1/internal/conversations/ingest",
                 json=payload,
-                headers={"X-Internal-Token": token},
+                headers=_bridge_auth_headers(token),
             )
             if resp.status_code >= 400:
                 logger.warning("對話持久化回 {}:{}", resp.status_code, resp.text[:160])
@@ -399,7 +414,7 @@ async def _handover_active_safe(tenant: str, user_id: str) -> bool:
     base_url = os.environ.get("LOCK_API_BASE_URL")
     # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 會留 \n），
     # 含換行的 token 放進 HTTP header 會被 httpx 拒（Illegal header value）。
-    token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
+    token = _bridge_credential()
     if not (base_url and token):
         return False
     try:
@@ -409,7 +424,7 @@ async def _handover_active_safe(tenant: str, user_id: str) -> bool:
             resp = await client.get(
                 f"{base_url.rstrip('/')}/api/v1/internal/conversations/handover-state",
                 params={"tenant_id": tenant, "session_id": f"{tenant}:{user_id}"},
-                headers={"X-Internal-Token": token},
+                headers=_bridge_auth_headers(token),
             )
             if resp.status_code >= 400:
                 logger.warning("查接管狀態回 {}:{}", resp.status_code, resp.text[:160])
@@ -442,7 +457,7 @@ async def _forward_escalation_safe(
     base_url = os.environ.get("LOCK_API_BASE_URL")
     # .strip()：secret 值可能帶尾換行（openssl rand | gcloud secrets create 會留 \n），
     # 含換行的 token 放進 HTTP header 會被 httpx 拒（Illegal header value）。
-    token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
+    token = _bridge_credential()
     if not (base_url and token) or esc is None:
         return
     try:
@@ -478,7 +493,7 @@ async def _forward_escalation_safe(
             resp = await client.post(
                 f"{base_url.rstrip('/')}/api/v1/internal/escalations/ingest",
                 json=payload,
-                headers={"X-Internal-Token": token},
+                headers=_bridge_auth_headers(token),
             )
             if resp.status_code >= 400:
                 logger.warning("escalation 轉發回 {}:{}", resp.status_code, resp.text[:160])
@@ -765,9 +780,12 @@ async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> st
         return None
 
     base_url = os.environ.get("LOCK_API_BASE_URL")
-    token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
+    token = _bridge_credential()
     if not (base_url and token):
-        logger.warning("報價 postback 收到但 bridge 未設定（LOCK_API_BASE_URL/INTERNAL_API_TOKEN）")
+        logger.warning(
+            "報價 postback 收到但 bridge 未設定"
+            "（LOCK_API_BASE_URL/AGENT_API_SERVICE_CREDENTIAL）"
+        )
         return "系統忙線中，請稍後再試或洽客服 🙏"
     try:
         import httpx
@@ -776,7 +794,7 @@ async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> st
             resp = await client.post(
                 f"{base_url.rstrip('/')}/api/v1/internal/quotes/{quote_id}:customer-respond",
                 json={"tenant_id": tenant, "line_user_id": user_id, "decision": decision},
-                headers={"X-Internal-Token": token},
+                headers=_bridge_auth_headers(token),
             )
         if resp.status_code >= 400:
             logger.warning("報價回覆轉發回 {}:{}", resp.status_code, resp.text[:160])
@@ -1175,7 +1193,12 @@ def build_webapp(
                     debouncer.push(session_key, item)
         return web.Response(text="OK")
 
+    async def health(_request: web.Request) -> web.Response:
+        """Cloud Run liveness endpoint; startup hooks must finish before it is served."""
+        return web.json_response({"status": "ok", "service": "line-gateway"})
+
     app = web.Application()
+    app.router.add_get("/health", health)
     app.router.add_post("/callback", callback)
 
     # RAG-via-MCP(ADR-010/CR-0125):gateway 直呼 _process_message 繞過 loop.run(),

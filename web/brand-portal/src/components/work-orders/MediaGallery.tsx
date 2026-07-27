@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Image as ImageIcon, RefreshCw, X, Lock, LockOpen } from "lucide-react";
 import { api, auth, getCurrentSession, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { apiBaseUrl } from "@/lib/runtimeConfig";
 
 interface MediaItem {
   id: string;
@@ -57,7 +58,7 @@ function MediaThumb({ item, onClick, canManageHold, onToggleHold }: ThumbProps) 
     let cancelled = false;
     const ac = new AbortController();
     // || 而非 ??：docker build 會把未設的 env 烘成空字串，?? 接不住（CR-0119 同修）
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
+    const baseUrl = apiBaseUrl();
     const token = auth.getAccessToken();
     const tenantId = auth.getTenantId();
 

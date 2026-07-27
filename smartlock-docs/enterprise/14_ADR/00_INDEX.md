@@ -88,12 +88,12 @@ upstream:
 | [ADR-032](./ADR-032_Skill熱更新_品牌庫SSOT_workspace_overlay.md) | Skill 熱更新——品牌庫為 SSOT、image builtin 降級離線保底、workspace overlay 物化（≤60s 生效不重佈） | 平台 | Accepted | 延續 030 · 細化 CLAUDE.md Arch Lock 條 2 |
 | [ADR-033](./ADR-033_轉真人判準_SOP情境式紅線_取代三輪硬計數.md) | 轉真人判準——SOP 情境式紅線取代 FR-AGT-03 三輪硬計數（正典讓步；Clarify gate 降為話術原則；transfer 唯一出口不變） | 系統(agent) | Accepted | 025 · 008 · 032 |
 | **群 K — 體驗、安全執行與交付治理** |||||
-| [ADR-034](./ADR-034_前端Mutation一致性_偏好分層_Capability導覽.md) | 前端 Mutation 一致性、偏好分層與 Capability 導覽 | 系統(web/api) | 規劃中 | refines 024 · 005 · 028 |
-| [ADR-035](./ADR-035_租戶資源歸屬授權契約_BOLA_IDOR.md) | 租戶資源歸屬授權契約與 BOLA／IDOR 守門 | 平台/security | 規劃中 | refines 005 · 020 · 022 |
-| [ADR-036](./ADR-036_機器身分與可撤銷服務憑證.md) | 機器身分與可撤銷服務憑證 | 平台/security | 規劃中（OD-001/004 gate） | 004 · 005 · 035 |
-| [ADR-037](./ADR-037_背景工作Runtime從API生命週期拆分.md) | 背景工作 Runtime 從 API 生命週期拆分 | 系統(api/ops) | 規劃中 | refines 006 · 003 · 021 |
-| [ADR-038](./ADR-038_GCP發版Promotion與證據關卡.md) | GCP 發版 Promotion 與證據關卡 | 平台/delivery | 規劃中 | refines 003 · 002 · 007 |
-| [ADR-039](./ADR-039_web共享契約套件_窄例外.md) | web 共享契約套件——四站獨立專案的窄例外 | 系統(web/tooling) | 規劃中（P2） | refines 028 · 031 · 034 |
+| [ADR-034](./ADR-034_前端Mutation一致性_偏好分層_Capability導覽.md) | 前端 Mutation 一致性、偏好分層與 Capability 導覽 | 系統(web/api) | 已實作 | refines 024 · 005 · 028 |
+| [ADR-035](./ADR-035_租戶資源歸屬授權契約_BOLA_IDOR.md) | 租戶資源歸屬授權契約與 BOLA／IDOR 守門 | 平台/security | 已實作 | refines 005 · 020 · 022 |
+| [ADR-036](./ADR-036_機器身分與可撤銷服務憑證.md) | 機器身分與可撤銷服務憑證 | 平台/security | 實作完成／待 production 取證（OD-001/004 gate） | 004 · 005 · 035 |
+| [ADR-037](./ADR-037_背景工作Runtime從API生命週期拆分.md) | 背景工作 Runtime 從 API 生命週期拆分 | 系統(api/ops) | Pilot code ready／待 GCP 取證 | refines 006 · 003 · 021 |
+| [ADR-038](./ADR-038_GCP發版Promotion與證據關卡.md) | GCP 發版 Promotion 與證據關卡 | 平台/delivery | Workflow ready／待環境演練 | refines 003 · 002 · 007 |
+| [ADR-039](./ADR-039_web共享契約套件_窄例外.md) | web 共享契約套件——四站獨立專案的窄例外 | 系統(web/tooling) | 已實作（vendored 0.1.0） | refines 028 · 031 · 034 |
 
 ## 依賴關係圖
 

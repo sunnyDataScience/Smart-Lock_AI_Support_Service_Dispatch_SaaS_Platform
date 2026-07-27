@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // 追蹤 mock 模組工廠是否被執行——用來證明「env 未設時連 import 都不發生」
 let factoryCalls = 0;
+let importShouldFail = false;
 const registerOTelMock = vi.fn();
 
 /** 每個測試重置模組快取後再載入 SUT，確保動態 import 吃到當前 mock。 */
@@ -24,11 +25,15 @@ describe("instrumentation register()（OTLP opt-in）", () => {
   beforeEach(() => {
     vi.resetModules();
     factoryCalls = 0;
+    importShouldFail = false;
     registerOTelMock.mockReset();
     warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     // 預設 mock：@vercel/otel 正常存在
     vi.doMock("@vercel/otel", () => {
       factoryCalls += 1;
+      if (importShouldFail) {
+        throw new Error("Cannot find module '@vercel/otel'");
+      }
       return { registerOTel: registerOTelMock };
     });
   });
@@ -100,10 +105,8 @@ describe("instrumentation register()（OTLP opt-in）", () => {
 
   it("@vercel/otel import 失敗（套件缺）→ 降級 no-op + warning，絕不向外 throw", async () => {
     vi.stubEnv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4318");
-    // 覆寫 mock：模組工廠 throw ＝ 動態 import reject（套件缺失情境）
-    vi.doMock("@vercel/otel", () => {
-      throw new Error("Cannot find module '@vercel/otel'");
-    });
+    // 同一 mock factory 以旗標控制失敗，避免重複 doMock 偶發沿用前一個 factory。
+    importShouldFail = true;
     const register = await loadRegister();
 
     await expect(register()).resolves.toBeUndefined();

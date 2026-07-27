@@ -13,6 +13,7 @@ import { kbDocumentToCaseEntry, type KBDocument } from "@/lib/kb-adapter";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import { useKbCounts } from "@/hooks/useKbCounts";
 import type { components } from "@/types/api.generated";
+import { apiBaseUrl } from "@/lib/runtimeConfig";
 
 type CaseEntry = components["schemas"]["CaseEntry"];
 type CaseSearchResponse = components["schemas"]["CaseSearchResponse"];
@@ -198,8 +199,7 @@ export default function CasesPage() {
       // 不套 tenantPath；tenant 隔離由 X-Tenant-ID header + require_tenant 服務端處理
       // 用 || 而非 ??：NEXT_PUBLIC_API_BASE_URL 在部分 build 被烤成空字串，
       // ?? 不會對空字串退回 → 變相對 URL 打到 web origin 而非 API（404）。對齊 api.ts:BASE_URL。
-      const apiBase =
-        process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
+      const apiBase = apiBaseUrl();
       const res = await fetch(
         `${apiBase}/kb/documents:export?${qs.toString()}`,
         {

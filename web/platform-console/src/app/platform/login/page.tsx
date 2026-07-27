@@ -8,7 +8,7 @@
 
 import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { loginPlatformAdmin } from "@/lib/api";
 import { friendlyLoginError } from "@/lib/apiError";
 import IdleLogoutNotice from "@/components/auth/IdleLogoutNotice";
@@ -25,6 +25,20 @@ export default function PlatformLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [ssoEnabled, setSsoEnabled] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    void fetch("/auth/sso-config", { cache: "no-store" })
+      .then((response) => response.json())
+      .then((data: { enabled?: boolean }) => {
+        if (active) setSsoEnabled(data.enabled === true);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -67,15 +81,12 @@ export default function PlatformLoginPage() {
         <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
           {/* CR-0177 S2：SSO 為**主要**登入路徑（置頂 + 主要樣式）；密碼登入降為 break-glass
               緊急備援（後端 S4 留稽核 break_glass_local_login）。未配置 Casdoor 則版面不變。 */}
-          {process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT && (
+          {ssoEnabled && (
             <>
               <button
                 type="button"
                 onClick={() => {
-                  const ep = (process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT ?? "").replace(/\/$/, "");
-                  const cid = process.env.NEXT_PUBLIC_CASDOOR_CLIENT_ID ?? "smartlock-portal-client";
-                  const uri = encodeURIComponent(`${window.location.origin}/auth/callback`);
-                  window.location.href = `${ep}/login/oauth/authorize?client_id=${encodeURIComponent(cid)}&response_type=code&redirect_uri=${uri}&scope=read&state=smartlock`;
+                  window.location.assign("/auth/start");
                 }}
                 className="h-10 rounded-lg bg-[var(--primary)] text-sm font-semibold text-white transition hover:opacity-90"
               >
@@ -126,7 +137,7 @@ export default function PlatformLoginPage() {
             type="submit"
             disabled={loading || !email || password.length < 8}
             className={
-              process.env.NEXT_PUBLIC_CASDOOR_ENDPOINT
+              ssoEnabled
                 ? "h-10 rounded-lg border border-[var(--border)] text-sm font-semibold text-[var(--text-primary)] transition hover:bg-[var(--bg-page)] disabled:opacity-50"
                 : "h-10 rounded-lg bg-[var(--primary)] text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
             }

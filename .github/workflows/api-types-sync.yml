@@ -9,8 +9,8 @@ on:
     paths:
       - 'api/**/*.py'
       - 'api/pyproject.toml'
-      # S8 複製分家後 types 為四站各持一份（web/packages/shared/ 已解散）
-      - 'web/*/src/types/api.generated.ts'
+      - 'web/shared-contract/src/api-generated.ts'
+      - 'web/shared-contract/smartlock-shared-contract-*.tgz'
       - 'scripts/ci/generate-api-types.sh'
       - 'scripts/ops/export_openapi.py'
       - '.github/workflows/api-types-sync.yml'
@@ -18,7 +18,8 @@ on:
     paths:
       - 'api/**/*.py'
       - 'api/pyproject.toml'
-      - 'web/*/src/types/api.generated.ts'
+      - 'web/shared-contract/src/api-generated.ts'
+      - 'web/shared-contract/smartlock-shared-contract-*.tgz'
       - 'scripts/ci/generate-api-types.sh'
       - 'scripts/ops/export_openapi.py'
 

@@ -6,6 +6,7 @@
 //              CTA 以絕對 URL 指向師傅/派工 portal(NEXT_PUBLIC_TECH/DISPATCH_PORTAL_URL)
 //   platform — 平台方 console:只渲染 /platform 頁群(平台管理員自用)
 // NEXT_PUBLIC_* 於 next build 時烤入 bundle(web/Dockerfile ARG),runtime 不可改。
+import { platformApiBaseUrl } from "./runtimeConfig";
 export type AppMode = "all" | "dispatch" | "tech" | "landing" | "platform";
 
 const raw = process.env.NEXT_PUBLIC_APP_MODE || "all";
@@ -30,9 +31,7 @@ export const DISPATCH_PORTAL_URL = (
 
 // landing 品牌申請表單直打 platform API(CR-0114 R2;瀏覽器端,
 // 與 NEXT_PUBLIC_API_BASE_URL(品牌 api)分開 —— 申請歸平台方管)。
-export const PLATFORM_API_BASE_URL = (
-  process.env.NEXT_PUBLIC_PLATFORM_API_BASE_URL || "http://localhost:8003"
-).replace(/\/+$/, "");
+export const PLATFORM_API_BASE_URL = platformApiBaseUrl();
 
 // landing 容器專用:平台 console 絕對 URL(品牌申請導入頁移到 platform 站
 // /platform/apply,landing 品牌 CTA 以絕對 URL 外導;如 http://localhost:3003)。

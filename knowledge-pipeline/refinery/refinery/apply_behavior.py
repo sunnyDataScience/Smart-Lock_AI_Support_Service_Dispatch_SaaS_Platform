@@ -41,12 +41,24 @@ def _parse_skill_target(target_path: str) -> tuple[str, str] | None:
     return skill_name, rel_path
 
 
-def _ingest_via_api(base: str, token: str, tenant: str, skill_name: str, rel_path: str,
-                    content: str, note: str) -> dict:
+def _ingest_via_api(
+    base: str,
+    credential: str,
+    tenant: str,
+    skill_name: str,
+    rel_path: str,
+    content: str,
+    note: str,
+    *,
+    service_credential: bool = False,
+) -> dict:
     """POST /internal/skills/ingest（merge=true，加性）→ 回應 data（含 draft version）。"""
     resp = httpx.post(
         f"{base.rstrip('/')}/api/v1/internal/skills/ingest",
-        headers={"X-Internal-Token": token},
+        headers={
+            "X-Service-Credential" if service_credential else "X-Internal-Token":
+                credential
+        },
         json={
             "tenant_id": tenant,
             "skill_name": skill_name,
@@ -68,8 +80,12 @@ def main(argv: list[str] | None = None) -> int:
 
     tenant = db.tenant_id()
     api_base = os.environ.get("LOCK_API_BASE_URL")
-    api_token = os.environ.get("INTERNAL_API_TOKEN")
-    use_api = bool(api_base and api_token)
+    service_credential = (
+        os.environ.get("REFINERY_API_SERVICE_CREDENTIAL") or ""
+    ).strip()
+    legacy_token = (os.environ.get("INTERNAL_API_TOKEN") or "").strip()
+    api_credential = service_credential or legacy_token
+    use_api = bool(api_base and api_credential)
     # parents[3] = 專案根（本檔位於 knowledge-pipeline/refinery/refinery/）
     repo_root = Path(args.root) if args.root else Path(__file__).resolve().parents[3]
     applied = skipped = 0
@@ -104,8 +120,9 @@ def main(argv: list[str] | None = None) -> int:
                     continue
                 try:
                     data = _ingest_via_api(
-                        api_base, api_token, tenant, skill_name, rel_path, pub["content"],
+                        api_base, api_credential, tenant, skill_name, rel_path, pub["content"],
                         note=f"refinery 行為軌 HITL 核可（draft #{draft_id}「{title}」）",
+                        service_credential=bool(service_credential),
                     )
                 except httpx.HTTPError as exc:
                     print(f"[apply] ✗ #{draft_id}「{title}」ingest 失敗（保留待重試）：{exc}")

@@ -4,7 +4,7 @@
  * 設計：
  *   - 一個 channelPath 對應一個獨立 WebSocket（簡化 server-side 路由）
  *   - 自動重連 exponential backoff（1s → 2s → 5s → 10s → 30s, max 30s）
- *   - JWT 透過 query 或 subprotocol 帶上（多數 WS server 不支援 custom header）
+ *   - 認證只走 HttpOnly cookie；URL 只帶非機密 tenant routing hint
  *   - 後端未啟用時 silent disabled，不噴錯誤
  *
  * 使用：通常透過 React hook `useRealtimeChannel` 訂閱。手動使用見 subscribeRealtime。
@@ -58,14 +58,11 @@ export function subscribeRealtime<T = unknown>(
   let retryTimer: ReturnType<typeof setTimeout> | null = null;
 
   const tenantId = auth.getTenantId?.() ?? "";
-  const token = auth.getAccessToken?.() ?? "";
-
   function buildUrl(): string {
     const base = REALTIME_BASE_URL.replace(/\/$/, "");
     const path = channelPath.startsWith("/") ? channelPath : `/${channelPath}`;
     const url = new URL(base + path);
     if (tenantId) url.searchParams.set("tenant_id", tenantId);
-    if (token) url.searchParams.set("access_token", token);
     return url.toString();
   }
 

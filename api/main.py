@@ -134,6 +134,8 @@ from routers import platform_technicians as platform_technicians_router  # CR-01
 from routers import platform_vendors as platform_vendors_router  # CR-0114 收尾: 廠商審核搬遷
 from routers import platform_monitor as platform_monitor_router  # CR-0116: 維運監控
 from routers import platform_tenants as platform_tenants_router  # CR-0118: 已開站租戶 registry
+from routers import preferences as preferences_router  # CR-0190: 三庫各自權威的跨裝置偏好
+from routers import platform_service_principals as platform_service_principals_router  # CR-0190/ADR-036: S2S credential lifecycle
 
 logger = logging.getLogger("api")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -149,7 +151,7 @@ cfg = load_config()
 # 注意:這是部署塑形(deployment shaping),不是安全邊界 —— 權限仍由每個
 # endpoint 的 RBAC(role_required / require_tenant / require_platform_admin)把關。
 _API_SURFACE = os.environ.get("API_SURFACE", "all").strip().lower() or "all"
-_RUN_BACKGROUND_WORKERS = _API_SURFACE not in ("tech", "platform")
+_BACKGROUND_RUNTIME_MODE = os.getenv("BACKGROUND_RUNTIME_MODE", "api").strip().lower()
 
 # CR-0114 啟動守衛:platform surface 簽發 platform_admin(跨品牌最高權限)token,
 # 密鑰絕不可為空/過短/開發預設值 —— role 完全來自簽章 payload,已知密鑰即可偽造。
@@ -178,21 +180,7 @@ async def lifespan(app: FastAPI):
     from core.db import open_pool
 
     await open_pool()
-    # 啟動背景監測（單機 in-memory；多 worker 須改 distributed scheduler）
-    from realtime.config_canary_advance_cron import worker as canary_advance_cron
-    from realtime.dispute_escalation_cron import worker as dispute_escalation_cron
-    from realtime.inventory_monitor import monitor as inventory_monitor
-    from realtime.line_push_outbox_worker import worker as line_push_worker
-    from realtime.commission_outbox_worker import worker as commission_outbox_worker
-    from realtime.reconciliation_exception_detector import worker as recon_exc_detector
-    from realtime.gdpr_hard_delete_cron import worker as gdpr_hard_delete
-    from realtime.media_retention_cron import worker as media_retention_cron
-    from realtime.auto_confirm_cron import worker as auto_confirm_cron
-    from realtime.sla_monitor import monitor as sla_monitor
-    from realtime.statement_auto_approval_cron import worker as statement_auto_approval
-    from realtime.statement_generate_cron import worker as statement_generate
-    from realtime.webhook_idempotency_cleanup_cron import worker as webhook_idem_cleanup
-    from realtime.family_review_sla_cron import worker as family_review_sla
+    from realtime.job_registry import runtime_manager as _job_runtime
 
     # CR-0134 / SA-02：REDIS_URL 設定時啟動 WS 跨實例橋（未設定＝單機行為不變）
     from realtime.ws_hub import hub as _ws_hub
@@ -202,21 +190,13 @@ async def lifespan(app: FastAPI):
     from core.event_bus import producer as _event_producer
     await _event_producer.start()
 
-    if _RUN_BACKGROUND_WORKERS:
-        inventory_monitor.start()
-        sla_monitor.start()
-        line_push_worker.start()  # CR-0017 Stage 2 outbox poll → push LINE
-        commission_outbox_worker.start()  # CR-0189: commission.accrued 即時投遞失敗後重送
-        recon_exc_detector.start()  # CR-0018 Stage 3 cron daily 對帳異常偵測
-        dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
-        canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
-        statement_auto_approval.start()  # Phase II: 3 statement 表 dispute window 過期 auto-approve
-        statement_generate.start()  # CR-0117 S4: 上月完工技師自動產月結 draft（佣金口徑）
-        gdpr_hard_delete.start()  # FR-0053: T+30 GDPR forget 自動硬刪
-        media_retention_cron.start()  # CR-0040: 每日軟刪過期 evidence（保存期 BR-M09-03）
-        auto_confirm_cron.start()  # CR-0038 桶4/Q063: 客戶未回 48h 自動結案（排除 hold/異常）
-        webhook_idem_cleanup.start()  # CR-0166 R1: 每日清 webhook_idempotency 過期列（7d TTL）
-        family_review_sla.start()  # CR-0166 R1: 家族覆核逾 24h 未審升級（合約 4.4d）
+    if _API_SURFACE not in ("tech", "platform"):
+        started_jobs = _job_runtime.start_for_api(_BACKGROUND_RUNTIME_MODE)
+        logger.info(
+            "background runtime mode=%s jobs=%s",
+            _BACKGROUND_RUNTIME_MODE,
+            ",".join(started_jobs) or "none",
+        )
     else:
         logger.info("API_SURFACE=%s → 背景 worker 全部停用（由派工方 stack 執行）", _API_SURFACE)  # tech/platform 面共用此訊息
     # CR-0166 R4：技師平台 CQRS 投影 consumer——跑在技師面（tech/all），與 producer
@@ -230,21 +210,8 @@ async def lifespan(app: FastAPI):
     if _API_SURFACE in ("tech", "all") and _event_consumer:
         await _event_consumer.stop()
     await _ws_hub.stop_redis()
-    if _RUN_BACKGROUND_WORKERS:
-        await family_review_sla.stop()
-        await webhook_idem_cleanup.stop()
-        await auto_confirm_cron.stop()
-        await media_retention_cron.stop()
-        await gdpr_hard_delete.stop()
-        await statement_generate.stop()
-        await statement_auto_approval.stop()
-        await canary_advance_cron.stop()
-        await dispute_escalation_cron.stop()
-        await recon_exc_detector.stop()
-        await commission_outbox_worker.stop()
-        await line_push_worker.stop()
-        await sla_monitor.stop()
-        await inventory_monitor.stop()
+    if _API_SURFACE not in ("tech", "platform"):
+        await _job_runtime.stop()
     await close_db()
     logger.info("API service stopped")
 
@@ -326,11 +293,21 @@ app.add_exception_handler(IdempotencyReplay, handle_idempotency_replay)
 
 app.include_router(auth_router.router, prefix="/api/v1", tags=["auth"])
 app.include_router(platform_auth_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114
+app.include_router(auth_router.session_router, prefix="/api/v2", tags=["auth"])
+app.include_router(
+    platform_auth_router.session_router, prefix="/api/v2", tags=["platform"]
+)
 app.include_router(platform_brand_apps_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R2
 app.include_router(platform_technicians_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R3
 app.include_router(platform_vendors_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 收尾: 廠商審核搬遷
 app.include_router(platform_monitor_router.router, prefix="/api/v1", tags=["platform"])  # CR-0116: 維運監控
 app.include_router(platform_tenants_router.router, prefix="/api/v1", tags=["platform"])  # CR-0118: 租戶 registry
+app.include_router(
+    platform_service_principals_router.router,
+    prefix="/api/v2",
+    tags=["platform"],
+)  # CR-0190/ADR-036
+app.include_router(preferences_router.router, tags=["preferences"])  # CR-0190: 路由本身含三面完整 path
 app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtime"])
 app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])
 app.include_router(kb_cases_router.router, prefix="/api/v1", tags=["knowledge_base"])
@@ -464,7 +441,8 @@ async def health():
 # WebSocket realtime endpoints（pub-sub via in-memory hub）
 # =============================================================================
 # 對應 docs/02-design/specs/asyncapi.yaml 10 個頻道（diagnostics 為 SSE，另開）
-# 客戶端透過 query 帶 access_token + tenant_id 認證（瀏覽器 WS 不支援 custom header）
+# cookie-only 目標態優先讀 WebSocket handshake cookie；query access_token 僅保留
+# 記憶體 token／舊 client 相容，不要求 localStorage。
 
 from fastapi import WebSocket, WebSocketDisconnect, Query  # noqa: E402
 
@@ -495,7 +473,9 @@ async def _ws_authorized_subscribe(
     """驗 token + 通道授權 → accept → subscribe → 等待 disconnect → unsubscribe。"""
     try:
         auth = await verify_ws_token(
-            access_token=access_token, tenant_id_query=tenant_id_query
+            access_token=access_token
+            or ws.cookies.get("smartlock_access_token"),
+            tenant_id_query=tenant_id_query,
         )
         authorize_channel(
             channel=channel,
@@ -670,6 +650,8 @@ _TECH_SURFACE_PREFIXES: tuple[str, ...] = (
     "/redoc",
     "/api/v1/auth",
     "/api/v1/technicians",
+    "/api/v2/auth",
+    "/api/v2/technicians",
     "/api/v1/internal/technicians",  # CR-0169:品牌 api → LINE 推播 internal 端點
     "/api/v1/work-orders",
     "/api/v1/problem-cards",
@@ -699,7 +681,7 @@ if _API_SURFACE == "tech":
 
 
 # ── CR-0114:API_SURFACE=platform 路由過濾(平台方 console 精簡面)──────────
-# 平台端點全部收在 /api/v1/platform 前綴下 → 一條前綴即過濾乾淨。
+# 平台端點收在 legacy /api/v1/platform 與新面 /api/v2/platform 前綴下。
 # 同 tech 面:部署塑形非安全邊界,權限由 require_platform_admin 把關。
 _PLATFORM_SURFACE_PREFIXES: tuple[str, ...] = (
     "/health",
@@ -707,6 +689,7 @@ _PLATFORM_SURFACE_PREFIXES: tuple[str, ...] = (
     "/openapi.json",
     "/redoc",
     "/api/v1/platform",
+    "/api/v2/platform",
 )
 
 
@@ -735,6 +718,7 @@ if _API_SURFACE == "platform":
 # all 模式(pytest/雲端單體)不過濾,行為零變化。
 _DISPATCH_SURFACE_DROP_PREFIXES: tuple[str, ...] = (
     "/api/v1/platform",
+    "/api/v2/platform",
     "/api/v1/technicians/register",
     # CR-0115 孿生公開寫端點(兩階段 token 文件上傳)—— 與 /register 同理,
     # 公開師傅身分域寫入面不暴露在品牌 8001。

@@ -1,9 +1,9 @@
 ---
 title: 安全架構文件 — Smart Lock AI 客服與派工 SaaS 平台
-version: 1.0
+version: 1.1
 status: active
 owner: 平台架構師 / 安全負責人
-last-updated: 2026-07-10
+last-updated: 2026-07-27
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P003_Casdoor_統一IdP_租戶_License.md
   - smartlock-docs/00_platform/P2/04_adr/ADR-P006_四方RBAC模型_enforce.md
@@ -25,7 +25,9 @@ upstream:
 
 平台安全設計四大原則：
 
-1. **認證強**：入站（LINE webhook 驗簽）、使用者（OIDC / JWT + jti 撤銷 + 每請求安全狀態重查）、服務間（X-Internal-Token 常數時間比對）三層認證全覆蓋。
+1. **認證強**：入站（LINE webhook 驗簽）、使用者（OIDC/JWT HttpOnly session + jti
+   撤銷 + 每請求安全狀態重查）、服務間（per-workload service credential；legacy token
+   只作過渡）三層認證全覆蓋。
 2. **授權 deny-by-default**：四方 RBAC（ADR-P006），資源級 `role_required` 於 api 全 surface enforce；前端 gate 僅為 UX 層，**不是安全邊界**。
 3. **物理隔離優先於邏輯隔離**：多租戶隔離 = **一品牌一 DB 物理隔離**（三庫分裂），fail-closed —— 連錯庫就是連不到，不會靜默洩漏。
 4. **fail-closed 用於安全，fail-soft 用於可用性**：服務間認證未配置即 503；記憶讀寫缺 tenant+user_id 即 raise；可用性旁路（對話持久化、handover 查詢）失敗只降級不阻斷客服。
@@ -38,11 +40,19 @@ upstream:
 
 **Casdoor 為身分 / 租戶 / 角色 / License 的單一真相源**：
 
-- **IdP**：OAuth2/OIDC 統一發 token，各服務驗 OIDC token。🔶 **R1 已落地（2026-07-10 CR-0141）**：api 雙驗（自簽 HS256 優先＋Casdoor RS256 opt-in，`CASDOOR_*` env 未配置＝零行為變化；claims 映射走 user properties `smartlock_user_id`/`tenant_id`/`smartlock_role`，A2/A3 每請求重查對 OIDC token 同樣生效）；web 授權碼流＋ACT-01 為 R2。過渡期各 api 以 JWT HS256 自簽驗證運作（見 §2.2）。〔標注 2026-07-10：R2 之授權碼流已落地（CR-0146）——brand-portal 薄回調參考實作（`/auth/callback` code→token→httpOnly cookie）＋登入頁 SSO 按鈕，live E2E 通過；過渡期 token 雙寫 localStorage，ACT-01 退場與三站複製改列 R3（業主排程）〕
+- **IdP**：OAuth2/OIDC 統一發 token，各服務驗 OIDC token。R1/R2 已落地（CR-0141/
+  CR-0146）；CR-0190 將四站 browser token 收斂至 HttpOnly cookie-only response +
+  same-origin proxy，localStorage 雙寫已移除。Casdoor production HA/claim mapping 仍受
+  OD-004 與部署證據控制。
 - **租戶（org）**：Casdoor organization = 品牌租戶；租戶 Admin 可自助開通帳號給自己人。🔶 R1：org/7 角色/使用者（bcrypt hash 原樣遷移）冪等同步腳本 `scripts/idp/casdoor_bootstrap.py`，live E2E 實證（真 token→api 驗證器映射全對）。
 - **角色 claim**：Casdoor role/permission 作為角色來源，api 端 resource-level enforce（§3）。
 - **License 開通**：Casdoor application / subscription / pricing 管理品牌授權與到期，作為 per-brand provisioning 的開通閘門（ADR-P005）。
-- **前端登入**：標準 **OIDC 授權碼流**，token 以 httpOnly cookie / 安全儲存 + server 端驗簽。🔜 規劃中（Phase 2）——落地前的過渡期 token 儲存於 localStorage，故前端一律不視為安全邊界（§7 T-3）。〔標注 2026-07-10：brand-portal 參考實作已落地（CR-0146，live E2E 通過）；三站複製＋ACT-01 退場＝R3（業主排程），過渡期 token 雙寫 localStorage〕
+- **前端登入**：標準 OIDC／密碼登入的 browser response 採
+  `X-Auth-Response-Mode: cookie`；四站經本站 same-origin proxy 接收 HttpOnly
+  access/refresh cookie，JSON 不回 token，CI 禁止 token 寫 localStorage/URL。舊 storage
+  只允許一次性讀取後立即清除。OIDC request 以每次隨機、10 分鐘 host-only cookie
+  綁定 `state`，callback fail-closed 驗證並在 code exchange 回送相同 `redirect_uri`。
+  直接 WS/SSE 也只收 cookie；跨 host 無共享 cookie 時 realtime disabled。
 - Casdoor 為跨品牌關鍵單點：**HA + 備份**為部署必要條件（`./12_SAD.md` §12 R-01）。
 
 ### 2.2 使用者認證控制（既有控制，api P3/13 §C）
@@ -61,9 +71,16 @@ upstream:
 | 邊界 | 控制 |
 |---|---|
 | LINE → agent | `POST /callback` 驗 `X-Line-Signature`（HMAC-SHA256 用 `LINE_CHANNEL_SECRET`），失敗回 400；由 `test_line_gateway.py` 以真簽章守護（agent C-01）|
-| agent → api | header `X-Internal-Token`；api 側 fail-closed（未設 → 503、不符 → 401），`hmac.compare_digest` 常數時間比對防 timing attack（api C-06 / agent C-02）|
-| WebSocket | `verify_ws_token`（token + type + jti 撤銷 + tenant）+ `authorize_channel`（user_id/tech_id/role）；失敗 close(1008)（api C-10）|
-| 品牌 api → 技師平台（OHS）| service-to-service 憑證機制 `[待確認]`（OIDC client-credentials vs internal token），隨 Phase 2 技師平台獨立化定案 |
+| agent/refinery/OHS → api | 優先 `X-Service-Credential`：per-workload principal、peppered hash、audience/scope/tenant、expiry/revoke/rotation/audit；錯誤 fail-closed 且不降級。`X-Internal-Token` 只作計量中的 migration fallback |
+| WebSocket / SSE | HttpOnly `smartlock_access_token` cookie + tenant/channel ownership；URL 無 token。`verify_ws_token` + `authorize_channel` 失敗 close(1008) |
+| 品牌 api → 技師平台（OHS）| 受控 opaque service credential 已可用；OD-001 仍決定最終 transport 是否改 OIDC client-credentials，不影響 lifecycle 下限 |
+
+### 2.4 Resource ownership 與 BOLA／IDOR（ADR-035）
+
+`api/core/resource_ownership.py` 將 runtime mutation 與敏感 read/export 分為品牌 tenant、
+技師、平台、public capability、internal service、public auth 六類；每類固定必要檢查與
+真實 negative test ID，未分類即 CI fail。矩陣是 completeness 索引，實際安全邊界仍是
+router/service 的 portal、tenant、role、resource owner 與 service scope guard。
 
 ---
 
@@ -216,7 +233,7 @@ Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR
 | 沙箱 | `CS_TOOL_ALLOWLIST` 僅 6 個唯讀/搜尋/轉接工具（§10）；workspace / SSRF 邊界分類 | — |
 | 記憶 | tenant+user_id default deny；kind 白名單；跨 user/tenant 隔離測試守護 | 生產 postgres 持久化（FA-02）；連線帳號最小權限（FA-07）|
 | LLM | 輸出不可信（sentinel / fallback / 截斷）；紅線 transfer；Dream 自我學習關閉 | failover（FA-03）；OPIK 觀測落地（FA-06）|
-| 服務間 | X-Internal-Token（api 側 fail-closed）| `/internal/*` 生產 https 確認 |
+| 服務間 | `X-Service-Credential` per-workload lifecycle；legacy token fallback 計量 | `/internal/*` production bootstrap、HTTPS、fallback release-window 歸零 |
 | 基礎設施 | multi-stage uv build（`--no-dev`）；Secret Manager 全覆蓋 | `/health` 路由（FA-01）；非 root 容器確認 `[待確認]`；上游 patch 追蹤（FA-08）|
 
 ### 8.3 web（多站前端）
@@ -256,7 +273,10 @@ Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR
 
 **api**：dispatch 與 tech surface **共用 `API_JWT_SECRET_KEY`** → 技師 token 可打品牌派工 API（僅 platform 用獨立金鑰）；`work_orders.tenant_id` + 7 RLS policy tables 為**半成品死碼**（保留欄、單租戶、無 enforce，誤導）；surface port 直接對外、無統一 API Gateway。
 
-**web**：OWASP top-2 —— **A01 Broken Access Control**（client-only gate + `rolePolicy` fail-open）、**A07 Auth failures**（JWT 存 localStorage、`atob` 不驗簽）；JWT 走 **WS/SSE query param**（`realtime.ts`/`sse.ts`）可能入 proxy log；`UAT_HIDE_FAKE_FLOWS` 隱藏的假流程含「退款核可**實際不退錢**」。
+**web**：歷史 OWASP 發現為 A01 client-only gate 與 A07 token storage/URL；CR-0190 已移除
+browser token storage、fragment/query token並以 scanner 守線，但前端 capability/role
+仍只改善 UX，後端 ownership/RBAC 才是安全邊界。跨 host realtime 無共享 cookie 時必須
+disabled。`UAT_HIDE_FAKE_FLOWS` 隱藏的假流程仍須獨立治理。
 
 **data-pipeline**（除上方修正外）：pgvector embedding **可能反推原文**（未評估敏感度）；raw layer 近空 → 原始素材未留則 **bronze 無法從零重建**；爬取內容**未 sanitize 進 LLM**（pipeline prompt-injection）；硬編 demo 憑證 `demo-admin/adminpass123`（`SQL/seeds/README.md`）。
 
@@ -319,7 +339,7 @@ AI 客服的安全邊界採「**物理限制優先於行為約束**」：
 | 跨面 token 隔離 | CR-0182：Portal Claim Guard + 每面 `ALLOWED_TOKEN_PORTALS` | 技師／品牌／平台 token 跨面一律 403；正式三面 smoke 證據保存 |
 | agent 健康檢查 | FA-01：`GET /health` 路由 | deploy health gate 通過 |
 | 記憶持久化 | FA-02：生產 `backend="postgres"` | 實例重啟記憶不流失；PII 落 Cloud SQL 加密層 |
-| token 安全儲存 | ACT-01：httpOnly cookie + server 端驗簽（隨 Casdoor 授權碼流）| localStorage 不再存 token 〔標注 2026-07-10 業主裁決：ACT-01 統一標 **Phase 2**（與 §2.1／§7 T-3／§8.3 一致，本表 Phase 1 歸類作廢）；退場＝2.1.1 R3 業主排程。CR-0141 §8-3／CR-0146 遺留#1 銷案〕|
+| token 安全儲存 | ✅ CR-0190：HttpOnly access/refresh + same-origin proxy + cookie-only JSON response + CI scanner | 跨 host WS/SSE 另需同父網域 cookie 證據，否則 disabled |
 | 前端 deny-by-default | ACT-02：rolePolicy catch-all 拒絕 + CI 漏登記檢查 | 未登記敏感頁預設拒絕 |
 | 死角色清理 | SA-06：`rolePolicy` FULL_ACCESS 移除 `tenant_admin` / `super_admin` 放行；`users.role` 欄位註解與 seed 同步角色正典（§3.1）；`_STAFF_ROLES` 移除 `dispatcher`（保留角色不開通）；`_MATRIX` 補 `operations_manager` 行（轉 enforce 前必補否則該角色全鎖）| ✅ **本項完成（2026-07-09，CR-0127）**：死角色 token 不再全放行；DB 註解與正典一致；ops_manager 矩陣行齊備（核准權依 SoD 歸 admin/reviewer）|
 | 租戶 fallback | ACT-03：無有效 tenant 導登入 | 不再退回預設租戶 |

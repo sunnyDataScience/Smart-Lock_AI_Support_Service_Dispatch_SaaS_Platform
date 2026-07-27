@@ -6,6 +6,7 @@ import hmac
 import logging
 import os
 from dataclasses import dataclass
+from collections import Counter
 
 from fastapi import Depends, Header, Request
 
@@ -13,6 +14,10 @@ from core.auth import decode_token, is_jti_revoked, load_user_security_state, po
 from core.errors import ApiError
 from core.oidc import OIDCError, oidc_enabled, verify_oidc_token
 from core.tenant import resolve_tenant_id
+from services.service_credential_service import (
+    ServicePrincipalContext,
+    authenticate as authenticate_service_credential,
+)
 
 logger = logging.getLogger("api.deps")
 
@@ -377,9 +382,15 @@ def permission_shadow(resource: str, action: str):
 _KEEPER_ROLES: frozenset[str] = frozenset({"admin", "platform_admin", "platform_keeper"})
 
 
-async def require_internal_token(
-    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
-) -> None:
+_LEGACY_INTERNAL_AUTH_USAGE: Counter[str] = Counter()
+
+
+def get_legacy_internal_auth_usage() -> dict[str, int]:
+    """供 rollout gate/監控讀取舊 X-Internal-Token 實際使用量。"""
+    return dict(_LEGACY_INTERNAL_AUTH_USAGE)
+
+
+async def _require_legacy_internal_token(x_internal_token: str | None) -> None:
     """服務間（service-to-service）internal token 驗證。
 
     用於非人類發動、無 JWT 的內部寫入路徑（如 LINE agent gateway 把對話旁路
@@ -405,6 +416,75 @@ async def require_internal_token(
             message="Missing or invalid X-Internal-Token",
             status_code=401,
         )
+
+
+def service_credential_required(
+    required_scope: str,
+    *,
+    audience: str = "smartlock-internal-api",
+):
+    """S2S dependency factory：新 credential 優先，缺席時才容許舊 token。
+
+    如果請求已帶 X-Service-Credential 但驗證失敗，不得降級嘗試 legacy token，
+    避免 downgrade attack。tenant grant 由 handler 解析實際 body/query tenant 後
+    呼叫 `assert_tenant_scope`，不能只相信 header。
+    """
+
+    async def _dependency(
+        request: Request,
+        x_service_credential: str | None = Header(
+            default=None, alias="X-Service-Credential"
+        ),
+        x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+    ) -> ServicePrincipalContext:
+        request_id = (
+            request.headers.get("X-Request-ID")
+            or getattr(request.state, "request_id", None)
+        )
+        if x_service_credential:
+            return await authenticate_service_credential(
+                x_service_credential,
+                audience=audience,
+                required_scope=required_scope,
+                request_id=request_id,
+            )
+        await _require_legacy_internal_token(x_internal_token)
+        metric_key = f"{request.method} {request.url.path}"
+        _LEGACY_INTERNAL_AUTH_USAGE[metric_key] += 1
+        logger.warning(
+            "LEGACY_INTERNAL_AUTH_FALLBACK method=%s path=%s request_id=%s",
+            request.method,
+            request.url.path,
+            request_id,
+        )
+        return ServicePrincipalContext(
+            principal_id="legacy-internal-token",
+            credential_id="legacy-internal-token",
+            name="legacy-internal-token",
+            scopes=frozenset({"*"}),
+            audiences=frozenset({audience}),
+            allowed_tenant_ids=frozenset(),
+            allow_all_tenants=True,
+            legacy_fallback=True,
+        )
+
+    return _dependency
+
+
+async def require_internal_token(
+    request: Request,
+    x_service_credential: str | None = Header(
+        default=None, alias="X-Service-Credential"
+    ),
+    x_internal_token: str | None = Header(default=None, alias="X-Internal-Token"),
+) -> ServicePrincipalContext:
+    """相容 dependency：既有路徑先套 generic internal:* scope。
+
+    新增/調整端點應改用 `service_credential_required("domain:action")`；本函式
+    保留作為 dual-accept 遷移墊，並對 legacy fallback 計數。
+    """
+    dependency = service_credential_required("internal:*")
+    return await dependency(request, x_service_credential, x_internal_token)
 
 
 async def require_keeper_role(

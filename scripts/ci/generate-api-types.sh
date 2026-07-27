@@ -7,8 +7,8 @@
 # 設計稿 api/openapi.yaml 仍為設計期契約（spec-lint / mock-smoke / contract-check
 # 對象），但**不是**型別來源——兩者路徑前綴與 schema 集合本就不同。
 #
-# 輸出位置（2026-07-09 web 檔案層拆分）：四站各持一份 api.generated.ts，
-# 本腳本一次生成、同步寫入四站（單一 runtime 真相 → 四份副本零漂移）。
+# 輸出位置（ADR-039）：只寫 versioned shared-contract 的 generated source；
+# 四站各自保留小型 type facade，避免四份近 1 MB 契約副本漂移。
 #
 # 依賴：uv（匯出 runtime spec，需 api 套件 deps）+ npx（Node 18+）
 # openapi-typescript 版本釘死：不同版本輸出格式不同，@latest 會讓 --check 假紅。
@@ -27,11 +27,11 @@ for arg in "$@"; do
   [[ "$arg" == "--check" ]] && CHECK_ONLY=1
 done
 
-OUT_DIRS=(web/brand-portal/src/types web/tech-portal/src/types web/landing/src/types web/platform-console/src/types)
+OUT_FILE="web/shared-contract/src/api-generated.ts"
 
 echo "== FastAPI runtime → OpenAPI → TypeScript =="
 echo "Source:  api.main:app（scripts/ops/export_openapi.py）"
-echo "Outputs: ${OUT_DIRS[*]}"
+echo "Output:  ${OUT_FILE}"
 echo ""
 
 if ! command -v uv >/dev/null 2>&1; then
@@ -64,33 +64,23 @@ fi
 lines=$(wc -l < "$TMP_FILE")
 echo "Generated: $lines lines"
 
-STALE=0
-for OUT_DIR in "${OUT_DIRS[@]}"; do
-  OUT_FILE="$OUT_DIR/api.generated.ts"
-  if [[ $CHECK_ONLY -eq 1 ]]; then
-    if [[ -f "$OUT_FILE" ]] && diff -q "$TMP_FILE" "$OUT_FILE" > /dev/null 2>&1; then
-      echo "✅ $OUT_FILE 已是最新"
-    else
-      echo "❌ $OUT_FILE 與 runtime 契約不同步"
-      STALE=1
-    fi
-  else
-    mkdir -p "$OUT_DIR"
-    cp "$TMP_FILE" "$OUT_FILE"
-    echo "✅ 寫入 $OUT_FILE"
-  fi
-done
-
 if [[ $CHECK_ONLY -eq 1 ]]; then
-  if [[ $STALE -eq 1 ]]; then
+  if [[ -f "$OUT_FILE" ]] && diff -q "$TMP_FILE" "$OUT_FILE" > /dev/null 2>&1; then
+    echo "✅ $OUT_FILE 已是最新"
+  else
+    echo "❌ $OUT_FILE 與 runtime 契約不同步"
     echo ""
-    echo "請執行：./scripts/ci/generate-api-types.sh"
+    echo "請執行：./scripts/ci/generate-api-types.sh && ./scripts/ci/vendor-shared-contract.sh"
     exit 1
   fi
   exit 0
 fi
 
+cp "$TMP_FILE" "$OUT_FILE"
+echo "✅ 寫入 $OUT_FILE"
+
 echo ""
 echo "Next steps:"
-echo "  1) 各站 tsc 驗證：cd web/<app> && npx tsc --noEmit"
-echo "  2) CI 用 --check 模式阻擋未同步的 commit"
+echo "  1) 重建固定版本 tarball/lockfile：./scripts/ci/vendor-shared-contract.sh"
+echo "  2) 各站 tsc 驗證：cd web/<app> && npx tsc --noEmit"
+echo "  3) CI 用 --check 模式阻擋未同步的 commit"

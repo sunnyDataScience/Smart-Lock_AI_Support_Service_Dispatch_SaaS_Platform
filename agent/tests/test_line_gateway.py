@@ -492,6 +492,27 @@ def test_webhook_valid_signature_invokes_loop_and_replies(monkeypatch):
     assert replied["token"] == "rt1"
 
 
+def test_health_endpoint_is_available_without_line_signature():
+    from aiohttp.test_utils import TestClient, TestServer
+
+    from lockcore.channels import line_gateway
+
+    app = line_gateway.build_webapp(
+        _FakeLoop("unused"), "locksmart", "testsecret", "dummy-token"
+    )
+
+    async def run():
+        async with TestClient(TestServer(app)) as client:
+            resp = await client.get("/health")
+            assert resp.status == 200
+            assert await resp.json() == {
+                "status": "ok",
+                "service": "line-gateway",
+            }
+
+    asyncio.run(run())
+
+
 # ── VLN(2026-07-03):LINE 圖片訊息接入 vision 管線 ──────────────
 
 
@@ -800,6 +821,18 @@ def test_webhook_debounce_merges_two_messages(monkeypatch):
 
 
 # ── CR-0133 / BR-Conv-004:持久化失敗告警＋spool 補送(對話零缺漏)────────────
+def test_bridge_prefers_agent_service_credential(monkeypatch):
+    import lockcore.channels.line_gateway as gw
+
+    monkeypatch.setenv("AGENT_API_SERVICE_CREDENTIAL", "slksp_agent.secret")
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "legacy-shared")
+    credential = gw._bridge_credential()
+    assert credential == "slksp_agent.secret"
+    assert gw._bridge_auth_headers(credential) == {
+        "X-Service-Credential": "slksp_agent.secret"
+    }
+
+
 def test_persist_failure_spools_then_flush(tmp_path, monkeypatch):
     """POST 失敗 → 落 spool(告警);下次持久化先補送 spool、成功即清空。"""
     import asyncio

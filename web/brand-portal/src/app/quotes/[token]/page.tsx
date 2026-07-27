@@ -17,12 +17,13 @@
 
 import { use, useEffect, useState } from "react";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { apiBaseUrl } from "@/lib/runtimeConfig";
 
 type Params = { token: string };
 
 // 直接打 consumer endpoint — 不走 src/lib/api.ts（會帶 Authorization / X-Tenant-ID）
 // 用 || 而非 ??：Docker build-arg 未傳時 ENV 是空字串 ""（非 undefined），需一併 fallback
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
+const API_BASE = apiBaseUrl();
 
 type QuoteState =
   | "draft"

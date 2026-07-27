@@ -20,9 +20,10 @@ import CreateWorkOrderModal from "@/components/work-orders/CreateWorkOrderModal"
 import { tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
+import { useSearchParams } from "next/navigation";
 
 type WorkOrder = components["schemas"]["WorkOrder"];
 
@@ -51,6 +52,8 @@ export default function WorkOrdersPage() {
   const tFilters = useTranslations("pages.workOrders.filters");
   const tViews = useTranslations("pages.workOrders.views");
   const tGroup = useTranslations("status.workOrderGroup");
+  const searchParams = useSearchParams();
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [brandFilter, setBrandFilter] = useState<string>("");
@@ -90,6 +93,12 @@ export default function WorkOrdersPage() {
 
   // P3：全 cutover 至 tenant-scoped v2 路徑（tenantPath 同步解析 tenantId）。
   const [createOpen, setCreateOpen] = useState(false);
+
+  useEffect(() => {
+    const action = searchParams.get("palette");
+    if (action === "search") searchRef.current?.focus();
+    if (action === "create") setCreateOpen(true);
+  }, [searchParams]);
 
   const { items, cursor, hasMore, loading, error, loadMore, refresh } = usePaginatedFetch<WorkOrder>({
     path: `${tenantPath("/work-orders")}${queryParams}`,
@@ -135,6 +144,7 @@ export default function WorkOrdersPage() {
           <div className="flex h-9 w-full max-w-[280px] items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3 sm:w-[280px]">
             <Search className="h-4 w-4 text-[var(--text-secondary)]" />
             <input
+              ref={searchRef}
               type="text"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}

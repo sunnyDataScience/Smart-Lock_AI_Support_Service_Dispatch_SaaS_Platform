@@ -7,6 +7,32 @@
         "serve",
         "--mcp"
       ]
+    },
+    "plane": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "plane-mcp-server",
+        "stdio"
+      ],
+      "env": {
+        "PLANE_API_KEY": "${PLANE_API_KEY}",
+        "PLANE_WORKSPACE_SLUG": "${PLANE_WORKSPACE_SLUG}",
+        "PLANE_BASE_URL": "${PLANE_URL}"
+      }
+    },
+    "plane-qa": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "${PLANE_QA_MCP_SERVER}"
+      ],
+      "env": {
+        "PLANE_URL": "${PLANE_URL}",
+        "PLANE_API_KEY": "${PLANE_API_KEY}",
+        "PLANE_WORKSPACE": "${PLANE_WORKSPACE_SLUG}",
+        "PLANE_PROJECT": "${PLANE_PROJECT}"
+      }
     }
   }
 }

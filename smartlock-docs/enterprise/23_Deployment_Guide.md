@@ -1,6 +1,6 @@
 ---
 title: 部署指南（Deployment Guide）
-version: 1.1
+version: 1.2
 status: active
 owner: 平台維運（DevOps / FDE）
 last-updated: 2026-07-27
@@ -101,16 +101,17 @@ docker compose down
 
 雲端目前以**集中式三服務**承載品牌面（GCP 專案 `cedar-scope-489604-g3`）；per-brand bundle 為部署設計單元，其 provisioning 自動化屬 🔜 規劃中（§4）：
 
-| Cloud Run 服務 | 內容 | 關鍵配置 |
+| Cloud Run 服務／Job | 內容 | 關鍵配置 |
 |---|---|---|
 | `smart-lock-api` | FastAPI（`API_SURFACE=all` 預設，全路由 + 背景 worker）| 容器內 :8080 |
 | `smart-lock-web` | Next.js 多站前端 | 容器內 :8080〔標注 2026-07-10：ADR-028 後 web.sh 以 `WEB_APP` 參數部署單站，預設 brand-portal〕|
 | `smart-lock-agent` | LockCore LINE gateway | 2Gi / 2CPU / gen2 / cpu-boost / min=1 max=3 / timeout 300s / `--allow-unauthenticated` / :8080 |
+| `<prefix>-webhook-cleanup` Cloud Run Job | 同一 `smart-lock-api@sha256` image 的低風險週期 pilot | `worker_main run webhook-idempotency-cleanup`；tasks=1、max-retries=3 |
 
 | 基礎設施 | 用途 |
 |---|---|
 | Cloud SQL（pgvector，實例 `lock-ai`）| 品牌庫 + agent 記憶 schema `agent.*`（`--add-cloudsql-instances` 掛載）；技師庫/平台庫雲端連線 `[待確認]` |
-| Secret Manager | `LINE_*` / `POSTGRES_URI` / `OPIK_*` / `INTERNAL_API_TOKEN` 等機密 |
+| Secret Manager | `LINE_*` / `POSTGRES_URI` / `OPIK_*` / `SERVICE_CREDENTIAL_PEPPER` / workload `*_SERVICE_CREDENTIAL`；`INTERNAL_API_TOKEN` 只作 migration fallback |
 | GCS | 物件儲存（證據/素材；30 天版本保留 + 跨區複寫為 DR 目標，見 24 §5）|
 | Vertex AI | LLM 推論（`VERTEX_LOCATION=asia-northeast1`）|
 
@@ -120,11 +121,14 @@ docker compose down
 ./scripts/deploy/api.sh      # pre-flight → build → push → deploy → health check
 ./scripts/deploy/agent.sh    # 同上；BRAND=<name> 載 scripts/deploy/brands/<name>.env
 ./scripts/deploy/web.sh
+IMAGE_OVERRIDE='<image>@sha256:…' ./scripts/deploy/worker-job.sh
 ```
 
 **品牌參數化**：`BRAND=<name>` 載入 `scripts/deploy/brands/<name>.env`，一品牌一 GCP 專案——此即 per-brand 物理隔離在雲端的落點。
 
-> **擴縮約束**：api 的 WS hub 與 11 個 cron worker 為進程內 in-memory 設計，**Cloud Run 須維持單實例（min-instances=1、不開多實例）**，直到 Redis pub/sub + 分散式鎖上線（ADR-P007，🔜 規劃中）。詳見 [24_Runbook.md](./24_Runbook.md) RB-02/RB-03。〔標注 2026-07-10：code 面已落——Redis 橋 + PG advisory 鎖（CR-0134）、CI 雙實例 e2e（CR-0151）；殘餘=部署面 `REDIS_URL`（OPS）與連線池（待排程）；api.sh 已鎖 min-instances=1 / max-instances=1（2026-07-10 fix/deploy-scale-guard）〕
+> **擴縮約束**：CR-0190 已將實際 14 個 background job 收進 registry，並提供
+> `BACKGROUND_RUNTIME_MODE=api|hybrid|external` 與獨立 Cloud Run Job entrypoint。
+> pilot 尚未完成 GCP cutover 前，api 仍維持單實例；不得因「code 可拆」就提前 scale-out。
 
 ---
 
@@ -226,10 +230,11 @@ gcloud sql backups create --instance=lock-ai
 python3 scripts/ci/migration-drift-check.py --check-db
 ```
 
-### 6.3 Drift 防護 🔜 規劃中（ADR-P012 優先序 1）
+### 6.3 Drift 防護（已啟用，ADR-P012 優先序 1）
 
-- CI drift-check：對 migration 檔 fresh-apply + 比對 `schema_migrations`，漂移即 fail（`.github/workflows/` 新 job）。〔標注 2026-07-10：已上線——`migration-drift-check.yml`，91 支 migration fresh-apply 全綠（CR-0136，2026-07-09）〕
-- 一次性 reconcile：028–032 / 036–044 補登 backlog。〔標注 2026-07-10：已隨 `migration-drift-check.yml` 上線銷案——91 支 migration 全綠驗證涵蓋（CR-0136，2026-07-09）〕
+- CI drift-check：對 migration 檔 fresh-apply + 比對 `schema_migrations`，漂移即 fail（`.github/workflows/migration-drift-check.yml`）。截至 2026-07-27 已納入 120/121 migration 與 CR-0190 三庫權威資料變更。
+- routed apply 採 `ON_ERROR_STOP=1`；任一 SQL 或記帳失敗即停止，且 SQL 套用失敗時不得寫入 `schema_migrations`。套用後 drift-check 失敗同樣使發布證據失敗，避免 ghost migration。
+- 一次性 reconcile：028–032 / 036–044 補登 backlog 已隨 `migration-drift-check.yml` 上線銷案。
 - 漂移症狀與診斷見 [24_Runbook.md](./24_Runbook.md) RB-08。
 
 ---
@@ -240,9 +245,29 @@ python3 scripts/ci/migration-drift-check.py --check-db
 
 `.github/workflows/` 共 13 個 CI workflow，涵蓋 test / lint / smoke / loadtest；主測試入口 `cd agent && pytest` 與 api pytest（203 test 檔）。〔標注 2026-07-10：現為 18 個（新增含 `migration-drift-check` / `component-nightly` / `forbidden-eval-gate`（含 nightly）/ `e2e-main-flows` 等）〕commit 前防線：pre-commit lint + secret scan。
 
-### 7.2 基礎 CD 🔜 規劃中（ADR-P012 優先序 3）
+### 7.2 受證據約束的 Cloud Run promotion（ADR-038／CR-0190）
 
-3 個 Cloud Run（agent/api/web）接 GitHub Actions：tag / merge 觸發 → build → push → deploy，補上 CI→CD 缺口。artifact 版本標記慣例：`{version}-{commit-sha}-{build-number}`，image digest 不可變、可追溯到 commit。
+`.github/workflows/cloud-run-deploy.yml` **不由 push 自動部署 production**，只接受
+`workflow_dispatch`，一次選一個 component：
+
+1. contract/token-storage gate；
+2. 要求 `migration_evidence_url` 指向已核准的三庫 apply + `--check-db` durable 證據；
+3. staging Environment 以 WIF build/push 一次，解析 immutable image digest；
+4. 部署 staging exact digest，執行 health/smoke 或 worker run、migration drift、
+   BOLA/worker static evidence，產生 staging release manifest；
+5. `promote_production=true` 才進 production Environment approval，以同一 digest
+   deploy，不 rebuild；
+6. production health/smoke 或 worker run 後產生 production manifest，保存 90 天。
+
+支援 component：`api`、`agent`、`brand-web`、`tech-web`、`platform-web`、`landing`、
+`worker-job`。web build 不烤 staging hostname，瀏覽器以本站 proxy 讀 runtime
+`API_BASE_URL`／`PLATFORM_API_BASE_URL`。
+
+**外部 gate**：repository 尚須建立 staging/production Environments、分離 WIF/IAM 與
+secrets，production 設 required reviewer；未完成前 workflow ready 不等於已部署。
+`BACKGROUND_RUNTIME_MODE` Environment variable 預設 `api`；只有在對應 Job 已 shadow
+驗證後才改為 `hybrid`，並以 `EXTERNALIZED_JOB_IDS` 指定切出的工作，避免 API 與 Job
+雙跑或在 Job 尚未就緒時先停掉 API 內建工作。
 
 ### 7.3 per-brand provisioning 自動化 🔜 規劃中
 
@@ -250,19 +275,23 @@ python3 scripts/ci/migration-drift-check.py --check-db
 
 ---
 
-## 8. 部署策略與 canary 🔜 規劃中（隨基礎 CD 啟用）
+## 8. 部署策略與證據關卡
 
-CD 上線後的標準發佈流程骨架（工具鏈 = GitHub Actions + Cloud Run traffic split；觀測 = SigNoz）：
+現行標準發佈流程（工具鏈 = GitHub Actions + Cloud Run revision；觀測待 production 配置）：
 
 ```
-lint → test → build（SHA tag）→ deploy staging → smoke test
-   → canary 5%（觀察 30min）→ 50%（觀察 30min）→ 100%
-   → prod gate（人工核准）→ post-deploy 驗證（30min watch）
+contract gate → build once（SHA tag + digest）→ deploy staging → evidence + manifest
+   → production Environment approval → promote same digest
+   → production health/smoke + manifest → observation / rollback
 ```
 
-- **Auto-halt 條件**：canary 段 error rate 或 p99 latency 超 baseline（門檻於 SLO 定案後綁定，見 [25_Monitoring_Spec.md](./25_Monitoring_Spec.md) §5）→ 自動停止推進並回前一 revision。
-- **prod gate**：人工核准（PM / Tech Lead），release notes 必填。
-- migration 與 app 部署解耦：含 migration 的 release 先在 staging dry-run。
+- **prod gate**：production Environment required reviewer；目前 repo plan/環境未配置，仍是
+  外部 blocker。
+- **manifest**：commit/digest/revision/migrations/config+secret references/evidence/
+  previous revision；secret value 永不入 artifact。
+- **rollback**：`scripts/release/rollback-cloud-run.sh` 切回前一 revision；DB 只
+  forward-fix 或 restore，不 down-migrate。
+- migration 與 app 部署解耦；含 migration 的 release 先在 staging dry-run。
 
 ---
 
@@ -300,17 +329,19 @@ curl -s https://<api-url>/health
 
 agent 服務鏈 = Gateway（:8000 本機 / :8080 容器）→ api（:8001）→ Postgres，缺一則「LINE 有回但後台無對話/工單」：
 
-1. **啟動 banner 驗證**：`模型:vertex_ai/gemini-3.1-flash-lite`、`記憶後端:postgres`（生產）、`API 橋接:✅ 啟用`——看到「⚠️ 停用」代表缺 `LOCK_API_BASE_URL` / `INTERNAL_API_TOKEN`。
-2. **webhook 存活**：agent 對外僅註冊 `POST /callback`；以無簽章 POST 打 `/callback` 期望 400（驗簽拒絕）即代表存活。`GET /health` 輕量路由 🔜 規劃中（部署腳本 health gate 將對齊此路由）。〔標注 2026-07-10：agent.sh health gate 現打 `/health` 必 404 誤報（agent 僅註冊 `POST /callback`），部署成敗以 Cloud Run STARTUP probe 為準——腳本對齊仍待〕
+1. **啟動 banner 驗證**：`模型:vertex_ai/gemini-3.1-flash-lite`、`記憶後端:postgres`（生產）、`API 橋接:✅ 啟用`——看到「⚠️ 停用」代表缺 `LOCK_API_BASE_URL` / `AGENT_API_SERVICE_CREDENTIAL`；遷移期才以 `INTERNAL_API_TOKEN` fallback。
+2. **webhook 存活**：`GET /health` 期望 `{"status":"ok","service":"line-gateway"}`；另以無簽章 POST 打 `/callback` 期望 400，可驗證 LINE 驗簽仍 fail-closed。
 3. **ingest 貫通驗證**（不經 LINE 直驗旁路，會真實寫 DB）：
 
 ```bash
 curl -s -X POST https://<api-url>/api/v1/internal/conversations/ingest \
-  -H 'X-Internal-Token: <token>' -H 'Content-Type: application/json' \
+  -H 'X-Service-Credential: slksp_agent.<建立時僅顯示一次的 secret>' \
+  -H 'Content-Type: application/json' \
   -d '{"tenant_id":"<brand-alias>","line_user_id":"Usmoke","session_id":"<brand>:Usmoke",
        "user_text":"smoke","assistant_text":"ok"}'
 # 期望 {"data":{"conversation_id":"…","messages_appended":2},"error":null}
-# 503 = api 未設 INTERNAL_API_TOKEN；401 = 兩邊 token 不一致；400 = 缺 AGENT_TENANT_ID 映射
+# 503 = credential pepper/DB 未就緒；401 = 憑證錯誤或已撤銷；403 = scope/tenant grant 不符；
+# 400 = 缺 AGENT_TENANT_ID 映射。X-Internal-Token 只供受計量的遷移 fallback。
 ```
 
 4. **escalation 貫通**：`POST /internal/escalations/ingest` 驗 tenant_id UUID 貫通 → 後台 `/problem-cards` 出現 AI 草擬卡。

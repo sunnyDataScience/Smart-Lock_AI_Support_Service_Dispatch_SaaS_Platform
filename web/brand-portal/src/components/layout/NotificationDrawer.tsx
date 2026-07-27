@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Bell,
@@ -13,8 +13,13 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { api, tenantPath } from "@/lib/api";
+import { api, queryCachePrefix, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
+import {
+  createMutationAction,
+  type MutationAction,
+} from "@/lib/mutation";
 import {
   BROADCAST_CHANNELS,
   NotificationBroadcastEvent,
@@ -96,12 +101,20 @@ export default function NotificationDrawer({
   const t = useTranslations("components.layout.notificationDrawer");
   // v2 tenant-scoped path（CR-0003 P2-W2 / ADR-0012）
   const [tab, setTab] = useState<StatusFilter>("unread");
+  const [retryMark, setRetryMark] = useState<{
+    action: MutationAction<unknown>;
+    notification: Notification;
+  } | null>(null);
   const [items, setItems] = useState<Notification[]>([]);
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // mutation contract 需要同步 snapshot。React setState 非同步，adapter.write 同時更新
+  // ref，才能在立即失敗時精準 rollback 到本 action 前的狀態。
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   const TABS = useMemo(
     () => [
@@ -176,28 +189,18 @@ export default function NotificationDrawer({
     },
   );
 
-  async function markOneRead(n: Notification) {
-    if (n.read_at || marking) return;
+  async function runMarkOneRead(
+    action: MutationAction<unknown>,
+    n: Notification,
+    retry: boolean,
+  ) {
     setMarking(n.id);
     setError(null);
     try {
-      const patchPath = tenantPath(
-        `/notifications/${encodeURIComponent(n.id)}`,
-      );
-      await api.patch(patchPath, {
-        read_at: new Date().toISOString(),
-      });
-      if (tab === "unread") {
-        setItems((prev) => prev.filter((x) => x.id !== n.id));
-      } else {
-        setItems((prev) =>
-          prev.map((x) =>
-            x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x,
-          ),
-        );
-      }
+      await (retry ? action.retry() : action.run());
+      setRetryMark(null);
       if (onUnreadCountChange) {
-        const remaining = items.filter(
+        const remaining = itemsRef.current.filter(
           (x) => !x.read_at && x.id !== n.id,
         ).length;
         onUnreadCountChange(remaining, hasMore);
@@ -205,9 +208,62 @@ export default function NotificationDrawer({
       broadcast.post({ type: "marked_read", id: n.id });
     } catch (e) {
       setError(formatErr(e));
+      setRetryMark({ action, notification: n });
     } finally {
       setMarking(null);
     }
+  }
+
+  async function markOneRead(n: Notification) {
+    if (n.read_at || marking) return;
+    const readAt = new Date().toISOString();
+    const patchPath = tenantPath(
+      `/notifications/${encodeURIComponent(n.id)}`,
+    );
+    const listPath = tenantPath("/notifications");
+    const action: MutationAction<unknown> = createMutationAction({
+      id: "notification.mark-read",
+      mode: "optimistic",
+      risk: "notification",
+      state: {
+        read: () => itemsRef.current,
+        write: (next: Notification[]) => {
+          itemsRef.current = next;
+          setItems(next);
+        },
+      },
+      optimisticPatch: (current) =>
+        tab === "unread"
+          ? current.filter((item) => item.id !== n.id)
+          : current.map((item) =>
+              item.id === n.id ? { ...item, read_at: readAt } : item,
+            ),
+      // Drawer 同時接收 BroadcastChannel／WS 更新；失敗時只撤銷本通知，
+      // 不能用完整 snapshot 蓋掉請求期間抵達的其他通知或封存事件。
+      rollback: (current, snapshot) => {
+        const original = snapshot.find((item) => item.id === n.id);
+        if (!original) return current;
+        if (tab !== "unread") {
+          return current.map((item) => (item.id === n.id ? original : item));
+        }
+        if (current.some((item) => item.id === n.id)) return current;
+        const originalIndex = snapshot.findIndex((item) => item.id === n.id);
+        const next = [...current];
+        next.splice(Math.min(originalIndex, next.length), 0, original);
+        return next;
+      },
+      execute: ({ actionId }) =>
+        api.patch(
+          patchPath,
+          { read_at: readAt },
+          { idempotencyKey: actionId, invalidate: false },
+        ),
+      invalidateKeys: [queryCachePrefix(listPath)],
+      invalidate: (keys) => {
+        for (const key of keys) cacheInvalidate(key);
+      },
+    });
+    await runMarkOneRead(action, n, false);
   }
 
   async function markAllRead() {
@@ -306,7 +362,23 @@ export default function NotificationDrawer({
 
         {error && (
           <div className="mx-5 mt-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
-            {error}
+            <span>{error}</span>
+            {retryMark && (
+              <button
+                type="button"
+                className="ml-2 font-semibold underline disabled:opacity-50"
+                disabled={marking !== null}
+                onClick={() =>
+                  runMarkOneRead(
+                    retryMark.action,
+                    retryMark.notification,
+                    true,
+                  )
+                }
+              >
+                重試
+              </button>
+            )}
           </div>
         )}
 

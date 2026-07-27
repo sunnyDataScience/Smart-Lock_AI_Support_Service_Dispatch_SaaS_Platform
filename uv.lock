@@ -1274,6 +1274,7 @@ otel = [
 ]
 postgres = [
     { name = "psycopg", extra = ["binary"] },
+    { name = "psycopg-pool" },
 ]
 rag = [
     { name = "mcp" },
@@ -1301,6 +1302,7 @@ requires-dist = [
     { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.25" },
     { name = "opik", marker = "extra == 'otel'", specifier = ">=1.0" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.1" },
+    { name = "psycopg-pool", marker = "extra == 'postgres'", specifier = ">=3.2" },
     { name = "pydantic", specifier = ">=2.12" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },

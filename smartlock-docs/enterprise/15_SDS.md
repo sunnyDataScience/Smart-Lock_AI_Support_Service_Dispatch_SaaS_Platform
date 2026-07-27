@@ -1,9 +1,9 @@
 ---
 title: 軟體詳細設計書（SDS）— Smart Lock AI 客服與派工 SaaS 平台
-version: 1.1
+version: 1.2
 status: active
 owner: 平台架構師
-last-updated: 2026-07-23
+last-updated: 2026-07-27
 upstream:
   - smartlock-docs/00_platform/P1/07_workorder_platform_design.md
   - smartlock-docs/00_platform/P2/09_integration_data_flow.md
@@ -447,7 +447,7 @@ flowchart TD
         G2["require_tenant<br/>X-Tenant-ID 比對 claim"]
         G3["role_required(*roles)<br/>deny-by-default enforce"]
         G4["require_platform_admin"]
-        G5["require_internal_token<br/>fail-closed（hmac 常數時間比對）"]
+        G5["require_internal_token<br/>service credential 優先；legacy fallback 計量"]
     end
     subgraph APP["Service Layer（services/）"]
         SVC["work_order / dispatch / invoice / settlement /<br/>conversation / problem_card / …"]
@@ -476,6 +476,12 @@ flowchart TD
 ```
 
 - **守衛鏈組合**：`get_current_user → require_tenant → role_required`（程式以依賴鏈組合）；`get_current_user` 另可先以 Portal Claim Guard 對 `ALLOWED_TOKEN_PORTALS` 拒絕跨 brand／tech／platform surface token。平台端走 `require_platform_admin`（不收 X-Tenant-ID，跨品牌視角）；服務間走 `require_internal_token`（fail-closed）。授權採 **deny-by-default enforce**，逐端點掛 `role_required`；Portal Claim Guard 未設定環境變數時僅保留本機／測試相容行為，正式部署必須啟用。RBAC 矩陣全表歸 [13_Security_Architecture](./13_Security_Architecture.md)。
+- **資源歸屬矩陣**：`core/resource_ownership.py` 對 runtime mutation + sensitive
+  read/export 分類並連結負向測試；矩陣是 completeness CI，不取代每個 router/service
+  的 tenant/resource-owner SQL。
+- **服務間憑證**：`require_internal_token` 先驗 `X-Service-Credential` 的 principal、
+  hash、audience、scope、tenant、expiry/revoke，再使用有時限 `X-Internal-Token`
+  fallback；新 credential 失敗不得降級。管理 API 只掛 platform surface。
 - **回應信封**：成功 `ApiResponseGeneric` / `CursorPage`；錯誤 RFC7807 problem+json superset。
 - **部署塑形**：同一 codebase 靠 `API_SURFACE` 塑形部署面；塑形是路由過濾，非安全邊界——隔離押在每端點 RBAC。
 
@@ -483,9 +489,17 @@ flowchart TD
 
 **工單建立 + WS 推播**：web `POST /tenants/{tid}/work-orders`（Bearer + X-Tenant-ID + Idempotency-Key）→ 守衛鏈（角色不符 403 RFC7807）→ `work_order_service.create_work_order` → INSERT `work_orders` → publish 至 Redis 頻道 `/realtime/dispatch-queue` → 所有實例的訂閱者收到 → 回 `201 ApiResponseGeneric{data}`。
 
-**WS 頻道授權**：瀏覽器 `WSS /realtime/pool/{tech_id}?access_token=…&tenant_id=…`（瀏覽器 WS 不支援 custom header → query 參數）→ `verify_ws_token`（decode + type==access + jti 撤銷 + tenant 一致，失敗 close 1008）→ `authorize_channel`（tech_id == sub 或 role ∈ {admin, ops_manager}，失敗 close 1008）→ accept + subscribe → 單向 send_json 推播直到 disconnect。
+**WS 頻道授權**：瀏覽器 `WSS /realtime/pool/{tech_id}?tenant_id=…`，access credential
+只由 HttpOnly cookie 提供，不放 query/string/log。`verify_ws_token` 驗 type/jti/tenant，
+`authorize_channel` 驗 tech owner/角色，失敗 close 1008。若 web 與 realtime host 無法
+共享 cookie，`NEXT_PUBLIC_REALTIME_BASE_URL` 保持空值，頁面以 REST 降級，不得回退
+`access_token` URL。
 
-**agent internal ingest**：agent `POST /internal/conversations/ingest`（X-Internal-Token）→ `require_internal_token`：token 未設 → 503 fail-closed；不符 → 401 → `_resolve_tenant_id` → 旁路持久化 conversations/messages 或 escalation 建 AI 草擬問題卡（`source='ai_line'`）。**AI 永不自轉工單**——confirm/convert 一律走客服認證端點。
+**agent internal ingest**：agent `POST /internal/conversations/ingest`
+（優先 `X-Service-Credential`，過渡期才 `X-Internal-Token`）→ service principal
+audience/scope/tenant 或 legacy fail-closed guard → `_resolve_tenant_id` → 旁路持久化
+conversations/messages 或 escalation 建 AI 草擬問題卡（`source='ai_line'`）。**AI 永不
+自轉工單**——confirm/convert 一律走客服認證端點。
 
 **問題卡照片與轉工單欄位承接**：AI 建卡時 `problem_card_service._conversation_media_urls` 反查同一 conversation 近 24h 照片，依時間正序最多 5 張 append 到 `problem_cards.media_urls`；查詢失敗只略過照片。客服 convert 時 `work_order_service.create_work_order` 在鎖定問題卡後承接客戶姓名/電話/地址、品牌、型號與 `serial`，並以 transaction + idempotency 防重。
 
@@ -499,7 +513,7 @@ flowchart TD
 |---|---|---|
 | WS 推播 | Redis pub/sub fan-out——事件跨實例廣播，支援水平擴展 | PARTIAL：程式已落地；需 `REDIS_URL` |
 | 事件骨幹 | Kafka producer/consumer：現行 topic `workorder.lifecycle` / `commission.accrued` / `technician.lifecycle` | PARTIAL：程式與 projection schema 已落地；需 `KAFKA_BOOTSTRAP` |
-| 背景任務 | 多個 cron worker + PostgreSQL advisory lock leader | AS-BUILT；仍須各任務冪等與部署 SIT |
+| 背景任務 | 14-job registry + `worker_main.py` + PostgreSQL advisory lock；API mode=`api|hybrid|external`；Run Job pilot=`webhook-idempotency-cleanup` | CODE READY；GCP Scheduler shadow/cutover/rollback 待 SIT |
 | DB 連線 | 品牌/技師/平台三庫連線路由 + request-scoped pool；`DB_URI_STRICT` 可拒絕缺 URI；migration 依 target 分流套用與逐庫 drift-check | PARTIAL：read replica、環境套用水位與三庫負向驗證仍須以 deployment/SIT 證據確認 |
 | LINE 推播 | outbox worker：fail-soft + retry + outbox 冪等，推播失敗不阻斷業務寫入 | AS-BUILT |
 
@@ -508,7 +522,8 @@ flowchart TD
 - **錯誤信封**：RFC7807 problem+json（`core/errors.py` 全域 exception handler）。
 - **冪等**：所有 mutation 端點收 `Idempotency-Key`，`core/idempotency.py` 重放（IdempotencyReplay）。
 - **outbox 保證**：DB 寫入與事件/推播 side-effect 以 outbox 分離，worker 重試至成功。
-- **服務間認證 fail-closed**：`require_internal_token` 以 `hmac.compare_digest` 常數時間比對；未配置直接 503。
+- **服務間認證 fail-closed**：service credential 使用 peppered hash、audience/scope/tenant/
+  lifecycle guard；legacy token 只作遷移 fallback且使用常數時間比對，兩者皆未配置回 503。
 
 ---
 
@@ -579,13 +594,18 @@ technician-platform = **品牌事件的 CQRS 消費端**：命令端（工單/�
 
 ### 8.1 L3 元件
 
-四個獨立 Next.js 專案（`brand-portal` / `tech-portal` / `landing` / `platform-console`），各自 build、lockfile、Dockerfile 與 compose；四站複製相同語意的 guard/client/cache/realtime/types。無 BFF、無自有 DB，瀏覽器直連對應 API surface。
+四個獨立 Next.js 專案（`brand-portal` / `tech-portal` / `landing` / `platform-console`），各自
+build、lockfile、Dockerfile 與 compose。四站只共享固定版本無 UI 的
+`@smartlock/shared-contract@0.1.0`；HTTP 經本站 route proxy 轉送 API，proxy 不持有業務
+狀態或 DB，因此不是領域 BFF。
 
 | 元件 | 檔案 | 職責 |
 |---|---|---|
 | AuthGuard / appMode / rolePolicy | 各站 `src/components/layout/AuthGuard.tsx`、`src/lib/{appMode,rolePolicy}.ts` | 跨站導向、token/role UX gate；後端仍是唯一授權邊界 |
-| api client / cache / realtime | 各站 `src/lib/{api,cache,realtime}.ts` | 憑證與租戶 header、短期快取、WS backoff 與靜默降級 |
-| 型別 | 各站 `src/types/api.generated.ts` | 由 runtime OpenAPI 生成；不得手改代替契約 SSOT |
+| api client / runtime proxy / realtime | 各站 `src/lib/{api,runtimeConfig,serverApiProxy,realtime,sse}.ts` + `src/app/api-proxy/` | HttpOnly cookie、runtime API target、多值 Set-Cookie、WS/SSE 無 URL token、靜默降級 |
+| shared contract / 型別 facade | `web/shared-contract/` + 各站 `src/types/api.generated.ts` | runtime OpenAPI、RFC7807、mutation/conflict、capability/session；四站 facade 不複製 generated 本體 |
+| Mutation runner | `web/shared-contract/src/mutation.ts`；Brand `NotificationDrawer.tsx` | optimistic/server-confirmed 分級、rollback、精準 invalidation、stable retry key、409 |
+| Preferences / Command Palette | Brand `src/lib/{preferences,commandRegistry}.ts`、`CommandPalette.tsx` | 三庫同步偏好；Ctrl/⌘+K capability/role-filtered 導覽，不授予 API 權限 |
 | AuthImage / AuthImageLightbox | `web/brand-portal/src/components/media/AuthImage.tsx` | 對受保護媒體做授權 fetch→Blob URL、縮圖/失敗佔位/lightbox/revoke |
 | ConsentPanel | `web/brand-portal/src/components/work-orders/DispatchOrderView.tsx` | 顯示三段 consent 狀態、發送 LINE 或提供複製連結 |
 | PIIScrubSpanProcessor | 各站 `src/observability/piiScrub.ts` | trace 匯出前遮 email/電話/地址/token，LINE UID hash |
@@ -605,11 +625,22 @@ technician-platform = **品牌事件的 CQRS 消費端**：命令端（工單/�
 
 ### 8.3 關鍵序列
 
-**登入 gate 三段**：開啟路徑 → AuthGuard 掛載 → ① `crossModeRedirect(pathname)`（不服務則導向對方 portal）→ ② token 檢查（無 token 且非公開頁 → `/login`）→ ③ `rolePolicy.canAccessRoute`（無權導該角色安全落點）→ 渲染頁面 → `api.get` 帶 Bearer/X-Tenant-ID，真正授權由後端把關。認證採 Casdoor OIDC 授權碼流 + token 安全儲存（httpOnly cookie），未列路由 deny-by-default（政策細節歸 [13_Security_Architecture](./13_Security_Architecture.md)）。
+**登入 gate 三段**：開啟路徑 → AuthGuard 掛載 → ① `crossModeRedirect(pathname)` → ②
+`bootstrapSession()` 以 HttpOnly access/refresh cookie 讀 `/api/v2/auth/session`（平台面
+為 `/api/v2/platform/auth/session`），失敗刷新一次，無 session 且非公開頁導登入 → ③
+`rolePolicy.canAccessRoute` → 渲染頁面。登入／refresh 帶
+`X-Auth-Response-Mode: cookie`，API JSON 不回 access/refresh；本站 proxy 完整轉送兩個
+Set-Cookie。真正授權仍由後端 tenant/role/resource guard 執行。
 
-**分頁抓取 + GET cache**：`usePaginatedFetch` → `api.get` → cache key = `GET:{fullUrl}:{tenant}` → 命中（< 30s staleTime）回共享 in-flight/快取；miss → fetch → 401 則 refresh 後重放 → `{data, meta}` 信封寫入快取。mutation 後 caller 以 `cacheInvalidate("GET:")` 廣域清除。
+**分頁抓取 + GET cache**：`usePaginatedFetch` → `api.get` → cache key =
+`GET:{fullUrl}:{tenant}` → 命中回共享 in-flight/快取；miss → cookie fetch → 401 則 refresh
+後重放。新 mutation 必須依 mutation contract 提供精準 prefix；legacy 全域 invalidation
+只允許漸進收斂，不作新功能範本。
 
-**WS 訂閱（backoff + 靜默降級）**：`REALTIME_BASE_URL` 未配置 → `status=disabled`，不訂閱、頁面照常 fetch（**靜默降級，不 crash**）；有值 → `?access_token=JWT&tenant_id=TID` 連線 → onmessage → JSON.parse → callback；onclose/onerror → scheduleReconnect（1s→2s→5s→10s→30s）；卸載 close(1000)。
+**WS 訂閱（backoff + 靜默降級）**：`REALTIME_BASE_URL` 未配置 → `status=disabled`，頁面
+照常 fetch；有值 → cookie + `tenant_id` routing hint 連線（URL 無 token）→ onmessage →
+callback；onclose/onerror 依 1s→30s backoff 重連。跨 host cookie 未被瀏覽器送出時應停用
+realtime，不准以 query token 修補。
 
 ---
 
@@ -676,10 +707,10 @@ draft → pending → approved（Publisher 落地）
 
 | 路徑 | 協議 | 認證 |
 |---|---|---|
-| 品牌 api → technician-platform | OHS API（查詢/媒合/排班/認證）| OHS 服務憑證 [待確認] |
-| agent → api | `/internal/*` 4 端點（conversations ingest / handover-state / escalations ingest / quotes respond）| X-Internal-Token（agent 側 fail-soft / api 側 fail-closed）|
-| web → api | REST + WS（`ApiResponseGeneric` 信封）| Casdoor OIDC Bearer + X-Tenant-ID |
-| knowledge-refinery → 品牌庫 | Publisher 灌事實語料（psycopg3）| 服務帳號；schema 由 api 擁有 |
+| 品牌 api → technician-platform | OHS API（查詢/媒合/排班/認證）| `X-Service-Credential` 可用；最終 transport 受 OD-001 |
+| agent → api | `/internal/*` 4 端點（conversations ingest / handover-state / escalations ingest / quotes respond）| `X-Service-Credential` 優先；`X-Internal-Token` fallback |
+| web → api | HTTP 走 same-origin proxy；WS/SSE 直連 | HttpOnly cookie + X-Tenant-ID；realtime URL 無 token |
+| knowledge-refinery → api/品牌庫 | API ingest 或 Publisher 灌事實語料 | `X-Service-Credential` 可 opt-in；schema 由 api 擁有 |
 | LINE → agent | webhook `POST /callback`（唯一入站；postback fan-out → `/internal/*`）| X-Line-Signature 驗簽 |
 
 ### 11.3 冪等 / 重播 / 最終一致原則
@@ -726,6 +757,11 @@ draft → pending → approved（Publisher 落地）
 | 知識精煉獨立服務 + HITL 審核 + 雙產物 | §9 | ADR-P001 |
 | Casdoor OIDC / deny-by-default enforce | §6.1, §7.1, §8.3 | ADR-P003 / ADR-P006（正文歸 13_Security）|
 | LINE 單一入站（agent /callback）| §6.2, §11.2 | ADR-P012 G-06 方案 A |
+| Mutation／偏好／Command Palette | §8 | ADR-034 |
+| Resource ownership matrix | §6.1 | ADR-035 |
+| Service principal／credential | §6.1–§6.4 | ADR-036 |
+| Job registry／獨立 worker runtime | §6.3 | ADR-037 |
+| web/shared-contract 窄例外 | §8.1 | ADR-039 |
 | locksmith pack 狀態細化（Quote/WO/Onsite/退款/證據）| §4.2 | system-spec 狀態機 + ARCH-0006 流程設計 |
 
 ---
@@ -741,13 +777,15 @@ draft → pending → approved（Publisher 落地）
 | agent | 知識 skill | `agent/lockcore/skills/locksmith-{product-knowledge,cs-sop}/` |
 | agent | LINE 通道 / 啟動點 / Photo Guide / Quote mapper | `agent/lockcore/channels/line_gateway.py` · `agent/scripts/line_gateway.py` · `agent/config.toml` |
 | agent | ReplyGuard / Sentiment / SkillSync / webhook 冪等 | `agent/lockcore/agent/{reply_guard,sentiment,skill_sync}.py` · `agent/lockcore/agent/user_memory/postgres_store.py` |
-| api | 守衛鏈 / 錯誤 / 冪等 / DB | `api/core/{deps,errors,idempotency,db,auth,pii_crypto}.py` |
+| api | 守衛鏈 / ownership / 錯誤 / 冪等 / DB | `api/core/{deps,resource_ownership,errors,idempotency,db,auth,auth_cookie,pii_crypto}.py` |
 | api | 路由 / 服務分層 | `api/routers/`（tenant-scoped）· `api/services/`（業務 + SQL）|
-| api | 即時 / 背景 worker | `api/realtime/`（WS hub、LINE outbox、SLA 等 worker）|
+| api | 偏好 / service principal | `api/{routers,services}/{preferences,preference_service,platform_service_principals,service_credential_service}.py` · migrations 120/121 |
+| api | 即時 / 背景 worker | `api/realtime/`、`api/realtime/job_registry.py`、`api/worker_main.py`、`scripts/deploy/worker-job.sh` |
 | api | API schema | `api/models/generated.py`（由 openapi.yaml 生成）|
 | api | 三庫 / tech mirror / event bus / CQRS consumer | `api/core/{db,tech_mirror,event_bus}.py` · `api/realtime/event_consumer.py` |
 | api | consent / problem-card media / 工單欄位承接 | `api/services/{consent_service,problem_card_service,work_order_service}.py` · `api/routers/work_orders_v2.py` |
-| web | 四站 gate / 消費層 | `web/{brand-portal,tech-portal,landing,platform-console}/src/{components/layout,lib,types}/` |
+| web | 四站 gate / cookie proxy / 消費層 | `web/{brand-portal,tech-portal,landing,platform-console}/src/{app/api-proxy,components/layout,lib,types}/` |
+| web | shared contract / Brand Palette | `web/shared-contract/` · `web/brand-portal/src/{components/layout/CommandPalette.tsx,lib/commandRegistry.ts,lib/preferences.ts}` |
 | web | 認證媒體 / consent / OTel PII scrub | `web/brand-portal/src/components/{media/AuthImage.tsx,work-orders/DispatchOrderView.tsx}` · 各站 `src/{instrumentation.ts,observability/piiScrub.ts}` |
 | knowledge-refinery | Medallion pipeline | `knowledge-pipeline/pipeline/{raw_to_bronze,bronze_to_silver}/` · `knowledge-pipeline/llms/` · `knowledge-pipeline/storage/{raw,bronze,silver}/`（原 `data/`，2026-07-09 ADR-029 改名）|
 | knowledge-refinery | 精煉服務 / 審核 UI / Publisher | `refinery/`（uv workspace member，2026-07-10 CR-0139/0140 落地）〔標注 2026-07-11：CR-0157 遷至 `knowledge-pipeline/refinery/`，member 路徑同步更新，服務性質不變〕|
@@ -758,4 +796,4 @@ draft → pending → approved（Publisher 落地）
 
 ---
 
-*文件結尾 — 15_SDS 軟體詳細設計書 v1.1 / 2026-07-23*
+*文件結尾 — 15_SDS 軟體詳細設計書 v1.2 / 2026-07-27*
