@@ -1,6 +1,6 @@
 ---
 title: "14_ADR 索引 — 架構決策紀錄總覽"
-version: 1.1
+version: 1.2
 status: active
 owner: 平台架構團隊
 last-updated: 2026-07-27
@@ -14,11 +14,16 @@ upstream:
 
 # 14_ADR 索引 — 架構決策紀錄總覽
 
-本目錄收錄平台全部 31 篇架構決策紀錄（ADR-001 ~ ADR-031），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
+本目錄目前收錄平台全部 39 篇架構決策紀錄（ADR-001 ~ ADR-039），每篇統一五段式：Status（表格欄位 + 末段附註）/ Context / Decision / Alternatives / Consequences。
 
 > 〔標注 2026-07-12（CR-0167）：新增 [ADR-032](./ADR-032_Skill熱更新_品牌庫SSOT_workspace_overlay.md)（Skill 熱更新——品牌庫 SSOT + workspace overlay）。本目錄現收錄 32 篇（ADR-001 ~ ADR-032）。〕
 
 > 〔標注 2026-07-22（UAT-0720-01 稽核裁決 3-1）：新增 [ADR-033](./ADR-033_轉真人判準_SOP情境式紅線_取代三輪硬計數.md)（轉真人判準——SOP 情境式紅線取代 FR-AGT-03 三輪硬計數，正典讓步）。本目錄現收錄 33 篇（ADR-001 ~ ADR-033）。〕
+
+> 〔標注 2026-07-27（Plane 借鏡架構優化規劃）：新增
+> [ADR-034](./ADR-034_前端Mutation一致性_偏好分層_Capability導覽.md) 至
+> [ADR-039](./ADR-039_web共享契約套件_窄例外.md)，將前端互動、資源歸屬、機器身分、
+> 背景 runtime、GCP release 與 web 共享契約邊界定版。本目錄現收錄 39 篇。〕
 
 **與鄰近文件邊界**：[12_SAD](../12_SAD.md) 是決策的「結果態」（結構與元件視圖），引 ADR 不重述取捨；[13_Security_Architecture](../13_Security_Architecture.md) 承載安全機制細節，ADR 只記安全決策點；[15_SDS](../15_SDS.md) 承載細部設計（DSL schema、狀態機欄位），ADR 只記「採哪條路」；純業務參數（費率階梯、SLA 時數、保固模式）屬 [03_PRD](../03_PRD.md) / [04_SRS](../04_SRS.md)，不進 ADR。
 
@@ -82,6 +87,13 @@ upstream:
 | [ADR-031](./ADR-031_契約工件三分層_型別SoT為runtime_export.md) | 契約工件三分層——前端型別 SoT＝runtime export；設計稿 spec 專職設計期契約 | 系統(api/web) | Accepted | refines 022 · 028 |
 | [ADR-032](./ADR-032_Skill熱更新_品牌庫SSOT_workspace_overlay.md) | Skill 熱更新——品牌庫為 SSOT、image builtin 降級離線保底、workspace overlay 物化（≤60s 生效不重佈） | 平台 | Accepted | 延續 030 · 細化 CLAUDE.md Arch Lock 條 2 |
 | [ADR-033](./ADR-033_轉真人判準_SOP情境式紅線_取代三輪硬計數.md) | 轉真人判準——SOP 情境式紅線取代 FR-AGT-03 三輪硬計數（正典讓步；Clarify gate 降為話術原則；transfer 唯一出口不變） | 系統(agent) | Accepted | 025 · 008 · 032 |
+| **群 K — 體驗、安全執行與交付治理** |||||
+| [ADR-034](./ADR-034_前端Mutation一致性_偏好分層_Capability導覽.md) | 前端 Mutation 一致性、偏好分層與 Capability 導覽 | 系統(web/api) | 規劃中 | refines 024 · 005 · 028 |
+| [ADR-035](./ADR-035_租戶資源歸屬授權契約_BOLA_IDOR.md) | 租戶資源歸屬授權契約與 BOLA／IDOR 守門 | 平台/security | 規劃中 | refines 005 · 020 · 022 |
+| [ADR-036](./ADR-036_機器身分與可撤銷服務憑證.md) | 機器身分與可撤銷服務憑證 | 平台/security | 規劃中（OD-001/004 gate） | 004 · 005 · 035 |
+| [ADR-037](./ADR-037_背景工作Runtime從API生命週期拆分.md) | 背景工作 Runtime 從 API 生命週期拆分 | 系統(api/ops) | 規劃中 | refines 006 · 003 · 021 |
+| [ADR-038](./ADR-038_GCP發版Promotion與證據關卡.md) | GCP 發版 Promotion 與證據關卡 | 平台/delivery | 規劃中 | refines 003 · 002 · 007 |
+| [ADR-039](./ADR-039_web共享契約套件_窄例外.md) | web 共享契約套件——四站獨立專案的窄例外 | 系統(web/tooling) | 規劃中（P2） | refines 028 · 031 · 034 |
 
 ## 依賴關係圖
 
@@ -122,6 +134,16 @@ graph TD
   A015 --> A026[ADR-026 報價快照 hash-chain]
   A022 --> A031[ADR-031 型別 SoT=runtime export]
   A028 --> A031
+  A024 --> A034[ADR-034 Mutation/偏好/Capability]
+  A005 --> A035[ADR-035 資源歸屬/BOLA]
+  A020 --> A035
+  A035 --> A036[ADR-036 Service Principal]
+  A006 --> A037[ADR-037 背景 Runtime 拆分]
+  A003 --> A038[ADR-038 GCP Promotion Gate]
+  A007 --> A038
+  A028 --> A039[ADR-039 web shared-contract]
+  A031 --> A039
+  A034 --> A039
 ```
 
 關鍵依賴語義：
@@ -129,11 +151,21 @@ graph TD
 - **ADR-017 refines ADR-016**（補佣金邊界與工單可見性的精確界定）。
 - **ADR-010 從屬 ADR-009 編排層**（RAG / skill 為編排配方的一部分）；**ADR-025 由 ADR-012 受保護層承載**。
 - **ADR-006 Phase 1 為水平擴展的硬前置**；ADR-017 依賴其 Phase 2 Kafka。
+- **ADR-034 refines ADR-024**：維持 client SPA／現有狀態邊界，補 mutation、偏好與
+  capability contract，不把前端升格為授權來源。
+- **ADR-035 與 ADR-036 分離**：前者固定「資源屬於誰」的授權契約，後者固定機器 principal
+  的生命週期；OHS transport 與跨品牌 claim 仍由 OD-001／004 裁決。
+- **ADR-037 不以 Kafka 為前置**：先拆週期 job／outbox runtime；事件骨幹仍受
+  ADR-006、OD-002／003 治理。
+- **ADR-039 是 ADR-028 的窄例外**：只共享版本化契約，不共享 UI、theme、i18n 或 portal
+  business workflow。
 
 ## 新產業落地視角（核心永不動 vs 配置可調）
 
-- **核心層（FDE 永不動）**：ADR-001 / 002 / 004 / 005 / 006 / 007 / 008 / 016 / 020 / 021 / 022 / 025 / 026。
+- **核心層（FDE 永不動）**：ADR-001 / 002 / 004 / 005 / 006 / 007 / 008 / 016 / 020 / 021 / 022 / 025 / 026 / 035 / 036 / 037 / 038 / 039。
 - **配置層（per-industry / per-brand 可調）**：ADR-009（編排配方）/ 010（知識包）/ 012（品牌自服務）/ 013（flow DSL）/ 014（AI 編譯）；ADR-015 為 locksmith 產業包的 flow 實例。
+- **體驗策略層**：ADR-034 的風險分類與授權原則不可由產業包覆寫；command 與偏好 key
+  可依 portal／產業在 allowlist 內配置。
 
 ## 舊 → 新編號對照（供既有文件交叉引用回溯）
 

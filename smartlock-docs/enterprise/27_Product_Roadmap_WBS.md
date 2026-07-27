@@ -1,15 +1,17 @@
 ---
 title: 產品推進 Roadmap 與 WBS（瀑布式）— Smart Lock AI 客服與派工 SaaS 平台
-version: 1.0
+version: 1.1
 status: active
 owner: PM
-last-updated: 2026-07-10
+last-updated: 2026-07-27
 upstream:
   - smartlock-docs/enterprise/02_BRD.md §9.3（技術分期 Phase 1-4）
   - smartlock-docs/enterprise/03_PRD.md §7-§10（FR 全集與優先級）
   - smartlock-docs/enterprise/04_SRS.md（FR-* 驗收基準）
   - smartlock-docs/00_platform/P1/07_workorder_platform_design.md §8-§9（平台化設計鎖定）
   - smartlock-docs/00_platform/P2/04_adr/ADR-P012（執行債清償排程）
+  - smartlock-docs/enterprise/規格統控整理/Plane借鏡架構優化規劃_2026-07-27.md
+  - smartlock-docs/enterprise/14_ADR/00_INDEX.md（ADR-034～ADR-039）
 ---
 
 # 27 產品推進 Roadmap 與 WBS（瀑布式開發）
@@ -137,6 +139,23 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 3.4.1 | ⬜〔標注 2026-07-22（Plane 對帳輪）：Plane 卡=**Done**——0719 tech/platform 面雲端部署＋技師庫上雲，B1 業主親證（0721 稽核輪改卡）；本列經業主確認後可打 ✅〕 | 雲端拓撲對齊（tech / platform 面雲端部署 + 技師庫上雲）| OPS | 2.4.1 | 平台 L1 G-01 收斂 |
 | 3.5.1 | ⬜ | 第 2 品牌租戶開站演練（全流程 dry-run：申請 → 核准 → 開站 → 綁 LINE）| PM+OPS | 3.3.1 | 開站 SOP 文件化；**M3 Release gate** |
 
+### M3.6 Plane 借鏡架構優化（跨產品體驗、安全與交付）
+
+> 本工作群只導入可對應本平台三庫／四站邊界的原則，不新增 Plane 式
+> Instance → Workspace → Project 階層。`⬜` 表示設計已由 ADR 固定、尚未取得完成證據；
+> OD-001／004 未定案的項目不得越過 decision gate。
+
+| WBS | 優先級 | 狀態 | 工作包 | 負責 | 前置／決策 gate | 交付物 / 驗收依據 |
+|---|---|---|---|---|---|---|
+| 3.6.1 | P0 | ⬜ | 前端 mutation contract：optimistic／server-confirmed 分級、rollback、精準 invalidation、action idempotency、`409` conflict UX | FE+BE+QA | ADR-034 | 離線／5xx／409／重送 E2E；報價、派工、結算、退款、權限、consent 無 optimistic 假成功 |
+| 3.6.2 | P0 | ⬜ | 偏好與登入資料分層：三庫 `user_preferences` allowlist、跨裝置同步；localStorage token 退場 | FE+BE+DT | ADR-034；2.1.1；OD-004 提供 principal/claim input | schema/API/migration；跨裝置與 version conflict 測試；瀏覽器 storage 無登入 token |
+| 3.6.3 | P1 | ⬜ | Brand Portal Capability-driven Command Palette v1 | FE+BE | 3.6.2；ADR-034 | 搜尋／跳轉／草稿／佇列／通知／saved view；URL、palette、直接 API 授權結果一致 |
+| 3.6.4 | P0 | ⬜ | API resource ownership matrix 與 BOLA／IDOR parameterized contract tests | SEC+BE+QA | ADR-035 | mutation + sensitive read/export 端點 100% 分類；跨 tenant UUID、撤銷 membership、錯 portal、錯 resource owner 全 fail-closed |
+| 3.6.5 | P0 | ⬜ | Service principal／credential lifecycle：hash、scope、expiry、rotation、revoke、audit；遷移共用 `X-Internal-Token` | Platform+SEC+BE | ADR-036；**OD-001／OD-004** | agent/refinery/OHS caller 可辨識；錯 audience/scope/brand 負測綠；fallback 使用量連續一個 release window 為 0 |
+| 3.6.6 | P0 | ⬜ | Background runtime 拆分：job registry、worker entrypoint、Cloud Scheduler/Run Job pilot、outbox metrics | BE+OPS | ADR-037；GCP IAM/Scheduler | 一個低風險 job 完成 shadow→cutover→rollback 演練；重跑零重複 side effect；API 與 worker 可獨立部署 |
+| 3.6.7 | P0 | ⬜ | GCP staging→production promotion、GitHub Environments、WIF 隔離、release manifest、rollback/restore evidence | OPS+QA+SEC | ADR-038；3.6.4；3.6.6 | 同 image digest promotion；required reviewer；manifest 完整；revision rollback、migration forward-fix、restore drill 各成功一次 |
+| 3.6.8 | P2 | ⬜ | `web/shared-contract` 版本化窄例外：runtime types、RFC7807、mutation/conflict、capability contract | FE+OPS | ADR-039；3.6.1；ADR-031 runtime export | 禁止 UI/i18n/theme 依賴的 boundary lint；四站獨立 lockfile build/tsc；breaking change consumer matrix |
+
 ### M4 / M5 平台化（概要層級）
 
 | WBS | 工作群 | 內容 | 對應決策 |
@@ -183,6 +202,10 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | `operations_manager` 矩陣缺行未補即 enforce | 租戶最依賴角色全鎖 | 1.1.2 強制排在 1.1.1 之前（WBS 已定序）|
 | 三線平行（M2）整合風險 | SIT 後期大爆炸 | 2.6.1 前每線各自 mini-SIT；OHS 契約（ADR-027）先凍結 |
 | Kafka 引入運維複雜度（M3）| 事件遺失 / 重複消費 | outbox 保底 + reconcile 閘門把關金流正確性 |
+| 前端 optimistic 使用範圍失控（M3.6） | 報價／派工／金流顯示假成功 | ADR-034 風險分級；敏感 mutation 強制 server-confirmed；四類失敗 E2E |
+| Service credential 遷移停在永久 fallback（M3.6） | 共用 secret 無法獨立撤銷與稽核 | 每 caller usage metric；OD-001/004 gate；歸零一個 release window 才移除 fallback |
+| API lifespan 與外部 worker cutover 雙跑（M3.6） | 重複推播／重複結算／重複刪除 | durable outbox + idempotency + PG lock；逐 job shadow、切換與 rollback flag |
+| 發版流程只有 workflow、沒有 evidence（M3.6） | 未驗證 revision 進 production、回退失據 | ADR-038 同 digest promotion；GitHub Environment approval；release manifest + rollback/restore drill |
 | 階段二過早啟動 | 鎖匠垂直未站穩即分兵 | §5 階段閘含業主裁決,不自動觸發 |
 | 瀑布式需求凍結 vs 現場回饋 | 需求漂移累積 | CIA/CR 全記錄,批次排入下一里程碑,不插隊 |
 
@@ -196,8 +219,13 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | §3 M1 安全群 | 13_Security §8 Phase 1 行動項（SA-*）| 20_Test_Cases 權限類 TC |
 | §3 M2 三線 | ADR-004/016/018/027、CR-0115 | 各系統 SDS |
 | §4 階段二 | 07_workorder_platform_design §8-§9、ADR-013/014 | 設計凍結時展開 |
+| §4 M3.6.1–3.6.3 體驗優化 | Plane 規劃 A/B/C、ADR-034 | mutation E2E、preference contract、Brand Portal palette |
+| §4 M3.6.4–3.6.5 安全邊界 | Plane 規劃 D/E、ADR-035/036、OD-001/004 | BOLA matrix、service principal negative tests |
+| §4 M3.6.6 背景 runtime | Plane 規劃 F、ADR-037、ADR-006 | job registry、Cloud Run Job/worker SIT、lag/retry evidence |
+| §4 M3.6.7 發版治理 | Plane 規劃 G、ADR-038 | deployment manifest、promotion/rollback/restore evidence |
+| §4 M3.6.8 共享契約 | Plane 規劃 H、ADR-039、ADR-031 | package boundary、consumer matrix、四站 build |
 | §5 階段閘 | 業主裁決（平台化列第二階段）| Release 計畫 |
 
 ---
 
-*27_Product_Roadmap_WBS v1.0 — 2026-07-10*
+*27_Product_Roadmap_WBS v1.1 — 2026-07-27*
