@@ -88,7 +88,7 @@ def state_style(color):                  # UML 狀態
     return f"rounded=1;arcSize=40;whiteSpace=wrap;html=1;fillColor={f};strokeColor={s};"
 
 
-def ref_zone(header_fill="#F8FAFC", stroke="#CBD5E1"):
+def ref_zone(header_fill="#F4F5F7", stroke="#C2C8D0"):
     """06 高階參考架構的 L1 責任區：白底、淡色表頭、低裝飾。"""
     return (
         "swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;"
@@ -97,7 +97,7 @@ def ref_zone(header_fill="#F8FAFC", stroke="#CBD5E1"):
     )
 
 
-def ref_component(stroke="#64748B", fill="#FFFFFF", dashed=False):
+def ref_component(stroke="#737D8A", fill="#FFFFFF", dashed=False):
     d = "dashed=1;dashPattern=5 4;" if dashed else ""
     return (
         "rounded=1;arcSize=8;whiteSpace=wrap;html=1;"
@@ -106,10 +106,10 @@ def ref_component(stroke="#64748B", fill="#FFFFFF", dashed=False):
     )
 
 
-def ref_store(stroke="#EA580C"):
+def ref_store(stroke="#8C6B4A"):
     return (
         "rounded=1;arcSize=8;whiteSpace=wrap;html=1;"
-        f"fillColor=#FFF7ED;strokeColor={stroke};fontColor=#7C2D12;"
+        f"fillColor=#F3EFE8;strokeColor={stroke};fontColor=#5E4A38;"
         "fontSize=9;spacing=4;"
     )
 
@@ -138,22 +138,22 @@ E_STRAIGHT = "html=1;endArrow=classic;endFill=1;strokeColor=#333333;fontSize=10;
 E_REF_INTERACTION = (
     "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;"
     "html=1;strokeWidth=2.5;endArrow=classic;endFill=1;"
-    "strokeColor=#2563EB;fontColor=#1E3A8A;fontSize=9;"
+    "strokeColor=#3B5B8C;fontColor=#2A4260;fontSize=9;"
 )
 E_REF_EVENT = (
     "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;"
     "html=1;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;dashPattern=6 4;"
-    "strokeColor=#16A34A;fontColor=#166534;fontSize=9;"
+    "strokeColor=#4A6B57;fontColor=#35503F;fontSize=9;"
 )
 E_REF_CONTROL = (
     "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;"
     "html=1;strokeWidth=2;endArrow=open;endFill=0;dashed=1;dashPattern=3 4;"
-    "strokeColor=#9333EA;fontColor=#6B21A8;fontSize=9;"
+    "strokeColor=#6B5B7B;fontColor=#4E4159;fontSize=9;"
 )
 E_REF_STORAGE = (
     "edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;"
     "html=1;strokeWidth=2;endArrow=classic;endFill=1;dashed=1;dashPattern=8 4;"
-    "strokeColor=#EA580C;fontColor=#9A3412;fontSize=9;"
+    "strokeColor=#8C6B4A;fontColor=#6B4F35;fontSize=9;"
 )
 
 
@@ -1377,12 +1377,12 @@ def d_06_1():
     ]
 
     zones = {
-        "z1": ("Z1  Actors & Inbound Signals", 25, 75, 220, 700, "#F8FAFC", "#94A3B8"),
-        "z2": ("Z2  Channel & AI Runtime", 260, 75, 295, 700, "#EFF6FF", "#60A5FA"),
-        "z3": ("Z3  Interaction & Event Distribution", 570, 75, 310, 700, "#F0FDF4", "#4ADE80"),
-        "z4": ("Z4  Domain Services & Data", 895, 75, 440, 700, "#FFF7ED", "#FB923C"),
-        "z5": ("Z5  Applications & External Systems", 1350, 75, 325, 700, "#F8FAFC", "#64748B"),
-        "z6": ("Z6  Cross-Cutting Management Capabilities", 25, 800, 1650, 220, "#FAF5FF", "#C084FC"),
+        "z1": ("Z1  Actors & Inbound Signals", 25, 75, 220, 700, "#F4F5F7", "#98A2B0"),
+        "z2": ("Z2  Channel & AI Runtime", 260, 75, 295, 700, "#ECEFF4", "#8098B8"),
+        "z3": ("Z3  Interaction & Event Distribution", 570, 75, 310, 700, "#ECF1ED", "#82A18C"),
+        "z4": ("Z4  Domain Services & Data", 895, 75, 440, 700, "#F3EFE8", "#B79B79"),
+        "z5": ("Z5  Applications & External Systems", 1350, 75, 325, 700, "#F4F5F7", "#737D8A"),
+        "z6": ("Z6  Cross-Cutting Management Capabilities", 25, 800, 1650, 220, "#F0EDF2", "#998DA6"),
     }
     for zid, (label, x, y, w, h, fill, stroke) in zones.items():
         c.append(node(f"{P}_{zid}", label, x, y, w, h, ref_zone(fill, stroke)))
@@ -1391,10 +1391,10 @@ def d_06_1():
     z1 = f"{P}_z1"
     c.extend(
         [
-            node(f"{P}_cust", "Customer Interaction Signal\nLINE 詢問 · LIFF/postback 決策", 15, 55, 190, 75, ref_component("#64748B", "#FFFFFF"), parent=z1),
-            node(f"{P}_ops", "Brand Operations Decision\n問題卡 · 報價 · 派工 · 結算", 15, 175, 190, 75, ref_component("#64748B", "#FFFFFF"), parent=z1),
-            node(f"{P}_techsig", "Technician Field Action\n接單 · 到場 · requote · 存證", 15, 295, 190, 75, ref_component("#64748B", "#FFFFFF"), parent=z1),
-            node(f"{P}_know", "Knowledge & Diagnostic Source\n產品素材 · 三方診斷對話", 15, 415, 190, 75, ref_component("#64748B", "#FFFFFF"), parent=z1),
+            node(f"{P}_cust", "Customer Interaction Signal\nLINE 詢問 · LIFF/postback 決策", 15, 55, 190, 75, ref_component("#737D8A", "#FFFFFF"), parent=z1),
+            node(f"{P}_ops", "Brand Operations Decision\n問題卡 · 報價 · 派工 · 結算", 15, 175, 190, 75, ref_component("#737D8A", "#FFFFFF"), parent=z1),
+            node(f"{P}_techsig", "Technician Field Action\n接單 · 到場 · requote · 存證", 15, 295, 190, 75, ref_component("#737D8A", "#FFFFFF"), parent=z1),
+            node(f"{P}_know", "Knowledge & Diagnostic Source\n產品素材 · 三方診斷對話", 15, 415, 190, 75, ref_component("#737D8A", "#FFFFFF"), parent=z1),
             node(
                 f"{P}_z1note",
                 "Signal only\n角色意圖在此表達；\n業務真相一律由 Z4 擁有",
@@ -1402,7 +1402,7 @@ def d_06_1():
                 545,
                 190,
                 95,
-                ref_component("#94A3B8", "#F8FAFC", dashed=True),
+                ref_component("#98A2B0", "#F4F5F7", dashed=True),
                 parent=z1,
             ),
         ]
@@ -1412,10 +1412,10 @@ def d_06_1():
     z2 = f"{P}_z2"
     c.extend(
         [
-            node(f"{P}_gw", "LINE Gateway\n驗簽 · dedup · handover", 15, 55, 125, 90, ref_component("#2563EB", "#EFF6FF"), parent=z2),
-            node(f"{P}_agent", "LockCore Agent Runtime\nTurn · Skill · Memory · Tools", 155, 55, 125, 90, ref_component("#2563EB", "#EFF6FF"), parent=z2),
-            node(f"{P}_rag", "RAG-MCP Knowledge Access\ntenant ACL · pgvector citation", 15, 205, 265, 80, ref_component("#2563EB", "#FFFFFF"), parent=z2),
-            node(f"{P}_model", "LiteLLM Model Gateway\nprovider routing · fallback · budget", 15, 330, 265, 80, ref_component("#2563EB", "#FFFFFF"), parent=z2),
+            node(f"{P}_gw", "LINE Gateway\n驗簽 · dedup · handover", 15, 55, 125, 90, ref_component("#3B5B8C", "#ECEFF4"), parent=z2),
+            node(f"{P}_agent", "LockCore Agent Runtime\nTurn · Skill · Memory · Tools", 155, 55, 125, 90, ref_component("#3B5B8C", "#ECEFF4"), parent=z2),
+            node(f"{P}_rag", "RAG-MCP Knowledge Access\ntenant ACL · pgvector citation", 15, 205, 265, 80, ref_component("#3B5B8C", "#FFFFFF"), parent=z2),
+            node(f"{P}_model", "LiteLLM Model Gateway\nprovider routing · fallback · budget", 15, 330, 265, 80, ref_component("#3B5B8C", "#FFFFFF"), parent=z2),
             node(
                 f"{P}_z2note",
                 "責任紅線\nAI 只做對話判斷、知識回覆與 transfer_to_human；\n不擁有 final quote／工單／派工／金流真相",
@@ -1423,7 +1423,7 @@ def d_06_1():
                 480,
                 265,
                 115,
-                ref_component("#B91C1C", "#FEF2F2", dashed=True),
+                ref_component("#A15C5C", "#F4ECEC", dashed=True),
                 parent=z2,
             ),
         ]
@@ -1433,11 +1433,11 @@ def d_06_1():
     z3 = f"{P}_z3"
     c.extend(
         [
-            node(f"{P}_api", "API / ACL Integration Gateway\nOIDC/S2S · tenant/role guard · idempotency", 15, 55, 280, 90, ref_component("#16A34A", "#F0FDF4"), parent=z3),
-            node(f"{P}_rt", "Realtime WS\n+ Redis fan-out", 15, 190, 130, 80, ref_component("#16A34A", "#FFFFFF"), parent=z3),
-            node(f"{P}_outbox", "Reliable Outbox\nLINE / notification retry", 165, 190, 130, 80, ref_component("#16A34A", "#FFFFFF"), parent=z3),
-            node(f"{P}_kafka", "Event Backbone  🔜\nKafka · AsyncAPI · replay", 15, 330, 280, 85, ref_component("#16A34A", "#F0FDF4", dashed=True), parent=z3),
-            node(f"{P}_ohs", "Technician OHS Adapter\nmatch/query · requote command · ACL", 15, 465, 280, 85, ref_component("#16A34A", "#FFFFFF"), parent=z3),
+            node(f"{P}_api", "API / ACL Integration Gateway\nOIDC/S2S · tenant/role guard · idempotency", 15, 55, 280, 90, ref_component("#4A6B57", "#ECF1ED"), parent=z3),
+            node(f"{P}_rt", "Realtime WS\n+ Redis fan-out", 15, 190, 130, 80, ref_component("#4A6B57", "#FFFFFF"), parent=z3),
+            node(f"{P}_outbox", "Reliable Outbox\nLINE / notification retry", 165, 190, 130, 80, ref_component("#4A6B57", "#FFFFFF"), parent=z3),
+            node(f"{P}_kafka", "Event Backbone  🔜\nKafka · AsyncAPI · replay", 15, 330, 280, 85, ref_component("#4A6B57", "#ECF1ED", dashed=True), parent=z3),
+            node(f"{P}_ohs", "Technician OHS Adapter\nmatch/query · requote command · ACL", 15, 465, 280, 85, ref_component("#4A6B57", "#FFFFFF"), parent=z3),
             node(
                 f"{P}_z3note",
                 "機制分工：Outbox＝可靠副作用｜Kafka＝跨系統事實｜Redis＝暫態 fan-out",
@@ -1445,7 +1445,7 @@ def d_06_1():
                 590,
                 280,
                 65,
-                ref_component("#15803D", "#F0FDF4", dashed=True),
+                ref_component("#5A7A63", "#ECF1ED", dashed=True),
                 parent=z3,
             ),
         ]
@@ -1462,7 +1462,7 @@ def d_06_1():
                 55,
                 270,
                 100,
-                ref_component("#EA580C", "#FFF7ED"),
+                ref_component("#8C6B4A", "#F3EFE8"),
                 parent=z4,
             ),
             node(
@@ -1472,7 +1472,7 @@ def d_06_1():
                 190,
                 270,
                 90,
-                ref_component("#EA580C", "#FFFFFF"),
+                ref_component("#8C6B4A", "#FFFFFF"),
                 parent=z4,
             ),
             node(
@@ -1482,7 +1482,7 @@ def d_06_1():
                 320,
                 270,
                 90,
-                ref_component("#EA580C", "#FFFFFF"),
+                ref_component("#8C6B4A", "#FFFFFF"),
                 parent=z4,
             ),
             node(f"{P}_dbb", "Brand DB + pgvector\nSQL · JSONB · Outbox\n唯一事實語料", 300, 55, 125, 100, ref_store(), parent=z4),
@@ -1495,7 +1495,7 @@ def d_06_1():
                 590,
                 410,
                 65,
-                ref_component("#C2410C", "#FFF7ED", dashed=True),
+                ref_component("#7E5F42", "#F3EFE8", dashed=True),
                 parent=z4,
             ),
         ]
@@ -1505,10 +1505,10 @@ def d_06_1():
     z5 = f"{P}_z5"
     c.extend(
         [
-            node(f"{P}_appline", "LINE / LIFF / Flex\nMessaging API · 客戶確認", 15, 55, 295, 80, ref_component("#475569", "#FFFFFF"), parent=z5),
-            node(f"{P}_appbrand", "Brand Operations Portal\n對話 · 報價 · 派工 · 對帳", 15, 175, 295, 80, ref_component("#475569", "#FFFFFF"), parent=z5),
-            node(f"{P}_apptech", "Technician Portal\n准入 · 接單 · 現場 · statement", 15, 295, 295, 80, ref_component("#475569", "#FFFFFF"), parent=z5),
-            node(f"{P}_appplat", "Platform Console\n租戶 · License · 治理", 15, 415, 295, 80, ref_component("#475569", "#FFFFFF"), parent=z5),
+            node(f"{P}_appline", "LINE / LIFF / Flex\nMessaging API · 客戶確認", 15, 55, 295, 80, ref_component("#5C6673", "#FFFFFF"), parent=z5),
+            node(f"{P}_appbrand", "Brand Operations Portal\n對話 · 報價 · 派工 · 對帳", 15, 175, 295, 80, ref_component("#5C6673", "#FFFFFF"), parent=z5),
+            node(f"{P}_apptech", "Technician Portal\n准入 · 接單 · 現場 · statement", 15, 295, 295, 80, ref_component("#5C6673", "#FFFFFF"), parent=z5),
+            node(f"{P}_appplat", "Platform Console\n租戶 · License · 治理", 15, 415, 295, 80, ref_component("#5C6673", "#FFFFFF"), parent=z5),
             node(
                 f"{P}_external",
                 "External Shared Services\nCasdoor OIDC/JWKS · LLM Providers HTTPS\nGCP Runtime / Secret / Object Storage",
@@ -1516,7 +1516,7 @@ def d_06_1():
                 535,
                 295,
                 100,
-                ref_component("#475569", "#F8FAFC"),
+                ref_component("#5C6673", "#F4F5F7"),
                 parent=z5,
             ),
         ]
@@ -1540,7 +1540,7 @@ def d_06_1():
                 55,
                 290,
                 95,
-                ref_component("#9333EA", "#FAF5FF"),
+                ref_component("#6B5B7B", "#F0EDF2"),
                 parent=z6,
             )
         )
@@ -1799,7 +1799,7 @@ def d_06_1():
             1040,
             1105,
             105,
-            ref_component("#334155", "#F8FAFC"),
+            ref_component("#414B59", "#F4F5F7"),
         )
     )
     return ("d06_1", "06-1 高階端到端參考架構", c)
@@ -1826,8 +1826,8 @@ def d_06_2():
             75,
             520,
             420,
-            "#F8FAFC",
-            "#64748B",
+            "#F4F5F7",
+            "#737D8A",
             [
                 ("Customer Interaction Signal", "客戶訊息、LIFF/postback 決策", "LINE webhook JSON"),
                 ("Brand Operations Decision", "問題卡、報價、派工、結算操作", "Browser / REST JSON"),
@@ -1842,8 +1842,8 @@ def d_06_2():
             75,
             520,
             420,
-            "#EFF6FF",
-            "#2563EB",
+            "#ECEFF4",
+            "#3B5B8C",
             [
                 ("LINE Gateway", "驗簽、去重、handover 與通道交付", "HTTPS / X-Line-Signature"),
                 ("LockCore Agent Runtime", "Turn、Skill、Memory、Tool allowlist", "Normalized Turn / Internal JSON"),
@@ -1858,8 +1858,8 @@ def d_06_2():
             75,
             560,
             420,
-            "#F0FDF4",
-            "#16A34A",
+            "#ECF1ED",
+            "#4A6B57",
             [
                 ("API / ACL Integration Gateway", "同步 command/query、身分與租戶守衛", "REST / OIDC / S2S / RFC7807"),
                 ("Realtime WS + Redis", "跨實例暫態 fan-out", "WebSocket JSON / Redis pub-sub"),
@@ -1875,8 +1875,8 @@ def d_06_2():
             525,
             650,
             590,
-            "#FFF7ED",
-            "#EA580C",
+            "#F3EFE8",
+            "#8C6B4A",
             [
                 ("Brand Domain Services", "Problem Card、Quote、Work Order、Dispatch、Billing 權威", "Domain command/event / SQL"),
                 ("Technician Platform", "技師真相、媒合、CQRS、Settlement", "OHS / Kafka / REST-WS"),
@@ -1893,8 +1893,8 @@ def d_06_2():
             525,
             470,
             590,
-            "#F8FAFC",
-            "#475569",
+            "#F4F5F7",
+            "#5C6673",
             [
                 ("LINE / LIFF / Flex", "客戶互動、報價確認與通知交付", "Messaging API / LIFF / Flex JSON"),
                 ("Brand Operations Portal", "對話、報價、派工與對帳工作台", "OIDC / REST / WebSocket"),
@@ -1910,8 +1910,8 @@ def d_06_2():
             525,
             480,
             590,
-            "#FAF5FF",
-            "#9333EA",
+            "#F0EDF2",
+            "#6B5B7B",
             [
                 ("Control Plane", "Provisioning、License、Pack、rollout", "Versioned control command"),
                 ("Configuration", "品牌、模型、SLA、通道與 feature 設定", "Config registry / secret ref"),

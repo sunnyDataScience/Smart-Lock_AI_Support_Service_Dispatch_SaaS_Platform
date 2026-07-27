@@ -1,272 +1,272 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1200" viewBox="0 0 1700 1200">
 <defs>
 <style>text{font-family:"Noto Sans TC","Microsoft JhengHei","PingFang TC",Arial,sans-serif}.edge-label-bg{fill:#fff;fill-opacity:.94;stroke:#E2E8F0;stroke-width:.6}</style>
-<marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#2563EB"/></marker>
-<marker id="arrow-green" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#16A34A"/></marker>
-<marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#9333EA"/></marker>
-<marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#EA580C"/></marker>
-<marker id="arrow-gray" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#64748B"/></marker>
+<marker id="arrow-blue" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#3B5B8C"/></marker>
+<marker id="arrow-green" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#4A6B57"/></marker>
+<marker id="arrow-purple" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#6B5B7B"/></marker>
+<marker id="arrow-orange" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#8C6B4A"/></marker>
+<marker id="arrow-gray" markerWidth="8" markerHeight="8" refX="7.5" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L8,4 L0,8 z" fill="#737D8A"/></marker>
 </defs>
 <rect width="100%" height="100%" fill="#FFFFFF"/>
-<rect x="25.0" y="75.0" width="220.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#94A3B8" stroke-width="1.4"/>
-<path d="M33.0,75.0 H237.0 Q245.0,75.0 245.0,83.0 V111.0 H25.0 V83.0 Q25.0,75.0 33.0,75.0 Z" fill="#F8FAFC"/>
-<line x1="25.0" y1="111.0" x2="245.0" y2="111.0" stroke="#94A3B8" stroke-width="1"/>
+<rect x="25.0" y="75.0" width="220.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#98A2B0" stroke-width="1.4"/>
+<path d="M33.0,75.0 H237.0 Q245.0,75.0 245.0,83.0 V111.0 H25.0 V83.0 Q25.0,75.0 33.0,75.0 Z" fill="#F4F5F7"/>
+<line x1="25.0" y1="111.0" x2="245.0" y2="111.0" stroke="#98A2B0" stroke-width="1"/>
 <text x="37.0" y="98.0" text-anchor="start" font-size="12.0" font-weight="600" fill="#0F172A"><tspan x="37.0" dy="0">Z1  Actors &amp; Inbound Signals</tspan></text>
-<rect x="260.0" y="75.0" width="295.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#60A5FA" stroke-width="1.4"/>
-<path d="M268.0,75.0 H547.0 Q555.0,75.0 555.0,83.0 V111.0 H260.0 V83.0 Q260.0,75.0 268.0,75.0 Z" fill="#EFF6FF"/>
-<line x1="260.0" y1="111.0" x2="555.0" y2="111.0" stroke="#60A5FA" stroke-width="1"/>
+<rect x="260.0" y="75.0" width="295.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#8098B8" stroke-width="1.4"/>
+<path d="M268.0,75.0 H547.0 Q555.0,75.0 555.0,83.0 V111.0 H260.0 V83.0 Q260.0,75.0 268.0,75.0 Z" fill="#ECEFF4"/>
+<line x1="260.0" y1="111.0" x2="555.0" y2="111.0" stroke="#8098B8" stroke-width="1"/>
 <text x="272.0" y="98.0" text-anchor="start" font-size="12.0" font-weight="600" fill="#0F172A"><tspan x="272.0" dy="0">Z2  Channel &amp; AI Runtime</tspan></text>
-<rect x="570.0" y="75.0" width="310.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#4ADE80" stroke-width="1.4"/>
-<path d="M578.0,75.0 H872.0 Q880.0,75.0 880.0,83.0 V111.0 H570.0 V83.0 Q570.0,75.0 578.0,75.0 Z" fill="#F0FDF4"/>
-<line x1="570.0" y1="111.0" x2="880.0" y2="111.0" stroke="#4ADE80" stroke-width="1"/>
+<rect x="570.0" y="75.0" width="310.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#82A18C" stroke-width="1.4"/>
+<path d="M578.0,75.0 H872.0 Q880.0,75.0 880.0,83.0 V111.0 H570.0 V83.0 Q570.0,75.0 578.0,75.0 Z" fill="#ECF1ED"/>
+<line x1="570.0" y1="111.0" x2="880.0" y2="111.0" stroke="#82A18C" stroke-width="1"/>
 <text x="582.0" y="98.0" text-anchor="start" font-size="12.0" font-weight="600" fill="#0F172A"><tspan x="582.0" dy="0">Z3  Interaction &amp; Event Distribution</tspan></text>
-<rect x="895.0" y="75.0" width="440.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#FB923C" stroke-width="1.4"/>
-<path d="M903.0,75.0 H1327.0 Q1335.0,75.0 1335.0,83.0 V111.0 H895.0 V83.0 Q895.0,75.0 903.0,75.0 Z" fill="#FFF7ED"/>
-<line x1="895.0" y1="111.0" x2="1335.0" y2="111.0" stroke="#FB923C" stroke-width="1"/>
+<rect x="895.0" y="75.0" width="440.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#B79B79" stroke-width="1.4"/>
+<path d="M903.0,75.0 H1327.0 Q1335.0,75.0 1335.0,83.0 V111.0 H895.0 V83.0 Q895.0,75.0 903.0,75.0 Z" fill="#F3EFE8"/>
+<line x1="895.0" y1="111.0" x2="1335.0" y2="111.0" stroke="#B79B79" stroke-width="1"/>
 <text x="907.0" y="98.0" text-anchor="start" font-size="12.0" font-weight="600" fill="#0F172A"><tspan x="907.0" dy="0">Z4  Domain Services &amp; Data</tspan></text>
-<rect x="1350.0" y="75.0" width="325.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#64748B" stroke-width="1.4"/>
-<path d="M1358.0,75.0 H1667.0 Q1675.0,75.0 1675.0,83.0 V111.0 H1350.0 V83.0 Q1350.0,75.0 1358.0,75.0 Z" fill="#F8FAFC"/>
-<line x1="1350.0" y1="111.0" x2="1675.0" y2="111.0" stroke="#64748B" stroke-width="1"/>
+<rect x="1350.0" y="75.0" width="325.0" height="700.0" rx="8" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.4"/>
+<path d="M1358.0,75.0 H1667.0 Q1675.0,75.0 1675.0,83.0 V111.0 H1350.0 V83.0 Q1350.0,75.0 1358.0,75.0 Z" fill="#F4F5F7"/>
+<line x1="1350.0" y1="111.0" x2="1675.0" y2="111.0" stroke="#737D8A" stroke-width="1"/>
 <text x="1362.0" y="98.0" text-anchor="start" font-size="12.0" font-weight="600" fill="#0F172A"><tspan x="1362.0" dy="0">Z5  Applications &amp; External Systems</tspan></text>
-<rect x="25.0" y="800.0" width="1650.0" height="220.0" rx="8" fill="#FFFFFF" stroke="#C084FC" stroke-width="1.4"/>
-<path d="M33.0,800.0 H1667.0 Q1675.0,800.0 1675.0,808.0 V836.0 H25.0 V808.0 Q25.0,800.0 33.0,800.0 Z" fill="#FAF5FF"/>
-<line x1="25.0" y1="836.0" x2="1675.0" y2="836.0" stroke="#C084FC" stroke-width="1"/>
+<rect x="25.0" y="800.0" width="1650.0" height="220.0" rx="8" fill="#FFFFFF" stroke="#998DA6" stroke-width="1.4"/>
+<path d="M33.0,800.0 H1667.0 Q1675.0,800.0 1675.0,808.0 V836.0 H25.0 V808.0 Q25.0,800.0 33.0,800.0 Z" fill="#F0EDF2"/>
+<line x1="25.0" y1="836.0" x2="1675.0" y2="836.0" stroke="#998DA6" stroke-width="1"/>
 <text x="37.0" y="823.0" text-anchor="start" font-size="12.0" font-weight="600" fill="#0F172A"><tspan x="37.0" dy="0">Z6  Cross-Cutting Management Capabilities</tspan></text>
-<polyline points="135.0,205.0 135.0,225.0 338.0,225.0 337.9,220.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="337.8,220.0 338.0,245.0 478.0,245.0 477.8,220.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="477.8,220.0 478.0,245.0 725.0,245.0 725.0,220.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="725.0,220.0 725.0,245.0 1115.0,245.0 1098.8,230.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="865.0,305.0 885.0,305.0 885.0,65.0 1340.0,65.0 1340.0,170.0 1365.0,170.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="650.0,265.0 650.0,255.0 885.0,255.0 1340.0,255.0 1340.0,290.0 1365.0,290.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="1097.5,355.0 1115.0,370.0 1340.0,370.0 1340.0,410.0 1365.0,410.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="230.0,287.9 250.0,288.0 250.0,675.0 560.0,675.0 560.0,170.0 585.0,170.8" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="230.0,407.9 250.0,408.0 250.0,710.0 560.0,710.0 560.0,583.0 585.0,582.9" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="540.0,170.6 548.0,170.0 548.0,445.0 540.0,445.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="540.0,445.0 560.0,445.0 560.0,750.0 1340.0,750.0 1340.0,660.0 1365.0,660.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="865.0,582.9 890.0,583.0 890.0,310.0 910.0,310.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="540.0,215.3 555.0,225.0 565.0,225.0 565.0,215.0 585.0,215.0 585.0,215.0" fill="none" stroke="#16A34A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
-<polyline points="910.0,180.0 890.0,180.0 890.0,448.0 865.0,447.9" fill="none" stroke="#16A34A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
-<polyline points="865.0,447.9 885.0,448.0 885.0,310.0 910.0,310.0" fill="none" stroke="#16A34A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-start="url(#arrow-green)" marker-end="url(#arrow-green)"/>
-<polyline points="585.0,447.5 687.5,447.5 687.5,305.0 715.0,305.0" fill="none" stroke="#16A34A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
-<polyline points="230.0,527.9 250.0,528.0 250.0,730.0 890.0,730.0 890.0,455.0 910.0,453.1" fill="none" stroke="#16A34A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
-<polyline points="415.0,175.0 442.5,175.0 442.5,320.0 540.0,320.0" fill="none" stroke="#16A34A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
-<polyline points="540.0,320.0 550.0,320.0 550.0,235.0 531.9,220.0" fill="none" stroke="#16A34A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
-<polyline points="1180.0,180.0 1151.2,180.0 1151.2,180.0 1195.0,180.0" fill="none" stroke="#EA580C" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
-<polyline points="1180.0,310.0 1151.2,310.0 1151.2,310.0 1195.0,310.0" fill="none" stroke="#EA580C" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
-<polyline points="1180.0,440.0 1188.0,440.0 1188.0,180.0 1195.0,180.0" fill="none" stroke="#EA580C" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
-<polyline points="1098.8,230.0 1115.0,245.0 1330.0,245.0 1330.0,440.0 1320.0,440.0" fill="none" stroke="#EA580C" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
-<polyline points="910.0,193.1 890.0,195.0 890.0,305.0 865.0,305.0" fill="none" stroke="#EA580C" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
-<polyline points="854.5,490.0 885.0,500.0 885.0,510.0 1258.0,510.0 1258.0,485.0 1258.0,485.0" fill="none" stroke="#EA580C" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
-<polyline points="192.1,855.0 195.0,790.0 250.0,790.0 250.0,110.0 342.0,110.0 340.6,130.0" fill="none" stroke="#9333EA" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
-<polyline points="512.1,855.0 515.0,790.0 560.0,790.0 560.0,110.0 478.0,110.0 477.8,130.0" fill="none" stroke="#9333EA" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
-<polyline points="832.1,855.0 835.0,790.0 885.0,790.0 885.0,110.0 725.0,110.0 725.0,130.0" fill="none" stroke="#9333EA" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
-<polyline points="540.0,195.2 555.0,200.0 555.0,780.0 1155.0,780.0 1151.9,855.0" fill="none" stroke="#9333EA" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
-<polyline points="1365.0,530.0 1340.0,530.0 1340.0,790.0 1475.0,790.0 1472.1,855.0" fill="none" stroke="#9333EA" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
-<polyline points="33.0,1074.0 63.0,1074.0" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
-<polyline points="33.0,1096.0 63.0,1096.0" fill="none" stroke="#16A34A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
-<polyline points="33.0,1118.0 63.0,1118.0" fill="none" stroke="#9333EA" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
-<polyline points="33.0,1140.0 63.0,1140.0" fill="none" stroke="#EA580C" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
+<polyline points="135.0,205.0 135.0,225.0 338.0,225.0 337.9,220.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="337.8,220.0 338.0,245.0 478.0,245.0 477.8,220.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="477.8,220.0 478.0,245.0 725.0,245.0 725.0,220.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="725.0,220.0 725.0,245.0 1115.0,245.0 1098.8,230.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="865.0,305.0 885.0,305.0 885.0,65.0 1340.0,65.0 1340.0,170.0 1365.0,170.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="650.0,265.0 650.0,255.0 885.0,255.0 1340.0,255.0 1340.0,290.0 1365.0,290.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="1097.5,355.0 1115.0,370.0 1340.0,370.0 1340.0,410.0 1365.0,410.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="230.0,287.9 250.0,288.0 250.0,675.0 560.0,675.0 560.0,170.0 585.0,170.8" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="230.0,407.9 250.0,408.0 250.0,710.0 560.0,710.0 560.0,583.0 585.0,582.9" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="540.0,170.6 548.0,170.0 548.0,445.0 540.0,445.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="540.0,445.0 560.0,445.0 560.0,750.0 1340.0,750.0 1340.0,660.0 1365.0,660.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="865.0,582.9 890.0,583.0 890.0,310.0 910.0,310.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="540.0,215.3 555.0,225.0 565.0,225.0 565.0,215.0 585.0,215.0 585.0,215.0" fill="none" stroke="#4A6B57" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
+<polyline points="910.0,180.0 890.0,180.0 890.0,448.0 865.0,447.9" fill="none" stroke="#4A6B57" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
+<polyline points="865.0,447.9 885.0,448.0 885.0,310.0 910.0,310.0" fill="none" stroke="#4A6B57" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-start="url(#arrow-green)" marker-end="url(#arrow-green)"/>
+<polyline points="585.0,447.5 687.5,447.5 687.5,305.0 715.0,305.0" fill="none" stroke="#4A6B57" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
+<polyline points="230.0,527.9 250.0,528.0 250.0,730.0 890.0,730.0 890.0,455.0 910.0,453.1" fill="none" stroke="#4A6B57" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
+<polyline points="415.0,175.0 442.5,175.0 442.5,320.0 540.0,320.0" fill="none" stroke="#4A6B57" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
+<polyline points="540.0,320.0 550.0,320.0 550.0,235.0 531.9,220.0" fill="none" stroke="#4A6B57" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
+<polyline points="1180.0,180.0 1151.2,180.0 1151.2,180.0 1195.0,180.0" fill="none" stroke="#8C6B4A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
+<polyline points="1180.0,310.0 1151.2,310.0 1151.2,310.0 1195.0,310.0" fill="none" stroke="#8C6B4A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
+<polyline points="1180.0,440.0 1188.0,440.0 1188.0,180.0 1195.0,180.0" fill="none" stroke="#8C6B4A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
+<polyline points="1098.8,230.0 1115.0,245.0 1330.0,245.0 1330.0,440.0 1320.0,440.0" fill="none" stroke="#8C6B4A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
+<polyline points="910.0,193.1 890.0,195.0 890.0,305.0 865.0,305.0" fill="none" stroke="#8C6B4A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
+<polyline points="854.5,490.0 885.0,500.0 885.0,510.0 1258.0,510.0 1258.0,485.0 1258.0,485.0" fill="none" stroke="#8C6B4A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
+<polyline points="192.1,855.0 195.0,790.0 250.0,790.0 250.0,110.0 342.0,110.0 340.6,130.0" fill="none" stroke="#6B5B7B" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
+<polyline points="512.1,855.0 515.0,790.0 560.0,790.0 560.0,110.0 478.0,110.0 477.8,130.0" fill="none" stroke="#6B5B7B" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
+<polyline points="832.1,855.0 835.0,790.0 885.0,790.0 885.0,110.0 725.0,110.0 725.0,130.0" fill="none" stroke="#6B5B7B" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
+<polyline points="540.0,195.2 555.0,200.0 555.0,780.0 1155.0,780.0 1151.9,855.0" fill="none" stroke="#6B5B7B" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
+<polyline points="1365.0,530.0 1340.0,530.0 1340.0,790.0 1475.0,790.0 1472.1,855.0" fill="none" stroke="#6B5B7B" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
+<polyline points="33.0,1074.0 63.0,1074.0" fill="none" stroke="#3B5B8C" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow-blue)"/>
+<polyline points="33.0,1096.0 63.0,1096.0" fill="none" stroke="#4A6B57" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6,4" marker-end="url(#arrow-green)"/>
+<polyline points="33.0,1118.0 63.0,1118.0" fill="none" stroke="#6B5B7B" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="3,4" marker-end="url(#arrow-purple)"/>
+<polyline points="33.0,1140.0 63.0,1140.0" fill="none" stroke="#8C6B4A" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8,4" marker-end="url(#arrow-orange)"/>
 <text x="34.0" y="29.4" text-anchor="start" font-size="17.0" font-weight="600" fill="#0F172A"><tspan x="34.0" dy="0">06-1 高階端到端參考架構  ·  Logical Components + Data Flow + Integration</tspan></text>
 <text x="34.0" y="51.1" text-anchor="start" font-size="11.0" font-weight="400" fill="#666666"><tspan x="34.0" dy="0">Smart Lock AI 客服與派工 SaaS｜工業視覺語意轉譯：即時互動、領域事件、控制治理、持久化/重播/證據</tspan></text>
-<rect x="40.0" y="130.0" width="190.0" height="75.0" rx="7" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="40.0" y="130.0" width="190.0" height="75.0" rx="7" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="135.0" y="165.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="135.0" dy="0">Customer Interaction Signal</tspan><tspan x="135.0" dy="12.5">LINE 詢問 · LIFF/postback 決策</tspan></text>
-<rect x="40.0" y="250.0" width="190.0" height="75.0" rx="7" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="40.0" y="250.0" width="190.0" height="75.0" rx="7" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="135.0" y="285.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="135.0" dy="0">Brand Operations Decision 問題卡</tspan><tspan x="135.0" dy="12.5">· 報價 · 派工 · 結算</tspan></text>
-<rect x="40.0" y="370.0" width="190.0" height="75.0" rx="7" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="40.0" y="370.0" width="190.0" height="75.0" rx="7" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="135.0" y="405.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="135.0" dy="0">Technician Field Action 接單 ·</tspan><tspan x="135.0" dy="12.5">到場 · requote · 存證</tspan></text>
-<rect x="40.0" y="490.0" width="190.0" height="75.0" rx="7" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="40.0" y="490.0" width="190.0" height="75.0" rx="7" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="135.0" y="525.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="135.0" dy="0">Knowledge &amp; Diagnostic Source</tspan><tspan x="135.0" dy="12.5">產品素材 · 三方診斷對話</tspan></text>
-<rect x="40.0" y="620.0" width="190.0" height="95.0" rx="7" fill="#F8FAFC" stroke="#94A3B8" stroke-width="1.3" stroke-dasharray="6,4"/>
+<rect x="40.0" y="620.0" width="190.0" height="95.0" rx="7" fill="#F4F5F7" stroke="#98A2B0" stroke-width="1.3" stroke-dasharray="6,4"/>
 <text x="135.0" y="665.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="135.0" dy="0">Signal only 角色意圖在此表達；</tspan><tspan x="135.0" dy="12.5">業務真相一律由 Z4 擁有</tspan></text>
-<rect x="275.0" y="130.0" width="125.0" height="90.0" rx="7" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.3"/>
+<rect x="275.0" y="130.0" width="125.0" height="90.0" rx="7" fill="#ECEFF4" stroke="#3B5B8C" stroke-width="1.3"/>
 <text x="337.5" y="172.5" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="337.5" dy="0">LINE Gateway 驗簽 ·</tspan><tspan x="337.5" dy="12.5">dedup · handover</tspan></text>
-<rect x="415.0" y="130.0" width="125.0" height="90.0" rx="7" fill="#EFF6FF" stroke="#2563EB" stroke-width="1.3"/>
+<rect x="415.0" y="130.0" width="125.0" height="90.0" rx="7" fill="#ECEFF4" stroke="#3B5B8C" stroke-width="1.3"/>
 <text x="477.5" y="160.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="477.5" dy="0">LockCore Agent</tspan><tspan x="477.5" dy="12.5">Runtime Turn ·</tspan><tspan x="477.5" dy="12.5">Skill · Memory ·</tspan><tspan x="477.5" dy="12.5">Tools</tspan></text>
-<rect x="275.0" y="280.0" width="265.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.3"/>
+<rect x="275.0" y="280.0" width="265.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#3B5B8C" stroke-width="1.3"/>
 <text x="407.5" y="317.5" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="407.5" dy="0">RAG-MCP Knowledge Access tenant ACL ·</tspan><tspan x="407.5" dy="12.5">pgvector citation</tspan></text>
-<rect x="275.0" y="405.0" width="265.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#2563EB" stroke-width="1.3"/>
+<rect x="275.0" y="405.0" width="265.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#3B5B8C" stroke-width="1.3"/>
 <text x="407.5" y="442.5" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="407.5" dy="0">LiteLLM Model Gateway provider routing ·</tspan><tspan x="407.5" dy="12.5">fallback · budget</tspan></text>
-<rect x="275.0" y="555.0" width="265.0" height="115.0" rx="7" fill="#FEF2F2" stroke="#B91C1C" stroke-width="1.3" stroke-dasharray="6,4"/>
+<rect x="275.0" y="555.0" width="265.0" height="115.0" rx="7" fill="#F4ECEC" stroke="#A15C5C" stroke-width="1.3" stroke-dasharray="6,4"/>
 <text x="407.5" y="603.8" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="407.5" dy="0">責任紅線 AI 只做對話判斷、知識回覆與</tspan><tspan x="407.5" dy="12.5">transfer_to_human； 不擁有 final</tspan><tspan x="407.5" dy="12.5">quote／工單／派工／金流真相</tspan></text>
-<rect x="585.0" y="130.0" width="280.0" height="90.0" rx="7" fill="#F0FDF4" stroke="#16A34A" stroke-width="1.3"/>
+<rect x="585.0" y="130.0" width="280.0" height="90.0" rx="7" fill="#ECF1ED" stroke="#4A6B57" stroke-width="1.3"/>
 <text x="725.0" y="172.5" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="725.0" dy="0">API / ACL Integration Gateway OIDC/S2S ·</tspan><tspan x="725.0" dy="12.5">tenant/role guard · idempotency</tspan></text>
-<rect x="585.0" y="265.0" width="130.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.3"/>
+<rect x="585.0" y="265.0" width="130.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#4A6B57" stroke-width="1.3"/>
 <text x="650.0" y="302.5" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="650.0" dy="0">Realtime WS + Redis</tspan><tspan x="650.0" dy="12.5">fan-out</tspan></text>
-<rect x="735.0" y="265.0" width="130.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.3"/>
+<rect x="735.0" y="265.0" width="130.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#4A6B57" stroke-width="1.3"/>
 <text x="800.0" y="302.5" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="800.0" dy="0">Reliable Outbox LINE</tspan><tspan x="800.0" dy="12.5">/ notification retry</tspan></text>
-<rect x="585.0" y="405.0" width="280.0" height="85.0" rx="7" fill="#F0FDF4" stroke="#16A34A" stroke-width="1.3" stroke-dasharray="6,4"/>
+<rect x="585.0" y="405.0" width="280.0" height="85.0" rx="7" fill="#ECF1ED" stroke="#4A6B57" stroke-width="1.3" stroke-dasharray="6,4"/>
 <text x="725.0" y="451.2" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="725.0" dy="0">Event Backbone  🔜 Kafka · AsyncAPI · replay</tspan></text>
-<rect x="585.0" y="540.0" width="280.0" height="85.0" rx="7" fill="#FFFFFF" stroke="#16A34A" stroke-width="1.3"/>
+<rect x="585.0" y="540.0" width="280.0" height="85.0" rx="7" fill="#FFFFFF" stroke="#4A6B57" stroke-width="1.3"/>
 <text x="725.0" y="580.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="725.0" dy="0">Technician OHS Adapter match/query · requote</tspan><tspan x="725.0" dy="12.5">command · ACL</tspan></text>
-<rect x="585.0" y="665.0" width="280.0" height="65.0" rx="7" fill="#F0FDF4" stroke="#15803D" stroke-width="1.3" stroke-dasharray="6,4"/>
+<rect x="585.0" y="665.0" width="280.0" height="65.0" rx="7" fill="#ECF1ED" stroke="#5A7A63" stroke-width="1.3" stroke-dasharray="6,4"/>
 <text x="725.0" y="695.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="725.0" dy="0">機制分工：Outbox＝可靠副作用｜Kafka＝跨系統事實｜Re</tspan><tspan x="725.0" dy="12.5">dis＝暫態 fan-out</tspan></text>
-<rect x="910.0" y="130.0" width="270.0" height="100.0" rx="7" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.3"/>
+<rect x="910.0" y="130.0" width="270.0" height="100.0" rx="7" fill="#F3EFE8" stroke="#8C6B4A" stroke-width="1.3"/>
 <text x="1045.0" y="171.2" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1045.0" dy="0">Brand Domain Services Problem Card · Quote ·</tspan><tspan x="1045.0" dy="12.5">Work Order · Dispatch · Billing</tspan><tspan x="1045.0" dy="12.5">品牌交易與規則唯一權威</tspan></text>
-<rect x="910.0" y="265.0" width="270.0" height="90.0" rx="7" fill="#FFFFFF" stroke="#EA580C" stroke-width="1.3"/>
+<rect x="910.0" y="265.0" width="270.0" height="90.0" rx="7" fill="#FFFFFF" stroke="#8C6B4A" stroke-width="1.3"/>
 <text x="1045.0" y="307.5" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1045.0" dy="0">Technician Platform 技師身分/准入/媒合 · Work</tspan><tspan x="1045.0" dy="12.5">Order CQRS · Settlement</tspan></text>
-<rect x="910.0" y="395.0" width="270.0" height="90.0" rx="7" fill="#FFFFFF" stroke="#EA580C" stroke-width="1.3"/>
+<rect x="910.0" y="395.0" width="270.0" height="90.0" rx="7" fill="#FFFFFF" stroke="#8C6B4A" stroke-width="1.3"/>
 <text x="1045.0" y="437.5" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1045.0" dy="0">Knowledge Refinery + HITL Raw/Bronze/Silver ·</tspan><tspan x="1045.0" dy="12.5">provenance · 人審核可發布</tspan></text>
-<rect x="1195.0" y="130.0" width="125.0" height="100.0" rx="7" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.3"/>
-<text x="1257.5" y="172.1" text-anchor="middle" font-size="9.0" font-weight="400" fill="#7C2D12"><tspan x="1257.5" dy="0">Brand DB + pgvector</tspan><tspan x="1257.5" dy="11.2">SQL · JSONB · Outbox</tspan><tspan x="1257.5" dy="11.2">唯一事實語料</tspan></text>
-<rect x="1195.0" y="265.0" width="125.0" height="90.0" rx="7" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.3"/>
-<text x="1257.5" y="302.1" text-anchor="middle" font-size="9.0" font-weight="400" fill="#7C2D12"><tspan x="1257.5" dy="0">Technician DB 技能 ·</tspan><tspan x="1257.5" dy="11.2">KYC · 排班 Encrypted</tspan><tspan x="1257.5" dy="11.2">PII</tspan></text>
-<rect x="1195.0" y="395.0" width="125.0" height="90.0" rx="7" fill="#FFF7ED" stroke="#EA580C" stroke-width="1.3"/>
-<text x="1257.5" y="426.5" text-anchor="middle" font-size="9.0" font-weight="400" fill="#7C2D12"><tspan x="1257.5" dy="0">Platform DB / Evidence</tspan><tspan x="1257.5" dy="11.2">Store License · GCS</tspan><tspan x="1257.5" dy="11.2">object hash ·</tspan><tspan x="1257.5" dy="11.2">retention</tspan></text>
-<rect x="910.0" y="665.0" width="410.0" height="65.0" rx="7" fill="#FFF7ED" stroke="#C2410C" stroke-width="1.3" stroke-dasharray="6,4"/>
+<rect x="1195.0" y="130.0" width="125.0" height="100.0" rx="7" fill="#F3EFE8" stroke="#8C6B4A" stroke-width="1.3"/>
+<text x="1257.5" y="172.1" text-anchor="middle" font-size="9.0" font-weight="400" fill="#5E4A38"><tspan x="1257.5" dy="0">Brand DB + pgvector</tspan><tspan x="1257.5" dy="11.2">SQL · JSONB · Outbox</tspan><tspan x="1257.5" dy="11.2">唯一事實語料</tspan></text>
+<rect x="1195.0" y="265.0" width="125.0" height="90.0" rx="7" fill="#F3EFE8" stroke="#8C6B4A" stroke-width="1.3"/>
+<text x="1257.5" y="302.1" text-anchor="middle" font-size="9.0" font-weight="400" fill="#5E4A38"><tspan x="1257.5" dy="0">Technician DB 技能 ·</tspan><tspan x="1257.5" dy="11.2">KYC · 排班 Encrypted</tspan><tspan x="1257.5" dy="11.2">PII</tspan></text>
+<rect x="1195.0" y="395.0" width="125.0" height="90.0" rx="7" fill="#F3EFE8" stroke="#8C6B4A" stroke-width="1.3"/>
+<text x="1257.5" y="426.5" text-anchor="middle" font-size="9.0" font-weight="400" fill="#5E4A38"><tspan x="1257.5" dy="0">Platform DB / Evidence</tspan><tspan x="1257.5" dy="11.2">Store License · GCS</tspan><tspan x="1257.5" dy="11.2">object hash ·</tspan><tspan x="1257.5" dy="11.2">retention</tspan></text>
+<rect x="910.0" y="665.0" width="410.0" height="65.0" rx="7" fill="#F3EFE8" stroke="#7E5F42" stroke-width="1.3" stroke-dasharray="6,4"/>
 <text x="1115.0" y="701.2" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1115.0" dy="0">隔離原則：品牌不直連技師庫；跨域只走 OHS／event；CQRS 投影欄位最小化</tspan></text>
-<rect x="1365.0" y="130.0" width="295.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#475569" stroke-width="1.3"/>
+<rect x="1365.0" y="130.0" width="295.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#5C6673" stroke-width="1.3"/>
 <text x="1512.5" y="173.8" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1512.5" dy="0">LINE / LIFF / Flex Messaging API · 客戶確認</tspan></text>
-<rect x="1365.0" y="250.0" width="295.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#475569" stroke-width="1.3"/>
+<rect x="1365.0" y="250.0" width="295.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#5C6673" stroke-width="1.3"/>
 <text x="1512.5" y="293.8" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1512.5" dy="0">Brand Operations Portal 對話 · 報價 · 派工 · 對帳</tspan></text>
-<rect x="1365.0" y="370.0" width="295.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#475569" stroke-width="1.3"/>
+<rect x="1365.0" y="370.0" width="295.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#5C6673" stroke-width="1.3"/>
 <text x="1512.5" y="413.8" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1512.5" dy="0">Technician Portal 准入 · 接單 · 現場 · statement</tspan></text>
-<rect x="1365.0" y="490.0" width="295.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#475569" stroke-width="1.3"/>
+<rect x="1365.0" y="490.0" width="295.0" height="80.0" rx="7" fill="#FFFFFF" stroke="#5C6673" stroke-width="1.3"/>
 <text x="1512.5" y="533.8" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1512.5" dy="0">Platform Console 租戶 · License · 治理</tspan></text>
-<rect x="1365.0" y="610.0" width="295.0" height="100.0" rx="7" fill="#F8FAFC" stroke="#475569" stroke-width="1.3"/>
+<rect x="1365.0" y="610.0" width="295.0" height="100.0" rx="7" fill="#F4F5F7" stroke="#5C6673" stroke-width="1.3"/>
 <text x="1512.5" y="651.2" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1512.5" dy="0">External Shared Services Casdoor OIDC/JWKS · LLM</tspan><tspan x="1512.5" dy="12.5">Providers HTTPS GCP Runtime / Secret / Object</tspan><tspan x="1512.5" dy="12.5">Storage</tspan></text>
-<rect x="45.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#FAF5FF" stroke="#9333EA" stroke-width="1.3"/>
+<rect x="45.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#F0EDF2" stroke="#6B5B7B" stroke-width="1.3"/>
 <text x="190.0" y="900.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="190.0" dy="0">Channel &amp; Client Management LINE OA 綁定 ·</tspan><tspan x="190.0" dy="12.5">webhook health 技師客戶端准入</tspan></text>
-<rect x="365.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#FAF5FF" stroke="#9333EA" stroke-width="1.3"/>
+<rect x="365.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#F0EDF2" stroke="#6B5B7B" stroke-width="1.3"/>
 <text x="510.0" y="900.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="510.0" dy="0">Configuration 品牌 · 模型 · SLA Channel · feature</tspan><tspan x="510.0" dy="12.5">flag</tspan></text>
-<rect x="685.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#FAF5FF" stroke="#9333EA" stroke-width="1.3"/>
+<rect x="685.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#F0EDF2" stroke="#6B5B7B" stroke-width="1.3"/>
 <text x="830.0" y="900.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="830.0" dy="0">Security &amp; Governance OIDC · RBAC/SoD · S2S</tspan><tspan x="830.0" dy="12.5">Tenant ACL · PII policy</tspan></text>
-<rect x="1005.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#FAF5FF" stroke="#9333EA" stroke-width="1.3"/>
+<rect x="1005.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#F0EDF2" stroke="#6B5B7B" stroke-width="1.3"/>
 <text x="1150.0" y="900.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1150.0" dy="0">Observability &amp; Operations OTel · LLM trace · SLO</tspan><tspan x="1150.0" dy="12.5">Alert · audit · runbook</tspan></text>
-<rect x="1325.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#FAF5FF" stroke="#9333EA" stroke-width="1.3"/>
+<rect x="1325.0" y="855.0" width="290.0" height="95.0" rx="7" fill="#F0EDF2" stroke="#6B5B7B" stroke-width="1.3"/>
 <text x="1470.0" y="900.0" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1470.0" dy="0">Control Plane Provisioning · License Vertical</tspan><tspan x="1470.0" dy="12.5">Pack · rollout</tspan></text>
 <rect x="25.0" y="1035.0" width="520.0" height="146.0" rx="7" fill="#FFFFFF" stroke="#666666" stroke-width="1.3"/>
 <text x="285.0" y="1054.0" text-anchor="middle" font-size="11.0" font-weight="600" fill="#0F172A"><tspan x="285.0" dy="0">資料路徑與狀態圖例</tspan></text>
-<rect x="67.0" y="1063.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="67.0" y="1063.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="76.0" y="1077.8" text-anchor="start" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="76.0" dy="0">藍實線 = 即時互動 / 同步交易（LINE、REST、WS、Flex）</tspan></text>
-<rect x="67.0" y="1085.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="67.0" y="1085.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="76.0" y="1099.8" text-anchor="start" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="76.0" dy="0">綠虛線 = AI metadata / 非同步領域事件（Internal JSON、Kafka）</tspan></text>
-<rect x="67.0" y="1107.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="67.0" y="1107.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="76.0" y="1121.8" text-anchor="start" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="76.0" dy="0">紫虛線 = 控制 / 設定 / 身分 / 安全 / 可觀測</tspan></text>
-<rect x="67.0" y="1129.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="67.0" y="1129.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="76.0" y="1143.8" text-anchor="start" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="76.0" dy="0">橘虛線 = SQL / Outbox / pgvector / replay / evidence</tspan></text>
 <rect x="35.0" y="1154.0" width="26.0" height="14.0" rx="7" fill="#FFFFFF" stroke="#666666" stroke-width="1.3"/>
-<rect x="67.0" y="1151.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#64748B" stroke-width="1.3"/>
+<rect x="67.0" y="1151.0" width="470.0" height="22.0" rx="0" fill="#FFFFFF" stroke="#737D8A" stroke-width="1.3"/>
 <text x="76.0" y="1165.8" text-anchor="start" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="76.0" dy="0">🔜 虛線元件框 = 參考目標能力，落地狀態另依證據對帳</tspan></text>
-<rect x="570.0" y="1040.0" width="1105.0" height="105.0" rx="7" fill="#F8FAFC" stroke="#334155" stroke-width="1.3"/>
+<rect x="570.0" y="1040.0" width="1105.0" height="105.0" rx="7" fill="#F4F5F7" stroke="#414B59" stroke-width="1.3"/>
 <text x="1122.5" y="1096.2" text-anchor="middle" font-size="10.0" font-weight="400" fill="#0F172A"><tspan x="1122.5" dy="0">架構鐵律 ① AI 不擁有報價/工單/派工/金流真相　② 品牌不直連技師庫　③ 同步查詢與非同步事實分流　④ Outbox/Kafka/Redis 各有單一責任　⑤ 所有箭頭均標方向、協定或資料格式</tspan></text>
 <rect class="edge-label-bg" x="137.3" y="216.2" width="183.4" height="17.7" rx="3"/>
-<text x="229.0" y="226.2" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="229.0" y="226.2" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="229.0" dy="0">LINE Webhook JSON X-Line-Signature</tspan>
 </text>
 <rect class="edge-label-bg" x="351.6" y="236.2" width="112.8" height="17.7" rx="3"/>
-<text x="408.0" y="246.2" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="408.0" y="246.2" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="408.0" dy="0">Normalized Turn JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="547.6" y="236.2" width="107.8" height="17.7" rx="3"/>
-<text x="601.5" y="246.2" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="601.5" y="246.2" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="601.5" dy="0">HTTPS Internal JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="849.5" y="236.2" width="138.0" height="17.7" rx="3"/>
-<text x="918.5" y="246.2" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="918.5" y="246.2" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="918.5" dy="0">REST JSON Idempotency-Key</tspan>
 </text>
 <rect class="edge-label-bg" x="978.5" y="56.1" width="138.0" height="17.7" rx="3"/>
-<text x="1047.5" y="66.2" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="1047.5" y="66.2" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="1047.5" dy="0">Messaging API / Flex JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="978.7" y="246.2" width="82.6" height="17.7" rx="3"/>
-<text x="1020.0" y="256.1" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="1020.0" y="256.1" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="1020.0" dy="0">WebSocket JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="1189.6" y="361.1" width="117.8" height="17.7" rx="3"/>
-<text x="1248.5" y="371.1" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="1248.5" y="371.1" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="1248.5" dy="0">REST / WebSocket JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="415.1" y="666.1" width="102.7" height="17.7" rx="3"/>
-<text x="466.5" y="676.1" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="466.5" y="676.1" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="466.5" dy="0">HTTPS Command JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="223.3" y="701.1" width="193.4" height="17.7" rx="3"/>
-<text x="320.0" y="711.1" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="320.0" y="711.1" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="320.0" dy="0">Field Command JSON Evidence Metadata</tspan>
 </text>
 <rect class="edge-label-bg" x="486.6" y="298.6" width="122.9" height="17.7" rx="3"/>
-<text x="548.0" y="308.6" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="548.0" y="308.6" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="548.0" dy="0">OpenAI-compatible JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="791.1" y="741.1" width="107.8" height="17.7" rx="3"/>
-<text x="845.0" y="751.1" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="845.0" y="751.1" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="845.0" dy="0">HTTPS Model Request</tspan>
 </text>
 <rect class="edge-label-bg" x="790.8" y="440.2" width="198.5" height="17.7" rx="3"/>
-<text x="890.0" y="450.2" text-anchor="middle" font-size="9.0" fill="#1E3A8A">
+<text x="890.0" y="450.2" text-anchor="middle" font-size="9.0" fill="#2A4260">
 <tspan x="890.0" dy="0">HTTPS OHS Command JSON S2S Credential</tspan>
 </text>
 <rect class="edge-label-bg" x="475.8" y="215.1" width="178.3" height="17.7" rx="3"/>
-<text x="565.0" y="225.1" text-anchor="middle" font-size="9.0" fill="#166534">
+<text x="565.0" y="225.1" text-anchor="middle" font-size="9.0" fill="#35503F">
 <tspan x="565.0" dy="0">Escalation Metadata Internal JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="788.2" y="307.7" width="203.5" height="17.7" rx="3"/>
-<text x="890.0" y="317.7" text-anchor="middle" font-size="9.0" fill="#166534">
+<text x="890.0" y="317.7" text-anchor="middle" font-size="9.0" fill="#35503F">
 <tspan x="890.0" dy="0">workorder.* / dispatch.* AsyncAPI JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="778.7" y="367.7" width="212.5" height="17.7" rx="3"/>
-<text x="885.0" y="377.7" text-anchor="middle" font-size="9.0" fill="#166534">
+<text x="885.0" y="377.7" text-anchor="middle" font-size="9.0" fill="#35503F">
 <tspan x="885.0" dy="0">dispatch.* ↔ technician.* AsyncAPI JSON</tspan>
 </text>
 <rect class="edge-label-bg" x="608.4" y="404.9" width="158.2" height="17.7" rx="3"/>
-<text x="687.5" y="414.9" text-anchor="middle" font-size="9.0" fill="#166534">
+<text x="687.5" y="414.9" text-anchor="middle" font-size="9.0" fill="#35503F">
 <tspan x="687.5" dy="0">Projection Update Redis Event</tspan>
 </text>
 <rect class="edge-label-bg" x="519.9" y="721.1" width="173.3" height="17.7" rx="3"/>
-<text x="606.5" y="731.1" text-anchor="middle" font-size="9.0" fill="#166534">
+<text x="606.5" y="731.1" text-anchor="middle" font-size="9.0" fill="#35503F">
 <tspan x="606.5" dy="0">Provenance / Diagnostic Metadata</tspan>
 </text>
 <rect class="edge-label-bg" x="386.1" y="273.6" width="112.8" height="17.7" rx="3"/>
-<text x="442.5" y="283.6" text-anchor="middle" font-size="9.0" fill="#166534">
+<text x="442.5" y="283.6" text-anchor="middle" font-size="9.0" fill="#35503F">
 <tspan x="442.5" dy="0">MCP Query / Citation</tspan>
 </text>
 <rect class="edge-label-bg" x="488.6" y="261.9" width="122.9" height="17.7" rx="3"/>
-<text x="550.0" y="271.9" text-anchor="middle" font-size="9.0" fill="#166534">
+<text x="550.0" y="271.9" text-anchor="middle" font-size="9.0" fill="#35503F">
 <tspan x="550.0" dy="0">Tenant-filtered Result</tspan>
 </text>
 <rect class="edge-label-bg" x="1102.3" y="171.2" width="112.8" height="17.7" rx="3"/>
-<text x="1158.8" y="181.2" text-anchor="middle" font-size="9.0" fill="#9A3412">
+<text x="1158.8" y="181.2" text-anchor="middle" font-size="9.0" fill="#6B4F35">
 <tspan x="1158.8" dy="0">SQL / JSONB / Outbox</tspan>
 </text>
 <rect class="edge-label-bg" x="1104.9" y="301.1" width="107.8" height="17.7" rx="3"/>
-<text x="1158.8" y="311.1" text-anchor="middle" font-size="9.0" fill="#9A3412">
+<text x="1158.8" y="311.1" text-anchor="middle" font-size="9.0" fill="#6B4F35">
 <tspan x="1158.8" dy="0">SQL / Encrypted PII</tspan>
 </text>
 <rect class="edge-label-bg" x="1103.9" y="301.6" width="168.2" height="17.7" rx="3"/>
-<text x="1188.0" y="311.6" text-anchor="middle" font-size="9.0" fill="#9A3412">
+<text x="1188.0" y="311.6" text-anchor="middle" font-size="9.0" fill="#6B4F35">
 <tspan x="1188.0" dy="0">Chunk / Embedding / Skill Patch</tspan>
 </text>
 <rect class="edge-label-bg" x="1252.5" y="236.2" width="122.9" height="17.7" rx="3"/>
-<text x="1314.0" y="246.2" text-anchor="middle" font-size="9.0" fill="#9A3412">
+<text x="1314.0" y="246.2" text-anchor="middle" font-size="9.0" fill="#6B4F35">
 <tspan x="1314.0" dy="0">Evidence Object + Hash</tspan>
 </text>
 <rect class="edge-label-bg" x="823.5" y="243.6" width="133.0" height="17.7" rx="3"/>
-<text x="890.0" y="253.6" text-anchor="middle" font-size="9.0" fill="#9A3412">
+<text x="890.0" y="253.6" text-anchor="middle" font-size="9.0" fill="#6B4F35">
 <tspan x="890.0" dy="0">Transactional Outbox Row</tspan>
 </text>
 <rect class="edge-label-bg" x="983.9" y="501.1" width="158.2" height="17.7" rx="3"/>
-<text x="1063.0" y="511.1" text-anchor="middle" font-size="9.0" fill="#9A3412">
+<text x="1063.0" y="511.1" text-anchor="middle" font-size="9.0" fill="#6B4F35">
 <tspan x="1063.0" dy="0">Event Log / Replay Checkpoint</tspan>
 </text>
 <rect class="edge-label-bg" x="186.0" y="445.2" width="127.9" height="17.7" rx="3"/>
-<text x="250.0" y="455.2" text-anchor="middle" font-size="9.0" fill="#6B21A8">
+<text x="250.0" y="455.2" text-anchor="middle" font-size="9.0" fill="#4E4159">
 <tspan x="250.0" dy="0">LINE OA / client policy</tspan>
 </text>
 <rect class="edge-label-bg" x="493.5" y="445.2" width="133.0" height="17.7" rx="3"/>
-<text x="560.0" y="455.2" text-anchor="middle" font-size="9.0" fill="#6B21A8">
+<text x="560.0" y="455.2" text-anchor="middle" font-size="9.0" fill="#4E4159">
 <tspan x="560.0" dy="0">Versioned runtime config</tspan>
 </text>
 <rect class="edge-label-bg" x="795.8" y="408.7" width="178.3" height="17.7" rx="3"/>
-<text x="885.0" y="418.7" text-anchor="middle" font-size="9.0" fill="#6B21A8">
+<text x="885.0" y="418.7" text-anchor="middle" font-size="9.0" fill="#4E4159">
 <tspan x="885.0" dy="0">OIDC / RBAC / S2S / tenant policy</tspan>
 </text>
 <rect class="edge-label-bg" x="505.5" y="771.1" width="178.3" height="17.7" rx="3"/>
-<text x="594.7" y="781.1" text-anchor="middle" font-size="9.0" fill="#6B21A8">
+<text x="594.7" y="781.1" text-anchor="middle" font-size="9.0" fill="#4E4159">
 <tspan x="594.7" dy="0">OTLP / LLM trace / correlation ID</tspan>
 </text>
 <rect class="edge-label-bg" x="1276.0" y="738.7" width="127.9" height="17.7" rx="3"/>
-<text x="1340.0" y="748.7" text-anchor="middle" font-size="9.0" fill="#6B21A8">
+<text x="1340.0" y="748.7" text-anchor="middle" font-size="9.0" fill="#4E4159">
 <tspan x="1340.0" dy="0">Governance command OIDC</tspan>
 </text>
 </svg>

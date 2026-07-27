@@ -252,11 +252,11 @@ def render_drawio_to_svg(xml_text: str, output_path: str) -> None:
     edges = [cell for cell in cells.values() if cell.get("edge") == "1"]
 
     palette = {
-        "#2563EB": "blue",
-        "#16A34A": "green",
-        "#9333EA": "purple",
-        "#EA580C": "orange",
-        "#64748B": "gray",
+        "#3B5B8C": "blue",
+        "#4A6B57": "green",
+        "#6B5B7B": "purple",
+        "#8C6B4A": "orange",
+        "#737D8A": "gray",
     }
     svg: list[str] = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{page_width:.0f}" '
@@ -281,9 +281,9 @@ def render_drawio_to_svg(xml_text: str, output_path: str) -> None:
             continue
         box = boxes[cell.get("id")]
         x, y, width, height = box
-        stroke = style.get("strokeColor", "#CBD5E1")
+        stroke = style.get("strokeColor", "#C2C8D0")
         fill = style.get("fillColor", "#FFFFFF")
-        header_fill = style.get("swimlaneFillColor", "#F8FAFC")
+        header_fill = style.get("swimlaneFillColor", "#F4F5F7")
         header_height = _number(style.get("startSize"), 36)
         svg.append(
             f'<rect x="{x:.1f}" y="{y:.1f}" width="{width:.1f}" height="{height:.1f}" '
@@ -309,7 +309,7 @@ def render_drawio_to_svg(xml_text: str, output_path: str) -> None:
         points = _edge_points(cell, boxes, style_text)
         if len(points) < 2:
             continue
-        stroke = style.get("strokeColor", "#64748B")
+        stroke = style.get("strokeColor", "#737D8A")
         width = _number(style.get("strokeWidth"), 1.5)
         dash = ""
         if style.get("dashed") == "1":
@@ -362,7 +362,7 @@ def render_drawio_to_svg(xml_text: str, output_path: str) -> None:
         is_text = "text" in style and style.get("strokeColor") == "none"
         if not is_text:
             fill = style.get("fillColor", "#FFFFFF")
-            stroke = style.get("strokeColor", "#64748B")
+            stroke = style.get("strokeColor", "#737D8A")
             dash = ' stroke-dasharray="6,4"' if style.get("dashed") == "1" else ""
             radius = 7 if style.get("rounded") == "1" else 0
             svg.append(

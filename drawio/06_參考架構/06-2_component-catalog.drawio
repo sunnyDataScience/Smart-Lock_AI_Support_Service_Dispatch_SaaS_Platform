@@ -1,122 +1,122 @@
 <mxfile host="app.diagrams.net" agent="claude-code" version="24.7.17">
 <diagram id="d06_2" name="06-2 L2 元件責任與介面目錄">
 <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="1200" math="0" shadow="0"><root><mxCell id="0"/><mxCell id="1" parent="0"/>
-<mxCell id="r2_ttl" value="06-2 L2 Component Catalog  ·  Responsibility + Interface" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontStyle=1;fontSize=17;" vertex="1" parent="1"><mxGeometry x="25" y="8" width="1300" height="30" as="geometry"/></mxCell><mxCell id="r2_sub" value="每張卡可獨立搬入簡報、SAD、ADR 或細化圖；只保留責任與主要介面，不展開 class / endpoint / pod / table。" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="25" y="36" width="1500" height="22" as="geometry"/></mxCell><mxCell id="r2_g1" value="Z1 Actors &amp; Inbound Signals" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#F8FAFC;strokeColor=#64748B;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="25" y="75" width="520" height="420" as="geometry"/></mxCell><mxCell id="r2_g1_c0" value="Customer Interaction Signal
+<mxCell id="r2_ttl" value="06-2 L2 Component Catalog  ·  Responsibility + Interface" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontStyle=1;fontSize=17;" vertex="1" parent="1"><mxGeometry x="25" y="8" width="1300" height="30" as="geometry"/></mxCell><mxCell id="r2_sub" value="每張卡可獨立搬入簡報、SAD、ADR 或細化圖；只保留責任與主要介面，不展開 class / endpoint / pod / table。" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontColor=#666666;" vertex="1" parent="1"><mxGeometry x="25" y="36" width="1500" height="22" as="geometry"/></mxCell><mxCell id="r2_g1" value="Z1 Actors &amp; Inbound Signals" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#F4F5F7;strokeColor=#737D8A;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="25" y="75" width="520" height="420" as="geometry"/></mxCell><mxCell id="r2_g1_c0" value="Customer Interaction Signal
 
 責任：客戶訊息、LIFF/postback 決策
 
-介面：LINE webhook JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#64748B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g1"><mxGeometry x="15.0" y="55" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g1_c1" value="Brand Operations Decision
+介面：LINE webhook JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#737D8A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g1"><mxGeometry x="15.0" y="55" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g1_c1" value="Brand Operations Decision
 
 責任：問題卡、報價、派工、結算操作
 
-介面：Browser / REST JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#64748B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g1"><mxGeometry x="266.0" y="55" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g1_c2" value="Technician Field Action
+介面：Browser / REST JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#737D8A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g1"><mxGeometry x="266.0" y="55" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g1_c2" value="Technician Field Action
 
 責任：接單、到場、requote、施工存證
 
-介面：Web command / evidence metadata" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#64748B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g1"><mxGeometry x="15.0" y="214" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g1_c3" value="Knowledge &amp; Diagnostic Source
+介面：Web command / evidence metadata" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#737D8A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g1"><mxGeometry x="15.0" y="214" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g1_c3" value="Knowledge &amp; Diagnostic Source
 
 責任：產品素材與三方診斷原始來源
 
-介面：URL / transcript / provenance" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#64748B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g1"><mxGeometry x="266.0" y="214" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g2" value="Z2 Channel &amp; AI Runtime" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#EFF6FF;strokeColor=#2563EB;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="570" y="75" width="520" height="420" as="geometry"/></mxCell><mxCell id="r2_g2_c0" value="LINE Gateway
+介面：URL / transcript / provenance" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#737D8A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g1"><mxGeometry x="266.0" y="214" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g2" value="Z2 Channel &amp; AI Runtime" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#ECEFF4;strokeColor=#3B5B8C;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="570" y="75" width="520" height="420" as="geometry"/></mxCell><mxCell id="r2_g2_c0" value="LINE Gateway
 
 責任：驗簽、去重、handover 與通道交付
 
-介面：HTTPS / X-Line-Signature" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#2563EB;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g2"><mxGeometry x="15.0" y="55" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g2_c1" value="LockCore Agent Runtime
+介面：HTTPS / X-Line-Signature" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#3B5B8C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g2"><mxGeometry x="15.0" y="55" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g2_c1" value="LockCore Agent Runtime
 
 責任：Turn、Skill、Memory、Tool allowlist
 
-介面：Normalized Turn / Internal JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#2563EB;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g2"><mxGeometry x="266.0" y="55" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g2_c2" value="RAG-MCP Knowledge Access
+介面：Normalized Turn / Internal JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#3B5B8C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g2"><mxGeometry x="266.0" y="55" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g2_c2" value="RAG-MCP Knowledge Access
 
 責任：tenant-filtered 語意檢索與引用
 
-介面：MCP / pgvector result" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#2563EB;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g2"><mxGeometry x="15.0" y="214" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g2_c3" value="LiteLLM Model Gateway
+介面：MCP / pgvector result" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#3B5B8C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g2"><mxGeometry x="15.0" y="214" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g2_c3" value="LiteLLM Model Gateway
 
 責任：模型路由、fallback、timeout 與 budget
 
-介面：HTTPS / OpenAI-compatible JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#2563EB;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g2"><mxGeometry x="266.0" y="214" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g3" value="Z3 Interaction &amp; Event Distribution" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#F0FDF4;strokeColor=#16A34A;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="1115" y="75" width="560" height="420" as="geometry"/></mxCell><mxCell id="r2_g3_c0" value="API / ACL Integration Gateway
+介面：HTTPS / OpenAI-compatible JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#3B5B8C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g2"><mxGeometry x="266.0" y="214" width="239.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g3" value="Z3 Interaction &amp; Event Distribution" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#ECF1ED;strokeColor=#4A6B57;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="1115" y="75" width="560" height="420" as="geometry"/></mxCell><mxCell id="r2_g3_c0" value="API / ACL Integration Gateway
 
 責任：同步 command/query、身分與租戶守衛
 
-介面：REST / OIDC / S2S / RFC7807" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#16A34A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="15.0" y="55.0" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g3_c1" value="Realtime WS + Redis
+介面：REST / OIDC / S2S / RFC7807" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#4A6B57;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="15.0" y="55.0" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g3_c1" value="Realtime WS + Redis
 
 責任：跨實例暫態 fan-out
 
-介面：WebSocket JSON / Redis pub-sub" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#16A34A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="286.0" y="55.0" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g3_c2" value="Reliable Outbox Delivery
+介面：WebSocket JSON / Redis pub-sub" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#4A6B57;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="286.0" y="55.0" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g3_c2" value="Reliable Outbox Delivery
 
 責任：可靠 LINE/通知副作用與 retry
 
-介面：Outbox row / Flex JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#16A34A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="15.0" y="176.33333333333331" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g3_c3" value="Event Backbone 🔜
+介面：Outbox row / Flex JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#4A6B57;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="15.0" y="176.33333333333331" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g3_c3" value="Event Backbone 🔜
 
 責任：跨系統事實、重播與最終一致
 
-介面：Kafka / AsyncAPI JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#16A34A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="286.0" y="176.33333333333331" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g3_c4" value="Technician OHS Adapter
+介面：Kafka / AsyncAPI JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#4A6B57;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="286.0" y="176.33333333333331" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g3_c4" value="Technician OHS Adapter
 
 責任：隔離品牌域與技師域
 
-介面：HTTPS OHS / S2S credential" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#16A34A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="15.0" y="297.66666666666663" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g4" value="Z4 Domain Services &amp; Data" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#FFF7ED;strokeColor=#EA580C;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="25" y="525" width="650" height="590" as="geometry"/></mxCell><mxCell id="r2_g4_c0" value="Brand Domain Services
+介面：HTTPS OHS / S2S credential" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#4A6B57;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g3"><mxGeometry x="15.0" y="297.66666666666663" width="259.0" height="107.33333333333333" as="geometry"/></mxCell><mxCell id="r2_g4" value="Z4 Domain Services &amp; Data" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#F3EFE8;strokeColor=#8C6B4A;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="25" y="525" width="650" height="590" as="geometry"/></mxCell><mxCell id="r2_g4_c0" value="Brand Domain Services
 
 責任：Problem Card、Quote、Work Order、Dispatch、Billing 權威
 
-介面：Domain command/event / SQL" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#EA580C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="15.0" y="55" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c1" value="Technician Platform
+介面：Domain command/event / SQL" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8C6B4A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="15.0" y="55" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c1" value="Technician Platform
 
 責任：技師真相、媒合、CQRS、Settlement
 
-介面：OHS / Kafka / REST-WS" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#EA580C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="331.0" y="55" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c2" value="Knowledge Refinery + HITL
+介面：OHS / Kafka / REST-WS" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8C6B4A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="331.0" y="55" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c2" value="Knowledge Refinery + HITL
 
 責任：Medallion、provenance、人審與發布
 
-介面：Bronze/Silver / Draft / Patch" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#EA580C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="15.0" y="214" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c3" value="Brand DB + pgvector
+介面：Bronze/Silver / Draft / Patch" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8C6B4A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="15.0" y="214" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c3" value="Brand DB + pgvector
 
 責任：交易、對話、Outbox、唯一事實語料
 
-介面：PostgreSQL / JSONB / pgvector" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#EA580C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="331.0" y="214" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c4" value="Technician DB
+介面：PostgreSQL / JSONB / pgvector" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8C6B4A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="331.0" y="214" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c4" value="Technician DB
 
 責任：技師、KYC、技能、排班、結算真相
 
-介面：PostgreSQL / encrypted PII" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#EA580C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="15.0" y="373" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c5" value="Platform DB / Evidence Store
+介面：PostgreSQL / encrypted PII" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8C6B4A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="15.0" y="373" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g4_c5" value="Platform DB / Evidence Store
 
 責任：License、平台治理與證據保存
 
-介面：PostgreSQL / GCS object + hash" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#EA580C;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="331.0" y="373" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5" value="Z5 Applications &amp; External Systems" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#F8FAFC;strokeColor=#475569;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="700" y="525" width="470" height="590" as="geometry"/></mxCell><mxCell id="r2_g5_c0" value="LINE / LIFF / Flex
+介面：PostgreSQL / GCS object + hash" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#8C6B4A;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g4"><mxGeometry x="331.0" y="373" width="304.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5" value="Z5 Applications &amp; External Systems" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#F4F5F7;strokeColor=#5C6673;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="700" y="525" width="470" height="590" as="geometry"/></mxCell><mxCell id="r2_g5_c0" value="LINE / LIFF / Flex
 
 責任：客戶互動、報價確認與通知交付
 
-介面：Messaging API / LIFF / Flex JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#475569;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="15.0" y="55" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5_c1" value="Brand Operations Portal
+介面：Messaging API / LIFF / Flex JSON" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#5C6673;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="15.0" y="55" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5_c1" value="Brand Operations Portal
 
 責任：對話、報價、派工與對帳工作台
 
-介面：OIDC / REST / WebSocket" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#475569;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="241.0" y="55" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5_c2" value="Technician Portal
+介面：OIDC / REST / WebSocket" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#5C6673;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="241.0" y="55" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5_c2" value="Technician Portal
 
 責任：准入、接單、現場與 statement
 
-介面：OIDC / REST / WebSocket" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#475569;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="15.0" y="214" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5_c3" value="Platform Console
+介面：OIDC / REST / WebSocket" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#5C6673;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="15.0" y="214" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5_c3" value="Platform Console
 
 責任：租戶、License 與治理操作
 
-介面：OIDC / Platform API" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#475569;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="241.0" y="214" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5_c4" value="External Shared Services
+介面：OIDC / Platform API" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#5C6673;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="241.0" y="214" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g5_c4" value="External Shared Services
 
 責任：IdP、模型供應商與 GCP runtime
 
-介面：OIDC/JWKS / HTTPS / Cloud API" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#475569;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="15.0" y="373" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6" value="Z6 Cross-Cutting Management" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#FAF5FF;strokeColor=#9333EA;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="1195" y="525" width="480" height="590" as="geometry"/></mxCell><mxCell id="r2_g6_c0" value="Control Plane
+介面：OIDC/JWKS / HTTPS / Cloud API" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#5C6673;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g5"><mxGeometry x="15.0" y="373" width="214.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6" value="Z6 Cross-Cutting Management" style="swimlane;html=1;whiteSpace=wrap;horizontal=1;startSize=36;fillColor=#FFFFFF;swimlaneFillColor=#F0EDF2;strokeColor=#6B5B7B;fontColor=#0F172A;fontStyle=1;fontSize=12;container=1;collapsible=0;" vertex="1" parent="1"><mxGeometry x="1195" y="525" width="480" height="590" as="geometry"/></mxCell><mxCell id="r2_g6_c0" value="Control Plane
 
 責任：Provisioning、License、Pack、rollout
 
-介面：Versioned control command" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#9333EA;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="15.0" y="55" width="219.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6_c1" value="Configuration
+介面：Versioned control command" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#6B5B7B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="15.0" y="55" width="219.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6_c1" value="Configuration
 
 責任：品牌、模型、SLA、通道與 feature 設定
 
-介面：Config registry / secret ref" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#9333EA;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="246.0" y="55" width="219.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6_c2" value="Channel &amp; Client Management
+介面：Config registry / secret ref" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#6B5B7B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="246.0" y="55" width="219.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6_c2" value="Channel &amp; Client Management
 
 責任：LINE OA、webhook 與技師客戶端准入
 
-介面：Credential / health / client state" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#9333EA;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="15.0" y="214" width="219.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6_c3" value="Security &amp; Governance
+介面：Credential / health / client state" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#6B5B7B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="15.0" y="214" width="219.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6_c3" value="Security &amp; Governance
 
 責任：OIDC、RBAC/SoD、S2S、tenant、PII
 
-介面：JWT/JWKS / policy / audit" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#9333EA;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="246.0" y="214" width="219.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6_c4" value="Observability &amp; Operations
+介面：JWT/JWKS / policy / audit" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#6B5B7B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="246.0" y="214" width="219.0" height="145" as="geometry"/></mxCell><mxCell id="r2_g6_c4" value="Observability &amp; Operations
 
 責任：OTel、LLM trace、SLO、alert、runbook
 
-介面：OTLP / trace ID / dashboard" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#9333EA;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="15.0" y="373" width="219.0" height="145" as="geometry"/></mxCell>
+介面：OTLP / trace ID / dashboard" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;align=left;verticalAlign=top;fillColor=#FFFFFF;strokeColor=#6B5B7B;fontColor=#0F172A;fontSize=9;spacingTop=7;spacingLeft=8;spacingRight=6;" vertex="1" parent="r2_g6"><mxGeometry x="15.0" y="373" width="219.0" height="145" as="geometry"/></mxCell>
 </root></mxGraphModel></diagram>
 </mxfile>
