@@ -113,7 +113,7 @@ tech/platform surface 不啟動。
   選項：(a) v2 補發事件（治標，兩表仍分裂）；(b) 先收斂 v2/legacy 表分裂（治本，工程量大）；
   (c) 維持現狀並在閘門文件標記已知限制。
 
-- ⬜ **存量重複 settlement 盤點**：prod 套用 119 前必須跑
+- ✅ **存量重複 settlement 盤點（2026-07-27 已跑，全綠）**：重複組數 **0**、approved 卻無 settlement **0**（無存量受害者）、`settlements` 索引現況原本**只有 `settlements_pkey`** —— 缺陷②在生產是實錘而非推論。套用後索引為 `settlements_pkey, uniq_settlements_reconciliation`。查詢：
   ```sql
   SELECT reconciliation_id, count(*), array_agg(id)
     FROM settlements GROUP BY 1 HAVING count(*) > 1;
@@ -132,11 +132,14 @@ tech/platform surface 不啟動。
 4. ✅ `main.py` 接線（`_RUN_BACKGROUND_WORKERS` 閘內）
 5. ✅ 回歸測試 ＋ **反向驗證**
 6. ✅ MIGRATION_REGISTRY 登錄
-7. ⬜ prod 套 migration（**先跑存量重複盤點**）＋ 重佈 api
+7. ✅ prod 套 migration 119（2026-07-27）＋ ⏳ 重佈 api
 8. ⬜ §8 三項待業主裁決
 
 ---
 
 ## §10 進度
 
-- ✅ S1–S6 done：13 新測試綠、反向驗證 8 紅→13 綠、migration 二套 idempotent、registry 已登錄
+- ✅ S1–S6 done（merge `44ff7b76`）：13 新測試綠、反向驗證 8 紅→13 綠、api 全套 2119 passed / 13 failed（既有 seed 依賴，清單不變＝零回歸）、migration 二套 idempotent、registry 已登錄
+- ✅ S7a done（2026-07-27）：prod 品牌庫套用 migration 119。前置盤點全綠（重複 0／孤兒 approved 0）、on-demand 備份先建、schema_migrations 已記帳；驗收五項全 OK。
+- ⏳ S7b：重佈 `smart-lock-api`（worker 只在 `_RUN_BACKGROUND_WORKERS` 為真的品牌面啟動，tech/platform 面不受影響）
+- 🛑 S8：§8 三項待業主裁決（v2 共簽範圍為 CIA gate 題）
