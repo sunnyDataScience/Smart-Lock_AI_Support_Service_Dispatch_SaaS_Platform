@@ -529,7 +529,7 @@ append-only Status 附註轉為定案；在此之前，本 SAD 的 target 元件
 
 ## 15. Codebase 現況對帳（2026-07-27）
 
-> 快照：`dev-ding@e000f1fe`。本節的 AS-BUILT / PARTIAL / TO-BE 是程式現況，不取代 SRS/Roadmap 的需求狀態；檔案存在也不等於 production 已部署。
+> 快照：`dev-ding@6a6dd846`。本節的 AS-BUILT / PARTIAL / TO-BE 是程式現況，不取代 SRS/Roadmap 的需求狀態；檔案存在也不等於 production 已部署。
 
 | 範圍 | Code reality | 主要證據 | 啟用/缺口 |
 |---|---|---|---|

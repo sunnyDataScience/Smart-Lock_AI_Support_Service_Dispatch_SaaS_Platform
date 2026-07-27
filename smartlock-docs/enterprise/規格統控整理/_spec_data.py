@@ -23,7 +23,7 @@
 GENERATED_ON = "2026-07-27"
 CODEBASE_SNAPSHOT = {
     "branch": "dev-ding",
-    "commit": "e000f1fe",
+    "commit": "6a6dd846",
     "baseline": "ddc6f986",
     "scope": "agent、api、web 四站、knowledge-pipeline/refinery、SQL、infra、scripts 與 enterprise 正典",
 }
@@ -342,7 +342,7 @@ MODULE_ARCH = {
     },
 }
 
-# 需求狀態來自 SRS/Roadmap；以下是 2026-07-27 對 commit e000f1fe 的 code reality。
+# 需求狀態來自 SRS/Roadmap；以下是 2026-07-27 對 commit 6a6dd846 的 code reality。
 # AS-BUILT = 核心 code 與測試路徑存在；PARTIAL = 需部署參數/事件骨幹/安全窗或尚有設計邊界未收斂；
 # TO-BE = 目前只有 SAD/SDS/ADR 設計，不能用「需求已定版」推定已實作。
 MODULE_STATUS = {
