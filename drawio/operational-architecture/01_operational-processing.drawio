@@ -1,0 +1,167 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" modified="2026-07-27T00:00:00.000Z" agent="Smart Lock Operational Architecture builder" version="24.7.17" type="device">
+  <diagram id="operational_processing" name="01" compressed="false">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="operational_processing_title_1" value="01 | Smart Lock Operational Processing — UML Activity + Object Flow" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#263238;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="1840" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_subtitle_2" value="穩定產品加工主幹｜OP ID 與 Process Catalog、Traceability Matrix 對應；不是 UI click sequence。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=11;fontStyle=0;fontColor=#5F6368;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="67" width="1840" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_source_lane_3" value="A | 客戶與通道" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="135" width="285" height="760" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_ai_lane_4" value="B | AI 協助與分流" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="340" y="135" width="285" height="760" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_ops_lane_5" value="C | 人工營運與品牌權威" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="135" width="285" height="760" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_field_lane_6" value="D | 派工與現場服務" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="940" y="135" width="285" height="760" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_learn_lane_7" value="E | 證據與知識回饋" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="135" width="285" height="760" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_source_8" value="客戶訊息／照片／&#10;LIFF postback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="65" y="225" width="230" height="62" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_intake_9" value="OP-10 · 接收並驗證互動" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="65" y="380" width="230" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_assist_10" value="OP-20 · 協助診斷與分流" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="365" y="290" width="230" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_context_11" value="已驗簽事件＋&#10;租戶／使用者上下文" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="365" y="520" width="230" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_human_12" value="OP-30 · 人工確認與處理" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="665" y="290" width="230" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_gate_13" value="是否達成&#10;人工核可／&#10;服務 gate？" style="rhombus;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;strokeWidth=1.8;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="725" y="505" width="110" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_dispatch_14" value="OP-40 · 建立並執行派工" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E3E6;strokeColor=#0E8088;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="965" y="290" width="230" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_close_15" value="OP-50 · 確認完成與結算" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="965" y="545" width="230" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_outcome_16" value="已交付回覆／&#10;已確認報價／完成服務" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="965" y="720" width="230" height="68" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_evidence_17" value="OP-60 · 保存營運證據" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1265" y="290" width="230" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_learn_18" value="OP-70 · 審核並回饋知識" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1265" y="570" width="230" height="74" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_source_intake_19" value="I-10 已簽署 LINE 事件" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_source_8" target="operational_processing_intake_9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_intake_context_20" value="I-20 已驗簽／去重輸入" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_intake_9" target="operational_processing_context_11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_context_assist_21" value="記憶、Skill、知識與當次訊息" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_context_11" target="operational_processing_assist_10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_assist_human_22" value="AI 回覆或 transfer_to_human 草稿" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_assist_10" target="operational_processing_human_12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_human_gate_23" value="經核可的報價／問題卡／命令" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_human_12" target="operational_processing_gate_13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_gate_dispatch_24" value="客戶確認或急件 carve-out" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_gate_13" target="operational_processing_dispatch_14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_dispatch_close_25" value="到場、存證、現場修正" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_dispatch_14" target="operational_processing_close_15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_close_outcome_26" value="服務結果／同意／結算" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_close_15" target="operational_processing_outcome_16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_human_evidence_27" value="對話、決策、審計" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="operational_processing_human_12" target="operational_processing_evidence_17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_close_evidence_28" value="工單、事件、存證" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="operational_processing_close_15" target="operational_processing_evidence_17">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_evidence_learn_29" value="可追溯案例／素材" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="operational_processing_evidence_17" target="operational_processing_learn_18">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_learn_assist_30" value="核可 Skill／事實回饋（PARTIAL）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="operational_processing_learn_18" target="operational_processing_assist_10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_rule_31" value="紅線：OP-20 只協助回覆、查知識與轉真人；最終報價、工單與派工必經 OP-30／OP-40。知識回饋僅限人工核可後發布。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=13;fontStyle=1;fontColor=#174EA6;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="220" y="925" width="1480" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_title_32" value="Relationship semantics" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=12;fontStyle=1;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1010" width="170" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_runtime_a_33" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="230" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_runtime_b_34" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="320" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_runtime_35" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_legend_runtime_a_33" target="operational_processing_legend_runtime_b_34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_runtime_text_36" value="P0 / primary path" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="334" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_data_a_37" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_data_b_38" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="630" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_data_39" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="operational_processing_legend_data_a_37" target="operational_processing_legend_data_b_38">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_data_text_40" value="Normal interaction" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="644" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_control_a_41" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="850" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_control_b_42" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="940" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_control_43" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="operational_processing_legend_control_a_41" target="operational_processing_legend_control_b_42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_control_text_44" value="Async / return" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="954" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_support_a_45" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_support_b_46" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_support_47" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="operational_processing_legend_support_a_45" target="operational_processing_legend_support_b_46">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_support_text_48" value="Cross-cut support" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1264" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_feedback_a_49" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_feedback_b_50" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_feedback_51" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="operational_processing_legend_feedback_a_49" target="operational_processing_legend_feedback_b_50">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="operational_processing_legend_feedback_text_52" value="Observation / feedback" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1574" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

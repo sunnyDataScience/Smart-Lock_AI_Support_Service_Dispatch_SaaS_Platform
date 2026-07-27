@@ -1,0 +1,158 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" modified="2026-07-27T00:00:00.000Z" agent="Smart Lock Operational Architecture builder" version="24.7.17" type="device">
+  <diagram id="deployment_runtime" name="04" compressed="false">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="deployment_runtime_title_1" value="04 | Smart Lock Deployment Runtime — C4 Deployment" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#263238;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="1840" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_subtitle_2" value="僅呈現 repository 可確認的部署形態；production host、revision、secret、HA 與外部服務狀態均未由此工作區取證。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=11;fontStyle=0;fontColor=#5F6368;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="67" width="1840" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_client_node_3" value="N-10 | 外部信任區（CURRENT interface）" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="150" width="300" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_browser_4" value="Browser／LINE Client&#10;HTTPS／WSS／Messaging API" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="75" y="330" width="230" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_repo_runtime_5" value="N-20 | Repository-defined runtime（CURRENT source/config；實際環境未驗）" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="150" width="420" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_agent_6" value="C-10 instance&#10;agent aiohttp／LockCore&#10;LINE callback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="425" y="245" width="330" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_web_7" value="C-20 instance&#10;brand／tech／platform Next.js portals" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="425" y="500" width="330" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_api_runtime_8" value="N-30 | API deployment shape（CURRENT code；revision／scale 未驗）" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="150" width="420" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_api_9" value="C-30 instance&#10;FastAPI API_SURFACE=dispatch&#10;DB_URI_STRICT required in formal env" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="885" y="225" width="330" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_tech_api_10" value="C-40 instance&#10;FastAPI API_SURFACE=tech&#10;共用 codebase；獨立 stack config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E3E6;strokeColor=#0E8088;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="885" y="490" width="330" height="105" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_dependencies_11" value="N-40 | 依賴服務／資料面（連線設定可確認；實際 placement 未驗）" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="150" width="535" height="700" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_data_12" value="C-60/C-61/C-62&#10;品牌／技師／平台 PostgreSQL&#10;三庫 URI／migration 需 SIT 取證" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="230" width="220" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_redis_13" value="Redis WS bridge&#10;PARTIAL；REDIS_URL 未取證" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="1590" y="230" width="205" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_kafka_14" value="Kafka／Redpanda&#10;PARTIAL；KAFKA_BOOTSTRAP 未取證" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="1590" y="450" width="205" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_refinery_15" value="Knowledge Refinery&#10;PARTIAL；schedule／OIDC／OTel 未取證" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E3E6;strokeColor=#0E8088;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="490" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_idp_16" value="Casdoor／SigNoz&#10;PARTIAL；HA／collector 未取證" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="670" width="220" height="75" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_browser_agent_17" value="LINE Messaging API／HTTPS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="deployment_runtime_browser_4" target="deployment_runtime_agent_6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_browser_web_18" value="HTTPS／WSS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="deployment_runtime_browser_4" target="deployment_runtime_web_7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_agent_api_19" value="internal HTTPS／X-Internal-Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="deployment_runtime_agent_6" target="deployment_runtime_api_9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_web_api_20" value="REST／WS" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="deployment_runtime_web_7" target="deployment_runtime_api_9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_api_tech_21" value="CURRENT interim route；OHS target OD-001" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="deployment_runtime_api_9" target="deployment_runtime_tech_api_10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_api_data_22" value="PostgreSQL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="deployment_runtime_api_9" target="deployment_runtime_data_12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_tech_data_23" value="TECH_POSTGRES_URI" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="deployment_runtime_tech_api_10" target="deployment_runtime_data_12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_api_redis_24" value="opt-in pub/sub" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="deployment_runtime_api_9" target="deployment_runtime_redis_13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_api_kafka_25" value="opt-in producer／consumer" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="deployment_runtime_api_9" target="deployment_runtime_kafka_14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_refinery_data_26" value="tenant-scoped intake／publish" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="deployment_runtime_refinery_15" target="deployment_runtime_data_12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_api_idp_27" value="OIDC／OTLP（conditional）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="deployment_runtime_api_9" target="deployment_runtime_idp_16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_rule_28" value="N-20～N-40 不是 production topology 宣告：本工作區無 Cloud Run／Cloud SQL／Kafka／Redis／Casdoor／SigNoz 的存取證據。多實例前須完成 Redis、Kafka 與復原 SIT。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=13;fontStyle=1;fontColor=#9C6500;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="170" y="925" width="1600" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_title_29" value="Relationship semantics" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=12;fontStyle=1;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1010" width="170" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_runtime_a_30" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="230" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_runtime_b_31" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="320" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_runtime_32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="deployment_runtime_legend_runtime_a_30" target="deployment_runtime_legend_runtime_b_31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_runtime_text_33" value="P0 / primary path" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="334" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_data_a_34" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_data_b_35" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="630" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_data_36" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="deployment_runtime_legend_data_a_34" target="deployment_runtime_legend_data_b_35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_data_text_37" value="Normal interaction" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="644" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_control_a_38" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="850" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_control_b_39" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="940" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_control_40" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="deployment_runtime_legend_control_a_38" target="deployment_runtime_legend_control_b_39">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_control_text_41" value="Async / return" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="954" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_support_a_42" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_support_b_43" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_support_44" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="deployment_runtime_legend_support_a_42" target="deployment_runtime_legend_support_b_43">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_support_text_45" value="Cross-cut support" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1264" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_feedback_a_46" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_feedback_b_47" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_feedback_48" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="deployment_runtime_legend_feedback_a_46" target="deployment_runtime_legend_feedback_b_47">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="deployment_runtime_legend_feedback_text_49" value="Observation / feedback" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1574" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
