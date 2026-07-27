@@ -185,3 +185,7 @@
   均為空；執行環境無 GCP CLI／登入上下文。私有 repository 目前方案對 branch
   protection API 回 `403 Upgrade to GitHub Pro or make repository public`，因此 required
   reviewer 也尚無法配置。上述條件具備前，不得將本 CR 合併後宣稱 production-ready。
+- 🛑 同日 feature push 的四個 GitHub Actions job 均在 runner 啟動前被帳務／spending
+  limit 擋下，沒有執行測試；對應的 API type drift、shared contract、Spectral 與 Prism
+  smoke 已在本機重跑。Prism 稽核另修正既有 workflow／compose healthcheck 的 legacy
+  `/api/v1/*` 路徑，使其對準目前 tenant-scoped OpenAPI；帳務恢復後仍須取得遠端綠燈。

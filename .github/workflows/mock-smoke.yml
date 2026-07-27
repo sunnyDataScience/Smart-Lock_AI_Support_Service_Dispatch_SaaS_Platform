@@ -23,7 +23,7 @@ jobs:
           docker compose -f api/docker-compose.mock.yml up -d prism-openapi
           # 等待啟動
           for i in {1..20}; do
-            if curl -fsS "http://localhost:4010/api/v1/work-orders" \
+            if curl -fsS "http://localhost:4010/tenants/00000000-0000-0000-0000-000000000000/work-orders/pool" \
                 -H "X-Tenant-ID: 00000000-0000-0000-0000-000000000000" \
                 -H "Authorization: Bearer ci-smoke-test" \
                 > /dev/null 2>&1; then
@@ -40,11 +40,11 @@ jobs:
         run: |
           set -e
           for path in \
-            /api/v1/work-orders \
-            /api/v1/conversations \
-            /api/v1/problem-cards \
-            /api/v1/notifications \
-            /api/v1/work-orders/pool
+            /tenants/00000000-0000-0000-0000-000000000000/work-orders/pool \
+            /tenants/00000000-0000-0000-0000-000000000000/dispatch/queue \
+            /tenants/00000000-0000-0000-0000-000000000000/conversations \
+            /tenants/00000000-0000-0000-0000-000000000000/notifications \
+            /tenants/00000000-0000-0000-0000-000000000000/accounting/invoices
           do
             echo "== GET $path =="
             curl -fsS "http://localhost:4010$path" \

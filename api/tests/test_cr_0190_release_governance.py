@@ -199,3 +199,21 @@ def test_routed_migration_never_records_a_failed_apply_or_swallows_drift():
     assert 'if ! record "$u" "$ver" "$base"; then' in source
     assert 'if ! python3 "${PROJECT_ROOT}/scripts/ci/migration-drift-check.py"; then' in source
     assert "本次 migration 發布證據不得標記成功" in source
+
+
+@pytest.mark.unit
+def test_prism_smoke_uses_current_tenant_scoped_contract_paths():
+    workflow = (ROOT / ".github/workflows/mock-smoke.yml").read_text(
+        encoding="utf-8"
+    )
+    compose = (ROOT / "api/docker-compose.mock.yml").read_text(encoding="utf-8")
+    assert "/api/v1/work-orders" not in workflow
+    for suffix in (
+        "work-orders/pool",
+        "dispatch/queue",
+        "conversations",
+        "notifications",
+        "accounting/invoices",
+    ):
+        assert f"/tenants/00000000-0000-0000-0000-000000000000/{suffix}" in workflow
+    assert "/tenants/health/work-orders/pool" in compose

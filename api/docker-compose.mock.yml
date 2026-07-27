@@ -2,7 +2,7 @@
 #
 # Usage:
 #   docker compose -f docker-compose.mock.yml up -d
-#   curl http://localhost:4010/api/v1/conversations
+#   curl http://localhost:4010/tenants/demo/conversations
 #   docker compose -f docker-compose.mock.yml down
 #
 # 或用 npx（無需 Docker）：
@@ -23,7 +23,7 @@ services:
       - "4010:4010"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:4010/api/v1/work-orders || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:4010/tenants/health/work-orders/pool || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
