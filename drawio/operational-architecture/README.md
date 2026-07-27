@@ -20,11 +20,6 @@ Solution Architecture 視覺語言，收斂為可供產品、工程、QA 與維�
 - [smartlock-operational-architecture.drawio](smartlock-operational-architecture.drawio)：上述五張圖的合併 deck。
 - [PROCESS-CATALOG.md](PROCESS-CATALOG.md)：`OP-xx` 的責任、輸入輸出與 SAD/SDS 回查。
 - [TRACEABILITY-MATRIX.md](TRACEABILITY-MATRIX.md)：`OP`、`C`、`I`、`N` 與 owner 的跨圖導航。
-- [VIEWPOINTS.md](VIEWPOINTS.md)／[MODELING-RULES.md](MODELING-RULES.md)：五視圖方法與標號規則。
-- [REVIEW-CHECKLIST.md](REVIEW-CHECKLIST.md)：跨團隊評審檢查表。
-
-`PROCESS-CATALOG.template.md` 與 `TRACEABILITY-MATRIX.template.md` 保留為可攜式範本；
-日常使用應以無 `.template` 的 Smart Lock 實例為準。
 
 ## 標記與資料來源
 
@@ -44,10 +39,10 @@ Solution Architecture 視覺語言，收斂為可供產品、工程、QA 與維�
 ## 維護方式
 
 所有 `.drawio` 都由同一個產生器輸出，請修改
-[`_build_operational_architecture_template.py`](_build_operational_architecture_template.py) 後重建：
+[`_build_operational_architecture.py`](_build_operational_architecture.py) 後重建：
 
 ```bash
-python3 drawio/operational-architecture/_build_operational_architecture_template.py
+python3 drawio/operational-architecture/_build_operational_architecture.py
 ```
 
 不要手改產生出的 `.drawio`，否則下次重建會覆寫。變更 stable processing 時，同步更新
