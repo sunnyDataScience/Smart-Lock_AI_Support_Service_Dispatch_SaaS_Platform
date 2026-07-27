@@ -183,6 +183,7 @@ async def lifespan(app: FastAPI):
     from realtime.dispute_escalation_cron import worker as dispute_escalation_cron
     from realtime.inventory_monitor import monitor as inventory_monitor
     from realtime.line_push_outbox_worker import worker as line_push_worker
+    from realtime.commission_outbox_worker import worker as commission_outbox_worker
     from realtime.reconciliation_exception_detector import worker as recon_exc_detector
     from realtime.gdpr_hard_delete_cron import worker as gdpr_hard_delete
     from realtime.media_retention_cron import worker as media_retention_cron
@@ -205,6 +206,7 @@ async def lifespan(app: FastAPI):
         inventory_monitor.start()
         sla_monitor.start()
         line_push_worker.start()  # CR-0017 Stage 2 outbox poll → push LINE
+        commission_outbox_worker.start()  # CR-0189: commission.accrued 即時投遞失敗後重送
         recon_exc_detector.start()  # CR-0018 Stage 3 cron daily 對帳異常偵測
         dispute_escalation_cron.start()  # WBS §8 P1: 60d dispute 自動 escalation
         canary_advance_cron.start()  # WBS §8 P1: M18 canary 5%→50%→100% 自動推進
@@ -239,6 +241,7 @@ async def lifespan(app: FastAPI):
         await canary_advance_cron.stop()
         await dispute_escalation_cron.stop()
         await recon_exc_detector.stop()
+        await commission_outbox_worker.stop()
         await line_push_worker.stop()
         await sla_monitor.stop()
         await inventory_monitor.stop()

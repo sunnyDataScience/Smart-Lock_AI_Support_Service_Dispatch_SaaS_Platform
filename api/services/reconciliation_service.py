@@ -23,6 +23,9 @@ status = 'pending', currency = 'TWD')，由結算寫入 pipeline 接手後續支
 
 from __future__ import annotations
 
+import json
+import uuid
+
 import logging
 
 import core.db as db_module
@@ -160,50 +163,81 @@ async def approve_reconciliation(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    cur = await db_module._conn.execute(
-        f"SELECT r.status, r.technician_id, r.technician_payout {_JOIN} "
-        f"WHERE r.id = %s::uuid AND t.tenant_id = %s::uuid",
-        (recon_id, tenant_id),
-    )
-    row = await cur.fetchone()
-    if not row:
-        raise ApiError("NOT_FOUND", f"Reconciliation {recon_id} not found", 404)
-
-    current_status = row[0]
-    if current_status not in _APPROVE_FROM:
-        raise ApiError(
-            "STATE_CONFLICT",
-            f"Cannot approve reconciliation in status '{current_status}'; expected 'pending'",
-            409,
-        )
-
-    technician_id = str(row[1])
-    payout = float(row[2] or 0)
-
+    # CR-0189：狀態檢查 + 對帳單翻狀態 + 建 settlement + 佣金事件 outbox
+    # **必須在同一交易內**。原本四個語句在 autocommit 連線上各自提交，造成兩個缺陷：
+    #   (a) UPDATE 先提交、INSERT 後提交 → 中斷則對帳單已 approved 但 settlement
+    #       不存在，而重試撞 _APPROVE_FROM={'pending'} → 永久 409、API 補不回來。
+    #   (b) 無 FOR UPDATE → 並發 approve 兩邊都讀到 pending → 兩筆 settlement
+    #       ＝**重複出款**（settlements 對 reconciliation_id 原本連索引都沒有）。
+    # psycopg3 的 transaction() 在 autocommit 連線上會送顯式 BEGIN/COMMIT
+    # （repo 既有 24 處用法，範式見 inventory_v2_service）。
+    commission_event_id = str(uuid.uuid4())
     note_clean: str | None = None
     if note and note.strip():
         note_clean = note.strip()[:500]
-    if note_clean:
-        logger.info("reconciliation %s approved with note: %s", recon_id, note_clean)
 
-    await db_module._conn.execute(
-        "UPDATE reconciliations SET "
-        "  status = 'approved', "
-        "  approved_by = %s::uuid, "
-        "  approved_at = NOW() "
-        "WHERE id = %s::uuid",
-        (approver_user_id, recon_id),
-    )
+    async with db_module._conn.transaction():
+        cur = await db_module._conn.execute(
+            f"SELECT r.status, r.technician_id, r.technician_payout {_JOIN} "
+            f"WHERE r.id = %s::uuid AND t.tenant_id = %s::uuid "
+            f"FOR UPDATE OF r",
+            (recon_id, tenant_id),
+        )
+        row = await cur.fetchone()
+        if not row:
+            raise ApiError("NOT_FOUND", f"Reconciliation {recon_id} not found", 404)
 
-    cur = await db_module._conn.execute(
-        "INSERT INTO settlements "
-        "  (reconciliation_id, technician_id, amount, currency, status) "
-        "VALUES (%s::uuid, %s::uuid, %s, 'TWD', 'pending') "
-        "RETURNING id, reconciliation_id, technician_id, amount, currency, "
-        "          status, payment_method, paid_at, created_at",
-        (recon_id, technician_id, payout),
-    )
-    s_row = await cur.fetchone()
+        current_status = row[0]
+        if current_status not in _APPROVE_FROM:
+            raise ApiError(
+                "STATE_CONFLICT",
+                f"Cannot approve reconciliation in status '{current_status}'; expected 'pending'",
+                409,
+            )
+
+        technician_id = str(row[1])
+        payout = float(row[2] or 0)
+        if note_clean:
+            logger.info("reconciliation %s approved with note: %s", recon_id, note_clean)
+
+        await db_module._conn.execute(
+            "UPDATE reconciliations SET "
+            "  status = 'approved', "
+            "  approved_by = %s::uuid, "
+            "  approved_at = NOW() "
+            "WHERE id = %s::uuid",
+            (approver_user_id, recon_id),
+        )
+
+        cur = await db_module._conn.execute(
+            "INSERT INTO settlements "
+            "  (reconciliation_id, technician_id, amount, currency, status) "
+            "VALUES (%s::uuid, %s::uuid, %s, 'TWD', 'pending') "
+            "RETURNING id, reconciliation_id, technician_id, amount, currency, "
+            "          status, payment_method, paid_at, created_at",
+            (recon_id, technician_id, payout),
+        )
+        s_row = await cur.fetchone()
+
+        # 佣金事件 outbox（同交易）—— 與 settlement 同生共死，取代「publish 失敗只 log」
+        # 的永久遺失。event_id 在此固定，worker 重送時原樣帶入，消費端 dedup 才有效。
+        await db_module._conn.execute(
+            "INSERT INTO commission_event_outbox "
+            "  (event_id, tenant_id, topic, event_key, reconciliation_id, settlement_id, payload) "
+            "VALUES (%s::uuid, %s::uuid, %s, %s, %s::uuid, %s::uuid, %s::jsonb) "
+            "ON CONFLICT (tenant_id, reconciliation_id) DO NOTHING",
+            (commission_event_id, tenant_id, "commission.accrued", str(row[1]),
+             recon_id, str(s_row[0]),
+             json.dumps({
+                 "tenant_id": tenant_id,
+                 "reconciliation_id": recon_id,
+                 "settlement_id": str(s_row[0]),
+                 "technician_id": str(row[1]),
+                 "amount": float(s_row[3] or 0),
+                 "currency": s_row[4] or "TWD",
+                 "accrued_at": s_row[8].isoformat() if s_row[8] else None,
+             })),
+        )
 
     settlement: dict = {
         "id": str(s_row[0]),
@@ -226,12 +260,16 @@ async def approve_reconciliation(
     r_row = await cur.fetchone()
     reconciliation = _row_to_dict(r_row)
 
-    # CR-0166 R4：dual-write commission.accrued 事件（ADR-017：品牌 Billing 算佣金→
-    # 發事件→技師平台 Settlement 訂閱做跨品牌對帳）。fail-soft；settlement 表為保底。
+    # CR-0166 R4 / CR-0189：commission.accrued 即時投遞（ADR-017：品牌 Billing 算佣金→
+    # 發事件→技師平台 Settlement 訂閱做跨品牌對帳）。
+    # **publish 必須在 commit 之後**——若放在交易內而交易後續 rollback，就會發出一個
+    # 對應不存在 settlement 的事件。失敗不再是永久遺失：outbox row 已同交易落地，
+    # 留 pending 由 commission_outbox_worker 依 backoff 重送（at-least-once；
+    # 消費端 handler 為 ON CONFLICT DO UPDATE 冪等 upsert，重複套用結果相同）。
     # （reject_reconciliation 見文末——駁回不建 settlement、不發事件）
     try:
         from core.event_bus import TOPIC_COMMISSION_ACCRUED, publish_event
-        await publish_event(
+        ok = await publish_event(
             TOPIC_COMMISSION_ACCRUED,
             {
                 "tenant_id": tenant_id,
@@ -243,9 +281,17 @@ async def approve_reconciliation(
                 "accrued_at": settlement.get("created_at"),
             },
             key=technician_id,
+            event_id=commission_event_id,
         )
-    except Exception:  # noqa: BLE001
-        logger.exception("event publish commission.accrued failed (non-fatal)")
+        if ok:
+            await db_module._conn.execute(
+                "UPDATE commission_event_outbox SET status = 'sent', sent_at = NOW(), "
+                "  updated_at = NOW() WHERE event_id = %s::uuid AND status = 'pending'",
+                (commission_event_id,),
+            )
+    except Exception:  # noqa: BLE001 — 即時投遞失敗不影響核准；outbox 已保底，worker 會重送
+        logger.warning("commission.accrued 即時投遞失敗，留 outbox 由 worker 重送 event_id=%s",
+                       commission_event_id, exc_info=True)
 
     return {"reconciliation": reconciliation, "settlement": settlement}
 
