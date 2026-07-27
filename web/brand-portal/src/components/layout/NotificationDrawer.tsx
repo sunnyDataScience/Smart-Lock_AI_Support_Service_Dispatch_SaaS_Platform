@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Bell,
@@ -13,8 +13,10 @@ import {
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
-import { api, tenantPath } from "@/lib/api";
+import { api, queryCachePrefix, tenantPath } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import { cacheInvalidate } from "@/lib/cache";
+import { createMutationAction } from "@/lib/mutation";
 import {
   BROADCAST_CHANNELS,
   NotificationBroadcastEvent,
@@ -102,6 +104,10 @@ export default function NotificationDrawer({
   const [error, setError] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // mutation contract 需要同步 snapshot。React setState 非同步，adapter.write 同時更新
+  // ref，才能在立即失敗時精準 rollback 到本 action 前的狀態。
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
 
   const TABS = useMemo(
     () => [
@@ -180,24 +186,43 @@ export default function NotificationDrawer({
     if (n.read_at || marking) return;
     setMarking(n.id);
     setError(null);
+    const readAt = new Date().toISOString();
+    const patchPath = tenantPath(
+      `/notifications/${encodeURIComponent(n.id)}`,
+    );
+    const listPath = tenantPath("/notifications");
+    const action = createMutationAction({
+      id: "notification.mark-read",
+      mode: "optimistic",
+      risk: "notification",
+      state: {
+        read: () => itemsRef.current,
+        write: (next: Notification[]) => {
+          itemsRef.current = next;
+          setItems(next);
+        },
+      },
+      optimisticPatch: (current) =>
+        tab === "unread"
+          ? current.filter((item) => item.id !== n.id)
+          : current.map((item) =>
+              item.id === n.id ? { ...item, read_at: readAt } : item,
+            ),
+      execute: ({ actionId }) =>
+        api.patch(
+          patchPath,
+          { read_at: readAt },
+          { idempotencyKey: actionId, invalidate: false },
+        ),
+      invalidateKeys: [queryCachePrefix(listPath)],
+      invalidate: (keys) => {
+        for (const key of keys) cacheInvalidate(key);
+      },
+    });
     try {
-      const patchPath = tenantPath(
-        `/notifications/${encodeURIComponent(n.id)}`,
-      );
-      await api.patch(patchPath, {
-        read_at: new Date().toISOString(),
-      });
-      if (tab === "unread") {
-        setItems((prev) => prev.filter((x) => x.id !== n.id));
-      } else {
-        setItems((prev) =>
-          prev.map((x) =>
-            x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x,
-          ),
-        );
-      }
+      await action.run();
       if (onUnreadCountChange) {
-        const remaining = items.filter(
+        const remaining = itemsRef.current.filter(
           (x) => !x.read_at && x.id !== n.id,
         ).length;
         onUnreadCountChange(remaining, hasMore);

@@ -98,6 +98,13 @@ interface RequestOptions {
   skipAuth?: boolean;
   /** 額外 headers（如 SoD X-Initiator / X-Approver / X-Executor）。 */
   headers?: Record<string, string>;
+  /**
+   * mutation 成功後的 GET 快取失效策略。
+   * - 未指定：相容既有頁面，廣域清 `GET:`
+   * - false：caller（通常是 ADR-034 mutation contract）自行處理
+   * - prefix 陣列：只清指定 query family
+   */
+  invalidate?: false | readonly string[];
 }
 
 // ── CR-0177 S3a：統一帶 credentials，讓後端寫的 httpOnly access cookie 隨請求送出 ──
@@ -453,7 +460,15 @@ async function request<T>(
     // 寫入成功後清 GET 快取：mutate→refetch 是常見模式，不清則 30s staleTime 內的
     // refetch 會讀到 mutate 前的舊資料（如 admin/staff 核准後畫面不更新）。此處自動化
     // 既有慣例（原各頁須手動 cacheInvalidate("GET:")），杜絕漏清 footgun。
-    if (method !== "GET") cacheInvalidate("GET:");
+    if (method !== "GET") {
+      if (options.invalidate === false) {
+        // ADR-034 mutation contract 會在 reconcile 後精準失效。
+      } else if (options.invalidate) {
+        for (const prefix of options.invalidate) cacheInvalidate(prefix);
+      } else {
+        cacheInvalidate("GET:");
+      }
+    }
     return result;
   }
 
@@ -466,6 +481,17 @@ async function request<T>(
 function newIdempotencyKey(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+/**
+ * queryCachePrefix — 取得某 GET path 的 cache family prefix。
+ *
+ * buildUrl(path) 不含 query string，因此可同時清掉該 path 的所有 query variant，
+ * 又不會把其他 endpoint 一起清空。給 ADR-034 mutation contract 的
+ * `invalidateKeys` 使用。
+ */
+export function queryCachePrefix(path: string): string {
+  return `GET:${buildUrl(path)}`;
 }
 
 async function uploadMultipart<T>(

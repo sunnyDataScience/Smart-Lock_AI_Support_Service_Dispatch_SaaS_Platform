@@ -116,6 +116,7 @@ async def update_notification_v2(
     tenantId: str = Path(..., description="租戶 UUID（ADR-0030）"),
     notificationId: str = Path(..., description="通知 UUID"),
     user: CurrentUser = Depends(require_tenant),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
@@ -125,13 +126,16 @@ async def update_notification_v2(
             403,
         )
 
-    return await notification_service.update_notification(
+    payload = await notification_service.update_notification(
         tenant_id=tenantId,
         user_id=user.user_id,
         notification_id=notificationId,
         read_at=body.read_at,
         archived_at=body.archived_at,
     )
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
 
 
 # ---------------------------------------------------------------------------
