@@ -33,6 +33,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 
 import _canon as C
+import _render_bdd as BDD
 import _validate_relations as V
 from _spec_data import CODEBASE_SNAPSHOT, COMPONENT_GLOSSARY, MODULES, SUBSYSTEMS
 
@@ -166,6 +167,7 @@ class Model:
 
     def __init__(self) -> None:
         self.scenarios = C.load_scenarios()
+        self.personas = C.load_personas()
         self.frs = C.load_requirements()
         self.nfrs = C.load_nfrs()
         self.cases = C.load_test_cases()
@@ -177,6 +179,7 @@ class Model:
         self.report, self.counts = V.run()
 
         self.sc_by_id = {s.sc_id: s for s in self.scenarios}
+        self.per_by_id = {p.per_id: p for p in self.personas}
         self.fr_by_id = {r.req_id: r for r in self.frs}
         self.nfr_by_id = {n.req_id: n for n in self.nfrs}
         self.title_of = {**{r.req_id: r.name for r in self.frs},
@@ -328,6 +331,48 @@ def build_acceptance(m: Model) -> None:
         if e["role"] == "essential":
             ws.cell(r, 3).font = Font(name=FONT, size=10, bold=True, color="C00000")
     finish(ws, len(headers), len(edges) + 1)
+
+    # -- ④ 旅程 × Persona：追溯鏈「誰」那一端（sc_embodies_persona.yaml）
+    headers = [
+        ("SC", 7, ""), ("旅程", 20, ""), ("分線", 9, ""),
+        ("Persona ID", 13, ""), ("Persona", 20, ""), ("角色", 10, ""),
+        ("這條旅程憑什麼由這個 Persona 感知", 56, ""),
+    ]
+    ws = table(wb, "④ 旅程 × Persona（誰在走）", headers)
+    kinds = [h[2] for h in headers]
+    prole = {"primary": 0, "secondary": 1}
+    pedges = sorted(m.rel.sc_per,
+                    key=lambda e: (e["scenario"], prole.get(e.get("role"), 9), e["persona"]))
+    for r, e in enumerate(pedges, 2):
+        sc = m.sc_by_id.get(e["scenario"])
+        per = m.per_by_id.get(e["persona"])
+        row(ws, r, [
+            e["scenario"], sc.name if sc else "", sc.line if sc else "",
+            e["persona"], per.name if per else "（不在正典）",
+            "主要感知者" if e.get("role") == "primary" else "協作者",
+            C.plain(e.get("note", "")),
+        ], kinds, tint=LINE_TINT.get(sc.line if sc else ""), height=28)
+        if e.get("role") == "primary":
+            ws.cell(r, 6).font = Font(name=FONT, size=10, bold=True, color="C00000")
+    finish(ws, len(headers), len(pedges) + 1)
+
+    # -- ⑤ BDD 行為情境：由 SC 卡 + Persona 生成（_render_bdd.py）
+    headers = [
+        ("SC", 7, ""), ("旅程", 18, ""), ("分線", 8, ""), ("主要 Persona", 20, ""),
+        ("情境類型", 12, ""), ("Given（前置）", 30, ""),
+        ("When（行為）", 40, ""), ("Then（預期）", 38, ""),
+    ]
+    ws = table(wb, "⑤ BDD 行為情境（生成）", headers)
+    kinds = [h[2] for h in headers]
+    brows = BDD.bdd_rows()
+    for r, b in enumerate(brows, 2):
+        row(ws, r, [
+            b["sc"], b["name"], b["line"], b["persona"], b["type"],
+            b["given"], b["when"], b["then"],
+        ], kinds, tint=LINE_TINT.get(b["line"]), height=42)
+        if b["type"].startswith("failure"):
+            ws.cell(r, 5).font = Font(name=FONT, size=10, bold=True, color="C00000")
+    finish(ws, len(headers), len(brows) + 1)
 
     wb.save(OUTPUTS["acceptance"])
 
@@ -900,9 +945,13 @@ def main() -> int:
     write_glossary_md()
     write_open_decisions_md(m)
     write_health_md(m)
+    n_bdd = len(BDD.generate())
 
-    print(f"SC {m.counts['sc']}  FR {m.counts['fr']}  NFR {m.counts['nfr']}  TC {len(m.cases)}")
-    print(f"邊 SC×RQ {m.counts['sc_rq']}  RQ×TC {m.counts['rq_tc']}  SC×TC {m.counts['sc_tc']}")
+    print(f"SC {m.counts['sc']}  Persona {m.counts['persona']}  FR {m.counts['fr']}  "
+          f"NFR {m.counts['nfr']}  TC {len(m.cases)}")
+    print(f"邊 SC×Persona {m.counts['sc_per']}  SC×RQ {m.counts['sc_rq']}  "
+          f"RQ×TC {m.counts['rq_tc']}  SC×TC {m.counts['sc_tc']}")
+    print(f"BDD 生成 {n_bdd} 條 feature + 28_Scenarios 內嵌塊")
     print(f"缺口 {len(m.report.findings)} 筆 → 規劃書 ②")
     for path in [*OUTPUTS.values(), GLOSSARY_MD, HEALTH_MD]:
         print(f"- {path.name}: {path.stat().st_size:,} bytes")

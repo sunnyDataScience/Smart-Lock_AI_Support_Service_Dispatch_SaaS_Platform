@@ -153,5 +153,6 @@ Persona 節點與第四條邊的定位；新增 Agile/BDD ↔ 29148 術語對照
 - ✅ **S1** done：`06_UX §3` 升為 PER 節點正典——4 主要卡加 `PER-*` ID + §3.5 六張次要角色卡（源自 §2／§內部次要角色，零虛構）
 - ✅ **S2** done：`_canon.py` +`Persona` dataclass / `load_personas()`（解析 §3 兩種格式）/ `Relations.sc_per` + `personas_of` / `scenarios_of_persona`
 - ✅ **S3** done：`sc_embodies_persona.yaml` 30 條邊（每條帶 note）+ `_validate_relations.py` V11；`python3 _validate_relations.py` 全綠（SC 19 · Persona 10 · SC×Persona 30）
-- ⏳ **S4** BDD 生成器（3 輸出 + 四書指南術語對照表）
-- ⏳ **S5** 重跑四書 + 21_Traceability_Matrix Persona 維度
+- ✅ **S4** done：`_render_bdd.py` 由 SC 卡＋Persona 生成 Gherkin，三輸出同源——`bdd/*.feature`（19 條，英文關鍵字/繁中內文）+ `28_Scenarios.md` 內嵌 `BEGIN/END GENERATED BDD` 塊（冪等）+ 驗收控制表 ④/⑤ 分頁；`_build_workbooks.py` 呼叫 `generate()` 成唯一產出者
+- ✅ **S5** done：`四書關係與產出指南.md` §0 加 Agile/BDD↔29148 術語對照表 + 第四邊/V11/Persona 定位；四書重生（0 finding）；`21_Traceability_Matrix.md` 加指標註記——因其為 2026-07-10 舊 FR-0001 ID，PER 維度改由 workbook ④ + `sc_embodies_persona.yaml` 承載活 SSOT，不回填以免雙寫漂移（偏離原 §7「增列 Persona 維度」，理由：反 slop）
+- 全鏈驗證：`_validate_relations.py` 全綠（SC 19·Persona 10·SC×Persona 30·0 finding）；`_build_workbooks.py` 四書 + BDD 生成無 error
