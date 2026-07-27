@@ -1,0 +1,2522 @@
+{
+  "adopted": [],
+  "folders": {
+    "測試庫": "e7637116-6783-42bc-be2f-2f54f0b0acaf",
+    "測試庫/A11Y": "979d383b-4915-4aa6-a6c0-5b051e8c121f",
+    "測試庫/AGT": "ba801a9c-3b04-4437-a18d-27be8f20d332",
+    "測試庫/AGT/CLARIFY": "bd96d48f-abf0-42c0-811b-a46429513edd",
+    "測試庫/AGT/RAG": "e3ea2b5e-a6fa-40ec-9983-a642828da1eb",
+    "測試庫/AGT/TURN": "2e516ddc-f129-4b52-9d64-8806afc9b77c",
+    "測試庫/AGT/URG": "21632fe7-74c8-4e52-9974-6d7f53ae5e75",
+    "測試庫/COMPLIANCE": "edfcce7e-d962-4146-accd-613d71844c0e",
+    "測試庫/CS": "aa8795a1-0e10-4489-8df1-c9704cff7d9f",
+    "測試庫/CS/AI": "4a73d9ac-5995-452e-b2c3-50ff68e5d78c",
+    "測試庫/DISPATCH": "22a0f0c1-bbbc-4d3f-9f4e-75998b84d514",
+    "測試庫/EXC": "dcbfd866-2e8e-45e8-93de-0a8f9f6f76ec",
+    "測試庫/NFR": "d96702c1-8cc5-4de4-9c10-ea16ea5dd03c",
+    "測試庫/NFR/A11Y": "aea07e79-f63c-40c8-abba-666a9a881ec0",
+    "測試庫/NFR/AUD": "064bf2b3-db09-4e6f-9e25-81868665abc1",
+    "測試庫/NFR/AVAIL": "217adc95-41a9-48a3-b092-d5645ab42ce4",
+    "測試庫/NFR/DORA": "e9ccbf2f-2f9d-4e5f-8128-8d75ae598b3e",
+    "測試庫/NFR/DQ": "2d1547d3-e2aa-4b60-9205-a98b0d64dd27",
+    "測試庫/NFR/MAINT": "f2a5c220-d9fd-4961-b556-d3b30221670a",
+    "測試庫/NFR/OBS": "3a307244-1de1-4f8d-a37d-1871293e2afe",
+    "測試庫/NFR/PERF": "78fa9ed1-d0c4-4fed-b32e-aa589c8a6e7e",
+    "測試庫/NFR/PRIV": "5ad6bc33-068b-439f-aa37-e1ef1e87b9de",
+    "測試庫/NFR/PUB": "1665dd48-9bf6-4c04-919a-f22413721678",
+    "測試庫/NFR/REL": "3afd7a27-442f-4641-9211-9fd4f1dcd6d2",
+    "測試庫/NFR/REP": "05285a85-22dc-4fdd-9857-f0a6cd4d75e8",
+    "測試庫/NFR/SCAL": "6d38f580-b971-41e0-949f-ef04cbf44ef0",
+    "測試庫/NFR/SCH": "69bded06-b0a7-4fcc-a857-a51b53f22ff4",
+    "測試庫/NFR/SEC": "6052e300-0d53-4bc4-b1f8-d2129a291fa9",
+    "測試庫/NFR/SLA": "3d3ea2c6-dc41-4955-bbe0-04b0c4b2b516",
+    "測試庫/ONSITE": "8d647a07-0498-4f99-8d63-9f2f40167b9e",
+    "測試庫/PAYMENT": "34475ba8-54b5-4fef-ad3c-02e2f95c9d51",
+    "測試庫/PERF": "ccae7003-af44-4236-88db-f77e0b2d2fc1",
+    "測試庫/PLT": "e85108d3-2776-49b2-b0e7-64b5176f175c",
+    "測試庫/PLT/CFG": "3780a362-3e4a-4ebe-ace4-45ca7c48c6ef",
+    "測試庫/PLT/FLOW": "5856233e-5c6a-4b45-a783-a299daec44d1",
+    "測試庫/PLT/PROV": "0968a6d1-dcf2-4874-9105-09342d1b222f",
+    "測試庫/PLT/SURFACE": "ee1e8cb9-0c68-4cd4-89be-95648246231f",
+    "測試庫/QUOTE": "ca382159-d400-499f-b20e-49ec2d312a20",
+    "測試庫/REF": "1312808e-5a9e-4e3d-87dc-174b0271209c",
+    "測試庫/REF/INTAKE": "d12124fc-c68d-45c1-b36b-0f434adef4d6",
+    "測試庫/REF/PUBLISH": "2cfcc6c1-959e-4995-a653-b4b06db134ee",
+    "測試庫/REF/SPLIT": "92955517-54d1-4f65-b03f-8433e4f70396",
+    "測試庫/SEC": "dcd8e05b-12f0-4bb9-99c7-7d673b530948",
+    "測試庫/SEC/IDEM": "4e928138-901f-48f4-9be6-ebbd503af231",
+    "測試庫/SEC/INJ": "20cf4063-a528-4862-beea-77e23fd2bcb6",
+    "測試庫/SEC/INT": "1d26dc12-4696-4d9b-bcd8-693ce3207e01",
+    "測試庫/SEC/MEM": "13f0164f-ca78-4e3d-b10b-01f4843e3731",
+    "測試庫/SEC/PIPE": "ce46ab13-14a5-42b8-9620-6a2b72d0f1ba",
+    "測試庫/SEC/RBAC": "9132d367-a94b-4064-9bff-03540488a4c0",
+    "測試庫/SEC/SOD": "cff0878c-6279-438f-bdc6-4838d39ad191",
+    "測試庫/SEC/TENANT": "8e1dab72-7115-4819-9007-6928964b9bd6",
+    "測試庫/SEC/TOOL": "fb29bee7-63f3-4e81-b08d-b473b0d76015",
+    "測試庫/SEC/WEB": "fd29a61b-127e-4c5d-9e18-e26bbeb93cf3",
+    "測試庫/SETTLE": "ca1473a9-1214-42b2-a935-09e4ed41ecad",
+    "測試庫/TEC": "6a1299e8-f30c-4b80-85f4-2d49a56656f7",
+    "測試庫/TEC/LIFE": "6f883cb5-b98b-4584-90f8-a80b42fc84d2",
+    "測試庫/TEC/REVOKE": "b3a7d964-d34a-4451-9c62-ff94a63c8c60",
+    "測試庫/WEB": "709a7230-4f5b-423d-b78d-665d540b6777",
+    "測試庫/WEB/MEDIA": "e1ba3b14-af04-473f-8cad-cd183ba1d3e4",
+    "測試庫/WEB/OPS": "0b5bdb0f-8410-4aa0-b36e-0abe33fc6b0f",
+    "測試庫/WEB/REPORT": "7f4b920c-2251-4035-8e67-baccfd31d872",
+    "測試庫/WEB/SURFACE": "e658d248-7297-4061-b3de-a2918a6756b2",
+    "測試庫/WO": "dbce879b-11bc-4ebb-9cd5-7787845d2ef9"
+  },
+  "initiatives": {
+    "階段一": "ccdd846d-e167-47e8-8108-9a8a01ebf252",
+    "階段二": "3b0b6e6f-d0ce-495c-a8fb-788f6637663e"
+  },
+  "links_done": [
+    "FR-AGT-01|TC-CS-AI-01",
+    "FR-AGT-01|TC-CS-AI-02",
+    "FR-AGT-01|TC-CS-AI-11",
+    "FR-AGT-02|TC-AGT-TURN-01",
+    "FR-AGT-03|TC-AGT-CLARIFY-01",
+    "FR-AGT-03|TC-CS-AI-03",
+    "FR-AGT-03|TC-CS-AI-12",
+    "FR-AGT-04|TC-AGT-URG-01",
+    "FR-AGT-04|TC-COMPLIANCE-07",
+    "FR-AGT-04|TC-CS-AI-04",
+    "FR-AGT-05|TC-CS-AI-04",
+    "FR-AGT-05|TC-CS-AI-10",
+    "FR-AGT-06|TC-SEC-MEM-01",
+    "FR-AGT-07|TC-AGT-RAG-01",
+    "FR-AGT-07|TC-COMPLIANCE-08",
+    "FR-AGT-07|TC-CS-AI-03",
+    "FR-AGT-08|TC-SEC-TOOL-01",
+    "FR-AGT-09|TC-CS-AI-04",
+    "FR-AGT-09|TC-CS-AI-10",
+    "FR-AGT-10|TC-CS-AI-08",
+    "FR-AGT-10|TC-CS-AI-09",
+    "FR-AGT-10|TC-EXC-01",
+    "FR-AGT-11|TC-COMPLIANCE-06",
+    "FR-AGT-11|TC-CS-AI-05",
+    "FR-AGT-11|TC-CS-AI-06",
+    "FR-AGT-11|TC-CS-AI-07",
+    "FR-API-01|TC-QUOTE-06",
+    "FR-API-01|TC-WO-01",
+    "FR-API-01|TC-WO-03",
+    "FR-API-01|TC-WO-13",
+    "FR-API-02|TC-QUOTE-01",
+    "FR-API-02|TC-QUOTE-02",
+    "FR-API-02|TC-QUOTE-03",
+    "FR-API-02|TC-QUOTE-04",
+    "FR-API-02|TC-QUOTE-05",
+    "FR-API-02|TC-QUOTE-06",
+    "FR-API-02|TC-QUOTE-07",
+    "FR-API-02|TC-QUOTE-08",
+    "FR-API-02|TC-QUOTE-09",
+    "FR-API-03|TC-QUOTE-01",
+    "FR-API-03|TC-QUOTE-04",
+    "FR-API-03|TC-QUOTE-05",
+    "FR-API-04|TC-WO-01",
+    "FR-API-04|TC-WO-02",
+    "FR-API-04|TC-WO-03",
+    "FR-API-05|TC-DISPATCH-01",
+    "FR-API-05|TC-DISPATCH-09",
+    "FR-API-06|TC-DISPATCH-02",
+    "FR-API-07|TC-DISPATCH-04",
+    "FR-API-07|TC-WO-10",
+    "FR-API-08|TC-ONSITE-01",
+    "FR-API-08|TC-ONSITE-02",
+    "FR-API-08|TC-ONSITE-03",
+    "FR-API-08|TC-ONSITE-04",
+    "FR-API-08|TC-ONSITE-05",
+    "FR-API-08|TC-WO-04",
+    "FR-API-08|TC-WO-05",
+    "FR-API-08|TC-WO-06",
+    "FR-API-08|TC-WO-07",
+    "FR-API-09|TC-DISPATCH-08",
+    "FR-API-09|TC-WO-04",
+    "FR-API-09|TC-WO-05",
+    "FR-API-09|TC-WO-06",
+    "FR-API-09|TC-WO-07",
+    "FR-API-10|TC-PAYMENT-01",
+    "FR-API-10|TC-SEC-IDEM-01",
+    "FR-API-11|TC-SETTLE-02",
+    "FR-API-11|TC-SETTLE-03",
+    "FR-API-11|TC-SETTLE-04",
+    "FR-API-11|TC-SETTLE-05",
+    "FR-API-11|TC-WO-12",
+    "FR-API-12|TC-SETTLE-01",
+    "FR-API-12|TC-SETTLE-07",
+    "FR-API-12|TC-SETTLE-08",
+    "FR-API-13|TC-SEC-INT-01",
+    "FR-API-14|TC-EXC-06",
+    "FR-API-15|TC-EXC-01",
+    "FR-API-16|TC-COMPLIANCE-01",
+    "FR-API-16|TC-COMPLIANCE-02",
+    "FR-API-16|TC-COMPLIANCE-04",
+    "FR-API-17|TC-QUOTE-03",
+    "FR-API-18|TC-ONSITE-06",
+    "FR-API-18|TC-SEC-SOD-01",
+    "FR-API-18|TC-SETTLE-03",
+    "FR-API-18|TC-SETTLE-06",
+    "FR-API-18|TC-WO-11",
+    "FR-API-19|TC-DISPATCH-08",
+    "FR-DAT-01|TC-COMPLIANCE-08",
+    "FR-DAT-01|TC-REF-INTAKE-01",
+    "FR-DAT-02|TC-SEC-PIPE-01",
+    "FR-DAT-03|TC-EXC-05",
+    "FR-DAT-03|TC-SEC-TENANT-01",
+    "FR-DAT-04|TC-AGT-RAG-01",
+    "FR-DAT-04|TC-CS-AI-03",
+    "FR-DAT-05|TC-EXC-06",
+    "FR-DAT-06|TC-SETTLE-07",
+    "FR-PLT-01|TC-SEC-WEB-02",
+    "FR-PLT-02|TC-SEC-RBAC-01",
+    "FR-PLT-02|TC-SEC-RBAC-02",
+    "FR-PLT-02|TC-SEC-RBAC-03",
+    "FR-PLT-02|TC-SEC-RBAC-04",
+    "FR-PLT-02|TC-SEC-RBAC-05",
+    "FR-PLT-03|TC-PLT-PROV-01",
+    "FR-PLT-04|TC-EXC-06",
+    "FR-PLT-05|TC-EXC-02",
+    "FR-PLT-05|TC-EXC-03",
+    "FR-PLT-06|TC-CS-AI-05",
+    "FR-PLT-07|TC-PLT-FLOW-01",
+    "FR-PLT-08|TC-PLT-CFG-01",
+    "FR-PLT-09|TC-PLT-SURFACE-01",
+    "FR-REF-01|TC-COMPLIANCE-08",
+    "FR-REF-01|TC-REF-INTAKE-01",
+    "FR-REF-02|TC-REF-SPLIT-01",
+    "FR-REF-03|TC-COMPLIANCE-05",
+    "FR-REF-03|TC-REF-PUBLISH-01",
+    "FR-REF-04|TC-COMPLIANCE-08",
+    "FR-REF-04|TC-REF-PUBLISH-01",
+    "FR-REF-05|TC-COMPLIANCE-05",
+    "FR-REF-05|TC-REF-PUBLISH-01",
+    "FR-TEC-01|TC-TEC-LIFE-01",
+    "FR-TEC-02|TC-DISPATCH-06",
+    "FR-TEC-03|TC-DISPATCH-01",
+    "FR-TEC-03|TC-DISPATCH-06",
+    "FR-TEC-03|TC-PERF-03",
+    "FR-TEC-04|TC-DISPATCH-03",
+    "FR-TEC-04|TC-DISPATCH-04",
+    "FR-TEC-04|TC-EXC-06",
+    "FR-TEC-05|TC-DISPATCH-05",
+    "FR-TEC-05|TC-EXC-06",
+    "FR-TEC-06|TC-SETTLE-01",
+    "FR-TEC-06|TC-SETTLE-08",
+    "FR-TEC-07|TC-DISPATCH-07",
+    "FR-TEC-07|TC-ONSITE-07",
+    "FR-TEC-08|TC-TEC-REVOKE-01",
+    "FR-WEB-01|TC-WEB-SURFACE-01",
+    "FR-WEB-02|TC-SEC-WEB-01",
+    "FR-WEB-02|TC-SEC-WEB-02",
+    "FR-WEB-03|TC-DISPATCH-03",
+    "FR-WEB-03|TC-DISPATCH-04",
+    "FR-WEB-03|TC-WEB-MEDIA-01",
+    "FR-WEB-03|TC-WEB-OPS-01",
+    "FR-WEB-04|TC-WEB-REPORT-01",
+    "FR-WEB-05|TC-SETTLE-07",
+    "FR-WEB-06|TC-A11Y-01",
+    "FR-WEB-06|TC-QUOTE-01",
+    "FR-WEB-06|TC-QUOTE-04",
+    "FR-WEB-06|TC-QUOTE-05",
+    "FR-WEB-06|TC-QUOTE-07",
+    "FR-WEB-06|TC-QUOTE-08",
+    "FR-WEB-06|TC-WO-14",
+    "FR-WEB-07|TC-WEB-MEDIA-01",
+    "NFR-A11y-001|TC-NFR-A11Y-01",
+    "NFR-A11y-002|TC-A11Y-01",
+    "NFR-A11y-002|TC-A11Y-02",
+    "NFR-A11y-003|TC-NFR-A11Y-01",
+    "NFR-A11y-004|TC-NFR-A11Y-01",
+    "NFR-A11y-005|TC-NFR-A11Y-01",
+    "NFR-Aud-001|TC-SETTLE-07",
+    "NFR-Aud-002|TC-NFR-AUD-01",
+    "NFR-Aud-003|TC-NFR-AUD-01",
+    "NFR-Aud-004|TC-COMPLIANCE-05",
+    "NFR-Aud-005|TC-NFR-AUD-01",
+    "NFR-Aud-006|TC-NFR-AUD-01",
+    "NFR-Aud-007|TC-NFR-AUD-01",
+    "NFR-Avail-001|TC-NFR-AVAIL-01",
+    "NFR-Avail-002|TC-NFR-AVAIL-01",
+    "NFR-Avail-003|TC-NFR-AVAIL-01",
+    "NFR-Avail-004|TC-NFR-AVAIL-01",
+    "NFR-Avail-005|TC-NFR-AVAIL-01",
+    "NFR-Avail-006|TC-NFR-AVAIL-01",
+    "NFR-Avail-007|TC-NFR-AVAIL-01",
+    "NFR-Avail-008|TC-NFR-AVAIL-01",
+    "NFR-Avail-009|TC-NFR-AVAIL-01",
+    "NFR-Avail-010|TC-EXC-04",
+    "NFR-Avail-011|TC-NFR-AVAIL-01",
+    "NFR-Comp-001|TC-COMPLIANCE-07",
+    "NFR-Comp-002|TC-COMPLIANCE-05",
+    "NFR-Comp-003|TC-COMPLIANCE-06",
+    "NFR-Comp-004|TC-COMPLIANCE-01",
+    "NFR-Comp-004|TC-COMPLIANCE-02",
+    "NFR-Comp-004|TC-COMPLIANCE-03",
+    "NFR-Comp-004|TC-COMPLIANCE-04",
+    "NFR-DORA-001|TC-NFR-DORA-01",
+    "NFR-DORA-002|TC-NFR-DORA-01",
+    "NFR-DORA-003|TC-NFR-DORA-01",
+    "NFR-DQ-001|TC-COMPLIANCE-08",
+    "NFR-DQ-002|TC-NFR-DQ-01",
+    "NFR-DQ-003|TC-COMPLIANCE-08",
+    "NFR-DQ-004|TC-NFR-DQ-01",
+    "NFR-Maint-001|TC-NFR-MAINT-01",
+    "NFR-Maint-002|TC-NFR-MAINT-01",
+    "NFR-Maint-003|TC-NFR-MAINT-01",
+    "NFR-Maint-004|TC-NFR-MAINT-01",
+    "NFR-Maint-005|TC-NFR-MAINT-01",
+    "NFR-Maint-006|TC-NFR-MAINT-01",
+    "NFR-Maint-007|TC-NFR-MAINT-01",
+    "NFR-Maint-008|TC-NFR-MAINT-01",
+    "NFR-Obs-001|TC-NFR-OBS-01",
+    "NFR-Obs-002|TC-NFR-OBS-01",
+    "NFR-Obs-003|TC-NFR-OBS-01",
+    "NFR-Obs-004|TC-NFR-OBS-01",
+    "NFR-Obs-005|TC-NFR-OBS-01",
+    "NFR-PUB-001|TC-NFR-PUB-01",
+    "NFR-PUB-002|TC-NFR-PUB-01",
+    "NFR-PUB-003|TC-NFR-PUB-01",
+    "NFR-PUB-004|TC-NFR-PUB-01",
+    "NFR-Perf-001|TC-NFR-PERF-01",
+    "NFR-Perf-001|TC-PERF-01",
+    "NFR-Perf-001|TC-PERF-02",
+    "NFR-Perf-002|TC-NFR-PERF-01",
+    "NFR-Perf-003|TC-NFR-PERF-01",
+    "NFR-Perf-004|TC-NFR-PERF-01",
+    "NFR-Perf-005|TC-NFR-PERF-01",
+    "NFR-Perf-006|TC-NFR-PERF-01",
+    "NFR-Perf-007|TC-NFR-PERF-01",
+    "NFR-Perf-007|TC-PERF-03",
+    "NFR-Perf-008|TC-NFR-PERF-01",
+    "NFR-Perf-009|TC-PERF-05",
+    "NFR-Perf-010|TC-NFR-PERF-01",
+    "NFR-Perf-011|TC-NFR-PERF-01",
+    "NFR-Perf-012|TC-NFR-PERF-01",
+    "NFR-Priv-001|TC-NFR-PRIV-01",
+    "NFR-Priv-002|TC-NFR-PRIV-01",
+    "NFR-Priv-003|TC-NFR-PRIV-01",
+    "NFR-Priv-004|TC-NFR-PRIV-01",
+    "NFR-Priv-005|TC-COMPLIANCE-01",
+    "NFR-Priv-005|TC-COMPLIANCE-02",
+    "NFR-Priv-006|TC-SEC-MEM-01",
+    "NFR-Priv-006|TC-SEC-TENANT-01",
+    "NFR-Priv-007|TC-NFR-PRIV-01",
+    "NFR-Priv-008|TC-COMPLIANCE-01",
+    "NFR-Priv-008|TC-COMPLIANCE-04",
+    "NFR-Priv-009|TC-NFR-PRIV-01",
+    "NFR-Priv-010|TC-NFR-PRIV-01",
+    "NFR-Rel-001|TC-NFR-REL-01",
+    "NFR-Rel-002|TC-NFR-REL-01",
+    "NFR-Rel-003|TC-NFR-REL-01",
+    "NFR-Rep-001|TC-NFR-REP-01",
+    "NFR-Rep-002|TC-NFR-REP-01",
+    "NFR-SLA-001|TC-NFR-SLA-01",
+    "NFR-SLA-002|TC-NFR-SLA-01",
+    "NFR-SLA-003|TC-NFR-SLA-01",
+    "NFR-Scal-001|TC-PERF-01",
+    "NFR-Scal-002|TC-PERF-02",
+    "NFR-Scal-002|TC-PERF-04",
+    "NFR-Scal-003|TC-NFR-SCAL-01",
+    "NFR-Scal-004|TC-NFR-SCAL-01",
+    "NFR-Scal-005|TC-NFR-SCAL-01",
+    "NFR-Scal-006|TC-NFR-SCAL-01",
+    "NFR-Scal-007|TC-NFR-SCAL-01",
+    "NFR-Scal-008|TC-NFR-SCAL-01",
+    "NFR-Sch-001|TC-NFR-SCH-01",
+    "NFR-Sch-002|TC-SEC-PIPE-01",
+    "NFR-Sch-003|TC-NFR-SCH-01",
+    "NFR-Sec-001|TC-NFR-SEC-01",
+    "NFR-Sec-002|TC-NFR-SEC-01",
+    "NFR-Sec-003|TC-SEC-RBAC-01",
+    "NFR-Sec-003|TC-SEC-RBAC-02",
+    "NFR-Sec-003|TC-SEC-RBAC-03",
+    "NFR-Sec-003|TC-SEC-RBAC-04",
+    "NFR-Sec-003|TC-SEC-RBAC-05",
+    "NFR-Sec-003|TC-SEC-SOD-01",
+    "NFR-Sec-004|TC-NFR-SEC-01",
+    "NFR-Sec-005|TC-SEC-INJ-01",
+    "NFR-Sec-006|TC-SEC-INJ-02",
+    "NFR-Sec-007|TC-NFR-SEC-01",
+    "NFR-Sec-008|TC-CS-AI-05",
+    "NFR-Sec-009|TC-COMPLIANCE-06",
+    "NFR-Sec-010|TC-CS-AI-02",
+    "NFR-Sec-011|TC-SEC-INT-01",
+    "NFR-Sec-012|TC-SEC-TOOL-01",
+    "NFR-Sec-013|TC-NFR-SEC-01",
+    "NFR-Sec-014|TC-NFR-SEC-01"
+  ],
+  "milestones": {
+    "M1": "21491aa5-91d3-4ced-9e58-9eb8e39485f4",
+    "M2": "c3c39dd0-9cee-4532-922a-0bad80654093",
+    "M3": "5b2fa6c8-6320-453b-863a-64ee928890b8",
+    "M4": "ab55d5c1-eb4d-4f45-9d72-4aafc816f7ef",
+    "M5": "18d7b292-e8c1-4a87-8bac-4ed300bb0a23"
+  },
+  "modules": {
+    "L1-CUS": "7ed9b06a-8994-453f-b110-0fe756a23239",
+    "L1-KNW": "8cd207e2-b440-4701-b8db-9502d0330130",
+    "L1-OPS": "8434b199-2ade-46f7-905c-df2471b50758",
+    "L1-PLT": "e4465df5-c086-4e3a-93c3-24d1ce806b6e",
+    "L1-TEC": "9a2b6e47-2da6-4109-9974-a2db28c6fac3",
+    "子系統 AGT": "89172afa-4625-44b8-b419-2818fc499657",
+    "子系統 API": "0ed475fe-7529-4705-85ad-8d2f64deefca",
+    "子系統 DAT": "64fafe56-c232-403f-bb24-bdc93462666b",
+    "子系統 PLT": "3da4a5a4-7493-4243-849a-2600a4ec3d45",
+    "子系統 REF": "6d78dd72-e968-48b0-b9ac-0d543e95a510",
+    "子系統 TEC": "ef07bbfe-b321-4746-9a7b-1add578cf6a1",
+    "子系統 WEB": "ea1ebe26-a2fc-450f-8634-8ce5a284b6e2"
+  },
+  "properties": {
+    "canonical_id": {
+      "id": "df0dedd8-7100-4ece-b459-502a135e3bba",
+      "kind": "text",
+      "options": {}
+    },
+    "essential_for": {
+      "id": "b3db696f-b261-4f21-8637-e07fb4185552",
+      "kind": "multi_select",
+      "options": {
+        "SC-01": "59d9598c-9ba6-45c3-9ffe-238f5ca8984d",
+        "SC-02": "7d095a9f-3d8c-418f-b770-7861fd188c8d",
+        "SC-03": "9a0de43d-7ec6-4dbd-ab84-069df9cf0751",
+        "SC-04": "cf7aa5cb-e825-4570-a913-11abc6b75e26",
+        "SC-05": "c92a615d-7c9d-4298-9452-fcaf268125df",
+        "SC-06": "e7919de0-3e1d-4d6e-9791-0989465af124",
+        "SC-07": "0ded1df6-d6fe-49d4-8bc7-0d970d8c0e98",
+        "SC-08": "f832d6c5-2090-4f09-a2cb-69088f9e1095",
+        "SC-09": "c896ce0d-056c-405e-9ffd-6b9e0f5cdb26",
+        "SC-10": "0fcb28a8-afaa-4d27-b631-b5b80b913283",
+        "SC-11": "fba2a0d4-5c82-454c-a57e-a4153aed75a1",
+        "SC-12": "8727048d-d2eb-433b-84e5-7f1c48b1b094",
+        "SC-13": "3b5c707a-7e1e-4950-a2bc-8441172d8bf7",
+        "SC-14": "adbc8b99-09ad-41e7-8b87-f939ff321710",
+        "SC-15": "7727783b-da90-4ce6-9e61-bcb0b1a147d5",
+        "SC-16": "9e12125d-6212-4f5d-8509-e06854f14ee9",
+        "SC-17": "b3ddff7d-a52f-4aac-b971-e02797e42767",
+        "SC-18": "0cc54d10-2f30-4edf-b117-756df1960c53",
+        "SC-19": "c7f2edb8-8582-41d0-8694-65223601f26f"
+      }
+    },
+    "nfr_category": {
+      "id": "96961ed7-aac2-4cf8-a55c-188da9d14ec3",
+      "kind": "select",
+      "options": {
+        "A11y": "d428b868-cf5e-4fe5-8496-3c0eb7fb2960",
+        "Aud": "0550fc73-84f9-4de1-8d4d-916a9eeb4e11",
+        "Avail": "22abf4c9-c68b-4a76-8e8f-77abf33670f3",
+        "Comp": "769df0f3-f187-4ac0-9e60-5d0dd1c7840a",
+        "DORA": "42dca2a5-5363-460d-b29b-67f2744d4dab",
+        "DQ": "9cdbbda8-8ede-4a8b-83e7-87089b17f5eb",
+        "Maint": "f99802f3-f236-4688-876a-25bb67c3ece5",
+        "Obs": "9a49288d-c914-43cf-8571-bd02fddf9522",
+        "PUB": "87617169-8c0c-489f-8316-660b605f5add",
+        "Perf": "bc9726b1-7186-4842-9fb5-f5f3250abfab",
+        "Priv": "781f0b10-7056-4396-b2c8-fe8bca9e6f42",
+        "Rel": "bd16ed2a-b5bc-44e5-9112-10282ec48f09",
+        "Rep": "f5c1136d-4f81-4d98-9758-a5ff7a8fd66a",
+        "SLA": "8f0e790a-050a-4b7d-a62b-1f0c8563900c",
+        "Scal": "58b75461-a5f5-457f-bfca-9a3fc361071a",
+        "Sch": "a11b793b-d561-41f1-b77e-b7dbd067bdc3",
+        "Sec": "da38cde3-ddf5-49d8-8069-e680343dd4cc"
+      }
+    },
+    "nfr_tier": {
+      "id": "3c869647-c4d6-4a42-bcea-0b1498c096bd",
+      "kind": "select",
+      "options": {
+        "contract": "b0383feb-0bf5-45df-9e1a-6de923da40be",
+        "slo": "95e6987a-00e6-4a17-b03b-30fb8b98ce6f"
+      }
+    },
+    "owner_role": {
+      "id": "97ec7e2f-2824-4c7b-9d76-2e929a6943da",
+      "kind": "select",
+      "options": {
+        "BA": "3da46e2c-abaf-403c-a7a0-39a24385f17c",
+        "OPS": "5ec3034f-e148-48a6-888d-ecd88d9c6620",
+        "PM": "2bb50f3a-63b9-4ac8-8fcb-984f66305a6d",
+        "QA": "818b0d2a-3fdc-4d87-b442-454cde5b9cb7",
+        "RD": "94688b74-50ac-4cfe-9787-3c08658e67bb",
+        "SA": "d8b19a18-7063-4cfa-8f2e-f7633827f137",
+        "業主": "6baafbd6-1ab6-4f9c-9783-e85f36322498"
+      }
+    },
+    "personas": {
+      "id": "9ae240c8-7fe9-4f3e-b33b-9032c2ebe3a2",
+      "kind": "multi_select",
+      "options": {
+        "PER-CUS-01": "63a0b625-47d5-424e-b1ac-8aa5647ab804",
+        "PER-KNW-01": "1ce87c1c-55e8-4f8e-ac1e-5f93013f2675",
+        "PER-KNW-02": "632162a5-3783-48ea-80b0-e089b16b7239",
+        "PER-KNW-03": "65bc6c5c-6f1c-487c-b5d9-f1143610f2c5",
+        "PER-OPS-01": "b60bc1ea-2e9c-4221-a5c6-6351fc74bcaf",
+        "PER-OPS-02": "da02e40e-4343-4769-b5f8-08b30ff8ccc4",
+        "PER-PLT-01": "93a0423e-9973-4cd3-81df-70d1c0176737",
+        "PER-PLT-02": "5e9becac-9eb3-4193-bb0d-d63134630ab2",
+        "PER-PLT-03": "cd58182f-3a74-4b37-8792-f6804c47f51d",
+        "PER-TEC-01": "fe109597-fd09-4ff0-b46f-8db6cb98c350"
+      }
+    },
+    "source_doc": {
+      "id": "0f310e3f-042d-4223-91ec-f1e00ff87a9d",
+      "kind": "text",
+      "options": {}
+    },
+    "spec_status": {
+      "id": "68ea5dac-9174-4d0b-b4ef-8f7f8f15e4b7",
+      "kind": "select",
+      "options": {
+        "conflict": "0e9c6106-79cd-4f11-80cd-5ecfbe380ad9",
+        "finalized": "3dbe7b73-ab44-4c16-bd09-f185b517b599",
+        "partial": "6b628a58-1575-4fa3-8a2f-9d1002b4c6a4",
+        "planned": "ef9d64ea-510a-450c-b77d-6486e814c948",
+        "tbd": "2ebb64f4-cfe8-4301-bdb8-3b9e609c63e6"
+      }
+    },
+    "subsystem": {
+      "id": "5dc3ac98-9c2e-40f8-9cdc-8f3e05596502",
+      "kind": "select",
+      "options": {
+        "AGT": "36f92275-314b-4f59-b7fc-dd29f0cabf2a",
+        "API": "0631525d-98b5-428c-a6af-86b9e570d5d3",
+        "DAT": "3df471fe-0bc2-49fd-864d-9bc1c82a7a54",
+        "PLT": "df67a91f-8084-4780-a97d-eab31632635e",
+        "REF": "ec68fb95-1961-479d-a739-bf0c496382d9",
+        "TEC": "5a6b9c9c-642b-4123-9655-b89e02b26c33",
+        "WEB": "f2de4c57-f661-452b-93d1-6d0aad334ed3"
+      }
+    },
+    "supporting_for": {
+      "id": "a694bbdc-28e3-4bfb-b72d-9943c3ea9999",
+      "kind": "multi_select",
+      "options": {
+        "SC-01": "6b64fd3f-bd1d-4116-bc41-4b34b435aaef",
+        "SC-02": "650af62f-7e1e-44a8-8d12-197a7984c272",
+        "SC-03": "1af3a427-608d-482a-a700-ec8f108d4e70",
+        "SC-04": "04adc391-6e6f-4548-a69a-31ce83a02d01",
+        "SC-05": "29d94bf4-f177-44d4-81ce-914d19fc042c",
+        "SC-06": "dc92a106-44ad-4435-80ca-c1ddfdbf34be",
+        "SC-07": "7ec48343-c5da-4580-bafb-917722b0a7e8",
+        "SC-08": "1ea4c00f-fda8-4dcf-b2d0-7e4644068dc1",
+        "SC-09": "c10bfa23-1b52-4f87-a8d3-1fa1946695ed",
+        "SC-10": "6af2f8e2-12a1-4871-8203-cbcf9d432335",
+        "SC-11": "8f19804d-b1e1-4324-8656-78d8922635bf",
+        "SC-12": "51c74ad4-5f0e-44dc-9cff-c824c6b9eb78",
+        "SC-13": "a87d0e30-0696-4e5a-b006-603c95c87438",
+        "SC-14": "45eed620-7a78-4bde-91ce-3f3683dc7691",
+        "SC-15": "2563329d-adce-4b24-b409-1652d751bbc1",
+        "SC-16": "6e073e6b-55f2-402a-ba1d-e0a6b6839508",
+        "SC-17": "8d64f418-a4e6-4945-bfb6-effb627da229",
+        "SC-18": "66aef19c-b030-4edf-9a42-e912b0544dda",
+        "SC-19": "6af0b0d4-71ba-4b20-bda3-5aa62a31f853"
+      }
+    },
+    "value_line": {
+      "id": "c948f3a4-7dfc-4d15-81e0-eb7465534cc9",
+      "kind": "select",
+      "options": {
+        "L1-CUS": "f06ce8f1-17b1-4b18-984d-8349fa4b69ea",
+        "L1-KNW": "e078cffe-f603-411b-8255-830a1758f6cd",
+        "L1-OPS": "8b496a4e-48b1-4f3d-877c-5d77f29745e4",
+        "L1-PLT": "0f9a6534-eb78-4c4e-9bec-398aedeb3192",
+        "L1-TEC": "190423b6-0d4a-47d1-9b06-a32877ee1ed5"
+      }
+    }
+  },
+  "props_done": [
+    "SC-01",
+    "SC-02",
+    "SC-03",
+    "SC-04",
+    "SC-05",
+    "SC-06",
+    "SC-07",
+    "SC-08",
+    "SC-09",
+    "SC-10",
+    "SC-11",
+    "SC-12",
+    "SC-13",
+    "SC-14",
+    "SC-15",
+    "SC-16",
+    "SC-17",
+    "SC-18",
+    "SC-19",
+    "FR-AGT-01",
+    "FR-AGT-02",
+    "FR-AGT-03",
+    "FR-AGT-04",
+    "FR-AGT-05",
+    "FR-AGT-06",
+    "FR-AGT-07",
+    "FR-AGT-08",
+    "FR-AGT-09",
+    "FR-AGT-10",
+    "FR-AGT-11",
+    "FR-API-01",
+    "FR-API-02",
+    "FR-API-03",
+    "FR-API-04",
+    "FR-API-05",
+    "FR-API-06",
+    "FR-API-07",
+    "FR-API-08",
+    "FR-API-09",
+    "FR-API-10",
+    "FR-API-11",
+    "FR-API-12",
+    "FR-API-13",
+    "FR-API-14",
+    "FR-API-15",
+    "FR-API-16",
+    "FR-API-17",
+    "FR-API-18",
+    "FR-API-19",
+    "FR-WEB-01",
+    "FR-WEB-02",
+    "FR-WEB-03",
+    "FR-WEB-04",
+    "FR-WEB-05",
+    "FR-WEB-06",
+    "FR-WEB-07",
+    "FR-DAT-01",
+    "FR-DAT-02",
+    "FR-DAT-03",
+    "FR-DAT-04",
+    "FR-DAT-05",
+    "FR-DAT-06",
+    "FR-REF-01",
+    "FR-REF-02",
+    "FR-REF-03",
+    "FR-REF-04",
+    "FR-REF-05",
+    "FR-TEC-01",
+    "FR-TEC-02",
+    "FR-TEC-03",
+    "FR-TEC-04",
+    "FR-TEC-05",
+    "FR-TEC-06",
+    "FR-TEC-07",
+    "FR-TEC-08",
+    "FR-PLT-01",
+    "FR-PLT-02",
+    "FR-PLT-03",
+    "FR-PLT-04",
+    "FR-PLT-05",
+    "FR-PLT-06",
+    "FR-PLT-07",
+    "FR-PLT-08",
+    "FR-PLT-09",
+    "NFR-Perf-001",
+    "NFR-Perf-002",
+    "NFR-Perf-003",
+    "NFR-Perf-004",
+    "NFR-Perf-005",
+    "NFR-Perf-006",
+    "NFR-Perf-007",
+    "NFR-Perf-008",
+    "NFR-Perf-009",
+    "NFR-Perf-010",
+    "NFR-Perf-011",
+    "NFR-Perf-012",
+    "NFR-Avail-001",
+    "NFR-Avail-002",
+    "NFR-Avail-003",
+    "NFR-Avail-004",
+    "NFR-Avail-005",
+    "NFR-Avail-006",
+    "NFR-Avail-007",
+    "NFR-Avail-008",
+    "NFR-Avail-009",
+    "NFR-Avail-010",
+    "NFR-Avail-011",
+    "NFR-Rel-001",
+    "NFR-Rel-002",
+    "NFR-Rel-003",
+    "NFR-SLA-001",
+    "NFR-SLA-002",
+    "NFR-SLA-003",
+    "NFR-Scal-001",
+    "NFR-Scal-002",
+    "NFR-Scal-003",
+    "NFR-Scal-004",
+    "NFR-Scal-005",
+    "NFR-Scal-006",
+    "NFR-Scal-007",
+    "NFR-Scal-008",
+    "NFR-Sec-001",
+    "NFR-Sec-002",
+    "NFR-Sec-003",
+    "NFR-Sec-004",
+    "NFR-Sec-005",
+    "NFR-Sec-006",
+    "NFR-Sec-007",
+    "NFR-Sec-008",
+    "NFR-Sec-009",
+    "NFR-Sec-010",
+    "NFR-Sec-011",
+    "NFR-Sec-012",
+    "NFR-Sec-013",
+    "NFR-Sec-014",
+    "NFR-Priv-001",
+    "NFR-Priv-002",
+    "NFR-Priv-003",
+    "NFR-Priv-004",
+    "NFR-Priv-005",
+    "NFR-Priv-006",
+    "NFR-Priv-007",
+    "NFR-Priv-008",
+    "NFR-Priv-009",
+    "NFR-Priv-010",
+    "NFR-Obs-001",
+    "NFR-Obs-002",
+    "NFR-Obs-003",
+    "NFR-Obs-004",
+    "NFR-Obs-005",
+    "NFR-Aud-001",
+    "NFR-Aud-002",
+    "NFR-Aud-003",
+    "NFR-Aud-004",
+    "NFR-Aud-005",
+    "NFR-Aud-006",
+    "NFR-Aud-007",
+    "NFR-DQ-001",
+    "NFR-DQ-002",
+    "NFR-DQ-003",
+    "NFR-DQ-004",
+    "NFR-PUB-001",
+    "NFR-PUB-002",
+    "NFR-PUB-003",
+    "NFR-PUB-004",
+    "NFR-Sch-001",
+    "NFR-Sch-002",
+    "NFR-Sch-003",
+    "NFR-Rep-001",
+    "NFR-Rep-002",
+    "NFR-Maint-001",
+    "NFR-Maint-002",
+    "NFR-Maint-003",
+    "NFR-Maint-004",
+    "NFR-Maint-005",
+    "NFR-Maint-006",
+    "NFR-Maint-007",
+    "NFR-Maint-008",
+    "NFR-A11y-001",
+    "NFR-A11y-002",
+    "NFR-A11y-003",
+    "NFR-A11y-004",
+    "NFR-A11y-005",
+    "NFR-Comp-001",
+    "NFR-Comp-002",
+    "NFR-Comp-003",
+    "NFR-Comp-004",
+    "NFR-DORA-001",
+    "NFR-DORA-002",
+    "NFR-DORA-003",
+    "WBS-1.1.1",
+    "WBS-1.1.2",
+    "WBS-1.1.3",
+    "WBS-1.2.1",
+    "WBS-1.2.2",
+    "WBS-1.2.3",
+    "WBS-1.2.4",
+    "WBS-1.3.1",
+    "WBS-1.4.1",
+    "WBS-1.5.1",
+    "WBS-1.6.1",
+    "WBS-1.7.1",
+    "WBS-1.7.2",
+    "WBS-2.1.1",
+    "WBS-2.1.2",
+    "WBS-2.2.1",
+    "WBS-2.2.2",
+    "WBS-2.3.1",
+    "WBS-2.3.2",
+    "WBS-2.3.3",
+    "WBS-2.4.1",
+    "WBS-2.4.2",
+    "WBS-2.4.3",
+    "WBS-2.4.4",
+    "WBS-2.5.1",
+    "WBS-2.6.1",
+    "WBS-3.1.1",
+    "WBS-3.1.2",
+    "WBS-3.2.1",
+    "WBS-3.3.1",
+    "WBS-3.4.1",
+    "WBS-3.5.1",
+    "WBS-3.6.1",
+    "WBS-3.6.2",
+    "WBS-3.6.3",
+    "WBS-3.6.4",
+    "WBS-3.6.5",
+    "WBS-3.6.6",
+    "WBS-3.6.7",
+    "WBS-3.6.8",
+    "WBS-4.1",
+    "WBS-4.2",
+    "WBS-4.3",
+    "WBS-4.4",
+    "WBS-4.5",
+    "WBS-4.6",
+    "WBS-4.7"
+  ],
+  "relations_done": [
+    "SC-01",
+    "SC-02",
+    "SC-03",
+    "SC-04",
+    "SC-05",
+    "SC-06",
+    "SC-07",
+    "SC-08",
+    "SC-09",
+    "SC-10",
+    "SC-11",
+    "SC-12",
+    "SC-13",
+    "SC-14",
+    "SC-15",
+    "SC-16",
+    "SC-17",
+    "SC-18",
+    "SC-19"
+  ],
+  "test_cases": {
+    "TC-A11Y-01": {
+      "id": "40586304-bc4c-40d2-9af5-54384dd08e70",
+      "sequence": 86
+    },
+    "TC-A11Y-02": {
+      "id": "09a03ecc-6921-4ad8-bce8-42a582b4f76e",
+      "sequence": 87
+    },
+    "TC-AGT-CLARIFY-01": {
+      "id": "6a573784-f046-4cc1-8c9d-68848927f523",
+      "sequence": 99
+    },
+    "TC-AGT-RAG-01": {
+      "id": "3ae9c476-1606-4cde-b78f-fe359af98426",
+      "sequence": 101
+    },
+    "TC-AGT-TURN-01": {
+      "id": "2006635e-ebbc-4419-a11c-4f33b27d753d",
+      "sequence": 98
+    },
+    "TC-AGT-URG-01": {
+      "id": "5f7cf87b-08d9-4771-af6d-27e2d7879aa6",
+      "sequence": 100
+    },
+    "TC-COMPLIANCE-01": {
+      "id": "4a5f95c2-18be-41db-ac3f-c6483082145f",
+      "sequence": 88
+    },
+    "TC-COMPLIANCE-02": {
+      "id": "0cea299b-7ceb-4972-92c3-97dd615fe0d6",
+      "sequence": 89
+    },
+    "TC-COMPLIANCE-03": {
+      "id": "1a19002b-5989-4db7-9f9e-9e6bdabfb988",
+      "sequence": 90
+    },
+    "TC-COMPLIANCE-04": {
+      "id": "99322176-4742-4980-8d54-ccfb86cf96ca",
+      "sequence": 91
+    },
+    "TC-COMPLIANCE-05": {
+      "id": "6a35f4b7-1116-4781-b3ba-51d89bfca2f3",
+      "sequence": 92
+    },
+    "TC-COMPLIANCE-06": {
+      "id": "3f94cafd-033f-4d01-97a5-b28610c0c938",
+      "sequence": 93
+    },
+    "TC-COMPLIANCE-07": {
+      "id": "bdf0d059-439f-4f33-b107-54adfa38c62d",
+      "sequence": 94
+    },
+    "TC-COMPLIANCE-08": {
+      "id": "6af74750-f60b-4fc9-9db1-61568c47915e",
+      "sequence": 95
+    },
+    "TC-CS-AI-01": {
+      "id": "c3fbeccd-2b4e-4a83-b30c-471f74972117",
+      "sequence": 1
+    },
+    "TC-CS-AI-02": {
+      "id": "c609307b-9f6e-4bf9-b54c-0950fd746f16",
+      "sequence": 2
+    },
+    "TC-CS-AI-03": {
+      "id": "a4f5fce8-48c1-4a9f-bec1-8aba74c642af",
+      "sequence": 3
+    },
+    "TC-CS-AI-04": {
+      "id": "fe065eaa-de48-4429-b578-fa91fe1a5966",
+      "sequence": 4
+    },
+    "TC-CS-AI-05": {
+      "id": "a1a43af4-5c8d-4ec7-9dc7-4ca520bf57fb",
+      "sequence": 5
+    },
+    "TC-CS-AI-06": {
+      "id": "328061e6-dd28-402b-b8cb-1220f30383c5",
+      "sequence": 6
+    },
+    "TC-CS-AI-07": {
+      "id": "48951b4f-5c1e-47a5-9aa3-2ff3ce554476",
+      "sequence": 7
+    },
+    "TC-CS-AI-08": {
+      "id": "c37a067d-205e-4cb7-b27b-682b2e656270",
+      "sequence": 8
+    },
+    "TC-CS-AI-09": {
+      "id": "8472b66e-b469-4863-abf8-100d7deae156",
+      "sequence": 9
+    },
+    "TC-CS-AI-10": {
+      "id": "904353d6-25a6-49e0-b66e-948a7d46b299",
+      "sequence": 10
+    },
+    "TC-CS-AI-11": {
+      "id": "b1efbcce-da96-4045-a6bc-e5015aa5ab8d",
+      "sequence": 11
+    },
+    "TC-CS-AI-12": {
+      "id": "8352449c-de95-4c1f-8247-d40d053b6457",
+      "sequence": 12
+    },
+    "TC-DISPATCH-01": {
+      "id": "fe7349ad-e142-406b-8c01-41c84a245fcd",
+      "sequence": 36
+    },
+    "TC-DISPATCH-02": {
+      "id": "1ca00618-f1e6-43a0-b873-6e415c7cd235",
+      "sequence": 37
+    },
+    "TC-DISPATCH-03": {
+      "id": "5a659a7f-3dcf-4b5b-8c24-ab7fc5d781d9",
+      "sequence": 38
+    },
+    "TC-DISPATCH-04": {
+      "id": "f3cb9f57-f962-49e6-bb6f-413d2e214da7",
+      "sequence": 39
+    },
+    "TC-DISPATCH-05": {
+      "id": "5d1c1752-e671-4c77-9b22-e97afcb57e45",
+      "sequence": 40
+    },
+    "TC-DISPATCH-06": {
+      "id": "5dd1be1b-56b2-4c10-ae39-e1c2aa4140a9",
+      "sequence": 41
+    },
+    "TC-DISPATCH-07": {
+      "id": "7fd41c15-3615-42a4-ab99-20b7332e115f",
+      "sequence": 49
+    },
+    "TC-DISPATCH-08": {
+      "id": "980811b3-da72-453d-81d9-fbffce0ff687",
+      "sequence": 50
+    },
+    "TC-DISPATCH-09": {
+      "id": "14e544d9-cf6a-443f-94d8-6b08f268acb3",
+      "sequence": 111
+    },
+    "TC-EXC-01": {
+      "id": "d8af9012-edb7-4016-b621-07d531d9970f",
+      "sequence": 73
+    },
+    "TC-EXC-02": {
+      "id": "aa40e4b0-f2c3-442d-b044-13ac29d51880",
+      "sequence": 74
+    },
+    "TC-EXC-03": {
+      "id": "ab159772-c490-4fc7-aa83-d3e6b6799c19",
+      "sequence": 75
+    },
+    "TC-EXC-04": {
+      "id": "409c4370-7217-457f-abde-9c83430f957d",
+      "sequence": 76
+    },
+    "TC-EXC-05": {
+      "id": "19dc5bc9-41be-4190-8b18-54161c082130",
+      "sequence": 77
+    },
+    "TC-EXC-06": {
+      "id": "959e3229-96c5-4c55-964b-ac154e5a7551",
+      "sequence": 78
+    },
+    "TC-NFR-A11Y-01": {
+      "id": "94b542fa-b6d4-42b3-a9a1-9b9747e9ecc5",
+      "sequence": 115
+    },
+    "TC-NFR-AUD-01": {
+      "id": "b1b58c9c-021c-4b33-91b9-3ac739408fd8",
+      "sequence": 116
+    },
+    "TC-NFR-AVAIL-01": {
+      "id": "5d657cfc-448a-4ea1-8601-3e46966d36f6",
+      "sequence": 117
+    },
+    "TC-NFR-DORA-01": {
+      "id": "48014024-e3b7-48d4-bf3a-48c0e4aac10e",
+      "sequence": 118
+    },
+    "TC-NFR-DQ-01": {
+      "id": "6a3c8f17-a8a6-41ca-8047-22d616f54f79",
+      "sequence": 119
+    },
+    "TC-NFR-MAINT-01": {
+      "id": "b2dfb19c-6912-414a-b91c-b53c71c13178",
+      "sequence": 120
+    },
+    "TC-NFR-OBS-01": {
+      "id": "cb47d0a7-575c-419f-9388-83cac9372900",
+      "sequence": 121
+    },
+    "TC-NFR-PERF-01": {
+      "id": "e36294fb-5011-4110-9482-4c558aa5acff",
+      "sequence": 123
+    },
+    "TC-NFR-PRIV-01": {
+      "id": "29218aba-b2d3-43bc-9cbd-a64da47f349e",
+      "sequence": 124
+    },
+    "TC-NFR-PUB-01": {
+      "id": "a4a2ca28-67d4-440c-8e08-fb40763db0cc",
+      "sequence": 122
+    },
+    "TC-NFR-REL-01": {
+      "id": "84510c4a-2b13-4f31-a7b7-de899ac23652",
+      "sequence": 125
+    },
+    "TC-NFR-REP-01": {
+      "id": "aa1e0b1a-d882-40c4-8c60-003180b7cd98",
+      "sequence": 126
+    },
+    "TC-NFR-SCAL-01": {
+      "id": "dc41a80c-7c5c-441c-a52a-2296cd1baf99",
+      "sequence": 128
+    },
+    "TC-NFR-SCH-01": {
+      "id": "5d1c5b8c-93f1-455d-8f0e-139baae05ff4",
+      "sequence": 129
+    },
+    "TC-NFR-SEC-01": {
+      "id": "3860fc74-6029-4aeb-84be-7c9d8c831a7b",
+      "sequence": 130
+    },
+    "TC-NFR-SLA-01": {
+      "id": "ded4c9a8-a6ea-4234-a501-d1dee10f1ad0",
+      "sequence": 127
+    },
+    "TC-ONSITE-01": {
+      "id": "b9c57fad-b56b-4ba3-88a3-73e572baa930",
+      "sequence": 42
+    },
+    "TC-ONSITE-02": {
+      "id": "57128468-7cf3-4d1a-842c-2adf8b3ccff3",
+      "sequence": 43
+    },
+    "TC-ONSITE-03": {
+      "id": "b34bccf4-1292-49ad-a964-a849fb0f891f",
+      "sequence": 44
+    },
+    "TC-ONSITE-04": {
+      "id": "2e529fe2-3e0b-4fe2-a994-1e2a476ec765",
+      "sequence": 45
+    },
+    "TC-ONSITE-05": {
+      "id": "02d1a7d9-9e9b-4611-81b7-e0fafc284810",
+      "sequence": 46
+    },
+    "TC-ONSITE-06": {
+      "id": "285529a1-32bb-4f11-b650-016067f114a9",
+      "sequence": 47
+    },
+    "TC-ONSITE-07": {
+      "id": "1d2817d3-e6fc-4caf-ace2-fa555f168185",
+      "sequence": 48
+    },
+    "TC-PAYMENT-01": {
+      "id": "2ac94052-83b0-4159-8014-337c376fab61",
+      "sequence": 112
+    },
+    "TC-PERF-01": {
+      "id": "41f8d07e-46ac-42ac-a06f-eaa2691a2452",
+      "sequence": 79
+    },
+    "TC-PERF-02": {
+      "id": "58d8d393-2fee-4de5-89d0-a97629ea2449",
+      "sequence": 80
+    },
+    "TC-PERF-03": {
+      "id": "40f3c885-0293-49d3-9ee9-52b8e1822cf4",
+      "sequence": 81
+    },
+    "TC-PERF-04": {
+      "id": "523ab9d4-255d-4c26-8d78-e3888acfd285",
+      "sequence": 82
+    },
+    "TC-PERF-05": {
+      "id": "86f429b7-ce63-4f3f-9c33-cc5b49aac7f7",
+      "sequence": 83
+    },
+    "TC-PLT-CFG-01": {
+      "id": "a2ef9fa3-cf90-4f38-a983-f1890495daf1",
+      "sequence": 104
+    },
+    "TC-PLT-FLOW-01": {
+      "id": "a18b4563-c6c3-40ac-856d-df8c76913d43",
+      "sequence": 103
+    },
+    "TC-PLT-PROV-01": {
+      "id": "4e13d736-7a3f-4254-8e92-6e5b6deb4b88",
+      "sequence": 102
+    },
+    "TC-PLT-SURFACE-01": {
+      "id": "ba11c8e3-2bed-48bc-b112-3438e225191f",
+      "sequence": 105
+    },
+    "TC-QUOTE-01": {
+      "id": "34f34373-fa39-4263-b6b1-833d62d6731d",
+      "sequence": 27
+    },
+    "TC-QUOTE-02": {
+      "id": "9eab34b9-54fd-48fe-8b98-34791afb9faa",
+      "sequence": 28
+    },
+    "TC-QUOTE-03": {
+      "id": "232aa919-322a-4710-808d-0b47314f3c57",
+      "sequence": 29
+    },
+    "TC-QUOTE-04": {
+      "id": "38919f6b-1b91-448e-a321-be96b026fa73",
+      "sequence": 30
+    },
+    "TC-QUOTE-05": {
+      "id": "301e6002-8965-4981-928b-c399cbbb1211",
+      "sequence": 31
+    },
+    "TC-QUOTE-06": {
+      "id": "703442db-2f73-4086-85d3-e7aff0cd4c90",
+      "sequence": 32
+    },
+    "TC-QUOTE-07": {
+      "id": "ffd2e2a9-bbef-409c-8ba1-c51e05d8e779",
+      "sequence": 33
+    },
+    "TC-QUOTE-08": {
+      "id": "9dad4ad4-6efa-4c6f-9a9d-0789e6f26d9e",
+      "sequence": 34
+    },
+    "TC-QUOTE-09": {
+      "id": "6acd1f2f-3dc6-4423-82cf-fc611ee3dd45",
+      "sequence": 35
+    },
+    "TC-REF-INTAKE-01": {
+      "id": "1db2e1ee-73f5-4522-a7fc-a84fddff991c",
+      "sequence": 106
+    },
+    "TC-REF-PUBLISH-01": {
+      "id": "9bf8cf67-6113-4e18-9e2d-50e1237b19e9",
+      "sequence": 108
+    },
+    "TC-REF-SPLIT-01": {
+      "id": "21b5f9db-51ed-4856-9e3b-089278430ff5",
+      "sequence": 107
+    },
+    "TC-SEC-IDEM-01": {
+      "id": "6bbbeceb-df6f-4553-9718-7d8fb8c4ef8c",
+      "sequence": 66
+    },
+    "TC-SEC-INJ-01": {
+      "id": "bb93a866-c472-4fb2-a1d3-d4a02b4653ad",
+      "sequence": 84
+    },
+    "TC-SEC-INJ-02": {
+      "id": "7a891e36-6774-47d0-900c-3a91b663ae74",
+      "sequence": 85
+    },
+    "TC-SEC-INT-01": {
+      "id": "20672ef2-3ffa-444d-b99e-30df4ee466fe",
+      "sequence": 72
+    },
+    "TC-SEC-MEM-01": {
+      "id": "c37b59e0-d7a0-4ad6-8d3b-7a9696f32042",
+      "sequence": 68
+    },
+    "TC-SEC-PIPE-01": {
+      "id": "7269af04-7b37-480f-aad6-2c9f2e467986",
+      "sequence": 71
+    },
+    "TC-SEC-RBAC-01": {
+      "id": "071faecb-5ac8-4b9e-85ad-93f904ceff70",
+      "sequence": 59
+    },
+    "TC-SEC-RBAC-02": {
+      "id": "0cc41c5f-a19a-4753-8ed6-929e7e9f8f9d",
+      "sequence": 60
+    },
+    "TC-SEC-RBAC-03": {
+      "id": "b24e6e98-3e79-4e00-9da1-8f6f7c93c9b5",
+      "sequence": 61
+    },
+    "TC-SEC-RBAC-04": {
+      "id": "51a7911c-2b6e-49e6-a3d8-7cb6817c98c7",
+      "sequence": 62
+    },
+    "TC-SEC-RBAC-05": {
+      "id": "1b64876c-f42d-4a3d-9b1d-ef375d8841ca",
+      "sequence": 63
+    },
+    "TC-SEC-SOD-01": {
+      "id": "3a4a76c8-a054-48a8-9ac1-7f16dbf8b842",
+      "sequence": 65
+    },
+    "TC-SEC-TENANT-01": {
+      "id": "0bf2125b-cc20-4cc0-badf-9f61aea81f37",
+      "sequence": 64
+    },
+    "TC-SEC-TOOL-01": {
+      "id": "89375f2e-fb4d-45ea-b07a-b209538ce201",
+      "sequence": 67
+    },
+    "TC-SEC-WEB-01": {
+      "id": "926e9fee-3697-4ee1-ae71-13600307700d",
+      "sequence": 69
+    },
+    "TC-SEC-WEB-02": {
+      "id": "22f2662a-9ec0-44e6-9bbc-046d56f8d5f6",
+      "sequence": 70
+    },
+    "TC-SETTLE-01": {
+      "id": "2d898f19-30dd-42be-980b-0dbf79a749b0",
+      "sequence": 51
+    },
+    "TC-SETTLE-02": {
+      "id": "37aae92c-d7ff-46f2-9255-ccf28e915292",
+      "sequence": 52
+    },
+    "TC-SETTLE-03": {
+      "id": "163ea451-2e55-429a-84da-14b5c8c7dfef",
+      "sequence": 53
+    },
+    "TC-SETTLE-04": {
+      "id": "c89f0963-52d9-4e83-959d-cdc50867d4c1",
+      "sequence": 54
+    },
+    "TC-SETTLE-05": {
+      "id": "4a72b557-2b4a-4884-a4cd-dabf18cdb413",
+      "sequence": 55
+    },
+    "TC-SETTLE-06": {
+      "id": "05153729-f80a-400a-92f5-66cd467cc579",
+      "sequence": 56
+    },
+    "TC-SETTLE-07": {
+      "id": "3a6ec41a-15a9-4499-9aab-c78abdf93ae3",
+      "sequence": 57
+    },
+    "TC-SETTLE-08": {
+      "id": "acf0d716-e591-419d-8887-206fd082dac5",
+      "sequence": 58
+    },
+    "TC-TEC-LIFE-01": {
+      "id": "2a3a3d07-50df-4547-8f91-d9677dbf0cdd",
+      "sequence": 109
+    },
+    "TC-TEC-REVOKE-01": {
+      "id": "690f1fa0-7733-4d4e-9cf9-7349f61e8a9a",
+      "sequence": 110
+    },
+    "TC-WEB-MEDIA-01": {
+      "id": "6340ccd5-d321-4ce0-9b5c-ab5ed1183adc",
+      "sequence": 96
+    },
+    "TC-WEB-OPS-01": {
+      "id": "b32be356-1849-4e2c-8da8-c19396489d43",
+      "sequence": 97
+    },
+    "TC-WEB-REPORT-01": {
+      "id": "e5c09fc4-3aa1-412f-914f-d4c70c724e00",
+      "sequence": 114
+    },
+    "TC-WEB-SURFACE-01": {
+      "id": "5c6aa4ba-b289-4818-9a2d-5e38b3312780",
+      "sequence": 113
+    },
+    "TC-WO-01": {
+      "id": "3dcd36df-428c-4ff7-8775-c8f2bd80f4f9",
+      "sequence": 13
+    },
+    "TC-WO-02": {
+      "id": "a5496f4c-6aba-420f-8617-dbd6df930ccc",
+      "sequence": 14
+    },
+    "TC-WO-03": {
+      "id": "27f52328-758b-4ffe-ac97-9360afb8cf9b",
+      "sequence": 15
+    },
+    "TC-WO-04": {
+      "id": "f5aeb616-affa-45e4-b01e-95fd1a424acb",
+      "sequence": 16
+    },
+    "TC-WO-05": {
+      "id": "0265b3c1-b19e-434a-99cf-1e69eab3d77d",
+      "sequence": 17
+    },
+    "TC-WO-06": {
+      "id": "27f91fc2-0698-46e9-8099-6d7b515e12f1",
+      "sequence": 18
+    },
+    "TC-WO-07": {
+      "id": "2cdb9a84-01af-4549-ae87-01c6d705b06b",
+      "sequence": 19
+    },
+    "TC-WO-08": {
+      "id": "730e44a8-cf3b-4e23-bd67-e56cb0ceb80f",
+      "sequence": 20
+    },
+    "TC-WO-09": {
+      "id": "285189fe-a00f-4f7a-86f2-b1ba9bc76634",
+      "sequence": 21
+    },
+    "TC-WO-10": {
+      "id": "9b8fd616-1f06-42b0-89a1-1a615c8e1207",
+      "sequence": 22
+    },
+    "TC-WO-11": {
+      "id": "53f58dc7-fe6c-49f6-a397-0e64de892325",
+      "sequence": 23
+    },
+    "TC-WO-12": {
+      "id": "36343ddd-b767-4a9f-894c-045ff7613b70",
+      "sequence": 24
+    },
+    "TC-WO-13": {
+      "id": "97cea38d-b28a-4395-84a4-f578b2cf6fe7",
+      "sequence": 25
+    },
+    "TC-WO-14": {
+      "id": "df4e1e4a-b2f8-4ace-a0a4-af60d5be967e",
+      "sequence": 26
+    }
+  },
+  "test_runs": {
+    "SC-01": "7187f3b8-1d4c-4827-8ab6-c673a8fe7c83",
+    "SC-02": "cf15617f-61cf-479e-a475-a70d6106b6f4",
+    "SC-03": "9a6e1ff4-caa9-4eca-b5ce-08d4e0f767f7",
+    "SC-04": "db0da396-6dc1-45c6-a690-029d1e5b4be0",
+    "SC-05": "7025f651-a0c2-4d1f-b1db-380313d46b2a",
+    "SC-06": "c6dda811-3177-496b-b9a8-5d0bf9770616",
+    "SC-07": "00319bd8-f069-48ca-9f7b-fd25d1dfd245",
+    "SC-08": "52cb4776-8d78-457b-8dbb-050998d0ea30",
+    "SC-09": "2e37fcbb-67da-4d4c-88ad-fbde2407c4c6",
+    "SC-10": "cee1be00-1c55-41ba-a414-7b389fa68f9d",
+    "SC-11": "39a1372b-3b5a-4a20-8153-d5fcc7ca4fa2",
+    "SC-12": "6e91d8f6-26fe-4c12-8075-9a20c395891c",
+    "SC-13": "d21c2417-b0f9-4d53-a7ff-12cf9e468205",
+    "SC-14": "0309bc8e-6f9b-4f7d-8208-0d50a8ddbebf",
+    "SC-15": "15b74eb4-8b06-4f9b-9db5-d138d935ac65",
+    "SC-16": "811fb071-d08e-4523-ae3d-5f91c269191d",
+    "SC-17": "d485b709-6334-4697-ad48-f7b30bef7e11",
+    "SC-18": "87fa6a3b-c7cc-48c1-a1e9-0abde3685e10",
+    "SC-19": "05d2bb7e-a337-4e37-9a4f-f31c88dec822"
+  },
+  "types": {
+    "NFR": "68999b8b-e35f-4767-a260-38ee9787d316",
+    "Requirement": "6d3ffb61-08bf-4b56-86d3-c929f2b6f1fd",
+    "Scenario": "24ea137f-a865-4933-a282-6b80de644b75",
+    "Work Group": "01d9e553-684f-4649-8f76-1532e0732bc0",
+    "Work Package": "56bae404-0bc4-4d90-85d3-cc8797109f41"
+  },
+  "work_items": {
+    "FR-AGT-01": {
+      "id": "30f15398-277a-4ad7-b2be-222c775f8b96",
+      "sequence_id": 20,
+      "type": "Requirement"
+    },
+    "FR-AGT-02": {
+      "id": "2cb2d461-0ccf-4f9d-91bc-05d6352245c6",
+      "sequence_id": 21,
+      "type": "Requirement"
+    },
+    "FR-AGT-03": {
+      "id": "be28aad7-6713-48ba-b027-8763843f67a0",
+      "sequence_id": 22,
+      "type": "Requirement"
+    },
+    "FR-AGT-04": {
+      "id": "1e2d8168-b2dd-4996-ac25-4725c220f333",
+      "sequence_id": 23,
+      "type": "Requirement"
+    },
+    "FR-AGT-05": {
+      "id": "6ec25b8a-7119-4271-9160-6b8a211eb37b",
+      "sequence_id": 24,
+      "type": "Requirement"
+    },
+    "FR-AGT-06": {
+      "id": "838c15a2-b131-4212-9d35-1193982dbb09",
+      "sequence_id": 25,
+      "type": "Requirement"
+    },
+    "FR-AGT-07": {
+      "id": "201d609a-627e-42d3-8d2f-c80c73dcc465",
+      "sequence_id": 26,
+      "type": "Requirement"
+    },
+    "FR-AGT-08": {
+      "id": "7a309b6d-ecd4-4492-a390-527958f7ae03",
+      "sequence_id": 27,
+      "type": "Requirement"
+    },
+    "FR-AGT-09": {
+      "id": "bf2536fa-fad8-42e6-a7b7-464eb1f5915e",
+      "sequence_id": 28,
+      "type": "Requirement"
+    },
+    "FR-AGT-10": {
+      "id": "a7f55ae4-1082-4e05-bcf7-c9876d9e1008",
+      "sequence_id": 29,
+      "type": "Requirement"
+    },
+    "FR-AGT-11": {
+      "id": "83885ca9-17d7-4c68-b4b5-53b6306f0b5d",
+      "sequence_id": 30,
+      "type": "Requirement"
+    },
+    "FR-API-01": {
+      "id": "8df6e1cc-f16b-4a32-b326-3904f0882b2e",
+      "sequence_id": 31,
+      "type": "Requirement"
+    },
+    "FR-API-02": {
+      "id": "5284f3b5-34cd-45c6-83fd-1dadee6a82ae",
+      "sequence_id": 32,
+      "type": "Requirement"
+    },
+    "FR-API-03": {
+      "id": "7cac7151-e4b5-434a-9f22-625c9c35d7d6",
+      "sequence_id": 33,
+      "type": "Requirement"
+    },
+    "FR-API-04": {
+      "id": "ccd0cf01-1585-4aa4-b51a-4400466b0352",
+      "sequence_id": 34,
+      "type": "Requirement"
+    },
+    "FR-API-05": {
+      "id": "86e0d09c-5bdf-41f5-98bf-f2efe4027ba6",
+      "sequence_id": 35,
+      "type": "Requirement"
+    },
+    "FR-API-06": {
+      "id": "0a4b2283-73d1-45e6-bb46-e6e19f2dc22c",
+      "sequence_id": 36,
+      "type": "Requirement"
+    },
+    "FR-API-07": {
+      "id": "a182859c-2e43-4b79-94ee-869a3feb849e",
+      "sequence_id": 37,
+      "type": "Requirement"
+    },
+    "FR-API-08": {
+      "id": "2f63c266-d275-4018-84df-fbd808051610",
+      "sequence_id": 38,
+      "type": "Requirement"
+    },
+    "FR-API-09": {
+      "id": "bf7f6729-ec3b-4a53-9a2c-0d0a788658a6",
+      "sequence_id": 39,
+      "type": "Requirement"
+    },
+    "FR-API-10": {
+      "id": "311254c5-eb56-4283-a9fa-cf86d233d72d",
+      "sequence_id": 40,
+      "type": "Requirement"
+    },
+    "FR-API-11": {
+      "id": "b6b9937e-2713-4d61-9d34-eec0ced96d46",
+      "sequence_id": 41,
+      "type": "Requirement"
+    },
+    "FR-API-12": {
+      "id": "d247a159-626d-46a9-aa37-387f9c10489c",
+      "sequence_id": 42,
+      "type": "Requirement"
+    },
+    "FR-API-13": {
+      "id": "e1d535de-94f4-4bac-8d7f-4c31bf717945",
+      "sequence_id": 43,
+      "type": "Requirement"
+    },
+    "FR-API-14": {
+      "id": "3575608f-8753-4729-8de7-5313d83cc75b",
+      "sequence_id": 44,
+      "type": "Requirement"
+    },
+    "FR-API-15": {
+      "id": "a89e14eb-904b-405b-b627-07b355a31479",
+      "sequence_id": 45,
+      "type": "Requirement"
+    },
+    "FR-API-16": {
+      "id": "e776abfa-43b4-409c-bdf1-cc8672242fca",
+      "sequence_id": 46,
+      "type": "Requirement"
+    },
+    "FR-API-17": {
+      "id": "46a5a648-4c8b-403e-8e15-2e659f63c2ac",
+      "sequence_id": 47,
+      "type": "Requirement"
+    },
+    "FR-API-18": {
+      "id": "de7c6ee5-ccaa-4e24-9d01-9a17985eaa94",
+      "sequence_id": 48,
+      "type": "Requirement"
+    },
+    "FR-API-19": {
+      "id": "d6e9551b-24a8-4a6e-9072-f50ebb39cb28",
+      "sequence_id": 49,
+      "type": "Requirement"
+    },
+    "FR-DAT-01": {
+      "id": "52f2fcc8-287d-4388-b57c-69cb1883df85",
+      "sequence_id": 57,
+      "type": "Requirement"
+    },
+    "FR-DAT-02": {
+      "id": "eb58c376-7f28-43f7-b1d6-c63a0374d0ed",
+      "sequence_id": 58,
+      "type": "Requirement"
+    },
+    "FR-DAT-03": {
+      "id": "07d04ead-6fe1-4949-b95f-20a95a5a68e7",
+      "sequence_id": 59,
+      "type": "Requirement"
+    },
+    "FR-DAT-04": {
+      "id": "be26e805-d1e4-456f-b176-a002ffdb0eb1",
+      "sequence_id": 60,
+      "type": "Requirement"
+    },
+    "FR-DAT-05": {
+      "id": "78f9b778-4718-47a0-9cbe-06ec1a981cdd",
+      "sequence_id": 61,
+      "type": "Requirement"
+    },
+    "FR-DAT-06": {
+      "id": "ee1c464d-e32c-4069-baad-e2f95cc6b143",
+      "sequence_id": 62,
+      "type": "Requirement"
+    },
+    "FR-PLT-01": {
+      "id": "0bbfc76a-d667-453c-a73d-e7ac8cde8021",
+      "sequence_id": 76,
+      "type": "Requirement"
+    },
+    "FR-PLT-02": {
+      "id": "28576673-a974-46f4-9eaf-73aa7c045a2e",
+      "sequence_id": 77,
+      "type": "Requirement"
+    },
+    "FR-PLT-03": {
+      "id": "4fc5b492-0df3-4754-a040-ef413a21f70d",
+      "sequence_id": 78,
+      "type": "Requirement"
+    },
+    "FR-PLT-04": {
+      "id": "31e7619a-6ba6-4895-aaf4-da90a5ac55d0",
+      "sequence_id": 79,
+      "type": "Requirement"
+    },
+    "FR-PLT-05": {
+      "id": "61467b6e-6a6d-493d-b276-13c63db3cfae",
+      "sequence_id": 80,
+      "type": "Requirement"
+    },
+    "FR-PLT-06": {
+      "id": "69414f73-fc42-4fe9-b575-bca75c7ab5b7",
+      "sequence_id": 81,
+      "type": "Requirement"
+    },
+    "FR-PLT-07": {
+      "id": "a805b04a-2111-4734-bb85-1507854e5efe",
+      "sequence_id": 82,
+      "type": "Requirement"
+    },
+    "FR-PLT-08": {
+      "id": "b78416ae-7935-42f7-938a-a5619fec54bc",
+      "sequence_id": 83,
+      "type": "Requirement"
+    },
+    "FR-PLT-09": {
+      "id": "062c46c7-f941-4877-869c-647680e382b2",
+      "sequence_id": 84,
+      "type": "Requirement"
+    },
+    "FR-REF-01": {
+      "id": "e874d0b5-85a5-4255-8615-47312b887b57",
+      "sequence_id": 63,
+      "type": "Requirement"
+    },
+    "FR-REF-02": {
+      "id": "4efe3d2f-2c7a-4253-bfc2-5ff44e3aa00b",
+      "sequence_id": 64,
+      "type": "Requirement"
+    },
+    "FR-REF-03": {
+      "id": "47b30bd2-cc06-4559-ab92-d61cdbf7fffc",
+      "sequence_id": 65,
+      "type": "Requirement"
+    },
+    "FR-REF-04": {
+      "id": "445ee8a2-7fb3-4a4a-93ec-58358e163790",
+      "sequence_id": 66,
+      "type": "Requirement"
+    },
+    "FR-REF-05": {
+      "id": "fd363d3c-1885-4f7e-93a3-810558ec512d",
+      "sequence_id": 67,
+      "type": "Requirement"
+    },
+    "FR-TEC-01": {
+      "id": "26240c0c-5567-4f55-b756-8a71c97e6fc9",
+      "sequence_id": 68,
+      "type": "Requirement"
+    },
+    "FR-TEC-02": {
+      "id": "21ddf7c6-6fe5-446c-8158-3a82fc982a82",
+      "sequence_id": 69,
+      "type": "Requirement"
+    },
+    "FR-TEC-03": {
+      "id": "58fbaa43-d112-4add-bfcb-9c5aebdd2ba6",
+      "sequence_id": 70,
+      "type": "Requirement"
+    },
+    "FR-TEC-04": {
+      "id": "7003ac3b-70bc-4abd-adef-13505542d556",
+      "sequence_id": 71,
+      "type": "Requirement"
+    },
+    "FR-TEC-05": {
+      "id": "775d1476-a3b0-43f1-b8b4-0ff9e9146785",
+      "sequence_id": 72,
+      "type": "Requirement"
+    },
+    "FR-TEC-06": {
+      "id": "5958d9b5-611b-448e-9bd3-199a3f7b8512",
+      "sequence_id": 73,
+      "type": "Requirement"
+    },
+    "FR-TEC-07": {
+      "id": "cbb45138-8f2b-4c1e-9757-7c91a922ea82",
+      "sequence_id": 74,
+      "type": "Requirement"
+    },
+    "FR-TEC-08": {
+      "id": "cb98916e-301b-4ebd-9e21-0cc02e3d8161",
+      "sequence_id": 75,
+      "type": "Requirement"
+    },
+    "FR-WEB-01": {
+      "id": "a04ecf13-5b70-4d4b-b9a2-89f7569655c8",
+      "sequence_id": 50,
+      "type": "Requirement"
+    },
+    "FR-WEB-02": {
+      "id": "bae6969f-293a-49d8-ac33-aa7bae791604",
+      "sequence_id": 51,
+      "type": "Requirement"
+    },
+    "FR-WEB-03": {
+      "id": "e695cc3c-62cb-4fa9-8f7f-d1343d948376",
+      "sequence_id": 52,
+      "type": "Requirement"
+    },
+    "FR-WEB-04": {
+      "id": "adf076b8-9ef8-4a10-aec5-3976176387a3",
+      "sequence_id": 53,
+      "type": "Requirement"
+    },
+    "FR-WEB-05": {
+      "id": "a1111c63-fecc-40f3-836b-091d5b5f4aec",
+      "sequence_id": 54,
+      "type": "Requirement"
+    },
+    "FR-WEB-06": {
+      "id": "437c1472-12ab-435c-843c-e412819600cc",
+      "sequence_id": 55,
+      "type": "Requirement"
+    },
+    "FR-WEB-07": {
+      "id": "7cb47f95-78fc-4c0f-9b40-89b9f33fa40b",
+      "sequence_id": 56,
+      "type": "Requirement"
+    },
+    "NFR-A11y-001": {
+      "id": "f4662c72-7bd3-4a75-b680-eb3529999943",
+      "sequence_id": 179,
+      "type": "NFR"
+    },
+    "NFR-A11y-002": {
+      "id": "d94ffb7c-f193-42fb-bc53-469cc330f099",
+      "sequence_id": 180,
+      "type": "NFR"
+    },
+    "NFR-A11y-003": {
+      "id": "8c16d566-2aaa-4c78-98b7-efd2eb1407c2",
+      "sequence_id": 181,
+      "type": "NFR"
+    },
+    "NFR-A11y-004": {
+      "id": "e712566c-8edc-411f-82b3-da5c52e6491a",
+      "sequence_id": 182,
+      "type": "NFR"
+    },
+    "NFR-A11y-005": {
+      "id": "06f215a4-bb3a-418f-a80e-e710f39bc079",
+      "sequence_id": 183,
+      "type": "NFR"
+    },
+    "NFR-Aud-001": {
+      "id": "4b0e74f7-ec4e-4162-a518-52c4ecc07145",
+      "sequence_id": 151,
+      "type": "NFR"
+    },
+    "NFR-Aud-002": {
+      "id": "aee1ddd9-2093-43f4-94f5-669d6581b7b4",
+      "sequence_id": 152,
+      "type": "NFR"
+    },
+    "NFR-Aud-003": {
+      "id": "8e522e38-3cdd-4345-a58f-44897237ecd6",
+      "sequence_id": 153,
+      "type": "NFR"
+    },
+    "NFR-Aud-004": {
+      "id": "9461d957-8d36-4cad-9ec9-905943b3b1aa",
+      "sequence_id": 154,
+      "type": "NFR"
+    },
+    "NFR-Aud-005": {
+      "id": "66a167e6-7828-4ea5-b6b9-5783b025d3d5",
+      "sequence_id": 155,
+      "type": "NFR"
+    },
+    "NFR-Aud-006": {
+      "id": "e19ac3e3-2e95-48cf-9c1d-280faf856686",
+      "sequence_id": 156,
+      "type": "NFR"
+    },
+    "NFR-Aud-007": {
+      "id": "7083ca39-d46c-4251-87c2-12dd4181e6ef",
+      "sequence_id": 157,
+      "type": "NFR"
+    },
+    "NFR-Avail-001": {
+      "id": "2cddc21e-25a7-4bcd-ab6e-93879328e418",
+      "sequence_id": 97,
+      "type": "NFR"
+    },
+    "NFR-Avail-002": {
+      "id": "7107d478-b032-4551-a599-7a83d9fd8fb7",
+      "sequence_id": 98,
+      "type": "NFR"
+    },
+    "NFR-Avail-003": {
+      "id": "b826c562-fcab-4245-b0a2-7ac88281823c",
+      "sequence_id": 99,
+      "type": "NFR"
+    },
+    "NFR-Avail-004": {
+      "id": "62e0b110-bc9b-4e62-a4a9-f1f07c06889a",
+      "sequence_id": 100,
+      "type": "NFR"
+    },
+    "NFR-Avail-005": {
+      "id": "9a323ffe-fe69-4c12-8585-9149fb2d7657",
+      "sequence_id": 101,
+      "type": "NFR"
+    },
+    "NFR-Avail-006": {
+      "id": "0599e681-de03-4636-bbf1-f3e8e13db993",
+      "sequence_id": 102,
+      "type": "NFR"
+    },
+    "NFR-Avail-007": {
+      "id": "68416e55-3a6f-4127-b903-e8ad5d400b49",
+      "sequence_id": 103,
+      "type": "NFR"
+    },
+    "NFR-Avail-008": {
+      "id": "b4a8850d-275e-4d61-885c-1d9f1331192a",
+      "sequence_id": 104,
+      "type": "NFR"
+    },
+    "NFR-Avail-009": {
+      "id": "c5a5d270-b15e-4a09-8f66-edc793478956",
+      "sequence_id": 105,
+      "type": "NFR"
+    },
+    "NFR-Avail-010": {
+      "id": "1fe9bdad-3208-458d-948e-3af7c59e60f7",
+      "sequence_id": 106,
+      "type": "NFR"
+    },
+    "NFR-Avail-011": {
+      "id": "d02cbe98-3f54-4f43-ba46-defb45a98fbf",
+      "sequence_id": 107,
+      "type": "NFR"
+    },
+    "NFR-Comp-001": {
+      "id": "0fd76edf-738a-4803-ab39-69abe0863263",
+      "sequence_id": 184,
+      "type": "NFR"
+    },
+    "NFR-Comp-002": {
+      "id": "5211c775-b8bb-4d35-8a5e-fecf421f7578",
+      "sequence_id": 185,
+      "type": "NFR"
+    },
+    "NFR-Comp-003": {
+      "id": "82359208-4c2f-400c-bec0-bb17f3adceb9",
+      "sequence_id": 186,
+      "type": "NFR"
+    },
+    "NFR-Comp-004": {
+      "id": "24031bf5-c669-4e8b-a84d-1e664eb1e5c6",
+      "sequence_id": 187,
+      "type": "NFR"
+    },
+    "NFR-DORA-001": {
+      "id": "fc73663b-129e-4b60-bd88-0e0c5f521e2c",
+      "sequence_id": 188,
+      "type": "NFR"
+    },
+    "NFR-DORA-002": {
+      "id": "7e3b6e40-0d52-4ae8-8d7b-3d6624a0f181",
+      "sequence_id": 189,
+      "type": "NFR"
+    },
+    "NFR-DORA-003": {
+      "id": "90b62c63-2c37-428a-95b8-85c1c0ca611b",
+      "sequence_id": 190,
+      "type": "NFR"
+    },
+    "NFR-DQ-001": {
+      "id": "3086de5c-6212-4dc0-8bf0-7e3f46ffcc9d",
+      "sequence_id": 158,
+      "type": "NFR"
+    },
+    "NFR-DQ-002": {
+      "id": "de46b9fa-13ef-4e69-93c5-2c12d9492d5c",
+      "sequence_id": 159,
+      "type": "NFR"
+    },
+    "NFR-DQ-003": {
+      "id": "a52ffad7-c85f-4b3e-8155-aac7f36c8308",
+      "sequence_id": 160,
+      "type": "NFR"
+    },
+    "NFR-DQ-004": {
+      "id": "43249da9-7d9f-4d49-84e7-4ef861f64e48",
+      "sequence_id": 161,
+      "type": "NFR"
+    },
+    "NFR-Maint-001": {
+      "id": "0fd23266-bc9a-471d-996b-9adf40daf9e4",
+      "sequence_id": 171,
+      "type": "NFR"
+    },
+    "NFR-Maint-002": {
+      "id": "c7cfb2f8-f9ba-466d-8b4d-2fdeca6d8c37",
+      "sequence_id": 172,
+      "type": "NFR"
+    },
+    "NFR-Maint-003": {
+      "id": "80005837-16be-421c-9d6a-b75701b6c663",
+      "sequence_id": 173,
+      "type": "NFR"
+    },
+    "NFR-Maint-004": {
+      "id": "782b67d9-8ce9-4df2-96e7-28a5794196ed",
+      "sequence_id": 174,
+      "type": "NFR"
+    },
+    "NFR-Maint-005": {
+      "id": "619478fc-cf5a-459c-b4d4-dd9fcf29141e",
+      "sequence_id": 175,
+      "type": "NFR"
+    },
+    "NFR-Maint-006": {
+      "id": "82120118-3d87-4663-9fbf-65f0c60a0ced",
+      "sequence_id": 176,
+      "type": "NFR"
+    },
+    "NFR-Maint-007": {
+      "id": "4542c9ce-8479-4711-8820-9bd38711f862",
+      "sequence_id": 177,
+      "type": "NFR"
+    },
+    "NFR-Maint-008": {
+      "id": "82452c1e-27f6-4aa5-9d05-8ccdd744f29c",
+      "sequence_id": 178,
+      "type": "NFR"
+    },
+    "NFR-Obs-001": {
+      "id": "299bb28a-6f9a-4d82-9b30-36279e42f7ad",
+      "sequence_id": 146,
+      "type": "NFR"
+    },
+    "NFR-Obs-002": {
+      "id": "d38aa083-4286-423b-a332-e591075ed222",
+      "sequence_id": 147,
+      "type": "NFR"
+    },
+    "NFR-Obs-003": {
+      "id": "8b1a77f3-ca55-4cbe-8048-8fb1e7352c80",
+      "sequence_id": 148,
+      "type": "NFR"
+    },
+    "NFR-Obs-004": {
+      "id": "eaefb007-d9bc-432d-be36-ec5706f8c6e1",
+      "sequence_id": 149,
+      "type": "NFR"
+    },
+    "NFR-Obs-005": {
+      "id": "ffb8afc4-2a00-4e10-9127-1991ce82ddc4",
+      "sequence_id": 150,
+      "type": "NFR"
+    },
+    "NFR-PUB-001": {
+      "id": "c6840687-1632-4f24-8633-522efe9aaba8",
+      "sequence_id": 162,
+      "type": "NFR"
+    },
+    "NFR-PUB-002": {
+      "id": "78e251c9-d9f0-4f21-b2ea-da8a36e55203",
+      "sequence_id": 163,
+      "type": "NFR"
+    },
+    "NFR-PUB-003": {
+      "id": "39c8032b-b16c-44a7-afa0-a48007e77645",
+      "sequence_id": 164,
+      "type": "NFR"
+    },
+    "NFR-PUB-004": {
+      "id": "38853edd-fb0b-459e-aa44-1cb2d5d247a6",
+      "sequence_id": 165,
+      "type": "NFR"
+    },
+    "NFR-Perf-001": {
+      "id": "8551222b-2a31-4cf3-ae14-ef41b3d57236",
+      "sequence_id": 85,
+      "type": "NFR"
+    },
+    "NFR-Perf-002": {
+      "id": "3bc8de5b-2d02-4ccc-899c-717370cae737",
+      "sequence_id": 86,
+      "type": "NFR"
+    },
+    "NFR-Perf-003": {
+      "id": "5bb91edb-3d41-4cb0-adad-0b6064bb7c90",
+      "sequence_id": 87,
+      "type": "NFR"
+    },
+    "NFR-Perf-004": {
+      "id": "b6cfde92-673b-4011-b831-27dcf1c9c409",
+      "sequence_id": 88,
+      "type": "NFR"
+    },
+    "NFR-Perf-005": {
+      "id": "8d70b79c-31f7-44fc-8ad4-eb016d873a80",
+      "sequence_id": 89,
+      "type": "NFR"
+    },
+    "NFR-Perf-006": {
+      "id": "99af1471-1bfe-4f12-87a5-2fc814be45b0",
+      "sequence_id": 90,
+      "type": "NFR"
+    },
+    "NFR-Perf-007": {
+      "id": "bf2add6c-d596-44d0-b3ff-450b2ae99e21",
+      "sequence_id": 91,
+      "type": "NFR"
+    },
+    "NFR-Perf-008": {
+      "id": "e8985b8e-de37-4d01-bdda-aa5195b23063",
+      "sequence_id": 92,
+      "type": "NFR"
+    },
+    "NFR-Perf-009": {
+      "id": "d707da77-27a7-4014-90b0-a3827e523c6e",
+      "sequence_id": 93,
+      "type": "NFR"
+    },
+    "NFR-Perf-010": {
+      "id": "9a1ba845-1c8e-4a64-9399-570d397df5d7",
+      "sequence_id": 94,
+      "type": "NFR"
+    },
+    "NFR-Perf-011": {
+      "id": "c1b579ff-f829-40f7-83d9-f932a7a3964c",
+      "sequence_id": 95,
+      "type": "NFR"
+    },
+    "NFR-Perf-012": {
+      "id": "73ba488a-23e1-4be2-b103-c680413c48c9",
+      "sequence_id": 96,
+      "type": "NFR"
+    },
+    "NFR-Priv-001": {
+      "id": "4a004bf9-f15a-4f99-9c85-7ac43c517b2b",
+      "sequence_id": 136,
+      "type": "NFR"
+    },
+    "NFR-Priv-002": {
+      "id": "3ab9fdd1-3929-486c-97c1-93e9cf88f2de",
+      "sequence_id": 137,
+      "type": "NFR"
+    },
+    "NFR-Priv-003": {
+      "id": "0fa60b1a-2623-4e5d-b746-a33dc93e3fa5",
+      "sequence_id": 138,
+      "type": "NFR"
+    },
+    "NFR-Priv-004": {
+      "id": "eb8df333-d722-47f1-b68a-6ef4b3be0bc8",
+      "sequence_id": 139,
+      "type": "NFR"
+    },
+    "NFR-Priv-005": {
+      "id": "2445901f-b570-49a3-abaf-b98e06a0b429",
+      "sequence_id": 140,
+      "type": "NFR"
+    },
+    "NFR-Priv-006": {
+      "id": "ccb7e2c7-9d1b-4e01-b5bd-a875b7acc62b",
+      "sequence_id": 141,
+      "type": "NFR"
+    },
+    "NFR-Priv-007": {
+      "id": "4cb000ba-1c71-40ca-ab44-e637dc1418f5",
+      "sequence_id": 142,
+      "type": "NFR"
+    },
+    "NFR-Priv-008": {
+      "id": "97cfd612-a9bf-4a4a-a24f-0d5b15468e6b",
+      "sequence_id": 143,
+      "type": "NFR"
+    },
+    "NFR-Priv-009": {
+      "id": "1d489d41-14da-4bcb-83a4-1c5c8e8acb56",
+      "sequence_id": 144,
+      "type": "NFR"
+    },
+    "NFR-Priv-010": {
+      "id": "651b4c72-2db2-4117-8059-29858abe965b",
+      "sequence_id": 145,
+      "type": "NFR"
+    },
+    "NFR-Rel-001": {
+      "id": "0e67ae4d-ca56-4fe4-b562-db446289a3f3",
+      "sequence_id": 108,
+      "type": "NFR"
+    },
+    "NFR-Rel-002": {
+      "id": "2b7b9afc-a0a0-4a23-a79d-93e6695eca64",
+      "sequence_id": 109,
+      "type": "NFR"
+    },
+    "NFR-Rel-003": {
+      "id": "ce6f34e3-4a88-4dda-9b56-7ebbd7702985",
+      "sequence_id": 110,
+      "type": "NFR"
+    },
+    "NFR-Rep-001": {
+      "id": "ea84be5f-7f45-4f3a-9844-7524286264ed",
+      "sequence_id": 169,
+      "type": "NFR"
+    },
+    "NFR-Rep-002": {
+      "id": "ae25b6b2-b052-4aba-8e79-a262771c6ed7",
+      "sequence_id": 170,
+      "type": "NFR"
+    },
+    "NFR-SLA-001": {
+      "id": "7f2ff4f8-3128-4db7-baa6-d0de96f340a0",
+      "sequence_id": 111,
+      "type": "NFR"
+    },
+    "NFR-SLA-002": {
+      "id": "679a0ba5-d62d-4ad4-818a-3942dda4777d",
+      "sequence_id": 112,
+      "type": "NFR"
+    },
+    "NFR-SLA-003": {
+      "id": "c4b49c2e-12ee-44a6-824f-c87ab89ee17a",
+      "sequence_id": 113,
+      "type": "NFR"
+    },
+    "NFR-Scal-001": {
+      "id": "d712904d-6d3e-4872-b08a-8c15bed8dcdb",
+      "sequence_id": 114,
+      "type": "NFR"
+    },
+    "NFR-Scal-002": {
+      "id": "5bc89866-83d3-4609-8d9a-aafde5e737fd",
+      "sequence_id": 115,
+      "type": "NFR"
+    },
+    "NFR-Scal-003": {
+      "id": "a6be4801-a110-4560-b5ea-c12edf7e1f2d",
+      "sequence_id": 116,
+      "type": "NFR"
+    },
+    "NFR-Scal-004": {
+      "id": "8cfe402e-24e7-4c64-b296-59c60bb08cd4",
+      "sequence_id": 117,
+      "type": "NFR"
+    },
+    "NFR-Scal-005": {
+      "id": "f4fe2d06-e8c3-4e09-adaa-527725a6e553",
+      "sequence_id": 118,
+      "type": "NFR"
+    },
+    "NFR-Scal-006": {
+      "id": "769119f3-3170-41e4-85e0-7c9267dc3f03",
+      "sequence_id": 119,
+      "type": "NFR"
+    },
+    "NFR-Scal-007": {
+      "id": "c794eac7-c00c-4062-b6d1-ac4a90160486",
+      "sequence_id": 120,
+      "type": "NFR"
+    },
+    "NFR-Scal-008": {
+      "id": "78f30725-fa3e-4746-b633-05b2519a5ef5",
+      "sequence_id": 121,
+      "type": "NFR"
+    },
+    "NFR-Sch-001": {
+      "id": "fa5307a5-d8fb-41fb-885a-fca993211328",
+      "sequence_id": 166,
+      "type": "NFR"
+    },
+    "NFR-Sch-002": {
+      "id": "36521a1b-1405-41ac-9cc9-9343211bb0b3",
+      "sequence_id": 167,
+      "type": "NFR"
+    },
+    "NFR-Sch-003": {
+      "id": "ceaeb262-9fc9-493f-81ad-6c8747d47578",
+      "sequence_id": 168,
+      "type": "NFR"
+    },
+    "NFR-Sec-001": {
+      "id": "2bed4219-ab99-4efd-90dd-e491e0f4406a",
+      "sequence_id": 122,
+      "type": "NFR"
+    },
+    "NFR-Sec-002": {
+      "id": "b16cc1c8-32a2-43f0-80c4-583c027882af",
+      "sequence_id": 123,
+      "type": "NFR"
+    },
+    "NFR-Sec-003": {
+      "id": "bbcc19a4-1671-493e-bbff-4c28b0a94a08",
+      "sequence_id": 124,
+      "type": "NFR"
+    },
+    "NFR-Sec-004": {
+      "id": "e7e5f071-b68f-4402-b337-df7674d56477",
+      "sequence_id": 125,
+      "type": "NFR"
+    },
+    "NFR-Sec-005": {
+      "id": "8190a1e8-7989-4120-ae34-0b858d348261",
+      "sequence_id": 126,
+      "type": "NFR"
+    },
+    "NFR-Sec-006": {
+      "id": "5f7ab090-fb69-4959-a01d-687b9c36893e",
+      "sequence_id": 127,
+      "type": "NFR"
+    },
+    "NFR-Sec-007": {
+      "id": "cf54f413-8da5-4a3b-9e57-d11b6e36bfd1",
+      "sequence_id": 128,
+      "type": "NFR"
+    },
+    "NFR-Sec-008": {
+      "id": "aa376af6-ce88-4c14-934f-26bc91567e34",
+      "sequence_id": 129,
+      "type": "NFR"
+    },
+    "NFR-Sec-009": {
+      "id": "8cdb25a1-5e7a-4e8b-ad1a-c833ac9580a7",
+      "sequence_id": 130,
+      "type": "NFR"
+    },
+    "NFR-Sec-010": {
+      "id": "be2b99a4-fb13-4dcb-ad32-b8bf85354505",
+      "sequence_id": 131,
+      "type": "NFR"
+    },
+    "NFR-Sec-011": {
+      "id": "0cd89c86-c7ea-4c35-9d1a-2c4aa5416476",
+      "sequence_id": 132,
+      "type": "NFR"
+    },
+    "NFR-Sec-012": {
+      "id": "c79287e2-730f-4304-a705-ee126630b1a7",
+      "sequence_id": 133,
+      "type": "NFR"
+    },
+    "NFR-Sec-013": {
+      "id": "c6dad7f9-98b4-4566-83aa-046c0aef5b68",
+      "sequence_id": 134,
+      "type": "NFR"
+    },
+    "NFR-Sec-014": {
+      "id": "84ef0abc-5e47-4936-9660-fbd2b92e935a",
+      "sequence_id": 135,
+      "type": "NFR"
+    },
+    "SC-01": {
+      "id": "76af8566-76e9-4547-bd9b-ba3eae6c19b3",
+      "sequence_id": 1,
+      "type": "Scenario"
+    },
+    "SC-02": {
+      "id": "54ec1a83-7401-4548-97ab-8cf672d1bfaa",
+      "sequence_id": 2,
+      "type": "Scenario"
+    },
+    "SC-03": {
+      "id": "c82fb285-ba49-4ee6-8d9f-fb8b17440481",
+      "sequence_id": 3,
+      "type": "Scenario"
+    },
+    "SC-04": {
+      "id": "98fe062e-104c-4f63-b2be-89324149758e",
+      "sequence_id": 4,
+      "type": "Scenario"
+    },
+    "SC-05": {
+      "id": "f61c762a-d2fb-467e-9abc-e9d07ad1c477",
+      "sequence_id": 5,
+      "type": "Scenario"
+    },
+    "SC-06": {
+      "id": "42272b44-6fdc-48ac-bc63-b38be10e5112",
+      "sequence_id": 6,
+      "type": "Scenario"
+    },
+    "SC-07": {
+      "id": "0459fe15-505c-4cb1-8c2e-3d9ad088de1c",
+      "sequence_id": 7,
+      "type": "Scenario"
+    },
+    "SC-08": {
+      "id": "0dfa0a42-ef0a-44d3-85db-6ea129be88ec",
+      "sequence_id": 8,
+      "type": "Scenario"
+    },
+    "SC-09": {
+      "id": "506afc2b-36ca-41f3-a024-90cfc40b587c",
+      "sequence_id": 9,
+      "type": "Scenario"
+    },
+    "SC-10": {
+      "id": "f59a8bcb-f47c-4260-a26d-2055e7d56c58",
+      "sequence_id": 10,
+      "type": "Scenario"
+    },
+    "SC-11": {
+      "id": "2c19c239-8d9a-4bc8-9b12-b98fcb525bee",
+      "sequence_id": 11,
+      "type": "Scenario"
+    },
+    "SC-12": {
+      "id": "b96bde7f-aefe-4141-8d91-a34ecb143221",
+      "sequence_id": 12,
+      "type": "Scenario"
+    },
+    "SC-13": {
+      "id": "b9be4915-c3cc-4636-8e0d-3e57990ab798",
+      "sequence_id": 13,
+      "type": "Scenario"
+    },
+    "SC-14": {
+      "id": "18c5cd21-7cb4-48b6-930e-2321d45ce45a",
+      "sequence_id": 14,
+      "type": "Scenario"
+    },
+    "SC-15": {
+      "id": "b61971d9-f74f-4d4c-bd82-2d02ec77e14c",
+      "sequence_id": 15,
+      "type": "Scenario"
+    },
+    "SC-16": {
+      "id": "f5b4ec51-576b-4e11-8082-3dba43c07d47",
+      "sequence_id": 16,
+      "type": "Scenario"
+    },
+    "SC-17": {
+      "id": "53e2ace9-2a04-4560-b976-f534daf16a1c",
+      "sequence_id": 17,
+      "type": "Scenario"
+    },
+    "SC-18": {
+      "id": "270c015f-5f9b-4f84-a879-33fd2b9eab78",
+      "sequence_id": 18,
+      "type": "Scenario"
+    },
+    "SC-19": {
+      "id": "bc330ef5-af52-41c9-85dd-a0228e5356c3",
+      "sequence_id": 19,
+      "type": "Scenario"
+    },
+    "WBS-1.1.1": {
+      "id": "6556c34c-bd72-41d4-a501-99d757d2e74c",
+      "sequence_id": 191,
+      "type": "Work Package"
+    },
+    "WBS-1.1.2": {
+      "id": "1cf3763e-80f1-47b3-bb84-f4ce53a9322b",
+      "sequence_id": 192,
+      "type": "Work Package"
+    },
+    "WBS-1.1.3": {
+      "id": "9ca0e1ce-7f11-4109-8a99-5eb8eca0d091",
+      "sequence_id": 193,
+      "type": "Work Package"
+    },
+    "WBS-1.2.1": {
+      "id": "a3eab82b-0c0a-4c2f-8dbf-7dc5d45f49e1",
+      "sequence_id": 194,
+      "type": "Work Package"
+    },
+    "WBS-1.2.2": {
+      "id": "ae82a047-7aaa-4b9c-b11f-634c3acbe881",
+      "sequence_id": 195,
+      "type": "Work Package"
+    },
+    "WBS-1.2.3": {
+      "id": "3fe9e76d-44b7-486b-b687-7aaff65b8193",
+      "sequence_id": 196,
+      "type": "Work Package"
+    },
+    "WBS-1.2.4": {
+      "id": "0438e13f-974d-4bd1-b125-aaae3d4ab377",
+      "sequence_id": 197,
+      "type": "Work Package"
+    },
+    "WBS-1.3.1": {
+      "id": "ea89c9ba-4eda-42f1-8a0e-0053c889e2f0",
+      "sequence_id": 198,
+      "type": "Work Package"
+    },
+    "WBS-1.4.1": {
+      "id": "bd234488-21ae-4060-b28a-2516cf22d10d",
+      "sequence_id": 199,
+      "type": "Work Package"
+    },
+    "WBS-1.5.1": {
+      "id": "9e28774c-8c73-434f-9194-53a22e609d1e",
+      "sequence_id": 200,
+      "type": "Work Package"
+    },
+    "WBS-1.6.1": {
+      "id": "bd2bebc7-9b44-45db-bad9-5ece45fc10fb",
+      "sequence_id": 201,
+      "type": "Work Package"
+    },
+    "WBS-1.7.1": {
+      "id": "41f632b7-dbf1-4e85-8b16-0203171aaf9d",
+      "sequence_id": 202,
+      "type": "Work Package"
+    },
+    "WBS-1.7.2": {
+      "id": "14c39a1f-7adc-40fd-95dc-d91abbe9886f",
+      "sequence_id": 203,
+      "type": "Work Package"
+    },
+    "WBS-2.1.1": {
+      "id": "325d5c57-3d13-4100-a5ab-14ac82aec208",
+      "sequence_id": 204,
+      "type": "Work Package"
+    },
+    "WBS-2.1.2": {
+      "id": "9b465fd1-125e-423d-ac98-a8a3080fbda9",
+      "sequence_id": 205,
+      "type": "Work Package"
+    },
+    "WBS-2.2.1": {
+      "id": "faba9975-fb3b-47f7-a6c8-077e107bbcd1",
+      "sequence_id": 206,
+      "type": "Work Package"
+    },
+    "WBS-2.2.2": {
+      "id": "1188af29-e351-4609-9f2b-29711b6ce19b",
+      "sequence_id": 207,
+      "type": "Work Package"
+    },
+    "WBS-2.3.1": {
+      "id": "b817c7e2-d6c8-44ae-8291-9dd723bae4f8",
+      "sequence_id": 208,
+      "type": "Work Package"
+    },
+    "WBS-2.3.2": {
+      "id": "8925d531-66cc-4c95-866c-e993dc5f2f65",
+      "sequence_id": 209,
+      "type": "Work Package"
+    },
+    "WBS-2.3.3": {
+      "id": "dbe0efcd-46d4-4d7f-8c2b-5a1350ce99f2",
+      "sequence_id": 210,
+      "type": "Work Package"
+    },
+    "WBS-2.4.1": {
+      "id": "826e16e6-2250-4bda-8058-5da1fa058abe",
+      "sequence_id": 211,
+      "type": "Work Package"
+    },
+    "WBS-2.4.2": {
+      "id": "8c74c7cc-9c9e-4fd7-b978-6b8812a0e9c8",
+      "sequence_id": 212,
+      "type": "Work Package"
+    },
+    "WBS-2.4.3": {
+      "id": "ee51956c-9af8-4167-9be6-8d2c9c4eb56c",
+      "sequence_id": 213,
+      "type": "Work Package"
+    },
+    "WBS-2.4.4": {
+      "id": "4ae320c6-7cc5-4bc6-b262-7e0dfa38a649",
+      "sequence_id": 214,
+      "type": "Work Package"
+    },
+    "WBS-2.5.1": {
+      "id": "0db78d74-6a16-4cab-9146-7d650f3dbfdf",
+      "sequence_id": 215,
+      "type": "Work Package"
+    },
+    "WBS-2.6.1": {
+      "id": "a6f9bbc2-ee20-4f58-832b-adaedfab81f2",
+      "sequence_id": 216,
+      "type": "Work Package"
+    },
+    "WBS-3.1.1": {
+      "id": "8ecdb006-c06e-4ac9-8e44-ff7533398f5f",
+      "sequence_id": 217,
+      "type": "Work Package"
+    },
+    "WBS-3.1.2": {
+      "id": "61c61f7e-f269-4fe1-8bf6-948952d75df0",
+      "sequence_id": 218,
+      "type": "Work Package"
+    },
+    "WBS-3.2.1": {
+      "id": "0d867b55-4177-468f-875e-d29528dec00b",
+      "sequence_id": 219,
+      "type": "Work Package"
+    },
+    "WBS-3.3.1": {
+      "id": "2516c653-826e-4c93-91c2-3d6041e907ae",
+      "sequence_id": 220,
+      "type": "Work Package"
+    },
+    "WBS-3.4.1": {
+      "id": "4b283bb7-c765-40c8-a309-c2f71764f2e2",
+      "sequence_id": 221,
+      "type": "Work Package"
+    },
+    "WBS-3.5.1": {
+      "id": "a737f6e5-dab2-43b4-88d7-b4e8e24b4fa3",
+      "sequence_id": 222,
+      "type": "Work Package"
+    },
+    "WBS-3.6.1": {
+      "id": "a24b760c-ec9e-46c8-91b7-d14261ee35de",
+      "sequence_id": 223,
+      "type": "Work Package"
+    },
+    "WBS-3.6.2": {
+      "id": "3d99e34e-f3b6-4f7d-8dde-0989f499ee63",
+      "sequence_id": 224,
+      "type": "Work Package"
+    },
+    "WBS-3.6.3": {
+      "id": "7acbdc13-d11b-4704-a25d-c385ead7f290",
+      "sequence_id": 225,
+      "type": "Work Package"
+    },
+    "WBS-3.6.4": {
+      "id": "bb300cc8-b7b0-4581-917b-247d0d5dce8b",
+      "sequence_id": 226,
+      "type": "Work Package"
+    },
+    "WBS-3.6.5": {
+      "id": "a324c4db-0696-4f0f-aa7c-f73d0e0139be",
+      "sequence_id": 227,
+      "type": "Work Package"
+    },
+    "WBS-3.6.6": {
+      "id": "9feb2004-688c-4dcd-b8db-5cf8efd8a5fd",
+      "sequence_id": 228,
+      "type": "Work Package"
+    },
+    "WBS-3.6.7": {
+      "id": "5814e5d3-5c94-4bf2-ad09-bc4453ecc199",
+      "sequence_id": 229,
+      "type": "Work Package"
+    },
+    "WBS-3.6.8": {
+      "id": "ba7e2900-3dde-4ec8-88c6-80690a885d6f",
+      "sequence_id": 230,
+      "type": "Work Package"
+    },
+    "WBS-4.1": {
+      "id": "2b45fb76-53c4-422f-b82d-1c3cce4bbeba",
+      "sequence_id": 231,
+      "type": "Work Package"
+    },
+    "WBS-4.2": {
+      "id": "e8cfb30e-4669-4fcd-a591-7e9e5990daaf",
+      "sequence_id": 232,
+      "type": "Work Package"
+    },
+    "WBS-4.3": {
+      "id": "de228bd5-d7b6-469d-9f6b-23ee10f6abb6",
+      "sequence_id": 233,
+      "type": "Work Package"
+    },
+    "WBS-4.4": {
+      "id": "61e80638-d1cd-4730-b32e-eb5dfe6a8e80",
+      "sequence_id": 234,
+      "type": "Work Package"
+    },
+    "WBS-4.5": {
+      "id": "d5573621-e000-4ff5-9268-caa6ad70220e",
+      "sequence_id": 235,
+      "type": "Work Package"
+    },
+    "WBS-4.6": {
+      "id": "f9ecdff9-af0c-4276-85f6-f96031ba7501",
+      "sequence_id": 236,
+      "type": "Work Package"
+    },
+    "WBS-4.7": {
+      "id": "45fa4afe-ce50-4dbf-a482-8de54304ef85",
+      "sequence_id": 237,
+      "type": "Work Package"
+    }
+  }
+}

@@ -1,12 +1,17 @@
 """把四書脊椎推進 Plane 的 LOCK 專案（README §8 的九步）。
 
 單向：markdown/YAML 是規格 SSOT，本腳本只讀不寫上游。
-冪等：所有建立都先查 id_map.json，命中就跳過／PATCH，未命中才 POST。
-中斷可續跑：每一步結束就落盤 id_map.json。
+冪等：所有建立都先查 id_map，命中就跳過／PATCH，未命中才 POST。
+中斷可續跑：每一步結束就落盤 id_map（per-target，見 Plane.state_file()）。
 
 用法：
     cd smartlock-docs/enterprise/規格統控整理
-    PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py [--dry-run]
+    PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py [--dry-run] [--until=STAGE]
+
+`--until` 在指定階段做完後收工（階段名見 PIPELINE）。分段是為了讓人在卡片長相、
+自訂欄位、追溯連結各自落地後有機會在 UI 上驗一次再往下推——Plane 沒有批次刪除，
+一次推完 500 個物件而形狀錯了，清理成本遠高於分兩次跑。續跑冪等，直接再跑一次
+即可，已建的會從 id_map 命中跳過。
 """
 
 from __future__ import annotations
@@ -24,7 +29,7 @@ import _canon as canon  # noqa: E402
 from _plane.plane_client import Plane, PlaneError, doc  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-ID_MAP = HERE / "id_map.json"
+ID_MAP: Path | None = None   # per-target，main() 依 Plane.state_file() 決定
 DRY = "--dry-run" in sys.argv
 
 PRIORITY = {"P0": "urgent", "P1": "high", "P2": "medium", "": "none"}
@@ -66,6 +71,7 @@ def load_state() -> dict:
 def save_state(state: dict) -> None:
     if DRY:
         return
+    ID_MAP.parent.mkdir(parents=True, exist_ok=True)
     ID_MAP.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
 
@@ -80,6 +86,26 @@ def tick(done: int, total: int, label: str) -> None:
 
 
 # ------------------------------------------------------------- schema ----
+
+# 沒開這兩個旗標，自訂 type 與 Module 在 API 上會建得起來、在 UI 上卻看不到，
+# 是最難察覺的一種「匯入成功但沒東西」。開靶前先對齊。
+REQUIRED_FEATURES = {"is_issue_type_enabled": True, "module_view": True}
+
+
+def ensure_project_features(p: Plane) -> None:
+    step("⓪ 專案功能開關")
+    proj = p.get_project()
+    missing = {k: v for k, v in REQUIRED_FEATURES.items() if proj.get(k) != v}
+    print(f"    {proj.get('identifier')} {proj.get('name')} — "
+          + " ".join(f"{k}={proj.get(k)}" for k in REQUIRED_FEATURES))
+    if not missing:
+        return
+    if DRY:
+        print(f"    [dry] enable {sorted(missing)}")
+        return
+    p.update_project(**missing)
+    print(f"    已開啟 {sorted(missing)}")
+
 
 def ensure_types(p: Plane, state: dict) -> None:
     step("① work item types")
@@ -343,6 +369,46 @@ def import_relations(p: Plane, state: dict, rel) -> None:
     save_state(state)
 
 
+WBS_TITLE = re.compile(r"^(\d+\.\d+(?:\.\d+)?)\s")
+
+
+def adopt_existing_wbs(p: Plane, state: dict) -> None:
+    """把「不是本匯入器建的」既有 WBS 卡認領進 id_map。
+
+    遠端 LOCK 早於本管線就在跑交付看板，1.1.1 / 2.4.3 這些工作包已是人工開的卡。
+    不認領就會被 ⑥ 當成未建、再開一張同號的——同一個工作包在看板上長出兩張卡，
+    而 Plane 的寫入沒有冪等可以擋。標題前綴的編號就是它的 canonical_id，直接拿來
+    對號入座；認領後補上 type / milestone，讓人工卡與匯入卡在資料模型上齊平。
+    """
+    step("⑥a 認領既有 WBS 卡")
+    if DRY:
+        return
+    known = {rec["id"] for rec in state["work_items"].values()}
+    adopted = state.setdefault("adopted", [])
+    hit = 0
+    for it in p.list_work_items():
+        m = WBS_TITLE.match(it.get("name") or "")
+        if not m or it["id"] in known:
+            continue
+        key = f"WBS-{m.group(1)}"
+        if key in state["work_items"]:
+            continue
+        state["work_items"][key] = {"id": it["id"], "sequence_id": it["sequence_id"],
+                                    "type": "Work Package"}
+        fields = {"type_id": state["types"]["Work Package"]}
+        ms = state["milestones"].get(f"M{m.group(1).split('.')[0]}")
+        if ms:
+            fields["milestone"] = ms
+        try:
+            p.update_work_item(it["id"], **fields)
+        except PlaneError as exc:
+            print(f"    ! adopt {key}: {exc}", file=sys.stderr)
+        adopted.append(key)
+        hit += 1
+    print(f"    認領 {hit} 張既有卡（不再重複建立）")
+    save_state(state)
+
+
 def import_wbs(p: Plane, state: dict) -> None:
     step("⑥ WBS 工作包")
     rows = [r for r in canon.load_wbs() if re.fullmatch(r"\d+\.\d+(\.\d+)?", (r[1] or "").strip())]
@@ -494,22 +560,41 @@ def main() -> int:
     if not os.environ.get("PLANE_PROJECT_ID"):
         print("需要 PLANE_PROJECT_ID", file=sys.stderr)
         return 2
+    global ID_MAP
     p = Plane()
+    ID_MAP = p.state_file()
     state = load_state()
     rel = canon.load_relations()
     personas = canon.load_personas()
-    ensure_types(p, state)
-    ensure_properties(p, state, personas)
-    ensure_containers(p, state)
-    import_scenarios(p, state, rel, personas)
-    import_requirements(p, state, rel)
-    attach_modules(p, state)
-    import_relations(p, state, rel)
-    import_wbs(p, state)
-    import_test_cases(p, state, rel)
-    import_test_runs(p, state, rel)
-    verify(p, state)
-    print("\n完成。id_map.json 已落盤。")
+
+    pipeline = [
+        ("features",     lambda: ensure_project_features(p)),
+        ("types",        lambda: ensure_types(p, state)),
+        ("properties",   lambda: ensure_properties(p, state, personas)),
+        ("containers",   lambda: ensure_containers(p, state)),
+        ("scenarios",    lambda: import_scenarios(p, state, rel, personas)),
+        ("requirements", lambda: import_requirements(p, state, rel)),
+        ("modules",      lambda: attach_modules(p, state)),
+        ("relations",    lambda: import_relations(p, state, rel)),
+        ("wbs",          lambda: (adopt_existing_wbs(p, state), import_wbs(p, state))),
+        ("testing",      lambda: import_test_cases(p, state, rel)),
+        ("runs",         lambda: import_test_runs(p, state, rel)),
+        ("verify",       lambda: verify(p, state)),
+    ]
+    names = [n for n, _ in pipeline]
+    until = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--until=")), names[-1])
+    if until not in names:
+        print(f"--until 只能是 {names}", file=sys.stderr)
+        return 2
+
+    print(f"靶心 {p.base} / {p.slug} / {p.project_id}")
+    print(f"id_map {ID_MAP}")
+    print(f"階段 {names[0]} → {until}")
+    for name, run in pipeline:
+        run()
+        if name == until:
+            break
+    print(f"\n完成（至 {until}）。{ID_MAP.name} 已落盤。")
     return 0
 
 

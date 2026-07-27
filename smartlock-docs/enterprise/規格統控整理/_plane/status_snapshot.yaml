@@ -2,10 +2,10 @@
 # 這是四書之外的第五份檔，只承載「狀態」，不承載規格。
 # 四個狀態軸各有唯一 owner，彼此不得互推（見 _build_workbooks.py 鐵律）。
 source:
-  instance: "http://10.137.80.45:8787"
-  workspace: acme-god-damn
-  project_id: 7608536c-5401-4acc-90f1-f99d12fbcc75
-  generated_at: "2026-07-27 21:05:33+0800"
+  instance: "https://heave-cautious-petal.ngrok-free.dev"
+  workspace: lock-ai
+  project_id: 4acaa966-9013-40a9-b852-03f1e2032d75
+  generated_at: "2026-07-28 01:22:37+0800"
 coverage:
   total: 237
   covered: 171

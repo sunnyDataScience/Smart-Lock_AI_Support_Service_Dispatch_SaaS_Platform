@@ -4,22 +4,44 @@
 > 上游 SSOT 不變（`../28_Scenarios.md`、`../04_SRS.md`、`../05_NFR.md`、`../20_Test_Cases.md`、`../_relations/*.yaml`）；
 > 本層只負責把它們投影成 Plane 原語，**不新增第五套編號**。
 >
-> 建立：2026-07-27 ｜ 修訂：2026-07-27（CE work item extensions 上線後重寫）
+> 建立：2026-07-27 ｜ 修訂：2026-07-28（改推遠端實例，id_map 改 per-target）
 > 所有「能力邊界」與「格式契約」皆為 live 實證，非文件推測。
 
 ---
 
 ## 1. 目標座標
 
+**現行靶心（2026-07-28 起）**
+
 | 項目 | 值 |
 |---|---|
-| Plane 實例 | `http://10.137.80.45:8787`（本機 docker stack `plane-qa-management`，proxy 80→8787） |
-| Workspace | `acme-god-damn`（帳號 `sunnie.gd.weng@deltaww.com` 唯一有權的 workspace，role=Admin） |
-| 專案 | `LOCK` — SmartLock 智慧鎖平台 |
-| project_id | `7608536c-5401-4acc-90f1-f99d12fbcc75` |
-| 已啟用 | `module_view` / `cycle_view` / `issue_views_view` / `is_issue_type_enabled` / `page_view` |
-| 後端基準 | fork commit `4f9e0f16b` *feat: add CE work item extensions*（api 映像 `plane-testing/api:dev`，2026-07-27 重佈） |
+| Plane 實例 | `https://heave-cautious-petal.ngrok-free.dev`（ngrok tunnel，**URL 會隨 tunnel 重啟變動**）|
+| Workspace | `lock-ai` |
+| 匯入靶心 | `SPEC` — `SmartLock 規格脊椎`，`4acaa966-9013-40a9-b852-03f1e2032d75` |
+| 已啟用 | `page_view` 原有；`is_issue_type_enabled` / `module_view` 由匯入器步驟 ⓪ 打開 |
 | 憑證 | `PLANE_API_KEY` 走 `.claude/settings.local.json`（已 gitignore）；`.mcp.json` 只留 `${...}` 佔位 |
+
+### 為什麼是兩個專案
+
+同 workspace 內另有 `LOCK`（`b8c33b48-6c27-4900-9c12-4b58f66a9af1`），那是**活的交付看板**，
+匯入前就有 61 張人工卡（M1–M3＋WBS `1.1.1`…`3.5.1`＋UAT 批次）。
+
+2026-07-28 曾先把規格脊椎推進 `LOCK`（190 張卡建成、零錯誤），業主隨即裁決改掛新專案，
+以 `rollback_target.py --detach-types` 完整還原後改推 `SPEC`。分家的理由是**看板語義**：
+規格脊椎是 190 張唯讀投影卡，混進日常交付看板會把「今天要做什麼」淹掉。
+
+代價要說清楚：`TestCaseWorkItemLink` 的 `clean()` 強制測試案例與需求卡同專案，所以
+**測試庫必須跟著規格卡進 `SPEC`**——這也是原本主張單專案的理由。分家後 `SPEC` 內另建
+一份 WBS 卡（步驟 ⑥），與 `LOCK` 的人工 WBS 卡**同號並存**：`SPEC` 的那份狀態源自
+`27_Product_Roadmap_WBS.md` 的 ✅/🔶/⬜ 標記（規格側），`LOCK` 的那份是 RD 日常推動的
+真實進度。**軸②（工程證據）的權威在 `LOCK`**；`writeback.py` 目前讀 `SPEC`，其軸② 等於
+回放規格文件自己的標記，不是 RD 的實際進度——要拿真進度得把 `PLANE_PROJECT_ID` 指向
+`LOCK` 再跑一次，或日後把 writeback 改成雙靶心。
+
+**前一個靶心（本機 docker，仍保留 id_map）**：`http://10.137.80.45:8787` / workspace `acme-god-damn` /
+project `7608536c-5401-4acc-90f1-f99d12fbcc75`。後端基準 fork commit `4f9e0f16b`
+*feat: add CE work item extensions*。遠端實例實測具備同一組 fork 端點（work-item-types /
+work-item-properties / milestones / initiatives / testing 全數 2xx）。
 
 **為什麼只有一個專案**：`TestCaseWorkItemLink` 的 `clean()` 強制同專案一致性 —— 需求卡（work item）與測試案例（test case）**必須在同一個 project**，否則掛不上追溯連結。所以規格脊椎、交付 WBS、QA 測試庫三者合置於 `LOCK` 單一專案，靠 work item type + 自訂欄位分層，不用多專案切分。
 
@@ -51,7 +73,8 @@
 |---|---|---|
 | **relation 不能帶屬性**，且 8 種型別皆為排程/阻擋語義，無 `verifies` / `traces_to` | `sc_requires_rq` 的 `role:essential/supporting` 是**邊的屬性**，掛不上 relation | 把邊屬性降維成**節點屬性**：RQ 卡上放 `essential_for` / `supporting_for` 兩個 multi_select（選項＝19 個 SC）。relation 仍建 `relates_to` 供 UI 導航，但語義權威在自訂欄位 |
 | `rq_verified_by_tc` 的 `kind`（happy/boundary/failure/recovery）同樣是邊屬性 | 同上 | 落在 TestCase 的 `tags[]`（case 本來就有 tags） |
-| **一般寫入無冪等**（只有 automation ingestion 有 `Idempotency-Key`） | 重跑匯入會建重複卡 | §6 的 `id_map.json` check-then-create |
+| **一般寫入無冪等**（只有 automation ingestion 有 `Idempotency-Key`） | 重跑匯入會建重複卡 | §6 的 id_map check-then-create |
+| **無批次刪除** | 推錯靶心只能逐一刪 | `rollback_target.py`（§6）依 id_map 倒著刪 |
 | CSV 匯入走 session cookie，**API key 不通** | 唯一的 bulk 槓桿要另外登入 | 匯入器需支援 session 登入；或退回逐張 `test_case_create`（130 次呼叫，可接受但慢） |
 
 ---
@@ -201,9 +224,37 @@ priority, tags_json, step_position, action_json, expected_result_json, work_item
 Plane 一般寫入**沒有**冪等機制（只有 automation ingestion 有 `Idempotency-Key`），重跑會建重複卡。對策：
 
 1. 卡片標題一律以正典 ID 開頭：`FR-AGT-01 LINE 進線與簽章驗證`，且同值寫入 `canonical_id` 自訂欄位
-2. 本目錄維護 `id_map.json`（**入 git**）：`{"FR-AGT-01": {"issue_id": "...", "sequence_id": 12}, ...}`
-3. 匯入器一律 check-then-create：先查 `id_map.json`，命中就 PATCH，未命中才 POST
-4. `id_map.json` 遺失時的復原：以 `canonical_id` 欄位值反查重建（比標題前綴比對更可靠）
+2. 本目錄維護 `id_map/<slug>__<project_id>.json`（**入 git**）：`{"FR-AGT-01": {"issue_id": "...", "sequence_id": 12}, ...}`
+3. 匯入器一律 check-then-create：先查 id_map，命中就 PATCH，未命中才 POST
+4. id_map 遺失時的復原：以 `canonical_id` 欄位值反查重建（比標題前綴比對更可靠）
+
+**id_map 是 per-target 的**（2026-07-28 改）。UUID 只在單一 workspace+project 內有意義，
+同一份四書卻會推到多個實例（本機 docker / 遠端 ngrok / 未來正式站）。共用單一
+`id_map.json` 會讓 check-then-create 在換靶時**全部假命中**——查得到 key、拿到的卻是別的
+實例的 UUID，於是一張卡都不建，後續 relation / link 全打到不存在的物件。檔名帶靶心即可
+根除這個特殊情況，路徑由 `Plane.state_file()` 統一決定，`import_spine.py` 與
+`writeback.py` 共用。
+
+### 回復（推錯靶心時）
+
+```bash
+PLANE_PROJECT_ID=<uuid> python3 _plane/rollback_target.py --dry-run [--detach-types]
+```
+
+**刪什麼完全由 id_map 決定，不做啟發式比對。** id_map 記的就是本管線建過的每一個物件，
+不在裡面的一律不碰——「別人手開的卡會不會被誤刪」因此不需要靠判斷來保證，它們從來
+不在 id_map 裡。步驟 ⑥a 認領的卡是唯一例外：那些卡不是我們建的，只**退出登記、不刪卡**。
+
+刪除順序是先卡、後 Module/Milestone/自訂欄位——卡還在時刪容器只會解除歸屬，順序反了
+會留下孤兒關聯。workspace 級的 work item type 與 Initiative 跨專案共用，預設保留；
+`--detach-types` 只解除它與本專案的關聯。
+
+### 認領既有卡（步驟 ⑥a）
+
+遠端 `LOCK` 早於本管線就在跑交付看板，`1.1.1` / `2.4.3` 這些工作包已是人工開的卡。
+Plane 寫入無冪等，不認領就會同號長出兩張。`adopt_existing_wbs()` 以標題前綴的編號
+（`^\d+\.\d+(\.\d+)?\s`）對號入座寫進 id_map，並補上 `type_id` 與 `milestone`，讓人工卡
+與匯入卡在資料模型上齊平。
 
 ---
 
@@ -233,16 +284,30 @@ Plane 一般寫入**沒有**冪等機制（只有 automation ingestion 有 `Idem
 ## 8. 匯入順序
 
 ```
-① 建 5 個 work item type（Scenario / Requirement / NFR / Work Package / Epic）並關聯到 LOCK
+⓪ 對齊專案功能開關（is_issue_type_enabled / module_view）—— 沒開的話 type 與 Module
+   在 API 建得起來、UI 上卻看不到，是最難察覺的「匯入成功但沒東西」
+① 建 5 個 work item type（Scenario / Requirement / NFR / Work Package / Work Group）並關聯到 LOCK
 ② 建 11 個自訂欄位（含 select/multi_select 選項）
 ③ 建容器：Module（5 分線 + 7 子系統）、Milestone（M1–M5）、Initiative（階段一/二）
-④ 建 190 張需求卡：SC 19 + FR 65 + NFR 106，寫入自訂欄位  → 產出 id_map.json
+④ 建 190 張需求卡：SC 19 + FR 65 + NFR 106，寫入自訂欄位  → 產出 id_map
 ⑤ 補 sc_requires_rq：essential_for / supporting_for 欄位值 + relates_to relation
-⑥ 建 32 張 WBS 卡（parent 巢狀 + 歸 Milestone）
-⑦ 組 CSV：130 case + folder 樹 + 273 條 work_item_sequences → 一次匯入
+⑥ 認領既有 WBS 卡（⑥a）後補建其餘 WBS 卡（canon 共 47 條，遠端已有約 32 條）
+⑦ 130 case + folder 樹 + 273 條追溯連結（逐張 `test_case_create` + `link_case_to_work_item`）
 ⑧ 建 19 條 TestRun（sc_verified_by_tc，一個 SC 一條驗收腳本）
-⑨ 驗收：quality_coverage / quality_release_gate 對帳，覆蓋數應為 171/171
+⑨ 驗收：requirement-coverage 對帳
 ```
+
+各步驟對應 `main()` 的 `pipeline`，`--until=STAGE` 可在任一階段收工：
+
+```bash
+cd smartlock-docs/enterprise/規格統控整理
+python3 _plane/import_spine.py --dry-run              # 只讀，先看要動什麼
+python3 _plane/import_spine.py --until=relations      # 只推到規格卡（⓪–⑤）
+python3 _plane/import_spine.py                        # 全部九步
+```
+
+分段的理由是 **Plane 沒有批次刪除**：一次推完約 500 個物件而形狀錯了，清理成本遠高於
+分兩次跑。續跑冪等，已建的會從 id_map 命中跳過。
 
 全部走 REST（API key）。原本設想的 CSV 批次因為只吃 session cookie，改以逐張
 `test_case_create` + `link_case_to_work_item` 取代 —— 呼叫數變多但不必處理登入。
@@ -261,6 +326,7 @@ Plane 一般寫入**沒有**冪等機制（只有 automation ingestion 有 `Idem
 | `plane_client.py` | REST client（stdlib only）+ 速率節流 | ✅ |
 | `import_spine.py` | 九步匯入，冪等、可續跑 | ✅ |
 | `writeback.py` | Plane → `status_snapshot.yaml` | ✅ |
+| `rollback_target.py` | 依 id_map 倒著刪，把靶心還原到匯入前 | ✅ |
 | `snapshot.py` | 給 `_build_workbooks.py` 讀 snapshot | ✅ |
-| `id_map.json` | 正典 ID ↔ Plane UUID/sequence_id | ✅（重跑冪等的依據）|
+| `id_map/<slug>__<project_id>.json` | 正典 ID ↔ Plane UUID/sequence_id，**一個靶心一檔** | ✅（重跑冪等的依據）|
 | `status_snapshot.yaml` | 四軸狀態快照（生成物） | ✅ |

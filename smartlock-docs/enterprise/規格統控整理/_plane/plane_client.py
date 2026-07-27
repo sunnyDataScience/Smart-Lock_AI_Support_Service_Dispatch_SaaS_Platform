@@ -13,8 +13,10 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 TIMEOUT = 30
+ID_MAP_DIR = Path(__file__).resolve().parent / "id_map"
 RETRY_STATUS = {429, 500, 502, 503, 504}
 
 # 後端 API_KEY_RATE_LIMIT 預設 60/minute，按 API key 計（含 GET）。
@@ -58,6 +60,17 @@ class Plane:
         self.slug = slug or os.environ.get("PLANE_WORKSPACE_SLUG") or os.environ["PLANE_WORKSPACE"]
         self.project_id = project_id or os.environ["PLANE_PROJECT_ID"]
         self.pacer = _Pacer(RATE_PER_MIN)
+
+    def state_file(self) -> Path:
+        """id_map 是 per-target 的。
+
+        UUID 只在單一 workspace+project 內有意義，同一份四書卻可能推到多個實例
+        （本機 docker / 遠端 ngrok / 未來的正式站）。共用一個 id_map.json 會讓
+        check-then-create 在換靶時全部假命中——查得到 key、拿到的卻是別的實例的
+        UUID，於是不建卡、後續 relation/link 全打到不存在的物件。檔名帶上靶心是
+        最笨也最不會錯的隔離方式。
+        """
+        return ID_MAP_DIR / f"{self.slug}__{self.project_id}.json"
 
     # -- transport ---------------------------------------------------------
 
@@ -115,6 +128,22 @@ class Plane:
                 break
             cursor = page.get("next_cursor")
         return out
+
+    # -- project -----------------------------------------------------------
+
+    def list_projects(self) -> list[dict]:
+        return self.paged(self._ws("/projects/"))
+
+    def create_project(self, name: str, identifier: str, **fields) -> dict:
+        return self._call("POST", self._ws("/projects/"),
+                          {"name": name, "identifier": identifier, **fields})
+
+    def get_project(self) -> dict:
+        return self._call("GET", f"/api/v1/workspaces/{self.slug}/projects/{self.project_id}/")
+
+    def update_project(self, **fields) -> dict:
+        return self._call("PATCH", f"/api/v1/workspaces/{self.slug}/projects/{self.project_id}/",
+                          fields)
 
     # -- work item types ---------------------------------------------------
 
@@ -211,6 +240,34 @@ class Plane:
 
     def list_test_runs(self) -> list[dict]:
         return self.paged(self._proj("/testing/test-runs/"))
+
+    # -- 回復 ---------------------------------------------------------------
+    # 對映 README §6 的「id_map 是我們建了什麼的完整紀錄」——回復就是倒著刪它記的東西，
+    # 不需要第二套「哪些是我建的」判斷邏輯。
+
+    def delete_work_item(self, issue_id: str) -> None:
+        self._call("DELETE", self._proj(f"/work-items/{issue_id}/"))
+
+    def delete_module(self, module_id: str) -> None:
+        self._call("DELETE", self._proj(f"/modules/{module_id}/"))
+
+    def delete_milestone(self, milestone_id: str) -> None:
+        self._call("DELETE", self._proj(f"/milestones/{milestone_id}/"))
+
+    def delete_property(self, property_id: str) -> None:
+        self._call("DELETE", self._proj(f"/work-item-properties/{property_id}/"))
+
+    def list_type_links(self) -> list[dict]:
+        """專案↔type 的**關聯記錄**（不是 type 本身）。
+
+        每筆有自己的 `id`，另以 `type.id` 指回 workspace 級的 type。解除關聯要 DELETE
+        這個 `id`；拿 `type.id` 去打會 404（2026-07-28 踩過：rollback 把 404 當成
+        「已經不在」，於是 5 次無效呼叫全被算成成功，帳面清乾淨了、關聯其實還在）。
+        """
+        return self.paged(self._proj("/work-item-types/"))
+
+    def detach_type(self, link_id: str) -> None:
+        self._call("DELETE", self._proj(f"/work-item-types/{link_id}/"))
 
     def requirement_coverage(self) -> dict:
         return self._call("GET", self._proj("/testing/requirement-coverage/"))

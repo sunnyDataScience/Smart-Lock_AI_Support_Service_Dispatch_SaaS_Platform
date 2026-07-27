@@ -34,7 +34,6 @@ import _canon as canon  # noqa: E402
 from _plane.plane_client import Plane  # noqa: E402
 
 HERE = Path(__file__).resolve().parent
-ID_MAP = HERE / "id_map.json"
 SNAPSHOT = HERE / "status_snapshot.yaml"
 
 SPEC_STATUS = {
@@ -180,11 +179,12 @@ def render(p: Plane, data: dict) -> str:
 
 
 def main() -> int:
-    if not ID_MAP.exists():
-        print("找不到 id_map.json —— 先跑 _plane/import_spine.py", file=sys.stderr)
-        return 2
     p = Plane()
-    state = json.loads(ID_MAP.read_text(encoding="utf-8"))
+    id_map = p.state_file()
+    if not id_map.exists():
+        print(f"找不到 {id_map} —— 先對同一個靶心跑 _plane/import_spine.py", file=sys.stderr)
+        return 2
+    state = json.loads(id_map.read_text(encoding="utf-8"))
     data = collect(p, state)
     SNAPSHOT.write_text(render(p, data), encoding="utf-8")
     print(f"寫出 {SNAPSHOT.name}：")
