@@ -35,7 +35,12 @@ from openpyxl.worksheet.datavalidation import DataValidation
 import _canon as C
 import _render_bdd as BDD
 import _validate_relations as V
+from _plane.snapshot import Snapshot
 from _spec_data import CODEBASE_SNAPSHOT, COMPONENT_GLOSSARY, MODULES, SUBSYSTEMS
+
+# Plane 回寫快照。缺檔時所有 Plane 欄位顯示 "—"，四書照樣 build ——
+# Plane 是附加視圖，不是四書的前置依賴。
+PLANE = Snapshot()
 
 HERE = Path(__file__).resolve().parent
 
@@ -287,6 +292,10 @@ def build_acceptance(m: Model) -> None:
         ("未結缺口", 9, "derived"),
         ("驗收狀態", 13, "human"), ("驗收日", 11, "human"), ("簽核人", 11, "human"),
         ("裁決備註", 28, "human"),
+        # 軸④ 在 Plane 的即時值。與左邊人填的「驗收狀態」並列而不取代 ——
+        # 兩者 owner 相同但載體不同，讓差異看得見才好對帳。
+        ("Plane 驗收狀態", 14, "derived"),
+        ("Plane 腳本進度", 22, "derived"),
     ]
     ws = table(wb, "② 旅程驗收主表", headers)
     kinds = [h[2] for h in headers]
@@ -300,6 +309,7 @@ def build_acceptance(m: Model) -> None:
             m.engineering_of(s.sc_id), m.test_of(s.sc_id), m.script_of(s.sc_id),
             gaps or "",
             "", "", "", "",
+            PLANE.acceptance_of(s.sc_id), PLANE.script_of(s.sc_id),
         ], kinds, tint=LINE_TINT.get(s.line), height=68)
     dropdown(ws, "O", 2, len(m.scenarios) + 1,
              "Not Accepted,Verified,Accepted,Deferred", "只能填四種驗收狀態之一")
@@ -548,6 +558,8 @@ def build_test(m: Model) -> None:
         ("驗證哪些需求", 26, "derived"), ("屬於哪條旅程腳本", 16, "derived"),
         ("執行結果", 12, "human"), ("執行日", 11, "human"), ("執行人", 10, "human"),
         ("缺陷單 / 備註", 26, "human"),
+        # 軸③ 在 Plane 的即時值（run_case latest_status），append-only 證據。
+        ("Plane 執行結果", 14, "derived"),
     ]
     ws = table(wb, "② 測試案例主表", headers)
     kinds = [h[2] for h in headers]
@@ -563,6 +575,7 @@ def build_test(m: Model) -> None:
             "、".join(reqs) if reqs else "⚠ 未被任何需求指定",
             "、".join(sorted(script_of_case.get(t.tc_id, ()))) or "—",
             "", "", "", "",
+            PLANE.execution_of(t.tc_id),
         ], kinds, height=44)
         if not reqs:
             ws.cell(r, 8).font = Font(name=FONT, size=10, bold=True, color="C00000")

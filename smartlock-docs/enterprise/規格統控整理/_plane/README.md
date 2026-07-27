@@ -207,16 +207,26 @@ Plane 一般寫入**沒有**冪等機制（只有 automation ingestion 有 `Idem
 
 ---
 
-## 7. 回寫方向（⚠️ 待業主確認落點）
+## 7. 回寫（已實作）
 
-業主選擇「雙向：Plane 狀態定期回寫」。但直接回寫會撞到既有守則，所以**回寫落點必須挑過**：
+業主裁決：雙向，回寫落點＝`status_snapshot.yaml`。之所以不直接寫回四書：
 
-- ❌ 不可寫進 `../_relations/*.yaml` —— `_validate_relations.py` 的 **V6** 禁止真相源 YAML 出現衍生欄位
+- ❌ 不可寫進 `../_relations/*.yaml` —— `_validate_relations.py` 的 **V6** 禁止真相源 YAML 出現衍生欄位，寫進去 build 直接失敗
 - ❌ 不可手改 `../20_Test_Cases.md §2.1`、`../19_Test_Plan.md §1.1`、`bdd/*.feature` —— 都是生成區塊，下次 build 就被覆蓋
 
-**建議落點**：Plane 狀態 → 本目錄新增 `status_snapshot.yaml`（純生成物，不受 V6 管轄）→ `_build_workbooks.py` 把它渲染成 xlsx 的 derived 灰格。這樣四條 truth-source YAML 不動、V6 不違、四軸仍各自獨立，而離線也看得到最新狀態。
+所以鏈路是：**Plane → `status_snapshot.yaml`（純生成物，不受 V6 管轄）→ `_build_workbooks.py` 的 derived 灰格**。四條 truth-source YAML 不動、V6 不違、四軸各自獨立，離線也看得到最新狀態。
 
-> 待業主確認落點後才實作回寫器。單向推送（spec → Plane）不受此影響，可先做。
+`writeback.py` 只拉 **Plane 擁有的軸**；軸①（需求定版）的 owner 是 SA、值源自 SRS 文字，本地 `canon.spec_status()` 算得出來，不打 API（省 190 次呼叫，也避免把規格側的軸誤植成 Plane 側）。
+
+已接進 xlsx 的 derived 欄位（一律**並列**於既有人填黃格而非取代，讓兩邊差異看得見好對帳）：
+
+| 工作簿 / 分頁 | 新增欄 | 來源 |
+|---|---|---|
+| 業務邏輯驗收控制表 ②旅程驗收主表 | `Plane 驗收狀態` | 軸④ SC 卡 state |
+| 同上 | `Plane 腳本進度` | 軸③ TestRun progress |
+| 整合測試計畫 ②測試案例主表 | `Plane 執行結果` | 軸③ run_case latest_status |
+
+`status_snapshot.yaml` 不存在時所有 Plane 欄位顯示 `—`，四書照常 build —— **Plane 是附加視圖，不是四書的前置依賴**。
 
 ---
 
@@ -234,4 +244,23 @@ Plane 一般寫入**沒有**冪等機制（只有 automation ingestion 有 `Idem
 ⑨ 驗收：quality_coverage / quality_release_gate 對帳，覆蓋數應為 171/171
 ```
 
-①–⑥⑧ 走 REST（API key）或 `plane-qa-mcp`；⑦ 走 CSV（session auth）。
+全部走 REST（API key）。原本設想的 CSV 批次因為只吃 session cookie，改以逐張
+`test_case_create` + `link_case_to_work_item` 取代 —— 呼叫數變多但不必處理登入。
+
+### 速率限制（實測踩過）
+
+後端 `API_KEY_RATE_LIMIT` 預設 **60/minute，按 API key 計且含 GET**。整份匯入約
+2,100 次呼叫 ⇒ 約 35–40 分鐘。`plane_client.py` 內建 rolling-window pacer
+（預設 55/min，`PLANE_CLIENT_RATE_PER_MIN` 可調），撞到 429 會清空本地窗口並依
+`Retry-After` 退避。
+
+### 檔案
+
+| 檔 | 用途 | 入 git |
+|---|---|---|
+| `plane_client.py` | REST client（stdlib only）+ 速率節流 | ✅ |
+| `import_spine.py` | 九步匯入，冪等、可續跑 | ✅ |
+| `writeback.py` | Plane → `status_snapshot.yaml` | ✅ |
+| `snapshot.py` | 給 `_build_workbooks.py` 讀 snapshot | ✅ |
+| `id_map.json` | 正典 ID ↔ Plane UUID/sequence_id | ✅（重跑冪等的依據）|
+| `status_snapshot.yaml` | 四軸狀態快照（生成物） | ✅ |
