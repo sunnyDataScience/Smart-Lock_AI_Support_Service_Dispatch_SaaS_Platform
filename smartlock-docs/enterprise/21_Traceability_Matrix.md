@@ -17,6 +17,12 @@ upstream:
 > 本文件回答：**每條 FR ↔ 設計來源 ↔ 測試案例是否閉環？哪些 FR 尚無覆蓋（gap）？**
 > FR 編號源＝[./04_SRS.md](./04_SRS.md)（唯一主鍵）；TC 編號源＝[./20_Test_Cases.md](./20_Test_Cases.md)；NFR 編號源＝[./05_NFR.md](./05_NFR.md)。
 
+> ⚠️ **本表為 2026-07-10 SC 重構前版本（FR-0001 舊 ID 方案）**。2026-07-27 起追溯脊椎已改為
+> `28_Scenarios` 的 `SC-*`（FR 改 `FR-AGT-01` 式），完整 **`PER → SC → {FR/NFR} → TC`** 追溯與
+> Persona「誰」維度改由 `規格統控整理/_relations/*.yaml` 四條宣告邊 ＋ 四書 xlsx（驗收控制表
+> ④ 旅程 × Persona）承載為活 SSOT（CR-0185）。本表不回填舊 ID 的 PER 維度以免雙寫漂移；
+> 需要 Persona↔SC↔TC 閉環請看驗收控制表與 `sc_embodies_persona.yaml`。
+
 ## 1. 矩陣說明
 
 | 欄位 | 定義 |

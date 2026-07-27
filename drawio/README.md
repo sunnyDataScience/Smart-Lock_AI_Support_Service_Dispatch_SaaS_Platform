@@ -14,6 +14,14 @@
 - **各子資料夾同名單張檔**(如 `03_執行層/03-1_container.drawio`)——需要單張時開這個。
 - **`06_參考架構/*.svg`／`*.png`** — SVG 由同一份 Draw.io 幾何與內容自動產生，PNG 為正式審閱匯出；可直接放入簡報或文件，Draw.io 仍是可編輯正典。
 
+### 作業架構包（現況／部署證據導向）
+
+[`operational-architecture/`](operational-architecture/) 提供獨立的五視圖作業架構包與合併
+deck `smartlock-operational-architecture.drawio`：從 System Context、穩定處理主幹、Container、
+Information Flow 到 Deployment Runtime。它以 `OP-xx`／`C-xx`／`I-xx`／`N-xx` 串接
+Process Catalog 與 Traceability Matrix，並嚴格區分 code-confirmed、PARTIAL、open decision 與
+deployment-unverified；適合用於工程、QA、SRE 的 issue 定位，不取代本頁 16 分頁產品架構 deck。
+
 **主 deck 閱讀序**：`00-1 商業心智 → 00-2 Context → 06-1 高階端到端參考架構 → 01-1 部署三分層 → 03-1 Container 主錨 → 03-2 agent 元件 → 03-3 api 元件 → 04-3 Sequence(工單全程) → 03-4 State Machines → 04-2 跨系統資料流 → 04-4 知識精煉閉環 → 05-1 共用核心 Kernel`。
 **附錄**：`A=01-2 平台核心 vs Vertical Pack（階段二）· B=02-1 知識能力分層 · C=02-2 AI 邊界紅線 · D=06-2 L2 元件責任與介面目錄`。
 

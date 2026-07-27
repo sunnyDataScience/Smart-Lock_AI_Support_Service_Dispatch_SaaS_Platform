@@ -1,0 +1,158 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" modified="2026-07-27T00:00:00.000Z" agent="Smart Lock Operational Architecture builder" version="24.7.17" type="device">
+  <diagram id="container_architecture" name="02" compressed="false">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="container_architecture_title_1" value="02 | Smart Lock Container Architecture — C4 Level 2" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#263238;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="1840" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_subtitle_2" value="可執行／保存責任單位｜CURRENT 是 code-confirmed；PARTIAL／TARGET 不可解讀為 production 已部署。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=11;fontStyle=0;fontColor=#5F6368;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="67" width="1840" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_user_3" value="客戶／品牌營運／&#10;技師／平台管理員" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="55" y="270" width="240" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_line_4" value="LINE Platform" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="55" y="610" width="240" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_system_5" value="System of Interest | Smart Lock AI 客服與派工 SaaS 平台" style="rounded=1;whiteSpace=wrap;html=1;container=1;collapsible=0;fillColor=#FFFFFF;fillOpacity=35;strokeColor=#A6A6A6;dashed=1;verticalAlign=top;align=left;spacingTop=8;spacingLeft=10;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="390" y="135" width="1120" height="760" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_agent_6" value="C-10 · Agent／LockCore&#10;aiohttp｜LINE Turn、Skill、Memory、Tools&#10;CURRENT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="435" y="230" width="285" height="112" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_web_7" value="C-20 · Web Portals&#10;Next.js｜brand／tech／platform&#10;PARTIAL（四站）" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="435" y="465" width="285" height="112" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_api_8" value="C-30 · API Control Plane&#10;FastAPI｜API_SURFACE、RBAC、領域服務&#10;CURRENT + deployment-conditional" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="805" y="230" width="300" height="112" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_tech_9" value="C-40 · Technician Platform&#10;tech surface + tech portal｜技師權威／投影&#10;PARTIAL；OHS 邊界 OD-001／OD-003" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E3E6;strokeColor=#0E8088;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="805" y="465" width="300" height="112" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_refinery_10" value="C-50 · Knowledge Refinery&#10;HITL／publish｜License 附加&#10;PARTIAL；intake OD-002" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E3E6;strokeColor=#0E8088;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="805" y="680" width="300" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_brand_store_11" value="C-60 · Brand DB + pgvector&#10;品牌交易、對話、outbox、唯一事實語料&#10;CURRENT（環境套用待取證）" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="220" width="245" height="125" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_tech_store_12" value="C-61 · Technician DB&#10;技師身分／技能／排班權威&#10;PARTIAL" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="450" width="245" height="115" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_platform_store_13" value="C-62 · Platform DB&#10;治理／License（PARTIAL）" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="670" width="245" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_model_14" value="LLM 供應商&#10;LiteLLM 路由" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1615" y="245" width="240" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_identity_15" value="Casdoor IdP&#10;PARTIAL／OD-004" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="1615" y="470" width="240" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_user_web_16" value="Browser／OIDC portal interaction" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="container_architecture_user_3" target="container_architecture_web_7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_line_agent_17" value="Webhook／Reply・Push" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="container_architecture_line_4" target="container_architecture_agent_6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_agent_api_18" value="/internal/* X-Internal-Token" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="container_architecture_agent_6" target="container_architecture_api_8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_agent_brand_19" value="Memory／RAG（tenant scoped）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="container_architecture_agent_6" target="container_architecture_brand_store_11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_agent_model_20" value="模型 request／response" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="container_architecture_agent_6" target="container_architecture_model_14">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_web_api_21" value="REST／WebSocket" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="container_architecture_web_7" target="container_architecture_api_8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_api_brand_22" value="品牌領域交易／outbox" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="container_architecture_api_8" target="container_architecture_brand_store_11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_api_tech_23" value="interim direct route；目標 OHS（OD-001）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="container_architecture_api_8" target="container_architecture_tech_9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_tech_techstore_24" value="技師 authority／投影" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="container_architecture_tech_9" target="container_architecture_tech_store_12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_api_identity_25" value="OIDC／portal claim guard" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="container_architecture_api_8" target="container_architecture_identity_15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_refinery_brand_26" value="受控 intake／核可 publish（OD-002）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="container_architecture_refinery_10" target="container_architecture_brand_store_11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_refinery_platform_27" value="License／governance（PARTIAL）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="container_architecture_refinery_10" target="container_architecture_platform_store_13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_rule_28" value="資料隔離：品牌／技師／平台三庫各自擁有真相；品牌不應直連技師庫。Redis、Kafka、SigNoz 為可選基礎設施，未列為已驗證 container instance。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=13;fontStyle=1;fontColor=#174EA6;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="180" y="925" width="1560" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_title_29" value="Relationship semantics" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=12;fontStyle=1;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1010" width="170" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_runtime_a_30" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="230" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_runtime_b_31" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="320" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_runtime_32" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="container_architecture_legend_runtime_a_30" target="container_architecture_legend_runtime_b_31">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_runtime_text_33" value="P0 / primary path" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="334" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_data_a_34" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_data_b_35" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="630" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_data_36" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="container_architecture_legend_data_a_34" target="container_architecture_legend_data_b_35">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_data_text_37" value="Normal interaction" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="644" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_control_a_38" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="850" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_control_b_39" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="940" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_control_40" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="container_architecture_legend_control_a_38" target="container_architecture_legend_control_b_39">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_control_text_41" value="Async / return" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="954" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_support_a_42" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_support_b_43" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_support_44" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="container_architecture_legend_support_a_42" target="container_architecture_legend_support_b_43">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_support_text_45" value="Cross-cut support" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1264" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_feedback_a_46" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_feedback_b_47" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_feedback_48" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="container_architecture_legend_feedback_a_46" target="container_architecture_legend_feedback_b_47">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="container_architecture_legend_feedback_text_49" value="Observation / feedback" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1574" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

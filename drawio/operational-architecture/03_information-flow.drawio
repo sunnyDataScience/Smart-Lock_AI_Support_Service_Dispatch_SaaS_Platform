@@ -1,0 +1,155 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" modified="2026-07-27T00:00:00.000Z" agent="Smart Lock Operational Architecture builder" version="24.7.17" type="device">
+  <diagram id="information_flow" name="03" compressed="false">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="information_flow_title_1" value="03 | Smart Lock Information Flow — DFD Level 1" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#263238;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="1840" height="42" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_subtitle_2" value="資料產品、方向與保存責任｜同步／非同步、CURRENT／PARTIAL／TARGET 的語意均在 edge label 明示。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=11;fontStyle=0;fontColor=#5F6368;align=left;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="67" width="1840" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_source_3" value="E-10 | LINE 使用者／&#10;LIFF postback" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="50" y="220" width="240" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_operator_4" value="E-20 | 品牌營運／&#10;技師工作台" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="50" y="650" width="240" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_intake_5" value="P-10 | 通道驗簽、去重與解碼&#10;line_gateway" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="390" y="220" width="270" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_runtime_6" value="P-20 | 對話 Turn 與治理&#10;LockCore" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="770" y="220" width="270" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_domain_7" value="P-30 | 品牌領域命令與 guard&#10;API control plane" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="770" y="590" width="270" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_deliver_8" value="P-40 | 回覆、投影與通知交付&#10;LINE／Portal／WS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;strokeWidth=1.7;fontSize=12;fontStyle=1;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="405" width="270" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_downstream_9" value="E-30 | 客戶／營運人員／&#10;技師" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1600" y="405" width="240" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_memory_10" value="D-10 | Agent Memory&#10;tenant_id + user_id&#10;CURRENT" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="390" y="645" width="230" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_brand_11" value="D-20 | Brand DB + pgvector&#10;交易／對話／outbox／知識&#10;CURRENT（環境待取證）" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="700" width="230" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_tech_12" value="D-30 | Technician DB&#10;身份／技能／排班&#10;PARTIAL" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#E1D5E7;strokeColor=#9673A6;strokeWidth=1.7;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="770" y="835" width="230" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_refinery_13" value="P-50 | HITL 知識精煉&#10;PARTIAL／OD-002" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#B0E3E6;strokeColor=#0E8088;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;dashed=1;dashPattern=6 4;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="830" width="270" height="76" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_source_intake_14" value="I-10 | 已簽署 LINE webhook JSON（sync）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="information_flow_source_3" target="information_flow_intake_5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_intake_runtime_15" value="I-20 | 已驗簽／去重 Normalized Turn（sync）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="information_flow_intake_5" target="information_flow_runtime_6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_memory_runtime_16" value="I-21 | tenant + user scoped customer facts（sync）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="information_flow_memory_10" target="information_flow_runtime_6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_runtime_domain_17" value="I-30 | escalation／conversation ingest（internal sync）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="information_flow_runtime_6" target="information_flow_domain_7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_operator_domain_18" value="I-31 | human command／approval／field evidence（sync）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="information_flow_operator_4" target="information_flow_domain_7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_domain_deliver_19" value="I-40 | authorized state／outbox notification（sync／worker）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="information_flow_domain_7" target="information_flow_deliver_8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_runtime_deliver_20" value="I-41 | guarded AI reply／Flex（sync）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="information_flow_runtime_6" target="information_flow_deliver_8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_deliver_downstream_21" value="I-50 | reply／portal view／notification" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="information_flow_deliver_8" target="information_flow_downstream_9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_domain_brand_22" value="I-60 | brand transaction、audit、outbox（SQL）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="information_flow_domain_7" target="information_flow_brand_11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_domain_tech_23" value="I-61 | CURRENT interim direct access；TARGET OHS（OD-001）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="information_flow_domain_7" target="information_flow_tech_12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_brand_refinery_24" value="I-70 | diagnostic／knowledge input（PARTIAL；OD-002）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="information_flow_brand_11" target="information_flow_refinery_13">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_refinery_brand_25" value="I-71 | approved fact／skill revision（HITL only）" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="information_flow_refinery_13" target="information_flow_brand_11">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_note_26" value="I-80 Redis WS fan-out 與 I-81 Kafka domain events：程式為 opt-in，production／SIT 尚未取證；不在本圖當成正常主路徑。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=12;fontStyle=1;fontColor=#9C6500;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="290" y="940" width="1380" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_rule_27" value="Data ownership：Agent Memory 不等同原始 session；Brand DB 保有品牌業務真相；Technician DB 是技師權威。Refinery 只能發布經 HITL 核可的輸出。" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=12;fontStyle=1;fontColor=#174EA6;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="220" y="985" width="1480" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_title_28" value="Relationship semantics" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=12;fontStyle=1;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1010" width="170" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_runtime_a_29" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="230" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_runtime_b_30" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="320" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_runtime_31" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#333333;strokeWidth=2.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="information_flow_legend_runtime_a_29" target="information_flow_legend_runtime_b_30">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_runtime_text_32" value="P0 / primary path" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="334" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_data_a_33" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="540" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_data_b_34" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="630" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_data_35" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#555555;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;" edge="1" parent="1" source="information_flow_legend_data_a_33" target="information_flow_legend_data_b_34">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_data_text_36" value="Normal interaction" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="644" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_control_a_37" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="850" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_control_b_38" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="940" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_control_39" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="information_flow_legend_control_a_37" target="information_flow_legend_control_b_38">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_control_text_40" value="Async / return" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="954" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_support_a_41" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1160" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_support_b_42" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_support_43" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=open;endFill=0;strokeColor=#999999;strokeWidth=1.5;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=1 4;" edge="1" parent="1" source="information_flow_legend_support_a_41" target="information_flow_legend_support_b_42">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_support_text_44" value="Cross-cut support" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1264" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_feedback_a_45" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_feedback_b_46" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#999999;strokeWidth=1.7;fontSize=12;fontStyle=0;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="1017" width="8" height="8" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_feedback_47" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=classic;endFill=1;strokeColor=#6C8EBF;strokeWidth=1.8;fontSize=10;labelBackgroundColor=#FFFFFF;jumpStyle=arc;jumpSize=8;dashed=1;dashPattern=8 5;" edge="1" parent="1" source="information_flow_legend_feedback_a_45" target="information_flow_legend_feedback_b_46">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="information_flow_legend_feedback_text_48" value="Observation / feedback" style="text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;fontSize=10;fontStyle=0;fontColor=#263238;align=center;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="1574" y="1004" width="155" height="32" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
