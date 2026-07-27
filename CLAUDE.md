@@ -30,7 +30,10 @@ Smart Lock AI Support & Service Dispatch SaaS Platform —— LINE Bot 智慧鎖
 2. **不准把 skill 拉到 lockcore/skills/ 之外** —— 兩個 builtin skill (`locksmith-product-knowledge`、`locksmith-cs-sop`) 必須留在 `lockcore/skills/`，且**只用 Agent Skills 標準 frontmatter**（name / description / version / metadata），不綁框架專屬欄位，以保可攜性（複製到 Claude Code / Cursor / nanobot / hermes 直接可用）。
    > **CR-0167 / ADR-032 補充（2026-07-12）**：skill 的**日常迭代 SSOT 已移到品牌庫**（`saas.skill_revision`），由 `SkillSync`（`lockcore/agent/skill_sync.py`）60s 輪詢物化到 `workspace/skills/`，走上游既有 overlay（workspace 優先於 builtin），發佈後 ≤60s 生效**不重佈**。這**不違反本條**：`lockcore/skills/` 的 builtin 原封不動，僅定位改為「出廠範本＋離線保底」（DB 全掛時 fail-soft 回退）。品牌後台「知識庫 > AI 技能」分頁編輯、admin 發佈；落盤仍是標準 SKILL.md + references/，可攜性不變。
 3. **不准在 lockcore 外再造 LLM provider** —— 多家統一走 `LiteLLMProvider` 用 model 字串路由（`gemini/` / `vertex_ai/` / `ollama_chat/` / `claude-*` / `gpt-4o` 等），不要把 anthropic / google-genai SDK 直接 import 回 agent code。
-4. **工具白名單只能在 `lockcore/app_config.py:CS_TOOL_ALLOWLIST` 統一控** —— 目前客服只開 `read_file / list_dir / find_files / grep / web_search / transfer_to_human`。新增工具屬 architecture change，須走 CIA。
+4. **內建工具白名單只能在 `lockcore/app_config.py:CS_TOOL_ALLOWLIST` 統一控** —— 目前客服只開 `read_file / list_dir / find_files / grep / web_search / transfer_to_human`。新增內建工具屬 architecture change，須走 CIA。
+   > **MCP 例外（2026-07-27 稽核補正，原條文不完整）**：**MCP 工具不受 `CS_TOOL_ALLOWLIST` 約束**，這是 ADR-010 / CR-0125 的刻意設計而非疏漏。原因是**執行時序**：白名單剝離發生在 `AgentLoop.__init__`（同步建構期，`agent/lockcore/agent/loop.py` 的 `_register_default_tools` 之後一次性 unregister），而 MCP 連線發生在事件迴圈啟動後（`line_gateway.py` on_startup → `loop._connect_mcp()`），`agent/lockcore/agent/tools/mcp.py` 全檔無任何 allowlist 檢查，只做 `registry.register(wrapper)`。實測：建構後 6 個工具 → RAG MCP 註冊後 8 個（`mcp_locksmith-rag_search_product_manual` / `mcp_locksmith-rag_search_similar_cases`）。
+   >
+   > **所以「工具入口有兩條」**：①內建工具走 `CS_TOOL_ALLOWLIST`（本條）②MCP 工具走 `agent/config.toml` 的 `[mcp_servers.*]`＋其 `${ENV}` 是否解得到值（解不到就整個 server 跳過＝RAG 未配置時行為與現狀相同）。**新增 MCP server 或其工具同樣屬 architecture change，須走 CIA**——控制點是 config.toml 的 server 定義，不是白名單常數。守線測試＝`agent/tests/test_mcp_allowlist_boundary.py`（把此時序行為釘住，避免日後靜默漂移）。
 
 **Sourcing rule（CRITICAL — bronze-only，仍適用）**：產品知識 references 內容嚴格源自 `knowledge-pipeline/storage/bronze/`（原 data/，2026-07-09 改名）（YouTube 字幕、website、video transcript）。**PDF (GDrive) 不可信，references 只引 URL 不抄內容。**
 

@@ -375,7 +375,8 @@
   "problemCardStatus": {
     "draft": "Draft",
     "confirmed": "Confirmed",
-    "resolved": "Resolved"
+    "resolved": "Resolved",
+    "dismissed": "Dismissed"
   },
   "conversationStatus": {
     "active": "Active",
@@ -700,7 +701,8 @@
         "status": {
           "draft": "Draft",
           "confirmed": "Confirmed",
-          "resolved": "Resolved"
+          "resolved": "Resolved",
+          "dismissed": "Dismissed"
         }
       },
       "media": {
@@ -951,7 +953,8 @@
         "status": {
           "draft": "Draft",
           "confirmed": "Confirmed",
-          "resolved": "Resolved"
+          "resolved": "Resolved",
+          "dismissed": "Dismissed"
         },
         "field": {
           "brand": "Brand",
@@ -3858,7 +3861,8 @@
         "status": {
           "draft": "Draft",
           "confirmed": "Confirmed",
-          "resolved": "Resolved"
+          "resolved": "Resolved",
+          "dismissed": "Dismissed"
         },
         "aiConfidence": "AI confidence",
         "timeTitle": "Timestamps",

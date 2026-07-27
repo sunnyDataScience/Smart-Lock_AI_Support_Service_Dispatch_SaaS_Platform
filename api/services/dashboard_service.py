@@ -105,6 +105,8 @@ async def get_stats(*, tenant_id: str, period: str) -> dict:
         f"LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid AND {_period_clause('pc')} "
         f"  AND pc.category IS NOT NULL "
+        # CR-0185：作廢卡（AI 誤建）不得進「熱門議題」統計
+        f"  AND pc.status <> 'dismissed' "
         f"GROUP BY pc.category ORDER BY n DESC LIMIT 5"
     )
     cur = await db_module._conn.execute(hot_sql, (tenant_id, interval, interval))
@@ -120,6 +122,8 @@ async def get_stats(*, tenant_id: str, period: str) -> dict:
         f"LEFT JOIN users u ON c.user_id = u.id "
         f"WHERE COALESCE(pc.tenant_id, u.tenant_id) = %s::uuid AND {_period_clause('pc')} "
         f"  AND pc.brand IS NOT NULL "
+        # CR-0185：作廢卡（AI 誤建）不得進「熱門品牌」統計
+        f"  AND pc.status <> 'dismissed' "
         f"GROUP BY pc.brand ORDER BY n DESC LIMIT 5"
     )
     cur = await db_module._conn.execute(brand_sql, (tenant_id, interval, interval))

@@ -47,6 +47,11 @@ _DB_STATUS_TO_API = {
     "confirmed": "confirmed",
     "resolved": "resolved",
     "escalated": "resolved",  # OpenAPI 沒有 escalated；視為已結案
+    # CR-0185：作廢終態。**必須有此對映** —— _coerce_status 對未知值 fallback 回 "draft"，
+    # 漏加會讓作廢卡在全站顯示成「待確認」並回到待確認佇列（本修復自我廢除）。
+    # 且**絕不可**映射到 "resolved" —— refinery 的 _PENDING_CARDS_SQL 只吃
+    # status='resolved' AND knowledge_ready=TRUE，會把垃圾卡汲取成知識。
+    "dismissed": "dismissed",
 }
 
 _DB_URGENCY_TO_API = {
@@ -250,6 +255,10 @@ async def get_card(*, tenant_id: str, pc_id: str) -> dict:
 
 _CONFIRM_FROM = {"incomplete"}
 _RESOLVE_FROM = {"confirmed"}
+# CR-0185 作廢：允許 incomplete（草擬卡誤建，主要情境）與 confirmed（確認後才發現重複）。
+# **刻意不允許 resolved → dismissed** —— 已結案卡可能已被 refinery 汲取成知識
+# （intake.py 只吃 resolved + knowledge_ready），回頭作廢會使知識來源失去依據。
+_DISMISS_FROM = {"incomplete", "confirmed"}
 
 
 async def _fetch_status_for_update(pc_id: str, tenant_id: str) -> str:
@@ -359,6 +368,87 @@ async def resolve_card(
          resolved_by, pc_id),
     )
     await _recompute_gates(pc_id)
+    return await get_card(tenant_id=tenant_id, pc_id=pc_id)
+
+
+async def _unescalate_conversation_for_card(pc_id: str) -> None:
+    """作廢問題卡時，把關聯對話交還 AI（escalated → active）。
+
+    WHY：escalation 建卡時會把 conversation 翻 `escalated`（AI 靜音、開啟客服接管發訊），
+    而目前**只有工單結案**會翻回 active（work_order_service 的同款寫法）。若作廢卡不比照，
+    該 LINE 客人的 AI 會**永久靜音** —— 0727 查到的 `14ef5e2f` 正是此成因（誤判建卡 →
+    對話被翻 escalated → 客人之後只收到「已由真人專員接手」罐頭）。
+
+    fail-soft：交還失敗不阻斷作廢本身（作廢是主要意圖，交還是附帶修復）。
+    """
+    try:
+        cur = await db_module._conn.execute(
+            "SELECT conversation_id FROM problem_cards WHERE id = %s::uuid", (pc_id,))
+        row = await cur.fetchone()
+        if not row or not row[0]:
+            return
+        await db_module._conn.execute(
+            "UPDATE conversations SET status = 'active', updated_at = NOW() "
+            "WHERE id = %s::uuid AND status = 'escalated'",
+            (str(row[0]),),
+        )
+    except Exception:  # noqa: BLE001 — 交還失敗不得阻斷作廢
+        logger.warning("dismiss: 交還對話給 AI 失敗（不阻斷作廢） pc_id=%s", pc_id, exc_info=True)
+
+
+async def dismiss_card(
+    *, tenant_id: str, pc_id: str, reason: str | None = None,
+    dismissed_by: str | None = None,
+) -> dict:
+    """incomplete / confirmed → dismissed（作廢終態，CR-0185）。
+
+    語意＝經客服審視判定**非真實案件／誤建／重複**，與 resolved（真的解決了）分開。
+    LINE agent 轉真人會自動建草擬卡，誤判就產生垃圾卡；此前只能標「已解決」
+    （污染解決率**且會被 refinery 汲取成知識**）或留 draft 佔住待確認佇列。
+
+    刻意**不做**的三件事（與 resolve_card 的差別）：
+      1. 不寫 resolution_layer / triage_tier / resolution_channel —— 作廢不是一種「解決」
+      2. 不呼叫 _recompute_gates —— 避免作廢卡意外滿足 Gate② 而變成知識來源
+      3. 不觸發知識佇列 —— list_knowledge_queue 只吃 resolved，dismissed 天然被排除
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    current = await _fetch_status_for_update(pc_id, tenant_id)
+    if current not in _DISMISS_FROM:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"Cannot dismiss problem card in status '{current}'; "
+            f"expected one of {sorted(_DISMISS_FROM)}",
+            409,
+        )
+
+    await db_module._conn.execute(
+        "UPDATE problem_cards SET "
+        "  status = 'dismissed', "
+        "  dismissed_at = NOW(), "
+        "  dismiss_reason = %s, "
+        "  updated_at = NOW() "
+        "WHERE id = %s::uuid",
+        (reason, pc_id),
+    )
+
+    # 作廢是終態且屬治理動作 → 留稽核（problem_card_service 原本無 audit 寫入）
+    try:
+        from services import audit_log_service
+        await audit_log_service.log_event(
+            event_type="admin_action",
+            actor_id=dismissed_by,
+            actor_role=None,
+            action="problem_card.dismissed",
+            target_type="problem_card",
+            target_id=pc_id,
+            payload={"tenant_id": tenant_id, "from_status": current, "reason": reason},
+        )
+    except Exception:  # noqa: BLE001 — 稽核失敗不得阻斷作廢
+        logger.warning("dismiss: 稽核寫入失敗（不阻斷） pc_id=%s", pc_id, exc_info=True)
+
+    await _unescalate_conversation_for_card(pc_id)
     return await get_card(tenant_id=tenant_id, pc_id=pc_id)
 
 
@@ -651,7 +741,7 @@ async def create_card(
         cur = await db_module._conn.execute(
             "SELECT id FROM problem_cards "
             "WHERE conversation_id = %s::uuid "
-            "  AND status NOT IN ('resolved', 'escalated') AND converted_at IS NULL",
+            "  AND status NOT IN ('resolved', 'escalated', 'dismissed') AND converted_at IS NULL",
             (conversation_id,),
         )
         if await cur.fetchone():
@@ -912,7 +1002,7 @@ async def escalation_to_draft_pc(
     kcur = await db_module._conn.execute(
         "SELECT id FROM problem_cards "
         "WHERE idempotency_key = %s AND created_at > NOW() - INTERVAL '24 hours' "
-        "  AND status NOT IN ('resolved', 'escalated') AND converted_at IS NULL "
+        "  AND status NOT IN ('resolved', 'escalated', 'dismissed') AND converted_at IS NULL "
         "ORDER BY created_at DESC LIMIT 1",
         (idem_key,),
     )
@@ -928,7 +1018,7 @@ async def escalation_to_draft_pc(
     cur = await db_module._conn.execute(
         "SELECT id, symptoms FROM problem_cards "
         "WHERE conversation_id = %s::uuid "
-        "  AND status NOT IN ('resolved', 'escalated') AND converted_at IS NULL "
+        "  AND status NOT IN ('resolved', 'escalated', 'dismissed') AND converted_at IS NULL "
         "ORDER BY created_at DESC LIMIT 1",
         (conv_id,),
     )
@@ -1134,7 +1224,7 @@ async def update_card(
     if status is not None:
         raise ApiError(
             "VALIDATION_ERROR",
-            "status changes must go through /confirm or /resolve endpoints",
+            "status changes must go through /confirm, /resolve or /dismiss endpoints",
             422,
         )
 

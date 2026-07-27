@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CR-0185 問題卡 `dismissed` 作廢終態＋師傅站本月毛額口徑＋MCP 白名單條文補正（branch `feat/cr-0185-owner-decisions`，2026-07-27，業主「都照你的建議開發完」＝授權代為裁決）**：0727 稽核輪三件待裁決事項一次落地，前置以 4 路平行調查＋對抗驗證確認座標與影響半徑（CIA＝`docs/4-exploration/CR-0185-problem-card-dismissed.md`，含 5 項代裁決供業主推翻）。
+  - **A 問題卡作廢**：LINE agent 轉真人自動建的草擬卡誤判後無乾淨關閉途徑——標「已解決」污染解決率**且會被 refinery 汲取成知識**（`intake.py` 只吃 resolved+knowledge_ready），留 draft 則佔住待確認佇列。新增 `dismissed` 終態（migration 117：`dismissed_at`/`dismiss_reason` 沿用 invoices voided 欄位慣例＋**重建 partial unique index**）＋`dismiss_card()`＋v2 端點 `POST .../problem-cards/{id}/dismiss`（BACKOFFICE_ROLES＋idempotency＋cross-tenant guard；**刻意不加 legacy 孿生**，CR-0183 教訓）。**命名採新 token 而非沿用慣例**：全 repo 狀態命名調查（106 個列舉）顯示 `rejected` 19／`cancelled` 6，但 `reject` 在相鄰工單域已代表「技師拒單」、`cancelled` 綁 6 階段取消費用機制，語意皆不符「這張卡本來就不該存在」。**四類「漏改即自我廢除」陷阱全數處理**：①`_DB_STATUS_TO_API` 未加對映會讓 `_coerce_status` fallback 回 draft → 作廢卡回到待確認佇列 ②三處 active 判定＋DB partial index 未排除 → 作廢卡永遠佔住該對話唯一 active 名額、同對話再也開不了新卡 ③`kpi_service._funnel_counts`（原完全不看 status）與 `dashboard_service` hot_topics/top_brands（原全表 COUNT）→ 誤建卡壓低 PC→WO 轉換率、污染熱門榜 ④**作廢時把 conversation 交還 AI**（escalated→active）——否則該 LINE 客人 AI 永久靜音（0727 查到的 `14ef5e2f` 正是此成因）。前端六處 `Record<ProblemCardStatus,…>` 由 tsc 全數揪出並補（作廢＝中性灰，與「已解決」綠區隔）＋兩語系 i18n 同步。
+  - **B 師傅站本月毛額**：`month_gross_est` 的 pending 聚合欄**原無任何日期條件**，等於「本月完工＋全歷史未完工」，線上實測本月 0 單仍顯示 NT$31,617。加月份窗（錨點 `COALESCE(scheduled_at, created_at)`：已排程以排程月為準、未排程退回建立月），並移除 status 白名單中 `scheduled`/`en_route`/`arrived` 三個**永遠 match 不到**的 API 層死值。
+  - **C CLAUDE.md 條文補正**：Architecture Lock 第 4 條「工具白名單只能在 CS_TOOL_ALLOWLIST 統一控」**不完整**——實測建構後 6 工具、MCP 註冊後 8 工具（`names ⊆ allowlist` = False），MCP 是**第二條不受該白名單約束的工具入口**（時序：白名單剝離在建構期、MCP 註冊在事件迴圈啟動後，`tools/mcp.py` 無 allowlist 檢查）。此為 ADR-010/CR-0125 刻意設計，補條文說明兩條入口且兩者新增皆須走 CIA；**不動 code**（改成事後套用會讓 RAG 靜默失效）＋新增 `test_mcp_allowlist_boundary.py` 釘住時序。
+  - **驗證**：api **2102 passed**（基準 2091＋新增 11；13 failed 為既有 seed 依賴，清單不變＝零回歸）、agent **312 passed**、四站 tsc＋eslint 全綠、API 型別 `--check` 同步、migration drift 與端點守衛稽核皆綠、migration 117 冪等二套驗證。
+
 - **UAT-0720-13 樣本圖品牌 gate（branch `fix/uat-0720-photo-guide-brand-gate`，2026-07-23，CR-0179）**：業主確認測量圖為 Chatlock 品牌專屬（logo＋量測部位特定），agent 支援 6 品牌無差別丟會誤導其他品牌客戶。修：key `pre-install`→`chatlock-pre-install`（檔名同步）、SOP v1.6.0→**v1.7.0** 第 4 點加品牌 gate（確認鎖為 Chatlock 才附標記，其他品牌純文字引導）、config 移除未用 `booking-install`（檔案留備用）、守線測試加「僅 Chatlock／其他品牌」斷言。
 
 - **UAT-0720 輪次 B：業主四裁決落地（branch `feat/uat-0720-round-b`，2026-07-22，裁決「1-2 / 2-B / 3-1 / 4-1」）**：

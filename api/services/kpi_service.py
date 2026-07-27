@@ -93,7 +93,10 @@ async def _funnel_counts(
     sql = (
         "SELECT COUNT(*), "
         "  COUNT(*) FILTER (WHERE EXISTS ("
-        "    SELECT 1 FROM problem_cards pc WHERE pc.conversation_id = c.id)), "
+        "    SELECT 1 FROM problem_cards pc WHERE pc.conversation_id = c.id "
+        # CR-0185：作廢卡不算「已建問題卡」——否則誤建卡會留在 PC→WO
+        # 轉換率的分母，把轉換率壓低（此階段原本完全不看 status）
+        "      AND pc.status <> 'dismissed')), "
         f"  COUNT(*) FILTER (WHERE EXISTS ({_wo_exists})), "
         f"  COUNT(*) FILTER (WHERE EXISTS ({_wo_exists} "
         "    AND wo.status IN ('assigned','accepted','in_progress','completed','confirmed'))), "

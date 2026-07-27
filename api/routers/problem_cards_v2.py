@@ -35,6 +35,7 @@ from models.generated import (
     ProblemCardEnvelope,
     ProblemCardExport,
     ProblemCardPage,
+    ProblemCardDismissRequest,
     ProblemCardResolveRequest,
     ProblemCardUpdateRequest,
     WorkOrder,
@@ -280,6 +281,48 @@ async def confirm_problem_card_v2(
 
     card = await problem_card_service.confirm_card(
         tenant_id=tenantId, pc_id=id,
+    )
+    payload = {"data": ProblemCard(**card).model_dump(mode="json")}
+    if idem is not None:
+        await idem.save(200, payload)
+    return payload
+
+
+@router.post(
+    "/tenants/{tenantId}/problem-cards/{id}/dismiss",
+    operation_id="dismissProblemCardV2",
+    summary="作廢問題卡 v2（tenant-scoped；draft/confirmed → dismissed，CR-0185）",
+    response_model=ProblemCardEnvelope,
+    tags=["M03 ProblemCard"],
+)
+async def dismiss_problem_card_v2(
+    body: ProblemCardDismissRequest,
+    tenantId: str = Path(...),
+    id: str = Path(...),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
+    idem: IdempotencyContext | None = Depends(idempotency_guard),
+) -> dict:
+    """作廢＝經客服審視判定**非真實案件／誤建／重複**，與 resolve（真的解決了）分開。
+
+    LINE agent 轉真人會自動建草擬卡，誤判就產生垃圾卡；此前只能標「已解決」
+    （污染解決率**且會被 refinery 汲取成知識**）或留 draft 佔住待確認佇列。
+    作廢同時會把關聯對話交還 AI（escalated → active），避免該客人的 AI 永久靜音。
+
+    **刻意不加 legacy /api/v1 孿生端點** —— CR-0183 的教訓是雙掛端點守衛易失步，
+    新功能不應擴大已標 Deprecation 的舊面。
+    """
+    # cross-tenant guard（ADR-0030）
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+
+    card = await problem_card_service.dismiss_card(
+        tenant_id=tenantId, pc_id=id,
+        reason=body.reason,
+        dismissed_by=user.user_id,
     )
     payload = {"data": ProblemCard(**card).model_dump(mode="json")}
     if idem is not None:

@@ -36,6 +36,8 @@ const PC_STATUS_LABEL: Record<ProblemCardStatus, { label: string; bg: string; co
   draft: { label: "待確認", bg: "#EEF2FF", color: "#6366F1" },
   confirmed: { label: "已確認", bg: "#DBEAFE", color: "#3B82F6" },
   resolved: { label: "已解決", bg: "#D1FAE5", color: "#10B981" },
+  // CR-0185 作廢：中性灰，與「已解決」綠明確區隔（作廢不是成功結案）
+  dismissed: { label: "已作廢", bg: "#F3F4F6", color: "#6B7280" },
 };
 
 const STATUS_LABEL: Record<ConversationStatus, string> = {

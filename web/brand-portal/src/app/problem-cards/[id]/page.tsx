@@ -3,6 +3,7 @@
 import { use, useEffect, useState, type ReactNode } from "react";
 import {
   CheckCircle2,
+  Ban,
   ClipboardList,
   Download,
   Flag,
@@ -64,6 +65,7 @@ const statusLabel: Record<ProblemCardStatus, string> = {
   draft: "待確認",
   confirmed: "已確認",
   resolved: "已解決",
+  dismissed: "已作廢",
 };
 
 const urgencyLabel: Record<Urgency, string> = {
@@ -151,6 +153,7 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   const [loading, setLoading] = useState(true);
   const [actionPending, setActionPending] = useState<
     | "confirm"
+    | "dismiss"
     | "resolve"
     | "update"
     | "auto"
@@ -256,6 +259,28 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
       );
       setCard(res.data ?? null);
       setActionToast("問題卡已確認");
+    } catch (e) {
+      setActionError(formatActionError(e));
+    } finally {
+      setActionPending(null);
+    }
+  };
+
+  const handleDismiss = async () => {
+    const reason = window.prompt(
+      "作廢理由（供稽核，可留空）：\n例：AI 誤建、重複進線、非真實案件",
+      "",
+    );
+    if (reason === null) return; // 使用者取消
+    setActionPending("dismiss");
+    setActionError(null);
+    try {
+      const res = await api.post<ProblemCardEnvelope>(
+        tenantPath(`/problem-cards/${encodeURIComponent(id)}/dismiss`),
+        { reason: reason || null },
+      );
+      setCard(res.data ?? null);
+      setActionToast("問題卡已作廢，關聯對話已交還 AI");
     } catch (e) {
       setActionError(formatActionError(e));
     } finally {
@@ -505,6 +530,9 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
   }
 
   const canConfirm = card?.status === "draft";
+  // CR-0185：作廢＝判定非真實案件／誤建／重複（AI 草擬卡誤建的唯一乾淨出口）。
+  // 已結案（resolved）不可作廢——該卡可能已被知識精煉汲取，後端亦回 409。
+  const canDismiss = card?.status === "draft" || card?.status === "confirmed";
   const canResolve = card?.status === "confirmed";
   const canConvertToWO = card?.status === "confirmed";
   // CR-0128 報價先行 gate（BR-WO-01）：無客戶確認報價且非急件 → 開單會被後端 425 擋
@@ -636,6 +664,17 @@ export default function ProblemCardDetailPage({ params }: PageProps) {
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {actionPending === "confirm" ? "處理中…" : "確認問題卡"}
+                </button>
+              )}
+              {canDismiss && (
+                <button
+                  onClick={handleDismiss}
+                  disabled={actionPending !== null}
+                  title="判定為誤建／重複／非真實案件；作廢後不計入解決率，關聯對話交還 AI"
+                  className="inline-flex items-center gap-2 rounded-md border border-[var(--border)] px-4 py-2 text-[13px] font-semibold text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Ban className="h-4 w-4" />
+                  {actionPending === "dismiss" ? "處理中…" : "作廢問題卡"}
                 </button>
               )}
               {canConvertToWO && (

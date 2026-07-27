@@ -3504,11 +3504,33 @@ export interface paths {
          *
          *     audit_events 為部署層級事件（無 tenant_id），鏈為全域——tenant path 僅供
          *     授權對齊（admin gate + ADR-0030 cross-tenant guard）；驗的是整條部署鏈。
-         *     回 {checked, valid, broken_at}；valid=False 時 broken_at 為第一個竄改/斷鏈列 id。
+         *     CR-0184：有 re-baseline checkpoint 時只驗基準列之後（use_checkpoint=False 驗全鏈）；
+         *     回 {checked, valid, broken_at, breaks:[所有斷點], checkpoint}。
          */
         get: operations["verifyAuditChainV2"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenantId}/audit/checkpoint": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 建 audit hash-chain re-baseline checkpoint（CR-0184；admin-only）
+         * @description 以目前鏈末為新基準建 checkpoint——歷史斷鏈（如 pre-CR-0166 並發分叉）下重建
+         *     往後可驗證的乾淨鏈。歷史保留不刪；verify 之後只驗基準之後的鏈段。
+         */
+        post: operations["createAuditChainCheckpointV2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3599,6 +3621,33 @@ export interface paths {
         put?: never;
         /** 確認問題卡 v2（tenant-scoped；draft → confirmed） */
         post: operations["confirmProblemCardV2"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tenants/{tenantId}/problem-cards/{id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 作廢問題卡 v2（tenant-scoped；draft/confirmed → dismissed，CR-0185）
+         * @description 作廢＝經客服審視判定**非真實案件／誤建／重複**，與 resolve（真的解決了）分開。
+         *
+         *     LINE agent 轉真人會自動建草擬卡，誤判就產生垃圾卡；此前只能標「已解決」
+         *     （污染解決率**且會被 refinery 汲取成知識**）或留 draft 佔住待確認佇列。
+         *     作廢同時會把關聯對話交還 AI（escalated → active），避免該客人的 AI 永久靜音。
+         *
+         *     **刻意不加 legacy /api/v1 孿生端點** —— CR-0183 的教訓是雙掛端點守衛易失步，
+         *     新功能不應擴大已標 Deprecation 的舊面。
+         */
+        post: operations["dismissProblemCardV2"];
         delete?: never;
         options?: never;
         head?: never;
@@ -10073,6 +10122,17 @@ export interface components {
             /** Media Urls */
             media_urls?: string[] | null;
         };
+        /**
+         * ProblemCardDismissRequest
+         * @description CR-0185 作廢請求（手動加，regen 後須重加）。
+         */
+        ProblemCardDismissRequest: {
+            /**
+             * Reason
+             * @description 作廢理由（供稽核；例：AI 誤建／重複進線／非真實案件）
+             */
+            reason?: string | null;
+        };
         /** ProblemCardEnvelope */
         ProblemCardEnvelope: {
             /** @description 實際載荷，由各 endpoint 具體化 */
@@ -10111,7 +10171,7 @@ export interface components {
          * ProblemCardStatus
          * @enum {string}
          */
-        ProblemCardStatus: "draft" | "confirmed" | "resolved";
+        ProblemCardStatus: "draft" | "confirmed" | "resolved" | "dismissed";
         /** ProblemCardUpdateRequest */
         ProblemCardUpdateRequest: {
             /** Brand */
@@ -12415,6 +12475,14 @@ export interface components {
              * @description 功能測試逐項結果（指紋/密碼/卡片/App/鑰匙/電池…，選填）
              */
             function_tests?: components["schemas"]["_FunctionTestResult"][] | null;
+        };
+        /** _CreateCheckpointBody */
+        _CreateCheckpointBody: {
+            /**
+             * Note
+             * @description 再基準原因/備註
+             */
+            note?: string | null;
         };
         /**
          * _CreateStaffBody
@@ -22016,6 +22084,8 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                /** @description CR-0184：有 checkpoint 時只驗基準之後；False 驗全鏈 */
+                use_checkpoint?: boolean;
             };
             header?: {
                 Authorization?: string | null;
@@ -22030,6 +22100,46 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    createAuditChainCheckpointV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+            };
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["_CreateCheckpointBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -22313,6 +22423,46 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProblemCardEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dismissProblemCardV2: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+                "X-Tenant-ID"?: string | null;
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                tenantId: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProblemCardDismissRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

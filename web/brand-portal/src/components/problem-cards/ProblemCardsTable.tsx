@@ -20,6 +20,7 @@ const STATUS_TONE: Record<ProblemCardStatus, { color: string; bg: string }> = {
   draft: { color: "#6366F1", bg: "#EEF2FF" },
   confirmed: { color: "#2563EB", bg: "#DBEAFE" },
   resolved: { color: "#10B981", bg: "#D1FAE5" },
+  dismissed: { color: "#6B7280", bg: "#F3F4F6" },  // CR-0185 作廢＝中性灰
 };
 
 const URGENCY_TONE: Record<Urgency, { color: string; bg: string }> = {

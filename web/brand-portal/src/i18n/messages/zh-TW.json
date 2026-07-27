@@ -375,7 +375,8 @@
   "problemCardStatus": {
     "draft": "待確認",
     "confirmed": "已確認",
-    "resolved": "已解決"
+    "resolved": "已解決",
+    "dismissed": "已作廢"
   },
   "conversationStatus": {
     "active": "進行中",
@@ -700,7 +701,8 @@
         "status": {
           "draft": "草稿",
           "confirmed": "已確認",
-          "resolved": "已解決"
+          "resolved": "已解決",
+          "dismissed": "已作廢"
         }
       },
       "media": {
@@ -951,7 +953,8 @@
         "status": {
           "draft": "草稿",
           "confirmed": "已確認",
-          "resolved": "已解決"
+          "resolved": "已解決",
+          "dismissed": "已作廢"
         },
         "field": {
           "brand": "品牌",
@@ -3858,7 +3861,8 @@
         "status": {
           "draft": "待確認",
           "confirmed": "已確認",
-          "resolved": "已解決"
+          "resolved": "已解決",
+          "dismissed": "已作廢"
         },
         "aiConfidence": "AI 信心",
         "timeTitle": "時間紀錄",

@@ -100,6 +100,9 @@ class ProblemCardStatus(StrEnum):
     draft = 'draft'
     confirmed = 'confirmed'
     resolved = 'resolved'
+    # CR-0185：作廢終態（手動加，regen 後須重加）。語意＝經客服審視判定非真實案件／
+    # 誤建／重複，與 resolved（真的解決了）必須分開——refinery 只汲取 resolved 為知識。
+    dismissed = 'dismissed'
 
 
 class Urgency(StrEnum):
@@ -1137,6 +1140,14 @@ class ResolutionLayer1(StrEnum):
 class ProblemCardResolveRequest(BaseModel):
     resolution_layer: ResolutionLayer1 = Field(
         ..., description='L1=AI 直接回覆、L2=技師遠端指導、L3=現場派工。'
+    )
+
+
+class ProblemCardDismissRequest(BaseModel):
+    """CR-0185 作廢請求（手動加，regen 後須重加）。"""
+
+    reason: constr(max_length=500) | None = Field(
+        None, description='作廢理由（供稽核；例：AI 誤建／重複進線／非真實案件）'
     )
 
 

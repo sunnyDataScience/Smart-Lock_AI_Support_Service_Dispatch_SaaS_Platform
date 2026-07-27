@@ -30,6 +30,7 @@ const PC_STATUS_TONE: Record<
 > = {
   draft: { color: "#6366F1", bg: "#EEF2FF" },
   confirmed: { color: "#3B82F6", bg: "#DBEAFE" },
+  dismissed: { color: "#6B7280", bg: "#F3F4F6" },  // CR-0185 作廢＝中性灰
   resolved: { color: "#10B981", bg: "#D1FAE5" },
 };
 
@@ -67,6 +68,7 @@ export default function ProblemCardDetailSidebar({ card, loading }: Props) {
       draft: t("status.draft"),
       confirmed: t("status.confirmed"),
       resolved: t("status.resolved"),
+      dismissed: t("status.dismissed"),
     }),
     [t],
   );

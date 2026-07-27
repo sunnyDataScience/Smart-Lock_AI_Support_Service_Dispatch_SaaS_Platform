@@ -658,8 +658,20 @@ async def get_my_dashboard_summary(*, tenant_id: str, user_id: str) -> dict:
         "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at::date = CURRENT_DATE), 0), "
         "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at >= date_trunc('week', CURRENT_DATE)), 0), "
         "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at >= date_trunc('month', CURRENT_DATE)), 0), "
-        "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at IS NULL AND status IN "
-        "    ('accepted','scheduled','assigned','en_route','arrived','in_progress')), 0), "
+        # CR-0185：pending 也必須落在「本月」窗內。原本此欄**無任何日期條件**，
+        # 導致 month_gross_est（= 本月完工 + pending）把**全歷史**未完工工單都算進
+        # 「本月毛額」—— 線上實測本月 0 單仍顯示 NT$31,617，與同一 SQL 下一欄用
+        # date_trunc('month') 的 month_total_orders 自相矛盾。
+        # 錨點取 COALESCE(scheduled_at, created_at)：已排程者以排程月為準（跨月承接的
+        # 工作算在實際要做的那個月），未排程者退回建立月。前月逾期未完工者不計入本月
+        # 毛額（它們另有「逾時工單」指標追蹤）。
+        # status 白名單同步去除 'scheduled'/'en_route'/'arrived' —— 這三個是 API 層
+        # enum，work_orders.status 的正典狀態機（work_order_service._WO_TRANSITIONS）
+        # 只寫 created/assigned/accepted/in_progress/completed/confirmed/cancelled，
+        # 故原本永遠 match 不到（死條件，移除不改變行為）。
+        "  COALESCE(SUM(estimated_price) FILTER (WHERE completed_at IS NULL "
+        "    AND status IN ('assigned','accepted','in_progress') "
+        "    AND COALESCE(scheduled_at, created_at) >= date_trunc('month', CURRENT_DATE)), 0), "
         "  COUNT(*) FILTER (WHERE created_at >= date_trunc('month', CURRENT_DATE)), "
         "  COUNT(*) FILTER (WHERE completed_at >= date_trunc('month', CURRENT_DATE)), "
         "  COUNT(*) FILTER (WHERE accepted_at::date = CURRENT_DATE), "
