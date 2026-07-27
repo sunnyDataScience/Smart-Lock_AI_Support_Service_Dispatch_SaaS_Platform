@@ -52,10 +52,18 @@ chatlock-pre-install = "https://smart-lock-web-sjmxp23sqq-de.a.run.app/photo-gui
 # RAG-via-MCP(ADR-010/WBS 2.2.2):語義檢索兩工具(search_product_manual/search_similar_cases)。
 # 啟用條件:RAG_TENANT_ID 與 POSTGRES_URI 環境變數皆有值;缺任一 → 本 server 跳過,
 # agent 完全維持既有行為(references 為主路徑;cutover 依 ADR-010 待引用率 gate ≥ 90%)。
-# 本機 stdio 直起 agent/rag/(需 uv;CR-0157 起 rag 宿主於 agent/ 之下);
-# 容器化部署改 streamableHttp url 指 rag sidecar(cutover 輪處理)。
-command = "uv"
-args = ["run", "python", "-m", "rag.server"]
+# stdio 直起 agent/rag/(CR-0157 起 rag 宿主於 agent/ 之下)。
+# CR-0187（業主裁決方案 A：同容器 stdio，非 rag sidecar）：
+#   原本 command="uv" + args=["run",...]，但 **runtime image 沒有 uv**（只 COPY .venv
+#   與 agent/，uv 僅存在 builder stage）→ 生產必然起不來。改直接用 python：
+#   - `python` 經 PATH 解析到 /app/.venv/bin/python —— MCP SDK 的 stdio client 是
+#     env={**get_default_environment(), **server.env}（**合併**非取代），而
+#     get_default_environment() 的 DEFAULT_INHERITED_ENV_VARS 含 PATH。
+#   - cwd="rag" 相對 agent WORKDIR /app/agent → /app/agent/rag，
+#     `python -m rag.server` 解析到 rag/rag/server.py（其自身再 sys.path.insert 父層）。
+#   - 本機 .venv 已含 mcp/dotenv，去掉 uv 不影響本機開發。
+command = "python"
+args = ["-m", "rag.server"]
 cwd = "rag"
 tool_timeout = 20
 

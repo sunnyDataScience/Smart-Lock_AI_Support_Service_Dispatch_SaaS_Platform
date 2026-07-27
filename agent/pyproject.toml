@@ -27,6 +27,13 @@ vertex = ["google-cloud-aiplatform>=1.60", "google-genai>=1.0"]  # Vertex AI(Gem
 line = ["line-bot-sdk>=3.0", "aiohttp>=3.14.1"]  # LINE 通道接入(webhook + reply);aiohttp 資安全修
 eval = ["openpyxl>=3.1"]  # 跑 scripts/eval_reply_quality.py(讀 987 題訓練集 xlsx)
 postgres = ["psycopg[binary]>=3.1"]  # memory.backend="postgres"(agent schema / pg_trgm,見 CR-0023)
+rag = [  # CR-0187/ADR-010：RAG-via-MCP 同容器 stdio。缺這兩個 → config.toml 的
+    # [mcp_servers.locksmith-rag] 起不來，agent 每則訊息嘗試連線失敗被 fail-soft
+    # 吞掉（噪音且 RAG 永遠無結果）。litellm 已是主依賴、psycopg 由 --extra postgres
+    # 提供，故 rag/pyproject.toml 的四個依賴只差這兩個。
+    "mcp>=1.2.0",
+    "python-dotenv>=1.0.0",
+]
 otel = [  # CR-0156/ADR-007 可觀測性 opt-in:OTel OTLP(SigNoz)+ OPIK LLM 追蹤;未裝=no-op
     "opentelemetry-sdk>=1.25",
     "opentelemetry-exporter-otlp-proto-grpc>=1.25",

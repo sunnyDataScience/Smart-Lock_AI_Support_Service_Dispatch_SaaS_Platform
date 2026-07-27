@@ -1275,6 +1275,10 @@ otel = [
 postgres = [
     { name = "psycopg", extra = ["binary"] },
 ]
+rag = [
+    { name = "mcp" },
+    { name = "python-dotenv" },
+]
 vertex = [
     { name = "google-cloud-aiplatform" },
     { name = "google-genai" },
@@ -1291,6 +1295,7 @@ requires-dist = [
     { name = "line-bot-sdk", marker = "extra == 'line'", specifier = ">=3.0" },
     { name = "litellm", specifier = ">=1.84.0" },
     { name = "loguru", specifier = ">=0.7" },
+    { name = "mcp", marker = "extra == 'rag'", specifier = ">=1.2.0" },
     { name = "openpyxl", marker = "extra == 'eval'", specifier = ">=3.1" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'otel'", specifier = ">=1.25" },
     { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.25" },
@@ -1299,12 +1304,13 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.12" },
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
+    { name = "python-dotenv", marker = "extra == 'rag'", specifier = ">=1.0.0" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", specifier = ">=14.0" },
     { name = "tiktoken", specifier = ">=0.7" },
     { name = "typer", specifier = ">=0.20" },
 ]
-provides-extras = ["dev", "vertex", "line", "eval", "postgres", "otel"]
+provides-extras = ["dev", "vertex", "line", "eval", "postgres", "rag", "otel"]
 
 [[package]]
 name = "loguru"

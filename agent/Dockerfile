@@ -41,7 +41,9 @@ COPY knowledge-pipeline/refinery/pyproject.toml ./knowledge-pipeline/refinery/py
 # --extra postgres：CR-0167 SkillSync 品牌庫直讀需 psycopg——缺=SkillSync 永遠
 # fail-soft 退 builtin，LiveSkill 熱更新不生效（20260716 生產端實測發現）
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --package lock-cs-agent --extra line --extra vertex --extra otel --extra postgres
+# --extra rag：CR-0187 RAG-via-MCP 同容器 stdio —— 缺 mcp SDK 時 config.toml 的
+# [mcp_servers.locksmith-rag] 起不來（0727 線上 image 實測 import mcp 失敗）
+    uv sync --frozen --no-dev --package lock-cs-agent --extra line --extra vertex --extra otel --extra postgres --extra rag
 
 COPY agent/ ./agent/
 
