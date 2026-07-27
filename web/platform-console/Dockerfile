@@ -24,6 +24,7 @@ WORKDIR /app
 
 # 先 copy lockfile，享 layer cache（程式碼變動不需要重裝 deps）
 COPY web/platform-console/package.json web/platform-console/package-lock.json* ./
+COPY web/shared-contract/smartlock-shared-contract-0.1.0.tgz /shared-contract/
 
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund

@@ -1,17 +1,23 @@
 // OIDC 授權碼流薄回調(WBS 2.1.1-R2/CR-0146/ADR-024)。
 //
-// ADR-024:唯一的 server-side 認證 handler(非 BFF)——用 code 換 token、
-// 寫 httpOnly cookie(JS 不可讀;api 端 R1 已支援 cookie 來源,CR-0141 D5),
-// 資料 API 仍瀏覽器直連。過渡期雙寫:token 同時經 fragment(#)交給
-// /auth/sso-complete 存 localStorage(既有 30+ 頁同步 getCurrentSession 依賴;
-// localStorage 退場=ACT-01 R3)。fragment 不入 server log/Referer。
+// ADR-024:server-side code exchange；token 只寫 HttpOnly cookie。
 //
 // server-side env(不烤入 bundle):CASDOOR_ENDPOINT / CASDOOR_CLIENT_ID /
 // CASDOOR_CLIENT_SECRET。未配置 → 503(SSO 未啟用)。
 
 import { NextRequest, NextResponse } from "next/server";
 
-const COOKIE_NAME = "smartlock_access_token"; // 對齊 api core/deps._ACCESS_TOKEN_COOKIE
+const ACCESS_COOKIE = "smartlock_access_token";
+const REFRESH_COOKIE = "smartlock_refresh_token";
+const OAUTH_STATE_COOKIE = "smartlock_oauth_state_tech";
+
+function errorRedirect(request: NextRequest, code: string) {
+  const response = NextResponse.redirect(
+    new URL(`/tech-login?sso_error=${encodeURIComponent(code)}`, request.url),
+  );
+  response.cookies.set(OAUTH_STATE_COOKIE, "", { path: "/auth", maxAge: 0 });
+  return response;
+}
 
 export async function GET(request: NextRequest) {
   const endpoint = process.env.CASDOOR_ENDPOINT?.replace(/\/$/, "");
@@ -23,15 +29,22 @@ export async function GET(request: NextRequest) {
   }
 
   const code = request.nextUrl.searchParams.get("code");
+  const state = request.nextUrl.searchParams.get("state");
+  const expectedState = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
+  if (!state || !expectedState || state !== expectedState) {
+    return errorRedirect(request, "invalid_state");
+  }
   if (!code) {
-    return NextResponse.redirect(new URL("/tech-login?sso_error=missing_code", request.url));
+    return errorRedirect(request, "missing_code");
   }
 
+  const redirectUri = new URL("/auth/callback", request.url).toString();
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     client_id: clientId,
     client_secret: clientSecret,
     code,
+    redirect_uri: redirectUri,
   });
   let tokenResp: Response;
   try {
@@ -42,28 +55,35 @@ export async function GET(request: NextRequest) {
       cache: "no-store",
     });
   } catch {
-    return NextResponse.redirect(new URL("/tech-login?sso_error=idp_unreachable", request.url));
+    return errorRedirect(request, "idp_unreachable");
   }
   const data = await tokenResp.json().catch(() => ({}));
   const accessToken: string | undefined = data.access_token;
   const refreshToken: string | undefined = data.refresh_token;
   if (!tokenResp.ok || !accessToken) {
-    return NextResponse.redirect(new URL("/tech-login?sso_error=exchange_failed", request.url));
+    return errorRedirect(request, "exchange_failed");
   }
 
-  // 雙寫:httpOnly cookie(ACT-01 目標態)+ fragment 交 client 存 localStorage(過渡)
-  const fragment = new URLSearchParams({
-    access_token: accessToken,
-    ...(refreshToken ? { refresh_token: refreshToken } : {}),
-  });
   const res = NextResponse.redirect(
-    new URL(`/auth/sso-complete#${fragment.toString()}`, request.url));
-  res.cookies.set(COOKIE_NAME, accessToken, {
+    new URL("/auth/sso-complete", request.url));
+  res.cookies.set(OAUTH_STATE_COOKIE, "", { path: "/auth", maxAge: 0 });
+  res.cookies.set(ACCESS_COOKIE, accessToken, {
     httpOnly: true,
-    sameSite: "lax",       // CSRF 緩解(CR-0141 D5;另有 X-Tenant-ID 自訂 header 防線)
+    sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 3600,          // 對齊 Casdoor application expireInHours=1
+    maxAge: 3600,
+    domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
   });
+  if (refreshToken) {
+    res.cookies.set(REFRESH_COOKIE, refreshToken, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 30 * 86400,
+      domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
+    });
+  }
   return res;
 }

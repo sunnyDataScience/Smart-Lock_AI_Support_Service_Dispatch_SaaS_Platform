@@ -15,7 +15,7 @@ relates:
 
 | 欄位 | 內容 |
 |---|---|
-| 狀態 | 規劃中（promotion policy 定案；GitHub Environment 與 release evidence 待 WBS 3.6.7） |
+| 狀態 | Workflow ready／待 GitHub+GCP 環境與演練證據（2026-07-27） |
 | 層級 | 平台級（delivery / operations） |
 | 關聯 ADR | refines [ADR-003](./ADR-003_工程治理排程_API收斂_migration_CD.md) CD · [ADR-002](./ADR-002_per-brand授權部署.md) · [ADR-007](./ADR-007_可觀測性分層_SigNoz_OPIK.md) |
 | 來源規劃 | [Plane 借鏡架構優化規劃](../規格統控整理/Plane借鏡架構優化規劃_2026-07-27.md) G |
@@ -80,6 +80,19 @@ PR CI
 **完成門檻**：staging → production promotion、Cloud Run revision rollback、migration
 forward-fix 與 restore drill 各至少演練一次；manifest 欄位完整；production 無 branch push
 直通路徑。
+
+## 實作與驗證證據（2026-07-27）
+
+- `.github/workflows/cloud-run-deploy.yml` 僅接受 manual dispatch，依 component build
+  一次並以 immutable digest 依序部署 staging／production；production job 綁
+  `environment: production`。
+- staging 與 production 都執行 health/smoke 或 worker run，產生並驗證 release manifest，
+  保存 90 天 artifact；manifest 只記 secret reference，不含 secret value。
+- `scripts/release/` 提供 schema/validator、Cloud Run revision rollback 與
+  rollback/forward-fix/restore drill evidence recorder；static governance tests 已通過。
+- 尚缺 repository environments、staging/production 分離 WIF/IAM、production required
+  reviewer，以及 Cloud Run rollback、migration forward-fix、Cloud SQL restore 三次真實
+  演練。這些外部狀態未取證前 WBS 3.6.7 不得標為完成。
 
 ## 重評觸發
 

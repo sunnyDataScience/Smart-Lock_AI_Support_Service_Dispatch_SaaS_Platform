@@ -1,9 +1,9 @@
 ---
 title: 系統架構設計文件（SAD）— Smart Lock AI 客服與派工 SaaS 平台
-version: 1.1
+version: 1.3
 status: active
 owner: 平台架構師
-last-updated: 2026-07-23
+last-updated: 2026-07-27
 upstream:
   - smartlock-docs/00_platform/P1/05_platform_architecture_L1.md
   - smartlock-docs/00_platform/P2/09_integration_data_flow.md
@@ -160,15 +160,25 @@ flowchart TB
 | api dispatch surface | 8001 | 品牌營運面（Python 3.11 / FastAPI ≥0.110 / psycopg3）|
 | api tech surface | 8002 | 技師面（背景 worker 全停）|
 | api platform surface | 8003 | 平台治理面（獨立 JWT 密鑰）|
+| api worker / Cloud Run Job | 無 HTTP port | 同一 API image 的獨立 `worker_main.py` entrypoint；週期工作不依賴 request instance |
 | 品牌庫 db（pgvector pg17）| 5433 | 業務 + 唯一事實語料 |
 | 技師權威庫 tech-db | 5434 | 技師身分域 |
 | 平台庫 platform-db | 5435 | 管理員 / 品牌申請 |
 
-進程內元件：ws_hub（WS 10 頻道；🔜 規劃中遷 Redis pub/sub，ADR-P007 Phase 1）、11 個 cron worker（🔜 規劃中加分散式鎖）、中介層鏈（CORS → RequestId → Deprecation）。〔標注 2026-07-10：CR-0134（2026-07-09）已落地 Redis pub/sub 橋（opt-in）＋ PG advisory lock 領導者選舉（cron 分散式鎖）；殘項＝部署面 `REDIS_URL` 設定（OPS）與 DB 連線池（排程待業主）。〕〔標注 2026-07-27：CR-0182/0183 追加 token portal claim guard、同面敏感 GET、legacy v1 孿生端點與明細端點的角色守衛；部署面必帶 `ALLOWED_TOKEN_PORTALS`，否則本機相容模式不強制跨面 guard。〕
+進程內元件：ws_hub（WS 10 頻道；Redis pub/sub opt-in）、14 個 code-defined background
+job、中介層鏈（CORS → RequestId → Deprecation）。CR-0190 以 job registry 統一 owner、
+schedule、冪等、retry/補償與 SLI；`BACKGROUND_RUNTIME_MODE=api|hybrid|external` 讓 API
+與 worker 可分離部署，`webhook-idempotency-cleanup` 為 Cloud Run Job pilot。〔標注
+2026-07-10：CR-0134 已落地 Redis pub/sub 橋（opt-in）＋PG advisory lock。〕〔標注
+2026-07-27：CR-0182/0183 追加 portal claim 與同面角色守衛；CR-0190 追加 resource
+ownership matrix 與可撤銷 service credential。正式部署仍須帶 `ALLOWED_TOKEN_PORTALS`
+及各庫 strict URI。〕
 
 ### 4.3 web（Next.js 多站前端）
 
-依 ADR-028，Web 已拆成四個獨立 Next.js 專案：`web/{brand-portal,tech-portal,landing,platform-console}`；各站有自己的 lockfile、Dockerfile 與 docker-compose。四站仍複製一致語意的 AuthGuard、API client、cache、realtime 與 generated types，但不是同一份可直接共用的 runtime code。
+依 ADR-028，Web 已拆成四個獨立 Next.js 專案：`web/{brand-portal,tech-portal,landing,platform-console}`；各站有自己的 lockfile、Dockerfile 與 docker-compose。ADR-039 只對
+API/security contract 開窄例外：四站共同 pin `web/shared-contract@0.1.0` 的 immutable
+vendored tarball；UI、route policy、i18n 與部署仍完全獨立。
 
 | Portal / 專案 | Host Port | APP_MODE | REST base |
 |---|---|---|---|
@@ -178,6 +188,9 @@ flowchart TB
 | `web/landing`（一頁式無登入態）| 3002 | `landing` | :8001 + :8003 |
 
 技術棧：Next.js 15 / React 19 / TypeScript strict / Tailwind v4；容器內一律 EXPOSE 8080（standalone `node server.js`）。
+四站 HTTP API 預設經本站 `/api-proxy` 轉送，access/refresh 僅存 HttpOnly cookie；Brand
+Portal 另有 capability-driven Command Palette 與三庫同步偏好 API。直接 WS/SSE 不得把
+token 放 URL；沒有同父網域 cookie 證據時 realtime 必須 disabled。
 
 ### 4.4 knowledge-refinery（知識精煉服務 + 審核 UI）【License 附加】
 
@@ -521,6 +534,14 @@ append-only Status 附註轉為定案；在此之前，本 SAD 的 target 元件
 | **SigNoz / OPIK** | 分層可觀測性：SigNoz = 系統/服務層（prod 常開）；OPIK = agent LLM Ops（dev 必開 / prod 可關）（ADR-P002）|
 | **Kafka / Redis** | Kafka = 派工/技師/工單事件骨幹（持久/可重播/解耦）；Redis = WS pub/sub 即時 fanout + 熱讀 cache（ADR-P007）|
 | **LockCore** | agent 核心引擎，fork 自 `HKUDS/nanobot` 的最小核心套件 |
+| **Mutation contract** | 前端寫入操作的統一執行約定：風險分級、optimistic patch、rollback、精準 cache invalidation、stable action/idempotency key 與 `409` conflict；高風險商業操作只接受 server-confirmed |
+| **user_preferences** | 品牌／技師／平台使用者各存自己權威庫的跨裝置偏好；tenant+principal 隔離、key allowlist、16 KiB 上限、version CAS。theme/locale 等裝置偏好仍留本機，登入 token 不屬於偏好 |
+| **Command Palette** | Brand Portal 的 Ctrl/⌘+K 指令導覽；registry 宣告 route、required capability 與 context，只改善發現性，不是 API 授權來源 |
+| **Resource ownership matrix** | 將每個 mutation 與敏感 read/export 歸入品牌、技師、平台、public capability、internal service 等 owner contract，並連到負向測試；它是治理索引，不取代 router/service 守衛 |
+| **Service principal / credential** | workload 專用機器身分與可撤銷憑證；hash-only、audience/scope/tenant、expiry/rotation/revoke/audit，與真人 OIDC session 分離 |
+| **Job registry / worker runtime** | 14 個背景工作的 code-defined 清冊與獨立執行核心；宣告 schedule、冪等、lock、retry、補償及 SLI，讓 API request runtime 與 Cloud Run Job/worker 分開 |
+| **Release manifest** | 每次 staging/production 部署的稽核工件：commit、immutable image digest、revision、migration、config/secret reference、health/evidence 與 rollback；不保存 secret 值 |
+| **web/shared-contract** | 四站唯一可共享的無 UI 契約 package：runtime OpenAPI types、RFC7807、mutation/conflict、capability、session；禁止 React UI、theme、i18n、route policy |
 | **flow DSL / Flow-as-Blocks** | 工單生命週期 + 金流步驟的宣告式狀態機資料（states/transitions/guards/actions/SLA），通用工單引擎解釋執行（ADR-P010）|
 | **Block Ontology** | 有契約的型別積木庫（版本化 + 治理），跨產業累積的藍領營運本體論（ADR-P011）|
 | **Vertical Pack** | 產業配置打包：field_metadata + flow DSL + catalog + knowledge + ui_composition + blocks，品牌從產業包實例化（ADR-P009）|
@@ -534,9 +555,9 @@ append-only Status 附註轉為定案；在此之前，本 SAD 的 target 元件
 | 範圍 | Code reality | 主要證據 | 啟用/缺口 |
 |---|---|---|---|
 | agent | AS-BUILT | `agent/lockcore/`、`agent/scripts/line_gateway.py`、handoff 語料回歸 | RAG 需 `RAG_TENANT_ID`；FallbackProvider 已接線但預設備援清單空 |
-| api | AS-BUILT + deployment-conditional | `api/main.py`、`api/core/`、`api/services/`、`api/realtime/`、CR-0182/0183 守衛 | Redis/Kafka 依環境設定；三庫 strict 與跨面 token guard 須在正式面帶 `DB_URI_STRICT=1`、`ALLOWED_TOKEN_PORTALS` 驗證 |
-| web | PARTIAL（四個獨立專案）| `web/{brand-portal,tech-portal,landing,platform-console}/`、per-service deploy 對映 | OIDC cookie 與 legacy local token 仍在過渡；未列路由預設放行與 tenant fallback 尚未關閉 |
-| data/RAG | AS-BUILT + opt-in | `knowledge-pipeline/`、`agent/rag/rag/`、`SQL/`、三庫 routed apply / drift check | migration registry 至 116；環境真相看各庫 `schema_migrations` |
+| api | AS-BUILT + deployment-conditional | `api/main.py`、`core/resource_ownership.py`、preferences/service credential services、14-job registry/worker | migration 120/121 與本機 tests 已證；production principal bootstrap、fallback 歸零與 worker cutover 待外部證據 |
+| web | AS-BUILT（四個獨立專案 + 窄共享契約）| 四站 same-origin proxy/HttpOnly cookie、`web/shared-contract@0.1.0`、Brand Command Palette | HTTP token storage 已退場；跨 host WS 無同父網域 cookie 時維持 disabled |
+| data/RAG | AS-BUILT + opt-in | `knowledge-pipeline/`、`agent/rag/rag/`、`SQL/`、三庫 routed apply / drift check | migration registry 至 121；環境真相看各庫 `schema_migrations` |
 | refinery | PARTIAL | `knowledge-pipeline/refinery/` | 服務/OIDC/Publisher 已有；排程、compose secrets、OTel optional deps、CD 未完整 |
 | technician-platform | PARTIAL | `API_SURFACE=tech`、`web/tech-portal/`、`SQL/tech_authority/` | 獨立部署 stack 已有；OHS 邊界與 Kafka 投影全面採用尚未完成 |
 | 平台治理 | PARTIAL / TO-BE 混合 | `infra/casdoor/`、M18/LiveSkill、四站 OTel | SigNoz collector/IaC、完整 provisioning、Flow DSL/FlowEditor 仍待完成 |
@@ -545,4 +566,4 @@ append-only Status 附註轉為定案；在此之前，本 SAD 的 target 元件
 
 ---
 
-*文件結尾 — 12_SAD.md v1.2 / 2026-07-27*
+*文件結尾 — 12_SAD.md v1.3 / 2026-07-27*

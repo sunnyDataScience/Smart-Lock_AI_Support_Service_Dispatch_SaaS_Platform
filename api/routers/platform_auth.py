@@ -9,11 +9,17 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, EmailStr, Field
 
 from core.deps import CurrentUser, get_current_user, require_platform_admin
+from core.auth_cookie import REFRESH_COOKIE, clear_session_cookies
 from core.errors import ApiError
+from routers.auth import (
+    _auth_response_payload,
+    _refresh_from_request,
+    _set_login_cookies,
+)
 from services import platform_admin_service
 
 logger = logging.getLogger("api.routers.platform_auth")
@@ -26,7 +32,7 @@ class PlatformLoginBody(BaseModel):
 
 
 class PlatformRefreshBody(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class PlatformLogoutBody(BaseModel):
@@ -39,8 +45,12 @@ class PlatformLogoutBody(BaseModel):
     summary="平台管理員登入",
     status_code=200,
 )
-async def login_platform_admin(body: PlatformLoginBody) -> dict:
-    return await platform_admin_service.login(body.email, body.password)
+async def login_platform_admin(
+    body: PlatformLoginBody, request: Request, response: Response
+) -> dict:
+    payload = await platform_admin_service.login(body.email, body.password)
+    _set_login_cookies(response, payload)
+    return _auth_response_payload(request, payload)
 
 
 @router.post(
@@ -49,8 +59,16 @@ async def login_platform_admin(body: PlatformLoginBody) -> dict:
     summary="平台 token 換發",
     status_code=200,
 )
-async def refresh_platform_token(body: PlatformRefreshBody) -> dict:
-    return await platform_admin_service.refresh(body.refresh_token)
+async def refresh_platform_token(
+    request: Request,
+    response: Response,
+    body: PlatformRefreshBody | None = None,
+) -> dict:
+    # helper 只讀 refresh_token 屬性，兩個 Pydantic body 可共用。
+    token = _refresh_from_request(body, request)  # type: ignore[arg-type]
+    payload = await platform_admin_service.refresh(token)
+    _set_login_cookies(response, payload)
+    return _auth_response_payload(request, payload)
 
 
 @router.post(
@@ -60,6 +78,7 @@ async def refresh_platform_token(body: PlatformRefreshBody) -> dict:
     status_code=204,
 )
 async def logout_platform_admin(
+    request: Request,
     body: PlatformLogoutBody | None = None,
     user: CurrentUser = Depends(get_current_user),
 ) -> Response:
@@ -70,9 +89,29 @@ async def logout_platform_admin(
     await platform_admin_service.logout(
         access_jti=user.jti,
         access_user_id=user.user_id,
-        refresh_token=(body.refresh_token if body else None),
+        refresh_token=(body.refresh_token if body else None)
+        or request.cookies.get(REFRESH_COOKIE),
     )
-    return Response(status_code=204)
+    response = Response(status_code=204)
+    clear_session_cookies(response)
+    return response
+
+
+@router.get(
+    "/platform/auth/session",
+    operation_id="getPlatformBrowserSession",
+    summary="由 HttpOnly cookie／Bearer 取得平台最小 session claims",
+)
+async def get_platform_browser_session(
+    user: CurrentUser = Depends(require_platform_admin),
+) -> dict:
+    return {
+        "data": {
+            "user_id": user.user_id,
+            "role": user.role,
+            "tenant_id": user.tenant_id,
+        }
+    }
 
 
 @router.get(

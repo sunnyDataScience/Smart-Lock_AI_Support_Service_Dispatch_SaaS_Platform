@@ -30,20 +30,21 @@ info:
 
     | 介面 | 提供者 → 消費者 |
     |---|---|
-    | 品牌營運控制平面（工單/派工/結算/帳務/治理，443 端點）| api → web(dispatch) / 平台 console |
+    | 品牌營運控制平面（工單/派工/結算/帳務/治理；runtime export 517 端點）| api → web(dispatch) / 平台 console |
     | agent 服務間旁路 `/internal/*`（4 端點）| agent → api |
     | LINE 入站 webhook `POST /callback` | LINE 平台 → agent（見 webhooks 區）|
     | OHS API（技師查詢/媒合/排班/認證）| technician-platform → 各品牌 api 消費 |
     | knowledge-refinery 審核佇列 API | refinery web → refinery svc（摘要，見 refinery tag）|
 
-    **組織原則**：443 端點不逐一展開；以 tags + 各領域代表性資源組織，其餘端點見各
+    **組織原則**：runtime 517 端點不逐一展開；以 tags + 各領域代表性資源組織，其餘端點見各
     tag `externalDocs` 指向的系統契約文件（完整端點總表 `../api/P2/06` §3）。
 
     **通用約定**（`../api/P2/06` §1）：
     - 版本切分：v1（legacy）掛 `/api/v1` 前綴且所有回應帶 `Deprecation: true` header；
       v2（tenant-scoped）走 `/tenants/{tenantId}/...` flat path。
-    - 認證：Casdoor OIDC bearer（ADR-P003）；角色由 OIDC role claim 提供，
-      四方 RBAC deny-by-default enforce（ADR-P006）。服務間走 `X-Internal-Token`。
+    - 認證：browser HTTP 走本站 proxy + HttpOnly access/refresh cookie；CLI/mobile 可用
+      Casdoor OIDC bearer。服務間優先 `X-Service-Credential`，`X-Internal-Token` 只作
+      CR-0190 migration fallback。
     - 回應信封：成功 `{data, error: null}`（ApiResponse）/ 游標分頁 `CursorPage`；
       錯誤統一 RFC7807 superset（`application/problem+json`，見 Problem schema）。
     - 冪等：寫入類支援 `Idempotency-Key` header，TTL 24h。
@@ -116,7 +117,7 @@ tags:
     description: 治理 / 合規（runtime config canary、稽核 hash chain、GDPR 遺忘權、AI trace）
     externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.14" }
   - name: internal
-    description: "`/internal/*` 服務間契約（agent → api，X-Internal-Token，fail-closed）"
+    description: "`/internal/*` 服務間契約（agent/refinery/OHS → api，X-Service-Credential 優先；legacy fallback 計量，fail-closed）"
     externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§4" }
   - name: line-webhook
     description: LINE 入站 webhook（唯一入站門 = agent `POST /callback`，postback 按前綴 fan-out）
@@ -130,6 +131,10 @@ tags:
   - name: ops
     description: 健康檢查 / 通知 / 平台維運輔助
     externalDocs: { url: ../api/P2/06_api_design_specification.md, description: "§3.15" }
+  - name: preferences
+    description: CR-0190 三庫跨裝置偏好；owner DB、allowlist、16 KiB、version CAS
+  - name: service-identity
+    description: CR-0190 platform-only service principal/credential lifecycle
 
 paths:
   # ── A. 認證 / 帳號（代表性；廠商/技師/平台 console 登入見 §3.1）──────────
@@ -203,6 +208,82 @@ paths:
         "200": { description: 簽署連結已產生, content: { application/json: { schema: { $ref: "#/components/schemas/ConsentSignLinkEnvelope" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /tenants/{tenantId}/me/preferences:
+    parameters:
+      - { $ref: "#/components/parameters/tenantId" }
+      - { $ref: "#/components/parameters/xTenantId" }
+    get:
+      tags: [preferences]
+      operationId: listBrandUserPreferences
+      summary: 列出品牌人員權威庫的跨裝置偏好
+      responses:
+        "200": { description: 偏好清單, content: { application/json: { schema: { $ref: "#/components/schemas/PreferenceListEnvelope" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /tenants/{tenantId}/me/preferences/{preferenceKey}:
+    parameters:
+      - { $ref: "#/components/parameters/tenantId" }
+      - { $ref: "#/components/parameters/xTenantId" }
+      - { name: preferenceKey, in: path, required: true, schema: { type: string } }
+    put:
+      tags: [preferences]
+      operationId: putBrandUserPreference
+      summary: 以 version CAS 儲存 allowlisted 偏好
+      parameters: [{ $ref: "#/components/parameters/idempotencyKey" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/PreferencePutBody" } } }
+      responses:
+        "200": { description: 偏好建立／更新／同 action replay, content: { application/json: { schema: { $ref: "#/components/schemas/PreferenceEnvelope" } } } }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+  /api/v1/platform/service-principals:
+    get:
+      tags: [service-identity]
+      operationId: listServicePrincipals
+      summary: 列出 service principal metadata；不回 credential secret/hash
+      responses:
+        "200": { description: Principal 清單, content: { application/json: { schema: { $ref: "#/components/schemas/ApiResponse" } } } }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      tags: [service-identity]
+      operationId: createServicePrincipal
+      summary: 建立 principal 並一次性簽發 hash-only-at-rest credential
+      parameters: [{ $ref: "#/components/parameters/idempotencyKey" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ServicePrincipalCreateBody" } } }
+      responses:
+        "201": { description: plaintext credential 僅此 response 可見, content: { application/json: { schema: { $ref: "#/components/schemas/IssuedServiceCredentialEnvelope" } } } }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/v1/platform/service-credentials/{credentialId}:rotate:
+    post:
+      tags: [service-identity]
+      operationId: rotateServiceCredential
+      summary: 輪替 credential（0～86400 秒 overlap）
+      parameters:
+        - { name: credentialId, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ServiceCredentialRotateBody" } } }
+      responses:
+        "200": { description: 新 plaintext credential 僅此 response 可見, content: { application/json: { schema: { $ref: "#/components/schemas/IssuedServiceCredentialEnvelope" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /api/v1/platform/service-credentials/{credentialId}:revoke:
+    post:
+      tags: [service-identity]
+      operationId: revokeServiceCredential
+      summary: 立即撤銷 credential
+      parameters:
+        - { name: credentialId, in: path, required: true, schema: { type: string } }
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/ServiceCredentialRevokeBody" } } }
+      responses:
+        "200": { description: 已撤銷 }
         "404": { $ref: "#/components/responses/NotFound" }
   /tenants/{tenantId}/work-orders/{workOrderId}:assign:
     post:
@@ -591,8 +672,9 @@ webhooks:
 
 # ── WebSocket 頻道契約（path / 授權 / 訊息格式；fanout 傳輸見 17_AsyncAPI）──
 x-websocket-channels:
-  認證: WS 走 query `access_token` + `tenant_id`（瀏覽器 WS 不支援 custom header）；
-    驗 token + tenant 一致 + 頻道授權，失敗 close(1008)。
+  認證: WS/SSE 走 HttpOnly `smartlock_access_token` cookie，URL 僅可帶非機密
+    `tenant_id` routing hint；驗 token + tenant 一致 + 頻道授權，失敗 close(1008)。
+    跨 host 無共享 cookie 時 realtime 必須 disabled，不得回退 query token。
   訊息格式: 'JSON `{"type": "<event-name>", "payload": {...}}`，單向 server → client'
   channels:
     - { path: "/realtime/notifications/{user_id}", authz: "path_user_id == token.sub", usage: 個人通知 }
@@ -624,17 +706,22 @@ components:
       type: apiKey
       in: header
       name: X-Internal-Token
-      description: 服務間憑證（agent → api）。fail-closed：env 未設回 503、不符回 401；常數時間比對。
+      description: CR-0190 migration fallback only；production usage 須連續一個 release window 為零後移除。
+    serviceCredential:
+      type: apiKey
+      in: header
+      name: X-Service-Credential
+      description: Per-workload opaque credential；hash-only、audience/scope/tenant/expiry/revoke/audit。
     ohsServiceCredential:
       type: apiKey
       in: header
-      name: X-Internal-Token
-      description: "品牌 api → technician-platform OHS 服務憑證。[待確認] OIDC client-credentials vs internal token"
-    wsQueryToken:
+      name: X-Service-Credential
+      description: "品牌 api → technician-platform OHS 現行可用的受控 opaque credential；OD-001 仍決定最終是否改 OIDC client-credentials。"
+    wsCookieAuth:
       type: apiKey
-      in: query
-      name: access_token
-      description: WS 頻道認證（+ query tenant_id）；見 x-websocket-channels。
+      in: cookie
+      name: smartlock_access_token
+      description: WS/SSE 認證只走 HttpOnly cookie；URL 不得含 access/refresh token。跨 host 無共享 cookie 時 realtime disabled。
 
   parameters:
     tenantId:
@@ -694,6 +781,65 @@ components:
       content: { application/problem+json: { schema: { $ref: "#/components/schemas/Problem" } } }
 
   schemas:
+    PreferencePutBody:
+      type: object
+      required: [value, expected_version]
+      properties:
+        value: { description: "Portal-specific allowlisted JSON；最多 16 KiB" }
+        expected_version: { type: integer, minimum: 0 }
+    UserPreference:
+      type: object
+      required: [id, portal, preference_key, value, version, last_action_id, updated_at]
+      properties:
+        id: { type: string }
+        portal: { type: string, enum: [brand, tech, platform] }
+        preference_key: { type: string }
+        value: {}
+        version: { type: integer, minimum: 1 }
+        last_action_id: { type: string }
+        updated_at: { type: string, format: date-time }
+    PreferenceEnvelope:
+      type: object
+      properties:
+        data: { $ref: "#/components/schemas/UserPreference" }
+    PreferenceListEnvelope:
+      type: object
+      properties:
+        data: { type: array, items: { $ref: "#/components/schemas/UserPreference" } }
+    ServicePrincipalCreateBody:
+      type: object
+      required: [name, audiences, scopes, credential_expires_at]
+      properties:
+        name: { type: string }
+        audiences: { type: array, items: { type: string } }
+        scopes: { type: array, items: { type: string } }
+        allowed_tenant_ids: { type: array, items: { type: string } }
+        allow_all_tenants: { type: boolean, default: false }
+        credential_expires_at: { type: string, format: date-time }
+    ServiceCredentialRotateBody:
+      type: object
+      required: [expires_at]
+      properties:
+        expires_at: { type: string, format: date-time }
+        overlap_seconds: { type: integer, minimum: 0, maximum: 86400, default: 0 }
+    ServiceCredentialRevokeBody:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string }
+    IssuedServiceCredentialEnvelope:
+      type: object
+      description: plaintext `credential` writeOnly 且只在 create/rotate 當下回傳。
+      properties:
+        data:
+          type: object
+          properties:
+            principal_id: { type: string }
+            credential_id: { type: string }
+            credential: { type: string, writeOnly: true }
+            credential_prefix: { type: string }
+            expires_at: { type: string, format: date-time }
+            secret_visible_once: { type: boolean, const: true }
     Problem:
       type: object
       description: "RFC7807 superset 錯誤信封；type 為 urn:smartlock:error:{error_code_lowercase}（識別字串非可抓取 URL）；error_code/message/request_id 為 extension members"

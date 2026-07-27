@@ -5,8 +5,8 @@
  *   - 同一 channelPath 全站共用單一 WebSocket（模組級 registry），多個訂閱者
  *     共掛 handler —— 杜絕 StrictMode 雙掛載 / 快速 unmount-remount 產生殭屍
  *     socket 或漏 handler 的競態
- *   - token / tenant 每次連線（含重連）即時重讀 auth，不再被閉包鎖死舊值
- *   - 握手失敗（連線從未 open 就被關）時，先走既有 refresh 機制換新 token
+ *   - access token 僅由 HttpOnly cookie 提供；URL 只帶非機密 tenant routing hint
+ *   - 握手失敗（連線從未 open 就被關）時，先走既有 cookie refresh 機制
  *     再重連，避免過期 token 無限 403 重連
  *   - 自動重連 exponential backoff（1s → 2s → 5s → 10s → 30s, max 30s）
  *   - 最後一個訂閱者退訂後延遲 250ms 才拆線：StrictMode 立即重掛時重用連線
@@ -73,15 +73,13 @@ interface ChannelEntry {
 // 模組級 registry：同 channel 單一活躍連線（React 元件外的單例狀態）
 const channels = new Map<string, ChannelEntry>();
 
-/** 每次連線（含重連）即時重讀 token / tenant —— 修 R3-5 舊 token 閉包 */
+/** 認證只走 HttpOnly cookie；URL 僅保留非機密 tenant routing hint。 */
 function buildUrl(channelPath: string): string {
   const base = REALTIME_BASE_URL.replace(/\/$/, "");
   const path = channelPath.startsWith("/") ? channelPath : `/${channelPath}`;
   const url = new URL(base + path);
   const tenantId = auth.getTenantId?.() ?? "";
-  const token = auth.getAccessToken?.() ?? "";
   if (tenantId) url.searchParams.set("tenant_id", tenantId);
-  if (token) url.searchParams.set("access_token", token);
   return url.toString();
 }
 
@@ -106,9 +104,9 @@ function scheduleReconnect(entry: ChannelEntry): void {
     entry.retryTimer = null;
     if (entry.closed) return;
     if (handshakeFailed) {
-      // 握手失敗（常見根因：access token 已過期 → 403）：先走既有 refresh
-      // 機制換新 token 再重連。refresh 失敗也照樣重連（buildUrl 會重讀現值，
-      // 若其他 REST 請求已刷新成功即可直接受益）。
+      // 握手失敗（常見根因：access cookie 已過期 → 403）：先走既有 refresh
+      // 機制換新 cookie 再重連。refresh 失敗也照樣重連；若其他 REST 請求已
+      // 刷新成功即可直接受益。
       void tryRefreshAccessToken()
         .catch(() => false)
         .then(() => {

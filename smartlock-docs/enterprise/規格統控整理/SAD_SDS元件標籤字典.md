@@ -4,6 +4,94 @@
 > 用途：讓 BOM、驗收表與測試計畫中的每個架構標籤，都能回查正式定義、責任邊界、SAD/SDS 與實作路徑。<br>
 > 規則：本字典由 `_spec_data.py` 的受控標籤單向生成；`AGT·RES` 等 L2 是顯示群組，不是正式元件。
 
+## Mutation contract
+
+- **別名／原概括詞**：前端安全寫入契約
+- **定義／負責什麼**：前端 mutation 的共同執行約定：依風險選擇 optimistic 或 server-confirmed，並統一 rollback、精準 cache invalidation、stable action/idempotency key 與 409 conflict 處理。
+- **邊界／不負責什麼**：只治理前端寫入體驗與失敗復原；不取代後端授權、狀態機、冪等與資料庫交易。
+- **使用於能力群**：WEB·OPS
+- **Code reality**：AS-BUILT（Notification mark-read pilot）
+- **SAD 回查**：[12_SAD §4.3、§14](../12_SAD.md)
+- **SDS 回查**：[15_SDS §8.1](../15_SDS.md)
+- **實作證據路徑**：`web/shared-contract/src/mutation.ts; web/brand-portal/src/components/layout/NotificationDrawer.tsx`
+
+## user_preferences
+
+- **別名／原概括詞**：跨裝置使用者偏好
+- **定義／負責什麼**：依品牌、技師、平台三個權威庫保存需要跨裝置同步的偏好；以 tenant + principal 隔離、key allowlist、大小上限與 version CAS 控制寫入。
+- **邊界／不負責什麼**：不保存登入憑證或敏感業務資料；theme、locale 等裝置偏好仍可留在瀏覽器本機。
+- **使用於能力群**：API·GOV、WEB·SHELL
+- **Code reality**：AS-BUILT（migration 120）
+- **SAD 回查**：[12_SAD §4.2–§4.3、§14](../12_SAD.md)
+- **SDS 回查**：[15_SDS §6.1、§8.1](../15_SDS.md)
+- **實作證據路徑**：`SQL/migrations/120-user-preferences.sql; api/{routers/preferences,services/preference_service}.py; web/brand-portal/src/lib/preferences.ts`
+
+## Command Palette
+
+- **別名／原概括詞**：Ctrl/⌘+K 指令導覽
+- **定義／負責什麼**：由 registry 宣告 route、required capability 與 context 的高頻導覽介面，依目前使用者可見能力篩選命令。
+- **邊界／不負責什麼**：只改善功能發現性與操作效率；前端顯示條件不授予任何後端 API 權限。
+- **使用於能力群**：WEB·SHELL
+- **Code reality**：AS-BUILT（Brand Portal pilot）
+- **SAD 回查**：[12_SAD §4.3、§14](../12_SAD.md)
+- **SDS 回查**：[15_SDS §8.1](../15_SDS.md)
+- **實作證據路徑**：`web/brand-portal/src/components/layout/CommandPalette.tsx; web/brand-portal/src/lib/commandRegistry.ts`
+
+## Resource ownership matrix
+
+- **別名／原概括詞**：資源歸屬授權矩陣
+- **定義／負責什麼**：將 mutation 與敏感 read/export 對應到品牌、技師、平台、public capability 或 internal service owner contract，並列出必跑的負向租戶測試。
+- **邊界／不負責什麼**：是可機讀治理與測試索引；不取代 router/service 的 tenant、role、capability 與資料隸屬守衛。
+- **使用於能力群**：API·GOV
+- **Code reality**：AS-BUILT
+- **SAD 回查**：[12_SAD §4.2、§14](../12_SAD.md)
+- **SDS 回查**：[15_SDS §6.1](../15_SDS.md)
+- **實作證據路徑**：`api/core/resource_ownership.py; api/tests/test_cr_0190_resource_ownership_matrix.py`
+
+## Service principal / credential
+
+- **別名／原概括詞**：機器身分／可撤銷服務憑證
+- **定義／負責什麼**：給 workload 使用的非真人身分與憑證生命週期：hash-only、audience/scope/tenant、到期、輪替重疊窗、撤銷與稽核。
+- **邊界／不負責什麼**：不得與真人 OIDC session 混用；新憑證驗證失敗不得降級成 legacy internal token。
+- **使用於能力群**：API·GOV
+- **Code reality**：AS-BUILT；production bootstrap／legacy fallback 歸零待部署證據
+- **SAD 回查**：[12_SAD §4.2、§14](../12_SAD.md)
+- **SDS 回查**：[15_SDS §6.1–§6.4](../15_SDS.md)
+- **實作證據路徑**：`SQL/migrations/121-service-principal-credentials.sql; api/{services/service_credential_service,routers/platform_service_principals}.py; api/core/deps.py`
+
+## Job registry / worker runtime
+
+- **別名／原概括詞**：背景工作清冊／獨立執行核心
+- **定義／負責什麼**：以 code-defined registry 管理 14 個背景工作的 owner、schedule、冪等、lock、retry、補償與 SLI，並由獨立 worker 或 Cloud Run Job 執行。
+- **邊界／不負責什麼**：不在 API request path 偷跑慢工作；registry 宣告也不等於 production worker 已完成切換。
+- **使用於能力群**：API·INT、PLT·EVT
+- **Code reality**：AS-BUILT；production cutover 待部署證據
+- **SAD 回查**：[12_SAD §4.2、§8、§14](../12_SAD.md)
+- **SDS 回查**：[15_SDS §6.3](../15_SDS.md)
+- **實作證據路徑**：`api/realtime/job_registry.py; api/worker_main.py; scripts/deploy/worker-job.sh`
+
+## Release manifest
+
+- **別名／原概括詞**：發版稽核清單
+- **定義／負責什麼**：每次 staging／production promotion 保存 commit、immutable image digest、revision、migration、config/secret reference、health/evidence 與 rollback 資訊的可驗證工件。
+- **邊界／不負責什麼**：只保存機密參照而不保存 secret 值；manifest 生成成功不等於 smoke、rollback 或 restore drill 已通過。
+- **使用於能力群**：PLT·CFG（Release）
+- **Code reality**：AS-BUILT workflow；staging／production 證據待外部環境
+- **SAD 回查**：[12_SAD §8、§14](../12_SAD.md)
+- **SDS 回查**：[15_SDS §11](../15_SDS.md)
+- **實作證據路徑**：`.github/workflows/cloud-run-deploy.yml; scripts/release/{release_manifest,validate_release_manifest,rollback_release,verify_rollback_drill}.py`
+
+## web/shared-contract
+
+- **別名／原概括詞**：四站窄共享契約套件
+- **定義／負責什麼**：四個前端共用的無 UI 契約套件，集中 runtime OpenAPI types、RFC7807、mutation/conflict、capability 與 session 契約，並以 immutable vendored tarball 固定版本。
+- **邊界／不負責什麼**：禁止放 React UI、theme、i18n、route policy 或領域流程；各站仍維持獨立部署與產品邊界。
+- **使用於能力群**：WEB·SHELL、WEB·OPS、WEB·AUD、WEB·CX
+- **Code reality**：AS-BUILT（0.1.0）
+- **SAD 回查**：[12_SAD §4.3、§14](../12_SAD.md)
+- **SDS 回查**：[15_SDS §8.1](../15_SDS.md)
+- **實作證據路徑**：`web/shared-contract/; scripts/ci/{generate-api-types,vendor-shared-contract}.sh; .github/workflows/shared-contract.yml`
+
 ## line_gateway
 
 - **別名／原概括詞**：LINE 通道閘道

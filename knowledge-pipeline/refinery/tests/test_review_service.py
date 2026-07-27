@@ -3,7 +3,6 @@
 ⚠ 絕不對 UAT 庫(5433)跑。fake embed(不打真 Vertex)。
 """
 
-import json
 import os
 import uuid
 
@@ -224,6 +223,38 @@ def test_parse_skill_target():
     ) == ("locksmith-cs-sop", "references/refined/x.md")
     assert _parse_skill_target("some/other/path.md") is None
     assert _parse_skill_target("agent/lockcore/skills/only-skill-no-file") is None
+
+
+def test_ingest_via_api_supports_service_principal(monkeypatch):
+    from refinery import apply_behavior
+
+    captured = {}
+
+    class _FakeResp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": {"version": 1}}
+
+    def _fake_post(url, headers=None, json=None, timeout=None):
+        captured["headers"] = headers
+        return _FakeResp()
+
+    monkeypatch.setattr(apply_behavior.httpx, "post", _fake_post)
+    apply_behavior._ingest_via_api(
+        "http://api:8001",
+        "slksp_refinery.secret",
+        "00000000-0000-0000-0000-000000000001",
+        "support",
+        "references/refined/a.md",
+        "content",
+        "note",
+        service_credential=True,
+    )
+    assert captured["headers"] == {
+        "X-Service-Credential": "slksp_refinery.secret"
+    }
 
 
 def test_apply_behavior_via_ingest(client, conn, monkeypatch):

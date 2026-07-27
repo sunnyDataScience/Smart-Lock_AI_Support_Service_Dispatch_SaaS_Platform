@@ -560,11 +560,14 @@ def component_glossary_rows() -> list[list[str]]:
     rows = []
     for label, text in COMPONENT_GLOSSARY.items():
         src = where[label]
+        modules = text.get("modules") or "、".join(sorted(src["modules"]))
+        status = text.get("status") or " ｜ ".join(sorted(src["status"]))
+        sad = text.get("sad") or " ｜ ".join(sorted(src["sad"]))
+        sds = text.get("sds") or " ｜ ".join(sorted(src["sds"]))
+        path = text.get("path") or " ｜ ".join(sorted(src["path"]))
         rows.append([
             label, text.get("alias", "—"), text["definition"], text["boundary"],
-            "、".join(sorted(src["modules"])), " ｜ ".join(sorted(src["status"])),
-            " ｜ ".join(sorted(src["sad"])), " ｜ ".join(sorted(src["sds"])),
-            " ｜ ".join(sorted(src["path"])),
+            modules, status, sad, sds, path,
         ])
     return rows
 

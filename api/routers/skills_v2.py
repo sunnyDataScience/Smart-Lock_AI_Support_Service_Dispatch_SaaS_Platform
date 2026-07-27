@@ -21,8 +21,12 @@ from core.deps import (
     FULL_ACCESS_ROLES,
     OPS_ROLES,
     CurrentUser,
-    require_internal_token,
+    service_credential_required,
     role_required,
+)
+from services.service_credential_service import (
+    ServicePrincipalContext,
+    assert_tenant_scope,
 )
 from services import skill_service
 
@@ -189,8 +193,11 @@ async def rollback_skill(
 )
 async def ingest_skill_revision(
     body: IngestRequest,
-    _auth: None = Depends(require_internal_token),
+    auth: ServicePrincipalContext = Depends(
+        service_credential_required("skills:write")
+    ),
 ) -> dict:
+    assert_tenant_scope(auth, body.tenant_id)
     result = await skill_service.ingest_revision(
         tenant_id=body.tenant_id,
         skill_name=body.skill_name,

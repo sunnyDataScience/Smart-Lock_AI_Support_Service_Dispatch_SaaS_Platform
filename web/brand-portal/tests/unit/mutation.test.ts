@@ -113,6 +113,31 @@ describe("createMutationAction", () => {
     expect(MutationConflictError.is(apiError)).toBe(false);
   });
 
+  it("支援 API 標準 details 陣列中的 409 current version", async () => {
+    const state = stateAdapter({ enabled: false });
+    const action = createMutationAction({
+      id: "preference.cas",
+      mode: "optimistic",
+      risk: "preference",
+      state,
+      optimisticPatch: () => ({ enabled: true }),
+      execute: vi.fn().mockRejectedValue({
+        status: 409,
+        errorCode: "CONCURRENT_MODIFICATION",
+        message: "版本衝突",
+        details: [{ current_version: 7, current: { enabled: false } }],
+      }),
+      actionIdFactory: () => "action-array-conflict",
+    });
+
+    await expect(action.run()).rejects.toMatchObject({
+      name: "MutationConflictError",
+      currentVersion: 7,
+      current: { enabled: false },
+    });
+    expect(state.value).toEqual({ enabled: false });
+  });
+
   it("retry 沿用同一 actionId，attempt 遞增", async () => {
     const state = stateAdapter({ enabled: false });
     const execute = vi

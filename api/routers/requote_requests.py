@@ -7,14 +7,24 @@
 """
 
 import uuid as _uuid
+import os
 
 import core.db as db_module
 from fastapi import APIRouter, Depends, Header, Response
 from pydantic import BaseModel, Field
 
-from core.deps import CurrentUser, TECH_ACTION_ROLES, require_internal_token, role_required
+from core.deps import (
+    CurrentUser,
+    TECH_ACTION_ROLES,
+    role_required,
+    service_credential_required,
+)
 from core.errors import ApiError
 from services import requote_service
+from services.service_credential_service import (
+    ServicePrincipalContext,
+    assert_tenant_scope,
+)
 
 router = APIRouter()
 
@@ -34,15 +44,24 @@ class RequoteBody(BaseModel):
     "/internal/requote-requests",
     operation_id="submitRequoteRequest",
     summary="技師平台發起現場報價修正 command(ADR-027;冪等回放)",
-    dependencies=[Depends(require_internal_token)],
     status_code=201,
 )
-async def submit_requote_request(body: RequoteBody, response: Response) -> dict:
+async def submit_requote_request(
+    body: RequoteBody,
+    response: Response,
+    auth: ServicePrincipalContext = Depends(
+        service_credential_required("requotes:write")
+    ),
+) -> dict:
+    tenant_id = body.tenant_id or os.environ.get(
+        "AGENT_TENANT_ID", "00000000-0000-0000-0000-000000000001"
+    )
+    assert_tenant_scope(auth, tenant_id)
     data, replayed = await requote_service.submit_requote(
         request_id=body.request_id, work_order_id=body.work_order_id,
         technician_id=body.technician_id, reason=body.reason,
         item_diffs=body.item_diffs, initiated_via=body.initiated_via,
-        tenant_id=body.tenant_id,
+        tenant_id=tenant_id,
     )
     if replayed:
         response.status_code = 200  # 冪等回放(非新建)

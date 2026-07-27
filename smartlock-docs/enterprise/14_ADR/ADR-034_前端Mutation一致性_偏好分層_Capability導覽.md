@@ -15,7 +15,7 @@ relates:
 
 | 欄位 | 內容 |
 |---|---|
-| 狀態 | 規劃中（設計定案；依 WBS 3.6.1～3.6.3 分期導入） |
+| 狀態 | 已實作（2026-07-27；WBS 3.6.1～3.6.3 code／本機驗證完成） |
 | 層級 | 系統級（web / api） |
 | 關聯 ADR | refines [ADR-024](./ADR-024_client_SPA_無BFF_Context狀態_OIDC.md) · [ADR-005](./ADR-005_四方RBAC模型與enforce.md) · [ADR-028](./ADR-028_web檔案層拆分_四站獨立專案.md) |
 | 來源規劃 | [Plane 借鏡架構優化規劃](../規格統控整理/Plane借鏡架構優化規劃_2026-07-27.md) A／B／C |
@@ -90,6 +90,21 @@ patch、rollback、重送冪等與 `409` 版本衝突體驗。四個 portal 又�
 
 **完成門檻**：離線、5xx、409、重送四類 E2E 全綠；敏感操作不存在 optimistic 假成功；
 localStorage 中無登入 token；直接 URL、palette、直接 API 三條路徑得到一致授權結果。
+
+## 實作與驗證證據（2026-07-27）
+
+- mutation 契約位於 `web/shared-contract/src/mutation.ts`；Brand Portal 通知已讀是低風險
+  reference integration，rollback／精準 invalidation／同 action retry 都由
+  `NotificationDrawer.tsx` 與 Playwright E2E 驗證。
+- migration 120 與 `api/{routers/preferences.py,services/preference_service.py}` 提供品牌、
+  技師、平台三個權威庫的 allowlist、16 KiB 上限與 CAS `409`。
+- 四站 HTTP 登入改走本站 `/api-proxy` + HttpOnly cookie；cookie-only response 不回傳 token
+  JSON。CI `check-browser-token-storage.mjs` 阻擋 token 寫入 storage 或 URL。
+- Brand Portal 已有 `CommandPalette.tsx` 與 capability/role-filtered command registry，
+  涵蓋搜尋、草稿、派工佇列、通知與 saved view。
+- 本地驗證：mutation recovery E2E 3/3、shared contract 3/3、Brand unit 46/46、
+  四站 `tsc --noEmit` 與 production build 通過。跨 host WS 僅使用 cookie；若未具同父
+  網域／cookie domain，realtime 應保持 disabled，不得退回 URL token。
 
 ## 重評觸發
 

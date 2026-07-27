@@ -48,7 +48,9 @@ GIT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 TIMESTAMP=$(date +%Y%m%d-%H%M)
 IMAGE_TAG="${GIT_SHA}-${TIMESTAMP}"
 IMAGE_BASE="asia-east1-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE_NAME}"
-IMAGE="${IMAGE_BASE}:${IMAGE_TAG}"
+# CI promotion 可注入 immutable digest（IMAGE_OVERRIDE=...@sha256:...）；未注入時保留
+# 本機 SHA+timestamp 行為。deploy-only 若有 override 絕不可退 latest。
+IMAGE="${IMAGE_OVERRIDE:-${IMAGE_BASE}:${IMAGE_TAG}}"
 
 # ── Cloud Run 設定 ──
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-lock-ai@${PROJECT_ID}.iam.gserviceaccount.com}"
@@ -72,11 +74,25 @@ AGENT_TENANT_ID="${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
 #   tech / platform / dispatch。R6 多面上雲：tech-api 設 API_SURFACE=tech、
 #   platform-api 設 API_SURFACE=platform（api/main.py:149 讀此值做路由過濾 + worker 停用）。
 API_SURFACE="${API_SURFACE:-all}"
+BACKGROUND_RUNTIME_MODE="${BACKGROUND_RUNTIME_MODE:-api}"
+case "${BACKGROUND_RUNTIME_MODE}" in
+    api|hybrid|external) ;;
+    *) echo "BACKGROUND_RUNTIME_MODE must be api, hybrid, or external" >&2; exit 2 ;;
+esac
+EXTERNALIZED_JOB_IDS="${EXTERNALIZED_JOB_IDS:-webhook-idempotency-cleanup}"
 ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
 ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
 # CR-0153(ADR-020):prod 三庫守衛——漏設對應面 URI 直接拒啟,不靜默 fallback
 ENV_VARS="${ENV_VARS},DB_URI_STRICT=1"
 ENV_VARS="${ENV_VARS},API_SURFACE=${API_SURFACE}"
+ENV_VARS="${ENV_VARS},BACKGROUND_RUNTIME_MODE=${BACKGROUND_RUNTIME_MODE}"
+ENV_VARS="${ENV_VARS},EXTERNALIZED_JOB_IDS=${EXTERNALIZED_JOB_IDS}"
+# Cloud Run 與 same-origin Next proxy 都是 HTTPS；即使使用 host-only cookie（沒有
+# AUTH_COOKIE_DOMAIN），production access/refresh cookie 也必須帶 Secure。
+ENV_VARS="${ENV_VARS},AUTH_COOKIE_SECURE=1"
+if [[ -n "${AUTH_COOKIE_DOMAIN:-}" ]]; then
+    ENV_VARS="${ENV_VARS},AUTH_COOKIE_DOMAIN=${AUTH_COOKIE_DOMAIN}"
+fi
 # CR-0182（UAT-0723-F2）：跨面 token 守衛——本服務只接受對應面向的 token（技師 token
 # 過去可讀 brand 客戶 PII/金流）。刻意獨立於 API_SURFACE：後者是部署塑形（all 同時=本機
 # 單體/pytest 模式），復用會自我失效。未設=不強制（本機/測試沿用）。tech/platform 面對稱
@@ -111,6 +127,12 @@ SECRETS="${SECRETS},LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest"
 SECRETS="${SECRETS},GDPR_DEK_KEK=GDPR_DEK_KEK:latest"
 SECRETS="${SECRETS},USER_PII_BIDX_KEY=USER_PII_BIDX_KEY:latest"
 SECRETS="${SECRETS},MEDIA_ENC_KEY=MEDIA_ENC_KEY:latest"
+# ADR-036：新 S2S credential 的 keyed hash pepper；只掛 reference、不讀值。
+SECRETS="${SECRETS},SERVICE_CREDENTIAL_PEPPER=SERVICE_CREDENTIAL_PEPPER:latest"
+# 品牌 API → technician OHS 的個別 principal credential；bootstrap 後以旗標啟用。
+if [[ "${USE_SERVICE_CREDENTIALS:-0}" == "1" ]]; then
+    SECRETS="${SECRETS},TECH_API_SERVICE_CREDENTIAL=TECH_API_SERVICE_CREDENTIAL:latest"
+fi
 # ── R6 多面上雲：依 API_SURFACE 掛對應面的 DB URI secret（db.py:assert_uri_strict 要求）──
 #   tech 面需 TECH_POSTGRES_URI；platform 面需 PLATFORM_POSTGRES_URI（皆指向共用 lock-ai
 #   實例的 lock_tech / lock_platform database）。品牌面（all/dispatch）走真雙庫（技師身分
@@ -223,7 +245,10 @@ preflight_checks() {
         echo "  OK: uv.lock 與 pyproject.toml 同步"
     fi
 
-    local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY" "INTERNAL_API_TOKEN" "LINE_CHANNEL_ACCESS_TOKEN" "LINE_CHANNEL_SECRET" "GDPR_DEK_KEK" "USER_PII_BIDX_KEY" "MEDIA_ENC_KEY")
+    local required_secrets=("POSTGRES_URI" "API_JWT_SECRET_KEY" "INTERNAL_API_TOKEN" "LINE_CHANNEL_ACCESS_TOKEN" "LINE_CHANNEL_SECRET" "GDPR_DEK_KEK" "USER_PII_BIDX_KEY" "MEDIA_ENC_KEY" "SERVICE_CREDENTIAL_PEPPER")
+    if [[ "${USE_SERVICE_CREDENTIALS:-0}" == "1" ]]; then
+        required_secrets+=("TECH_API_SERVICE_CREDENTIAL")
+    fi
     # R6：依 API_SURFACE 追加對應面 DB URI secret 的存在性檢查（與上方 SECRETS 掛載一致）
     if [[ "${API_SURFACE}" == "tech" || "${API_SURFACE}" == "platform" || "${MOUNT_TECH_URI:-}" == "1" ]]; then
         required_secrets+=("TECH_POSTGRES_URI")
@@ -320,7 +345,7 @@ fi
 if $DEPLOY; then
     local_image="${IMAGE}"
     if ! $BUILD; then
-        local_image="${IMAGE_BASE}:latest"
+        local_image="${IMAGE_OVERRIDE:-${IMAGE_BASE}:latest}"
     fi
 
     # 動態解析 web 的 Cloud Run URL → CORS_ORIGINS（瀏覽器跨網域呼叫 api 必需）。

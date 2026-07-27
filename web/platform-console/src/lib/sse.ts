@@ -3,7 +3,7 @@
  *
  * 設計：
  *   - 使用瀏覽器原生 EventSource，自動重連由瀏覽器處理
- *   - JWT 透過 query param 帶上（EventSource 不支援 custom header）
+ *   - 認證只走 HttpOnly cookie（EventSource `withCredentials`）；URL 不帶 token
  *   - 預設訂閱 default channel；spec 定義的 message name 透過 onMessage 收
  *   - NEXT_PUBLIC_DIAGNOSTICS_SSE_BASE_URL 未設 → silent disabled
  *
@@ -62,12 +62,10 @@ export function subscribeSSE<T = unknown>(
   }
 
   const tenantId = auth.getTenantId?.() ?? "";
-  const token = auth.getAccessToken?.() ?? "";
   const base = toHttpBase(REALTIME_BASE_URL);
   const path = channelPath.startsWith("/") ? channelPath : `/${channelPath}`;
   const url = new URL(base + path);
   if (tenantId) url.searchParams.set("tenant_id", tenantId);
-  if (token) url.searchParams.set("access_token", token);
 
   let cancelled = false;
   let source: EventSource | null = null;
@@ -88,7 +86,7 @@ export function subscribeSSE<T = unknown>(
 
   setStatus("connecting");
   try {
-    source = new EventSource(url.toString());
+    source = new EventSource(url.toString(), { withCredentials: true });
   } catch {
     setStatus("error");
     return () => {};

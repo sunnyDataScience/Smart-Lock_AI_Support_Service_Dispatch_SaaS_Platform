@@ -622,6 +622,7 @@ async def create_from_problem_card(
     )
     # CR-0169:建單進搶單池 → LINE 廣播(開關過濾在 tech 端;fail-soft)
     await _notify_tech_line("/api/v1/internal/technicians/notify-pool", {
+        "tenant_id": tenant_id,
         "work_order": _tech_line_wo_summary(wo),
     })
     return wo, True
@@ -1392,6 +1393,15 @@ async def _enforce_completion_gate(
 # internal 端點(TECH_API_BASE_URL+INTERNAL_API_TOKEN env-gated;未配置=no-op)。
 # fail-soft:推播失敗絕不阻斷派單主流程(網頁通知中心照舊為保底)。
 
+def _tech_service_auth() -> tuple[str | None, dict[str, str]]:
+    """新 service credential 優先；migration 期間才退回 shared token。"""
+    credential = (os.getenv("TECH_API_SERVICE_CREDENTIAL") or "").strip()
+    if credential:
+        return credential, {"X-Service-Credential": credential}
+    legacy = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
+    return (legacy or None), ({"X-Internal-Token": legacy} if legacy else {})
+
+
 def _tech_line_wo_summary(wo: dict) -> dict:
     """推播內容最小化(CIA §4):區域+品牌型號+單號,絕不含客戶姓名/地址/電話。
     priority 供 outbox lag 分級 SLO（FR-API-05b：急件≤15s），非 PII。"""
@@ -1409,10 +1419,11 @@ async def _notify_tech_line(path: str, payload: dict) -> None:
     # strip:secret 建立時常帶尾端換行,aiohttp 嚴格模式會拒發(0719 雲端 UAT C-5
     # header injection 防護炸推播);收端 deps.py:require_internal_token 本就 strip。
     base = (os.getenv("TECH_API_BASE_URL") or "").strip()
-    token = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
-    if not base or not token:
+    auth_value, auth_headers = _tech_service_auth()
+    if not base or not auth_value:
         logger.warning(
-            "tech LINE notify 未配置(缺 TECH_API_BASE_URL/INTERNAL_API_TOKEN)→ 跳過推播 path=%s",
+            "tech LINE notify 未配置(缺 TECH_API_BASE_URL/TECH_API_SERVICE_CREDENTIAL"
+            " 或 migration fallback)→ 跳過推播 path=%s",
             path,
         )
         return  # 未配置=跳過(本機單 stack / 測試環境)
@@ -1423,7 +1434,7 @@ async def _notify_tech_line(path: str, payload: dict) -> None:
             await session.post(
                 f"{base.rstrip('/')}{path}",
                 json=payload,
-                headers={"X-Internal-Token": token},
+                headers=auth_headers,
             )
     except Exception:  # noqa: BLE001 — fail-soft,不阻斷主流程
         logger.warning("tech LINE notify 失敗(non-fatal)path=%s", path, exc_info=True)
@@ -1442,7 +1453,11 @@ async def _dispatch_tech_notify(
     內部端點,取得送達保證,閉合 R10);關閉走舊同步 HTTP。兩者皆 fail-soft,絕不阻斷
     派單主流程(HD-3 指派必推的可靠性由 outbox 重試/dead 提供)。
     """
-    payload = {"technician_id": technician_id, "work_order": wo_summary}
+    payload = {
+        "tenant_id": tenant_id,
+        "technician_id": technician_id,
+        "work_order": wo_summary,
+    }
     if _tech_dispatch_via_outbox():
         try:
             from services import line_push_outbox_service

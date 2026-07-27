@@ -15,7 +15,7 @@ relates:
 
 | 欄位 | 內容 |
 |---|---|
-| 狀態 | 規劃中（安全契約定案；router matrix 與負向測試待 WBS 3.6.4 完成） |
+| 狀態 | 已實作（2026-07-27；matrix completeness 與負向證據索引已納 CI） |
 | 層級 | 平台／系統級（security / api） |
 | 關聯 ADR | refines [ADR-005](./ADR-005_四方RBAC模型與enforce.md) · [ADR-020](./ADR-020_三庫物理隔離租戶模型.md) · [ADR-022](./ADR-022_API_SURFACE單體多面塑形.md) |
 | 來源規劃 | [Plane 借鏡架構優化規劃](../規格統控整理/Plane借鏡架構優化規劃_2026-07-27.md) D |
@@ -75,6 +75,17 @@ tenant-scoped route 與部分跨租戶回歸測試。這些是強項，但「使
 
 **完成門檻**：所有 mutation endpoint 與敏感 read／export endpoint 均已分類；BOLA／IDOR
 matrix 無空白；跨 tenant、撤銷會員、錯 portal、錯 service scope 測試全部 fail-closed。
+
+## 實作與驗證證據（2026-07-27）
+
+- `api/core/resource_ownership.py` 定義六類 ownership contract、precedence rule、必要檢查
+  與實際 negative test node id；`scripts/ci/export-resource-ownership-matrix.py` 可輸出
+  機讀矩陣。
+- `api/tests/test_cr_0190_resource_ownership_matrix.py` 對 runtime FastAPI surface 的全部
+  mutation 與敏感 read/export 執行 completeness check，未分類即 fail；同時驗證每個
+  contract 引用的測試確實存在。
+- 本矩陣是治理索引，不取代 router/service 的 tenant、role、portal、resource-owner SQL；
+  新端點仍須在同一變更加入實際守衛與負向測試。
 
 ## 重評觸發
 

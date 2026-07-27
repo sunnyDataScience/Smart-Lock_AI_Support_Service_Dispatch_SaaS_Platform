@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { auth, getCurrentSession } from "@/lib/api";
+import { auth, bootstrapSession, getCurrentSession } from "@/lib/api";
 import { crossModeRedirect } from "@/lib/appMode";
 import { canAccessRoute, fallbackRouteForRole } from "@/lib/rolePolicy";
 import { SidebarProvider } from "./SidebarContext";
 import RbacChangedBanner from "@/components/realtime/RbacChangedBanner";
 import IdleLogoutGuard from "./IdleLogoutGuard";
+import CommandPalette from "./CommandPalette";
 
 // 完整公開頁清單（AuthGuard 掛在 root layout 包整個 app，漏列就會被踢去 /login）：
 //  - /                 角色導向 landing 主頁（未登入也要看得到，否則一進站就被踢 admin 登入）
@@ -67,17 +68,32 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const token = auth.getAccessToken();
+    const session = getCurrentSession();
 
-    if (!token && !isPublic) {
-      // CR-0114:/platform 頁群未登入 → console 自己的登入頁（其餘照舊 /login）
-      router.replace(pathname.startsWith("/platform") ? "/platform/login" : "/login");
+    if (!session && !isPublic) {
+      void bootstrapSession()
+        .then((restored) => {
+          if (!restored) {
+            router.replace(
+              pathname.startsWith("/platform") ? "/platform/login" : "/login",
+            );
+          } else if (!canAccessRoute(pathname, restored.role)) {
+            router.replace(fallbackRouteForRole(restored.role));
+          } else {
+            setChecked(true);
+          }
+        })
+        .catch(() =>
+          router.replace(
+            pathname.startsWith("/platform") ? "/platform/login" : "/login",
+          ),
+        );
       return;
     }
-    if (token && isPublic && !isCustomerPublic) {
+    if (session && isPublic && !isCustomerPublic) {
       // 已登入者進「登入類」公開頁 → 依角色導回各自 portal（technician→/home、vendor→/vendor）
       // 客戶 token 頁（isCustomerPublic）排除在外：永遠直接渲染，客服可預覽自己發的連結
-      const home = fallbackRouteForRole(getCurrentSession()?.role ?? null);
+      const home = fallbackRouteForRole(session.role);
       // 防呆(2026-07-05):落點若不屬本 stack(crossModeRedirect 會把它導去別的
       // origin),代表此 token 是別站台殘留 —— 各 port 為獨立 origin,token 各自獨立,
       // 不可據此把人一路彈到別站台登入頁(師傅站殘留品牌 token → 原本 /dashboard →
@@ -94,8 +110,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     // CR-0021：認證後的 role-based route gate。無權限 → 導該角色安全落點。
     // 落點必為該角色可存取路由（technician→/home、vendor→/vendor、後台→/dashboard），
     // 避免導 /dashboard 對 technician/vendor 再被拒 → checked 永不 true → 白畫面死鎖。
-    if (token && !isPublic) {
-      const role = getCurrentSession()?.role ?? null;
+    if (session && !isPublic) {
+      const role = session.role;
       if (!canAccessRoute(pathname, role)) {
         router.replace(fallbackRouteForRole(role));
         return;
@@ -110,8 +126,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         AUTH_PAGES.has(pathname) ||
         CUSTOMER_PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
       if (
-        e.key === "smartlock.access_token" &&
-        !e.newValue &&
+        e.key === "smartlock.session_event" &&
+        e.newValue?.startsWith("logout:") &&
         !pathIsPublic
       ) {
         router.replace(pathname.startsWith("/platform") ? "/platform/login" : "/login");
@@ -130,6 +146,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <RbacChangedBanner />
+      <CommandPalette />
       <IdleLogoutGuard />
       {children}
     </SidebarProvider>

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ImageOff } from "lucide-react";
 import { auth } from "@/lib/api";
+import { apiBaseUrl } from "@/lib/runtimeConfig";
 
 /**
  * AuthImage — 需認證媒體的通用圖片元件（CR-0178 UAT-0720 輪次 C 抽出）。
@@ -43,7 +44,7 @@ export function AuthImage({
     let cancelled = false;
     const ac = new AbortController();
     // || 而非 ??：docker build 會把未設的 env 烘成空字串，?? 接不住（lib/api.ts 同款）
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8001";
+    const baseUrl = apiBaseUrl();
     const token = auth.getAccessToken();
 
     (async () => {

@@ -26,18 +26,18 @@
 6. production 只能由 staging evidence promotion；不得把 branch push 等同 production release。
 7. 四個 portal 仍可獨立 build／deploy／搬 repo；只共享無 UI 的契約。
 
-## §2 AS-BUILT 盤點與缺口
+## §2 AS-BUILT 盤點、已落地能力與剩餘關卡
 
-| 規劃 | 已存在能力 | 實作缺口 |
+| 規劃 | 2026-07-27 已落地 | 剩餘關卡 |
 |---|---|---|
-| A Mutation | 四站 `api.ts` 對非 GET 自動帶 `Idempotency-Key`；API 已有 reserve-first idempotency；成功後廣域清 `GET:` | 無 action-level stable retry、optimistic rollback、risk class、精準 invalidation、統一 409 conflict |
-| B Preference/token | theme/locale/PWA 留 browser；HttpOnly cookie fallback 與 claims cookie 已有 | 無三庫同步 preference；access/refresh token 仍雙寫 localStorage；cookie-only 受自訂網域 gate |
-| C Command Palette | brand portal 有 route/role policy、header 搜尋框 | 無 command registry、capability projection、鍵盤 palette |
-| D Ownership | `get_current_user → require_tenant`、portal guard、部分跨租戶測試已存在 | 無全 API surface 的 contract classification；resource ownership helper/negative test 不一致 |
-| E Service principal | internal routes 多以 `X-Internal-Token` | 無 per-workload principal、hash、scope、expiry、rotation、revoke、audit |
-| F Background runtime | 11+ lifespan worker、PG advisory lock、outbox 與 lag metric 已有 | 無 job registry／獨立 entrypoint；API revision 與 cron/outbox lifecycle 耦合 |
-| G Release | `cloud-run-deploy.yml` 為 manual dispatch；deploy scripts 有 health check | 無 staging/prod environment、同 digest promotion、release manifest/evidence/rollback artifact |
-| H Shared contract | runtime OpenAPI type generation；四份 `cache.ts` 完全相同 | 無版本化 package；RFC7807/mutation/capability 契約仍四份或散落 |
+| A Mutation | shared mutation contract；Notification optimistic/rollback/precise invalidate/stable retry；offline/5xx/409 E2E | 新低風險 mutation 依相同 contract 漸進接入 |
+| B Preference/token | migration 120；三庫 preferences/CAS；四站 same-origin proxy + HttpOnly cookie-only；browser token scanner | 跨 host WS 需同父網域 cookie 證據，否則 realtime disabled |
+| C Command Palette | Brand Portal Ctrl/⌘+K；capability + rolePolicy registry；搜尋/草稿/佇列/通知/saved view | production analytics sink 可後補，不影響 v1 |
+| D Ownership | runtime mutation + sensitive read/export completeness matrix；六類 contract + real negative test ID | 新端點仍需逐路由實際 owner guard |
+| E Service principal | migration 121；hash/scope/aud/tenant/expiry/rotate/revoke/audit；agent/refinery/OHS opt-in | OD-001/004、production bootstrap、fallback release-window 歸零 |
+| F Background runtime | 14-job registry；獨立 worker entrypoint；hybrid cutover；六項 SLI；Cloud Run Job pilot deploy | GCP Scheduler shadow→cutover→rollback／重跑證據 |
+| G Release | build-once + same digest promotion；staging/prod manifest；health/smoke；rollback/drill tooling | GitHub Environments/WIF/reviewer 與三種真實演練 |
+| H Shared contract | `@smartlock/shared-contract@0.1.0` immutable vendored tarball；boundary/consumer；四站 build | registry 僅為後續 distribution 選項 |
 
 ## §3 影響分析
 
@@ -50,14 +50,16 @@
 
 ### 3.2 API Contract
 
-預計新增：
+已新增：
 
 - `GET /tenants/{tenantId}/me/preferences`
 - `PUT /tenants/{tenantId}/me/preferences/{preferenceKey}`
-- technician／platform surface 的等價 `/me/preferences` 入口
-- platform-only service principal 管理 API（create/list/revoke/rotate metadata）
+- `GET/PUT /api/v1/technicians/me/preferences[/\{preferenceKey\}]`
+- `GET/PUT /api/v1/platform/me/preferences[/\{preferenceKey\}]`
+- platform-only `GET/POST /api/v1/platform/service-principals` 與
+  `POST /api/v1/platform/service-credentials/{id}:rotate|:revoke`
 - internal service principal authentication dependency
-- job registry／health admin inspection endpoint
+- code-defined job registry／worker entrypoint
 
 既有併發編輯資源以 additive `version`／precondition 逐端點導入；衝突統一 RFC7807
 `409 CONCURRENT_MODIFICATION`，details 至少含 `current_version`。本 CR 不 big-bang 改寫
@@ -66,7 +68,7 @@
 
 ### 3.3 DB Schema
 
-預計新增 routed migrations：
+已新增並在拋棄式 PostgreSQL 15 連續套用兩次驗證：
 
 - 三庫 `user_preferences`：principal/scope/portal/key/value/version/update audit。
 - platform DB `service_principal`、`service_credential`、`service_credential_audit`；
@@ -80,8 +82,9 @@
 - Service credential：active/expiry/revoke/audience/scope/brand scope 全部 fail-closed。
 - `X-Internal-Token` 只保留 migration fallback，usage metric 必須可歸零。
 - Command Palette 只改善發現性；所有 action 仍由 API authorization/resource guard 決定。
-- Cookie-only 模式必須搭配 HTTPS、自訂同父網域、SameSite 與 CORS allowlist；未滿足不得
-  關閉 Authorization fallback。
+- HTTP cookie-only 模式由每站 same-origin `/api-proxy` 接收並轉送兩顆 Set-Cookie，不要求
+  browser 直接跨 `run.app` host；WS/SSE 不允許 URL token，跨 host realtime 若無同父網域
+  cookie 證據必須維持 disabled。
 
 ### 3.5 Runtime / Deployment
 
@@ -105,7 +108,7 @@
 |---|---|---|
 | Optimistic 假成功 | risk class allowlist；敏感 command compile-time/server-confirmed | 關閉該 mutation optimistic handler |
 | Preference schema 成垃圾桶 | key registry + validator + 16 KiB 上限 | endpoint disable；資料仍可讀出匯出 |
-| Cookie-only 在 run.app 跨 host 失效 | feature flag + readiness preflight | 保留 Authorization fallback 至自訂網域完成 |
+| Cookie-only 在 run.app 跨 host 失效 | HTTP 強制 same-origin server proxy；Set-Cookie 多值測試 | WS/SSE 沒有同父網域時維持 disabled，不回退 URL token |
 | Service auth 誤擋 | per-principal shadow audit；舊 token usage metric | time-boxed fallback，不放寬 scope |
 | Worker 雙跑 | selector + PG lock + durable idempotency + cutover flag | 關外部 trigger，恢復 API lifespan mode |
 | Production workflow 誤部署 | environment approval + digest pin + path matrix | traffic 切回 manifest 記載 revision |
@@ -139,28 +142,46 @@
    adapter；OHS production cutover 等 OD-001。
 2. 🛑 **OD-004 跨品牌 organization/claim**：本 CR 不自行擴張跨品牌 entitlement；
    preference 先以目前 token principal + authority DB scope 實作。
-3. 🛑 **自訂網域／cookie domain**：沒有 web/api 同父網域就不能完成 production
-   localStorage token 退場。code 可提供 cookie-only mode 與 preflight，正式啟用需 DNS、
-   certificate、CORS 與 `AUTH_COOKIE_DOMAIN` 證據。
-4. 🛑 **GitHub Environment / WIF / required reviewer**：workflow 可落地，但 repository
+3. 🛑 **跨 host realtime cookie**：HTTP 已藉本站 proxy 完成 localStorage token 退場；
+   直接 WS/SSE 不得帶 URL token，需同父網域／cookie domain 證據，否則 production 保持
+   realtime disabled、頁面以 REST polling 降級。
+4. 🛑 **GitHub Environment / WIF / required reviewer**：workflow 已落地，但 repository
    environment、reviewer、GCP IAM 與 secrets 是外部狀態，需管理員配置後才能完成 G gate。
-5. 🛑 **Artifact Registry npm repository**：package source/build 可完成；四站 production
-   pin 受 registry 建立與 publish credential gate。
+5. ✅ **Shared contract distribution**：採 immutable vendored tarball + lockfile integrity，
+   不以 Artifact Registry npm repository 作完成前置；registry 建立後只能發布相同 tarball。
 
 ## §9 Implementation Order
 
-1. ⏳ S0：CIA、A～H implementation matrix、branch isolation。
-2. ⬜ S1：shared contract 核心 + mutation runner RED/GREEN；brand notification reference。
-3. ⬜ S2：三庫 preference migration/API + cookie-only preflight。
-4. ⬜ S3：Brand Command Palette v1。
-5. ⬜ S4：ownership matrix/compiler + negative contract tests。
-6. ⬜ S5：service principal migration/service/router/auth + fallback telemetry。
-7. ⬜ S6：job registry、worker entrypoint、pilot selector、runtime tests。
-8. ⬜ S7：staging/promotion workflow、manifest/schema/static tests。
-9. ⬜ S8：shared-contract package publish boundary、四站 consumer tests。
-10. ⬜ S9：全套回歸、OpenAPI/runtime types、CHANGELOG、ADR/WBS status/evidence 回填。
+1. ✅ S0：CIA、A～H implementation matrix、branch isolation。
+2. ✅ S1：shared contract 核心 + mutation runner；brand notification reference。
+3. ✅ S2：三庫 preference migration/API + HTTP cookie-only same-origin proxy。
+4. ✅ S3：Brand Command Palette v1。
+5. ✅ S4：ownership matrix/exporter + negative contract tests。
+6. 🟨 S5：service principal migration/service/router/auth/callers 完成；production fallback
+   telemetry release-window 尚待外部取證。
+7. 🟨 S6：job registry、worker entrypoint、pilot selector、runtime tests 完成；GCP cutover
+   演練尚待外部取證。
+8. 🟨 S7：staging/promotion workflow、manifest/schema/static tests 完成；GitHub/GCP 環境與
+   rollback/restore 演練尚待外部取證。
+9. ✅ S8：shared-contract `0.1.0` vendored package boundary、四站 consumer/build。
+10. ✅ S9：回歸、OpenAPI/runtime types、CHANGELOG、ADR/WBS status/evidence 回填。
 
 ## §10 進度
 
-- ⏳ S0：2026-07-27 已完成 as-built 首輪盤點與短命分支建立；CIA 落檔。
-- 🛑 外部／聯合決策 gate：見 §8；不阻擋 gate 前的可逆開發。
+- ✅ code complete 範圍：A/B/C/D/H；E/F/G 的 repo 內實作與靜態/component gate。
+- ✅ 本機證據：FastAPI runtime export **517 endpoints／363 schemas**；targeted API suite、
+  shared-contract boundary/test/build、四站 tsc/build、Brand unit、Playwright mutation
+  recovery、migration 120/121 二套與 migration drift。
+- ✅ 2026-07-27 收尾證據：API／Agent 定向與 BOLA 負向回歸 **161/161**、Brand unit
+  **46/46**、四站 PII scrub 各 **9/9**、Playwright offline／5xx／409 **3/3**；四站
+  production build、runtime OpenAPI drift、shared-contract consumer、browser token scanner、
+  Shell/YAML 與 `git diff --check` 全數通過。OAuth state 改為 server-generated 短效
+  HttpOnly cookie 並於 callback 比對；routed migration 採 `ON_ERROR_STOP=1`，SQL 失敗
+  不記帳且 drift 失敗不得形成成功證據。
+- 🛑 尚未完成：OD-001/004、service fallback production 歸零、Cloud Run Job
+  shadow→cutover→rollback、GitHub Environments/WIF/required reviewer、revision rollback、
+  migration forward-fix 與 Cloud SQL restore drill。上述都不可用 mock 或文件勾選替代。
+- 🛑 2026-07-27 外部狀態稽核：repository Environments = 0、Actions variables/secrets
+  均為空；執行環境無 GCP CLI／登入上下文。私有 repository 目前方案對 branch
+  protection API 回 `403 Upgrade to GitHub Pro or make repository public`，因此 required
+  reviewer 也尚無法配置。上述條件具備前，不得將本 CR 合併後宣稱 production-ready。

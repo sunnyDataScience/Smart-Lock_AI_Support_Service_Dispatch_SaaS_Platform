@@ -177,6 +177,23 @@ class LinePushOutboxWorker:
         for row in rows:
             await self._process_row(row)
 
+    async def get_job_sli(self) -> dict[str, float | int]:
+        """由 durable outbox 量測 backlog；不是只看本 process 成功樣本。"""
+        if not await _ensure_conn():
+            return {}
+        cur = await db_module._conn.execute(
+            "SELECT "
+            "COALESCE(EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - "
+            "  MIN(created_at) FILTER (WHERE status = 'pending'))), 0), "
+            "count(*) FILTER (WHERE status = 'dead') "
+            "FROM line_push_outbox"
+        )
+        row = await cur.fetchone()
+        return {
+            "oldest_pending_seconds": max(0.0, float(row[0] or 0)),
+            "retry_exhausted_total": int(row[1] or 0),
+        }
+
     async def _process_row(self, row: tuple) -> None:
         outbox_id = str(row[0])
         tenant_id = str(row[1])
@@ -386,9 +403,15 @@ class LinePushOutboxWorker:
         .strip()（0719 C-5 尾端換行防護）。
         """
         base = (os.getenv("TECH_API_BASE_URL") or "").strip()
-        token = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
-        if not base or not token:
-            return False, "TECH_API_BASE_URL/INTERNAL_API_TOKEN 未配置"
+        credential = (os.getenv("TECH_API_SERVICE_CREDENTIAL") or "").strip()
+        legacy = (os.getenv("INTERNAL_API_TOKEN") or "").strip()
+        auth_headers = (
+            {"X-Service-Credential": credential}
+            if credential
+            else ({"X-Internal-Token": legacy} if legacy else {})
+        )
+        if not base or not auth_headers:
+            return False, "TECH_API_BASE_URL/service credential 未配置"
         path = _TECH_DISPATCH_ENDPOINT.get(push_kind)
         if not path:
             return False, f"no tech dispatch endpoint for kind: {push_kind}"
@@ -399,7 +422,7 @@ class LinePushOutboxWorker:
                 async with session.post(
                     f"{base.rstrip('/')}{path}",
                     json=payload,
-                    headers={"X-Internal-Token": token},
+                    headers=auth_headers,
                 ) as r:
                     if r.status == 200:
                         return True, None

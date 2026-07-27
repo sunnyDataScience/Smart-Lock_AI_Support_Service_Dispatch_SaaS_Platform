@@ -13,7 +13,7 @@ refines:
 
 | 欄位 | 內容 |
 |---|---|
-| 狀態 | 規劃中（P2；只在 WBS 3.6.8 gate 通過後導入） |
+| 狀態 | 已實作（2026-07-27；固定版本 vendored tarball 模式） |
 | 層級 | 系統級（web / tooling） |
 | 關聯 ADR | refines [ADR-028](./ADR-028_web檔案層拆分_四站獨立專案.md) · [ADR-031](./ADR-031_契約工件三分層_型別SoT為runtime_export.md) · [ADR-034](./ADR-034_前端Mutation一致性_偏好分層_Capability導覽.md) |
 | 來源規劃 | [Plane 借鏡架構優化規劃](../規格統控整理/Plane借鏡架構優化規劃_2026-07-27.md) H |
@@ -41,10 +41,11 @@ Plane 借鏡盤點顯示，安全／契約行為（RFC7807 decode、mutation con
 2. 明確禁止納入 UI component、theme、i18n message、layout、page、route policy、
    portal-specific business workflow 與 portal navigation。
 3. 四站保留各自 `package.json`、lockfile、build、test、Dockerfile 與 release；package
-   使用 immutable semantic version，由 CI `npm pack` 驗證並發布至受控 registry
-   （目標為 Artifact Registry npm repository），portal pin 明確版本。
-4. 不以 npm workspace/Turbo 作第一階段前置；本機可用 CI 產生的 tarball 驗證，
-   production build 只從受控 registry／lockfile 解析，確保單站可獨立搬離。
+   使用 immutable semantic version，由 CI `npm pack` 驗證。現階段將該 tarball
+   vendored 進 repo，四站以精確 `file:` 版本及 lockfile integrity 固定；Artifact Registry
+   npm repository 可用後，發布**相同 tarball**，不得重包不同內容。
+4. 不以 npm workspace/Turbo 作第一階段前置；production build 可從版本化 vendored
+   tarball／lockfile 離線解析，確保單站可獨立搬離；轉 registry 不改 package boundary。
 5. runtime export 仍是 API type SoT；shared package 不允許手改 generated type，也不把
    `api/openapi.yaml` 設計稿誤升為 runtime type SoT。
 6. package 變更需 semantic-version impact、四站 typecheck／contract test 與 consumer
@@ -71,8 +72,20 @@ Plane 借鏡盤點顯示，安全／契約行為（RFC7807 decode、mutation con
 離線 lockfile build；breaking contract 有 consumer matrix；移除四份重複契約後 tsc／build
 全綠。
 
+## 實作與驗證證據（2026-07-27）
+
+- `web/shared-contract@0.1.0` 已包含 runtime OpenAPI types、RFC7807 error、mutation/conflict、
+  capability 與 session contract；boundary lint 禁止 React/Next/UI/i18n/theme。
+- `smartlock-shared-contract-0.1.0.tgz` 為固定 vendored 工件；四站 package/lockfile 精確
+  pin，其 Dockerfile 明確複製 tarball。
+- `api-types-sync.yml`、`shared-contract.yml`、`generate-api-types.sh` 與
+  `vendor-shared-contract.sh` 固定 runtime SoT、consumer matrix、pack integrity 與四站
+  typecheck。
+- shared package boundary/test/build、四站 `tsc --noEmit` 與四站 production build
+  已於 2026-07-27 通過。
+
 ## 重評觸發
 
 - UI/theme 的跨站同步成本也達不可接受程度時，另開 ADR；不得直接擴大本 package。
-- 若私有 registry 可用性低於 build SLO，評估 vendored tarball，但仍維持 immutable version
-  與單站可搬移。
+- 私有 registry 建立後只改 distribution reference；若可用性低於 build SLO，維持
+  vendored tarball，immutable version 與單站可搬移不變。

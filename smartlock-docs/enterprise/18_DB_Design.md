@@ -1,9 +1,9 @@
 ---
 title: 資料庫設計（DB Design）— Smart Lock AI 客服與派工 SaaS 平台
-version: 1.0
+version: 1.1
 status: active
 owner: 平台架構師 / api 子系統（schema 擁有者）
-last-updated: 2026-07-10
+last-updated: 2026-07-27
 upstream:
   - ../data-pipeline/P1/05_architecture_and_design.md（§4 Medallion、§8 DB Schema 專章）
   - ../data-pipeline/P2/06_api_design_specification.md（§3 migration 契約、§4 pgvector 契約、§5 三庫連線契約）
@@ -266,7 +266,22 @@ LIMIT :k;
 
 ### 8.2 平台庫 `lock_platform`
 
-獨立 3 表：`users`(platform_admin)、`revoked_jti`、`brand_applications`（品牌申請導入）。〔標注 2026-07-10：現為 5 表（＋`monitor_target`／`tenant`，維運監控輪）。〕`users` 欄位對齊品牌庫 `users` 子集（含帳號安全欄），認證邏輯跨庫共用。
+平台治理表含 `users`(platform_admin)、`revoked_jti`、`brand_applications`、`monitor_target`、
+`tenant`。CR-0190 migration 121 再增加 `service_principals`、`service_credentials` 與
+`service_auth_audit`：credential 只存 peppered hash/prefix，支援 audience、scope、
+tenant grant、expiry、rotation overlap、revoke、last-used 與 audit；`created_action_id`
+唯一避免建立重放。`users` 欄位對齊品牌庫子集，認證邏輯跨庫共用。
+
+### 8.5 三庫使用者偏好（CR-0190 / migration 120）
+
+`user_preferences` 以相同 DDL 落品牌、技師、平台權威庫，但資料永不跨庫集中：
+
+- owner key = `principal_id + scope_tenant_id + portal + preference_key`；
+- `version` + 條件式 UPDATE/INSERT 實作 compare-and-set，衝突回目前版本；
+- `last_action_id` 讓同一使用者 action replay 不重增版本；
+- key allowlist、JSON shape 與 16 KiB 限制在 API service 守門；DB 不成為任意 JSON
+  垃圾桶；
+- theme/locale/sidebar/PWA 等裝置偏好與登入 token 不進本表。
 
 ### 8.3 技師身分投影與雙寫鏡射
 
@@ -294,7 +309,7 @@ LIMIT :k;
 
 - api 用 psycopg3 raw SQL、無 ORM model，Alembic autogenerate 無用武之地；純 SQL 檔以 `psql -f` 套用，與工具鏈一致。
 - **forward-only**：無 down migration；**idempotent**：`ADD COLUMN IF NOT EXISTS`、`DO $$ 查 pg_constraint $$`、`ON CONFLICT DO NOTHING`，同一檔可對多庫、多環境安全重套。
-- 現行規模：`SQL/migrations/000..089`（87 檔，含預留缺號）。〔標注 2026-07-10：現至 097（95 檔）。〕
+- 現行規模：`SQL/migrations/000..121`（歷史缺號 011～013；migration drift-check 全登記）。
 
 ### 9.2 命名與編號認領
 
@@ -308,7 +323,7 @@ LIMIT :k;
 ```
 1. SQL/Schema.sql              （基底 22 表）
 2. SQL/Schema_*.sql            （字母序，9 個擴充檔）
-3. SQL/migrations/*.sql        （編號序，000..089）
+3. SQL/migrations/*.sql        （編號序，000..121）
 4. 回填 public.schema_migrations
 ```
 
@@ -441,7 +456,7 @@ field_metadata (pack, pack_version, entity, key, label, type, required,
 |---|---|
 | 基底 schema | `SQL/Schema.sql`（1013 行，22 表）|
 | 擴充 schema（9 檔）| `SQL/Schema_{v2_extensions,api_phase1,media,rbac_dynamic,tech_schedule,work_order_events,doc_numbering,harness_migration,cr0001_integration_gaps}.sql` |
-| Migrations | `SQL/migrations/000..089-*.sql`（87 檔）+ `SQL/MIGRATION_REGISTRY.md`〔標注 2026-07-10：現至 097（95 檔）；registry 實位於 `SQL/migrations/MIGRATION_REGISTRY.md`。〕 |
+| Migrations | `SQL/migrations/000..121-*.sql`（歷史缺號 011～013）+ `SQL/migrations/MIGRATION_REGISTRY.md` |
 | 平台庫 schema | `SQL/platform/Schema_platform.sql`（91 行，3 表）|
 | 種子 | `SQL/seeds/*.sql`（20 檔）+ `scripts/seed/*.py` |
 | DB 腳本 | `scripts/db/{apply-schema-prod,init-platform-db,split-tech-db}.sh` |
@@ -455,7 +470,7 @@ field_metadata (pack, pack_version, entity, key, label, type, required,
 | 品牌庫表數 | ~100（public ~60+、saas ~34、agent 2）|
 | 技師庫表數 | 6–7（技師身分域子集）|
 | 平台庫表數 | 3〔標注 2026-07-10：現為 5（＋`monitor_target`／`tenant`，維運監控輪）。〕 |
-| Migration 檔數 | 87（編號 000..089，含預留缺號）〔標注 2026-07-10：現至 097（95 檔）。〕|
+| Migration 檔數 | 119 支（編號 000..121；歷史缺號 011～013） |
 | 向量欄位 | 2（`manual_chunks.embedding` / `case_entries.embedding`，皆 VECTOR(768)）|
 | `work_orders` 被 FK 引用 | ~10 表 |
 | 技師投影相關品牌表 | 35 表 FK 指向 `users` / `technicians` |

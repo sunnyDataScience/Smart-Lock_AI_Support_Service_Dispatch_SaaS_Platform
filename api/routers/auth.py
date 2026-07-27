@@ -11,8 +11,15 @@ import logging
 from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFile
 from pydantic import BaseModel, EmailStr, Field
 
-from core.auth_cookie import clear_access_cookie, set_access_cookie
+from core.auth_cookie import (
+    REFRESH_COOKIE,
+    clear_session_cookies,
+    set_access_cookie,
+    set_refresh_cookie,
+)
+from core.config import load_config
 from core.deps import CurrentUser, get_current_user, role_required
+from core.errors import ApiError
 from core.idempotency import (
     IdempotencyContext,
     PUBLIC_TENANT_NAMESPACE,
@@ -39,7 +46,7 @@ class TechnicianLoginBody(BaseModel):
 
 
 class RefreshBody(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class LogoutBody(BaseModel):
@@ -131,16 +138,41 @@ _ADMIN_WEB_ROLES = [
 ]
 
 
-def _set_login_cookie(response: Response, payload: dict) -> None:
-    """CR-0177 S3a：登入/刷新成功 → 同步寫 httpOnly access cookie。
-
-    與 response body 的 token **並存**（localStorage 過渡期不變，見 core/auth_cookie 說明）；
-    自訂網域上線後設 `AUTH_COOKIE_DOMAIN` 即跨子網域生效，屆時才移除 localStorage（S3b）。
-    """
+def _set_login_cookies(response: Response, payload: dict) -> None:
+    """登入/刷新成功後，access/refresh 都寫 HttpOnly cookie。"""
     data = (payload or {}).get("data") or {}
-    token = data.get("access_token")
-    if token:
-        set_access_cookie(response, token, int(data.get("expires_in") or 3600))
+    access = data.get("access_token")
+    refresh = data.get("refresh_token")
+    if access:
+        set_access_cookie(response, access, int(data.get("expires_in") or 3600))
+    if refresh:
+        days = int(load_config().auth.get("refresh_token_ttl_days", 30))
+        set_refresh_cookie(response, refresh, days * 86400)
+
+
+def _auth_response_payload(request: Request, payload: dict) -> dict:
+    """Browser 明示 cookie mode 時不把 bearer/refresh secret 暴露給 JS。
+
+    CLI／mobile 未帶 header 時維持既有 token response，相容外部 API consumer。
+    """
+    if request.headers.get("X-Auth-Response-Mode", "").lower() != "cookie":
+        return payload
+    data = (payload or {}).get("data") or {}
+    return {
+        "data": {
+            "authenticated": True,
+            "token_type": "HttpOnly-Cookie",
+            "expires_in": int(data.get("expires_in") or 3600),
+        },
+        "message": payload.get("message", "Authentication successful"),
+    }
+
+
+def _refresh_from_request(body: RefreshBody | None, request: Request) -> str:
+    token = (body.refresh_token if body else None) or request.cookies.get(REFRESH_COOKIE)
+    if not token:
+        raise ApiError("UNAUTHENTICATED", "Missing refresh token", 401)
+    return token
 
 
 @router.post(
@@ -149,12 +181,12 @@ def _set_login_cookie(response: Response, payload: dict) -> None:
     summary="管理員登入",
     status_code=200,
 )
-async def login_admin(body: LoginBody, response: Response) -> dict:
+async def login_admin(body: LoginBody, request: Request, response: Response) -> dict:
     payload = await auth_service.login(
         email=body.email, password=body.password, allowed_roles=_ADMIN_WEB_ROLES
     )
-    _set_login_cookie(response, payload)
-    return payload
+    _set_login_cookies(response, payload)
+    return _auth_response_payload(request, payload)
 
 
 @router.post(
@@ -163,13 +195,15 @@ async def login_admin(body: LoginBody, response: Response) -> dict:
     summary="技師登入（手機號或 Email）",
     status_code=200,
 )
-async def login_technician(body: TechnicianLoginBody, response: Response) -> dict:
+async def login_technician(
+    body: TechnicianLoginBody, request: Request, response: Response
+) -> dict:
     # CR-0099：identifier 解析手機/email；手機多筆相符 → 409（改用 Email）。
     payload = await auth_service.login_with_identifier(
         body.identifier, body.password, allowed_roles=["technician"]
     )
-    _set_login_cookie(response, payload)
-    return payload
+    _set_login_cookies(response, payload)
+    return _auth_response_payload(request, payload)
 
 
 @router.post(
@@ -178,10 +212,14 @@ async def login_technician(body: TechnicianLoginBody, response: Response) -> dic
     summary="換發 access token",
     status_code=200,
 )
-async def refresh_token(body: RefreshBody, response: Response) -> dict:
-    payload = await auth_service.refresh(body.refresh_token)
-    _set_login_cookie(response, payload)   # CR-0177 S3a：換發後同步更新 cookie
-    return payload
+async def refresh_token(
+    request: Request,
+    response: Response,
+    body: RefreshBody | None = None,
+) -> dict:
+    payload = await auth_service.refresh(_refresh_from_request(body, request))
+    _set_login_cookies(response, payload)
+    return _auth_response_payload(request, payload)
 
 
 @router.post(
@@ -191,6 +229,7 @@ async def refresh_token(body: RefreshBody, response: Response) -> dict:
     status_code=204,
 )
 async def logout(
+    request: Request,
     body: LogoutBody | None = None,
     user: CurrentUser = Depends(get_current_user),
 ) -> Response:
@@ -198,10 +237,11 @@ async def logout(
         access_jti=user.jti,
         access_user_id=user.user_id,
         access_exp_iso=None,
-        refresh_token=(body.refresh_token if body else None),
+        refresh_token=(body.refresh_token if body else None)
+        or request.cookies.get(REFRESH_COOKIE),
     )
     resp = Response(status_code=204)
-    clear_access_cookie(resp)   # CR-0177 S3a：登出同步清除 httpOnly cookie
+    clear_session_cookies(resp)
     return resp
 
 
@@ -221,6 +261,23 @@ async def change_password(
         new_password=body.new_password,
     )
     return Response(status_code=204)
+
+
+@router.get(
+    "/auth/session",
+    operation_id="getBrowserSession",
+    summary="由 HttpOnly cookie／Bearer 取得最小 session claims",
+)
+async def get_browser_session(
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    return {
+        "data": {
+            "user_id": user.user_id,
+            "role": user.role,
+            "tenant_id": user.tenant_id,
+        }
+    }
 
 
 @router.get(
@@ -377,7 +434,9 @@ async def upload_registration_document(
     summary="廠商/品牌商登入（發案者，CR-0029；與後台角色隔離）",
     status_code=200,
 )
-async def login_vendor(body: LoginBody) -> dict:
-    return await auth_service.login(
+async def login_vendor(body: LoginBody, request: Request, response: Response) -> dict:
+    payload = await auth_service.login(
         email=body.email, password=body.password, allowed_roles=["vendor"]
     )
+    _set_login_cookies(response, payload)
+    return _auth_response_payload(request, payload)

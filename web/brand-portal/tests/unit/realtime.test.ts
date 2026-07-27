@@ -2,7 +2,7 @@
  * lib/realtime 單元測試（UAT R3-4 / R3-5 realtime 收斂回歸）。
  *
  * 驗證三個 UAT 場景：
- *   1. token 每次連線重讀（重連不再帶舊 token 閉包）
+ *   1. access token 不進 WebSocket URL，認證只走 HttpOnly cookie
  *   2. 握手失敗（未 open 即斷）→ 先走 refresh 換新 token 再重連
  *   3. 同 channel 單一活躍連線 + handler 註冊表（StrictMode 雙掛載 / 斷線恢復
  *      後 handler 依然觸發）
@@ -72,21 +72,22 @@ describe("subscribeRealtime（UAT R3 realtime 收斂）", () => {
     vi.unstubAllGlobals();
   });
 
-  it("R3-5：重連時重讀 token，不重用舊閉包值", async () => {
+  it("R3-5：重連 URL 不洩漏 access token", async () => {
     const rt = await importRealtime();
     rt.subscribeRealtime({ channelPath: "/realtime/x", onMessage: () => {} });
 
     expect(FakeWebSocket.instances).toHaveLength(1);
-    expect(FakeWebSocket.instances[0].url).toContain("access_token=token-1");
+    expect(FakeWebSocket.instances[0].url).not.toContain("access_token");
+    expect(FakeWebSocket.instances[0].url).toContain("tenant_id=tenant-1");
 
-    // 連上後 token 換新（REST refresh 已刷過），server 斷線 → 重連
+    // REST refresh 後 server 斷線 → cookie 由瀏覽器自動帶入重連。
     FakeWebSocket.instances[0].serverOpen();
     authMock.getAccessToken.mockReturnValue("token-2");
     FakeWebSocket.instances[0].serverDrop();
     await vi.advanceTimersByTimeAsync(1000); // backoff 第一階 1s
 
     expect(FakeWebSocket.instances).toHaveLength(2);
-    expect(FakeWebSocket.instances[1].url).toContain("access_token=token-2");
+    expect(FakeWebSocket.instances[1].url).not.toContain("access_token");
   });
 
   it("R3-5：握手失敗（未 open 即關）→ 先 refresh 再重連", async () => {

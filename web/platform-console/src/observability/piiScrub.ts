@@ -20,11 +20,18 @@ const ADDR_RE =
 
 function hashLineUid(uid: string): string {
   try {
-    // Node runtime：sha256 前 12 碼（保留關聯性不留身分，同 agent scrub_text）；
-    // edge/無 node:crypto 環境退固定遮罩。
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { createHash } = require("node:crypto") as typeof import("node:crypto");
-    return "U#" + createHash("sha256").update(uid).digest("hex").slice(0, 12);
+    // 64-bit FNV-1a 僅產生穩定 pseudonymous fingerprint；LINE UID 本身為
+    // 128-bit 隨機識別碼。純 JS 實作可同時在 Node/Edge/client fallback 編譯，
+    // 避免 instrumentation 將 node:crypto 誤帶進 Next.js browser bundle。
+    let fingerprint = BigInt("0xcbf29ce484222325");
+    for (const char of uid) {
+      fingerprint ^= BigInt(char.charCodeAt(0));
+      fingerprint = BigInt.asUintN(
+        64,
+        fingerprint * BigInt("0x100000001b3"),
+      );
+    }
+    return "U#" + fingerprint.toString(16).padStart(16, "0").slice(0, 12);
   } catch {
     return "[LINE_UID]";
   }

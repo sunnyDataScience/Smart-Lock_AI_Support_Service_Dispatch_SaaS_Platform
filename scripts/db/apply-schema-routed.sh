@@ -54,10 +54,10 @@ LOG_DIR="${PROJECT_ROOT}/.dev-logs"; mkdir -p "${LOG_DIR}"
 LOG_FILE="${LOG_DIR}/apply-routed-$(date +%Y%m%d-%H%M%S).log"
 
 apply_file() {  # $1=uri $2=file
-    psql "$1" -v ON_ERROR_STOP=0 -f "$2" >> "${LOG_FILE}" 2>&1
+    psql "$1" -v ON_ERROR_STOP=1 -f "$2" >> "${LOG_FILE}" 2>&1
 }
 record() {  # $1=uri $2=ver $3=base
-    psql "$1" -v ON_ERROR_STOP=0 -c \
+    psql "$1" -v ON_ERROR_STOP=1 -c \
         "CREATE TABLE IF NOT EXISTS public.schema_migrations(version TEXT PRIMARY KEY, filename TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now(), note TEXT);
          INSERT INTO public.schema_migrations(version,filename,note) VALUES ('$2','$3','applied') ON CONFLICT (version) DO NOTHING;" \
         >> "${LOG_FILE}" 2>&1
@@ -79,8 +79,16 @@ for f in SQL/migrations/*.sql; do
             SKIPPED["$t"]=1; continue
         fi
         if [[ "${DRY_RUN}" -eq 0 ]]; then
-            apply_file "$u" "$f"
-            record "$u" "$ver" "$base"
+            if ! apply_file "$u" "$f"; then
+                echo "FAIL: target=${t} migration=${base} 套用失敗；未登記 schema_migrations"
+                echo "log: ${LOG_FILE}"
+                exit 1
+            fi
+            if ! record "$u" "$ver" "$base"; then
+                echo "FAIL: target=${t} migration=${base} 套用成功但記帳失敗"
+                echo "log: ${LOG_FILE}"
+                exit 1
+            fi
         fi
     done
 done
@@ -104,6 +112,8 @@ if [[ "${DRY_RUN}" -eq 0 ]]; then
     echo ""
     echo "== 自我驗證：多庫 migration drift-check（依 migrate-targets 對三庫比對）=="
     # POSTGRES_URI/TECH_POSTGRES_URI/PLATFORM_POSTGRES_URI 已在 env → 直接對照各庫
-    python3 "${PROJECT_ROOT}/scripts/ci/migration-drift-check.py" || \
-        echo "  ⚠️ drift-check 報漂移（見上）——套用後仍有落差，人工確認"
+    if ! python3 "${PROJECT_ROOT}/scripts/ci/migration-drift-check.py"; then
+        echo "FAIL: drift-check 報漂移；本次 migration 發布證據不得標記成功"
+        exit 1
+    fi
 fi

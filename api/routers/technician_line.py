@@ -20,7 +20,16 @@ import core.db as db_module
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel
 
-from core.deps import CurrentUser, TECH_ACTION_ROLES, require_internal_token, role_required
+from core.deps import (
+    CurrentUser,
+    TECH_ACTION_ROLES,
+    role_required,
+    service_credential_required,
+)
+from services.service_credential_service import (
+    ServicePrincipalContext,
+    assert_tenant_scope,
+)
 from core.errors import ApiError
 from services import technician_line_service as tls
 
@@ -153,6 +162,7 @@ async def line_webhook(
 # ── internal:品牌 api 派單/建池單後通知(service-to-service)─────────────────
 
 class _NotifyAssignBody(BaseModel):
+    tenant_id: str | None = None
     technician_id: str
     work_order: dict  # {id, document_number?, district?, brand?, model?} 最小摘要
 
@@ -161,14 +171,27 @@ class _NotifyAssignBody(BaseModel):
     "/internal/technicians/notify-assign",
     operation_id="internalNotifyTechnicianAssign",
     summary="派單指派 LINE 推播(internal;fail-soft)",
-    dependencies=[Depends(require_internal_token)],
 )
-async def internal_notify_assign(body: _NotifyAssignBody) -> dict:
+async def internal_notify_assign(
+    body: _NotifyAssignBody,
+    auth: ServicePrincipalContext = Depends(
+        service_credential_required("technicians:notify")
+    ),
+) -> dict:
+    if body.tenant_id:
+        assert_tenant_scope(auth, body.tenant_id)
+    elif not auth.legacy_fallback:
+        raise ApiError(
+            "SERVICE_TENANT_REQUIRED",
+            "tenant_id is required for service-principal calls",
+            422,
+        )
     ok = await tls.notify_assignment(technician_id=body.technician_id, wo=body.work_order)
     return {"data": {"pushed": ok}, "error": None}
 
 
 class _NotifyPoolBody(BaseModel):
+    tenant_id: str | None = None
     work_order: dict
 
 
@@ -176,8 +199,20 @@ class _NotifyPoolBody(BaseModel):
     "/internal/technicians/notify-pool",
     operation_id="internalNotifyTechnicianPool",
     summary="搶單池新單 LINE 廣播(internal;開關過濾)",
-    dependencies=[Depends(require_internal_token)],
 )
-async def internal_notify_pool(body: _NotifyPoolBody) -> dict:
+async def internal_notify_pool(
+    body: _NotifyPoolBody,
+    auth: ServicePrincipalContext = Depends(
+        service_credential_required("technicians:notify")
+    ),
+) -> dict:
+    if body.tenant_id:
+        assert_tenant_scope(auth, body.tenant_id)
+    elif not auth.legacy_fallback:
+        raise ApiError(
+            "SERVICE_TENANT_REQUIRED",
+            "tenant_id is required for service-principal calls",
+            422,
+        )
     sent = await tls.notify_pool_new(wo=body.work_order)
     return {"data": {"pushed": sent}, "error": None}

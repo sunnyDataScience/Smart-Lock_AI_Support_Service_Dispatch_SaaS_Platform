@@ -15,7 +15,7 @@ relates:
 
 | 欄位 | 內容 |
 |---|---|
-| 狀態 | 規劃中（目標與遷移順序定案；依 WBS 3.6.6 逐 job cutover） |
+| 狀態 | Pilot code ready／待 GCP cutover 取證（2026-07-27） |
 | 層級 | 系統級（api / runtime / operations） |
 | 關聯 ADR | refines [ADR-006](./ADR-006_即時高併發骨幹_Kafka_Redis_讀寫分離.md) Phase 0 · [ADR-003](./ADR-003_工程治理排程_API收斂_migration_CD.md) |
 | 來源規劃 | [Plane 借鏡架構優化規劃](../規格統控整理/Plane借鏡架構優化規劃_2026-07-27.md) F |
@@ -81,6 +81,19 @@ audit event，以及 success、duration、lag、oldest pending、retry exhausted
 
 **完成門檻**：API target mode 不再啟動已遷移 job；pilot job 重跑不產生重複 side effect；
 lag／retry exhausted 可觀測；API 與 worker 可獨立部署及 rollback。
+
+## 實作與驗證證據（2026-07-27）
+
+- code-defined registry 已盤出 14 個實際 job，不再沿用規劃快照的 11 個估計；每個 job
+  具 owner、schedule、scope、idempotency、lock、timeout、retry、補償與六項 SLI。
+- `api/worker_main.py` 提供獨立 entrypoint；`BACKGROUND_RUNTIME_MODE=api|hybrid|external`
+  控制 API lifespan，hybrid 已排除 `webhook-idempotency-cleanup` pilot。
+- `scripts/deploy/worker-job.sh` 以同一 API image digest 建 Cloud Run Job，單 task、
+  bounded retry，並可立即執行驗證；LINE／commission outbox 有 durable oldest-pending
+  probe。
+- component/static tests 已驗 registry、run-once、lag/retry exhausted 與 hybrid exclusion。
+  GCP Cloud Scheduler trigger、shadow→cutover→rollback 與重跑零副作用仍需真環境證據，
+  因此 WBS 3.6.6 維持部分完成。
 
 ## 重評觸發
 

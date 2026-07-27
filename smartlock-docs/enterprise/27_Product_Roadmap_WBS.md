@@ -142,19 +142,20 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 ### M3.6 Plane 借鏡架構優化（跨產品體驗、安全與交付）
 
 > 本工作群只導入可對應本平台三庫／四站邊界的原則，不新增 Plane 式
-> Instance → Workspace → Project 階層。`⬜` 表示設計已由 ADR 固定、尚未取得完成證據；
-> OD-001／004 未定案的項目不得越過 decision gate。
+> Instance → Workspace → Project 階層。`✅`＝code 與本機/SIT 證據達工作包門檻；
+> `🟨`＝code ready 但仍缺 production／外部環境證據；OD-001／004 未定案的項目不得
+> 越過 decision gate。
 
 | WBS | 優先級 | 狀態 | 工作包 | 負責 | 前置／決策 gate | 交付物 / 驗收依據 |
 |---|---|---|---|---|---|---|
-| 3.6.1 | P0 | ⬜ | 前端 mutation contract：optimistic／server-confirmed 分級、rollback、精準 invalidation、action idempotency、`409` conflict UX | FE+BE+QA | ADR-034 | 離線／5xx／409／重送 E2E；報價、派工、結算、退款、權限、consent 無 optimistic 假成功 |
-| 3.6.2 | P0 | ⬜ | 偏好與登入資料分層：三庫 `user_preferences` allowlist、跨裝置同步；localStorage token 退場 | FE+BE+DT | ADR-034；2.1.1；OD-004 提供 principal/claim input | schema/API/migration；跨裝置與 version conflict 測試；瀏覽器 storage 無登入 token |
-| 3.6.3 | P1 | ⬜ | Brand Portal Capability-driven Command Palette v1 | FE+BE | 3.6.2；ADR-034 | 搜尋／跳轉／草稿／佇列／通知／saved view；URL、palette、直接 API 授權結果一致 |
-| 3.6.4 | P0 | ⬜ | API resource ownership matrix 與 BOLA／IDOR parameterized contract tests | SEC+BE+QA | ADR-035 | mutation + sensitive read/export 端點 100% 分類；跨 tenant UUID、撤銷 membership、錯 portal、錯 resource owner 全 fail-closed |
-| 3.6.5 | P0 | ⬜ | Service principal／credential lifecycle：hash、scope、expiry、rotation、revoke、audit；遷移共用 `X-Internal-Token` | Platform+SEC+BE | ADR-036；**OD-001／OD-004** | agent/refinery/OHS caller 可辨識；錯 audience/scope/brand 負測綠；fallback 使用量連續一個 release window 為 0 |
-| 3.6.6 | P0 | ⬜ | Background runtime 拆分：job registry、worker entrypoint、Cloud Scheduler/Run Job pilot、outbox metrics | BE+OPS | ADR-037；GCP IAM/Scheduler | 一個低風險 job 完成 shadow→cutover→rollback 演練；重跑零重複 side effect；API 與 worker 可獨立部署 |
-| 3.6.7 | P0 | ⬜ | GCP staging→production promotion、GitHub Environments、WIF 隔離、release manifest、rollback/restore evidence | OPS+QA+SEC | ADR-038；3.6.4；3.6.6 | 同 image digest promotion；required reviewer；manifest 完整；revision rollback、migration forward-fix、restore drill 各成功一次 |
-| 3.6.8 | P2 | ⬜ | `web/shared-contract` 版本化窄例外：runtime types、RFC7807、mutation/conflict、capability contract | FE+OPS | ADR-039；3.6.1；ADR-031 runtime export | 禁止 UI/i18n/theme 依賴的 boundary lint；四站獨立 lockfile build/tsc；breaking change consumer matrix |
+| 3.6.1 | P0 | ✅ 2026-07-27 | 前端 mutation contract：optimistic／server-confirmed 分級、rollback、精準 invalidation、action idempotency、`409` conflict UX | FE+BE+QA | ADR-034 | `shared-contract/mutation` + Notification reference；offline/retry、5xx、409 Playwright **3/3**，同 action key 重送與 rollback 已證 |
+| 3.6.2 | P0 | ✅ 2026-07-27（HTTP；跨 host realtime 另受網域 gate） | 偏好與登入資料分層：三庫 `user_preferences` allowlist、跨裝置同步；localStorage token 退場 | FE+BE+DT | ADR-034；2.1.1；OD-004 僅約束未來跨品牌 claim | migration 120 二套；三面 API/CAS/16 KiB tests；四站 same-origin proxy + HttpOnly cookie；browser token scanner 通過 |
+| 3.6.3 | P1 | ✅ 2026-07-27 | Brand Portal Capability-driven Command Palette v1 | FE+BE | 3.6.2；ADR-034 | Ctrl/⌘+K；搜尋／草稿／佇列／通知／saved view；capability + `rolePolicy` 雙過濾，unit/build 通過 |
+| 3.6.4 | P0 | ✅ 2026-07-27 | API resource ownership matrix 與 BOLA／IDOR parameterized contract tests | SEC+BE+QA | ADR-035 | runtime mutation + sensitive read/export 100% 分類；六類 contract 皆綁 real negative test node id，CI completeness 通過 |
+| 3.6.5 | P0 | 🟨 code ready／待 production gate | Service principal／credential lifecycle：hash、scope、expiry、rotation、revoke、audit；遷移共用 `X-Internal-Token` | Platform+SEC+BE | ADR-036；**OD-001／OD-004** | migration 121、API/auth/caller/負測已綠；尚缺 principal/secret bootstrap、OD transport/claim 定案與 fallback usage 連續一個 release window = 0 |
+| 3.6.6 | P0 | 🟨 pilot ready／待 GCP 演練 | Background runtime 拆分：job registry、worker entrypoint、Cloud Scheduler/Run Job pilot、outbox metrics | BE+OPS | ADR-037；GCP IAM/Scheduler | 14-job registry、獨立 entrypoint、hybrid cutover flag、六項 SLI、Cloud Run Job 腳本已綠；尚缺真實 shadow→cutover→rollback／重跑證據 |
+| 3.6.7 | P0 | 🟨 workflow ready／待外部環境 | GCP staging→production promotion、GitHub Environments、WIF 隔離、release manifest、rollback/restore evidence | OPS+QA+SEC | ADR-038；3.6.4；3.6.6 | 同 digest workflow、雙環境 manifest、health/smoke、rollback/drill tooling 已綠；2026-07-27 稽核 repo Environments=0、Actions vars/secrets=0，且私有 repo 目前方案拒絕 branch protection／required reviewer（403）；尚缺 WIF 與 rollback/forward-fix/restore 真實演練 |
+| 3.6.8 | P2 | ✅ 2026-07-27 | `web/shared-contract` 版本化窄例外：runtime types、RFC7807、mutation/conflict、capability contract | FE+OPS | ADR-039；3.6.1；ADR-031 runtime export | `0.1.0` immutable vendored tarball；boundary/test/build、consumer matrix、四站 lockfile/tsc/production build 全綠 |
 
 ### M4 / M5 平台化（概要層級）
 

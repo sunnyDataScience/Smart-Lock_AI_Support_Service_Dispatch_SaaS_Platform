@@ -108,7 +108,9 @@ def main() -> None:
     print(f"模型:{cfg.model}  租戶:{cfg.tenant}  記憶後端:{cfg.backend}", flush=True)
     # 方案 A / CR-0022 旁路橋接狀態 —— 明示開/關,避免「對話/工單沒進 DB」被靜默略過害人 debug。
     bridge_base = os.environ.get("LOCK_API_BASE_URL")
-    bridge_token = os.environ.get("INTERNAL_API_TOKEN")
+    bridge_token = os.environ.get("AGENT_API_SERVICE_CREDENTIAL") or os.environ.get(
+        "INTERNAL_API_TOKEN"
+    )
     if bridge_base and bridge_token:
         print(
             f"API 橋接:✅ 啟用 → 對話/轉真人草擬卡會寫入 {bridge_base}（conversations + escalations ingest）",
@@ -116,7 +118,12 @@ def main() -> None:
         )
     else:
         missing = " / ".join(
-            n for n, v in (("LOCK_API_BASE_URL", bridge_base), ("INTERNAL_API_TOKEN", bridge_token)) if not v
+            n
+            for n, v in (
+                ("LOCK_API_BASE_URL", bridge_base),
+                ("AGENT_API_SERVICE_CREDENTIAL/INTERNAL_API_TOKEN", bridge_token),
+            )
+            if not v
         )
         print(f"API 橋接:⚠️ 停用（缺 {missing}）→ 對話與轉真人【不會】進 DB / 工單系統，僅本機回覆。", flush=True)
         print(

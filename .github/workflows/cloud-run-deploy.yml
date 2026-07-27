@@ -1,79 +1,453 @@
-# WBS-1.6.1：基礎 CD — 3 Cloud Run 服務（agent / api / web）自動部署 pipeline。
-#
-# 補洞前：部署全靠手動 scripts/deploy/*.sh，18 支 CI 無任何 CD。此 workflow 把既有
-# 部署腳本接成 GitHub Actions CD——manual dispatch 選服務即部署（安全：不在每次 push
-# 盲目 auto-deploy；穩定後可加 push:branches:[main] 觸發）。
-#
-# ⚠️ 啟用前置（OPS，一次性；未設則 auth 步驟明確失敗，不會靜默假成功）：
-#   1. GCP Workload Identity Federation：建 WIF pool/provider 綁本 repo，授權目標 SA。
-#   2. Repo secrets：
-#        GCP_WORKLOAD_IDENTITY_PROVIDER = projects/NNN/locations/global/workloadIdentityPools/POOL/providers/PROVIDER
-#        GCP_SERVICE_ACCOUNT            = deployer@<project>.iam.gserviceaccount.com
-#   3. 目標 SA 需 roles/run.admin + roles/artifactregistry.writer + roles/iam.serviceAccountUser。
-# 部署所需的應用 secrets（API_JWT_SECRET_KEY / POSTGRES_URI / LINE_* / GDPR_DEK_KEK /
-# MEDIA_ENC_KEY 等）由各 deploy 腳本經 Secret Manager 掛載，非本 workflow 職責。
-
+# ADR-038 / WBS 3.6.7：manual release，不接受 branch push 直達 production。
+# GitHub Environments 必須由 repo admin 設定：
+#   staging    -> staging WIF provider / deploy SA
+#   production -> production WIF provider / deploy SA + required reviewer
 name: cloud-run-deploy
 
 on:
   workflow_dispatch:
     inputs:
-      service:
-        description: "要部署的服務"
+      component:
+        description: "一次只晉升一個 component"
         required: true
         type: choice
-        options: [api, agent, web, all]
-        default: api
+        options:
+          - api
+          - agent
+          - brand-web
+          - tech-web
+          - platform-web
+          - landing
+          - worker-job
+      promote_production:
+        description: "staging evidence 通過後進入 production Environment approval"
+        required: true
+        type: boolean
+        default: false
       brand:
-        description: "品牌（對應 scripts/deploy/brands/<brand>.env；留空=預設 locksmart）"
+        description: "scripts/deploy/brands/<brand>.env；空白使用環境預設"
         required: false
         type: string
         default: ""
+      migration_evidence_url:
+        description: "已核准的三庫 migration apply/drift 證據（https:// 或 gs:// durable URL）"
+        required: true
+        type: string
 
 permissions:
   contents: read
-  id-token: write   # WIF 換 GCP token 需要
+  id-token: write
+
+concurrency:
+  group: cloud-run-${{ inputs.component }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  deploy:
+  contract-gate:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Architecture/release contract tests
+        run: >-
+          uv run pytest
+          api/tests/test_cr_0190_resource_ownership_matrix.py
+          api/tests/test_cr_0190_service_credentials.py
+          api/tests/test_cr_0190_job_registry.py
+          api/tests/test_cr_0190_release_governance.py
+          api/tests/test_auth_guards.py::test_missing_authorization_returns_401
+          api/tests/test_public_token.py::test_verify_expired_token_raises
+          api/tests/test_platform_vendor_create.py::test_create_requires_platform_admin
+          api/tests/test_internal_ingest.py::test_ingest_missing_token_401
+          api/tests/test_technicians_v2_endpoint.py::test_get_technician_v2_cross_tenant_403
+          api/tests/test_auth_guards.py::test_tenant_mismatch_returns_403
+          api/tests/test_cr_0182_portal_guard.py::test_tech_token_denied_on_brand_service
+          -q
+      - name: Browser token storage gate
+        run: node scripts/ci/check-browser-token-storage.mjs
+      - name: Durable migration evidence gate
+        env:
+          MIGRATION_EVIDENCE_URL: ${{ inputs.migration_evidence_url }}
+        run: |
+          case "${MIGRATION_EVIDENCE_URL}" in
+            https://*|gs://*) ;;
+            *) echo "migration_evidence_url must be a durable https:// or gs:// URL"; exit 1 ;;
+          esac
+
+  build-once:
+    needs: contract-gate
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      image: ${{ steps.image.outputs.image }}
+      image_digest: ${{ steps.image.outputs.digest }}
+      artifact_name: ${{ steps.component.outputs.artifact_name }}
     env:
       BRAND: ${{ inputs.brand }}
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      REPO: ${{ vars.ARTIFACT_REPOSITORY }}
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # deploy 腳本用 git short SHA 當 image tag
-
-      - name: Authenticate to GCP (Workload Identity Federation)
-        uses: google-github-actions/auth@v2
+          fetch-depth: 0
+      - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Configure Docker for Artifact Registry
-        run: gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
-
-      - name: Set up uv (agent / api)
-        if: ${{ inputs.service == 'api' || inputs.service == 'agent' || inputs.service == 'all' }}
-        uses: astral-sh/setup-uv@v3
-
-      - name: Set up Node (web)
-        if: ${{ inputs.service == 'web' || inputs.service == 'all' }}
-        uses: actions/setup-node@v4
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud config set project "${PROJECT_ID}"
+      - uses: astral-sh/setup-uv@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      - name: Configure Artifact Registry
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - name: Resolve immutable artifact target
+        id: component
+        shell: bash
+        run: |
+          case "${{ inputs.component }}" in
+            api|worker-job) artifact_name="smart-lock-api" ;;
+            agent) artifact_name="smart-lock-agent" ;;
+            brand-web) artifact_name="smart-lock-brand-web" ;;
+            tech-web) artifact_name="smart-lock-tech-web" ;;
+            platform-web) artifact_name="smart-lock-platform-web" ;;
+            landing) artifact_name="smart-lock-landing" ;;
+            *) exit 2 ;;
+          esac
+          echo "artifact_name=${artifact_name}" >> "${GITHUB_OUTPUT}"
+      - name: Build and push once
+        shell: bash
+        run: |
+          image="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${{ steps.component.outputs.artifact_name }}:sha-${GITHUB_SHA}"
+          case "${{ inputs.component }}" in
+            api|worker-job)
+              IMAGE_OVERRIDE="${image}" SERVICE_NAME="${{ steps.component.outputs.artifact_name }}" \
+                ./scripts/deploy/api.sh --build-only
+              ;;
+            agent)
+              IMAGE_OVERRIDE="${image}" SERVICE_NAME="${{ steps.component.outputs.artifact_name }}" \
+                ./scripts/deploy/agent.sh --build-only
+              ;;
+            brand-web)
+              IMAGE_OVERRIDE="${image}" SERVICE_NAME="${{ steps.component.outputs.artifact_name }}" \
+                PROMOTION_BUILD=1 WEB_APP=brand-portal ./scripts/deploy/web.sh --build-only
+              ;;
+            tech-web)
+              IMAGE_OVERRIDE="${image}" SERVICE_NAME="${{ steps.component.outputs.artifact_name }}" \
+                PROMOTION_BUILD=1 WEB_APP=tech-portal ./scripts/deploy/web.sh --build-only
+              ;;
+            platform-web)
+              IMAGE_OVERRIDE="${image}" SERVICE_NAME="${{ steps.component.outputs.artifact_name }}" \
+                PROMOTION_BUILD=1 WEB_APP=platform-console ./scripts/deploy/web.sh --build-only
+              ;;
+            landing)
+              IMAGE_OVERRIDE="${image}" SERVICE_NAME="${{ steps.component.outputs.artifact_name }}" \
+                PROMOTION_BUILD=1 WEB_APP=landing ./scripts/deploy/web.sh --build-only
+              ;;
+          esac
+      - name: Resolve registry digest
+        id: image
+        shell: bash
+        run: |
+          tagged="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${{ steps.component.outputs.artifact_name }}:sha-${GITHUB_SHA}"
+          digest=$(gcloud artifacts docker images describe "${tagged}" --format='value(image_summary.digest)')
+          [[ "${digest}" =~ ^sha256:[0-9a-f]{64}$ ]]
+          echo "image=${tagged%:*}@${digest}" >> "${GITHUB_OUTPUT}"
+          echo "digest=${digest}" >> "${GITHUB_OUTPUT}"
 
-      - name: Deploy api
-        if: ${{ inputs.service == 'api' || inputs.service == 'all' }}
-        run: ./scripts/deploy/api.sh
+  deploy-staging:
+    needs: build-once
+    runs-on: ubuntu-latest
+    environment: staging
+    outputs:
+      revision: ${{ steps.capture.outputs.revision }}
+      previous_revision: ${{ steps.resource.outputs.previous_revision }}
+      resource_name: ${{ steps.resource.outputs.resource_name }}
+      health_url: ${{ steps.capture.outputs.health_url }}
+    env:
+      BRAND: ${{ inputs.brand }}
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      REPO: ${{ vars.ARTIFACT_REPOSITORY }}
+      SERVICE_ACCOUNT: ${{ vars.RUNTIME_SERVICE_ACCOUNT }}
+      SERVICE_PREFIX: ${{ vars.CLOUD_RUN_SERVICE_PREFIX }}
+      IMAGE_OVERRIDE: ${{ needs.build-once.outputs.image }}
+      BACKGROUND_RUNTIME_MODE: ${{ vars.BACKGROUND_RUNTIME_MODE || 'api' }}
+      EXTERNALIZED_JOB_IDS: ${{ vars.EXTERNALIZED_JOB_IDS || 'webhook-idempotency-cleanup' }}
+      CASDOOR_ENDPOINT: ${{ vars.CASDOOR_ENDPOINT }}
+      CASDOOR_CLIENT_ID: ${{ vars.CASDOOR_CLIENT_ID }}
+      AUTH_COOKIE_DOMAIN: ${{ vars.AUTH_COOKIE_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud config set project "${PROJECT_ID}"
+      - name: Resolve resource and previous revision
+        id: resource
+        shell: bash
+        run: |
+          suffix="${{ inputs.component }}"
+          if [[ "${suffix}" == "worker-job" ]]; then
+            resource_name="${SERVICE_PREFIX}-webhook-cleanup"
+            previous=""
+            url=""
+          else
+            resource_name="${SERVICE_PREFIX}-${suffix}"
+            previous=$(gcloud run services describe "${resource_name}" --region="${REGION}" \
+              --format='value(status.latestReadyRevisionName)' 2>/dev/null || true)
+            url=$(gcloud run services describe "${resource_name}" --region="${REGION}" \
+              --format='value(status.url)' 2>/dev/null || true)
+          fi
+          echo "resource_name=${resource_name}" >> "${GITHUB_OUTPUT}"
+          echo "previous_revision=${previous}" >> "${GITHUB_OUTPUT}"
+          echo "health_url=${url}" >> "${GITHUB_OUTPUT}"
+      - name: Deploy exact staging digest
+        shell: bash
+        run: |
+          name="${{ steps.resource.outputs.resource_name }}"
+          case "${{ inputs.component }}" in
+            api)
+              SERVICE_NAME="${name}" WEB_SERVICE_NAME="${SERVICE_PREFIX}-brand-web" \
+                ./scripts/deploy/api.sh --deploy-only ;;
+            agent)
+              SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-api" \
+                ./scripts/deploy/agent.sh --deploy-only ;;
+            brand-web)
+              SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-api" \
+                API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}" \
+                PLATFORM_API_BASE_URL="${{ vars.RUNTIME_PLATFORM_API_BASE_URL }}" WEB_APP=brand-portal \
+                ./scripts/deploy/web.sh --deploy-only ;;
+            tech-web)
+              SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-tech-api" \
+                API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}" \
+                PLATFORM_API_BASE_URL="${{ vars.RUNTIME_PLATFORM_API_BASE_URL }}" WEB_APP=tech-portal \
+                ./scripts/deploy/web.sh --deploy-only ;;
+            platform-web)
+              SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-platform-api" \
+                API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}" WEB_APP=platform-console \
+                ./scripts/deploy/web.sh --deploy-only ;;
+            landing)
+              SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-api" \
+                API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}" \
+                PLATFORM_API_BASE_URL="${{ vars.RUNTIME_PLATFORM_API_BASE_URL }}" WEB_APP=landing \
+                ./scripts/deploy/web.sh --deploy-only ;;
+            worker-job)
+              JOB_NAME="${name}" EXECUTE_JOB=1 ./scripts/deploy/worker-job.sh ;;
+          esac
+      - name: Capture deployed revision
+        id: capture
+        shell: bash
+        run: |
+          name="${{ steps.resource.outputs.resource_name }}"
+          if [[ "${{ inputs.component }}" == "worker-job" ]]; then
+            revision=$(gcloud run jobs describe "${name}" --region="${REGION}" \
+              --format='value(metadata.generation)')
+            url=""
+          else
+            revision=$(gcloud run services describe "${name}" --region="${REGION}" \
+              --format='value(status.latestReadyRevisionName)')
+            url=$(gcloud run services describe "${name}" --region="${REGION}" \
+              --format='value(status.url)')
+          fi
+          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+          echo "health_url=${url}" >> "${GITHUB_OUTPUT}"
 
-      - name: Deploy agent
-        if: ${{ inputs.service == 'agent' || inputs.service == 'all' }}
-        run: ./scripts/deploy/agent.sh
+  staging-evidence:
+    needs: [build-once, deploy-staging]
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - name: Static BOLA and worker evidence
+        run: >-
+          uv run pytest
+          api/tests/test_cr_0190_resource_ownership_matrix.py
+          api/tests/test_cr_0190_job_registry.py
+          api/tests/test_auth_guards.py::test_missing_authorization_returns_401
+          api/tests/test_public_token.py::test_verify_expired_token_raises
+          api/tests/test_platform_vendor_create.py::test_create_requires_platform_admin
+          api/tests/test_internal_ingest.py::test_ingest_missing_token_401
+          api/tests/test_technicians_v2_endpoint.py::test_get_technician_v2_cross_tenant_403
+          api/tests/test_auth_guards.py::test_tenant_mismatch_returns_403
+          api/tests/test_cr_0182_portal_guard.py::test_tech_token_denied_on_brand_service
+          -q
+      - name: Health/smoke
+        if: ${{ inputs.component != 'worker-job' }}
+        env:
+          HEALTH_URL: ${{ needs.deploy-staging.outputs.health_url }}
+        run: |
+          test -n "${HEALTH_URL}"
+          path="/"
+          [[ "${{ inputs.component }}" == "api" || "${{ inputs.component }}" == "agent" ]] && path="/health"
+          curl --fail --retry 6 --retry-all-errors "${HEALTH_URL}${path}"
+      - name: Migration drift
+        run: uv run python scripts/ci/migration-drift-check.py
+      - name: Create and validate staging release manifest
+        env:
+          WORKFLOW_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          kind="service"
+          [[ "${{ inputs.component }}" == "worker-job" ]] && kind="job"
+          output="release-evidence/${GITHUB_RUN_ID}-${{ inputs.component }}-staging.json"
+          uv run python scripts/release/release_manifest.py create \
+            --release-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-staging" \
+            --environment staging \
+            --component "${{ inputs.component }}" \
+            --commit-sha "${GITHUB_SHA}" \
+            --image "${{ needs.build-once.outputs.image }}" \
+            --resource-kind "${kind}" \
+            --resource-name "${{ needs.deploy-staging.outputs.resource_name }}" \
+            --revision "${{ needs.deploy-staging.outputs.revision }}" \
+            --previous-revision "${{ needs.deploy-staging.outputs.previous_revision }}" \
+            --health-url "${{ needs.deploy-staging.outputs.health_url }}" \
+            --operator "${GITHUB_ACTOR}" \
+            --workflow-run "${WORKFLOW_RUN}" \
+            --health-evidence "${WORKFLOW_RUN}" \
+            --smoke-evidence "${WORKFLOW_RUN}" \
+            --bola-evidence "${WORKFLOW_RUN}" \
+            --worker-evidence "${WORKFLOW_RUN}" \
+            --migration-evidence "${{ inputs.migration_evidence_url }}" \
+            --config-references "GitHubEnvironment:staging" \
+            --secret-references "POSTGRES_URI:latest,API_JWT_SECRET_KEY:latest,SERVICE_CREDENTIAL_PEPPER:latest" \
+            --output "${output}"
+          uv run python scripts/release/release_manifest.py validate "${output}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ github.run_id }}-${{ inputs.component }}-staging
+          path: release-evidence/*.json
+          if-no-files-found: error
+          retention-days: 90
 
-      - name: Deploy web
-        if: ${{ inputs.service == 'web' || inputs.service == 'all' }}
-        run: ./scripts/deploy/web.sh
+  promote-production:
+    if: ${{ inputs.promote_production }}
+    needs: [build-once, deploy-staging, staging-evidence]
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      BRAND: ${{ inputs.brand }}
+      PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+      REGION: ${{ vars.GCP_REGION }}
+      REPO: ${{ vars.ARTIFACT_REPOSITORY }}
+      SERVICE_ACCOUNT: ${{ vars.RUNTIME_SERVICE_ACCOUNT }}
+      SERVICE_PREFIX: ${{ vars.CLOUD_RUN_SERVICE_PREFIX }}
+      IMAGE_OVERRIDE: ${{ needs.build-once.outputs.image }}
+      BACKGROUND_RUNTIME_MODE: ${{ vars.BACKGROUND_RUNTIME_MODE || 'api' }}
+      EXTERNALIZED_JOB_IDS: ${{ vars.EXTERNALIZED_JOB_IDS || 'webhook-idempotency-cleanup' }}
+      CASDOOR_ENDPOINT: ${{ vars.CASDOOR_ENDPOINT }}
+      CASDOOR_CLIENT_ID: ${{ vars.CASDOOR_CLIENT_ID }}
+      AUTH_COOKIE_DOMAIN: ${{ vars.AUTH_COOKIE_DOMAIN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - run: gcloud config set project "${PROJECT_ID}"
+      - name: Assert immutable digest from staging
+        run: |
+          [[ "${IMAGE_OVERRIDE}" == *@sha256:* ]]
+          test "${IMAGE_OVERRIDE#*@}" = "${{ needs.build-once.outputs.image_digest }}"
+      - name: Capture previous production revision
+        id: previous
+        shell: bash
+        run: |
+          name="${SERVICE_PREFIX}-${{ inputs.component }}"
+          [[ "${{ inputs.component }}" == "worker-job" ]] && name="${SERVICE_PREFIX}-webhook-cleanup"
+          if [[ "${{ inputs.component }}" == "worker-job" ]]; then
+            previous=""
+          else
+            previous=$(gcloud run services describe "${name}" --region="${REGION}" \
+              --format='value(status.latestReadyRevisionName)' 2>/dev/null || true)
+          fi
+          echo "resource_name=${name}" >> "${GITHUB_OUTPUT}"
+          echo "previous_revision=${previous}" >> "${GITHUB_OUTPUT}"
+      - name: Promote exact digest (no rebuild)
+        shell: bash
+        run: |
+          name="${{ steps.previous.outputs.resource_name }}"
+          case "${{ inputs.component }}" in
+            api) SERVICE_NAME="${name}" WEB_SERVICE_NAME="${SERVICE_PREFIX}-brand-web" \
+              ./scripts/deploy/api.sh --deploy-only ;;
+            agent) SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-api" \
+              ./scripts/deploy/agent.sh --deploy-only ;;
+            brand-web) SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-api" \
+              API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}" PLATFORM_API_BASE_URL="${{ vars.RUNTIME_PLATFORM_API_BASE_URL }}" \
+              WEB_APP=brand-portal ./scripts/deploy/web.sh --deploy-only ;;
+            tech-web) SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-tech-api" \
+              API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}" PLATFORM_API_BASE_URL="${{ vars.RUNTIME_PLATFORM_API_BASE_URL }}" \
+              WEB_APP=tech-portal ./scripts/deploy/web.sh --deploy-only ;;
+            platform-web) SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-platform-api" \
+              API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}" WEB_APP=platform-console ./scripts/deploy/web.sh --deploy-only ;;
+            landing) SERVICE_NAME="${name}" API_SERVICE_NAME="${SERVICE_PREFIX}-api" \
+              API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}" PLATFORM_API_BASE_URL="${{ vars.RUNTIME_PLATFORM_API_BASE_URL }}" \
+              WEB_APP=landing ./scripts/deploy/web.sh --deploy-only ;;
+            worker-job) JOB_NAME="${name}" EXECUTE_JOB=1 ./scripts/deploy/worker-job.sh ;;
+          esac
+      - name: Capture manifest fields
+        id: current
+        shell: bash
+        run: |
+          name="${{ steps.previous.outputs.resource_name }}"
+          if [[ "${{ inputs.component }}" == "worker-job" ]]; then
+            revision=$(gcloud run jobs describe "${name}" --region="${REGION}" --format='value(metadata.generation)')
+            health_url=""
+            kind="job"
+          else
+            revision=$(gcloud run services describe "${name}" --region="${REGION}" --format='value(status.latestReadyRevisionName)')
+            health_url=$(gcloud run services describe "${name}" --region="${REGION}" --format='value(status.url)')
+            kind="service"
+          fi
+          echo "revision=${revision}" >> "${GITHUB_OUTPUT}"
+          echo "health_url=${health_url}" >> "${GITHUB_OUTPUT}"
+          echo "kind=${kind}" >> "${GITHUB_OUTPUT}"
+      - name: Production health/smoke
+        if: ${{ inputs.component != 'worker-job' }}
+        env:
+          HEALTH_URL: ${{ steps.current.outputs.health_url }}
+        run: |
+          test -n "${HEALTH_URL}"
+          path="/"
+          [[ "${{ inputs.component }}" == "api" || "${{ inputs.component }}" == "agent" ]] && path="/health"
+          curl --fail --retry 6 --retry-all-errors "${HEALTH_URL}${path}"
+      - name: Create and validate production release manifest
+        env:
+          WORKFLOW_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          output="release-evidence/${GITHUB_RUN_ID}-${{ inputs.component }}-production.json"
+          uv run python scripts/release/release_manifest.py create \
+            --release-id "${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --environment production \
+            --component "${{ inputs.component }}" \
+            --commit-sha "${GITHUB_SHA}" \
+            --image "${IMAGE_OVERRIDE}" \
+            --resource-kind "${{ steps.current.outputs.kind }}" \
+            --resource-name "${{ steps.previous.outputs.resource_name }}" \
+            --revision "${{ steps.current.outputs.revision }}" \
+            --previous-revision "${{ steps.previous.outputs.previous_revision }}" \
+            --health-url "${{ steps.current.outputs.health_url }}" \
+            --operator "${GITHUB_ACTOR}" \
+            --workflow-run "${WORKFLOW_RUN}" \
+            --health-evidence "${WORKFLOW_RUN}" \
+            --smoke-evidence "${WORKFLOW_RUN}" \
+            --bola-evidence "${WORKFLOW_RUN}" \
+            --worker-evidence "${WORKFLOW_RUN}" \
+            --migration-evidence "${{ inputs.migration_evidence_url }}" \
+            --config-references "GitHubEnvironment:production" \
+            --secret-references "POSTGRES_URI:latest,API_JWT_SECRET_KEY:latest,SERVICE_CREDENTIAL_PEPPER:latest" \
+            --output "${output}"
+          uv run python scripts/release/release_manifest.py validate "${output}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-manifest-${{ github.run_id }}-${{ inputs.component }}-production
+          path: release-evidence/*.json
+          if-no-files-found: error
+          retention-days: 90

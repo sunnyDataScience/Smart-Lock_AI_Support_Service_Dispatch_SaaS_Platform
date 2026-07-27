@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Search } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import ProblemCardsTable from "@/components/problem-cards/ProblemCardsTable";
 import { api, resolveTenantId, tenantPath } from "@/lib/api";
@@ -10,7 +10,7 @@ import { LOCK_BRANDS } from "@/lib/constants/brands";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
 import { usePaginatedFetch } from "@/hooks/usePaginatedFetch";
 import type { components } from "@/types/api.generated";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type ProblemCard = components["schemas"]["ProblemCard"];
 type ProblemCardEnvelope = components["schemas"]["ProblemCardEnvelope"];
@@ -44,6 +44,8 @@ export default function ProblemCardsPage() {
   const t = useTranslations("pages.problemCards");
   const tFilters = useTranslations("pages.problemCards.filters");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const searchRef = useRef<HTMLInputElement>(null);
 
   // CR-0002-α：遷移至 tenant-scoped v2 端點
   const tenantId = resolveTenantId();
@@ -105,6 +107,15 @@ export default function ProblemCardsPage() {
     const timer = setTimeout(() => setCreateToast(null), 2400);
     return () => clearTimeout(timer);
   }, [createToast]);
+
+  useEffect(() => {
+    const action = searchParams.get("palette");
+    if (action === "search") searchRef.current?.focus();
+    if (action === "create") {
+      setCreateError(null);
+      setCreateOpen(true);
+    }
+  }, [searchParams]);
 
   const handleCreate = async (req: ManualProblemCardCreateRequest) => {
     setCreating(true);
@@ -229,6 +240,7 @@ export default function ProblemCardsPage() {
           <div className="flex h-9 flex-1 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--bg-page)] px-3">
             <Search className="h-4 w-4 text-[var(--text-secondary)]" />
             <input
+              ref={searchRef}
               type="text"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
