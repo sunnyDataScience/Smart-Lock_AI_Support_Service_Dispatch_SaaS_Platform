@@ -16,6 +16,7 @@ Env vars (process env or secret manager only — never tracked files):
 | `PLANE_API_KEY`   | SDK/CLI/MCP | Sent only as `X-API-Key`; never echoed by tools                           |
 | `PLANE_WORKSPACE` | CLI         | Workspace slug (CLI flag `--workspace`)                                   |
 | `PLANE_PROJECT`   | CLI         | Project UUID or identifier; required for everything except `project list` |
+| `PLANE_QA_MCP_SERVER` | `.mcp.json` | Absolute path to the local `plane-qa-mcp/dist/server.mjs` checkout; per-machine, so it is not hardcoded in the tracked config |
 
 ## SDK — `@plane/qa-sdk` (`packages/qa-sdk/`)
 

@@ -25,7 +25,7 @@
       "type": "stdio",
       "command": "node",
       "args": [
-        "/home/os-sunnie.gd.weng/python_workstation/github_sunny/plane-QA-management/apps/plane-qa-mcp/dist/server.mjs"
+        "${PLANE_QA_MCP_SERVER}"
       ],
       "env": {
         "PLANE_URL": "${PLANE_URL}",
