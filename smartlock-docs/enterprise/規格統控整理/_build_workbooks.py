@@ -46,6 +46,7 @@ OUTPUTS = {
 }
 GLOSSARY_MD = HERE / "SAD_SDS元件標籤字典.md"
 HEALTH_MD = HERE / "產出健康報告.md"
+OPEN_DECISIONS_MD = HERE.parent / "14_ADR" / "OPEN_DECISIONS.md"
 
 FONT = "Noto Sans CJK TC"
 NAVY = "1F3864"
@@ -170,6 +171,7 @@ class Model:
         self.cases = C.load_test_cases()
         self.rel = C.load_relations()
         self.adrs = C.load_adrs()
+        self.open_decisions = C.load_open_decisions()
         self.wbs = C.load_wbs()
         self.ts = C.load_test_scenarios()
         self.report, self.counts = V.run()
@@ -615,9 +617,9 @@ def build_planning(m: Model) -> None:
         ("只回答一個問題", "哪裡有洞、哪裡卡我決策、什麼時候做？"),
         ("為什麼這本沒有需求清單",
          "需求清單在 BOM，案例清單在測試計畫，旅程清單在驗收控制表。"
-         "這本若再排一次，就是同一份資料的第四種投影——那正是舊版八個分頁在做的事。"),
+        "這本若再排一次，就是同一份資料的第四種投影——那正是舊版八個分頁在做的事。"),
         ("怎麼下手",
-         "② 是機器算出來的缺口，按規則分群，每列都有責任角色。"
+         "② 是機器算出來的缺口，加上由 14_ADR/open_decisions.yaml 宣告的開放架構決策。"
          "你要做的是在黃色欄填「決策」「期限」「負責人」——沒有 owner 的缺口永遠不會關。"),
         ("缺口為什麼不擋生成",
          "擋生成只會讓人用假資料把洞填平，那比洞本身更糟。缺口一律放行、一律列出、一律有名有姓。"),
@@ -654,8 +656,25 @@ def build_planning(m: Model) -> None:
         if prio == "P0":
             ws.cell(r, 6).font = Font(name=FONT, size=10, bold=True, color="C00000")
         r += 1
-    dropdown(ws, "K", 2, r - 1, "Open,Accepted Risk,Scheduled,Closed",
-             "只能填 Open/Accepted Risk/Scheduled/Closed")
+    if m.open_decisions:
+        banner(ws, r, len(headers), "OD —— 開放架構決策（14_ADR/open_decisions.yaml；不是已定案 ADR）")
+        r += 1
+    for d in m.open_decisions:
+        affected = "、".join(d.get("affected_scenarios") or []) or "—"
+        owner = C.plain(d.get("owner"))
+        status = {"open": "Open", "decided": "Decided", "superseded": "Superseded"}.get(
+            str(d.get("status", "")), C.plain(d.get("status")))
+        description = f"{C.plain(d.get('decision'))}\nGate: {C.plain(d.get('decision_gate'))}"
+        row(ws, r, [
+            "OD", "開放架構決策（ADR 實作細節）",
+            f"{d.get('id', '')} {C.plain(d.get('title'))}", description,
+            affected, C.plain(d.get("priority")), owner, "", "", owner, status,
+        ], kinds, height=48)
+        if d.get("priority") == "P0":
+            ws.cell(r, 6).font = Font(name=FONT, size=10, bold=True, color="C00000")
+        r += 1
+    dropdown(ws, "K", 2, r - 1, "Open,In Review,Decided,Superseded,Accepted Risk,Scheduled,Closed",
+             "只能填 Open/In Review/Decided/Superseded/Accepted Risk/Scheduled/Closed")
     finish(ws, len(headers), r - 1)
     ws.freeze_panes = "C2"
 
@@ -710,6 +729,65 @@ def write_glossary_md() -> None:
     GLOSSARY_MD.write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_open_decisions_md(m: Model) -> None:
+    """Render the human view of the YAML decision register; YAML remains the SSOT."""
+    lines = [
+        "---",
+        "title: 開放架構決策登記",
+        f"last_updated: {C.GENERATED_ON}",
+        "status: active",
+        "owner: PM / 平台架構師",
+        "source: open_decisions.yaml",
+        "---",
+        "",
+        "# 開放架構決策登記",
+        "",
+        "> **唯一可寫入來源**：[open_decisions.yaml](./open_decisions.yaml)。本檔由四書生成器輸出為可讀投影；"
+        "不要直接編輯。`OD-*` 是待決議題，不是 ADR 編號，也不得寫成既定架構。",
+        "",
+        "## 標籤定義",
+        "",
+        "- **OD**：Open Decision，已接受 ADR 的實作細節或跨領域取捨仍需裁決。",
+        "- **Open / Decided / Superseded**：尚未裁決／已由新 ADR 或明確裁決定版／被另一決策取代。",
+        "- **Current AS-BUILT**：目前程式或部署可觀察的事實；不等於目標架構或 production 證據。",
+        "- **技術建議**：技術立場，不是決議；只有 approvers 的裁決才能使 OD 關閉。",
+        "- **Decision gate**：未定案前不可越過的 release／擴展門檻。",
+        "",
+        "## 總覽",
+        "",
+        "| OD | 狀態 | 優先級 | 決策 Owner | 關聯情境 |",
+        "|---|---|---|---|---|",
+    ]
+    for d in m.open_decisions:
+        lines.append(
+            f"| {d.get('id')} {C.plain(d.get('title'))} | {d.get('status')} | {d.get('priority')} | "
+            f"{C.plain(d.get('owner'))} | {'、'.join(d.get('affected_scenarios') or [])} |"
+        )
+    for d in m.open_decisions:
+        lines += [
+            "",
+            f"## {d.get('id')} — {C.plain(d.get('title'))}",
+            "",
+            f"- **狀態**：`{d.get('status')}`",
+            f"- **優先級**：{d.get('priority')}",
+            f"- **Owner**：{C.plain(d.get('owner'))}",
+            f"- **Approvers**：{C.plain(d.get('approvers'))}",
+            f"- **要做的決策**：{C.plain(d.get('decision'))}",
+            f"- **Current AS-BUILT**：{C.plain(d.get('current_as_built'))}",
+            "- **選項**：",
+        ]
+        lines += [f"  - {C.plain(option)}" for option in d.get("options") or []]
+        lines += [
+            f"- **技術建議（尚非決議）**：{C.plain(d.get('recommended'))}",
+            f"- **Decision gate**：{C.plain(d.get('decision_gate'))}",
+            f"- **拍板前所需證據**：{C.plain(d.get('evidence_required'))}",
+            f"- **受影響 ADR**：{'、'.join(d.get('affected_adrs') or [])}",
+            f"- **拍板後必回填**：{'、'.join(d.get('affected_artifacts') or [])}",
+            f"- **受影響情境**：{'、'.join(d.get('affected_scenarios') or [])}",
+        ]
+    OPEN_DECISIONS_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def write_health_md(m: Model) -> None:
     n = m.counts
     by_rule = Counter(f.rule for f in m.report.findings)
@@ -726,6 +804,15 @@ def write_health_md(m: Model) -> None:
         f"- **{rule}**（{RULE_MEANING.get(rule, '')}）：{count} 筆"
         for rule, count in sorted(by_rule.items())
     )
+    open_od = [d for d in m.open_decisions if d.get("status") == "open"]
+    qa_status = (
+        "追溯設計檢查為 0 finding；這只表示案例與 UAT 選案已定義，所有案例的執行結果仍須在 SIT/UAT 填寫。"
+        if not m.report.findings else
+        "仍有追溯設計缺口，須先在關聯真相源修正。"
+    )
+    open_od_summary = "、".join(
+        f"`{d.get('id')}` {C.plain(d.get('title'))}" for d in open_od
+    ) or "無"
 
     HEALTH_MD.write_text(f"""# Smart Lock 規格四書產出健康報告
 
@@ -733,7 +820,7 @@ def write_health_md(m: Model) -> None:
 > 生成器：`_build_workbooks.py`（單一產出者）<br>
 > Codebase 快照：`{CODEBASE_SNAPSHOT['branch']}@{CODEBASE_SNAPSHOT['commit']}`（統控基線 `{CODEBASE_SNAPSHOT['baseline']}`）<br>
 > 真相源：`../28_Scenarios.md`（SC）、`../04_SRS.md`（FR）、`../05_NFR.md`（NFR）、
-> `../20_Test_Cases.md`（TC）、`_relations/*.yaml`（三條邊）。xlsx 一律單向快照。
+> `../20_Test_Cases.md`（TC）、`_relations/*.yaml`（三條邊）、`../14_ADR/open_decisions.yaml`（開放架構決策）。xlsx 一律單向快照。
 
 ## 產出檔
 
@@ -764,14 +851,24 @@ def write_health_md(m: Model) -> None:
 
 {rules}
 
+{qa_status}
+
 重點缺口：
 
 - **{len(no_script)}/{len(p0_sc)} 條 P0 旅程沒有驗收腳本**：{'、'.join(sorted(no_script)) or '無'}。
-  22_UAT_Report 只寫了 5 段腳本，涵蓋不到 19 條旅程——這是 UAT 的缺漏，不是關聯表的缺漏。
+  UAT 腳本已擴至 S1–S9；執行結果仍是待填，不能把設計覆蓋當成 UAT 通過。
 - **{len(orphan_reqs)} 條需求沒有任何旅程需要、也沒宣告 global**：無法反向解釋「為了哪段旅程存在」的需求，
   就是想像出來的需求。要嘛補 SC 邊、要嘛宣告 global、要嘛刪。
 - **V10 {by_rule.get('V10', 0)} 筆**：P0 旅程的需求只有正向案例或完全沒案例。
   只問「happy path」的訪談產出的規格就長這樣，代價在 UAT 前兩週結清。
+
+## 開放架構決策（{len(open_od)} 筆）
+
+{open_od_summary}。
+
+它們不屬於 V2/V7/V9/V10 的測試追溯缺口，也不能被「程式已存在」自動關閉。請在
+[`../14_ADR/OPEN_DECISIONS.md`](../14_ADR/OPEN_DECISIONS.md) 依 decision gate 取得跨角色裁決；
+拍板後以新 ADR 或既有 ADR 的 append-only Status 附註留痕。
 
 ## 治理規則
 
@@ -801,6 +898,7 @@ def main() -> int:
     build_test(m)
     build_planning(m)
     write_glossary_md()
+    write_open_decisions_md(m)
     write_health_md(m)
 
     print(f"SC {m.counts['sc']}  FR {m.counts['fr']}  NFR {m.counts['nfr']}  TC {len(m.cases)}")

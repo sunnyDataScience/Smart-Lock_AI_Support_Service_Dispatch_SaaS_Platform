@@ -288,7 +288,7 @@
 - **Code reality**：AS-BUILT ｜ PARTIAL（跨系統事件依 Kafka 啟用）
 - **SAD 回查**：[12_SAD §4.2 ｜ 12_SAD §4.2、§4.6 ｜ 12_SAD §4.2、§9](../12_SAD.md)
 - **SDS 回查**：[15_SDS §3.1、§6.1 ｜ 15_SDS §3.3–3.5、§4.1–4.2、§6.1 ｜ 15_SDS §4.2、§4.6、§6.1 ｜ 15_SDS §4.2、§6.1、§7.3](../15_SDS.md)
-- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py ｜ api/routers/; api/services/{problem_card_service,quote_engine_service}.py; api/core/db.py ｜ api/services/{invoice_service,settlement_service,reconciliation_service,technician_statement_service}.py; api/core/{db,event_bus}.py ｜ api/services/{work_order_service,consent_service}.py; api/routers/work_orders_v2.py; api/core/db.py`
+- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py; api/services/audit_log_service.py ｜ api/routers/; api/services/{problem_card_service,quote_engine_service}.py; api/core/db.py ｜ api/services/{invoice_service,settlement_service,reconciliation_service,technician_statement_service}.py; api/core/{db,event_bus}.py ｜ api/services/{work_order_service,consent_service}.py; api/routers/work_orders_v2.py; api/core/db.py`
 
 ## API_SURFACE router filter
 
@@ -300,6 +300,17 @@
 - **SAD 回查**：[12_SAD §4.2、§4.5 ｜ 12_SAD §4.2、§9](../12_SAD.md)
 - **SDS 回查**：[15_SDS §6.1、§6.4 ｜ 15_SDS §6.1、§7.1–7.2](../15_SDS.md)
 - **實作證據路徑**：`api/main.py; api/core/{deps,errors,idempotency,auth,pii_crypto,db}.py ｜ api/main.py; api/routers/{technicians_v2,platform_technicians,technician_certifications_v2,technician_lifecycle_v2}.py; api/services/technician_{service,kyc_service,certification_service,lifecycle_service}.py; api/core/{db,tech_mirror}.py; SQL/tech_authority/; web/tech-portal/`
+
+## Portal Claim Guard
+
+- **別名／原概括詞**：跨 portal token 守衛
+- **定義／負責什麼**：依 token 的 portal claim（或由角色推導）與部署面 ALLOWED_TOKEN_PORTALS 比對，拒絕技師、品牌、平台 token 跨面存取。
+- **邊界／不負責什麼**：只隔離 API surface；同一 portal 內仍須由 role_required、租戶與資源規則決定可否存取。未設定 ALLOWED_TOKEN_PORTALS 的本機／測試環境不強制此 guard。
+- **使用於能力群**：API·GOV
+- **Code reality**：AS-BUILT
+- **SAD 回查**：[12_SAD §4.2、§9](../12_SAD.md)
+- **SDS 回查**：[15_SDS §6.1、§6.4](../15_SDS.md)
+- **實作證據路徑**：`api/main.py; api/core/{deps,errors,idempotency,auth,pii_crypto,db}.py`
 
 ## Three-DB Connection Router
 
@@ -640,7 +651,7 @@
 - **Code reality**：AS-BUILT
 - **SAD 回查**：[12_SAD §4.2、§4.6](../12_SAD.md)
 - **SDS 回查**：[15_SDS §3.1、§6.1](../15_SDS.md)
-- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py`
+- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py; api/services/audit_log_service.py`
 
 ## forward-only migrations
 
@@ -651,7 +662,18 @@
 - **Code reality**：AS-BUILT
 - **SAD 回查**：[12_SAD §4.2、§4.6](../12_SAD.md)
 - **SDS 回查**：[15_SDS §3.1、§6.1](../15_SDS.md)
-- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py`
+- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py; api/services/audit_log_service.py`
+
+## migration registry + routed apply
+
+- **別名／原概括詞**：三庫 migration 登記與分流套用
+- **定義／負責什麼**：以 migration 檔頭的 migrate-targets 將 schema 變更分流套用到品牌、技師與平台庫，並各自寫入 schema_migrations，再由 drift-check 對照登記簿。
+- **邊界／不負責什麼**：提供受控套用與可檢查性；不代表任何 production 環境已套用或資料 backfill 已完成。
+- **使用於能力群**：DAT·SCH
+- **Code reality**：AS-BUILT
+- **SAD 回查**：[12_SAD §4.2、§4.6](../12_SAD.md)
+- **SDS 回查**：[15_SDS §3.1、§6.1](../15_SDS.md)
+- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py; api/services/audit_log_service.py`
 
 ## platform schema
 
@@ -662,7 +684,7 @@
 - **Code reality**：AS-BUILT
 - **SAD 回查**：[12_SAD §4.2、§4.6](../12_SAD.md)
 - **SDS 回查**：[15_SDS §3.1、§6.1](../15_SDS.md)
-- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py`
+- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py; api/services/audit_log_service.py`
 
 ## MCP RAG server
 
@@ -707,6 +729,17 @@
 - **SAD 回查**：[12_SAD §4.2、§4.6、§8.2](../12_SAD.md)
 - **SDS 回查**：[15_SDS §6.3–6.4、§9.3、§11](../15_SDS.md)
 - **實作證據路徑**：`knowledge-pipeline/pipeline/silver_to_knowledge/; api/core/event_bus.py; api/realtime/event_consumer.py; api/services/line_push_outbox_service.py`
+
+## Audit Chain Checkpoint
+
+- **別名／原概括詞**：稽核雜湊鏈重基準點
+- **定義／負責什麼**：以受鎖保護的鏈尾快照建立 append-only checkpoint，讓 audit verify 可從已核准的歷史基準後驗證並回報所有後續斷點。
+- **邊界／不負責什麼**：只處理既有歷史鏈的非破壞式 re-baseline；不修正未來寫入流程，也不取代 audit event 的內容完整性驗證。
+- **使用於能力群**：DAT·SCH
+- **Code reality**：AS-BUILT
+- **SAD 回查**：[12_SAD §4.2、§4.6](../12_SAD.md)
+- **SDS 回查**：[15_SDS §3.1、§6.1](../15_SDS.md)
+- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py; api/services/audit_log_service.py`
 
 ## provenance / audit
 
@@ -937,7 +970,7 @@
 - **Code reality**：AS-BUILT ｜ AS-BUILT（獨立部署 stack／共用 api codebase）
 - **SAD 回查**：[12_SAD §4.2、§4.5 ｜ 12_SAD §4.2、§4.6](../12_SAD.md)
 - **SDS 回查**：[15_SDS §3.1、§6.1 ｜ 15_SDS §6.1、§7.1–7.2](../15_SDS.md)
-- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py ｜ api/main.py; api/routers/{technicians_v2,platform_technicians,technician_certifications_v2,technician_lifecycle_v2}.py; api/services/technician_{service,kyc_service,certification_service,lifecycle_service}.py; api/core/{db,tech_mirror}.py; SQL/tech_authority/; web/tech-portal/`
+- **實作證據路徑**：`SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py; api/services/audit_log_service.py ｜ api/main.py; api/routers/{technicians_v2,platform_technicians,technician_certifications_v2,technician_lifecycle_v2}.py; api/services/technician_{service,kyc_service,certification_service,lifecycle_service}.py; api/core/{db,tech_mirror}.py; SQL/tech_authority/; web/tech-portal/`
 
 ## Casdoor
 

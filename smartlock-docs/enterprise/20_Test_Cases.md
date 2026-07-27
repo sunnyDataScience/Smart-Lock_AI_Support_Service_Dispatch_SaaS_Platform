@@ -405,4 +405,48 @@ upstream:
 
 ---
 
-*文件結尾 — 20_Test_Cases.md v1.1 / 2026-07-23*
+## 13. 追溯缺口收斂案例（TC-AGT / TC-NFR / TC-UAT）
+
+> 2026-07-27 補入。本節是可執行的**測試設計**，不是執行結果；每個案例須在 SIT/UAT 保存 build、fixture、trace/audit、實測值與結論。不得以「已有程式」或「已有需求」替代案例結果。
+
+| ID | 對應需求 | 前置 | 步驟 | 預期 | 類型 | 優先級 |
+|---|---|---|---|---|---|---|
+| TC-AGT-TURN-01 | FR-AGT-02 | 可注入 session store / SAVE 失敗的 agent fixture | 對同一 webhook 依序注入 RESTORE、compact、tool call 與 SAVE 寫入失敗 | 一個 webhook 只產生一個 Turn；SAVE 失敗記 trace/告警但仍回覆；不重複寫 memory 或重送訊息 | failure+recovery | P0 |
+| TC-AGT-CLARIFY-01 | FR-AGT-03 | 已確認問題卡、可控 RAG fixture | 連續三輪客戶回覆未釐清，再送已釐清；另注入低相似度案例 | 未釐清依規則轉真人；已釐清寫 confirmation；低相似度不假稱命中案例 | failure+recovery | P0 |
+| TC-AGT-URG-01 | FR-AGT-04 | 四種急件 intent 與 transfer API 故障 fixture | 各送急件訊息；令第一次 ingest 失敗後重試 | 5 分鐘內建立可追溯轉人紀錄；第一次失敗不得假稱已派工，重試後只留一筆 escalation | failure+recovery | P0 |
+| TC-AGT-RAG-01 | FR-AGT-07 | 租戶 A/B pgvector fixture、MCP 可觀測 stub | 查存在／不存在／他租戶型號，並令 MCP timeout | 僅回本租戶可引用事實；不存在或 timeout 回 references／轉人降級，不編造型號或跨租戶內容 | failure+recovery | P0 |
+| TC-PLT-PROV-01 | FR-PLT-03 | 新品牌申請、License、LINE sandbox、可重建 bundle fixture | 核准後建庫、配置、綁定 LINE、health check；中途讓建庫或綁定失敗後重跑 | 未完成任一步不得啟用 License；重跑冪等且有 provisioning audit；成功後僅新品牌可登入與進線 | failure+recovery | P0 |
+| TC-PLT-FLOW-01 | FR-PLT-07 | 合法與非法 Flow DSL/Block fixture | 匯入合法 DSL，再匯入未知 block、缺 guard、非法狀態轉移與破壞性版本 | 非法檔在發佈前被靜態拒絕且無 runtime side effect；合法版本可審計、可回退 | failure+recovery | P1 |
+| TC-PLT-CFG-01 | FR-PLT-08 | 可變更 skill/config 版本、保護層、canary tenant | 發佈新版、嘗試覆寫 domain-safety、製造 eval/SLO 失敗，再 rollback | 保護層不可覆寫；失敗時停止擴散並回上一版；版本、審核、測試與 rollback 全留 audit | failure+recovery | P1 |
+| TC-PLT-SURFACE-01 | FR-PLT-09 | brand/tech/platform token 與三面 API | 交叉呼叫敏感端點、帶缺 portal claim 舊 token、平台 token 查品牌資料 | 不允許的跨面一律 403；platform 走獨立 guard/資料庫；拒絕前不讀取目標業務資料 | failure | P0 |
+| TC-REF-INTAKE-01 | FR-REF-01 | knowledge_ready/未完成問題卡、外部素材、兩租戶 fixture | 從准許與未准許來源汲取；重送同素材；模擬來源讀取失敗 | 僅符合 gate 的資料進 bronze；失敗／重送不產生半成品或跨租戶資料；來源與失敗原因可稽核 | failure+recovery | P0 |
+| TC-REF-SPLIT-01 | FR-REF-02 | 含事實、行為指令、惡意覆寫 prompt 的 silver fixture | 執行 refine，檢查 facts/behavior 分流與 re-refine | 事實只進 fact draft、行為只進 skill diff；未核可 draft 不改既有內容；重跑 append-only 可回溯 | failure+recovery | P0 |
+| TC-REF-PUBLISH-01 | FR-REF-03/04/05 | approved/rejected/high-risk draft、兩租戶、Family Reviewer fixture | 嘗試未核可發布、同人雙簽、Family Reviewer 逾時、來源非 bronze、跨租戶 publish | 違規均零落地；核可後 facts 帶 tenant/provenance 進 pgvector、行為 append-only 發佈；逾時暫停並升級 | failure+recovery | P0 |
+| TC-TEC-LIFE-01 | FR-TEC-01 | 未註冊、已註冊、跨品牌申請技師 fixture | 註冊、補 KYC、指定服務品牌、重送註冊、未核可身分嘗試接單 | 身分只寫 lock_tech；重送冪等；未核可或未授權者永不進候選池 | failure+recovery | P0 |
+| TC-TEC-REVOKE-01 | FR-TEC-08 | 已排班且已獲品牌授權技師、兩品牌候選池 | 撤銷認證、停權、復權、重送事件並檢查候選集與通知 | 撤銷/停權後各品牌候選集立即排除；重送不重複通知；復權前不得自行恢復可派狀態 | failure+recovery | P0 |
+| TC-DISPATCH-09 | FR-API-05 | 可控候選池、急件規則、通知與技師 availability fixture | 先令候選池為空，再加入不合格技師、合格技師；模擬第一次通知失敗後重試 | 空池只能進 `dispatch_pending` 並 alert；不合格者永不入選；合格者出現後按急件規則媒合；重試不重複指派或通知 | failure+recovery | P0 |
+| TC-PAYMENT-01 | FR-API-10 | 支付 provider webhook stub、可控 idempotency key 與 dispute fixture | 分別送 provider 拒絕、timeout 後相同 key 重送、已收款後 dispute | 拒絕/timeout 不落成功帳；重送至多一筆收款與憑證；dispute 建立可稽核例外且不以重複扣款恢復 | failure+recovery | P0 |
+| TC-WEB-SURFACE-01 | FR-WEB-01 | dispatch/tech/platform/landing production-like build | 各 build 直接開啟本站外路徑、deep link、跨站 CTA 與不存在路徑 | 只呈現白名單路徑或安全導向；不得把非本站頁面當已授權內容載入 | failure | P0 |
+| TC-WEB-REPORT-01 | FR-WEB-04 | 固定 KPI/API fixture、admin/ops/cs token | 比對 dashboard/API 值、匯出報表、令 API 403/timeout、低權角色讀敏感報表 | 數字、時區與篩選一致；低權角色 403；失敗時不顯示舊租戶資料 | failure+recovery | P0 |
+| TC-NFR-A11Y-01 | NFR-A11y-001/003/004/005 | 四 portal + LIFF keyboard/axe fixture | 跑 axe、鍵盤流程、縮放 200%、斷網重試 | critical a11y=0；焦點、錯誤與對比可用；斷網不靜默遺失表單 | boundary+recovery | P1 |
+| TC-NFR-AUD-01 | NFR-Aud-002/003/005/006/007 | audit/trace、敏感 mutation 與匯出 fixture | 送成功與拒絕 mutation、LLM/transfer、手動竄改／刪除與匯出 | actor、原因、版本、trace 與 hash 可還原；竄改被驗出；匯出受權限、tenant 與遮罩控制 | failure | P0 |
+| TC-NFR-AVAIL-01 | NFR-Avail-001..009/011 | production-like 依賴替身與告警接收者 | 逐一中斷 DB、LINE、LLM、RAG、OHS、Casdoor、Redis、Kafka、Refinery 與排程 leader | 各故障走 NFR 指定 fail-closed/降級/重試/DLQ；告警可收到；復原後不重複副作用 | failure+recovery | P0 |
+| TC-NFR-DORA-01 | NFR-DORA-001/002/003 | staging、變更與 rollback fixture | 執行可追溯 release、製造失敗並 rollback，收集 DORA 指標 | 四項 DORA 指標可計算且來源一致；rollback 不遺失 migration/audit 證據 | failure+recovery | P1 |
+| TC-NFR-DQ-01 | NFR-DQ-002/004 | 可竄改 provenance 與審核抽樣 fixture | 令 LLM 回傳假 source/source_type；抽樣核對核可與誤放資料 | Python 覆寫不可信 provenance；核可率與誤放率可計算入報表 | failure | P0 |
+| TC-NFR-MAINT-01 | NFR-Maint-001..008 | CI、破壞 OpenAPI、跨服務、Playwright fixture | 跑 coverage/typecheck；提交 breaking contract、consumer 不相容事件、未知 skill/front-end flow | CI 在違規處失敗；契約與 ADR/DR 可回查；關鍵流程 E2E 可重跑 | failure | P1 |
+| TC-NFR-OBS-01 | NFR-Obs-001..005 | OTel/PII scrub、故障與高延遲 fixture | 產生 request/LLM/worker trace、植入 PII、觸發 error/lag/SLO breach | trace 可串接；PII 不外送；dashboard/alert 顯示正確維度與 recovery 狀態 | failure+recovery | P1 |
+| TC-NFR-PUB-01 | NFR-PUB-001..004 | draft、approved revision、錯來源與跨 tenant fixture | 未核可 publish、刪除既有 skill、來源不同步、tenant A 查 B 語料 | 未核可零落地；更新 append-only；同源檢查失敗即阻擋；跨租戶 default deny | failure | P0 |
+| TC-NFR-PERF-01 | NFR-Perf-002/003/004/005/006/008/010/011 | k6、RUM、WS、RAG、OHS 與 config cache fixture | 依 NFR 指定併發壓測，逐一令 RAG/WS/OHS/快取過載或中斷 | 保存 p95/p99、錯誤率與降級行為；超門檻或資料不足一律 Fail/Blocked，不以估計值通過 | failure+recovery | P1 |
+| TC-NFR-PRIV-01 | NFR-Priv-001/002/003/004/007/009/010 | PII、consent、retention/legal-hold、跨租戶 fixture | 讀寫敏感欄、撤回 consent、forget、legal hold、查 log/backup/export | 加密/遮罩/最小權限生效；legal hold 阻止刪除；保留期限與第三方處理可稽核 | failure | P0 |
+| TC-NFR-REL-01 | NFR-Rel-001/002/003 | agent transfer、outbox、依賴中斷與重送 fixture | 在 transfer/push/寫入各階段中斷，再重送 webhook 或恢復服務 | 不遺失案件、不重複副作用；真承諾一定有 escalation/問題卡；恢復後可對帳 | failure+recovery | P0 |
+| TC-NFR-REP-01 | NFR-Rep-001/002 | 固定 raw、config 與保存位置 fixture | 重跑 pipeline、變更 config、移除 raw 後嘗試 rebuild | 相同輸入產同結構結果；保存不足時明確阻擋並保留稽核 | failure+recovery | P1 |
+| TC-NFR-SLA-01 | NFR-SLA-001/002/003 | 可控時鐘、派工、push/email/on-call fixture | 在 T+2:00:00/T+2:00:01、技師主動延遲、push 失敗與主管離線時執行 | 邊界判定正確；標紅、retry、email fallback 與升級鏈可觀測且不重複通知 | failure+recovery | P0 |
+| TC-NFR-SCAL-01 | NFR-Scal-003..008 | 多實例、WS/Redis、技師與租戶階梯負載 fixture | 逐段增加租戶、技師、WS、queue 與 DB connection 負載，並模擬單一實例離線 | 容量指標、限流與降級符合 NFR；無跨租戶事件、雙重排程或無聲遺失 | failure+recovery | P1 |
+| TC-NFR-SCH-01 | NFR-Sch-001/003 | 空庫、升級庫、已套 migration 與 drift fixture | 逐庫套用、重套、注入 schema drift、嘗試 down migration | migrations 可重套、drift 被擋、只允許 forward 演進；備份/還原證據可回查 | failure+recovery | P0 |
+| TC-NFR-SEC-01 | NFR-Sec-001/002/004/007/013/014 | 偽造 token、prompt、CVE/secret scan fixture | 重放/偽造 token、prompt injection、違規輸出、洩密掃描與高危 CVE 演練 | 未授權與違規輸出 fail-closed；secret/CVE 在時限內告警與追蹤；無敏感副作用 | failure | P0 |
+
+> 以上案例與既有 TC 的關聯由 `規格統控整理/_relations/rq_verified_by_tc.yaml` 宣告；UAT 採用的案例另由 `sc_verified_by_tc.yaml` 獨立宣告，兩者不可互相推導。
+
+---
+
+*文件結尾 — 20_Test_Cases.md v1.2 / 2026-07-27*

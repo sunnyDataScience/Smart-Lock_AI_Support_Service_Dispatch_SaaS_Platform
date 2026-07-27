@@ -101,6 +101,7 @@ tags:
   - name: M04 Customer-Site-Device
   - name: M05 Technician
   - name: M06 Dispatch
+  - name: M06 WorkOrder
   - name: M07 Onsite
   - name: M11 AR / Payment
   - name: M13 Warranty
@@ -2776,6 +2777,31 @@ paths:
           description: CROSS_TENANT_READ
           content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
         '404': { description: Work order not found }
+
+  /tenants/{tenantId}/work-orders/{id}/consents:send-link:
+    parameters:
+      - $ref: '#/components/parameters/TenantPath'
+      - { name: id, in: path, required: true, schema: { type: string } }
+    post:
+      tags: ['M06 WorkOrder']
+      summary: 發送工單免責簽署連結給客戶 v2（CR-0180）
+      operationId: sendWorkOrderConsentLinkV2
+      description: >
+        後台角色鑄造工單的 stateless public consent token，並嘗試以 LINE 推播。
+        客戶未綁 LINE 時仍以 200 回傳 `public_path` 供受權後台複製；不得把完整
+        token 寫入日誌或 audit payload（僅保存 token_hash）。相同冪等鍵重送須回放原結果。
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: 已產生簽署連結；notification_sent=false/channel=none 是可預期的 LINE 備援結果
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConsentSignLinkEnvelope' }
+        '401': { description: Unauthenticated }
+        '403': { description: CROSS_TENANT_WRITE or insufficient dispatch role }
+        '404': { description: Work order not found in tenant }
 
   ## --- W5 Invoices v2 (CR-0003 P2-W5 / M11 Invoice) ---
 
@@ -5505,6 +5531,29 @@ components:
           type: string
           enum: [liff_full, flex_simple_fallback]
           description: 'liff_full = full LIFF page consent; flex_simple_fallback = one-tap flex button fallback'
+
+    ConsentSignLinkEnvelope:
+      type: object
+      required: [data, error]
+      description: 'POST /tenants/{tenantId}/work-orders/{id}/consents:send-link 成功信封。'
+      properties:
+        data:
+          type: object
+          required: [notification_sent, channel, public_path]
+          properties:
+            notification_sent:
+              type: boolean
+              description: '是否成功送至 LINE；false 不代表 token 未產生。'
+            channel:
+              type: string
+              enum: [line, none]
+              description: 'line=已推播；none=客戶未綁 LINE，後台改以受控方式傳遞 public_path。'
+            public_path:
+              type: string
+              pattern: '^/consent/.+$'
+              description: '短效簽署路徑，含 bearer token；禁止持久化、分析或寫入一般 log。'
+        error:
+          type: 'null'
     # Auth schema (Q6 — platform-level auth endpoints)
     TokenPair:
       type: object

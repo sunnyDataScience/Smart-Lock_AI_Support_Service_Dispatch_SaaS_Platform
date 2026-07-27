@@ -110,6 +110,7 @@ Legacy 6 角色處置：✅ **業主裁決全面移除**（2026-07-09，SA-01/CR
 - **角色來源**：Casdoor 發角色 claim（🔜 規劃中 Phase 2；過渡期 claim 由 JWT 自簽發）。
 - **執行點**：api 端資源級 `role_required` 依賴鏈（`get_current_user → require_tenant → role_required`），**deny-by-default**。授權矩陣以 **§3.1 的 7 角色正典** × 12 資源 × 4 動作為基準（✅ SA-01/CR-0130 已瘦身至正典行）；對帳基線與殘餘表記 CR-0130（runtime 反射：157 條 role_required；金流/派工/設定弱守衛寫入已收斂，殘餘 43 個非核心寫入端點列 R2 灰度）。
 - **逐端點角色守衛落地（SA-01）**：✅ R1 完成（2026-07-09，CR-0130）——死角色收斂＋金流/派工/設定寫入 49 端點補 `role_required`＋技師動作端點顯式白名單（`TECH_ACTION_ROLES`）；驗收達標：technician/vendor 寫金流/派工/設定回 403（sweep 測試鎖定）。✅ R2 完成（同日）——37 端點收斂（kb/sop/conversations/sentiment/media/resolution/rma/ai-gov/推播）；定案保留 require_tenant：自身通知操作 ×6 與客戶綁定 generate-token（客戶流程，隨 vendor 定位 CR 再議）。
+- **2026-07-27 補強（CR-0182 / CR-0183）**：token 加入 portal claim（缺 claim 時由角色推導），正式面以 `ALLOWED_TOKEN_PORTALS` 拒絕跨 brand／tech／platform API surface；同面敏感 GET、legacy `/api/v1` 孿生路由及明細／stats 端點均補角色守衛，並新增 `scripts/ci/endpoint-guard-audit.py` 防止只修 v2 造成 legacy 繞過。此為 repo 內程式與測試證據；雲端環境是否帶齊設定仍須另行 smoke/SIT 驗證。
 - **前端 gate = UX 非邊界**：web 的 `rolePolicy` 路由 gate 僅影響頁面載入；`/platform/*` 已為對稱 deny-by-default（僅 platform_admin 可進）；全表 catch-all deny-by-default 🔜 規劃中（ACT-02）。
 - **API_SURFACE 是部署塑形非安全邊界**：tech/platform 面靠白名單前綴過濾塑形（fail-closed by construction），真正隔離押在每端點 RBAC（api C-11）。✅ 剔除清單測試覆蓋（SA-03，2026-07-09 CR-0131——31 組敏感前綴逐路由驗證＋保留面 RBAC 證明）。
 
@@ -315,6 +316,7 @@ AI 客服的安全邊界採「**物理限制優先於行為約束**」：
 | 項目 | 行動項 | 驗收條件 |
 |---|---|---|
 | 授權 enforce | SA-01：資源級 `role_required` 逐端點落地（先金流/派工）| 未授權角色寫入回 403；矩陣對帳無殘留偏差 |
+| 跨面 token 隔離 | CR-0182：Portal Claim Guard + 每面 `ALLOWED_TOKEN_PORTALS` | 技師／品牌／平台 token 跨面一律 403；正式三面 smoke 證據保存 |
 | agent 健康檢查 | FA-01：`GET /health` 路由 | deploy health gate 通過 |
 | 記憶持久化 | FA-02：生產 `backend="postgres"` | 實例重啟記憶不流失；PII 落 Cloud SQL 加密層 |
 | token 安全儲存 | ACT-01：httpOnly cookie + server 端驗簽（隨 Casdoor 授權碼流）| localStorage 不再存 token 〔標注 2026-07-10 業主裁決：ACT-01 統一標 **Phase 2**（與 §2.1／§7 T-3／§8.3 一致，本表 Phase 1 歸類作廢）；退場＝2.1.1 R3 業主排程。CR-0141 §8-3／CR-0146 遺留#1 銷案〕|

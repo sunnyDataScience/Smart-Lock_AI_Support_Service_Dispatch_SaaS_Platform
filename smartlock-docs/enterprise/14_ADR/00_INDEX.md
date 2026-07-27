@@ -1,9 +1,9 @@
 ---
 title: "14_ADR 索引 — 架構決策紀錄總覽"
-version: 1.0
+version: 1.1
 status: active
 owner: 平台架構團隊
-last-updated: 2026-07-07
+last-updated: 2026-07-27
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/
   - smartlock-docs/agent/P2/04_adr/
@@ -23,6 +23,17 @@ upstream:
 **與鄰近文件邊界**：[12_SAD](../12_SAD.md) 是決策的「結果態」（結構與元件視圖），引 ADR 不重述取捨；[13_Security_Architecture](../13_Security_Architecture.md) 承載安全機制細節，ADR 只記安全決策點；[15_SDS](../15_SDS.md) 承載細部設計（DSL schema、狀態機欄位），ADR 只記「採哪條路」；純業務參數（費率階梯、SLA 時數、保固模式）屬 [03_PRD](../03_PRD.md) / [04_SRS](../04_SRS.md)，不進 ADR。
 
 **狀態語彙**：`Accepted`（已定案且無分期）／`規劃中`（設計定案、實作分期未完）／`排程中`（執行項排程）。
+
+## 開放架構決策（不是 ADR）
+
+已 Accepted 的 ADR 仍可能留下跨系統的**實作細節**待 PM、架構與安全／資料 Owner 共同裁決。
+這類議題不可假裝已定案、也不可回頭修改 Accepted ADR；以
+[OPEN_DECISIONS.md](./OPEN_DECISIONS.md) 的 `OD-*` 登記，機讀真相源為
+[open_decisions.yaml](./open_decisions.yaml)。拍板後開新 ADR 或於既有 ADR 的 Status 附註 append-only
+連回裁決，才可將 OD 標為 `decided` 或 `superseded`。
+
+目前 Open：`OD-001` OHS 憑證、`OD-002` Refinery 資料進入契約、`OD-003` 技師 WS 歸屬、
+`OD-004` Casdoor 跨租戶 organization/claim 模型。
 
 ## 狀態矩陣
 

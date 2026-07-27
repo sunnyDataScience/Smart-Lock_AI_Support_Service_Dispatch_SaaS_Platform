@@ -164,7 +164,7 @@ flowchart TB
 | 技師權威庫 tech-db | 5434 | 技師身分域 |
 | 平台庫 platform-db | 5435 | 管理員 / 品牌申請 |
 
-進程內元件：ws_hub（WS 10 頻道；🔜 規劃中遷 Redis pub/sub，ADR-P007 Phase 1）、11 個 cron worker（🔜 規劃中加分散式鎖）、中介層鏈（CORS → RequestId → Deprecation）。〔標注 2026-07-10：CR-0134（2026-07-09）已落地 Redis pub/sub 橋（opt-in）＋ PG advisory lock 領導者選舉（cron 分散式鎖）；殘項＝部署面 `REDIS_URL` 設定（OPS）與 DB 連線池（排程待業主）。〕
+進程內元件：ws_hub（WS 10 頻道；🔜 規劃中遷 Redis pub/sub，ADR-P007 Phase 1）、11 個 cron worker（🔜 規劃中加分散式鎖）、中介層鏈（CORS → RequestId → Deprecation）。〔標注 2026-07-10：CR-0134（2026-07-09）已落地 Redis pub/sub 橋（opt-in）＋ PG advisory lock 領導者選舉（cron 分散式鎖）；殘項＝部署面 `REDIS_URL` 設定（OPS）與 DB 連線池（排程待業主）。〕〔標注 2026-07-27：CR-0182/0183 追加 token portal claim guard、同面敏感 GET、legacy v1 孿生端點與明細端點的角色守衛；部署面必帶 `ALLOWED_TOKEN_PORTALS`，否則本機相容模式不強制跨面 guard。〕
 
 ### 4.3 web（Next.js 多站前端）
 
@@ -405,6 +405,12 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 | ADR-P013 | Agent Configuration Studio：skill / RAG 權限 / prompt 品牌自服務，受保護層 + 客製層分層保護 |
 | ADR-P014 | 佣金 Billing（品牌）/ Settlement（技師平台）分離；技師工單可見性 = Kafka-fed CQRS 投影 |
 
+**尚未定版的實作細節不得冒充 ADR 結論**：OHS 服務憑證、Refinery 資料進入契約、
+技師 WS 的權威歸屬、Casdoor 跨租戶 organization/claim 模型，統一登記於
+[14_ADR/OPEN_DECISIONS.md](./14_ADR/OPEN_DECISIONS.md) 的 `OD-001`～`OD-004`。
+它們只在 PM + 架構師（及列出的安全／資料 Owner）拍板後，才以新 ADR 或既有 ADR 的
+append-only Status 附註轉為定案；在此之前，本 SAD 的 target 元件圖不代表已有可用的部署契約。
+
 **系統級**
 
 | 系統 | ADR 摘要 |
@@ -521,22 +527,22 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 
 ---
 
-## 15. Codebase 現況對帳（2026-07-23）
+## 15. Codebase 現況對帳（2026-07-27）
 
-> 快照：`dev-ding@5a9f7914`。本節的 AS-BUILT / PARTIAL / TO-BE 是程式現況，不取代 SRS/Roadmap 的需求狀態；檔案存在也不等於 production 已部署。
+> 快照：`dev-ding@e000f1fe`。本節的 AS-BUILT / PARTIAL / TO-BE 是程式現況，不取代 SRS/Roadmap 的需求狀態；檔案存在也不等於 production 已部署。
 
 | 範圍 | Code reality | 主要證據 | 啟用/缺口 |
 |---|---|---|---|
-| agent | AS-BUILT | `agent/lockcore/`、`agent/scripts/line_gateway.py` | RAG 需 `RAG_TENANT_ID`；FallbackProvider 已接線但預設備援清單空 |
-| api | AS-BUILT + opt-in 整合 | `api/main.py`、`api/core/`、`api/services/`、`api/realtime/` | Redis/Kafka 依環境設定；三庫正式面應開 `DB_URI_STRICT=1` |
-| web | AS-BUILT（四個獨立專案）| `web/{brand-portal,tech-portal,landing,platform-console}/` | OIDC cookie 與 legacy local token 仍在過渡 |
-| data/RAG | AS-BUILT + opt-in | `knowledge-pipeline/`、`agent/rag/rag/`、`SQL/` | migration registry 至 114；環境真相看 `schema_migrations` |
+| agent | AS-BUILT | `agent/lockcore/`、`agent/scripts/line_gateway.py`、handoff 語料回歸 | RAG 需 `RAG_TENANT_ID`；FallbackProvider 已接線但預設備援清單空 |
+| api | AS-BUILT + deployment-conditional | `api/main.py`、`api/core/`、`api/services/`、`api/realtime/`、CR-0182/0183 守衛 | Redis/Kafka 依環境設定；三庫 strict 與跨面 token guard 須在正式面帶 `DB_URI_STRICT=1`、`ALLOWED_TOKEN_PORTALS` 驗證 |
+| web | PARTIAL（四個獨立專案）| `web/{brand-portal,tech-portal,landing,platform-console}/`、per-service deploy 對映 | OIDC cookie 與 legacy local token 仍在過渡；未列路由預設放行與 tenant fallback 尚未關閉 |
+| data/RAG | AS-BUILT + opt-in | `knowledge-pipeline/`、`agent/rag/rag/`、`SQL/`、三庫 routed apply / drift check | migration registry 至 116；環境真相看各庫 `schema_migrations` |
 | refinery | PARTIAL | `knowledge-pipeline/refinery/` | 服務/OIDC/Publisher 已有；排程、compose secrets、OTel optional deps、CD 未完整 |
 | technician-platform | PARTIAL | `API_SURFACE=tech`、`web/tech-portal/`、`SQL/tech_authority/` | 獨立部署 stack 已有；OHS 邊界與 Kafka 投影全面採用尚未完成 |
 | 平台治理 | PARTIAL / TO-BE 混合 | `infra/casdoor/`、M18/LiveSkill、四站 OTel | SigNoz collector/IaC、完整 provisioning、Flow DSL/FlowEditor 仍待完成 |
 
-本次逐元件狀態、定義與證據路徑由 `規格統控整理/SAD_SDS元件標籤字典.md` 受控生成；完整掃描結論見 `規格統控整理/Codebase現況掃描_2026-07-23.md`。
+本次逐元件狀態、定義與證據路徑由 `規格統控整理/SAD_SDS元件標籤字典.md` 受控生成；完整掃描結論見 `規格統控整理/Codebase現況掃描_2026-07-27.md`。
 
 ---
 
-*文件結尾 — 12_SAD.md v1.1 / 2026-07-23*
+*文件結尾 — 12_SAD.md v1.2 / 2026-07-27*

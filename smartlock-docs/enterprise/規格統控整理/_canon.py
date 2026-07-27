@@ -46,6 +46,7 @@ NFR_PATH = CANON / "05_NFR.md"
 TEST_CASE_PATH = CANON / "20_Test_Cases.md"
 TEST_PLAN_PATH = CANON / "19_Test_Plan.md"
 ADR_INDEX_PATH = CANON / "14_ADR" / "00_INDEX.md"
+OPEN_DECISIONS_PATH = CANON / "14_ADR" / "open_decisions.yaml"
 ROADMAP_PATH = CANON / "27_Product_Roadmap_WBS.md"
 
 ROLE_DOMAIN = {"essential", "supporting"}
@@ -282,6 +283,12 @@ def load_adrs() -> list[list[str]]:
         if re.match(r"^ADR-\d+$", cells[0]) and len(cells) >= 5:
             rows.append([group, *cells[:5]])
     return rows
+
+
+def load_open_decisions() -> list[dict]:
+    """Open architecture decision register (not ADRs, never inferred)."""
+    data = yaml.safe_load(OPEN_DECISIONS_PATH.read_text(encoding="utf-8")) or {}
+    return data.get("decisions") or []
 
 
 def load_wbs() -> list[list[str]]:

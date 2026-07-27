@@ -1,0 +1,95 @@
+# 開放架構決策登記 —— 唯一可寫入來源
+#
+# 本檔只記「已接受 ADR 的實作細節仍需跨角色裁決」；不以 Open 狀態覆寫既有 ADR。
+# 決策完成後：建立新的 append-only ADR 或在既有 ADR 的 Status 附註補連結，
+# 再把本列 status 改為 decided / superseded，並更新受影響的 SAD、SDS、API、部署與 TC。
+#
+# 欄位定義：
+#   id                  OD-*；開放決策的穩定識別碼，不是 ADR 編號。
+#   status              open | decided | superseded；open 不可被表述為既定架構。
+#   decision            必須由誰在什麼邊界作出哪一個選擇。
+#   options             可比較的選項；不可只寫「待確認」。
+#   recommended         技術建議，不是決定；除非 approvers 完成裁決，仍維持 open。
+#   current_as_built    現在程式/部署已觀察到的事實，與 target 分開。
+#   decision_gate       未定前不得跨越的 release 或實作門檻。
+#   evidence_required   拍板前必看的證據；不是拍板後的執行結果。
+#
+# last_updated: 2026-07-27
+
+version: 1
+
+decisions:
+  - id: OD-001
+    title: OHS 服務間憑證模式
+    status: open
+    priority: P0
+    owner: PM + 平台架構師
+    approvers: 安全負責人 + technician-platform Owner
+    decision: 品牌 API 呼叫技師共享池 OHS 時，定版 OIDC client-credentials 或 internal token，並定義 audience、scope、輪替、撤銷與跨品牌權限邊界。
+    current_as_built: OHS 契約和 api 路徑存在；靜態 API 文件已明示長期模式由 OD-001 定版，現行內部鏈多使用 X-Internal-Token。
+    options:
+      - OIDC client-credentials：每個 workload identity 取短效 audience/scoped token；適合作為跨服務長期邊界。
+      - internal token：單一或少量共享 secret；較快接入，但輪替、最小權限與稽核成本較高，只適合作為過渡。
+    recommended: OIDC client-credentials 為目標；保留 internal token 僅限受時限、可輪替、單一過渡鏈路，且不得成為品牌/技師資料面的長期通用憑證。
+    decision_gate: 在 OHS 成為 production 派工唯一依賴、或第 2 個品牌接入前，必須定版並完成負向契約測試。
+    evidence_required: IdP 能力與 token claims 範例、service-to-service threat model、token 失效/輪替演練、OHS 403/401 契約與 audit 設計。
+    affected_adrs: [ADR-004, ADR-016, ADR-022]
+    affected_artifacts: [12_SAD §4.5, 15_SDS §7.1, 16_API_Spec.yaml, 13_Security_Architecture.md, 23_Deployment_Guide.md]
+    affected_scenarios: [SC-05, SC-12, SC-14]
+
+  - id: OD-002
+    title: knowledge-refinery 的資料進入契約
+    status: open
+    priority: P0
+    owner: PM + 平台架構師
+    approvers: Data Owner + Knowledge/Refinery Owner + Security Owner
+    decision: 定版 Refinery 取得診斷對話、問題卡與素材的權威入口：受控 API、批次匯出/唯讀 DB，或 Kafka/outbox event；並定義補數、重播、tenant scope、PII 最小化與 provenance。
+    current_as_built: Refinery intake 可用 REFINERY_TENANT_ID + REFINERY_POSTGRES_URI/POSTGRES_URI 直讀品牌資料並 default-deny；Kafka/event backbone 與 API ingestion 均非完整 production contract。
+    options:
+      - 受控 API：明確 DTO/授權與稽核，讀取延遲較高，需提供 cursor/重試與 bulk 能力。
+      - 批次匯出或唯讀 DB：最快可用，必須使用專屬唯讀帳號、資料最小化與嚴格 tenant filter；跨服務耦合較高。
+      - Kafka/outbox event：低耦合、可重播，需 schema registry、DLQ、事件順序與 payload 隱私治理；適合規模化但基建未取證。
+    recommended: M2 以最小權限唯讀／批次入口完成可稽核 intake；M3 Kafka/outbox 成熟後切換為事件主路徑，API 僅供補數與人工重跑，不讓三種入口同時無規則並存。
+    decision_gate: 在把 Refinery 標為 License 可售附加服務、或允許自動排程 intake 前，必須選定一條主入口及其回補規則。
+    evidence_required: 資料分類/PII 最小化評估、每個選項的重播與刪除語義、tenant 隔離測試、bronze provenance 範例、成本/延遲量測。
+    affected_adrs: [ADR-018, ADR-019, ADR-029, ADR-030]
+    affected_artifacts: [12_SAD §4.4, 15_SDS §9, 17_AsyncAPI.yaml, 23_Deployment_Guide.md, 25_Monitoring_Spec.md]
+    affected_scenarios: [SC-01, SC-02, SC-15, SC-16]
+
+  - id: OD-003
+    title: 技師即時 WebSocket 的權威歸屬
+    status: open
+    priority: P0
+    owner: PM + 平台架構師
+    approvers: Technician Platform Owner + API Owner + SRE
+    decision: 定版技師工作台的即時事件由 brand API、technician-platform，或雙層 gateway 哪一方擁有；同時定義 channel 授權、事件 owner、replay、Redis/Kafka 依賴與切換策略。
+    current_as_built: tech portal 目前可連品牌 API 的 WS；程式有 Redis bridge 與 technician event consumer，但 REDIS_URL/KAFKA_BOOTSTRAP 的 production 證據不存在，SDS 已連至 OD-003，不把 interim 當 target。
+    options:
+      - brand API owner：貼近工單 command 真相，技師 portal 必須跨面連線，跨品牌與身份邊界較複雜。
+      - technician-platform owner：貼近技師 identity/projection，需保證投影延遲、replay 與品牌事件契約。
+      - gateway/聚合層：可統一通道授權，但新增部署與故障域，不得成為未受監控的第四份投影。
+    recommended: technician-platform 持有技師專屬 channel 與最小工單投影；brand API 持有品牌營運 channel。先以明確 event schema/replay 驗證，再遷移 portal，禁止同一事件長期雙播而無 owner。
+    decision_gate: 在把 API max instances 調高、或宣稱跨 instance 的技師即時派工 SLA 前，必須定版並完成兩實例與斷線復原 SIT。
+    evidence_required: 使用者/租戶/channel 授權矩陣、事件延遲預算、disconnect/replay 演練、Redis/Kafka failure trace、前端切換/rollback 計畫。
+    affected_adrs: [ADR-006, ADR-016, ADR-017, ADR-022]
+    affected_artifacts: [12_SAD §4.5, 15_SDS §7.1, 16_API_Spec.yaml, 17_AsyncAPI.yaml, 23_Deployment_Guide.md]
+    affected_scenarios: [SC-05, SC-06, SC-12, SC-14]
+
+  - id: OD-004
+    title: Casdoor 跨租戶 organization 與 claim 模型
+    status: open
+    priority: P0
+    owner: PM + 平台架構師
+    approvers: Identity Owner + Security Owner + Technician Platform Owner
+    decision: 在「brand org = 租戶」既有方向下，定版跨品牌技師、platform operator、品牌管理員的 organization membership、role/portal/tenant claims、委派管理與撤銷傳播模型。
+    current_as_built: ADR-004 已接受 Casdoor 作 IdP、brand org 為租戶；portal claim guard 與 API surface 已有程式，但完整 Casdoor org/claim 映射及 production HA 證據未定。
+    options:
+      - 單一平台 org + brand membership：技師與平台人員有平台主體，再以品牌 membership/scopes 授權。
+      - 每品牌 org 複製技師帳號：模型直觀但違反跨品牌唯一身分，撤銷與 KYC 一致性風險高。
+      - external identity + 平台 entitlement graph：彈性最高，但需自建更多 membership/授權服務與稽核能力。
+    recommended: 單一平台 principal + brand membership/entitlement claim；token 必須明確帶 principal、portal、可操作 brand scope 與版本/撤銷語義，不以 UI tenant fallback 決定授權。
+    decision_gate: 在 Casdoor 成為所有 portal 的唯一登入、或首個跨品牌技師/平台治理 production rollout 前，必須定版。
+    evidence_required: claim 範例與最大 token 大小、登入/撤銷/換品牌序列、跨 portal 負向測試、HA/IdP outage 行為、資料保留與刪除責任。
+    affected_adrs: [ADR-004, ADR-005, ADR-016, ADR-024]
+    affected_artifacts: [12_SAD §4.5 and §8, 13_Security_Architecture.md, 15_SDS §7.1, 16_API_Spec.yaml, 23_Deployment_Guide.md]
+    affected_scenarios: [SC-11, SC-12, SC-14, SC-17]

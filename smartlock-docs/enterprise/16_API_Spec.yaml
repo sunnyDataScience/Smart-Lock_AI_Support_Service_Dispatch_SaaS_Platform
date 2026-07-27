@@ -1,9 +1,9 @@
 # =============================================================================
 # title: 16_API_Spec — 平台同步介面契約（OpenAPI 3.1）
-# version: 1.0
+# version: 1.1
 # status: active
 # owner: 平台架構師
-# last-updated: 2026-07-10
+# last-updated: 2026-07-27
 # canonical: api/openapi.yaml
 #   ↑ 端點/schema 細節以機讀 SSOT（api/openapi.yaml，schemathesis/spec-lint/
 #     prism mock/前端型別生成之依據）為準；本檔為架構導讀視圖（領域分群、
@@ -23,7 +23,7 @@ openapi: 3.1.0
 
 info:
   title: Smart Lock AI Support & Service Dispatch SaaS — 同步介面契約
-  version: "1.0"
+  version: "1.1"
   summary: 平台所有同步 HTTP / WebSocket 介面的單一契約入口
   description: |
     本檔涵蓋平台 6 子系統的同步介面：
@@ -84,7 +84,8 @@ tags:
     description: |
       OHS API（Open Host Service）— technician-platform 對各品牌 api 的穩定供給面：
       技師查詢 / 派工媒合 / 排班 / 認證。品牌不直連技師庫（ADR-P004）。
-      服務憑證機制 [待確認]（OIDC client-credentials vs internal token）。
+      服務憑證尚未定版：見 14_ADR/OPEN_DECISIONS.md OD-001（OIDC client-credentials vs internal token）；
+      未裁決前不得將任一選項標為正式 OHS production 契約。
     externalDocs: { url: ../technician-platform/P1/05_architecture_and_design.md, description: "§4 OHS routers / §7.1 媒合流程" }
   - name: brand-vendor
     description: 品牌 / 廠商（廠商核准、品牌 B2B 結算、品牌申請導入）
@@ -181,6 +182,27 @@ paths:
       summary: 工單詳情
       responses:
         "200": { description: 工單, content: { application/json: { schema: { $ref: "#/components/schemas/WorkOrderEnvelope" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /tenants/{tenantId}/work-orders/{id}/consents:send-link:
+    parameters:
+      - { $ref: "#/components/parameters/tenantId" }
+      - { name: id, in: path, required: true, schema: { type: string }, description: 工單 ID }
+    post:
+      tags: [work-order]
+      summary: 發送工單三段免責簽署連結（CR-0180；LINE 推播或後台複製備援）
+      operationId: sendWorkOrderConsentLinkV2
+      description: >
+        僅 DISPATCH 角色集可呼叫。伺服器鑄造 stateless public token 並嘗試 LINE 推播；
+        客戶未綁 LINE 時 `notification_sent=false`、`channel=none` 仍為成功，後台可受控複製
+        `public_path`。完整 path 含 bearer token，不得寫入一般 log、analytics 或 audit payload；
+        audit 僅保存 token_hash。tenant path 與 bearer claim 不一致一律拒絕。
+      security: [{ casdoorOIDC: [] }]
+      parameters:
+        - { $ref: "#/components/parameters/idempotencyKey" }
+      responses:
+        "200": { description: 簽署連結已產生, content: { application/json: { schema: { $ref: "#/components/schemas/ConsentSignLinkEnvelope" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
   /tenants/{tenantId}/work-orders/{workOrderId}:assign:
     post:
@@ -745,6 +767,19 @@ components:
       type: object
       properties:
         data: { $ref: "#/components/schemas/WorkOrder" }
+        error: { type: "null" }
+    ConsentSignLinkEnvelope:
+      type: object
+      required: [data, error]
+      description: CR-0180 成功信封；`public_path` 是短效 bearer path，不可持久化。
+      properties:
+        data:
+          type: object
+          required: [notification_sent, channel, public_path]
+          properties:
+            notification_sent: { type: boolean, description: "LINE 是否實際送達；false 不表示簽署 token 建立失敗" }
+            channel: { type: string, enum: [line, none], description: "none 表示客戶未綁 LINE，改由受權後台傳遞" }
+            public_path: { type: string, pattern: "^/consent/.+$", description: "含短效 token 的相對路徑；禁止記錄原值" }
         error: { type: "null" }
     AssignRequest:
       type: object

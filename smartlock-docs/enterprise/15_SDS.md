@@ -402,7 +402,7 @@ stateDiagram-v2
 
 **照片與品牌樣本圖**：客戶照片只經媒體持久化旁路，不送 vision；AI 若依 cs-sop 在回覆文末輸出 `[[photo-guide:chatlock-pre-install]]`，gateway 先剝除標記，再由 `[photo_guides]` 白名單附 ImageMessage。品牌 gate 在 Skill 明定「只有已確認 Chatlock」；其他品牌維持純文字。未知 key、標記截斷或圖片設定缺失均只略過圖片，不外洩標記、不阻斷文字回覆。
 
-**Escalation 轉真人（含兜底）**：cs-sop 紅線（金錢/要真人/急件/派工）→ LLM 呼叫 `transfer_to_human(reason, brand, model, symptom)` → 拉 per-user facts + 偵測 `is_explicit` → 寫 EscalationStore → 回核對表單（原封不動回覆客戶）。**兜底路徑**：LLM 生成「已為您安排師傅」話術卻未呼叫工具時，gateway 偵測承諾話術 + 本輪 escalation 未新增 → deterministic 補抽品牌/型號/症狀/手機 → 程式補一筆 escalation。兩路皆 `POST /internal/escalations/ingest` → api 建 AI 草擬問題卡（→ 客服 → 工單 → 派工）。
+**Escalation 轉真人（含兜底）**：cs-sop 紅線（金錢/要真人/急件/派工）→ LLM 呼叫 `transfer_to_human(reason, brand, model, symptom)` → 拉 per-user facts + 偵測 `is_explicit` → 寫 EscalationStore → 回核對表單（原封不動回覆客戶）。**兜底路徑**：LLM 生成「已為您安排師傅」話術卻未呼叫工具時，gateway 偵測承諾話術 + 本輪 escalation 未新增 → deterministic 補抽品牌/型號/症狀/手機 → 程式補一筆 escalation。2026-07-27 as-built 改為位置感知判定：只有 marker 前的條件／評估語氣才抑制；同子句否定與徵詢問句不算承諾；真承諾後的時間修飾不得漏接。兩路皆 `POST /internal/escalations/ingest` → api 建 AI 草擬問題卡（→ 客服 → 工單 → 派工）。
 
 **LINE postback 微格式契約**（客戶點 Flex 按鈕 → agent `/callback` 依前綴 deterministic fan-out 旁路呼 api，見 [CR-0121](../../docs/4-exploration/CR-0121-line-webhook-routing.md) 方案 A / ADR-011 類別 2）：
 
@@ -475,7 +475,7 @@ flowchart TD
     R_V2 -.-> ERR
 ```
 
-- **守衛鏈組合**：`role_required → require_tenant → get_current_user`（層層 await）；平台端走 `require_platform_admin`（不收 X-Tenant-ID，跨品牌視角）；服務間走 `require_internal_token`（fail-closed）。授權採 **deny-by-default enforce**，逐端點掛 `role_required`；RBAC 矩陣全表歸 [13_Security_Architecture](./13_Security_Architecture.md)。
+- **守衛鏈組合**：`get_current_user → require_tenant → role_required`（程式以依賴鏈組合）；`get_current_user` 另可先以 Portal Claim Guard 對 `ALLOWED_TOKEN_PORTALS` 拒絕跨 brand／tech／platform surface token。平台端走 `require_platform_admin`（不收 X-Tenant-ID，跨品牌視角）；服務間走 `require_internal_token`（fail-closed）。授權採 **deny-by-default enforce**，逐端點掛 `role_required`；Portal Claim Guard 未設定環境變數時僅保留本機／測試相容行為，正式部署必須啟用。RBAC 矩陣全表歸 [13_Security_Architecture](./13_Security_Architecture.md)。
 - **回應信封**：成功 `ApiResponseGeneric` / `CursorPage`；錯誤 RFC7807 problem+json superset。
 - **部署塑形**：同一 codebase 靠 `API_SURFACE` 塑形部署面；塑形是路由過濾，非安全邊界——隔離押在每端點 RBAC。
 
@@ -500,7 +500,7 @@ flowchart TD
 | WS 推播 | Redis pub/sub fan-out——事件跨實例廣播，支援水平擴展 | PARTIAL：程式已落地；需 `REDIS_URL` |
 | 事件骨幹 | Kafka producer/consumer：現行 topic `workorder.lifecycle` / `commission.accrued` / `technician.lifecycle` | PARTIAL：程式與 projection schema 已落地；需 `KAFKA_BOOTSTRAP` |
 | 背景任務 | 多個 cron worker + PostgreSQL advisory lock leader | AS-BUILT；仍須各任務冪等與部署 SIT |
-| DB 連線 | 品牌/技師/平台三庫連線路由 + request-scoped pool；`DB_URI_STRICT` 可拒絕缺 URI | PARTIAL：read replica 未由 codebase 證實 |
+| DB 連線 | 品牌/技師/平台三庫連線路由 + request-scoped pool；`DB_URI_STRICT` 可拒絕缺 URI；migration 依 target 分流套用與逐庫 drift-check | PARTIAL：read replica、環境套用水位與三庫負向驗證仍須以 deployment/SIT 證據確認 |
 | LINE 推播 | outbox worker：fail-soft + retry + outbox 冪等，推播失敗不阻斷業務寫入 | AS-BUILT |
 
 ### 6.4 錯誤處理
@@ -523,8 +523,8 @@ flowchart TD
 | API_SURFACE router filter | `api/main.py` 保留技師路由白名單；塑形不是授權邊界 |
 | OHS API routers（目標邊界）| `GET /technicians` · `POST /technicians:match` · 排班/認證查詢；獨立 OHS service 尚未拆出 |
 | self-service routers | 上線註冊 / profile / 技能授權 / 認證上傳 / 排班設定 / 工作台 |
-| WS 端點 | `/realtime/pool/{tech_id}` 師傅即時推播（Redis pub/sub 撐）[待確認：推播歸屬技師平台或品牌 api] |
-| 守衛鏈 | Casdoor OIDC bearer 驗證（技師 = 跨租戶身分）→ role enforce（deny-by-default）；OHS 服務憑證 [待確認：OIDC client-credentials vs internal token] |
+| WS 端點 | `/realtime/pool/{tech_id}` 師傅即時推播（Redis pub/sub 撐）；權威歸屬由 [OD-003](./14_ADR/OPEN_DECISIONS.md#od-003--技師即時-websocket-的權威歸屬) 定版，現行 tech portal 可連品牌 API 是 interim，不是 target 已完成。 |
+| 守衛鏈 | Casdoor OIDC bearer 驗證（技師 = 跨租戶身分）→ role enforce（deny-by-default）；OHS 服務憑證由 [OD-001](./14_ADR/OPEN_DECISIONS.md#od-001--ohs-服務間憑證模式) 定版（OIDC client-credentials vs internal token）。 |
 | Service 層 | `technician_service`、KYC/認證/生命週期/品牌授權/排班/LINE；現行候選評分在品牌 `dispatch_service` 直接讀 tech authority |
 | Tech DB router + mirror | `core/db.py` 依 `TECH_POSTGRES_URI` 導向權威庫；`core/tech_mirror.py` 保留過渡相容鏡射 |
 | 事件與投影 | `core/event_bus.py` + `realtime/event_consumer.py`；現行 topic `workorder.lifecycle` / `commission.accrued` / `technician.lifecycle`，更新 `technician_workorder_projection` / `technician_commission_projection`；`KAFKA_BOOTSTRAP` opt-in |

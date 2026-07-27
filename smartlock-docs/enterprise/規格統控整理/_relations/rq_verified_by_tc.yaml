@@ -28,12 +28,12 @@ edges:
   - {requirement: FR-AGT-05, case: TC-CS-AI-04, kind: happy, ts: "TS-01", note: "transfer_to_human 是唯一轉接方式，並有備援處理"}
   - {requirement: FR-AGT-05, case: TC-CS-AI-10, kind: failure, ts: "TS-01", note: "transfer_to_human 是唯一轉接方式，並有備援處理"}
   # FR-AGT-06
-  - {requirement: FR-AGT-06, case: TC-SEC-MEM-01, kind: happy, ts: "TS-01、TS-10", note: "per-user 記憶 BUILD/SAVE"}
+  - {requirement: FR-AGT-06, case: TC-SEC-MEM-01, kind: failure, ts: "TS-01、TS-10", note: "per-user 記憶 BUILD/SAVE：缺 tenant/user 或跨 user 讀取必須拒絕"}
   # FR-AGT-07
   - {requirement: FR-AGT-07, case: TC-COMPLIANCE-08, kind: happy, ts: "TS-01", note: "知識取用（Skill 行為驅動 + RAG 檢索）"}
   - {requirement: FR-AGT-07, case: TC-CS-AI-03, kind: happy, ts: "TS-01", note: "知識取用（Skill 行為驅動 + RAG 檢索）"}
   # FR-AGT-08
-  - {requirement: FR-AGT-08, case: TC-SEC-TOOL-01, kind: happy, ts: "TS-01、TS-10", note: "工具允許清單治理"}
+  - {requirement: FR-AGT-08, case: TC-SEC-TOOL-01, kind: failure, ts: "TS-01、TS-10", note: "工具允許清單治理：不在 allowlist 的工具呼叫必須拒絕"}
   # FR-AGT-09
   - {requirement: FR-AGT-09, case: TC-CS-AI-04, kind: happy, ts: "TS-01", note: "人工接管（CS takeover）"}
   - {requirement: FR-AGT-09, case: TC-CS-AI-10, kind: failure, ts: "TS-01", note: "人工接管（CS takeover）"}
@@ -71,6 +71,7 @@ edges:
   - {requirement: FR-API-04, case: TC-WO-03, kind: failure, ts: "TS-02", note: "工單建立（CS 1-click）"}
   # FR-API-05
   - {requirement: FR-API-05, case: TC-DISPATCH-01, kind: happy, ts: "TS-03", note: "自動派工"}
+  - {requirement: FR-API-05, case: TC-DISPATCH-09, kind: failure, ts: "TS-03", note: "候選池空、通知失敗與恢復後不得遺失或重複指派"}
   # FR-API-06
   - {requirement: FR-API-06, case: TC-DISPATCH-02, kind: failure, ts: "TS-03", note: "手動派工 + 覆寫稽核"}
   # FR-API-07
@@ -94,6 +95,7 @@ edges:
   - {requirement: FR-API-09, case: TC-WO-07, kind: failure, ts: "TS-04", note: "結案強制檢核"}
   # FR-API-10
   - {requirement: FR-API-10, case: TC-SEC-IDEM-01, kind: happy, ts: "TS-05", note: "消費者付款"}
+  - {requirement: FR-API-10, case: TC-PAYMENT-01, kind: failure, ts: "TS-05", note: "支付拒絕、timeout 與 dispute 不得形成重複收款"}
   # FR-API-11
   - {requirement: FR-API-11, case: TC-SETTLE-02, kind: happy, ts: "TS-05", note: "退款 / 取消費"}
   - {requirement: FR-API-11, case: TC-SETTLE-03, kind: failure, ts: "TS-05", note: "退款 / 取消費"}
@@ -105,14 +107,14 @@ edges:
   - {requirement: FR-API-12, case: TC-SETTLE-07, kind: failure, ts: "TS-05", note: "月結與 7 帳本"}
   - {requirement: FR-API-12, case: TC-SETTLE-08, kind: failure, ts: "TS-05", note: "月結與 7 帳本"}
   # FR-API-13
-  - {requirement: FR-API-13, case: TC-SEC-INT-01, kind: happy, ts: "TS-10", note: "internal ingest（不經 agent 的替代路徑）"}
+  - {requirement: FR-API-13, case: TC-SEC-INT-01, kind: failure, ts: "TS-10", note: "internal ingest（不經 agent 的替代路徑）：錯誤或缺失內部憑證必須拒絕"}
   # FR-API-14
-  - {requirement: FR-API-14, case: TC-EXC-06, kind: happy, ts: "TS-11", note: "即時推播（WS）"}
+  - {requirement: FR-API-14, case: TC-EXC-06, kind: recovery, ts: "TS-11", note: "即時推播（WS）：斷線後恢復並補齊事件"}
   # FR-API-15
-  - {requirement: FR-API-15, case: TC-EXC-01, kind: happy, ts: "TS-11", note: "背景批次（11 cron worker）"}
+  - {requirement: FR-API-15, case: TC-EXC-01, kind: recovery, ts: "TS-11", note: "背景批次（11 cron worker）：失敗重送不可重複副作用"}
   # FR-API-16
   - {requirement: FR-API-16, case: TC-COMPLIANCE-01, kind: happy, ts: "TS-10", note: "GDPR forget 流程"}
-  - {requirement: FR-API-16, case: TC-COMPLIANCE-02, kind: happy, ts: "TS-10", note: "GDPR forget 流程"}
+  - {requirement: FR-API-16, case: TC-COMPLIANCE-02, kind: failure, ts: "TS-10", note: "GDPR forget 流程：legal-hold 必須拒絕並通知"}
   - {requirement: FR-API-16, case: TC-COMPLIANCE-04, kind: happy, ts: "TS-10", note: "GDPR forget 流程"}
   # FR-API-17
   - {requirement: FR-API-17, case: TC-QUOTE-03, kind: failure, ts: "TS-02", note: "保固判定"}
@@ -126,27 +128,29 @@ edges:
   - {requirement: FR-API-19, case: TC-DISPATCH-08, kind: recovery, ts: "TS-04", note: "急件事後補審引擎"}
   # FR-DAT-01
   - {requirement: FR-DAT-01, case: TC-COMPLIANCE-08, kind: happy, ts: "TS-07", note: "Medallion 分層"}
+  - {requirement: FR-DAT-01, case: TC-REF-INTAKE-01, kind: failure, ts: "TS-07", note: "不合格來源與讀取失敗不得形成 bronze 半成品"}
   # FR-DAT-02
   - {requirement: FR-DAT-02, case: TC-SEC-PIPE-01, kind: happy, ts: "TS-09、TS-10", note: "純 SQL forward-only migration"}
   # FR-DAT-03
-  - {requirement: FR-DAT-03, case: TC-EXC-05, kind: happy, ts: "TS-09、TS-10", note: "三庫物理隔離"}
-  - {requirement: FR-DAT-03, case: TC-SEC-TENANT-01, kind: happy, ts: "TS-09、TS-10", note: "三庫物理隔離"}
+  - {requirement: FR-DAT-03, case: TC-EXC-05, kind: failure, ts: "TS-09、TS-10", note: "三庫物理隔離：跨庫/錯誤 URI 必須拒絕"}
+  - {requirement: FR-DAT-03, case: TC-SEC-TENANT-01, kind: failure, ts: "TS-09、TS-10", note: "三庫物理隔離：跨 tenant 讀取必須拒絕"}
   # FR-DAT-04
   - {requirement: FR-DAT-04, case: TC-CS-AI-03, kind: happy, ts: "TS-07", note: "pgvector 唯一事實語料"}
+  - {requirement: FR-DAT-04, case: TC-AGT-RAG-01, kind: failure, ts: "TS-07", note: "檢索 timeout/不存在/跨租戶時不得編造或越界引用"}
   # FR-DAT-05
   - {requirement: FR-DAT-05, case: TC-EXC-06, kind: happy, ts: "TS-09、TS-10", note: "跨系統同步鏈"}
   # FR-DAT-06
   - {requirement: FR-DAT-06, case: TC-SETTLE-07, kind: failure, ts: "TS-09、TS-10", note: "統一身分與稽核基座"}
   # FR-PLT-01
-  - {requirement: FR-PLT-01, case: TC-SEC-WEB-02, kind: happy, ts: "TS-08、TS-10", note: "統一身分（Casdoor）"}
+  - {requirement: FR-PLT-01, case: TC-SEC-WEB-02, kind: failure, ts: "TS-08、TS-10", note: "統一身分（Casdoor）：無效或跨 portal token 必須拒絕"}
   # FR-PLT-02
-  - {requirement: FR-PLT-02, case: TC-SEC-RBAC-01, kind: happy, ts: "TS-08、TS-10", note: "角色權限強制執行"}
+  - {requirement: FR-PLT-02, case: TC-SEC-RBAC-01, kind: failure, ts: "TS-08、TS-10", note: "角色權限強制執行：越權寫入必須拒絕"}
   - {requirement: FR-PLT-02, case: TC-SEC-RBAC-02, kind: happy, ts: "TS-08、TS-10", note: "角色權限強制執行"}
   - {requirement: FR-PLT-02, case: TC-SEC-RBAC-03, kind: happy, ts: "TS-08、TS-10", note: "角色權限強制執行"}
   - {requirement: FR-PLT-02, case: TC-SEC-RBAC-04, kind: happy, ts: "TS-08、TS-10", note: "角色權限強制執行"}
   - {requirement: FR-PLT-02, case: TC-SEC-RBAC-05, kind: happy, ts: "TS-08、TS-10", note: "角色權限強制執行"}
   # FR-PLT-04
-  - {requirement: FR-PLT-04, case: TC-EXC-06, kind: happy, ts: "TS-11", note: "事件骨幹（Kafka）+ 即時層（Redis）"}
+  - {requirement: FR-PLT-04, case: TC-EXC-06, kind: recovery, ts: "TS-11", note: "事件骨幹（Kafka）+ 即時層（Redis）：中斷後恢復並保持投影一致"}
   # FR-PLT-05
   - {requirement: FR-PLT-05, case: TC-EXC-02, kind: recovery, ts: "TS-01、TS-11", note: "Model Orchestration Layer"}
   - {requirement: FR-PLT-05, case: TC-EXC-03, kind: happy, ts: "TS-01、TS-11", note: "Model Orchestration Layer"}
@@ -209,14 +213,14 @@ edges:
   # NFR-Avail-010
   - {requirement: NFR-Avail-010, case: TC-EXC-04, kind: happy, ts: "TS-11", note: "認證降級"}
   # NFR-Comp-001
-  - {requirement: NFR-Comp-001, case: TC-COMPLIANCE-07, kind: happy, ts: "TS-09、TS-11", note: "合約 4.4(a) 負面情緒識別"}
+  - {requirement: NFR-Comp-001, case: TC-COMPLIANCE-07, kind: failure, ts: "TS-09、TS-11", note: "合約 4.4(a) 負面情緒識別：反諷/劣化必須被量測並升級"}
   # NFR-Comp-002
-  - {requirement: NFR-Comp-002, case: TC-COMPLIANCE-05, kind: happy, ts: "TS-09、TS-11", note: "合約 4.4(d) 家族覆核"}
+  - {requirement: NFR-Comp-002, case: TC-COMPLIANCE-05, kind: failure, ts: "TS-09、TS-11", note: "合約 4.4(d) 家族覆核：未覆核發布必須失敗"}
   # NFR-Comp-003
-  - {requirement: NFR-Comp-003, case: TC-COMPLIANCE-06, kind: happy, ts: "TS-09、TS-11", note: "SOW 2.1(4) 影像辨識禁用"}
+  - {requirement: NFR-Comp-003, case: TC-COMPLIANCE-06, kind: failure, ts: "TS-09、TS-11", note: "SOW 2.1(4) 影像辨識禁用：runtime 傳圖與靜態呼叫都必須拒絕"}
   # NFR-Comp-004
   - {requirement: NFR-Comp-004, case: TC-COMPLIANCE-01, kind: happy, ts: "TS-09、TS-11", note: "GDPR / 個資法"}
-  - {requirement: NFR-Comp-004, case: TC-COMPLIANCE-02, kind: happy, ts: "TS-09、TS-11", note: "GDPR / 個資法"}
+  - {requirement: NFR-Comp-004, case: TC-COMPLIANCE-02, kind: failure, ts: "TS-09、TS-11", note: "GDPR / 個資法：legal-hold 下的 forget 必須拒絕"}
   - {requirement: NFR-Comp-004, case: TC-COMPLIANCE-03, kind: happy, ts: "TS-09、TS-11", note: "GDPR / 個資法"}
   - {requirement: NFR-Comp-004, case: TC-COMPLIANCE-04, kind: happy, ts: "TS-09、TS-11", note: "GDPR / 個資法"}
   # NFR-DQ-001
@@ -226,8 +230,10 @@ edges:
   # NFR-Perf-001
   - {requirement: NFR-Perf-001, case: TC-PERF-01, kind: happy, ts: "TS-11", note: "LINE AI 首次回應時間"}
   - {requirement: NFR-Perf-001, case: TC-PERF-02, kind: happy, ts: "TS-11", note: "LINE AI 首次回應時間"}
+  - {requirement: NFR-Perf-001, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "超過延遲門檻或依賴過載時必須以實測值 Fail/Blocked，不得估計通過"}
   # NFR-Perf-007
   - {requirement: NFR-Perf-007, case: TC-PERF-03, kind: happy, ts: "TS-11", note: "OHS 派工媒合 POST /technicians:match"}
+  - {requirement: NFR-Perf-007, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "OHS 過載或中斷時必須記錄 p95 與降級結果"}
   # NFR-Perf-009
   - {requirement: NFR-Perf-009, case: TC-PERF-05, kind: happy, ts: "TS-11", note: "Outbox → 事件骨幹 lag"}
   # NFR-Priv-005
@@ -268,120 +274,100 @@ edges:
   # NFR-Sec-012
   - {requirement: NFR-Sec-012, case: TC-SEC-TOOL-01, kind: happy, ts: "TS-08、TS-10", note: "工具沙箱"}
 
-# ── 只有測試設計、還沒有具體案例的需求 ──────────────────────────
-#
-# 這些 QTM 列的「指定 TC」欄寫的是設計描述而不是 TC ID。
-# 規格完整 ≠ 案例存在。留白比塞一個假 ID 誠實。
-
-unresolved:
-  - {requirement: FR-AGT-02, design: "正常／邊界／例外", ts: "TS-01"}
-  - {requirement: FR-PLT-03, design: "UAT 開站 dry-run", ts: "TS-08、TS-10"}
-  - {requirement: FR-PLT-07, design: "Flow DSL state guard block contract", ts: "TS-12"}
-  - {requirement: FR-PLT-08, design: "UAT S5 staged rollout 還原", ts: "TS-12"}
-  - {requirement: FR-PLT-09, design: "platform surface isolation E2E", ts: "TS-08、TS-10"}
-  - {requirement: FR-REF-02, design: "refinery facts behavior split suite", ts: "TS-07、TS-10"}
-  - {requirement: FR-TEC-01, design: "technician lifecycle suite", ts: "TS-06"}
-  - {requirement: FR-TEC-08, design: "排班／停權／認證撤銷", ts: "TS-06"}
-  - {requirement: FR-WEB-01, design: "Playwright APP_MODE route isolation", ts: "TS-08"}
-  - {requirement: FR-WEB-04, design: "reports suite UAT dashboard", ts: "TS-11"}
-  - {requirement: NFR-A11y-001, design: "TC-NFR-A11y-001 受控 NFR 驗證設計", ts: "TS-02、TS-08"}
-  - {requirement: NFR-A11y-003, design: "TC-NFR-A11y-003 受控 NFR 驗證設計", ts: "TS-02、TS-08"}
-  - {requirement: NFR-A11y-004, design: "TC-NFR-A11y-004 受控 NFR 驗證設計", ts: "TS-02、TS-08"}
-  - {requirement: NFR-A11y-005, design: "TC-NFR-A11y-005 受控 NFR 驗證設計", ts: "TS-02、TS-08"}
-  - {requirement: NFR-Aud-002, design: "TC-NFR-Aud-002 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-Aud-003, design: "TC-NFR-Aud-003 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-Aud-005, design: "TC-NFR-Aud-005 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-Aud-006, design: "TC-NFR-Aud-006 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-Aud-007, design: "TC-NFR-Aud-007 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-Avail-001, design: "TC-NFR-Avail-001 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-002, design: "TC-NFR-Avail-002 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-003, design: "TC-NFR-Avail-003 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-004, design: "TC-NFR-Avail-004 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-005, design: "TC-NFR-Avail-005 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-006, design: "TC-NFR-Avail-006 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-007, design: "TC-NFR-Avail-007 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-008, design: "TC-NFR-Avail-008 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-009, design: "TC-NFR-Avail-009 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Avail-011, design: "TC-NFR-Avail-011 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-DORA-001, design: "受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-DORA-002, design: "受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-DORA-003, design: "受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-DQ-002, design: "受控 NFR 驗證設計", ts: "TS-07、TS-10"}
-  - {requirement: NFR-DQ-004, design: "受控 NFR 驗證設計", ts: "TS-07、TS-10"}
-  - {requirement: NFR-Maint-001, design: "TC-NFR-Maint-001 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Maint-002, design: "TC-NFR-Maint-002 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Maint-003, design: "TC-NFR-Maint-003 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Maint-004, design: "TC-NFR-Maint-004 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Maint-005, design: "TC-NFR-Maint-005 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Maint-006, design: "TC-NFR-Maint-006 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Maint-007, design: "TC-NFR-Maint-007 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Maint-008, design: "TC-NFR-Maint-008 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Obs-001, design: "TC-NFR-Obs-001 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Obs-002, design: "TC-NFR-Obs-002 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Obs-003, design: "TC-NFR-Obs-003 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Obs-004, design: "TC-NFR-Obs-004 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-Obs-005, design: "TC-NFR-Obs-005 受控 NFR 驗證設計", ts: "TS-09、TS-11"}
-  - {requirement: NFR-PUB-001, design: "受控 NFR 驗證設計", ts: "TS-07、TS-10"}
-  - {requirement: NFR-PUB-002, design: "受控 NFR 驗證設計", ts: "TS-07、TS-10"}
-  - {requirement: NFR-PUB-003, design: "受控 NFR 驗證設計", ts: "TS-07、TS-10"}
-  - {requirement: NFR-PUB-004, design: "受控 NFR 驗證設計", ts: "TS-07、TS-10"}
-  - {requirement: NFR-Perf-002, design: "TC-NFR-Perf-002 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Perf-003, design: "TC-NFR-Perf-003 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Perf-004, design: "TC-NFR-Perf-004 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Perf-005, design: "TC-NFR-Perf-005 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Perf-006, design: "TC-NFR-Perf-006 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Perf-008, design: "TC-NFR-Perf-008 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Perf-010, design: "TC-NFR-Perf-010 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Perf-011, design: "TC-NFR-Perf-011 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Perf-012, design: "TC-NFR-Perf-012 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Priv-001, design: "TC-NFR-Priv-001 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Priv-002, design: "TC-NFR-Priv-002 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Priv-003, design: "TC-NFR-Priv-003 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Priv-004, design: "TC-NFR-Priv-004 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Priv-007, design: "TC-NFR-Priv-007 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Priv-009, design: "TC-NFR-Priv-009 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Priv-010, design: "TC-NFR-Priv-010 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Rel-001, design: "TC-NFR-Rel-001 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Rel-002, design: "TC-NFR-Rel-002 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Rel-003, design: "TC-NFR-Rel-003 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Rep-001, design: "TC-NFR-Rep-001 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-Rep-002, design: "TC-NFR-Rep-002 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-SLA-001, design: "受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-SLA-002, design: "受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-SLA-003, design: "受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Scal-003, design: "TC-NFR-Scal-003 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Scal-004, design: "TC-NFR-Scal-004 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Scal-005, design: "TC-NFR-Scal-005 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Scal-006, design: "TC-NFR-Scal-006 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Scal-007, design: "TC-NFR-Scal-007 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Scal-008, design: "TC-NFR-Scal-008 受控 NFR 驗證設計", ts: "TS-11"}
-  - {requirement: NFR-Sch-001, design: "TC-NFR-Sch-001 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-Sch-003, design: "TC-NFR-Sch-003 受控 NFR 驗證設計", ts: "TS-09、TS-10"}
-  - {requirement: NFR-Sec-001, design: "TC-NFR-Sec-001 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Sec-002, design: "TC-NFR-Sec-002 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Sec-004, design: "TC-NFR-Sec-004 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Sec-007, design: "TC-NFR-Sec-007 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Sec-013, design: "TC-NFR-Sec-013 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-  - {requirement: NFR-Sec-014, design: "TC-NFR-Sec-014 受控 NFR 驗證設計", ts: "TS-08、TS-10"}
-
-# ── 指定了不存在的案例 ──────────────────────────────────────────
-#
-# 這些 TC ID 在 20_Test_Cases.md 的詳細案例表裡找不到。
-# 多數是把需求 ID 前面加上 TC- 湊出來的——命名慣例偽裝成關聯（AP-1）。
-# 兩條出路：補寫真案例，或刪掉這筆指定並承認缺口。不要留著假 ID。
-
-dangling:
-  - {requirement: FR-AGT-02, designated_case: TC-FR-AGT-02}
-  - {requirement: FR-TEC-08, designated_case: TC-TEC-LIFE-01}
-  - {requirement: NFR-DORA-001, designated_case: TC-NFR-DORA-001}
-  - {requirement: NFR-DORA-002, designated_case: TC-NFR-DORA-002}
-  - {requirement: NFR-DORA-003, designated_case: TC-NFR-DORA-003}
-  - {requirement: NFR-DQ-002, designated_case: TC-NFR-DQ-002}
-  - {requirement: NFR-DQ-004, designated_case: TC-NFR-DQ-004}
-  - {requirement: NFR-PUB-001, designated_case: TC-NFR-PUB-001}
-  - {requirement: NFR-PUB-002, designated_case: TC-NFR-PUB-002}
-  - {requirement: NFR-PUB-003, designated_case: TC-NFR-PUB-003}
-  - {requirement: NFR-PUB-004, designated_case: TC-NFR-PUB-004}
-  - {requirement: NFR-SLA-001, designated_case: TC-NFR-SLA-001}
-  - {requirement: NFR-SLA-002, designated_case: TC-NFR-SLA-002}
-  - {requirement: NFR-SLA-003, designated_case: TC-NFR-SLA-003}
+# ── 2026-07-27：原先只有設計或指向不存在 TC 的關聯，現改指真實詳細案例 ──
+  - {requirement: FR-AGT-02, case: TC-AGT-TURN-01, kind: failure, ts: "TS-01", note: "Turn SAVE 失敗仍須回覆且不得重複副作用"}
+  - {requirement: FR-AGT-03, case: TC-AGT-CLARIFY-01, kind: recovery, ts: "TS-01", note: "未釐清升級與已釐清回復"}
+  - {requirement: FR-AGT-04, case: TC-AGT-URG-01, kind: recovery, ts: "TS-01", note: "急件 transfer 暫敗後可追溯重試"}
+  - {requirement: FR-AGT-07, case: TC-AGT-RAG-01, kind: failure, ts: "TS-01", note: "RAG timeout/不存在資料不得幻覺或跨租戶"}
+  - {requirement: FR-PLT-03, case: TC-PLT-PROV-01, kind: failure, ts: "TS-08、TS-10", note: "開站任一步失敗不得開通"}
+  - {requirement: FR-PLT-07, case: TC-PLT-FLOW-01, kind: failure, ts: "TS-12", note: "非法 DSL/block 發佈前拒絕"}
+  - {requirement: FR-PLT-08, case: TC-PLT-CFG-01, kind: recovery, ts: "TS-12", note: "canary/eval 失敗停止擴散並 rollback"}
+  - {requirement: FR-PLT-09, case: TC-PLT-SURFACE-01, kind: failure, ts: "TS-08、TS-10", note: "平台面與跨面 token 隔離"}
+  - {requirement: FR-REF-01, case: TC-REF-INTAKE-01, kind: failure, ts: "TS-07、TS-10", note: "不合格來源不得進 bronze"}
+  - {requirement: FR-REF-02, case: TC-REF-SPLIT-01, kind: failure, ts: "TS-07、TS-10", note: "事實/行為錯分或未核可不得改既有內容"}
+  - {requirement: FR-REF-03, case: TC-REF-PUBLISH-01, kind: failure, ts: "TS-07、TS-10", note: "未核可零落地"}
+  - {requirement: FR-REF-04, case: TC-REF-PUBLISH-01, kind: failure, ts: "TS-07、TS-10", note: "錯來源與跨租戶 publish 拒絕"}
+  - {requirement: FR-REF-05, case: TC-REF-PUBLISH-01, kind: failure, ts: "TS-07、TS-10", note: "雙審/Family Reviewer 缺席暫停發布"}
+  - {requirement: FR-TEC-01, case: TC-TEC-LIFE-01, kind: failure, ts: "TS-06", note: "未核可或未授權技師不得接單"}
+  - {requirement: FR-TEC-08, case: TC-TEC-REVOKE-01, kind: failure, ts: "TS-06", note: "撤證/停權即時排除候選池"}
+  - {requirement: FR-WEB-01, case: TC-WEB-SURFACE-01, kind: failure, ts: "TS-08", note: "跨 portal/deep link 不可誤載入"}
+  - {requirement: FR-WEB-04, case: TC-WEB-REPORT-01, kind: failure, ts: "TS-11", note: "低權與 API 失敗不洩舊資料"}
+  - {requirement: NFR-A11y-001, case: TC-NFR-A11Y-01, kind: boundary, ts: "TS-02、TS-08", note: "a11y automation + keyboard/zoom"}
+  - {requirement: NFR-A11y-003, case: TC-NFR-A11Y-01, kind: boundary, ts: "TS-02、TS-08", note: "鍵盤與焦點"}
+  - {requirement: NFR-A11y-004, case: TC-NFR-A11Y-01, kind: boundary, ts: "TS-02、TS-08", note: "縮放與對比"}
+  - {requirement: NFR-A11y-005, case: TC-NFR-A11Y-01, kind: recovery, ts: "TS-02、TS-08", note: "斷網重試不遺失表單"}
+  - {requirement: NFR-Aud-002, case: TC-NFR-AUD-01, kind: failure, ts: "TS-09、TS-10", note: "audit 欄位完整性"}
+  - {requirement: NFR-Aud-003, case: TC-NFR-AUD-01, kind: failure, ts: "TS-09、TS-10", note: "hash/trace 竄改驗證"}
+  - {requirement: NFR-Aud-005, case: TC-NFR-AUD-01, kind: failure, ts: "TS-09、TS-10", note: "AI 決策 trace"}
+  - {requirement: NFR-Aud-006, case: TC-NFR-AUD-01, kind: failure, ts: "TS-09、TS-10", note: "稽核匯出權限遮罩"}
+  - {requirement: NFR-Aud-007, case: TC-NFR-AUD-01, kind: failure, ts: "TS-09、TS-10", note: "拒絕操作仍留稽核"}
+  - {requirement: NFR-Avail-001, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "依賴故障降級"}
+  - {requirement: NFR-Avail-002, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "服務復原不重複副作用"}
+  - {requirement: NFR-Avail-003, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "LINE callback/DLQ"}
+  - {requirement: NFR-Avail-004, case: TC-NFR-AVAIL-01, kind: failure, ts: "TS-11", note: "DB 故障關鍵寫入 fail-closed"}
+  - {requirement: NFR-Avail-005, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "RAG 故障 fallback"}
+  - {requirement: NFR-Avail-006, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "Redis/WS 降級"}
+  - {requirement: NFR-Avail-007, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "OHS 不可用降級"}
+  - {requirement: NFR-Avail-008, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "Casdoor 不可用 session 策略"}
+  - {requirement: NFR-Avail-009, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "Kafka lag/replay"}
+  - {requirement: NFR-Avail-011, case: TC-NFR-AVAIL-01, kind: recovery, ts: "TS-11", note: "Refinery 失敗隔離"}
+  - {requirement: NFR-DORA-001, case: TC-NFR-DORA-01, kind: recovery, ts: "TS-09、TS-11", note: "lead time/rollback"}
+  - {requirement: NFR-DORA-002, case: TC-NFR-DORA-01, kind: failure, ts: "TS-09、TS-11", note: "change failure rate"}
+  - {requirement: NFR-DORA-003, case: TC-NFR-DORA-01, kind: recovery, ts: "TS-09、TS-11", note: "MTTR"}
+  - {requirement: NFR-DQ-002, case: TC-NFR-DQ-01, kind: failure, ts: "TS-07、TS-10", note: "偽造 provenance 被覆寫"}
+  - {requirement: NFR-DQ-004, case: TC-NFR-DQ-01, kind: failure, ts: "TS-07、TS-10", note: "誤放率抽樣"}
+  - {requirement: NFR-Maint-001, case: TC-NFR-MAINT-01, kind: failure, ts: "TS-09、TS-11", note: "coverage gate"}
+  - {requirement: NFR-Maint-002, case: TC-NFR-MAINT-01, kind: failure, ts: "TS-09、TS-11", note: "供應商 swap 演練"}
+  - {requirement: NFR-Maint-003, case: TC-NFR-MAINT-01, kind: failure, ts: "TS-09、TS-11", note: "breaking contract 阻擋"}
+  - {requirement: NFR-Maint-004, case: TC-NFR-MAINT-01, kind: failure, ts: "TS-09、TS-11", note: "ADR/DR 回查"}
+  - {requirement: NFR-Maint-005, case: TC-NFR-MAINT-01, kind: failure, ts: "TS-09、TS-11", note: "type/codegen gate"}
+  - {requirement: NFR-Maint-006, case: TC-NFR-MAINT-01, kind: failure, ts: "TS-09、TS-11", note: "consumer contract"}
+  - {requirement: NFR-Maint-007, case: TC-NFR-MAINT-01, kind: failure, ts: "TS-09、TS-11", note: "skill portability"}
+  - {requirement: NFR-Maint-008, case: TC-NFR-MAINT-01, kind: failure, ts: "TS-09、TS-11", note: "E2E coverage"}
+  - {requirement: NFR-Obs-001, case: TC-NFR-OBS-01, kind: failure, ts: "TS-09、TS-11", note: "trace 可串接"}
+  - {requirement: NFR-Obs-002, case: TC-NFR-OBS-01, kind: failure, ts: "TS-09、TS-11", note: "PII scrub"}
+  - {requirement: NFR-Obs-003, case: TC-NFR-OBS-01, kind: failure, ts: "TS-09、TS-11", note: "SLO alert"}
+  - {requirement: NFR-Obs-004, case: TC-NFR-OBS-01, kind: recovery, ts: "TS-09、TS-11", note: "recovery signal"}
+  - {requirement: NFR-Obs-005, case: TC-NFR-OBS-01, kind: failure, ts: "TS-09、TS-11", note: "dashboard 維度"}
+  - {requirement: NFR-PUB-001, case: TC-NFR-PUB-01, kind: failure, ts: "TS-07、TS-10", note: "未核可零落地"}
+  - {requirement: NFR-PUB-002, case: TC-NFR-PUB-01, kind: failure, ts: "TS-07、TS-10", note: "append-only"}
+  - {requirement: NFR-PUB-003, case: TC-NFR-PUB-01, kind: failure, ts: "TS-07、TS-10", note: "同源檢查阻擋"}
+  - {requirement: NFR-PUB-004, case: TC-NFR-PUB-01, kind: failure, ts: "TS-07、TS-10", note: "語料 tenant default deny"}
+  - {requirement: NFR-Perf-002, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "vector search 壓測"}
+  - {requirement: NFR-Perf-003, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "RAG E2E 壓測"}
+  - {requirement: NFR-Perf-004, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "admin RUM"}
+  - {requirement: NFR-Perf-005, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "API p95"}
+  - {requirement: NFR-Perf-006, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "WS 延遲/中斷"}
+  - {requirement: NFR-Perf-008, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "派工推播 E2E"}
+  - {requirement: NFR-Perf-010, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "config cache"}
+  - {requirement: NFR-Perf-011, case: TC-NFR-PERF-01, kind: failure, ts: "TS-11", note: "FCP/RUM"}
+  - {requirement: NFR-Perf-012, case: TC-NFR-PERF-01, kind: recovery, ts: "TS-11", note: "LLM timeout fallback"}
+  - {requirement: NFR-Priv-001, case: TC-NFR-PRIV-01, kind: failure, ts: "TS-08、TS-10", note: "PII encryption"}
+  - {requirement: NFR-Priv-002, case: TC-NFR-PRIV-01, kind: failure, ts: "TS-08、TS-10", note: "consent gate"}
+  - {requirement: NFR-Priv-003, case: TC-NFR-PRIV-01, kind: failure, ts: "TS-08、TS-10", note: "retention/legal hold"}
+  - {requirement: NFR-Priv-004, case: TC-NFR-PRIV-01, kind: failure, ts: "TS-08、TS-10", note: "log/backup privacy"}
+  - {requirement: NFR-Priv-007, case: TC-NFR-PRIV-01, kind: failure, ts: "TS-08、TS-10", note: "data subject access"}
+  - {requirement: NFR-Priv-009, case: TC-NFR-PRIV-01, kind: failure, ts: "TS-08、TS-10", note: "third-party privacy"}
+  - {requirement: NFR-Priv-010, case: TC-NFR-PRIV-01, kind: failure, ts: "TS-08、TS-10", note: "retention evidence"}
+  - {requirement: NFR-Rel-001, case: TC-NFR-REL-01, kind: recovery, ts: "TS-11", note: "outbox/retry"}
+  - {requirement: NFR-Rel-002, case: TC-NFR-REL-01, kind: recovery, ts: "TS-11", note: "idempotent recovery"}
+  - {requirement: NFR-Rel-003, case: TC-NFR-REL-01, kind: failure, ts: "TS-11", note: "transfer 不得蒸發"}
+  - {requirement: NFR-Rep-001, case: TC-NFR-REP-01, kind: recovery, ts: "TS-09、TS-10", note: "固定輸入重跑"}
+  - {requirement: NFR-Rep-002, case: TC-NFR-REP-01, kind: failure, ts: "TS-09、TS-10", note: "raw 缺失阻擋 rebuild"}
+  - {requirement: NFR-SLA-001, case: TC-NFR-SLA-01, kind: failure, ts: "TS-11", note: "派工抵達 breach"}
+  - {requirement: NFR-SLA-002, case: TC-NFR-SLA-01, kind: failure, ts: "TS-11", note: "T+2h 邊界"}
+  - {requirement: NFR-SLA-003, case: TC-NFR-SLA-01, kind: recovery, ts: "TS-11", note: "push/email/on-call fallback"}
+  - {requirement: NFR-Scal-003, case: TC-NFR-SCAL-01, kind: failure, ts: "TS-11", note: "tenant scale"}
+  - {requirement: NFR-Scal-004, case: TC-NFR-SCAL-01, kind: failure, ts: "TS-11", note: "worker/queue scale"}
+  - {requirement: NFR-Scal-005, case: TC-NFR-SCAL-01, kind: failure, ts: "TS-11", note: "DB connection scale"}
+  - {requirement: NFR-Scal-006, case: TC-NFR-SCAL-01, kind: failure, ts: "TS-11", note: "event scale"}
+  - {requirement: NFR-Scal-007, case: TC-NFR-SCAL-01, kind: failure, ts: "TS-11", note: "storage scale"}
+  - {requirement: NFR-Scal-008, case: TC-NFR-SCAL-01, kind: failure, ts: "TS-11", note: "技師 WS scale"}
+  - {requirement: NFR-Sch-001, case: TC-NFR-SCH-01, kind: failure, ts: "TS-09、TS-10", note: "migration 重套"}
+  - {requirement: NFR-Sch-003, case: TC-NFR-SCH-01, kind: failure, ts: "TS-09、TS-10", note: "forward-only"}
+  - {requirement: NFR-Sec-001, case: TC-NFR-SEC-01, kind: failure, ts: "TS-08、TS-10", note: "authn token"}
+  - {requirement: NFR-Sec-002, case: TC-NFR-SEC-01, kind: failure, ts: "TS-08、TS-10", note: "authorization deny"}
+  - {requirement: NFR-Sec-004, case: TC-NFR-SEC-01, kind: failure, ts: "TS-08、TS-10", note: "prompt injection"}
+  - {requirement: NFR-Sec-007, case: TC-NFR-SEC-01, kind: failure, ts: "TS-08、TS-10", note: "output guardrail"}
+  - {requirement: NFR-Sec-013, case: TC-NFR-SEC-01, kind: failure, ts: "TS-08、TS-10", note: "secret scan"}
+  - {requirement: NFR-Sec-014, case: TC-NFR-SEC-01, kind: failure, ts: "TS-08、TS-10", note: "CVE response"}

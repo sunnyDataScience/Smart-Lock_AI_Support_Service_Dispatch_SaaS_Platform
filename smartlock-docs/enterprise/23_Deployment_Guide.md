@@ -1,9 +1,9 @@
 ---
 title: 部署指南（Deployment Guide）
-version: 1.0
+version: 1.1
 status: active
 owner: 平台維運（DevOps / FDE）
-last-updated: 2026-07-10
+last-updated: 2026-07-27
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P005_per-brand授權部署_大單體內部容器.md
   - smartlock-docs/00_platform/P2/04_adr/ADR-P012_執行債清償排程_cutover_migration_CD.md
@@ -20,6 +20,11 @@ upstream:
 > 讀者：DevOps / 平台維運 / FDE（品牌上線工程）。
 > 本文件回答：平台怎麼部署？本機開發拓撲長怎樣？雲端 per-brand bundle 如何開通？env / secrets 放哪、怎麼注入？migration 怎麼套用、怎麼回滾？部署後怎麼 smoke test？
 > 深度架構參考：[12_SAD.md](./12_SAD.md)、平台 L1（../00_platform/P1/05_platform_architecture_L1.md（封存於 git 238f6fce））。
+>
+> **證據邊界（2026-07-27）**：本文件的 script／配置說明是 AS-BUILT，不能用來聲稱
+> Cloud Run、Cloud SQL、Redis、Kafka、SigNoz 或 Refinery 已驗證。每次 release 必須依
+> [`規格統控整理/部署與SIT證據關卡_2026-07-27.md`](./規格統控整理/部署與SIT證據關卡_2026-07-27.md)
+> 收集 G0–G3 的去敏證據；未取證即為 blocked，不得標 production-ready。
 
 ---
 
@@ -177,6 +182,17 @@ docker compose down
 | `NANOBOT_LLM_TIMEOUT_S` | LLM 逾時 | 預設 300s |
 | `OPIK_API_KEY` / `OPIK_WORKSPACE` | agent LLM Ops 觀測 | dev 預設開 / prod 可關（ADR-P002；接線 🔜 規劃中 Phase 1）|
 
+### 5.4 production / SIT 強制核對（不是「有程式即已啟用」）
+
+| 設定或依賴 | 程式語意 | release 必附證據 |
+|---|---|---|
+| `DB_URI_STRICT=1` | API 依 `API_SURFACE` 缺品牌／技師／平台 URI 即拒啟 | 三面 revision effective env、health 結果、三庫 drift output |
+| `ALLOWED_TOKEN_PORTALS` | token portal claim 與服務面不符即拒絕 | brand/tech/platform 分別為對應唯一值；cross-surface 403 SIT trace |
+| `REDIS_URL` | 未設時 WS bridge 退單機；多實例可能遺失跨 instance fanout | 若 max instances >1，secret reference、雙實例 fanout 與故障告警 |
+| `KAFKA_BOOTSTRAP` | 未設時 event producer/consumer 為 no-op | broker/topic/ACL、lag、replay/reconcile 證據；未提供不得宣稱 Kafka 已上線 |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | 未設時 API/agent/refinery observability 為 no-op | collector health、跨服務 trace、PII scrub 與 alert evidence |
+| `REFINERY_TENANT_ID` + DB/License | 未設時 Refinery intake default-deny | tenant scope、HITL publish 與跨租戶拒絕 evidence |
+
 環境切換：`./scripts/env/use-local.sh` / `use-gcp.sh`。
 
 ---
@@ -202,8 +218,12 @@ docker compose down
 ```bash
 # ① 套用前必先手動備份
 gcloud sql backups create --instance=lock-ai
-# ② 經 cloud-sql-proxy 套用（Schema.sql → Schema_*.sql → migrations/*.sql → 回填 schema_migrations）
-./scripts/db/apply-schema-prod.sh
+# ② 先印三庫分流計畫（brand / tech / platform）
+./scripts/db/apply-schema-routed.sh --dry-run
+# ③ 受核准變更後才正式套用；各庫 URI 由受控 runner 注入
+./scripts/db/apply-schema-routed.sh
+# ④ 逐庫真值對照（未套／ghost migration 均 fail）
+python3 scripts/ci/migration-drift-check.py --check-db
 ```
 
 ### 6.3 Drift 防護 🔜 規劃中（ADR-P012 優先序 1）

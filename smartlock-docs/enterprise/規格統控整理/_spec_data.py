@@ -23,7 +23,7 @@
 GENERATED_ON = "2026-07-27"
 CODEBASE_SNAPSHOT = {
     "branch": "dev-ding",
-    "commit": "5a9f7914",
+    "commit": "e000f1fe",
     "baseline": "ddc6f986",
     "scope": "agent、api、web 四站、knowledge-pipeline/refinery、SQL、infra、scripts 與 enterprise 正典",
 }
@@ -202,7 +202,7 @@ MODULE_ARCH = {
         "path": "api/routers/internal_ingest.py; api/realtime/; api/services/{line_push_service,line_push_outbox_service}.py; api/core/event_bus.py",
     },
     "API.GOV": {
-        "component": "API_SURFACE router filter; Three-DB Connection Router; DBPoolScopeMiddleware; DEKService + PII blind index + purge ledger; 守衛鏈; core/errors.py; core/idempotency.py; Middleware",
+        "component": "API_SURFACE router filter; Portal Claim Guard; Three-DB Connection Router; DBPoolScopeMiddleware; DEKService + PII blind index + purge ledger; 守衛鏈; core/errors.py; core/idempotency.py; Middleware",
         "sad": "12_SAD §4.2、§9",
         "sds": "15_SDS §6.1、§6.4",
         "path": "api/main.py; api/core/{deps,errors,idempotency,auth,pii_crypto,db}.py",
@@ -239,10 +239,10 @@ MODULE_ARCH = {
     },
     "DAT.SCH": {
         "component": "SQL/Schema*.sql; forward-only migrations; platform schema; core/db.py",
-        "component": "SQL/Schema*.sql; forward-only migrations; platform schema; Tech DB router + mirror; core/db.py",
+        "component": "SQL/Schema*.sql; forward-only migrations; migration registry + routed apply; Audit Chain Checkpoint; platform schema; Tech DB router + mirror; core/db.py",
         "sad": "12_SAD §4.2、§4.6",
         "sds": "15_SDS §3.1、§6.1",
-        "path": "SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py",
+        "path": "SQL/Schema*.sql; SQL/migrations/*.sql; SQL/{platform,tech_authority}/; api/core/{db,tech_mirror}.py; api/services/audit_log_service.py",
     },
     "DAT.RAG": {
         "component": "MCP RAG server; 品牌庫 pgvector; rag_manual_chunks / case_entries",
@@ -342,7 +342,7 @@ MODULE_ARCH = {
     },
 }
 
-# 需求狀態來自 SRS/Roadmap；以下是 2026-07-23 對 commit 5a9f7914 的 code reality。
+# 需求狀態來自 SRS/Roadmap；以下是 2026-07-27 對 commit e000f1fe 的 code reality。
 # AS-BUILT = 核心 code 與測試路徑存在；PARTIAL = 需部署參數/事件骨幹/安全窗或尚有設計邊界未收斂；
 # TO-BE = 目前只有 SAD/SDS/ADR 設計，不能用「需求已定版」推定已實作。
 MODULE_STATUS = {
@@ -505,6 +505,11 @@ COMPONENT_GLOSSARY = {
         "definition": "同一 FastAPI codebase 依 API_SURFACE=dispatch/tech/platform 裁切路由與背景 worker，形成三個可獨立部署面。",
         "boundary": "只縮小部署暴露面，不是授權邊界；每個保留端點仍須 RBAC、租戶或平台守衛。",
     },
+    "Portal Claim Guard": {
+        "alias": "跨 portal token 守衛",
+        "definition": "依 token 的 portal claim（或由角色推導）與部署面 ALLOWED_TOKEN_PORTALS 比對，拒絕技師、品牌、平台 token 跨面存取。",
+        "boundary": "只隔離 API surface；同一 portal 內仍須由 role_required、租戶與資源規則決定可否存取。未設定 ALLOWED_TOKEN_PORTALS 的本機／測試環境不強制此 guard。",
+    },
     "Three-DB Connection Router": {
         "alias": "三庫連線路由",
         "definition": "依資料權威將連線導向品牌庫、lock_tech 或 lock_platform，並可用 DB_URI_STRICT 阻止必要 URI 缺失時啟動。",
@@ -637,6 +642,11 @@ COMPONENT_GLOSSARY = {
         "definition": "只向前套用、有順序與可稽核性的 SQL schema 變更集。",
         "boundary": "不靠手改 production schema；漂移與重複套用必須由 CI/測試阻擋。",
     },
+    "migration registry + routed apply": {
+        "alias": "三庫 migration 登記與分流套用",
+        "definition": "以 migration 檔頭的 migrate-targets 將 schema 變更分流套用到品牌、技師與平台庫，並各自寫入 schema_migrations，再由 drift-check 對照登記簿。",
+        "boundary": "提供受控套用與可檢查性；不代表任何 production 環境已套用或資料 backfill 已完成。",
+    },
     "platform schema": {
         "definition": "平台治理庫的獨立 schema，存管理員、品牌申請等跨租戶管理資料。",
         "boundary": "不存單一品牌內的工單、客戶或報價真相。",
@@ -656,6 +666,11 @@ COMPONENT_GLOSSARY = {
     "outbox": {
         "definition": "與主業務交易同步寫入的待發送記錄，由 worker 重試投遞通知或事件。",
         "boundary": "解耦交易與外部副作用；不代替 Kafka 的跨系統長期事件日誌。",
+    },
+    "Audit Chain Checkpoint": {
+        "alias": "稽核雜湊鏈重基準點",
+        "definition": "以受鎖保護的鏈尾快照建立 append-only checkpoint，讓 audit verify 可從已核准的歷史基準後驗證並回報所有後續斷點。",
+        "boundary": "只處理既有歷史鏈的非破壞式 re-baseline；不修正未來寫入流程，也不取代 audit event 的內容完整性驗證。",
     },
     "provenance / audit": {
         "definition": "記錄資料來源、處理版本、行為者與時間的可重現與稽核證據。",
@@ -1068,8 +1083,8 @@ ARCH_RISKS = [
     ["契約", "CT-03", "20_Test_Cases 已建立 171 筆 QTM 正式 SRS REQ→TC 鍵", "97 筆詳細 TC 的舊 FR/來源欄不再承擔現行追溯", "QTM 列數與唯一鍵納入生成驗證；無 QTM 視為文件遺漏", "20_Test_Cases §2.1"],
     ["實作", "IM-01", "文件中既有🔜規劃中文字，又有 2026-07-21 codegraph 標注已落地", "直接以關鍵字統計會誤判實作率", "四書僅表示「需求定版/規劃訊號」，實作完成以 WBS/code/SIT 證據另對帳", "05_NFR 末段 / 27_Roadmap"],
     ["實作", "IM-02", "technician-platform 是獨立部署 stack，但後端共用 api codebase", "若仍寫成待確認的獨立 codebase，SAD/SDS 與程式無法對回", "Current 標 API_SURFACE=tech + lock_tech；Target OHS 邊界另列 To-Be", "12_SAD §4.5 / 15_SDS §7"],
-    ["契約", "CT-04", "consents:send-link 已進 runtime router/generated types，但 static OpenAPI SSOT 未回填", "靜態契約、SDK 與 runtime 可能漂移", "回填 api/openapi.yaml 與 16_API_Spec，跑 schema diff 後才可關閉", "api/routers/work_orders_v2.py / 16_API_Spec"],
-    ["部署", "DP-01", "Redis/Kafka/RAG/OIDC/Refinery/Observability 多項為 code-present 或 opt-in", "檔案存在會被誤判為 production 已啟用", "Code reality 用 PARTIAL；以部署 env、migration、SIT 與 dashboard 證據升級狀態", "Codebase現況掃描_2026-07-23"],
+    ["契約", "CT-04", "consents:send-link 已回填 api/openapi.yaml 與 16_API_Spec", "靜態契約與 runtime 仍須以 SIT runtime OpenAPI export 驗證", "G2 匯出 schema 並驗 operationId/response；未有環境輸出不可標 production-ready", "api/routers/work_orders_v2.py / api/openapi.yaml / 16_API_Spec"],
+    ["部署", "DP-01", "Redis/Kafka/RAG/OIDC/Refinery/Observability 多項為 code-present 或 opt-in", "檔案存在會被誤判為 production 已啟用", "Code reality 用 PARTIAL；以部署 env、migration、SIT 與 dashboard 證據升級狀態", "Codebase現況掃描_2026-07-27"],
     ["驗收", "QA-01", "部分 SRS/NFR 仍含 [待確認] 量化門檻", "測試可執行但無法客觀判定 pass/fail", "由 PM/Architect 在 UAT 前將門檻、量測點、資料集與 owner 定版", "04_SRS / 05_NFR"],
 ]
 
