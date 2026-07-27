@@ -42,13 +42,34 @@ async def ensure_schema() -> None:
 
 
 async def _already_processed(conn, event_id: str, topic: str) -> bool:
-    """event_id 去重：INSERT ON CONFLICT DO NOTHING，rowcount==0 即已處理。"""
+    """event_id 是否已成功處理過（**唯讀**）。
+
+    CR-0188：原本這裡是 `INSERT ... ON CONFLICT DO NOTHING` 兼作「查詢＋佔位」，
+    但共用連線是 `autocommit=True`（core/db.py），dedup 列在 handler 執行**之前**
+    就已提交 —— handler 一旦失敗（broker/DB 瞬斷、欄位缺漏…），該 event_id 就
+    **永久被判定為已處理**，重播變 no-op，該筆投影再也補不回來（不可逆資料遺失）。
+    原註解寫「單事件失敗只 log，不中斷消費（可後續重播）」，但重播其實不可能。
+
+    改為唯讀查詢，標記移到 handler 成功之後（見 `_mark_processed`）。
+    """
     cur = await conn.execute(
+        "SELECT 1 FROM event_consumer_dedup WHERE event_id = %s", (event_id,))
+    return await cur.fetchone() is not None
+
+
+async def _mark_processed(conn, event_id: str, topic: str) -> None:
+    """handler 成功後才記 dedup（CR-0188）。
+
+    與唯讀檢查搭配會有「同一事件並發重投」的競態窗口，但兩個 handler 都是
+    `ON CONFLICT ... DO UPDATE` 冪等 upsert（technician_workorder_projection /
+    technician_commission_projection），重複套用結果相同 —— 相較於「永久遺失投影」，
+    這個取捨明確更安全。ON CONFLICT DO NOTHING 讓並發標記本身也不會炸。
+    """
+    await conn.execute(
         "INSERT INTO event_consumer_dedup (event_id, topic) VALUES (%s, %s) "
         "ON CONFLICT (event_id) DO NOTHING",
         (event_id, topic),
     )
-    return cur.rowcount == 0
 
 
 async def handle_workorder_lifecycle(conn, event: dict) -> None:
@@ -110,6 +131,9 @@ async def process_event(topic: str, event: dict) -> bool:
         if event_id and await _already_processed(conn, event_id, topic):
             return False  # 重複，skip
         await handler(conn, event)
+        # CR-0188：**成功之後**才記 dedup —— 先記會讓失敗事件永久無法重播
+        if event_id:
+            await _mark_processed(conn, event_id, topic)
         return True
     except Exception:  # noqa: BLE001 — 單事件失敗只 log，不中斷消費（可後續重播）
         logger.exception("process_event 失敗 topic=%s event_id=%s", topic, event_id)

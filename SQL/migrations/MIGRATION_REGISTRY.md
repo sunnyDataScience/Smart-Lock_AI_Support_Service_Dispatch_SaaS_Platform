@@ -179,6 +179,7 @@
 
 | 116 | `116-audit-chain-checkpoint.sql` | CR-0184（UAT-0723-F3） | 🟢 idempotent（CREATE TABLE/INDEX IF NOT EXISTS，拋棄式 PG16 二套驗證 2026-07-26） | audit hash-chain re-baseline checkpoint 表 `audit_chain_checkpoint`（baseline_entry_hash/row_id/created_at＋note）。落庫＝**品牌庫**（audit_events 所在，部署層級全域鏈）。修 F3：CR-0166 lock 前並發競態造成 5 個歷史鏈分叉（07-06/07-12），採非破壞式 re-baseline——記已知良好基準雜湊，verify 從基準後起驗（歷史凍結不刪）；配套 verify 增強（回報所有斷點＋use_checkpoint）＋POST checkpoint 端點（admin-only） |
 | 117 | `117-problem-card-dismissed.sql` | CR-0185 | 🟢 idempotent（ADD COLUMN IF NOT EXISTS ＋ DROP/CREATE INDEX，scratch 庫二套驗證 2026-07-27） | 問題卡作廢終態 `dismissed`：新增 `dismissed_at`/`dismiss_reason`（沿用 invoices voided 欄位慣例）＋**重建 partial unique index `uniq_pc_conversation_active`** 把 dismissed 排除在 active 之外（不重建則作廢卡永遠佔住該對話唯一 active 名額，同對話再也開不了新卡＝修復自我廢除）。status 欄為 VARCHAR(50) 無 CHECK，新增值不需 DDL |
+| 118 | `118-settlement-policy-namespace.sql` | CR-0188 | 🟢 idempotent（ON CONFLICT DO NOTHING / WHERE NOT EXISTS，scratch 庫二套驗證 2026-07-27） | 註冊 `settlement_policy` namespace —— `_assert_reconcile_gate` 讀的 M18 開關 `reconcile_gate_enforce` 所屬 namespace **從未註冊**，而 `config_version.namespace` 有 FK 指向 `config_namespace` → 該開關**根本插不進去、永遠開不了**。本檔只讓它「可切換」，**value 寫 false ＝行為與現況完全相同**。`is_protected=true` + owner 空集合（admin-only）比照 103 對 payment_gate 的處置——金流閘門不得由租戶 override 關閉。⚠️ **刻意不開啟**：0727 紅隊審查發現閘門設計上無法通過（閘門查 legacy `public.settlements`、月結讀寫 v2 `saas.*`，且只有 legacy 路徑發 `commission.accrued`），貿然開啟＝每次月結永久 409 |
 
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。
