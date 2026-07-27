@@ -37,7 +37,7 @@
 | E Service principal | migration 121；hash/scope/aud/tenant/expiry/rotate/revoke/audit；agent/refinery/OHS opt-in | OD-001/004、production bootstrap、fallback release-window 歸零 |
 | F Background runtime | 14-job registry；獨立 worker entrypoint；hybrid cutover；六項 SLI；Cloud Run Job pilot deploy | GCP Scheduler shadow→cutover→rollback／重跑證據 |
 | G Release | build-once + same digest promotion；staging/prod manifest；health/smoke；rollback/drill tooling | GitHub Environments/WIF/reviewer 與三種真實演練 |
-| H Shared contract | `@smartlock/shared-contract@0.1.0` immutable vendored tarball；boundary/consumer；四站 build | registry 僅為後續 distribution 選項 |
+| H Shared contract | `@smartlock/shared-contract@0.1.0` immutable vendored tarball；boundary/consumer；四站 build；完整 dependency audit 0 vulnerability | registry 僅為後續 distribution 選項 |
 
 ## §3 影響分析
 
@@ -52,12 +52,14 @@
 
 已新增：
 
+- `GET /api/v2/auth/session`
+- `GET /api/v2/platform/auth/session`
 - `GET /tenants/{tenantId}/me/preferences`
 - `PUT /tenants/{tenantId}/me/preferences/{preferenceKey}`
-- `GET/PUT /api/v1/technicians/me/preferences[/\{preferenceKey\}]`
-- `GET/PUT /api/v1/platform/me/preferences[/\{preferenceKey\}]`
-- platform-only `GET/POST /api/v1/platform/service-principals` 與
-  `POST /api/v1/platform/service-credentials/{id}:rotate|:revoke`
+- `GET/PUT /api/v2/technicians/me/preferences[/\{preferenceKey\}]`
+- `GET/PUT /api/v2/platform/me/preferences[/\{preferenceKey\}]`
+- platform-only `GET/POST /api/v2/platform/service-principals` 與
+  `POST /api/v2/platform/service-credentials/{id}:rotate|:revoke`
 - internal service principal authentication dependency
 - code-defined job registry／worker entrypoint
 
@@ -101,6 +103,8 @@
 - Worker component：registry completeness、單 job selector、重跑冪等、API mode 不啟動。
 - Workflow static：environment、digest promotion、manifest 欄位、production 無 branch push。
 - Portal：Command Palette capability filtering、鍵盤導覽、direct URL/API 拒絕一致。
+- Supply chain：四站 `npm audit --audit-level=high`；Next／PostCSS／sharp 與
+  brace-expansion 修補版固定，production 與 dev toolchain 的 high／critical 都不得進入 PR。
 
 ## §4 風險與回復
 
@@ -169,15 +173,20 @@
 ## §10 進度
 
 - ✅ code complete 範圍：A/B/C/D/H；E/F/G 的 repo 內實作與靜態/component gate。
-- ✅ 本機證據：FastAPI runtime export **517 endpoints／363 schemas**；targeted API suite、
-  shared-contract boundary/test/build、四站 tsc/build、Brand unit、Playwright mutation
-  recovery、migration 120/121 二套與 migration drift。
-- ✅ 2026-07-27 收尾證據：API／Agent 定向與 BOLA 負向回歸 **161/161**、Brand unit
-  **46/46**、四站 PII scrub 各 **9/9**、Playwright offline／5xx／409 **3/3**；四站
-  production build、runtime OpenAPI drift、shared-contract consumer、browser token scanner、
-  Shell/YAML 與 `git diff --check` 全數通過。OAuth state 改為 server-generated 短效
-  HttpOnly cookie 並於 callback 比對；routed migration 採 `ON_ERROR_STOP=1`，SQL 失敗
-  不記帳且 drift 失敗不得形成成功證據。
+- ✅ 本機證據：FastAPI runtime export **517 endpoints／363 schemas**；API unit
+  **411/411**、CR-0190／surface／Agent 定向 **130/130**（另 2 項依設計需 scratch DB）、
+  release／ownership contract **44/44**；V1 freeze **216 operations、0 新增**。
+- ✅ 2026-07-27 收尾證據：Brand unit **46/46**，其餘三站各 **15/15**、四站
+  instrumentation file 各連跑 **20/20** 無 flake、Playwright offline／5xx／409
+  **3/3**；四站 tsc/lint/production build、完整 `npm audit` 各 **0
+  vulnerabilities**、runtime OpenAPI drift、shared-contract consumer、browser token
+  scanner、Spectral **0 error**、Prism **5/5** 全數通過。
+- ✅ production image 證據：Agent、API、Refinery 與四站 Web 共 **7/7** Docker build
+  通過；Python image import healthcheck 全綠，四個 Next standalone container 均回
+  HTTP 200。Agent image 明確包含 `psycopg-pool`，且不再以已退役的
+  LangChain／LangGraph 作健康檢查。
+- ✅ OAuth state 改為 server-generated 短效 HttpOnly cookie 並於 callback 比對；
+  routed migration 採 `ON_ERROR_STOP=1`，SQL 失敗不記帳且 drift 失敗不得形成成功證據。
 - 🛑 尚未完成：OD-001/004、service fallback production 歸零、Cloud Run Job
   shadow→cutover→rollback、GitHub Environments/WIF/required reviewer、revision rollback、
   migration forward-fix 與 Cloud SQL restore drill。上述都不可用 mock 或文件勾選替代。

@@ -119,7 +119,7 @@ async def put_brand_preference(
 
 
 @router.get(
-    "/api/v1/technicians/me/preferences",
+    "/api/v2/technicians/me/preferences",
     operation_id="listTechnicianPreferences",
     summary="列出技師跨裝置偏好",
 )
@@ -136,7 +136,7 @@ async def list_technician_preferences(
 
 
 @router.put(
-    "/api/v1/technicians/me/preferences/{preferenceKey}",
+    "/api/v2/technicians/me/preferences/{preferenceKey}",
     operation_id="putTechnicianPreference",
     summary="以版本 CAS 儲存技師偏好",
 )
@@ -157,7 +157,7 @@ async def put_technician_preference(
 
 
 @router.get(
-    "/api/v1/platform/me/preferences",
+    "/api/v2/platform/me/preferences",
     operation_id="listPlatformPreferences",
     summary="列出平台管理員跨裝置偏好",
 )
@@ -174,7 +174,7 @@ async def list_platform_preferences(
 
 
 @router.put(
-    "/api/v1/platform/me/preferences/{preferenceKey}",
+    "/api/v2/platform/me/preferences/{preferenceKey}",
     operation_id="putPlatformPreference",
     summary="以版本 CAS 儲存平台治理偏好",
 )

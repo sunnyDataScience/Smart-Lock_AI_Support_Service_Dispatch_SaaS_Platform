@@ -161,7 +161,6 @@ _TECH_EXCLUDED_PREFIXES = (
 
 def test_tech_surface_exclusion_list():
     """tech 面白名單過濾：全 app 敏感路由一條都不得保留（fail-closed by construction）。"""
-    from fastapi.routing import APIRoute
     from main import _tech_surface_keep
 
     app = _load_app()
@@ -178,8 +177,7 @@ def test_tech_surface_exclusion_list():
 
 
 def test_platform_surface_exclusion_list():
-    """platform 面只保留 /api/v1/platform（＋infra）；其餘一律剔除。"""
-    from fastapi.routing import APIRoute
+    """platform 面只保留 platform v1/v2（＋infra）；其餘一律剔除。"""
     from main import _platform_surface_keep
 
     app = _load_app()
@@ -187,7 +185,9 @@ def test_platform_surface_exclusion_list():
     leaked = [
         getattr(r, "path", "") for r in app.routes
         if _platform_surface_keep(getattr(r, "path", ""))
-        and not getattr(r, "path", "").startswith(("/api/v1/platform",) + infra)
+        and not getattr(r, "path", "").startswith(
+            ("/api/v1/platform", "/api/v2/platform") + infra
+        )
     ]
     assert not leaked, f"platform 面外洩路由：{leaked}"
 

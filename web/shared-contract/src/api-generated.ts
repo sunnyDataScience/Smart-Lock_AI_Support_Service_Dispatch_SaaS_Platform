@@ -89,23 +89,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/session": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 由 HttpOnly cookie／Bearer 取得最小 session claims */
-        get: operations["getBrowserSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/auth/me": {
         parameters: {
             query?: never;
@@ -299,23 +282,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/platform/auth/session": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** 由 HttpOnly cookie／Bearer 取得平台最小 session claims */
-        get: operations["getPlatformBrowserSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v1/platform/me": {
         parameters: {
             query?: never;
@@ -325,6 +291,40 @@ export interface paths {
         };
         /** 目前平台管理員 */
         get: operations["getPlatformMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 由 HttpOnly cookie／Bearer 取得最小 session claims */
+        get: operations["getBrowserSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/platform/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** 由 HttpOnly cookie／Bearer 取得平台最小 session claims */
+        get: operations["getPlatformBrowserSession"];
         put?: never;
         post?: never;
         delete?: never;
@@ -847,7 +847,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/platform/service-principals": {
+    "/api/v2/platform/service-principals": {
         parameters: {
             query?: never;
             header?: never;
@@ -865,7 +865,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/platform/service-credentials/{credential_id}:rotate": {
+    "/api/v2/platform/service-credentials/{credential_id}:rotate": {
         parameters: {
             query?: never;
             header?: never;
@@ -882,7 +882,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/platform/service-credentials/{credential_id}:revoke": {
+    "/api/v2/platform/service-credentials/{credential_id}:revoke": {
         parameters: {
             query?: never;
             header?: never;
@@ -933,7 +933,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/technicians/me/preferences": {
+    "/api/v2/technicians/me/preferences": {
         parameters: {
             query?: never;
             header?: never;
@@ -950,7 +950,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/technicians/me/preferences/{preferenceKey}": {
+    "/api/v2/technicians/me/preferences/{preferenceKey}": {
         parameters: {
             query?: never;
             header?: never;
@@ -967,7 +967,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/platform/me/preferences": {
+    "/api/v2/platform/me/preferences": {
         parameters: {
             query?: never;
             header?: never;
@@ -984,7 +984,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/platform/me/preferences/{preferenceKey}": {
+    "/api/v2/platform/me/preferences/{preferenceKey}": {
         parameters: {
             query?: never;
             header?: never;
@@ -13709,39 +13709,6 @@ export interface operations {
             };
         };
     };
-    getBrowserSession: {
-        parameters: {
-            query?: never;
-            header?: {
-                Authorization?: string | null;
-            };
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     getMyProfile: {
         parameters: {
             query?: never;
@@ -14127,7 +14094,7 @@ export interface operations {
             };
         };
     };
-    getPlatformBrowserSession: {
+    getPlatformMe: {
         parameters: {
             query?: never;
             header?: {
@@ -14160,7 +14127,40 @@ export interface operations {
             };
         };
     };
-    getPlatformMe: {
+    getBrowserSession: {
+        parameters: {
+            query?: never;
+            header?: {
+                Authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    getPlatformBrowserSession: {
         parameters: {
             query?: never;
             header?: {

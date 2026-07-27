@@ -24,6 +24,7 @@ from services import platform_admin_service
 
 logger = logging.getLogger("api.routers.platform_auth")
 router = APIRouter()
+session_router = APIRouter()
 
 
 class PlatformLoginBody(BaseModel):
@@ -97,7 +98,7 @@ async def logout_platform_admin(
     return response
 
 
-@router.get(
+@session_router.get(
     "/platform/auth/session",
     operation_id="getPlatformBrowserSession",
     summary="由 HttpOnly cookie／Bearer 取得平台最小 session claims",

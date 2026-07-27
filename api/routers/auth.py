@@ -29,6 +29,7 @@ from services import auth_service, password_reset_service, technician_kyc_servic
 
 logger = logging.getLogger("api.routers.auth")
 router = APIRouter()
+session_router = APIRouter()
 
 # CR-0165 F12：公開無登入註冊端點——缺 X-Tenant-ID 時 fallback 公共命名空間去重
 _public_register_idem = make_idempotency_guard(default_tenant=PUBLIC_TENANT_NAMESPACE)
@@ -263,7 +264,7 @@ async def change_password(
     return Response(status_code=204)
 
 
-@router.get(
+@session_router.get(
     "/auth/session",
     operation_id="getBrowserSession",
     summary="由 HttpOnly cookie／Bearer 取得最小 session claims",

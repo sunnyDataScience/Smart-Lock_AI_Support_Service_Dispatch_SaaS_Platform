@@ -56,7 +56,7 @@ OWNERSHIP_RULES: tuple[OwnershipRule, ...] = (
     OwnershipRule(
         "platform",
         OwnershipContract.PLATFORM,
-        r"^/api/v1/platform(?:/|$)",
+        r"^/api/v[12]/platform(?:/|$)",
         ("api/tests/test_platform_vendor_create.py::test_create_requires_platform_admin",),
         ("platform_principal", "capability", "ignore_request_tenant_for_grant"),
     ),

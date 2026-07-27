@@ -53,9 +53,18 @@ jobs:
           - module: agent
             kind: python
             healthcheck: |
-              import psycopg, langchain_core, langgraph, fastapi, litellm, linebot
+              import aiohttp, psycopg, psycopg_pool, litellm, linebot, mcp, opik
+              from lockcore.agent.loop import AgentLoop
+              from lockcore.agent.skill_sync import SkillSync
+              from lockcore.channels.line_gateway import build_webapp
               import importlib.metadata as md
-              print(f'litellm={md.version("litellm")} langgraph={md.version("langgraph")}')
+              # LockCore 已取代舊 LangChain/LangGraph runtime，不應再把退休依賴裝回 image。
+              try:
+                  import langchain_core
+                  raise SystemExit('FAIL: retired langchain_core leaked into LockCore image')
+              except ImportError:
+                  pass
+              print(f'litellm={md.version("litellm")} psycopg={md.version("psycopg")} mcp={md.version("mcp")}')
           - module: api
             kind: python
             healthcheck: |

@@ -155,7 +155,7 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | 3.6.5 | P0 | 🟨 code ready／待 production gate | Service principal／credential lifecycle：hash、scope、expiry、rotation、revoke、audit；遷移共用 `X-Internal-Token` | Platform+SEC+BE | ADR-036；**OD-001／OD-004** | migration 121、API/auth/caller/負測已綠；尚缺 principal/secret bootstrap、OD transport/claim 定案與 fallback usage 連續一個 release window = 0 |
 | 3.6.6 | P0 | 🟨 pilot ready／待 GCP 演練 | Background runtime 拆分：job registry、worker entrypoint、Cloud Scheduler/Run Job pilot、outbox metrics | BE+OPS | ADR-037；GCP IAM/Scheduler | 14-job registry、獨立 entrypoint、hybrid cutover flag、六項 SLI、Cloud Run Job 腳本已綠；尚缺真實 shadow→cutover→rollback／重跑證據 |
 | 3.6.7 | P0 | 🟨 workflow ready／待外部環境 | GCP staging→production promotion、GitHub Environments、WIF 隔離、release manifest、rollback/restore evidence | OPS+QA+SEC | ADR-038；3.6.4；3.6.6 | 同 digest workflow、雙環境 manifest、health/smoke、rollback/drill tooling 已綠；2026-07-27 稽核 repo Environments=0、Actions vars/secrets=0，且私有 repo 目前方案拒絕 branch protection／required reviewer（403）；尚缺 WIF 與 rollback/forward-fix/restore 真實演練 |
-| 3.6.8 | P2 | ✅ 2026-07-27 | `web/shared-contract` 版本化窄例外：runtime types、RFC7807、mutation/conflict、capability contract | FE+OPS | ADR-039；3.6.1；ADR-031 runtime export | `0.1.0` immutable vendored tarball；boundary/test/build、consumer matrix、四站 lockfile/tsc/production build 全綠 |
+| 3.6.8 | P2 | ✅ 2026-07-27 | `web/shared-contract` 版本化窄例外：runtime types、RFC7807、mutation/conflict、capability contract | FE+OPS | ADR-039；3.6.1；ADR-031 runtime export | `0.1.0` immutable vendored tarball；boundary/test/build、consumer matrix、四站 lockfile/tsc/production build 全綠；Next/PostCSS/sharp/brace-expansion 修補後完整 audit 皆 0 vulnerability |
 
 ### M4 / M5 平台化（概要層級）
 

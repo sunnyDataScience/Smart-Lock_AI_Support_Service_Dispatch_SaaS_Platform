@@ -46,6 +46,9 @@ jobs:
       - name: Install deps
         run: npm ci --no-audit --no-fund
 
+      - name: Dependency audit（high／critical 阻擋）
+        run: npm audit --audit-level=high
+
       - name: TypeScript typecheck
         run: npx tsc --noEmit
 

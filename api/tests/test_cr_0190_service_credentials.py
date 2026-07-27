@@ -179,6 +179,7 @@ def test_tenant_grant_denies_cross_tenant():
 
 @pytest.mark.unit
 def test_management_routes_are_platform_scoped_and_idempotent():
+    import main
     from routers.platform_service_principals import router
 
     routes = {route.path: route for route in router.routes}
@@ -190,6 +191,9 @@ def test_management_routes_are_platform_scoped_and_idempotent():
     ).read_text(encoding="utf-8")
     assert source.count('alias="Idempotency-Key"') == 3
     assert "overlap_seconds" in source
+    app_paths = {getattr(route, "path", "") for route in main.app.router.routes}
+    assert "/api/v2/platform/service-principals" in app_paths
+    assert "/api/v1/platform/service-principals" not in app_paths
 
 
 @pytest.mark.unit

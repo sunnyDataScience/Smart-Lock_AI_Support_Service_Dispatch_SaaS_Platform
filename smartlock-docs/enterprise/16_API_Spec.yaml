@@ -237,7 +237,7 @@ paths:
         "200": { description: 偏好建立／更新／同 action replay, content: { application/json: { schema: { $ref: "#/components/schemas/PreferenceEnvelope" } } } }
         "409": { $ref: "#/components/responses/Conflict" }
         "422": { $ref: "#/components/responses/ValidationError" }
-  /api/v1/platform/service-principals:
+  /api/v2/platform/service-principals:
     get:
       tags: [service-identity]
       operationId: listServicePrincipals
@@ -256,7 +256,7 @@ paths:
       responses:
         "201": { description: plaintext credential 僅此 response 可見, content: { application/json: { schema: { $ref: "#/components/schemas/IssuedServiceCredentialEnvelope" } } } }
         "409": { $ref: "#/components/responses/Conflict" }
-  /api/v1/platform/service-credentials/{credentialId}:rotate:
+  /api/v2/platform/service-credentials/{credentialId}:rotate:
     post:
       tags: [service-identity]
       operationId: rotateServiceCredential
@@ -271,7 +271,7 @@ paths:
         "200": { description: 新 plaintext credential 僅此 response 可見, content: { application/json: { schema: { $ref: "#/components/schemas/IssuedServiceCredentialEnvelope" } } } }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
-  /api/v1/platform/service-credentials/{credentialId}:revoke:
+  /api/v2/platform/service-credentials/{credentialId}:revoke:
     post:
       tags: [service-identity]
       operationId: revokeServiceCredential

@@ -15,6 +15,7 @@ import uuid
 import pytest
 
 from lockcore.agent.context import ContextBuilder
+from lockcore.agent import skill_sync as skill_sync_module
 from lockcore.agent.skill_sync import SkillSync
 
 _SKILL_MD = "---\nname: {n}\ndescription: 品牌自訂客服 SOP\n---\n\n品牌覆蓋內容 {marker}\n"
@@ -106,6 +107,47 @@ async def test_disabled_when_unconfigured(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_connection_pool_is_reused_and_closed(monkeypatch, tmp_path):
+    """SkillSync 每個 instance 只建一個 pool，stop 時釋放連線資源。"""
+    created = []
+
+    class FakePool:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+            self.open_calls = []
+            self.closed = False
+            created.append(self)
+
+        async def open(self, *, wait):
+            self.open_calls.append(wait)
+
+        async def close(self):
+            self.closed = True
+
+    monkeypatch.setattr(skill_sync_module, "AsyncConnectionPool", FakePool)
+    sync = SkillSync(workspace=tmp_path, uri="postgresql://scratch", tenant_id="tenant")
+
+    first = await sync._ensure_pool()
+    second = await sync._ensure_pool()
+
+    assert first is second
+    assert len(created) == 1
+    assert created[0].kwargs == {
+        "conninfo": "postgresql://scratch",
+        "min_size": 1,
+        "max_size": 2,
+        "timeout": 5,
+        "kwargs": {"autocommit": True},
+        "open": False,
+    }
+    assert created[0].open_calls == [False]
+
+    await sync.stop()
+    assert created[0].closed is True
+    assert sync._pool is None
+
+
+@pytest.mark.asyncio
 async def test_builtin_roundtrip_byte_identical(tmp_path):
     """品質保證（CR-0167）：builtin skill 走 DB→SkillSync→SkillsLoader 後位元組級不變。
 
@@ -142,19 +184,24 @@ async def test_builtin_roundtrip_byte_identical(tmp_path):
         cur.execute("INSERT INTO saas.skill_bundle(tenant_id, published_stamp) VALUES (%s::uuid, 1)", (tenant_id,))
 
     sync = SkillSync(workspace=tmp_path, uri=uri, tenant_id=tenant_id, poll_interval=999)
-    assert await sync._sync_once() is True
+    try:
+        assert await sync._sync_once() is True
 
-    # 逐檔位元組級比對 + SkillsLoader 內容等價
-    mat_root = tmp_path / "skills"
-    cb = ContextBuilder(workspace=tmp_path)
-    for name in names:
-        builtin = _files(BUILTIN_SKILLS_DIR / name)
-        materialized = _files(mat_root / name)
-        assert set(builtin) == set(materialized), f"{name} 物化檔集不一致（掉檔/多檔）"
-        for rel in builtin:
-            assert builtin[rel] == materialized[rel], f"{name}/{rel} 內容位元組不一致"
-        # SkillsLoader 讀物化版 == builtin 原文
-        assert cb.skills.load_skill(name) == (BUILTIN_SKILLS_DIR / name / "SKILL.md").read_text(encoding="utf-8")
+        # 逐檔位元組級比對 + SkillsLoader 內容等價
+        mat_root = tmp_path / "skills"
+        cb = ContextBuilder(workspace=tmp_path)
+        for name in names:
+            builtin = _files(BUILTIN_SKILLS_DIR / name)
+            materialized = _files(mat_root / name)
+            assert set(builtin) == set(materialized), f"{name} 物化檔集不一致（掉檔/多檔）"
+            for rel in builtin:
+                assert builtin[rel] == materialized[rel], f"{name}/{rel} 內容位元組不一致"
+            # SkillsLoader 讀物化版 == builtin 原文
+            assert cb.skills.load_skill(name) == (
+                BUILTIN_SKILLS_DIR / name / "SKILL.md"
+            ).read_text(encoding="utf-8")
+    finally:
+        await sync.stop()
 
 
 @pytest.mark.asyncio
@@ -186,10 +233,13 @@ async def test_db_roundtrip_publish_then_sync(tmp_path):
         )
 
     sync = SkillSync(workspace=tmp_path, uri=uri, tenant_id=tenant_id, poll_interval=999)
-    changed = await sync._sync_once()
-    assert changed is True
-    cb = ContextBuilder(workspace=tmp_path)
-    assert "FROM_DB" in cb.skills.load_skill(skill_name)
+    try:
+        changed = await sync._sync_once()
+        assert changed is True
+        cb = ContextBuilder(workspace=tmp_path)
+        assert "FROM_DB" in cb.skills.load_skill(skill_name)
 
-    # stamp 未變 → 第二次不換裝（no-op）
-    assert await sync._sync_once() is False
+        # stamp 未變 → 第二次不換裝（no-op）
+        assert await sync._sync_once() is False
+    finally:
+        await sync.stop()

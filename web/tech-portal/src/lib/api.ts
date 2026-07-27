@@ -244,8 +244,8 @@ export async function bootstrapSession(): Promise<CurrentSession | null> {
   if (existing) return existing;
   const platform = process.env.NEXT_PUBLIC_APP_MODE === "platform";
   const sessionPath = platform
-    ? "/api/v1/platform/auth/session"
-    : "/api/v1/auth/session";
+    ? "/api/v2/platform/auth/session"
+    : "/api/v2/auth/session";
   let response = await apiFetch(buildUrl(sessionPath));
   if (response.status === 401) {
     const refreshPath = platform

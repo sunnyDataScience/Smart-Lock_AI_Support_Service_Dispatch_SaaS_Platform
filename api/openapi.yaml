@@ -2855,7 +2855,7 @@ paths:
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
         '422': { $ref: '#/components/responses/SchemaInvalid' }
 
-  /api/v1/technicians/me/preferences:
+  /api/v2/technicians/me/preferences:
     get:
       tags: [Preferences]
       summary: 列出技師權威庫跨裝置偏好
@@ -2869,7 +2869,7 @@ paths:
               schema: { $ref: '#/components/schemas/PreferenceListEnvelope' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-  /api/v1/technicians/me/preferences/{preferenceKey}:
+  /api/v2/technicians/me/preferences/{preferenceKey}:
     parameters: [{ $ref: '#/components/parameters/PreferenceKey' }]
     put:
       tags: [Preferences]
@@ -2892,7 +2892,7 @@ paths:
           description: CONCURRENT_MODIFICATION
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
 
-  /api/v1/platform/me/preferences:
+  /api/v2/platform/me/preferences:
     get:
       tags: [Preferences]
       summary: 列出平台管理員權威庫跨裝置偏好
@@ -2906,7 +2906,7 @@ paths:
               schema: { $ref: '#/components/schemas/PreferenceListEnvelope' }
         '403': { $ref: '#/components/responses/Forbidden' }
 
-  /api/v1/platform/me/preferences/{preferenceKey}:
+  /api/v2/platform/me/preferences/{preferenceKey}:
     parameters: [{ $ref: '#/components/parameters/PreferenceKey' }]
     put:
       tags: [Preferences]
@@ -2929,7 +2929,7 @@ paths:
           description: CONCURRENT_MODIFICATION
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
 
-  /api/v1/platform/service-principals:
+  /api/v2/platform/service-principals:
     get:
       tags: [Service Identity]
       summary: 列出 service principals；永不回傳 credential secret/hash
@@ -2963,7 +2963,7 @@ paths:
           description: Name conflict or idempotency replay secret unavailable
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
 
-  /api/v1/platform/service-credentials/{credentialId}:rotate:
+  /api/v2/platform/service-credentials/{credentialId}:rotate:
     parameters:
       - { name: credentialId, in: path, required: true, schema: { type: string, format: uuid } }
     post:
@@ -2988,7 +2988,7 @@ paths:
           description: Idempotency replay secret unavailable
           content: { application/problem+json: { schema: { $ref: '#/components/schemas/Error' } } }
 
-  /api/v1/platform/service-credentials/{credentialId}:revoke:
+  /api/v2/platform/service-credentials/{credentialId}:revoke:
     parameters:
       - { name: credentialId, in: path, required: true, schema: { type: string, format: uuid } }
     post:

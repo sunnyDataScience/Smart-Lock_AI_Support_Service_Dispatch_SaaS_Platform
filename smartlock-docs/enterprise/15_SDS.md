@@ -626,8 +626,9 @@ build、lockfile、Dockerfile 與 compose。四站只共享固定版本無 UI �
 ### 8.3 關鍵序列
 
 **登入 gate 三段**：開啟路徑 → AuthGuard 掛載 → ① `crossModeRedirect(pathname)` → ②
-`bootstrapSession()` 以 HttpOnly access/refresh cookie 讀 `/auth/session`，失敗刷新一次，無
-session 且非公開頁導登入 → ③ `rolePolicy.canAccessRoute` → 渲染頁面。登入／refresh 帶
+`bootstrapSession()` 以 HttpOnly access/refresh cookie 讀 `/api/v2/auth/session`（平台面
+為 `/api/v2/platform/auth/session`），失敗刷新一次，無 session 且非公開頁導登入 → ③
+`rolePolicy.canAccessRoute` → 渲染頁面。登入／refresh 帶
 `X-Auth-Response-Mode: cookie`，API JSON 不回 access/refresh；本站 proxy 完整轉送兩個
 Set-Cookie。真正授權仍由後端 tenant/role/resource guard 執行。
 

@@ -2,7 +2,8 @@
 
 對齊 test_api_surface.py 的驗法:
 1. 預設(all)完整掛載 —— platform 路由與品牌路由並存,零行為變化。
-2. platform 面前綴判定只留 /api/v1/platform(+健康/文件),剔除品牌/技師/internal。
+2. platform 面前綴判定只留 /api/v1/platform 與 /api/v2/platform
+   （加健康/文件），剔除品牌/技師/internal。
 3. 對真實 app 路由表做模擬過濾,確認平台端點存活、其餘消失。
 """
 
@@ -21,6 +22,8 @@ def test_default_surface_mounts_platform_routes():
     assert "/api/v1/platform/auth/refresh" in paths
     assert "/api/v1/platform/auth/logout" in paths
     assert "/api/v1/platform/me" in paths
+    assert "/api/v2/platform/auth/session" in paths
+    assert "/api/v2/platform/service-principals" in paths
     # 品牌面仍完整
     assert "/api/v1/auth/login" in paths
     assert any(p.startswith("/tenants/{tenantId}/work-orders") for p in paths)
@@ -40,6 +43,9 @@ def test_default_surface_mounts_platform_routes():
         # R2/R3 未來端點也天然被同一前綴涵蓋
         "/api/v1/platform/brand-applications",
         "/api/v1/platform/technicians/{technicianId}:onboard-approve",
+        "/api/v2/platform/auth/session",
+        "/api/v2/platform/me/preferences",
+        "/api/v2/platform/service-principals",
     ],
 )
 def test_platform_surface_keeps_platform_endpoints(path):
@@ -78,10 +84,14 @@ def test_platform_surface_simulated_filter_on_real_routes():
     assert "/health" in kept
     assert "/api/v1/platform/auth/login" in kept
     assert "/api/v1/platform/me" in kept
+    assert "/api/v2/platform/auth/session" in kept
+    assert "/api/v2/platform/service-principals" in kept
     assert not any(p.startswith("/api/v1/auth") for p in kept)
     assert not any(p.startswith("/api/v1/technicians") for p in kept)
     assert not any(p.startswith("/tenants/") for p in kept)
     assert not any(p.startswith("/realtime/") for p in kept)
-    # 平台面是極小面:除健康/文件外只有 /api/v1/platform 前綴
-    platform_routes = [p for p in kept if p.startswith("/api/v1/platform")]
+    # 平台面是極小面:除健康/文件外只有 platform v1/v2 前綴
+    platform_routes = [
+        p for p in kept if p.startswith(("/api/v1/platform", "/api/v2/platform"))
+    ]
     assert len(platform_routes) >= 4

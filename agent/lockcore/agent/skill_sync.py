@@ -24,6 +24,8 @@ import re
 import shutil
 from pathlib import Path
 
+from psycopg_pool import AsyncConnectionPool
+
 logger = logging.getLogger("lockcore.skill_sync")
 
 _DEFAULT_POLL_SECONDS = 60
@@ -41,12 +43,13 @@ class SkillSync:
         self.workspace = Path(workspace)
         self.uri = uri or ""
         self.tenant_id = (tenant_id or "").strip()
-        # 下限 1s：SKILL_SYNC_POLL_SECONDS=0/負值會讓 _poll_loop 每 tick 開一條新 DB
-        # 連線（連線風暴）。比照 codebase 慣例 clamp（CR-0167 review finding 6）。
+        # 下限 1s：SKILL_SYNC_POLL_SECONDS=0/負值會讓 _poll_loop 緊密查詢 DB，
+        # 形成查詢風暴。比照 codebase 慣例 clamp（CR-0167 review finding 6）。
         self.poll_interval = max(1, poll_interval)
         self.enabled = bool(self.uri and self.tenant_id)
         self._last_stamp: int | None = None
         self._task: asyncio.Task | None = None
+        self._pool: AsyncConnectionPool | None = None
         self._version_seq = 0
         # workspace/skills 是 SkillsLoader.workspace_skills（overlay 讀取點）
         self._skills_link = self.workspace / "skills"
@@ -81,6 +84,9 @@ class SkillSync:
             except (asyncio.CancelledError, Exception):  # noqa: BLE001
                 pass
             self._task = None
+        if self._pool is not None:
+            await self._pool.close()
+            self._pool = None
 
     async def _poll_loop(self) -> None:
         while True:
@@ -109,10 +115,22 @@ class SkillSync:
 
     # ── DB 讀取（psycopg async，autocommit）───────────────────────────────────
 
-    async def _fetch_stamp(self) -> int | None:
-        from psycopg import AsyncConnection
+    async def _ensure_pool(self) -> AsyncConnectionPool:
+        if self._pool is None:
+            self._pool = AsyncConnectionPool(
+                conninfo=self.uri,
+                min_size=1,
+                max_size=2,
+                timeout=5,
+                kwargs={"autocommit": True},
+                open=False,
+            )
+            await self._pool.open(wait=False)
+        return self._pool
 
-        async with await AsyncConnection.connect(self.uri, autocommit=True) as conn:
+    async def _fetch_stamp(self) -> int | None:
+        pool = await self._ensure_pool()
+        async with pool.connection() as conn:
             cur = await conn.execute(
                 "SELECT published_stamp FROM saas.skill_bundle WHERE tenant_id = %s::uuid",
                 (self.tenant_id,),
@@ -122,9 +140,8 @@ class SkillSync:
 
     async def _fetch_published_skills(self) -> dict[str, dict]:
         """{ skill_name: {rel_path: content} }（僅 status='published'）。"""
-        from psycopg import AsyncConnection
-
-        async with await AsyncConnection.connect(self.uri, autocommit=True) as conn:
+        pool = await self._ensure_pool()
+        async with pool.connection() as conn:
             cur = await conn.execute(
                 "SELECT skill_name, files FROM saas.skill_revision "
                 "WHERE tenant_id = %s::uuid AND status = 'published'",

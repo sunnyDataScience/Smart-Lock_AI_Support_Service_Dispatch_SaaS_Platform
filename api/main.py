@@ -293,12 +293,20 @@ app.add_exception_handler(IdempotencyReplay, handle_idempotency_replay)
 
 app.include_router(auth_router.router, prefix="/api/v1", tags=["auth"])
 app.include_router(platform_auth_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114
+app.include_router(auth_router.session_router, prefix="/api/v2", tags=["auth"])
+app.include_router(
+    platform_auth_router.session_router, prefix="/api/v2", tags=["platform"]
+)
 app.include_router(platform_brand_apps_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R2
 app.include_router(platform_technicians_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 R3
 app.include_router(platform_vendors_router.router, prefix="/api/v1", tags=["platform"])  # CR-0114 收尾: 廠商審核搬遷
 app.include_router(platform_monitor_router.router, prefix="/api/v1", tags=["platform"])  # CR-0116: 維運監控
 app.include_router(platform_tenants_router.router, prefix="/api/v1", tags=["platform"])  # CR-0118: 租戶 registry
-app.include_router(platform_service_principals_router.router, prefix="/api/v1", tags=["platform"])  # CR-0190/ADR-036
+app.include_router(
+    platform_service_principals_router.router,
+    prefix="/api/v2",
+    tags=["platform"],
+)  # CR-0190/ADR-036
 app.include_router(preferences_router.router, tags=["preferences"])  # CR-0190: 路由本身含三面完整 path
 app.include_router(notifications_router.router, prefix="/api/v1", tags=["realtime"])
 app.include_router(system_config_router.router, prefix="/api/v1", tags=["user_management"])
@@ -642,6 +650,8 @@ _TECH_SURFACE_PREFIXES: tuple[str, ...] = (
     "/redoc",
     "/api/v1/auth",
     "/api/v1/technicians",
+    "/api/v2/auth",
+    "/api/v2/technicians",
     "/api/v1/internal/technicians",  # CR-0169:品牌 api → LINE 推播 internal 端點
     "/api/v1/work-orders",
     "/api/v1/problem-cards",
@@ -671,7 +681,7 @@ if _API_SURFACE == "tech":
 
 
 # ── CR-0114:API_SURFACE=platform 路由過濾(平台方 console 精簡面)──────────
-# 平台端點全部收在 /api/v1/platform 前綴下 → 一條前綴即過濾乾淨。
+# 平台端點收在 legacy /api/v1/platform 與新面 /api/v2/platform 前綴下。
 # 同 tech 面:部署塑形非安全邊界,權限由 require_platform_admin 把關。
 _PLATFORM_SURFACE_PREFIXES: tuple[str, ...] = (
     "/health",
@@ -679,6 +689,7 @@ _PLATFORM_SURFACE_PREFIXES: tuple[str, ...] = (
     "/openapi.json",
     "/redoc",
     "/api/v1/platform",
+    "/api/v2/platform",
 )
 
 
@@ -707,6 +718,7 @@ if _API_SURFACE == "platform":
 # all 模式(pytest/雲端單體)不過濾,行為零變化。
 _DISPATCH_SURFACE_DROP_PREFIXES: tuple[str, ...] = (
     "/api/v1/platform",
+    "/api/v2/platform",
     "/api/v1/technicians/register",
     # CR-0115 孿生公開寫端點(兩階段 token 文件上傳)—— 與 /register 同理,
     # 公開師傅身分域寫入面不暴露在品牌 8001。

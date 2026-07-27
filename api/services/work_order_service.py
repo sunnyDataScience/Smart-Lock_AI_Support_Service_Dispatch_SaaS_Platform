@@ -19,6 +19,7 @@ import logging
 import math
 import os
 import re
+from datetime import datetime, timezone
 
 import core.db as db_module
 from core.db import _ensure_conn
@@ -518,6 +519,8 @@ async def create_from_problem_card(
     #    get-or-create 在併發下可雙雙 miss → 靠 migration 110 的 partial UNIQUE
     #    （problem_card_id 限原始單）DB 兜底；撞 UNIQUE = 別的請求已建 → 回既有單
     #    （get 語意，created_flag=False）。
+    from psycopg import errors as _pg_errors
+
     try:
         insert_cur = await db_module._conn.execute(
             "INSERT INTO work_orders "
@@ -536,13 +539,9 @@ async def create_from_problem_card(
              json.dumps(pc_media, ensure_ascii=False) if pc_media else None, tenant_id,
              pc_serial or None),
         )
-    except Exception as exc:
-        from psycopg import errors as _pg_errors
-
+    except _pg_errors.UniqueViolation as exc:
         constraint = getattr(getattr(exc, "diag", None), "constraint_name", None)
-        if isinstance(exc, _pg_errors.UniqueViolation) and (
-            constraint in (None, "uq_work_orders_problem_card")
-        ):
+        if constraint in (None, "uq_work_orders_problem_card"):
             cur = await db_module._conn.execute(
                 "SELECT id FROM work_orders "
                 "WHERE problem_card_id = %s::uuid "
@@ -2541,9 +2540,6 @@ async def get_today_stats(*, tenant_id: str) -> dict:
 #   /my-orders/[id]/material-request   → POST /work-orders/{id}/material-request
 #   /my-orders/[id]/delay              → POST /work-orders/{id}/delay
 #   /my-orders/[id]/door-check         → POST /work-orders/{id}/door-check
-
-import json
-from datetime import datetime, timezone
 
 # 子流程允許狀態：技師作業中（含 assigned 之後到 in_progress；不含 completed 後）
 _SUBFLOW_FROM = {"assigned", "accepted", "in_progress"}

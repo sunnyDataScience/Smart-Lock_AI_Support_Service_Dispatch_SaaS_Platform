@@ -129,3 +129,13 @@ def test_browser_cookie_mode_response_never_exposes_tokens():
     assert result["data"]["authenticated"] is True
     assert "access_token" not in result["data"]
     assert "refresh_token" not in result["data"]
+
+
+def test_browser_session_endpoints_use_v2_without_expanding_frozen_v1():
+    import main
+
+    paths = {getattr(route, "path", "") for route in main.app.router.routes}
+    assert "/api/v2/auth/session" in paths
+    assert "/api/v2/platform/auth/session" in paths
+    assert "/api/v1/auth/session" not in paths
+    assert "/api/v1/platform/auth/session" not in paths

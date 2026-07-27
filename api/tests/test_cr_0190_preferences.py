@@ -180,7 +180,7 @@ async def test_preference_write_requires_action_id(client, admin_headers):
 @pytest.mark.asyncio
 async def test_platform_endpoint_rejects_brand_token(client, admin_headers):
     response = await client.get(
-        "/api/v1/platform/me/preferences",
+        "/api/v2/platform/me/preferences",
         headers=admin_headers,
     )
     assert response.status_code == 403
