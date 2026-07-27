@@ -34,22 +34,22 @@ upstream:
 ### 1.1 受控系統測試情境基線
 
 <!-- BEGIN GENERATED QA SCENARIO BASELINE -->
-> 此表與《SmartLock_整合測試計畫.xlsx》隱藏附錄 C 的端到端旅程同源；QA 需求情境見⑧、逐項執行見⑨，完整治理追溯見隱藏附錄 A 與 `20_Test_Cases.md` §2.1。
+> 此表由 `_relations/rq_verified_by_tc.yaml` 的 `ts` 欄推導；旅程層驗收見 `28_Scenarios.md` 與《整合測試計畫》④，需求層覆蓋見 §2.1。
 
 | 情境 ID | 情境 | 優先 | 主要測試方法 | 關聯 REQ 數 | 追溯基線 |
 |---|---|---|---|---:|---|
-| TS-01 | LINE AI 自助與轉真人 | P0 | 送文字/照片/急件/假簽章/重送→對話、問題卡、escalation 對帳 | 12 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-02 | 問題卡→報價→開單 | P0 | 草擬卡→補齊→quote v1→送客→確認→CS 1-click→WO created | 11 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-03 | 自動派工與技師接單 | P0 | 5→10→20km 媒合→指派→技師接/拒/逾時→品牌狀態與投影對帳 | 7 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-04 | 現場、加價、requote 與結案 | P0 | 到場→施工→三種加價邊界→客戶接/拒→存證→結案 gate | 4 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-05 | 收款、退款、帳本與結算 | P0 | 收款→對帳→退款分層→月結→commission event→reconcile | 4 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-06 | 技師註冊、KYC 與生命週期 | P0 | 註冊→敏感文件→審核→品牌授權→排班→停權/復權 | 3 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-07 | 知識精煉－人工審核完整流程 | P0 | 汲取→提煉→diff→核可/拒絕→雙路發布→來源/租戶對帳 | 15 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-08 | 租戶、OIDC、RBAC 與 License 開通 | P0 | 品牌申請→核准→org/License→bundle/建庫/綁 LINE→角色矩陣負測 | 35 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-09 | 資料、migration 與 audit 可重現 | P0 | 從空庫/舊版套 migration→重套→注入 drift→跑 raw/bronze/silver→驗 hash | 37 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-10 | 安全、隱私與合約不可違反條件 | P0 | 全端點矩陣→攻擊/跨租戶→forget/legal hold→影像 double gate→Family review | 66 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-11 | 效能、容量、降級與可觀測 | P1 | 階梯壓測→斷 LLM/Redis/Kafka/OHS/Casdoor→觀察降級、lag、alert、recovery | 64 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
-| TS-12 | Flow/Vertical Pack/Agent Config 治理 | P1 | 匯入 pack→非法 DSL→高風險操作需人工審核→canary→SLO halt→還原→audit 對帳 | 2 | 20_Test_Cases §2.1 / Excel 隱藏附錄 A |
+| TS-01 | LINE AI 自助與轉真人 | P0 | 送文字/照片/急件/假簽章/重送→對話、問題卡、escalation 對帳 | 11 | _relations/rq_verified_by_tc.yaml |
+| TS-02 | 問題卡→報價→開單 | P0 | 草擬卡→補齊→quote v1→送客→確認→CS 1-click→WO created | 7 | _relations/rq_verified_by_tc.yaml |
+| TS-03 | 自動派工與技師接單 | P0 | 5→10→20km 媒合→指派→技師接/拒/逾時→品牌狀態與投影對帳 | 7 | _relations/rq_verified_by_tc.yaml |
+| TS-04 | 現場、加價、requote 與結案 | P0 | 到場→施工→三種加價邊界→客戶接/拒→存證→結案 gate | 4 | _relations/rq_verified_by_tc.yaml |
+| TS-05 | 收款、退款、帳本與結算 | P0 | 收款→對帳→退款分層→月結→commission event→reconcile | 4 | _relations/rq_verified_by_tc.yaml |
+| TS-06 | 技師註冊、KYC 與生命週期 | P0 | 註冊→敏感文件→審核→品牌授權→排班→停權/復權 | 1 | _relations/rq_verified_by_tc.yaml |
+| TS-07 | 知識精煉 HITL 閉環 | P0 | 汲取→提煉→diff→核可/拒絕→雙路發佈→來源/租戶對帳 | 8 | _relations/rq_verified_by_tc.yaml |
+| TS-08 | 租戶、OIDC、RBAC 與 License 開通 | P0 | 品牌申請→核准→org/License→bundle/建庫/綁 LINE→角色矩陣負測 | 15 | _relations/rq_verified_by_tc.yaml |
+| TS-09 | 資料、migration 與 audit 可重現 | P0 | 從空庫/舊版套 migration→重套→注入 drift→跑 raw/bronze/silver→驗 hash | 12 | _relations/rq_verified_by_tc.yaml |
+| TS-10 | 安全、隱私與合約紅線 | P0 | 全端點矩陣→攻擊/跨租戶→forget/legal hold→影像 double gate→Family review | 35 | _relations/rq_verified_by_tc.yaml |
+| TS-11 | 效能、容量、降級與可觀測 | P1 | 階梯壓測→斷 LLM/Redis/Kafka/OHS/Casdoor→觀察降級、lag、alert、recovery | 16 | _relations/rq_verified_by_tc.yaml |
+| TS-12 | Flow/Vertical Pack/Agent Config 治理 | P1 | 匯入 pack→非法 DSL→高風險 HITL→canary→SLO halt→rollback→audit 對帳 | 0 | _relations/rq_verified_by_tc.yaml |
 <!-- END GENERATED QA SCENARIO BASELINE -->
 
 ## 2. 測試範圍

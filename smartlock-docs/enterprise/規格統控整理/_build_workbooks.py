@@ -1,0 +1,815 @@
+#!/usr/bin/env python3
+"""Build the four spec workbooks from the canon. One producer, four readers.
+
+    書                     交給誰        只回答一個問題                      列節點
+    ────────────────────────────────────────────────────────────────────────────────
+    業務邏輯驗收控制表     業務 / PM     客戶的哪幾條旅程算不算驗收通過？    SC
+    模組功能 BOM           架構師 / RD   每條需求由誰實作、現在到哪了？      FR / NFR
+    整合測試計畫           QA            我今天要跑哪些案例、怎麼判定過？    TC
+    規格統控規劃書         經營層 / PM   哪裡有洞、哪裡卡決策、什麼時候做？  缺口
+
+Each book has one role, one question, one state axis, and three or four sheets.
+The four state axes may never推 each other:
+
+    需求定版  (SRS 文字說的)      ← SA
+    工程證據  (掃描器說的)        ← RD / 架構師
+    測試執行  (測試器說的)        ← QA
+    驗收通過  (人簽的)            ← 業務 Owner    只有人能推進
+
+Colour is load-bearing: yellow = a human must fill this in, grey = derived,
+never hand-edit. Everything else came from the canon Markdown.
+
+    python3 _build_workbooks.py
+"""
+
+from __future__ import annotations
+
+from collections import Counter
+from pathlib import Path
+
+from openpyxl import Workbook
+from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.datavalidation import DataValidation
+
+import _canon as C
+import _validate_relations as V
+from _spec_data import CODEBASE_SNAPSHOT, COMPONENT_GLOSSARY, MODULES, SUBSYSTEMS
+
+HERE = Path(__file__).resolve().parent
+
+OUTPUTS = {
+    "acceptance": HERE / "SmartLock_業務邏輯驗收控制表.xlsx",
+    "bom": HERE / "SmartLock_模組功能BOM.xlsx",
+    "test": HERE / "SmartLock_整合測試計畫.xlsx",
+    "planning": HERE / "SmartLock_規格統控規劃書.xlsx",
+}
+GLOSSARY_MD = HERE / "SAD_SDS元件標籤字典.md"
+HEALTH_MD = HERE / "產出健康報告.md"
+
+FONT = "Noto Sans CJK TC"
+NAVY = "1F3864"
+HEAD = PatternFill("solid", fgColor=NAVY)
+HUMAN = PatternFill("solid", fgColor="FFF2CC")    # 只有人能填
+DERIVED = PatternFill("solid", fgColor="EFEFEF")  # 生成，手改會被覆蓋
+BANNER = PatternFill("solid", fgColor="D9E2F3")
+L1_FILL = PatternFill("solid", fgColor=NAVY)
+L2_FILL = PatternFill("solid", fgColor="DEEBF7")
+LINE_TINT = {
+    "L1-CUS": "DEEBF7", "L1-OPS": "E2EFDA", "L1-TEC": "FFF2E6",
+    "L1-KNW": "EDE7F6", "L1-PLT": "FCE4EC",
+}
+THIN = Side(style="thin", color="BFBFBF")
+BOX = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+WRAP = Alignment(wrap_text=True, vertical="top")
+
+
+# ---------------------------------------------------------------- sheet kit
+
+def new_book(title: str) -> Workbook:
+    wb = Workbook()
+    wb.remove(wb.active)
+    wb.properties.creator = "Smart Lock spec generator"
+    wb.properties.title = title
+    wb.properties.description = "由 smartlock-docs/enterprise 正典 Markdown 單向生成"
+    return wb
+
+
+def table(wb: Workbook, name: str, headers: list[tuple[str, int, str]]):
+    """headers = [(text, width, kind)]; kind in {'', 'human', 'derived'}."""
+    ws = wb.create_sheet(name)
+    for c, (text, width, _) in enumerate(headers, 1):
+        cell = ws.cell(1, c, text)
+        cell.fill = HEAD
+        cell.font = Font(name=FONT, color="FFFFFF", bold=True, size=10)
+        cell.alignment = Alignment(wrap_text=True, vertical="center", horizontal="center")
+        cell.border = BOX
+        ws.column_dimensions[get_column_letter(c)].width = width
+    ws.row_dimensions[1].height = 34
+    ws.freeze_panes = "A2"
+    return ws
+
+
+def row(ws, r: int, values: list, kinds: list[str], tint: str | None = None,
+        height: int | None = None) -> None:
+    for c, (v, kind) in enumerate(zip(values, kinds), 1):
+        cell = ws.cell(r, c, v)
+        cell.alignment = WRAP
+        cell.border = BOX
+        cell.font = Font(name=FONT, size=10)
+        if kind == "human":
+            cell.fill = HUMAN
+        elif kind == "derived":
+            cell.fill = DERIVED
+        elif tint:
+            cell.fill = PatternFill("solid", fgColor=tint)
+    if height:
+        ws.row_dimensions[r].height = height
+
+
+def finish(ws, columns: int, last_row: int) -> None:
+    ws.auto_filter.ref = f"A1:{get_column_letter(columns)}{max(last_row, 2)}"
+
+
+def howto(wb: Workbook, rows: list[tuple[str, str]]) -> None:
+    ws = wb.create_sheet("① 怎麼用這本")
+    ws.column_dimensions["A"].width = 22
+    ws.column_dimensions["B"].width = 116
+    for r, (k, v) in enumerate(rows, 1):
+        a = ws.cell(r, 1, k)
+        a.font = Font(name=FONT, bold=True, size=10, color=NAVY)
+        a.alignment = Alignment(vertical="top", wrap_text=True)
+        b = ws.cell(r, 2, v)
+        b.alignment = WRAP
+        b.font = Font(name=FONT, size=10)
+        ws.row_dimensions[r].height = 15 + 15 * (len(v) // 58)
+
+
+def banner(ws, r: int, columns: int, text: str) -> None:
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=columns)
+    cell = ws.cell(r, 1, text)
+    cell.fill = BANNER
+    cell.font = Font(name=FONT, bold=True, size=10, color=NAVY)
+    cell.alignment = Alignment(vertical="center", wrap_text=True)
+    ws.row_dimensions[r].height = 22
+
+
+def dropdown(ws, column: str, first: int, last: int, values: str, message: str) -> None:
+    dv = DataValidation(type="list", formula1=f'"{values}"', allow_blank=True,
+                        showDropDown=False)
+    dv.error = message
+    ws.add_data_validation(dv)
+    dv.add(f"{column}{first}:{column}{max(last, first)}")
+
+
+COMMON_HOWTO = [
+    ("", ""),
+    ("黃色欄位", "只有人能填。系統不會、也不該幫你填。"),
+    ("灰色欄位", "生成欄，手改會在下次重跑被覆蓋。要改請改上游 Markdown 或 _relations/*.yaml。"),
+    ("白色欄位", "正典敘述，同樣改上游。"),
+    ("", ""),
+    ("四個狀態軸不得互推",
+     "程式檔存在 ≠ 工程完成；工程完成 ≠ 測試通過；測試通過 ≠ 驗收通過。"
+     "需求定版(SA) / 工程證據(RD) / 測試執行(QA) / 驗收通過(業務 Owner) 各有唯一 owner，"
+     "任何一格都不得由另一軸自動帶出。"),
+    ("怎麼重生",
+     "改上游正典 → 在 規格統控整理/ 跑 python3 _build_workbooks.py。"
+     "xlsx 是單向快照，永遠不要直接改 xlsx 再往回抄。"),
+]
+
+
+# ---------------------------------------------------------------- derivations
+
+class Model:
+    """The canon plus every derived view the four books need. Computed once."""
+
+    def __init__(self) -> None:
+        self.scenarios = C.load_scenarios()
+        self.frs = C.load_requirements()
+        self.nfrs = C.load_nfrs()
+        self.cases = C.load_test_cases()
+        self.rel = C.load_relations()
+        self.adrs = C.load_adrs()
+        self.wbs = C.load_wbs()
+        self.ts = C.load_test_scenarios()
+        self.report, self.counts = V.run()
+
+        self.sc_by_id = {s.sc_id: s for s in self.scenarios}
+        self.fr_by_id = {r.req_id: r for r in self.frs}
+        self.nfr_by_id = {n.req_id: n for n in self.nfrs}
+        self.title_of = {**{r.req_id: r.name for r in self.frs},
+                         **{n.req_id: n.name for n in self.nfrs}}
+        self.case_by_id = {t.tc_id: t for t in self.cases}
+
+    # -- requirement level -------------------------------------------------
+
+    def req_title(self, rid: str) -> str:
+        return self.title_of.get(rid, "（不在正典）")
+
+    def journeys_of(self, rid: str) -> str:
+        """Which journeys need this requirement -- the SA back-check.
+
+        A requirement that answers 「沒有」 and is not declared global is one
+        somebody imagined.
+        """
+        scs = self.rel.scenarios_of(rid)
+        if scs:
+            return "、".join(sorted(set(scs)))
+        return "全域地板" if self.rel.global_matches(rid) else "⚠ 無旅程"
+
+    def coverage_of(self, rid: str) -> str:
+        kinds = self.rel.kinds_of(rid)
+        if not kinds:
+            return "無案例"
+        order = ["happy", "boundary", "failure", "recovery"]
+        return "、".join(k for k in order if k in kinds)
+
+    def p0_requirements(self) -> set[str]:
+        return {rid for s in self.scenarios if s.priority == "P0"
+                for rid in self.rel.reqs_of(s.sc_id)}
+
+    # -- scenario level ----------------------------------------------------
+
+    def engineering_of(self, sc_id: str) -> str:
+        """Code reality of the FRs on this journey's critical path."""
+        counts: Counter = Counter()
+        for rid in self.rel.reqs_of(sc_id, "essential"):
+            req = self.fr_by_id.get(rid)
+            if req is None:
+                continue
+            counts[C.architecture_for(req)["status"].split("（", 1)[0].strip()] += 1
+        if not counts:
+            return "—（無 FR）"
+        return " / ".join(f"{k} {v}" for k, v in sorted(counts.items()))
+
+    def test_of(self, sc_id: str) -> str:
+        essential = self.rel.reqs_of(sc_id, "essential")
+        if not essential:
+            return "—"
+        have = sum(1 for rid in essential if self.rel.cases_of(rid))
+        return f"{have}/{len(essential)} 有案例"
+
+    def script_of(self, sc_id: str) -> str:
+        cases = self.rel.script_cases(sc_id)
+        if not cases:
+            return "⚠ 無驗收腳本"
+        uat = sorted({s.get("uat", "") for s in self.rel.sc_tc
+                      if s["scenario"] == sc_id and s.get("uat")})
+        return f"{'、'.join(uat)}：{len(cases)} 案例" if uat else f"{len(cases)} 案例"
+
+    def scenario_gaps(self, sc_id: str) -> int:
+        return sum(1 for f in self.report.findings if f.subject.startswith(sc_id))
+
+
+# ---------------------------------------------------------------- book 1
+
+def build_acceptance(m: Model) -> None:
+    wb = new_book("Smart Lock 業務邏輯驗收控制表")
+    howto(wb, [
+        ("這本給誰", "業務 Owner / PM / BA。架構端、QA 端、經營層各有專屬活頁簿，不要在這裡找。"),
+        ("只回答一個問題", "客戶的哪幾條旅程，現在算不算驗收通過？"),
+        ("為什麼是旅程不是功能",
+         "客戶說的是「半夜叫得到人、知道多少錢」，不是「FR-TEC-07 現場報價修正」。"
+         "以功能為列，同一段旅程會被複述 N 次，而且客戶要為他眼中的同一件事分兩列簽名；"
+         "以旅程為列，一列就是一個可簽核的垂直切片。"),
+        ("怎麼下手",
+         "② 由上往下看「PM 驗收標準（完成判定）」→ 判斷過或不過 → 在黃色欄填狀態、日期、簽核人。"
+         "要看這條旅程靠哪些需求撐住，才展開 ③。"),
+        ("", ""),
+        ("三個灰欄怎麼讀",
+         "工程證據＝關鍵路徑上 FR 的 code reality 分佈；測試覆蓋＝關鍵需求裡有幾條有案例；"
+         "驗收腳本＝這條旅程在 UAT 有沒有腳本。三個都綠才代表「可以開始驗收」，不代表「已驗收」。"),
+        ("不在這本裡的東西",
+         "可用性、稽核鏈、安全矩陣、migration 可重現、效能降級——這些沒有對應的客戶旅程，"
+         "為它們硬掰一段客戶語言就是造假。它們宣告為 scope: global，在《整合測試計畫》③ 獨立成段。"),
+        *COMMON_HOWTO,
+        ("", ""),
+        ("RACI", ""),
+        ("  旅程敘述", "R: BA　A: PM　來源: 28_Scenarios.md"),
+        ("  旅程需要哪些需求", "R: SA　A: 架構師　來源: _relations/sc_requires_rq.yaml"),
+        ("  工程證據", "R: RD　A: 架構師　來源: _spec_data.py codebase 掃描"),
+        ("  測試覆蓋 / 驗收腳本", "R: QA　A: QA Lead　來源: _relations/rq_verified_by_tc.yaml、sc_verified_by_tc.yaml"),
+        ("  驗收狀態（黃）", "R: 業務 Owner　A: PM　只有人能推進"),
+    ])
+
+    headers = [
+        ("SC", 7, ""), ("旅程", 22, ""), ("分線", 9, ""), ("主要 Actor", 15, ""), ("P", 5, ""),
+        ("客戶什麼時候會來（觸發）", 34, ""),
+        ("PM 驗收標準（完成判定）", 40, ""),
+        ("什麼情況算失敗", 38, ""),
+        ("關鍵需求", 8, "derived"), ("支援需求", 8, "derived"),
+        ("工程證據", 18, "derived"), ("測試覆蓋", 12, "derived"), ("驗收腳本", 16, "derived"),
+        ("未結缺口", 9, "derived"),
+        ("驗收狀態", 13, "human"), ("驗收日", 11, "human"), ("簽核人", 11, "human"),
+        ("裁決備註", 28, "human"),
+    ]
+    ws = table(wb, "② 旅程驗收主表", headers)
+    kinds = [h[2] for h in headers]
+    for r, s in enumerate(m.scenarios, 2):
+        gaps = m.scenario_gaps(s.sc_id)
+        row(ws, r, [
+            s.sc_id, s.name, s.line, s.actor, s.priority,
+            s.trigger, s.done, s.fail,
+            len(m.rel.reqs_of(s.sc_id, "essential")),
+            len(m.rel.reqs_of(s.sc_id, "supporting")),
+            m.engineering_of(s.sc_id), m.test_of(s.sc_id), m.script_of(s.sc_id),
+            gaps or "",
+            "", "", "", "",
+        ], kinds, tint=LINE_TINT.get(s.line), height=68)
+    dropdown(ws, "O", 2, len(m.scenarios) + 1,
+             "Not Accepted,Verified,Accepted,Deferred", "只能填四種驗收狀態之一")
+    finish(ws, len(headers), len(m.scenarios) + 1)
+    ws.freeze_panes = "C2"
+
+    headers = [
+        ("SC", 7, ""), ("旅程", 20, ""), ("角色", 10, ""),
+        ("需求 ID", 13, ""), ("需求名稱", 28, ""),
+        ("這條邊憑什麼成立", 52, ""),
+        ("工程證據", 14, "derived"), ("測試覆蓋", 20, "derived"), ("回查", 13, "derived"),
+    ]
+    ws = table(wb, "③ 旅程展開（SC × 需求）", headers)
+    kinds = [h[2] for h in headers]
+    order = {"essential": 0, "supporting": 1}
+    edges = sorted(m.rel.sc_rq, key=lambda e: (e["scenario"], order[e["role"]], e["requirement"]))
+    for r, e in enumerate(edges, 2):
+        rid = e["requirement"]
+        req = m.fr_by_id.get(rid)
+        sc = m.sc_by_id.get(e["scenario"])
+        row(ws, r, [
+            e["scenario"], sc.name if sc else "",
+            "關鍵路徑" if e["role"] == "essential" else "支援",
+            rid, m.req_title(rid), C.plain(e["note"]),
+            C.architecture_for(req)["status"] if req else "—（NFR）",
+            m.coverage_of(rid),
+            "04_SRS.md" if rid.startswith("FR-") else "05_NFR.md",
+        ], kinds, tint=LINE_TINT.get(sc.line if sc else ""), height=28)
+        if e["role"] == "essential":
+            ws.cell(r, 3).font = Font(name=FONT, size=10, bold=True, color="C00000")
+    finish(ws, len(headers), len(edges) + 1)
+
+    wb.save(OUTPUTS["acceptance"])
+
+
+# ---------------------------------------------------------------- book 2
+
+def build_bom(m: Model) -> None:
+    wb = new_book("Smart Lock 模組功能 BOM")
+    howto(wb, [
+        ("這本給誰", "架構師 / RD Lead。業務端、QA 端、經營層各有專屬活頁簿。"),
+        ("只回答一個問題", "每條需求由哪個元件實作、現在到哪了？"),
+        ("怎麼下手",
+         "② 是 L1 子系統 → L2 能力群 → L3 需求的三層樹（Excel 群組可摺疊）。"
+         "先看 L2 的 Code reality 找出 PARTIAL/TO-BE 的能力群，再展開該群的 L3。"),
+        ("L2 不是 join key",
+         "L1/L2 是顯示分群，唯一主鍵是 L3 的 FR / NFR ID。任何跨表對照都用 ID，不要用 L2 名稱。"),
+        ("「服務旅程」欄怎麼用",
+         "這是 SA 的反向檢查：一條需求如果無法解釋「它為了哪段旅程存在」，那條需求就是想像出來的。"
+         "標 ⚠ 無旅程 的列要嘛補 SC 邊、要嘛宣告 scope: global、要嘛刪掉。"),
+        ("NFR 為什麼在最後一段",
+         "NFR 天生不掛在單一旅程上——「可用性 99.9%」不對應任何一段客戶旅程，它是所有旅程共用的地板。"
+         "所以 NFR 獨立成 L1 區塊，只有客戶感知得到的那幾條才會顯示旅程。"),
+        ("元件名稱從哪來",
+         "③ 元件標籤字典是受控詞彙表，每個標籤都有定義、責任邊界、SAD/SDS 定位與實作路徑。"
+         "不要在這裡發明 LockCore runtime 這種無法回查的概括詞。"),
+        *COMMON_HOWTO,
+    ])
+
+    headers = [
+        ("層級", 7, ""), ("代號（FR/NFR 為主鍵）", 20, ""), ("名稱 / 功能", 32, ""),
+        ("上游規則 / 目標", 32, ""), ("正式元件名稱", 54, ""),
+        ("SAD 定位", 26, ""), ("SDS 定位", 30, ""),
+        ("Code reality", 22, "derived"), ("實作證據路徑", 52, ""),
+        ("服務旅程", 18, "derived"), ("需求狀態", 18, "derived"),
+        ("M1", 5, ""), ("M2", 5, ""), ("M3+", 6, ""),
+        ("驗收摘要 / 出處", 50, ""),
+    ]
+    ws = table(wb, "② 需求 → 元件 BOM", headers)
+    kinds = [h[2] for h in headers]
+    r = 2
+
+    for prefix, meta in SUBSYSTEMS.items():
+        subsystem_reqs = [q for q in m.frs if q.prefix == prefix]
+        if not subsystem_reqs:
+            continue
+        phases = {C.phase_for(q) for q in subsystem_reqs}
+        labels: list[str] = []
+        for code, _, _ in MODULES.get(prefix, []):
+            for label in (p.strip() for p in C.module_arch(prefix, code)["component"].split(";")):
+                if label and label not in labels:
+                    labels.append(label)
+        row(ws, r, [
+            "L1", meta["name"].split("（")[0], meta["name"], "", "; ".join(labels),
+            meta["sad"], meta["sds"], "MIXED（見 L2）", meta["path"], "", "子系統",
+            "●" if any("M1" in p for p in phases) else "",
+            "●" if any("M2" in p for p in phases) else "",
+            "●" if any(t in p for p in phases for t in ("M3", "M4", "M5")) else "",
+            meta["description"],
+        ], kinds, height=24)
+        for cell in ws[r]:
+            cell.fill = L1_FILL
+            cell.font = Font(name=FONT, color="FFFFFF", bold=True, size=10)
+        ws.row_dimensions[r].outlineLevel = 0
+        r += 1
+
+        for code, module_name, _ in MODULES.get(prefix, []):
+            module_reqs = [q for q in subsystem_reqs if C.module_for(q)[0] == code]
+            if not module_reqs:
+                continue
+            arch = C.module_arch(prefix, code)
+            phases = {C.phase_for(q) for q in module_reqs}
+            row(ws, r, [
+                "L2", f"{prefix}·{code}（顯示）", module_name, "", arch["component"],
+                arch["sad"], arch["sds"], arch["status"], arch["path"], "",
+                "能力群（非 join key）",
+                "●" if any("M1" in p for p in phases) else "",
+                "●" if any("M2" in p for p in phases) else "",
+                "●" if any(t in p for p in phases for t in ("M3", "M4", "M5")) else "",
+                f"{len(module_reqs)} 條 FR",
+            ], kinds, height=22)
+            for cell in ws[r]:
+                cell.fill = L2_FILL
+                cell.font = Font(name=FONT, color=NAVY, bold=True, size=10)
+            ws.row_dimensions[r].outlineLevel = 1
+            r += 1
+
+            for q in module_reqs:
+                arch = C.architecture_for(q)
+                phase = C.phase_for(q)
+                journeys = m.journeys_of(q.req_id)
+                row(ws, r, [
+                    "L3", q.req_id, q.name, q.trace, arch["component"],
+                    arch["sad"], arch["sds"], arch["status"], arch["path"],
+                    journeys, C.spec_status(q),
+                    "✓" if "M1" in phase else "", "✓" if "M2" in phase else "",
+                    "✓" if any(t in phase for t in ("M3", "M4", "M5")) else "",
+                    f"驗收：{q.acceptance} ｜ 出處：04_SRS.md:{q.source_line}",
+                ], kinds, height=26)
+                if journeys.startswith("⚠"):
+                    ws.cell(r, 10).font = Font(name=FONT, size=10, bold=True, color="C00000")
+                ws.row_dimensions[r].outlineLevel = 2
+                r += 1
+
+    row(ws, r, [
+        "L1", "NFR", "全域品質地板（非功能需求）", "", "跨子系統", "05_NFR.md", "—",
+        "—", "—", "多數為 scope: global", "子系統", "", "", "",
+        "NFR 天生不掛單一旅程；只有客戶感知得到的才顯示 SC。",
+    ], kinds, height=24)
+    for cell in ws[r]:
+        cell.fill = L1_FILL
+        cell.font = Font(name=FONT, color="FFFFFF", bold=True, size=10)
+    ws.row_dimensions[r].outlineLevel = 0
+    r += 1
+    for n in sorted(m.nfrs, key=lambda x: x.req_id):
+        journeys = m.journeys_of(n.req_id)
+        row(ws, r, [
+            "L3", n.req_id, n.name, n.target, "—", "05_NFR.md", "—", "—", "—",
+            journeys, n.tier, "", "", "",
+            f"驗證：{n.verification} ｜ 出處：05_NFR.md:{n.source_line}",
+        ], kinds, height=24)
+        if journeys.startswith("⚠"):
+            ws.cell(r, 10).font = Font(name=FONT, size=10, bold=True, color="C00000")
+        ws.row_dimensions[r].outlineLevel = 2
+        r += 1
+
+    finish(ws, len(headers), r - 1)
+
+    headers = [
+        ("元件標籤", 30, ""), ("別名 / 原概括詞", 20, ""), ("定義：負責什麼", 52, ""),
+        ("邊界：不負責什麼", 46, ""), ("使用於能力群", 24, "derived"),
+        ("Code reality", 20, "derived"), ("SAD 回查", 24, "derived"),
+        ("SDS 回查", 28, "derived"), ("實作證據路徑", 52, "derived"),
+    ]
+    ws = table(wb, "③ 元件標籤字典", headers)
+    kinds = [h[2] for h in headers]
+    rows = C.component_glossary_rows()
+    for r, values in enumerate(rows, 2):
+        row(ws, r, values, kinds, height=30)
+    finish(ws, len(headers), len(rows) + 1)
+
+    wb.save(OUTPUTS["bom"])
+
+
+# ---------------------------------------------------------------- book 3
+
+def build_test(m: Model) -> None:
+    wb = new_book("Smart Lock 整合測試計畫")
+    howto(wb, [
+        ("這本給誰", "QA / QA Lead。業務端、架構端、經營層各有專屬活頁簿。"),
+        ("只回答一個問題", "我今天要跑哪些案例、怎麼判定通過？"),
+        ("怎麼下手",
+         "② 是可執行清單：篩優先級與章節 → 逐列跑 → 在黃色欄填結果、日期、缺陷單。"
+         "③ 回答「這條需求測夠了沒」，④ 回答「這條旅程驗得完嗎」。"),
+        ("兩層測什麼不一樣",
+         "旅程測「順不順」——整條走得完、接縫不掉；需求測「對不對」——單一性質恆常成立。"
+         "兩層都要，缺一邊的測試計畫都會在 UAT 前兩週爆炸。"),
+        ("③ 的 kind 欄是重點",
+         "happy / boundary / failure / recovery。只有 happy 的需求等於沒測——"
+         "訪談只問 1–4 題（不問「什麼情況算失敗」）產出的規格就長這樣。"
+         "P0 旅程的需求若缺 failure/recovery，會在該列標紅並進規劃書缺口清單（V10）。"),
+        ("④ 的缺口怎麼讀",
+         "V9＝這條旅程宣告需要某需求，但它的 UAT 腳本沒跑到任何驗證該需求的案例。"
+         "這是規格治理裡最容易漏報的狀態：在只有一欄「對應場景」的表裡，它永遠不會現形。"),
+        ("scope: global 的需求",
+         "可用性、稽核鏈、安全矩陣、migration 可重現、效能降級沒有客戶旅程，"
+         "不會出現在業務端的驗收控制表，但 QA 一樣要測——它們在 ③ 標成「全域地板」。"),
+        *COMMON_HOWTO,
+    ])
+
+    headers = [
+        ("TC ID", 17, ""), ("章節", 26, ""), ("前置", 30, ""), ("步驟", 42, ""),
+        ("預期結果（判定基準）", 50, ""), ("類型", 9, ""), ("優先級", 8, ""),
+        ("驗證哪些需求", 26, "derived"), ("屬於哪條旅程腳本", 16, "derived"),
+        ("執行結果", 12, "human"), ("執行日", 11, "human"), ("執行人", 10, "human"),
+        ("缺陷單 / 備註", 26, "human"),
+    ]
+    ws = table(wb, "② 測試案例主表", headers)
+    kinds = [h[2] for h in headers]
+    script_of_case: dict[str, set] = {}
+    for s in m.rel.sc_tc:
+        for tc in s.get("cases") or []:
+            script_of_case.setdefault(tc, set()).add(s["scenario"])
+    for r, t in enumerate(m.cases, 2):
+        reqs = m.rel.reqs_of_case(t.tc_id)
+        row(ws, r, [
+            t.tc_id, t.heading, t.precondition, t.steps, t.expected,
+            t.kind, t.priority,
+            "、".join(reqs) if reqs else "⚠ 未被任何需求指定",
+            "、".join(sorted(script_of_case.get(t.tc_id, ()))) or "—",
+            "", "", "", "",
+        ], kinds, height=44)
+        if not reqs:
+            ws.cell(r, 8).font = Font(name=FONT, size=10, bold=True, color="C00000")
+    dropdown(ws, "J", 2, len(m.cases) + 1, "Pass,Fail,Blocked,N/A", "只能填 Pass/Fail/Blocked/N/A")
+    finish(ws, len(headers), len(m.cases) + 1)
+    ws.freeze_panes = "B2"
+
+    headers = [
+        ("需求 ID", 14, ""), ("類別", 8, ""), ("需求名稱", 30, ""),
+        ("驗收條件 / 目標", 46, ""), ("服務旅程", 16, "derived"),
+        ("案例數", 8, "derived"), ("涵蓋 kind", 24, "derived"),
+        ("指定案例", 40, "derived"), ("覆蓋缺口", 30, "derived"),
+    ]
+    ws = table(wb, "③ 需求覆蓋（需求 × 案例）", headers)
+    kinds = [h[2] for h in headers]
+    p0 = m.p0_requirements()
+    r = 2
+    for rid in [q.req_id for q in m.frs] + [n.req_id for n in m.nfrs]:
+        fr = m.fr_by_id.get(rid)
+        nfr = m.nfr_by_id.get(rid)
+        cases = sorted(set(m.rel.cases_of(rid)))
+        covered = m.rel.kinds_of(rid)
+        gap = ""
+        if not cases:
+            gap = "⚠ 完全沒有案例"
+        elif rid in p0 and not covered & {"failure", "recovery"}:
+            gap = "⚠ V10：P0 旅程需要，卻只有正向案例"
+        row(ws, r, [
+            rid, "FR" if fr else "NFR",
+            m.req_title(rid),
+            fr.acceptance if fr else (nfr.target if nfr else ""),
+            m.journeys_of(rid), len(cases), m.coverage_of(rid),
+            "、".join(cases) or "—", gap,
+        ], kinds, height=26)
+        if gap:
+            ws.cell(r, 9).font = Font(name=FONT, size=10, bold=True, color="C00000")
+        r += 1
+    finish(ws, len(headers), r - 1)
+
+    headers = [
+        ("SC", 7, ""), ("旅程", 22, ""), ("P", 5, ""), ("UAT 腳本", 10, ""),
+        ("這段腳本跑哪些案例", 56, ""), ("腳本說明 / 缺口", 52, ""),
+        ("關鍵需求", 9, "derived"), ("腳本未觸及的關鍵需求", 40, "derived"),
+        ("旅程驗收結果", 14, "human"), ("執行日", 11, "human"), ("備註", 24, "human"),
+    ]
+    ws = table(wb, "④ 旅程驗收腳本", headers)
+    kinds = [h[2] for h in headers]
+    r = 2
+    no_script = {n["scenario"]: n for n in m.rel.sc_no_script}
+    for s in m.scenarios:
+        scripts = [x for x in m.rel.sc_tc if x["scenario"] == s.sc_id]
+        essential = m.rel.reqs_of(s.sc_id, "essential")
+        script_cases = m.rel.script_cases(s.sc_id)
+        untouched = [rid for rid in essential
+                     if m.rel.cases_of(rid) and not set(m.rel.cases_of(rid)) & script_cases]
+        if scripts:
+            for x in scripts:
+                row(ws, r, [
+                    s.sc_id, s.name, s.priority, x.get("uat", "—"),
+                    "、".join(x.get("cases") or []), C.plain(x.get("note", "")),
+                    len(essential), "、".join(untouched) or "—",
+                    "", "", "",
+                ], kinds, tint=LINE_TINT.get(s.line), height=34)
+                if untouched:
+                    ws.cell(r, 8).font = Font(name=FONT, size=10, bold=True, color="C00000")
+                r += 1
+        else:
+            note = no_script.get(s.sc_id, {}).get("note", "尚未設計驗收腳本")
+            row(ws, r, [
+                s.sc_id, s.name, s.priority, "⚠ 無",
+                "—", f"V9 缺口：{C.plain(note)}",
+                len(essential), "（無腳本，無從比對）", "", "", "",
+            ], kinds, tint=LINE_TINT.get(s.line), height=34)
+            ws.cell(r, 4).font = Font(name=FONT, size=10, bold=True, color="C00000")
+            r += 1
+    dropdown(ws, "I", 2, r - 1, "Pass,Fail,Blocked,Not Run", "只能填 Pass/Fail/Blocked/Not Run")
+    finish(ws, len(headers), r - 1)
+
+    wb.save(OUTPUTS["test"])
+
+
+# ---------------------------------------------------------------- book 4
+
+RULE_MEANING = {
+    "V2": "指向不存在的節點——命名慣例被當成關聯",
+    "V7": "只有測試設計，還沒有具體案例",
+    "V8": "孤兒節點：沒有任何邊",
+    "V9": "驗收覆蓋缺口：宣告需要，腳本沒跑到",
+    "V10": "P0 旅程的需求缺失敗／回復路徑",
+}
+
+
+def build_planning(m: Model) -> None:
+    wb = new_book("Smart Lock 規格統控規劃書")
+    howto(wb, [
+        ("這本給誰", "經營層 / PM。要看細節請去另外三本；這本只放差集。"),
+        ("只回答一個問題", "哪裡有洞、哪裡卡我決策、什麼時候做？"),
+        ("為什麼這本沒有需求清單",
+         "需求清單在 BOM，案例清單在測試計畫，旅程清單在驗收控制表。"
+         "這本若再排一次，就是同一份資料的第四種投影——那正是舊版八個分頁在做的事。"),
+        ("怎麼下手",
+         "② 是機器算出來的缺口，按規則分群，每列都有責任角色。"
+         "你要做的是在黃色欄填「決策」「期限」「負責人」——沒有 owner 的缺口永遠不會關。"),
+        ("缺口為什麼不擋生成",
+         "擋生成只會讓人用假資料把洞填平，那比洞本身更糟。缺口一律放行、一律列出、一律有名有姓。"),
+        ("③ 是什麼",
+         "M1–M5 的 WBS 與已定案 ADR。缺口要排進哪個里程碑、動到哪條架構決策，在這裡對照。"),
+        *COMMON_HOWTO,
+    ])
+
+    headers = [
+        ("規則", 7, ""), ("缺口類型", 30, ""), ("對象", 22, ""), ("缺口說明", 58, ""),
+        ("影響旅程", 16, "derived"), ("旅程優先級", 10, "derived"),
+        ("責任角色", 10, "derived"),
+        ("決策", 26, "human"), ("期限", 11, "human"), ("負責人", 11, "human"),
+        ("狀態", 12, "human"),
+    ]
+    ws = table(wb, "② 缺口與決策清單", headers)
+    kinds = [h[2] for h in headers]
+    r = 2
+    rank = {"V9": 0, "V10": 1, "V8": 2, "V2": 3, "V7": 4}
+    findings = sorted(m.report.findings, key=lambda f: (rank.get(f.rule, 9), f.subject))
+    for f in findings:
+        subject = f.subject.split(" × ")[0]
+        if subject.startswith("SC-"):
+            journeys, prio = subject, m.sc_by_id[subject].priority if subject in m.sc_by_id else ""
+        else:
+            journeys = m.journeys_of(subject) if subject in m.title_of else "—"
+            prios = {m.sc_by_id[sc].priority for sc in m.rel.scenarios_of(subject)
+                     if sc in m.sc_by_id}
+            prio = min(prios) if prios else ""
+        row(ws, r, [
+            f.rule, RULE_MEANING.get(f.rule, ""), f.subject, f.message,
+            journeys, prio, f.owner, "", "", "", "",
+        ], kinds, height=26)
+        if prio == "P0":
+            ws.cell(r, 6).font = Font(name=FONT, size=10, bold=True, color="C00000")
+        r += 1
+    dropdown(ws, "K", 2, r - 1, "Open,Accepted Risk,Scheduled,Closed",
+             "只能填 Open/Accepted Risk/Scheduled/Closed")
+    finish(ws, len(headers), r - 1)
+    ws.freeze_panes = "C2"
+
+    headers = [
+        ("里程碑 / 群", 30, ""), ("ID", 12, ""), ("狀態", 34, ""), ("項目", 46, ""),
+        ("負責 / 領域", 12, ""), ("依賴 / 關聯", 20, ""), ("驗收 / 說明", 46, ""),
+    ]
+    ws = table(wb, "③ 里程碑與已定案決策", headers)
+    kinds = [h[2] for h in headers]
+    r = 2
+    banner(ws, r, len(headers), "WBS —— 27_Product_Roadmap_WBS.md")
+    r += 1
+    for values in m.wbs:
+        row(ws, r, values, kinds, height=24)
+        r += 1
+    r += 1
+    banner(ws, r, len(headers), "ADR —— 14_ADR/00_INDEX.md（append-only，不改舊內容）")
+    r += 1
+    for group, adr_id, title, domain, status, rel in m.adrs:
+        row(ws, r, [group, adr_id, status, title, domain, rel, ""], kinds, height=22)
+        r += 1
+    finish(ws, len(headers), r - 1)
+
+    wb.save(OUTPUTS["planning"])
+
+
+# ---------------------------------------------------------------- markdown
+
+def write_glossary_md() -> None:
+    lines = [
+        "# Smart Lock SAD / SDS 元件標籤字典",
+        "",
+        f"> 產出日：{C.GENERATED_ON}<br>",
+        "> 用途：讓 BOM、驗收表與測試計畫中的每個架構標籤，都能回查正式定義、責任邊界、SAD/SDS 與實作路徑。<br>",
+        "> 規則：本字典由 `_spec_data.py` 的受控標籤單向生成；`AGT·RES` 等 L2 是顯示群組，不是正式元件。",
+        "",
+    ]
+    for label, alias, definition, boundary, modules, reality, sad, sds, path in \
+            C.component_glossary_rows():
+        lines += [
+            f"## {label}", "",
+            f"- **別名／原概括詞**：{alias}",
+            f"- **定義／負責什麼**：{definition}",
+            f"- **邊界／不負責什麼**：{boundary}",
+            f"- **使用於能力群**：{modules}",
+            f"- **Code reality**：{reality}",
+            f"- **SAD 回查**：[{sad}](../12_SAD.md)",
+            f"- **SDS 回查**：[{sds}](../15_SDS.md)",
+            f"- **實作證據路徑**：`{path}`",
+            "",
+        ]
+    GLOSSARY_MD.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_health_md(m: Model) -> None:
+    n = m.counts
+    by_rule = Counter(f.rule for f in m.report.findings)
+    orphan_reqs = [f.subject for f in m.report.by_rule("V8") if not f.subject.startswith("SC-")]
+    no_script = [f.subject for f in m.report.by_rule("V9") if f.subject.startswith("SC-")
+                 and " × " not in f.subject]
+    p0_sc = [s.sc_id for s in m.scenarios if s.priority == "P0"]
+
+    outputs = "\n".join(
+        f"- [{p.name}](./{p.name}) — {p.stat().st_size:,} bytes"
+        for p in [*OUTPUTS.values(), GLOSSARY_MD] if p.exists()
+    )
+    rules = "\n".join(
+        f"- **{rule}**（{RULE_MEANING.get(rule, '')}）：{count} 筆"
+        for rule, count in sorted(by_rule.items())
+    )
+
+    HEALTH_MD.write_text(f"""# Smart Lock 規格四書產出健康報告
+
+> 產出日：{C.GENERATED_ON}<br>
+> 生成器：`_build_workbooks.py`（單一產出者）<br>
+> Codebase 快照：`{CODEBASE_SNAPSHOT['branch']}@{CODEBASE_SNAPSHOT['commit']}`（統控基線 `{CODEBASE_SNAPSHOT['baseline']}`）<br>
+> 真相源：`../28_Scenarios.md`（SC）、`../04_SRS.md`（FR）、`../05_NFR.md`（NFR）、
+> `../20_Test_Cases.md`（TC）、`_relations/*.yaml`（三條邊）。xlsx 一律單向快照。
+
+## 產出檔
+
+{outputs}
+
+## 脊椎
+
+以 **SC-\\*（情境）** 為脊椎，四書各取一段：
+
+| 書 | 交給誰 | 只回答一個問題 | 列節點 | 分頁 |
+|---|---|---|---|---|
+| 業務邏輯驗收控制表 | 業務 / PM | 客戶的哪幾條旅程算不算驗收通過？ | SC | 3 |
+| 模組功能 BOM | 架構師 / RD | 每條需求由誰實作、現在到哪了？ | FR / NFR | 3 |
+| 整合測試計畫 | QA | 我今天要跑哪些案例、怎麼判定過？ | TC | 4 |
+| 規格統控規劃書 | 經營層 / PM | 哪裡有洞、哪裡卡決策、什麼時候做？ | 缺口（差集） | 3 |
+
+## 節點與邊
+
+- 節點：**SC {n['sc']}**、**FR {n['fr']}**、**NFR {n['nfr']}**、**TC {len(m.cases)}**。
+- 邊：
+  - `SC × RQ` **{n['sc_rq']} 條**（涵蓋 {n['rq_covered_by_sc']}/{n['rq_total']} 條需求，其餘宣告 `scope: global`）
+  - `RQ × TC` **{n['rq_tc']} 條**（涵蓋 {n['rq_covered_by_tc']}/{n['rq_total']} 條需求）
+  - `SC × TC` **{n['sc_tc']} 條**（{len(m.rel.sc_tc)} 段 UAT 腳本）
+- 三條邊各自宣告、互不推導。`SC × RQ` 與 `RQ × TC ∘ TC × SC` 的差，就是 V9 驗收覆蓋缺口——
+  若第三條邊由前兩條算出，V9 會恆等於零，等於沒有檢查。
+
+## 缺口（{len(m.report.findings)} 筆，全部進規劃書 ②）
+
+{rules}
+
+重點缺口：
+
+- **{len(no_script)}/{len(p0_sc)} 條 P0 旅程沒有驗收腳本**：{'、'.join(sorted(no_script)) or '無'}。
+  22_UAT_Report 只寫了 5 段腳本，涵蓋不到 19 條旅程——這是 UAT 的缺漏，不是關聯表的缺漏。
+- **{len(orphan_reqs)} 條需求沒有任何旅程需要、也沒宣告 global**：無法反向解釋「為了哪段旅程存在」的需求，
+  就是想像出來的需求。要嘛補 SC 邊、要嘛宣告 global、要嘛刪。
+- **V10 {by_rule.get('V10', 0)} 筆**：P0 旅程的需求只有正向案例或完全沒案例。
+  只問「happy path」的訪談產出的規格就長這樣，代價在 UAT 前兩週結清。
+
+## 治理規則
+
+1. **狀態軸不得互推**：需求定版（SA）/ 工程證據（RD）/ 測試執行（QA）/ 驗收通過（業務 Owner）
+   四軸各有唯一 owner。程式檔存在 ≠ 工程完成 ≠ 測試通過 ≠ 驗收通過。
+2. **缺口不擋生成**：擋生成只會逼人用假資料填平。缺口一律放行、列出、指名。
+3. **推導欄不得手寫**（V6）：`scenarios` / `covered_by` / `uat` 這類欄位若出現在 `_relations/*.yaml`
+   會直接擋下生成——手寫的推導值保證會漂。
+4. **NFR 不硬掛旅程**：「可用性 99.9%」不對應任何一段客戶旅程，它是所有旅程共用的地板。
+   為它硬掰一段 VOC 是造假，不是文案問題。
+5. **xlsx 單向**：改上游正典 → 重跑 `_build_workbooks.py`。永遠不要改 xlsx 再往回抄。
+""", encoding="utf-8")
+
+
+# ----------------------------------------------------------------
+
+def main() -> int:
+    m = Model()
+    if m.report.errors:
+        print(f"ERROR ({len(m.report.errors)}) —— 擋下生成，先跑 _validate_relations.py")
+        for e in m.report.errors:
+            print(f"  x {e}")
+        return 1
+
+    build_acceptance(m)
+    build_bom(m)
+    build_test(m)
+    build_planning(m)
+    write_glossary_md()
+    write_health_md(m)
+
+    print(f"SC {m.counts['sc']}  FR {m.counts['fr']}  NFR {m.counts['nfr']}  TC {len(m.cases)}")
+    print(f"邊 SC×RQ {m.counts['sc_rq']}  RQ×TC {m.counts['rq_tc']}  SC×TC {m.counts['sc_tc']}")
+    print(f"缺口 {len(m.report.findings)} 筆 → 規劃書 ②")
+    for path in [*OUTPUTS.values(), GLOSSARY_MD, HEALTH_MD]:
+        print(f"- {path.name}: {path.stat().st_size:,} bytes")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

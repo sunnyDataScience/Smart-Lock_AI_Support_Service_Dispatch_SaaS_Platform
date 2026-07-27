@@ -1,0 +1,241 @@
+# SC × RQ 關聯表 —— 「哪條旅程需要哪條需求」
+#
+# 這是一條 M:N 的邊，真相源就是本檔。一列一條邊，不得合併、不得用命名慣例推導。
+#
+# 欄位：
+#   scenario     SC-* （節點正典：../../28_Scenarios.md）
+#   requirement  FR-* / NFR-* （節點正典：../../04_SRS.md / ../../05_NFR.md）
+#   role         essential  這條旅程少了它就走不完
+#                supporting 影響體驗或治理，但旅程仍可完成
+#   note         **這條邊憑什麼成立**。說不出來的邊不要建。
+#                這一欄禁止由 AI 代寫成套話——它是人工判斷留在專案裡的唯一痕跡。
+#
+# scope: global 的需求（所有旅程共用的地板）另列於檔尾 §global，
+# 不逐條偽造 SC 邊。判準：拿掉任何一條旅程，它依然必須成立。
+#
+# 驗證（由 _validate_relations.py 執行）：
+#   V2 兩端節點都必須存在      V3 (scenario, requirement) 不得重複
+#   V4 role 值域封閉           V8 沒有任何邊的 SC / FR 列為 finding
+#
+# last_updated: 2026-07-27
+
+version: 1
+
+edges:
+
+  # ── SC-01 產品疑問自助解決（不建卡） ───────────────────────────────
+  - {scenario: SC-01, requirement: FR-AGT-01, role: essential,  note: 沒有進線驗簽與訊息分派，旅程根本不會開始}
+  - {scenario: SC-01, requirement: FR-AGT-02, role: essential,  note: 一則訊息一個 turn 的編排是「必有回覆」的實作基礎}
+  - {scenario: SC-01, requirement: FR-AGT-03, role: essential,  note: 三層解決命中 + Clarify gate 才會走到「不建卡」這個結果}
+  - {scenario: SC-01, requirement: FR-AGT-07, role: essential,  note: 回答內容正確與否完全取決於知識取用路徑}
+  - {scenario: SC-01, requirement: FR-AGT-11, role: essential,  note: 「詢價誘導不給確定金額」是本旅程驗收點之一}
+  - {scenario: SC-01, requirement: FR-AGT-06, role: supporting, note: 記憶讓追問更順，但缺了旅程仍走得完}
+  - {scenario: SC-01, requirement: FR-AGT-08, role: supporting, note: 白名單限制回答時可用的工具面，屬治理而非流程}
+  - {scenario: SC-01, requirement: FR-AGT-10, role: supporting, note: 連發訊息合併影響體驗，不影響能否解答}
+  - {scenario: SC-01, requirement: FR-DAT-04, role: supporting, note: 長尾事實走向量檢索；案例庫未命中時才吃到}
+
+  # ── SC-02 故障報修到問題卡成立 ─────────────────────────────────────
+  - {scenario: SC-02, requirement: FR-AGT-03, role: essential,  note: 三層解決失敗才進入轉真人，是本旅程的分歧點}
+  - {scenario: SC-02, requirement: FR-AGT-05, role: essential,  note: transfer_to_human 是唯一出口；兜底補 escalation 直接對應「案子不得蒸發」}
+  - {scenario: SC-02, requirement: FR-API-01, role: essential,  note: 草擬卡到 confirmed 的收斂就是本旅程的完成判定}
+  - {scenario: SC-02, requirement: FR-API-13, role: essential,  note: agent 側資料要進後台只有這條 internal ingest 通道}
+  - {scenario: SC-02, requirement: FR-AGT-01, role: essential,  note: 同 SC-01，進線是前提}
+  - {scenario: SC-02, requirement: FR-AGT-06, role: supporting, note: 記憶提供品牌型號等既有事實，減少追問輪數}
+  - {scenario: SC-02, requirement: FR-WEB-03, role: supporting, note: 小編補全草擬卡的介面在派工工作台}
+
+  # ── SC-03 急件強制轉真人 ───────────────────────────────────────────
+  - {scenario: SC-03, requirement: FR-AGT-04, role: essential,  note: 急件四類判定與 bypass 就是本旅程本身}
+  - {scenario: SC-03, requirement: FR-AGT-05, role: essential,  note: 5 分鐘轉真人的落地路徑仍是 transfer_to_human}
+  - {scenario: SC-03, requirement: FR-API-04, role: essential,  note: 急件跳過報價直接建單，走的是這條 gate 的例外分支}
+  - {scenario: SC-03, requirement: FR-API-19, role: essential,  note: 4 小時補稽核報價是急件跳過報價的唯一補償機制}
+  - {scenario: SC-03, requirement: FR-API-09, role: supporting, note: 結案 gate 會檢查補審是否完成，屬下游把關}
+
+  # ── SC-04 報價確認到工單成立 ───────────────────────────────────────
+  - {scenario: SC-04, requirement: FR-API-02, role: essential,  note: draft→核准→送客→確認的生命週期就是本旅程主體}
+  - {scenario: SC-04, requirement: FR-API-03, role: essential,  note: 報價金額由定價引擎產生，缺了就沒有可確認的內容}
+  - {scenario: SC-04, requirement: FR-API-04, role: essential,  note: 「無已確認報價不得建單」這條硬綁定是完成判定}
+  - {scenario: SC-04, requirement: FR-WEB-06, role: essential,  note: 客戶確認發生在 LIFF 追蹤頁，且內外雙視圖在此驗證}
+  - {scenario: SC-04, requirement: FR-API-17, role: supporting, note: 保固判定決定報價分流與 AI 送出禁令}
+  - {scenario: SC-04, requirement: FR-AGT-11, role: supporting, note: AI 不得複誦個案報價金額，在本旅程是負面測試}
+
+  # ── SC-05 派工媒合到技師接單 ───────────────────────────────────────
+  - {scenario: SC-05, requirement: FR-API-05, role: essential,  note: 候選池擴大與五因子排序就是媒合本身}
+  - {scenario: SC-05, requirement: FR-API-07, role: essential,  note: 接單 SLA 與逾時改派決定旅程能否收斂}
+  - {scenario: SC-05, requirement: FR-TEC-03, role: essential,  note: 品牌不直連技師庫，媒合只能經這條契約}
+  - {scenario: SC-05, requirement: FR-TEC-04, role: essential,  note: 技師接單與即時推播是旅程另一端的完成動作}
+  - {scenario: SC-05, requirement: FR-API-06, role: supporting, note: 手動覆寫是自動媒合失效時的 fallback 路徑}
+  - {scenario: SC-05, requirement: FR-TEC-05, role: supporting, note: 技師端看到的工單是投影，影響接單判斷但非派工本身}
+  - {scenario: SC-05, requirement: FR-API-14, role: supporting, note: WS 推播讓小編即時看到派工狀態}
+  - {scenario: SC-05, requirement: FR-WEB-03, role: supporting, note: 派工佇列的操作介面}
+
+  # ── SC-06 現場施工到完工結案 ───────────────────────────────────────
+  - {scenario: SC-06, requirement: FR-API-08, role: essential,  note: 到場存證、材料登錄、客戶簽名是結案前提}
+  - {scenario: SC-06, requirement: FR-API-09, role: essential,  note: 422 硬閘就是本旅程的完成判定}
+  - {scenario: SC-06, requirement: FR-TEC-04, role: essential,  note: 技師端的現場操作入口}
+  - {scenario: SC-06, requirement: FR-TEC-05, role: essential,  note: 師傅工作台讀的是投影，欄位不足就無法完成現場作業}
+  - {scenario: SC-06, requirement: FR-AGT-11, role: supporting, note: 影像僅存證不辨識，此紅線在現場照片上路徑最短}
+  - {scenario: SC-06, requirement: FR-API-11, role: supporting, note: 客戶不在場改期時會觸發取消費分層}
+
+  # ── SC-07 現場範圍變更與報價修正 ───────────────────────────────────
+  - {scenario: SC-07, requirement: FR-TEC-07, role: essential,  note: requote command 的發起端，且「不含金額」就是零定價權的證明}
+  - {scenario: SC-07, requirement: FR-API-02, role: essential,  note: quote v+1 由品牌側報價生命週期產生}
+  - {scenario: SC-07, requirement: FR-API-03, role: essential,  note: 修正後金額仍必須由定價引擎計算，技師端不得自訂}
+  - {scenario: SC-07, requirement: FR-API-08, role: essential,  note: 三段分層同意與客戶簽章的存證在此}
+  - {scenario: SC-07, requirement: FR-WEB-06, role: supporting, note: 501-2000 檔位需客戶於 LIFF 確認}
+  - {scenario: SC-07, requirement: FR-API-18, role: supporting, note: 大於 2000 檔位進主管覆核，走例外審批路徑}
+
+  # ── SC-08 收款、取消與退款 ─────────────────────────────────────────
+  - {scenario: SC-08, requirement: FR-API-10, role: essential,  note: 三軌支付與 webhook 冪等是收款主體}
+  - {scenario: SC-08, requirement: FR-API-11, role: essential,  note: 退款分層與取消費 5 階段就是本旅程的規則核心}
+  - {scenario: SC-08, requirement: FR-API-18, role: essential,  note: 退款雙簽的 SoD 擋不住就是重大財務風險}
+  - {scenario: SC-08, requirement: FR-API-03, role: supporting, note: 取消費率表由定價設定承載}
+  - {scenario: SC-08, requirement: FR-WEB-04, role: supporting, note: 金額與報表對帳一致性在此被看見}
+
+  # ── SC-09 月結與七帳本對帳 ─────────────────────────────────────────
+  - {scenario: SC-09, requirement: FR-API-12, role: essential,  note: 七帳本月結批次與 borrow=lend 就是本旅程}
+  - {scenario: SC-09, requirement: FR-API-11, role: essential,  note: 更正一律 reversal entry，決定帳本可否 append-only}
+  - {scenario: SC-09, requirement: FR-TEC-06, role: essential,  note: 品牌計費與平台彙總的 reconcile 閘門在此交會}
+  - {scenario: SC-09, requirement: FR-WEB-04, role: supporting, note: 對帳結果的檢視與匯出}
+  - {scenario: SC-09, requirement: FR-API-15, role: supporting, note: 月結為排程批次，依賴 cron worker}
+
+  # ── SC-10 人工接管與對話不蒸發 ─────────────────────────────────────
+  - {scenario: SC-10, requirement: FR-AGT-09, role: essential,  note: 接管旗標查詢與 AI 靜音就是本旅程本身}
+  - {scenario: SC-10, requirement: FR-API-13, role: essential,  note: handover-state 端點是旗標的唯一來源}
+  - {scenario: SC-10, requirement: FR-AGT-05, role: essential,  note: 接管的前提是案件已 escalated}
+  - {scenario: SC-10, requirement: FR-WEB-03, role: essential,  note: 小編的接管操作在派工工作台完成}
+  - {scenario: SC-10, requirement: FR-AGT-02, role: supporting, note: 每 turn 前查旗標，掛在 turn 狀態機的既有節點上}
+
+  # ── SC-11 例外審批與 SoD 收件匣 ────────────────────────────────────
+  - {scenario: SC-11, requirement: FR-API-18, role: essential,  note: 收件匣與三方分離就是本旅程}
+  - {scenario: SC-11, requirement: FR-PLT-02, role: essential,  note: 審批者角色由 RBAC 判定，deny-by-default 是前提}
+  - {scenario: SC-11, requirement: FR-WEB-05, role: supporting, note: 裁決留痕需可被稽核檢視}
+  - {scenario: SC-11, requirement: FR-API-15, role: supporting, note: 審批逾期升級依賴 SLA 監測排程}
+
+  # ── SC-12 技師註冊、KYC 到品牌授權 ─────────────────────────────────
+  - {scenario: SC-12, requirement: FR-TEC-01, role: essential,  note: 跨租戶技師身分的建立是旅程起點}
+  - {scenario: SC-12, requirement: FR-TEC-02, role: essential,  note: KYC 審核與品牌授權就是准入閘門本身}
+  - {scenario: SC-12, requirement: FR-PLT-01, role: essential,  note: 技師身分由統一身分服務發放，非品牌自建}
+  - {scenario: SC-12, requirement: FR-PLT-09, role: essential,  note: 師傅認證審核發生在平台維運 console}
+  - {scenario: SC-12, requirement: FR-TEC-03, role: supporting, note: 「未過准入不得進候選集」的驗證點落在媒合端}
+  - {scenario: SC-12, requirement: FR-WEB-01, role: supporting, note: 技師站台是獨立 portal mode}
+
+  # ── SC-13 技師跨品牌對帳與佣金請領 ─────────────────────────────────
+  - {scenario: SC-13, requirement: FR-TEC-06, role: essential,  note: 跨品牌彙總 statement 與 payout 就是本旅程}
+  - {scenario: SC-13, requirement: FR-API-12, role: essential,  note: 品牌側 per-job 計費是彙總的上游輸入}
+  - {scenario: SC-13, requirement: FR-TEC-05, role: supporting, note: 技師需從投影核對每筆工單的金額}
+  - {scenario: SC-13, requirement: FR-PLT-04, role: supporting, note: 佣金事件經事件骨幹傳遞，遺失即對不起來}
+
+  # ── SC-14 認證撤銷與停權即時廣播 ───────────────────────────────────
+  - {scenario: SC-14, requirement: FR-TEC-08, role: essential,  note: 撤銷事件廣播就是本旅程}
+  - {scenario: SC-14, requirement: FR-TEC-02, role: essential,  note: 撤銷是准入的反向操作，共用同一組認證狀態}
+  - {scenario: SC-14, requirement: FR-TEC-03, role: essential,  note: 各品牌移出候選集的效果只能在媒合端觀察到}
+  - {scenario: SC-14, requirement: FR-API-05, role: essential,  note: 進行中工單改派走品牌側派工}
+  - {scenario: SC-14, requirement: FR-PLT-04, role: supporting, note: 廣播依賴事件骨幹，多實例下不得遺失}
+  - {scenario: SC-14, requirement: FR-PLT-09, role: supporting, note: 撤銷動作由平台 console 發起}
+
+  # ── SC-15 知識精煉 HITL 到雙路發布 ─────────────────────────────────
+  - {scenario: SC-15, requirement: FR-REF-01, role: essential,  note: 素材汲取進 bronze 是整條精煉鏈的入口}
+  - {scenario: SC-15, requirement: FR-REF-02, role: essential,  note: 事實／行為分流決定後續走哪一路發布}
+  - {scenario: SC-15, requirement: FR-REF-03, role: essential,  note: 「未核可零落地」的硬 gate 就是本旅程的完成判定}
+  - {scenario: SC-15, requirement: FR-REF-04, role: essential,  note: 雙路落地與 bronze 白名單校驗在此}
+  - {scenario: SC-15, requirement: FR-DAT-01, role: essential,  note: bronze-only sourcing 是發布前校驗的依據}
+  - {scenario: SC-15, requirement: FR-DAT-04, role: supporting, note: 事實路徑的落點是向量語料}
+  - {scenario: SC-15, requirement: FR-AGT-07, role: supporting, note: 發布後 agent 行為更新，效果在客服旅程被觀察到}
+
+  # ── SC-16 SOP 雙審與 Family Reviewer 覆核 ──────────────────────────
+  - {scenario: SC-16, requirement: FR-REF-05, role: essential,  note: 雙簽加覆核與 24h SLA 就是本旅程}
+  - {scenario: SC-16, requirement: FR-REF-03, role: essential,  note: 覆核仍走同一套 HITL gate，未覆核發布必須失敗}
+  - {scenario: SC-16, requirement: FR-REF-04, role: essential,  note: 核可後的向量化發布路徑}
+  - {scenario: SC-16, requirement: FR-PLT-02, role: supporting, note: 覆核者身分由角色矩陣判定}
+
+  # ── SC-17 品牌申請到 License 開通上線 ──────────────────────────────
+  - {scenario: SC-17, requirement: FR-PLT-03, role: essential,  note: License 開通閘門與 provisioning 就是本旅程}
+  - {scenario: SC-17, requirement: FR-PLT-01, role: essential,  note: 租戶組織與帳號由統一身分建立}
+  - {scenario: SC-17, requirement: FR-PLT-09, role: essential,  note: 品牌申請審核發生在平台維運 console}
+  - {scenario: SC-17, requirement: FR-DAT-03, role: essential,  note: 開通即建庫，三庫物理隔離在此被實際執行}
+  - {scenario: SC-17, requirement: FR-AGT-01, role: supporting, note: 綁定 LINE 通道是上線的最後一哩}
+  - {scenario: SC-17, requirement: FR-WEB-01, role: supporting, note: 品牌從 landing 進入申請，跨 portal CTA 在此}
+
+  # ── SC-18 品牌自助配置與治理回滾 ───────────────────────────────────
+  - {scenario: SC-18, requirement: FR-PLT-08, role: essential,  note: Studio 的受保護層與客製層之分就是本旅程的核心規則}
+  - {scenario: SC-18, requirement: FR-PLT-07, role: essential,  note: 流程積木的 DSL 變更與 HITL 強制在此}
+  - {scenario: SC-18, requirement: FR-PLT-02, role: essential,  note: 非 owner 角色不可改，靠 RBAC 擋}
+  - {scenario: SC-18, requirement: FR-WEB-05, role: supporting, note: 配置變更的 who/when/what diff 需可查}
+  - {scenario: SC-18, requirement: FR-PLT-05, role: supporting, note: 換供應商零改碼是配置化的一個面向}
+
+  # ── SC-19 GDPR 被遺忘權執行 ────────────────────────────────────────
+  - {scenario: SC-19, requirement: FR-API-16, role: essential,  note: 受理、legal-hold 檢查、T0 與 T+30 就是本旅程}
+  - {scenario: SC-19, requirement: FR-API-15, role: essential,  note: 硬刪由排程執行，且它是唯一執行者}
+  - {scenario: SC-19, requirement: FR-DAT-06, role: essential,  note: 全程 append-only 稽核帳本的載體}
+  - {scenario: SC-19, requirement: FR-AGT-06, role: supporting, note: per-user 記憶也在刪除範圍內，常被遺漏}
+  - {scenario: SC-19, requirement: FR-WEB-05, role: supporting, note: 稽核紀錄的查詢與匯出}
+
+  # ── 客戶感知得到的 NFR：掛旅程，不進 global ────────────────────────
+  #
+  # 判準同 §global 的反面——拿掉這條旅程，這條 NFR 就沒有觀測點了。
+  # 這批邊是 2026-07-27 由 V8 finding 逼出來的：原本全丟 global 是偷懶，
+  # 「案子不蒸發」根本就是 SC-02 的完成判定，不是背景地板。
+
+  - {scenario: SC-01, requirement: NFR-Perf-001, role: essential,  note: 首回應延遲是客戶對自助解決唯一的體感指標}
+  - {scenario: SC-01, requirement: NFR-Perf-002, role: supporting, note: 案例庫檢索速度直接構成首回應延遲的一段}
+  - {scenario: SC-01, requirement: NFR-Perf-003, role: supporting, note: 長尾問題走 RAG，端到端延遲在此旅程被感知}
+  - {scenario: SC-01, requirement: NFR-Comp-003, role: essential,  note: 影像辨識禁用的負面測試最短路徑是客戶直接傳照片問}
+
+  - {scenario: SC-02, requirement: NFR-Perf-001, role: essential,  note: 報修對話同樣受首回應延遲約束}
+  - {scenario: SC-02, requirement: NFR-Rel-003,  role: essential,  note: 「案子不蒸發」就是本旅程完成判定的另一種說法}
+
+  - {scenario: SC-03, requirement: NFR-Comp-001, role: essential,  note: 負面情緒識別是急件四類的其中一類，合約明列}
+  - {scenario: SC-03, requirement: NFR-Rel-003,  role: essential,  note: 急件更不容許案子蒸發，SLA 更短}
+
+  - {scenario: SC-05, requirement: NFR-Perf-007, role: essential,  note: 媒合查詢延遲決定派工能否在 SLA 內送出}
+  - {scenario: SC-05, requirement: NFR-Perf-008, role: essential,  note: 技師收到派工的延遲是本旅程的核心體感}
+  - {scenario: SC-05, requirement: NFR-Perf-006, role: supporting, note: 小編側的即時看板靠 WS 推播}
+  - {scenario: SC-05, requirement: NFR-SLA-002,  role: essential,  note: SLA breach 邊界定義了接單逾時的判定}
+  - {scenario: SC-05, requirement: NFR-SLA-003,  role: supporting, note: alert fallback 決定逾時後有沒有人被通知到}
+  - {scenario: SC-05, requirement: NFR-Scal-008, role: supporting, note: 大量技師併發接單的卡頓只在此旅程觀察得到}
+
+  - {scenario: SC-06, requirement: NFR-SLA-001,  role: essential,  note: 派工到抵達的 soft SLA 是現場旅程的時間約束}
+  - {scenario: SC-06, requirement: NFR-Comp-003, role: essential,  note: 現場照片是影像禁用紅線流量最大的入口}
+
+  - {scenario: SC-15, requirement: NFR-PUB-001, role: essential,  note: 未核可零落地就是本旅程的完成判定}
+  - {scenario: SC-15, requirement: NFR-PUB-002, role: essential,  note: append-only 落地決定發布可否被回溯稽核}
+  - {scenario: SC-15, requirement: NFR-PUB-003, role: essential,  note: 雙路發布若不同源，行為與事實會分歧}
+  - {scenario: SC-15, requirement: NFR-PUB-004, role: essential,  note: 語料租戶隔離是雙路發布的隱私前提}
+
+  - {scenario: SC-16, requirement: NFR-Comp-002, role: essential,  note: 家族覆核為合約明列條款，覆核率 100%}
+
+  - {scenario: SC-18, requirement: NFR-Perf-010, role: essential,  note: config 生效與回滾的時間就是「一鍵回滾」的驗收點}
+
+  - {scenario: SC-19, requirement: NFR-Comp-004, role: essential,  note: GDPR 與個資法的執行期限就是本旅程的完成判定}
+
+# ── scope: global —— 所有旅程共用的地板，不逐條掛 SC ────────────────
+#
+# 判準：拿掉任何一條旅程，這條需求依然必須成立。
+# 這些需求在驗收控制表不佔列，在測試計畫獨立成段（對應 TS-09/10/11 與 UF-01）。
+
+global:
+  - {requirement: FR-WEB-02, note: 登入與路由授權是所有 portal 旅程的前置條件，不屬於任何一條}
+  - {requirement: FR-WEB-07, note: 錯誤與離線頁在每條旅程都可能出現}
+  - {requirement: FR-PLT-06, note: 可觀測性橫跨全平台，沒有專屬旅程}
+  - {requirement: FR-DAT-02, note: migration 可重現是資料層地板，客戶感知不到}
+  - {requirement: FR-DAT-05, note: 跨系統同步鏈支撐所有旅程的事件流}
+  - {requirement: FR-AGT-08, note: 工具白名單是治理約束，不隨旅程改變}
+  - {requirement: NFR-Avail-*, note: 可用性是所有旅程的地板}
+  - {requirement: NFR-Aud-*,   note: 稽核鏈完整性橫跨全平台}
+  - {requirement: NFR-Sec-*,   note: 安全矩陣逐端點驗證，不對應客戶旅程}
+  - {requirement: NFR-Priv-*,  note: 隱私與跨租戶隔離為全域不變式（SC-19 的執行面除外）}
+  - {requirement: NFR-Obs-*,   note: 可觀測性同 FR-PLT-06}
+  - {requirement: NFR-DQ-*,    note: 資料品質是 pipeline 地板}
+  - {requirement: NFR-Maint-*, note: 可維護性針對開發流程，非客戶旅程}
+  - {requirement: NFR-DORA-*,  note: 交付效能指標，屬工程治理}
+  - {requirement: NFR-A11y-*,  note: 無障礙為全 portal 地板，逐旅程掛會複述 19 次}
+  - {requirement: NFR-Scal-*,  note: 容量與擴展為 3-5 年架構地板（SC-05 的併發接單面除外）}
+  - {requirement: NFR-Sch-*,   note: schema 演進與 migration 可重套，客戶感知不到}
+  - {requirement: NFR-Rep-*,   note: pipeline 可重現屬資料工程地板}
+  - {requirement: NFR-Perf-004, note: 後台頁面載入橫跨所有營運旅程，不專屬任一條}
+  - {requirement: NFR-Perf-005, note: 讀取類 API 延遲為全平台共用門檻}
+  - {requirement: NFR-Perf-009, note: outbox lag 是事件骨幹的地板，非旅程可觀測}
+  - {requirement: NFR-Perf-011, note: 前端 FCP 橫跨四個 portal}
+  - {requirement: NFR-Perf-012, note: LLM 逾時上限為供應商邊界設定，不隨旅程改變}
+  - {requirement: NFR-Rel-001, note: 全平台 error rate}
+  - {requirement: NFR-Rel-002, note: DLQ 處理為事件骨幹地板}
