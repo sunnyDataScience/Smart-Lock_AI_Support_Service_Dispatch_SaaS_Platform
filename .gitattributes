@@ -1,2 +1,7 @@
+# Normalize all text files to LF in the repository.
+# Without this, Windows/WSL checkouts produce whole-file CRLF diffs that mask
+# real changes (2026-07-27: 120 phantom-modified files on a clean tree).
+* text=auto eol=lf
+
 # Shell scripts must keep LF line endings (cross-platform)
 *.sh text eol=lf
