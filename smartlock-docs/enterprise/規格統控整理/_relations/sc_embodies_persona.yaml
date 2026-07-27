@@ -1,0 +1,62 @@
+# SC × Persona 關聯表 —— 「這條旅程由誰感知、體現了哪個 Persona」（CR-0185）
+#
+# 追溯鏈「誰」那一端的宣告邊，真相源就是本檔。一列一條邊，不得由 Actor 字串命名相似度推導
+# （V2 精神：不用命名慣例偽裝關聯）。SC 的「主要 Actor」常為複合（如「終端客戶 × 派工小編」），
+# 所以這是 M:N —— 一條 SC 體現 1–2 個 Persona，一個 Persona 撐多條旅程。
+#
+# 欄位：
+#   scenario   SC-*  （節點正典：../../28_Scenarios.md）
+#   persona    PER-* （節點正典：../../06_UX_Research_Report.md §3）
+#   role       primary    這條旅程的主要感知者，BDD `As a` 取自它
+#              secondary  旅程中的必要協作者，但不是旅程主體
+#   note       **這條邊憑什麼成立**。說不出來的邊不要建；禁止 AI 代寫套話。
+#
+# 驗證（由 _validate_relations.py 執行）：
+#   V2 兩端節點都必須存在      V3 (scenario, persona) 不得重複
+#   V4 role 值域封閉           V11 每條 SC 需 ≥1 primary；每個 Persona 需被 ≥1 SC 體現
+#
+# last_updated: 2026-07-27
+
+version: 1
+
+edges:
+
+  # ── L1-CUS 終端客戶價值鏈 ──────────────────────────────────────────
+  - {scenario: SC-01, persona: PER-CUS-01, role: primary,   note: "客戶在 LINE 自助解決產品疑問，旅程完全由客戶感知，不建卡"}
+  - {scenario: SC-02, persona: PER-CUS-01, role: primary,   note: "客戶描述故障、拍照，直到問題卡成立——客戶是唯一發起者"}
+  - {scenario: SC-03, persona: PER-CUS-01, role: primary,   note: "被鎖在門外的急件客戶要求真人，情緒與時效由客戶端定義成敗"}
+  - {scenario: SC-04, persona: PER-CUS-01, role: primary,   note: "客戶於 LIFF 查看報價明細並勾選同意——確認動作是旅程主軸"}
+  - {scenario: SC-04, persona: PER-OPS-01, role: secondary, note: "派工小編內部核准並 1-click 建立工單，是必要協作但非旅程主體"}
+  - {scenario: SC-05, persona: PER-OPS-01, role: primary,   note: "派工小編（或自動媒合）發動派工，佇列清空是其成功定義"}
+  - {scenario: SC-05, persona: PER-TEC-01, role: secondary, note: "師傅接單使旅程完成，但派工決策端在小編/系統"}
+  - {scenario: SC-06, persona: PER-TEC-01, role: primary,   note: "師傅到場施工、拍照存證、回報完工——現場旅程由師傅走完"}
+  - {scenario: SC-06, persona: PER-CUS-01, role: secondary, note: "客戶現場簽收確認，是完工 gate 的必要一方"}
+  - {scenario: SC-07, persona: PER-TEC-01, role: primary,   note: "師傅在現場發現範圍變更、發起 requote，變更由師傅端觸發"}
+  - {scenario: SC-07, persona: PER-CUS-01, role: secondary, note: "客戶重新確認修正後報價，否則不得續作"}
+  - {scenario: SC-08, persona: PER-CUS-01, role: primary,   note: "客戶付款、或發起取消/退款——金流動作由客戶感知"}
+  - {scenario: SC-08, persona: PER-OPS-01, role: secondary, note: "小編處理取消費分層與退款覆寫，留稽核"}
+  - {scenario: SC-09, persona: PER-OPS-02, role: primary,   note: "租戶 Admin 執行月結與七帳本對帳，borrow=lend 是其成功定義"}
+
+  # ── L1-OPS 品牌營運 ────────────────────────────────────────────────
+  - {scenario: SC-10, persona: PER-OPS-01, role: primary,   note: "小編人工接管對話，接管期間對話零缺漏是其成功定義"}
+  - {scenario: SC-11, persona: PER-OPS-01, role: primary,   note: "小編在例外收件匣處理 reschedule/dispute，日常操作者"}
+  - {scenario: SC-11, persona: PER-OPS-02, role: secondary, note: "敏感操作觸發 SoD 時由租戶 Admin 任二不同角色核准"}
+
+  # ── L1-TEC 簽約師傅 ────────────────────────────────────────────────
+  - {scenario: SC-12, persona: PER-TEC-01, role: primary,   note: "師傅提交註冊與 KYC 材料，取得品牌授權是其旅程目標"}
+  - {scenario: SC-12, persona: PER-PLT-01, role: secondary, note: "Super Admin 審核 KYC 與認證、開通品牌授權"}
+  - {scenario: SC-13, persona: PER-TEC-01, role: primary,   note: "師傅查跨品牌對帳單、請領佣金——單一 statement 對得起是成功定義"}
+  - {scenario: SC-14, persona: PER-PLT-01, role: primary,   note: "Super Admin 撤銷認證/停權並即時廣播，跨租戶治理由平台端執行"}
+
+  # ── L1-KNW 知識治理 ────────────────────────────────────────────────
+  - {scenario: SC-15, persona: PER-KNW-01, role: primary,   note: "客服主管發起知識精煉、判定是否進 HITL——精煉由營運端啟動"}
+  - {scenario: SC-15, persona: PER-KNW-02, role: secondary, note: "Domain Expert 審核事實正確性與 provenance，是發布前必要關卡"}
+  - {scenario: SC-16, persona: PER-KNW-02, role: primary,   note: "Domain Expert 主審 SOP 內容，第一關由領域專家把關"}
+  - {scenario: SC-16, persona: PER-KNW-03, role: secondary, note: "Family Reviewer 做使用者視角安全覆核，高風險 SOP 第二關"}
+
+  # ── L1-PLT 平台治理 ────────────────────────────────────────────────
+  - {scenario: SC-17, persona: PER-PLT-02, role: primary,   note: "潛在加盟品牌從 landing 提出申請，上線是申請者的旅程目標"}
+  - {scenario: SC-17, persona: PER-PLT-01, role: secondary, note: "Super Admin 審申請、開 License、觸發 provisioning"}
+  - {scenario: SC-18, persona: PER-OPS-02, role: primary,   note: "租戶 Admin 自助配置品牌設定並在出錯時治理回滾"}
+  - {scenario: SC-19, persona: PER-CUS-01, role: primary,   note: "客戶（data subject）行使被遺忘權，請求由客戶端發起"}
+  - {scenario: SC-19, persona: PER-PLT-03, role: secondary, note: "DPO 檢查 legal-hold、執行合規銷毀並留 append-only 稽核"}

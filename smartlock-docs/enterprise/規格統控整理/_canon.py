@@ -41,6 +41,7 @@ CANON = HERE.parent
 RELATIONS = HERE / "_relations"
 
 SCENARIO_PATH = CANON / "28_Scenarios.md"
+PERSONA_PATH = CANON / "06_UX_Research_Report.md"
 SRS_PATH = CANON / "04_SRS.md"
 NFR_PATH = CANON / "05_NFR.md"
 TEST_CASE_PATH = CANON / "20_Test_Cases.md"
@@ -51,6 +52,7 @@ ROADMAP_PATH = CANON / "27_Product_Roadmap_WBS.md"
 
 ROLE_DOMAIN = {"essential", "supporting"}
 KIND_DOMAIN = {"happy", "boundary", "failure", "recovery"}
+PERSONA_ROLE_DOMAIN = {"primary", "secondary"}
 
 # A truth source may never carry these: each is computable from two other edges,
 # so a hand-written value is guaranteed to drift the moment either one changes.
@@ -87,6 +89,24 @@ def is_separator(cells: list[str]) -> bool:
 
 
 # ---------------------------------------------------------------- nodes
+
+@dataclass
+class Persona:
+    """A PER-* node. Canon: 06_UX_Research_Report.md §3 (CR-0185).
+
+    Closes the 'who' end of the trace graph: PER → SC → {FR/NFR} → TC.
+    The BDD view's `As a <name> ... so that <success>` is rendered from here.
+    """
+    per_id: str
+    name: str
+    nickname: str
+    line: str
+    context: str = ""
+    goal: str = ""
+    pain: str = ""
+    success: str = ""
+    tier: str = "primary"
+
 
 @dataclass
 class Scenario:
@@ -149,6 +169,67 @@ class TestCase:
     priority: str
     heading: str
     source_line: int
+
+
+def _persona_line(per_id: str) -> str:
+    parts = per_id.split("-")
+    return parts[1] if len(parts) >= 2 else ""
+
+
+def load_personas() -> list[Persona]:
+    """PER-* from 06_UX_Research_Report.md §3.
+
+    Two shapes share the section: §3.1–3.4 are per-card 欄位/內容 tables (primary),
+    §3.5 is one row per secondary persona. Both must yield the same Persona node.
+    An ID that is not written here is not a persona, even if a scenario names the actor.
+    """
+    text = PERSONA_PATH.read_text(encoding="utf-8")
+    sec = re.search(r"## 3\. Persona 卡(.*?)\n## 4\.", text, re.S)
+    body = sec.group(1) if sec else ""
+    personas: list[Persona] = []
+    seen: set[str] = set()
+
+    # -- primary: "### 3.N <role> — 「<nickname>」" + a 欄位/內容 table
+    for block in re.split(r"\n### ", body):
+        head, _, rest = block.partition("\n")
+        hm = re.match(r"3\.[1-4]\s+(.+)", head.strip())
+        if not hm:
+            continue
+        pid_m = re.search(r"PER-[A-Z]+-\d+", rest)
+        if not pid_m:
+            continue
+        pid = pid_m.group(0)
+        role, _, nick = hm.group(1).partition("—")
+
+        def field(label: str, blk: str = rest) -> str:
+            fm = re.search(rf"\|\s*{label}\s*\|(.+?)\|", blk)
+            return plain(fm.group(1)) if fm else ""
+
+        personas.append(Persona(
+            per_id=pid, name=plain(role), nickname=plain(nick).strip("「」"),
+            line=_persona_line(pid), context=field("情境"), goal=field("目標"),
+            pain=field("痛點"), success=field("成功定義"), tier="primary",
+        ))
+        seen.add(pid)
+
+    # -- secondary: the §3.5 table (Persona ID | 角色 | 情境／目標 | 痛點 | 成功定義)
+    sec5 = re.search(r"### 3\.5.*?(\n\|.+?)(?=\n### |\n## |\Z)", body, re.S)
+    if sec5:
+        for line in sec5.group(1).splitlines():
+            cells = split_row(line)
+            if len(cells) < 5 or is_separator(cells):
+                continue
+            pm = re.search(r"PER-[A-Z]+-\d+", cells[0])
+            if not pm or pm.group(0) in seen:
+                continue
+            pid = pm.group(0)
+            personas.append(Persona(
+                per_id=pid, name=cells[1], nickname="", line=_persona_line(pid),
+                context=cells[2], goal=cells[2], pain=cells[3], success=cells[4],
+                tier="secondary",
+            ))
+            seen.add(pid)
+    return personas
 
 
 def load_scenarios() -> list[Scenario]:
@@ -343,8 +424,16 @@ class Relations:
     rq_unresolved: list[dict] = field(default_factory=list)
     sc_tc: list[dict] = field(default_factory=list)
     sc_no_script: list[dict] = field(default_factory=list)
+    sc_per: list[dict] = field(default_factory=list)
 
     # -- derived views. Never stored, always recomputed from the edges above.
+
+    def personas_of(self, sc_id: str, role: str | None = None) -> list[str]:
+        return [e["persona"] for e in self.sc_per
+                if e["scenario"] == sc_id and (role is None or e.get("role") == role)]
+
+    def scenarios_of_persona(self, per_id: str) -> list[str]:
+        return [e["scenario"] for e in self.sc_per if e["persona"] == per_id]
 
     def reqs_of(self, sc_id: str, role: str | None = None) -> list[str]:
         return [e["requirement"] for e in self.sc_rq
@@ -390,6 +479,7 @@ def load_relations() -> Relations:
     sc_rq = RELATIONS / "sc_requires_rq.yaml"
     rq_tc = RELATIONS / "rq_verified_by_tc.yaml"
     sc_tc = RELATIONS / "sc_verified_by_tc.yaml"
+    sc_per = RELATIONS / "sc_embodies_persona.yaml"
     return Relations(
         sc_rq=_yaml(sc_rq, "edges"),
         rq_global=_yaml(sc_rq, "global"),
@@ -398,6 +488,7 @@ def load_relations() -> Relations:
         rq_unresolved=_yaml(rq_tc, "unresolved"),
         sc_tc=_yaml(sc_tc, "scripts"),
         sc_no_script=_yaml(sc_tc, "no_script"),
+        sc_per=_yaml(sc_per, "edges"),
     )
 
 
@@ -480,10 +571,10 @@ def component_glossary_rows() -> list[list[str]]:
 
 __all__ = [
     "GENERATED_ON", "CANON", "HERE", "RELATIONS",
-    "Scenario", "Requirement", "NFR", "TestCase", "Relations",
-    "load_scenarios", "load_requirements", "load_nfrs", "load_test_cases",
+    "Persona", "Scenario", "Requirement", "NFR", "TestCase", "Relations",
+    "load_personas", "load_scenarios", "load_requirements", "load_nfrs", "load_test_cases",
     "load_adrs", "load_wbs", "load_test_scenarios", "load_relations",
     "module_for", "module_arch", "architecture_for", "phase_for", "spec_status",
     "component_glossary_rows", "plain",
-    "ROLE_DOMAIN", "KIND_DOMAIN", "DERIVED_KEYS",
+    "ROLE_DOMAIN", "KIND_DOMAIN", "PERSONA_ROLE_DOMAIN", "DERIVED_KEYS",
 ]

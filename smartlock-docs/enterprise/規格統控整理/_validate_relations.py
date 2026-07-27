@@ -8,6 +8,7 @@
     V8  nodes with no edge at all (bidirectional orphans)      -> finding
     V9  declared SC x RQ vs derived RQ -> SC mismatch           -> finding
     V10 P0 requirements missing failure/recovery coverage       -> finding
+    V11 SC with no primary persona, or persona embodied by no SC -> finding
 
 Errors block generation. Findings do not block, but are always printed and
 carried into 規格統控規劃書 ② 缺口清單 -- a gap that blocks generation just gets
@@ -168,6 +169,49 @@ def check_coverage(rep: Report, scenarios: dict, by_sc: dict, rel: C.Relations) 
             rep.finding("V10", rq, f"P0 旅程需要，但只有 {sorted(kinds)}，缺 failure/recovery", "QA")
 
 
+def check_sc_persona(rep: Report, scenarios: dict, personas: dict, rel: C.Relations) -> None:
+    """V2/V3/V4/V11 over the SC x Persona table -- the 'who' end of the graph.
+
+    V11 finds the two ways this edge rots: a journey nobody is declared to live
+    through (no primary persona -> the BDD `As a` has no subject), and a persona
+    that appears in no journey (a card that reads well but carries no weight).
+    """
+    if not rel.sc_per:
+        rep.finding("V11", "sc_embodies_persona.yaml",
+                    "Persona 關聯表不存在，追溯鏈「誰」那一端未閉合", "BA")
+        return
+
+    seen: set[tuple[str, str]] = set()
+    embodied: set[str] = set()
+    for i, e in enumerate(rel.sc_per, 1):
+        loc = f"sc_embodies_persona.yaml:edge#{i}"
+        sc, per, role = e.get("scenario"), e.get("persona"), e.get("role")
+        for stray in C.DERIVED_KEYS & set(e):
+            rep.error(f"{loc} 出現推導欄 `{stray}`（V6）")
+        if sc not in scenarios:
+            rep.error(f"{loc} scenario `{sc}` 不存在於 28_Scenarios.md（V2）")
+        if per not in personas:
+            rep.error(f"{loc} persona `{per}` 不存在於 06_UX §3（V2）")
+        if role not in C.PERSONA_ROLE_DOMAIN:
+            rep.error(f"{loc} role `{role}` 不在值域 {sorted(C.PERSONA_ROLE_DOMAIN)}（V4）")
+        if not str(e.get("note") or "").strip():
+            rep.error(f"{loc} 缺 note——說不出這條旅程憑什麼由這個 Persona 感知")
+        if (sc, per) in seen:
+            rep.error(f"{loc} 重複的邊 ({sc}, {per})（V3）")
+        seen.add((sc, per))
+        embodied.add(per)
+
+    for sc in scenarios:
+        if not rel.personas_of(sc):
+            rep.finding("V11", sc, "旅程沒有任何 Persona（誰在走這段旅程？）", "BA")
+        elif not rel.personas_of(sc, "primary"):
+            rep.finding("V11", sc, "旅程只有 secondary Persona，缺主要感知者", "BA")
+
+    for per, name in personas.items():
+        if per not in embodied:
+            rep.finding("V11", per, f"Persona 未被任何旅程體現（裝飾性節點：{name[:20]}）", "BA")
+
+
 # --------------------------------------------------------------------------
 
 def run() -> tuple[Report, dict]:
@@ -176,21 +220,27 @@ def run() -> tuple[Report, dict]:
     scenarios = {s.sc_id: {"name": s.name, "priority": s.priority} for s in C.load_scenarios()}
     reqs = {r.req_id: r.name for r in C.load_requirements()}
     reqs.update({n.req_id: n.name for n in C.load_nfrs()})
+    personas = {p.per_id: p.name for p in C.load_personas()}
     rel = C.load_relations()
 
     if not scenarios:
         rep.error("28_Scenarios.md 解析不到任何 SC（§1 清單表格式改了？）")
     if not reqs:
         rep.error("04_SRS/05_NFR 解析不到任何 RQ")
+    if not personas:
+        rep.error("06_UX §3 解析不到任何 Persona（PER-* 格式改了？）")
 
     by_sc = check_sc_rq(rep, scenarios, reqs, rel)
     check_rq_tc(rep, reqs, rel)
     check_coverage(rep, scenarios, by_sc, rel)
+    check_sc_persona(rep, scenarios, personas, rel)
 
     counters = {
         "sc": len(scenarios),
+        "persona": len(personas),
         "fr": sum(1 for r in reqs if r.startswith("FR-")),
         "nfr": sum(1 for r in reqs if r.startswith("NFR-")),
+        "sc_per": len(rel.sc_per),
         "sc_rq": len(rel.sc_rq),
         "rq_tc": len(rel.rq_tc),
         "sc_tc": sum(len(s.get("cases") or []) for s in rel.sc_tc),
@@ -204,8 +254,9 @@ def run() -> tuple[Report, dict]:
 def main() -> int:
     rep, n = run()
     print("節點：")
-    print(f"  SC {n['sc']}  FR {n['fr']}  NFR {n['nfr']}")
+    print(f"  SC {n['sc']}  Persona {n['persona']}  FR {n['fr']}  NFR {n['nfr']}")
     print("邊：")
+    print(f"  SC x Persona {n['sc_per']:>4} 條")
     print(f"  SC x RQ  {n['sc_rq']:>4} 條（涵蓋 {n['rq_covered_by_sc']}/{n['rq_total']} 條需求）")
     print(f"  RQ x TC  {n['rq_tc']:>4} 條（涵蓋 {n['rq_covered_by_tc']}/{n['rq_total']} 條需求）")
     print(f"  SC x TC  {n['sc_tc']:>4} 條")
