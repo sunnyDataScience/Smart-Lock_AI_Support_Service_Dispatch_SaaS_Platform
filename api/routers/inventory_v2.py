@@ -153,7 +153,10 @@ async def list_inventory_items_v2(
 async def get_inventory_item_v2(
     tenantId: str = Path(...),
     itemId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：同資源的 list 端點已上守衛、本明細端點卻只有
+    # require_tenant → 低權限角色只要知道/猜到 ID 就能直接讀明細，繞過 list 守衛。
+    # 守衛不得弱於同資源的 list。
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(

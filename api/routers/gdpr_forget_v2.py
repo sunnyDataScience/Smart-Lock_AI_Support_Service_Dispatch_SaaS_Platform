@@ -102,7 +102,10 @@ async def list_requests(
 async def get_request(
     tenantId: str = Path(...),
     requestId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：同資源的 list 端點已上守衛、本明細端點卻只有
+    # require_tenant → 低權限角色只要知道/猜到 ID 就能直接讀明細，繞過 list 守衛。
+    # 守衛不得弱於同資源的 list。
+    user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
     return {"data": await svc._get_request(requestId)}

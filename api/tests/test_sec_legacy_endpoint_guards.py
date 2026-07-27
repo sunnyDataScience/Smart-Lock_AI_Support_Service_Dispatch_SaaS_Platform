@@ -135,3 +135,48 @@ async def test_refund_detail_guard_consistent(client):
     for path in (f"/tenants/{TID}/refunds/{rid}", f"/api/v1/refunds/{rid}"):
         resp = await client.get(path, headers=_hdr("customer_service"))
         assert resp.status_code == 403, f"{path} 未擋 customer_service"
+
+
+# ── list/detail 不對稱（2026-07-27 第二輪掃描）──────────────────────────
+# 同資源的明細端點守衛不得弱於 list —— 否則知道/猜到 ID 就能繞過 list 守衛。
+_ID = "00000000-0000-0000-0000-0000000000aa"
+_DETAIL_CASES = [
+    ("data-corrections（OPS_ROLES）", f"/tenants/{TID}/data-corrections/{_ID}", "customer_service"),
+    ("data-corrections legacy", f"/api/v1/data-corrections/{_ID}", "customer_service"),
+    ("gdpr forget-request（admin-only）", f"/tenants/{TID}/gdpr/forget-requests/{_ID}", "operations_manager"),
+    ("inventory item（OPS_ROLES）", f"/tenants/{TID}/inventory/items/{_ID}", "customer_service"),
+    ("pricing rule（OPS_ROLES）", f"/tenants/{TID}/pricing/rules/{_ID}", "customer_service"),
+    ("quote detail（OPS_ROLES）", f"/tenants/{TID}/quotes/{_ID}", "customer_service"),
+    ("sop draft（BACKOFFICE_ROLES）", f"/tenants/{TID}/sops/drafts/{_ID}", "technician"),
+    ("warranty claim（REVIEW_ROLES）", f"/tenants/{TID}/warranty-claims/{_ID}", "customer_service"),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("label,path,blocked_role", _DETAIL_CASES, ids=[c[0] for c in _DETAIL_CASES])
+async def test_detail_endpoint_not_weaker_than_list(client, label, path, blocked_role):
+    """明細端點必須擋住 list 也會擋的低權限角色。"""
+    resp = await client.get(path, headers=_hdr(blocked_role))
+    assert resp.status_code == 403, (
+        f"[{label}] {path} 未擋 {blocked_role}（得 {resp.status_code}）＝明細守衛弱於 list"
+    )
+    assert resp.json().get("error_code") == "FORBIDDEN"
+
+
+@pytest.mark.asyncio
+async def test_technician_still_reads_problem_card_detail(client):
+    """Category B 回歸：技師由工單取得問題卡 ID 直讀明細，須維持可讀（不得誤擋）。"""
+    resp = await client.get(f"/tenants/{TID}/problem-cards/{_ID}", headers=_hdr("technician"))
+    assert resp.json().get("error_code") != "FORBIDDEN"
+
+
+def test_endpoint_guard_audit_clean():
+    """稽核腳本須回報零不對稱——防止日後新增端點時重蹈覆轍（CI gate）。"""
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    r = subprocess.run(
+        ["python3", str(root / "scripts" / "ci" / "endpoint-guard-audit.py")],
+        capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr

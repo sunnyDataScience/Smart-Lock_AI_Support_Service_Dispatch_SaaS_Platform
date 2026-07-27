@@ -125,7 +125,10 @@ async def list_audit_queue_v2(
 )
 async def get_quote_v2(
     tenantId: str = Path(...), id: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0183 補漏（2026-07-27）：同資源的 list 端點已上守衛、本明細端點卻只有
+    # require_tenant → 低權限角色只要知道/猜到 ID 就能直接讀明細，繞過 list 守衛。
+    # 守衛不得弱於同資源的 list。
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     _xt(user, tenantId)
     return {"data": await qe.get_quote(tenant_id=tenantId, quote_id=id, include_cost=_cost(user))}
