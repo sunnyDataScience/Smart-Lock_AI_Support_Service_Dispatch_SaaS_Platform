@@ -37,8 +37,9 @@ upstream:
 [open_decisions.yaml](./open_decisions.yaml)。拍板後開新 ADR 或於既有 ADR 的 Status 附註 append-only
 連回裁決，才可將 OD 標為 `decided` 或 `superseded`。
 
-目前 Open：`OD-001` OHS 憑證、`OD-002` Refinery 資料進入契約、`OD-003` 技師 WS 歸屬、
-`OD-004` Casdoor 跨租戶 organization/claim 模型。
+目前 Open：`OD-002` Refinery 資料進入契約、`OD-003` 技師 WS 歸屬。
+已 Decided（2026-07-28）：`OD-001` OHS 憑證 → [ADR-040](./ADR-040_OHS服務間憑證定版受控opaque credential.md)、
+`OD-004` Casdoor 跨租戶 organization/claim 模型 → [ADR-041](./ADR-041_跨品牌技師身分單一平台principal加品牌membership.md)。
 
 ## 狀態矩陣
 
@@ -90,10 +91,12 @@ upstream:
 | **群 K — 體驗、安全執行與交付治理** |||||
 | [ADR-034](./ADR-034_前端Mutation一致性_偏好分層_Capability導覽.md) | 前端 Mutation 一致性、偏好分層與 Capability 導覽 | 系統(web/api) | 已實作 | refines 024 · 005 · 028 |
 | [ADR-035](./ADR-035_租戶資源歸屬授權契約_BOLA_IDOR.md) | 租戶資源歸屬授權契約與 BOLA／IDOR 守門 | 平台/security | 已實作 | refines 005 · 020 · 022 |
-| [ADR-036](./ADR-036_機器身分與可撤銷服務憑證.md) | 機器身分與可撤銷服務憑證 | 平台/security | 實作完成／待 production 取證（OD-001/004 gate） | 004 · 005 · 035 |
+| [ADR-036](./ADR-036_機器身分與可撤銷服務憑證.md) | 機器身分與可撤銷服務憑證 | 平台/security | 實作完成／待 production 取證（transport 已由 ADR-040 定版；餘 fallback 歸零） | 004 · 005 · 035 |
 | [ADR-037](./ADR-037_背景工作Runtime從API生命週期拆分.md) | 背景工作 Runtime 從 API 生命週期拆分 | 系統(api/ops) | Pilot code ready／待 GCP 取證 | refines 006 · 003 · 021 |
 | [ADR-038](./ADR-038_GCP發版Promotion與證據關卡.md) | GCP 發版 Promotion 與證據關卡 | 平台/delivery | Workflow ready／待環境演練 | refines 003 · 002 · 007 |
 | [ADR-039](./ADR-039_web共享契約套件_窄例外.md) | web 共享契約套件——四站獨立專案的窄例外 | 系統(web/tooling) | 已實作（vendored 0.1.0） | refines 028 · 031 · 034 |
+| [ADR-040](./ADR-040_OHS服務間憑證定版受控opaque credential.md) | OHS 服務間憑證定版為受控 opaque credential | 平台/security | Accepted（closes OD-001） | 036 · 004 · 035 |
+| [ADR-041](./ADR-041_跨品牌技師身分單一平台principal加品牌membership.md) | 跨品牌技師身分採單一平台 principal + 品牌 membership claim | 平台/security | Accepted（closes OD-004） | 004 · 005 · 035 |
 
 ## 依賴關係圖
 
@@ -154,7 +157,9 @@ graph TD
 - **ADR-034 refines ADR-024**：維持 client SPA／現有狀態邊界，補 mutation、偏好與
   capability contract，不把前端升格為授權來源。
 - **ADR-035 與 ADR-036 分離**：前者固定「資源屬於誰」的授權契約，後者固定機器 principal
-  的生命週期；OHS transport 與跨品牌 claim 仍由 OD-001／004 裁決。
+  的生命週期。ADR-036 刻意留給 OD 的兩個缺口已於 2026-07-28 補上——OHS transport 由
+  **ADR-040** 定版為受控 opaque credential，跨品牌 claim 由 **ADR-041** 定版為單一平台
+  principal + 品牌 membership；兩者皆 append-only，未改寫 ADR-036 原文。
 - **ADR-037 不以 Kafka 為前置**：先拆週期 job／outbox runtime；事件骨幹仍受
   ADR-006、OD-002／003 治理。
 - **ADR-039 是 ADR-028 的窄例外**：只共享版本化契約，不共享 UI、theme、i18n 或 portal

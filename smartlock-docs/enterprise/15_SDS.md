@@ -539,7 +539,7 @@ conversations/messages 或 escalation 建 AI 草擬問題卡（`source='ai_line'
 | OHS API routers（目標邊界）| `GET /technicians` · `POST /technicians:match` · 排班/認證查詢；獨立 OHS service 尚未拆出 |
 | self-service routers | 上線註冊 / profile / 技能授權 / 認證上傳 / 排班設定 / 工作台 |
 | WS 端點 | `/realtime/pool/{tech_id}` 師傅即時推播（Redis pub/sub 撐）；權威歸屬由 [OD-003](./14_ADR/OPEN_DECISIONS.md#od-003--技師即時-websocket-的權威歸屬) 定版，現行 tech portal 可連品牌 API 是 interim，不是 target 已完成。 |
-| 守衛鏈 | Casdoor OIDC bearer 驗證（技師 = 跨租戶身分）→ role enforce（deny-by-default）；OHS 服務憑證由 [OD-001](./14_ADR/OPEN_DECISIONS.md#od-001--ohs-服務間憑證模式) 定版（OIDC client-credentials vs internal token）。 |
+| 守衛鏈 | Casdoor OIDC bearer 驗證（技師 = 跨租戶身分）→ role enforce（deny-by-default）；OHS 服務憑證已由 [ADR-040](./14_ADR/ADR-040_OHS服務間憑證定版受控opaque credential.md) 定版為受控 opaque credential（`X-Service-Credential`）；跨品牌技師身分依 [ADR-041](./14_ADR/ADR-041_跨品牌技師身分單一平台principal加品牌membership.md) 為單一平台 principal + 品牌 membership claim。 |
 | Service 層 | `technician_service`、KYC/認證/生命週期/品牌授權/排班/LINE；現行候選評分在品牌 `dispatch_service` 直接讀 tech authority |
 | Tech DB router + mirror | `core/db.py` 依 `TECH_POSTGRES_URI` 導向權威庫；`core/tech_mirror.py` 保留過渡相容鏡射 |
 | 事件與投影 | `core/event_bus.py` + `realtime/event_consumer.py`；現行 topic `workorder.lifecycle` / `commission.accrued` / `technician.lifecycle`，更新 `technician_workorder_projection` / `technician_commission_projection`；`KAFKA_BOOTSTRAP` opt-in |
@@ -707,7 +707,7 @@ draft → pending → approved（Publisher 落地）
 
 | 路徑 | 協議 | 認證 |
 |---|---|---|
-| 品牌 api → technician-platform | OHS API（查詢/媒合/排班/認證）| `X-Service-Credential` 可用；最終 transport 受 OD-001 |
+| 品牌 api → technician-platform | OHS API（查詢/媒合/排班/認證）| `X-Service-Credential`（ADR-040 定版長期模式） |
 | agent → api | `/internal/*` 4 端點（conversations ingest / handover-state / escalations ingest / quotes respond）| `X-Service-Credential` 優先；`X-Internal-Token` fallback |
 | web → api | HTTP 走 same-origin proxy；WS/SSE 直連 | HttpOnly cookie + X-Tenant-ID；realtime URL 無 token |
 | knowledge-refinery → api/品牌庫 | API ingest 或 Publisher 灌事實語料 | `X-Service-Credential` 可 opt-in；schema 由 api 擁有 |

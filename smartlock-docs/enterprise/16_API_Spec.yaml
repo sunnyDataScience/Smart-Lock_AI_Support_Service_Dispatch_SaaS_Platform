@@ -85,8 +85,8 @@ tags:
     description: |
       OHS API（Open Host Service）— technician-platform 對各品牌 api 的穩定供給面：
       技師查詢 / 派工媒合 / 排班 / 認證。品牌不直連技師庫（ADR-P004）。
-      服務憑證尚未定版：見 14_ADR/OPEN_DECISIONS.md OD-001（OIDC client-credentials vs internal token）；
-      未裁決前不得將任一選項標為正式 OHS production 契約。
+      服務憑證已定版：受控 opaque credential `X-Service-Credential`（14_ADR/ADR-040，OD-001 closed）；
+      OIDC client-credentials 列重審項，觸發條件為第一個非自建外部接入方。
     externalDocs: { url: ../technician-platform/P1/05_architecture_and_design.md, description: "§4 OHS routers / §7.1 媒合流程" }
   - name: brand-vendor
     description: 品牌 / 廠商（廠商核准、品牌 B2B 結算、品牌申請導入）
@@ -716,7 +716,7 @@ components:
       type: apiKey
       in: header
       name: X-Service-Credential
-      description: "品牌 api → technician-platform OHS 現行可用的受控 opaque credential；OD-001 仍決定最終是否改 OIDC client-credentials。"
+      description: "品牌 api → technician-platform OHS 的定版服務憑證：受控 opaque credential（ADR-040）。生命週期依 ADR-036：hash-only、audience/scope/tenant、expiry、rotation overlap、revoke、audit。"
     wsCookieAuth:
       type: apiKey
       in: cookie

@@ -42,8 +42,9 @@ upstream:
 
 - **IdP**：OAuth2/OIDC 統一發 token，各服務驗 OIDC token。R1/R2 已落地（CR-0141/
   CR-0146）；CR-0190 將四站 browser token 收斂至 HttpOnly cookie-only response +
-  same-origin proxy，localStorage 雙寫已移除。Casdoor production HA/claim mapping 仍受
-  OD-004 與部署證據控制。
+  same-origin proxy，localStorage 雙寫已移除。Casdoor claim 模型已由 ADR-041 定版為
+  單一平台 principal + 品牌 membership（OD-004 closed）；production HA 與 org 映射證據
+  仍受部署證據控制。
 - **租戶（org）**：Casdoor organization = 品牌租戶；租戶 Admin 可自助開通帳號給自己人。🔶 R1：org/7 角色/使用者（bcrypt hash 原樣遷移）冪等同步腳本 `scripts/idp/casdoor_bootstrap.py`，live E2E 實證（真 token→api 驗證器映射全對）。
 - **角色 claim**：Casdoor role/permission 作為角色來源，api 端 resource-level enforce（§3）。
 - **License 開通**：Casdoor application / subscription / pricing 管理品牌授權與到期，作為 per-brand provisioning 的開通閘門（ADR-P005）。
@@ -73,7 +74,7 @@ upstream:
 | LINE → agent | `POST /callback` 驗 `X-Line-Signature`（HMAC-SHA256 用 `LINE_CHANNEL_SECRET`），失敗回 400；由 `test_line_gateway.py` 以真簽章守護（agent C-01）|
 | agent/refinery/OHS → api | 優先 `X-Service-Credential`：per-workload principal、peppered hash、audience/scope/tenant、expiry/revoke/rotation/audit；錯誤 fail-closed 且不降級。`X-Internal-Token` 只作計量中的 migration fallback |
 | WebSocket / SSE | HttpOnly `smartlock_access_token` cookie + tenant/channel ownership；URL 無 token。`verify_ws_token` + `authorize_channel` 失敗 close(1008) |
-| 品牌 api → 技師平台（OHS）| 受控 opaque service credential 已可用；OD-001 仍決定最終 transport 是否改 OIDC client-credentials，不影響 lifecycle 下限 |
+| 品牌 api → 技師平台（OHS）| 受控 opaque service credential 為**定版長期模式**（ADR-040，OD-001 closed）；OIDC client-credentials 列重審項，觸發條件＝第一個非自建外部接入方 |
 
 ### 2.4 Resource ownership 與 BOLA／IDOR（ADR-035）
 

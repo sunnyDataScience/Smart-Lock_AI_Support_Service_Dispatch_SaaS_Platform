@@ -418,9 +418,12 @@ License 開通（Casdoor subscription）→ provisioning：部署 bundle → 建
 | ADR-P013 | Agent Configuration Studio：skill / RAG 權限 / prompt 品牌自服務，受保護層 + 客製層分層保護 |
 | ADR-P014 | 佣金 Billing（品牌）/ Settlement（技師平台）分離；技師工單可見性 = Kafka-fed CQRS 投影 |
 
-**尚未定版的實作細節不得冒充 ADR 結論**：OHS 服務憑證、Refinery 資料進入契約、
-技師 WS 的權威歸屬、Casdoor 跨租戶 organization/claim 模型，統一登記於
-[14_ADR/OPEN_DECISIONS.md](./14_ADR/OPEN_DECISIONS.md) 的 `OD-001`～`OD-004`。
+**尚未定版的實作細節不得冒充 ADR 結論**：Refinery 資料進入契約（OD-002）與技師 WS 的
+權威歸屬（OD-003）仍為 open，統一登記於
+[14_ADR/OPEN_DECISIONS.md](./14_ADR/OPEN_DECISIONS.md)。
+OD-001 OHS 服務憑證與 OD-004 Casdoor 跨租戶 organization/claim 模型已於 2026-07-28 裁決，
+分別由 [ADR-040](./14_ADR/ADR-040_OHS服務間憑證定版受控opaque credential.md) 與
+[ADR-041](./14_ADR/ADR-041_跨品牌技師身分單一平台principal加品牌membership.md) 承接。
 它們只在 PM + 架構師（及列出的安全／資料 Owner）拍板後，才以新 ADR 或既有 ADR 的
 append-only Status 附註轉為定案；在此之前，本 SAD 的 target 元件圖不代表已有可用的部署契約。
 

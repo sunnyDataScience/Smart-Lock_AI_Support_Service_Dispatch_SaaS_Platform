@@ -14,17 +14,33 @@
 #   decision_gate       未定前不得跨越的 release 或實作門檻。
 #   evidence_required   拍板前必看的證據；不是拍板後的執行結果。
 #
-# last_updated: 2026-07-27
+# 以下四欄只在 status 從 open 轉為 decided / superseded 時填寫，缺一不可：
+#   decided_on          裁決日期 YYYY-MM-DD。
+#   decided_by          實際作出裁決的角色；approvers 由他人代行時要寫清楚。
+#   resolution          裁決結果本身；寫「選了哪一個、邊界在哪」，不重述 options。
+#   resulting_adr       承接本裁決的 append-only ADR 編號；不得原地改寫舊 ADR。
+#
+# last_updated: 2026-07-28
 
 version: 1
 
 decisions:
   - id: OD-001
     title: OHS 服務間憑證模式
-    status: open
+    status: decided
     priority: P0
     owner: PM + 平台架構師
     approvers: 安全負責人 + technician-platform Owner
+    decided_on: 2026-07-28
+    decided_by: 業主（兼任 approvers 兩角色）
+    resolution: >-
+      定版受控 opaque service credential（`X-Service-Credential`，生命週期依 ADR-036）為 OHS
+      服務間憑證的長期模式。OIDC client-credentials 不否決，改列為重審項：第一個非自建的
+      外部接入方（他方 ERP、外部派工商）出現前必須重新評估。裁決理由是 ADR-036 已把
+      hash-only、audience/scope、expiry、rotation overlap、revoke 與 audit 這些安全下限
+      全部達成，transport 換成 OIDC 不會再提高該下限；而現行三條 caller（agent、refinery、
+      technician OHS）全為自建服務，OIDC 主要優勢「不必為每個接入方分發密鑰」目前無人受益。
+    resulting_adr: ADR-040
     decision: 品牌 API 呼叫技師共享池 OHS 時，定版 OIDC client-credentials 或 internal token，並定義 audience、scope、輪替、撤銷與跨品牌權限邊界。
     current_as_built: OHS 契約和 api 路徑存在；靜態 API 文件已明示長期模式由 OD-001 定版，現行內部鏈多使用 X-Internal-Token。
     options:
@@ -77,10 +93,21 @@ decisions:
 
   - id: OD-004
     title: Casdoor 跨租戶 organization 與 claim 模型
-    status: open
+    status: decided
     priority: P0
     owner: PM + 平台架構師
     approvers: Identity Owner + Security Owner + Technician Platform Owner
+    decided_on: 2026-07-28
+    decided_by: 業主（兼任 approvers 三角色）
+    resolution: >-
+      定版「單一平台 principal + brand membership claim」。技師在平台只有一份身分，token 帶
+      principal、portal、可操作 brand scope 與版本/撤銷語義，並一次帶齊該技師目前已授權的
+      全部品牌；不採「每品牌各複製一份技師帳號」。品牌間的競爭隔離**不由收窄 token scope
+      達成**，而是既有的每品牌物理分庫加上 `tech_mirror` 最小化投影（品牌庫不鏡射
+      `authorized_brands`、憑證與 PII）——品牌後台在資料層就取不到他牌工單。平台跨品牌治理
+      走 platform admin principal（`platform_technicians` 的跨品牌清單與 brand authorization
+      授予/撤回），依 ADR-035 不接受以 `X-Tenant-ID` 取得跨品牌權限。
+    resulting_adr: ADR-041
     decision: 在「brand org = 租戶」既有方向下，定版跨品牌技師、platform operator、品牌管理員的 organization membership、role/portal/tenant claims、委派管理與撤銷傳播模型。
     current_as_built: ADR-004 已接受 Casdoor 作 IdP、brand org 為租戶；portal claim guard 與 API surface 已有程式，但完整 Casdoor org/claim 映射及 production HA 證據未定。
     options:

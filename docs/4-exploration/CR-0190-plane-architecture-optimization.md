@@ -141,11 +141,14 @@
 
 ### 仍維持 Open，不由本 CR 代決
 
-1. 🛑 **OD-001 OHS transport**：OIDC client-credentials 或受控 opaque token。
-   本 CR 只實作 transport-neutral principal lifecycle 與 opaque credential reference
-   adapter；OHS production cutover 等 OD-001。
-2. 🛑 **OD-004 跨品牌 organization/claim**：本 CR 不自行擴張跨品牌 entitlement；
-   preference 先以目前 token principal + authority DB scope 實作。
+1. ✅ **OD-001 OHS transport（2026-07-28 裁決 → ADR-040）**：定版受控 opaque
+   credential（`X-Service-Credential`）為長期模式，OIDC client-credentials 列重審項
+   （觸發＝第一個非自建外部接入方）。本 CR 實作的 transport-neutral principal
+   lifecycle 即為定案形態，無須改寫；`X-Internal-Token` 仍為有時限 fallback。
+2. ✅ **OD-004 跨品牌 organization/claim（2026-07-28 裁決 → ADR-041）**：定版單一平台
+   principal + 品牌 membership claim，token 帶齊已授權品牌；品牌間隔離由每品牌物理
+   分庫與 `tech_mirror` 白名單投影保證，不收窄 token scope。本 CR 的 preference 實作
+   （token principal + authority DB scope）與定案一致。
 3. 🛑 **跨 host realtime cookie**：HTTP 已藉本站 proxy 完成 localStorage token 退場；
    直接 WS/SSE 不得帶 URL token，需同父網域／cookie domain 證據，否則 production 保持
    realtime disabled、頁面以 REST polling 降級。
@@ -187,7 +190,9 @@
   LangChain／LangGraph 作健康檢查。
 - ✅ OAuth state 改為 server-generated 短效 HttpOnly cookie 並於 callback 比對；
   routed migration 採 `ON_ERROR_STOP=1`，SQL 失敗不記帳且 drift 失敗不得形成成功證據。
-- 🛑 尚未完成：OD-001/004、service fallback production 歸零、Cloud Run Job
+- ✅ 2026-07-28：OD-001／OD-004 由業主裁決關閉（ADR-040／ADR-041），3.6.5 的 gate 收斂為
+  單一條件——fallback 使用量歸零觀察期。
+- 🛑 尚未完成：service fallback production 歸零、Cloud Run Job
   shadow→cutover→rollback、GitHub Environments/WIF/required reviewer、revision rollback、
   migration forward-fix 與 Cloud SQL restore drill。上述都不可用 mock 或文件勾選替代。
 - 🛑 2026-07-27 外部狀態稽核：repository Environments = 0、Actions variables/secrets

@@ -835,6 +835,13 @@ def write_open_decisions_md(m: Model) -> None:
             "- **選項**：",
         ]
         lines += [f"  - {C.plain(option)}" for option in d.get("options") or []]
+        # Decided entries carry the ruling itself; open entries render exactly as before.
+        if d.get("resolution"):
+            lines += [
+                f"- **裁決結果（{d.get('decided_on')}，{C.plain(d.get('decided_by'))}）**："
+                f"{C.plain(d.get('resolution'))}",
+                f"- **承接 ADR**：{d.get('resulting_adr')}",
+            ]
         lines += [
             f"- **技術建議（尚非決議）**：{C.plain(d.get('recommended'))}",
             f"- **Decision gate**：{C.plain(d.get('decision_gate'))}",

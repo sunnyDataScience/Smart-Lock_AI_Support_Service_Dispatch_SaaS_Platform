@@ -22,14 +22,14 @@ source: open_decisions.yaml
 
 | OD | 狀態 | 優先級 | 決策 Owner | 關聯情境 |
 |---|---|---|---|---|
-| OD-001 OHS 服務間憑證模式 | open | P0 | PM + 平台架構師 | SC-05、SC-12、SC-14 |
+| OD-001 OHS 服務間憑證模式 | decided | P0 | PM + 平台架構師 | SC-05、SC-12、SC-14 |
 | OD-002 knowledge-refinery 的資料進入契約 | open | P0 | PM + 平台架構師 | SC-01、SC-02、SC-15、SC-16 |
 | OD-003 技師即時 WebSocket 的權威歸屬 | open | P0 | PM + 平台架構師 | SC-05、SC-06、SC-12、SC-14 |
-| OD-004 Casdoor 跨租戶 organization 與 claim 模型 | open | P0 | PM + 平台架構師 | SC-11、SC-12、SC-14、SC-17 |
+| OD-004 Casdoor 跨租戶 organization 與 claim 模型 | decided | P0 | PM + 平台架構師 | SC-11、SC-12、SC-14、SC-17 |
 
 ## OD-001 — OHS 服務間憑證模式
 
-- **狀態**：`open`
+- **狀態**：`decided`
 - **優先級**：P0
 - **Owner**：PM + 平台架構師
 - **Approvers**：安全負責人 + technician-platform Owner
@@ -38,6 +38,8 @@ source: open_decisions.yaml
 - **選項**：
   - OIDC client-credentials：每個 workload identity 取短效 audience/scoped token；適合作為跨服務長期邊界。
   - internal token：單一或少量共享 secret；較快接入，但輪替、最小權限與稽核成本較高，只適合作為過渡。
+- **裁決結果（2026-07-28，業主（兼任 approvers 兩角色））**：定版受控 opaque service credential（X-Service-Credential，生命週期依 ADR-036）為 OHS 服務間憑證的長期模式。OIDC client-credentials 不否決，改列為重審項：第一個非自建的 外部接入方（他方 ERP、外部派工商）出現前必須重新評估。裁決理由是 ADR-036 已把 hash-only、audience/scope、expiry、rotation overlap、revoke 與 audit 這些安全下限 全部達成，transport 換成 OIDC 不會再提高該下限；而現行三條 caller（agent、refinery、 technician OHS）全為自建服務，OIDC 主要優勢「不必為每個接入方分發密鑰」目前無人受益。
+- **承接 ADR**：ADR-040
 - **技術建議（尚非決議）**：OIDC client-credentials 為目標；保留 internal token 僅限受時限、可輪替、單一過渡鏈路，且不得成為品牌/技師資料面的長期通用憑證。
 - **Decision gate**：在 OHS 成為 production 派工唯一依賴、或第 2 個品牌接入前，必須定版並完成負向契約測試。
 - **拍板前所需證據**：IdP 能力與 token claims 範例、service-to-service threat model、token 失效/輪替演練、OHS 403/401 契約與 audit 設計。
@@ -85,7 +87,7 @@ source: open_decisions.yaml
 
 ## OD-004 — Casdoor 跨租戶 organization 與 claim 模型
 
-- **狀態**：`open`
+- **狀態**：`decided`
 - **優先級**：P0
 - **Owner**：PM + 平台架構師
 - **Approvers**：Identity Owner + Security Owner + Technician Platform Owner
@@ -95,6 +97,8 @@ source: open_decisions.yaml
   - 單一平台 org + brand membership：技師與平台人員有平台主體，再以品牌 membership/scopes 授權。
   - 每品牌 org 複製技師帳號：模型直觀但違反跨品牌唯一身分，撤銷與 KYC 一致性風險高。
   - external identity + 平台 entitlement graph：彈性最高，但需自建更多 membership/授權服務與稽核能力。
+- **裁決結果（2026-07-28，業主（兼任 approvers 三角色））**：定版「單一平台 principal + brand membership claim」。技師在平台只有一份身分，token 帶 principal、portal、可操作 brand scope 與版本/撤銷語義，並一次帶齊該技師目前已授權的 全部品牌；不採「每品牌各複製一份技師帳號」。品牌間的競爭隔離不由收窄 token scope 達成，而是既有的每品牌物理分庫加上 tech_mirror 最小化投影（品牌庫不鏡射 authorized_brands、憑證與 PII）——品牌後台在資料層就取不到他牌工單。平台跨品牌治理 走 platform admin principal（platform_technicians 的跨品牌清單與 brand authorization 授予/撤回），依 ADR-035 不接受以 X-Tenant-ID 取得跨品牌權限。
+- **承接 ADR**：ADR-041
 - **技術建議（尚非決議）**：單一平台 principal + brand membership/entitlement claim；token 必須明確帶 principal、portal、可操作 brand scope 與版本/撤銷語義，不以 UI tenant fallback 決定授權。
 - **Decision gate**：在 Casdoor 成為所有 portal 的唯一登入、或首個跨品牌技師/平台治理 production rollout 前，必須定版。
 - **拍板前所需證據**：claim 範例與最大 token 大小、登入/撤銷/換品牌序列、跨 portal 負向測試、HA/IdP outage 行為、資料保留與刪除責任。
