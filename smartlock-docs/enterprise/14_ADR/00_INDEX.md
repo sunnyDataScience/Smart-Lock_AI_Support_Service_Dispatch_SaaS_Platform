@@ -37,9 +37,17 @@ upstream:
 [open_decisions.yaml](./open_decisions.yaml)。拍板後開新 ADR 或於既有 ADR 的 Status 附註 append-only
 連回裁決，才可將 OD 標為 `decided` 或 `superseded`。
 
-目前 Open：`OD-002` Refinery 資料進入契約、`OD-003` 技師 WS 歸屬。
-已 Decided（2026-07-28）：`OD-001` OHS 憑證 → [ADR-040](./ADR-040_OHS服務間憑證定版受控opaque credential.md)、
-`OD-004` Casdoor 跨租戶 organization/claim 模型 → [ADR-041](./ADR-041_跨品牌技師身分單一平台principal加品牌membership.md)。
+**OD-001～OD-004 已於 2026-07-28 全數裁決，目前無 Open 決策。**
+
+| OD | 承接 ADR |
+|---|---|
+| `OD-001` OHS 服務間憑證 | [ADR-040](./ADR-040_OHS服務間憑證定版受控opaque credential.md) |
+| `OD-002` Refinery 資料進入契約 | [ADR-042](./ADR-042_refinery資料進入契約定版受控API.md) |
+| `OD-003` 技師即時 WS 歸屬 | [ADR-043](./ADR-043_技師即時channel歸屬technician-platform.md) |
+| `OD-004` Casdoor 跨租戶 organization/claim | [ADR-041](./ADR-041_跨品牌技師身分單一平台principal加品牌membership.md) |
+
+裁決關閉 OD 不等於實作完成——四者的 decision gate 多數仍受 production 證據約束，見各 ADR
+的「完成門檻」。
 
 ## 狀態矩陣
 
@@ -97,6 +105,8 @@ upstream:
 | [ADR-039](./ADR-039_web共享契約套件_窄例外.md) | web 共享契約套件——四站獨立專案的窄例外 | 系統(web/tooling) | 已實作（vendored 0.1.0） | refines 028 · 031 · 034 |
 | [ADR-040](./ADR-040_OHS服務間憑證定版受控opaque credential.md) | OHS 服務間憑證定版為受控 opaque credential | 平台/security | Accepted（closes OD-001） | 036 · 004 · 035 |
 | [ADR-041](./ADR-041_跨品牌技師身分單一平台principal加品牌membership.md) | 跨品牌技師身分採單一平台 principal + 品牌 membership claim | 平台/security | Accepted（closes OD-004） | 004 · 005 · 035 |
+| [ADR-042](./ADR-042_refinery資料進入契約定版受控API.md) | knowledge-refinery 資料進入契約定版為受控 API | 平台/data | Accepted（closes OD-002）／intake 端點待實作 | 018 · 036 · 040 |
+| [ADR-043](./ADR-043_技師即時channel歸屬technician-platform.md) | 技師即時 channel 歸屬 technician-platform | 平台/realtime | Accepted（closes OD-003）／待 Redis/Kafka 取證 | 041 · 006 · 017 |
 
 ## 依賴關係圖
 
@@ -160,8 +170,10 @@ graph TD
   的生命週期。ADR-036 刻意留給 OD 的兩個缺口已於 2026-07-28 補上——OHS transport 由
   **ADR-040** 定版為受控 opaque credential，跨品牌 claim 由 **ADR-041** 定版為單一平台
   principal + 品牌 membership；兩者皆 append-only，未改寫 ADR-036 原文。
-- **ADR-037 不以 Kafka 為前置**：先拆週期 job／outbox runtime；事件骨幹仍受
-  ADR-006、OD-002／003 治理。
+- **ADR-037 不以 Kafka 為前置**：先拆週期 job／outbox runtime；事件骨幹仍受 ADR-006 治理。
+- **ADR-042 與 ADR-043 都把 Kafka 降為「傳輸優化」而非契約載體**：前者定 refinery intake
+  的契約面為受控 API，後者定師傅 channel 的 owner 為 technician-platform；兩者皆不因
+  `KAFKA_BOOTSTRAP` 仍休眠而失效，但實際遷移受其 production 證據約束。
 - **ADR-039 是 ADR-028 的窄例外**：只共享版本化契約，不共享 UI、theme、i18n 或 portal
   business workflow。
 

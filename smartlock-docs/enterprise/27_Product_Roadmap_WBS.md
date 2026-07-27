@@ -133,9 +133,11 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 | WBS | 狀態 | 工作包 | 負責 | 前置 | 交付物 / 驗收依據 |
 |---|---|---|---|---|---|
 | 3.1.1 | ⬜〔標注 2026-07-22（Plane 對帳輪）：Plane 卡=**In Progress**——0721 codegraph 稽核證事件骨幹 code 已在，惟 opt-in `KAFKA_BOOTSTRAP` 未啟用=runtime 休眠；非未動工亦非完成〕 | Kafka 事件骨幹：`commission.accrued` / 工單投影事件上線（替換 outbox 輪詢）| BE+OPS | 階段閘 | ADR-006 / ADR-017；17_AsyncAPI |
-| 3.1.2 | ⬜ | 技師工作台改吃 CQRS 投影（跨品牌工單聚合）| BE+FE | 3.1.1 / 2.4.1 | FR-TEC-*；TC-DISPATCH-05 欄位最小化 |
+| 3.1.2 | ⬜〔標注 2026-07-28：ADR-043 已定版師傅專屬 channel 由 technician-platform 持有，本列的「跨品牌聚合」自此有明確 owner；遷移仍待 Redis／Kafka 取證〕 | 技師工作台改吃 CQRS 投影（跨品牌工單聚合）| BE+FE | 3.1.1 / 2.4.1 | FR-TEC-*；TC-DISPATCH-05 欄位最小化；ADR-043 |
+| 3.1.3 | 🛑 待裁決 | **混合派工：指派為主、搶單為輔**（指定師傅逾時未接 → 釋出公開池）。現行為純指派制，offer／accept／搶單併發控制全部不存在 | PM+BE+FE+QA | **CR-0191 §8 六項業主裁決**；3.1.1；ADR-043 | CIA＝`docs/4-exploration/CR-0191-hybrid-dispatch-assign-then-open-pool.md`；併發承接「N 搶 1 恰好一成功」測試為硬門檻 |
 | 3.2.1 | ⬜〔標注 2026-07-22（Plane 對帳輪）：Plane 卡=**In Progress**——0721 codegraph 稽核證 reconcile 閘門雛形 code 已在，生產未啟用〕 | 期末對帳 reconcile 閘門（品牌計費 vs 平台結算對平）| BE+DT | 3.1.1 | BR-SETTLE-05；FR-E03 |
-| 3.3.1 | ⬜ | License → provisioning 自動化（開站流程腳本化）| OPS | 2.1.1 | ADR-002（per-brand bundle）|
+| 3.2.2 | ⬜ | **refinery intake 改走受控 API**（ADR-042）：intake 端點 + DTO 資料最小化 + cursor/增量水位 + 逐租戶用量計量；`REFINERY_POSTGRES_URI` 直讀加 usage counter 後退場 | BE+DT | ADR-042；ADR-036/040 憑證 | 收費服務前置：逐租戶計量可出帳；直讀使用量連續一個 release window = 0 |
+| 3.3.1 | ⬜〔標注 2026-07-28：ADR-042 生效後，開站不再需要為 refinery 額外配 DB 憑證與網路路徑——本列的 provisioning 腳本應以 service principal 取代之〕 | License → provisioning 自動化（開站流程腳本化）| OPS | 2.1.1 | ADR-002（per-brand bundle）|
 | 3.4.1 | ⬜〔標注 2026-07-22（Plane 對帳輪）：Plane 卡=**Done**——0719 tech/platform 面雲端部署＋技師庫上雲，B1 業主親證（0721 稽核輪改卡）；本列經業主確認後可打 ✅〕 | 雲端拓撲對齊（tech / platform 面雲端部署 + 技師庫上雲）| OPS | 2.4.1 | 平台 L1 G-01 收斂 |
 | 3.5.1 | ⬜ | 第 2 品牌租戶開站演練（全流程 dry-run：申請 → 核准 → 開站 → 綁 LINE）| PM+OPS | 3.3.1 | 開站 SOP 文件化；**M3 Release gate** |
 
@@ -144,8 +146,9 @@ G0 需求基線 ✅ → 設計凍結（SDS 增補 + CIA 清零）→ 實作 → 
 > 本工作群只導入可對應本平台三庫／四站邊界的原則，不新增 Plane 式
 > Instance → Workspace → Project 階層。`✅`＝code 與本機/SIT 證據達工作包門檻；
 > `🟨`＝code ready 但仍缺 production／外部環境證據。OD-001／OD-004 已於 2026-07-28 裁決
-> （ADR-040／ADR-041），3.6.x 不再受該兩項 gate 阻擋；仍 open 的 OD-002／OD-003 對
-> M3.1／M3.6.6 的事件與 WS 面維持 decision gate 效力。
+> （ADR-040／ADR-041），3.6.x 不再受該兩項 gate 阻擋。OD-002／OD-003 亦於同日裁決
+> （ADR-042／ADR-043），**OD-001～004 全數 closed**；但 decision gate 關的是決策不是實作，
+> M3.1 事件骨幹與 3.6.6 的 WS／投影面仍受 Redis／Kafka production 證據約束。
 
 | WBS | 優先級 | 狀態 | 工作包 | 負責 | 前置／決策 gate | 交付物 / 驗收依據 |
 |---|---|---|---|---|---|---|

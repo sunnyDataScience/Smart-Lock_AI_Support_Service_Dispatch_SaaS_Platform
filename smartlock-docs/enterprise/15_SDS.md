@@ -538,7 +538,7 @@ conversations/messages 或 escalation 建 AI 草擬問題卡（`source='ai_line'
 | API_SURFACE router filter | `api/main.py` 保留技師路由白名單；塑形不是授權邊界 |
 | OHS API routers（目標邊界）| `GET /technicians` · `POST /technicians:match` · 排班/認證查詢；獨立 OHS service 尚未拆出 |
 | self-service routers | 上線註冊 / profile / 技能授權 / 認證上傳 / 排班設定 / 工作台 |
-| WS 端點 | `/realtime/pool/{tech_id}` 師傅即時推播（Redis pub/sub 撐）；權威歸屬由 [OD-003](./14_ADR/OPEN_DECISIONS.md#od-003--技師即時-websocket-的權威歸屬) 定版，現行 tech portal 可連品牌 API 是 interim，不是 target 已完成。 |
+| WS 端點 | `/realtime/pool/{tech_id}` 師傅即時推播（Redis pub/sub 撐）；權威歸屬已由 [ADR-043](./14_ADR/ADR-043_技師即時channel歸屬technician-platform.md) 定版為 **technician-platform 持有師傅專屬 channel**（brand API 只留品牌營運 channel）；現行 tech portal 連品牌 API 為 interim，遷移受 Redis／Kafka production 證據約束。 |
 | 守衛鏈 | Casdoor OIDC bearer 驗證（技師 = 跨租戶身分）→ role enforce（deny-by-default）；OHS 服務憑證已由 [ADR-040](./14_ADR/ADR-040_OHS服務間憑證定版受控opaque credential.md) 定版為受控 opaque credential（`X-Service-Credential`）；跨品牌技師身分依 [ADR-041](./14_ADR/ADR-041_跨品牌技師身分單一平台principal加品牌membership.md) 為單一平台 principal + 品牌 membership claim。 |
 | Service 層 | `technician_service`、KYC/認證/生命週期/品牌授權/排班/LINE；現行候選評分在品牌 `dispatch_service` 直接讀 tech authority |
 | Tech DB router + mirror | `core/db.py` 依 `TECH_POSTGRES_URI` 導向權威庫；`core/tech_mirror.py` 保留過渡相容鏡射 |
@@ -652,7 +652,7 @@ License 開通的附加系統（集中共用，非 per-brand bundle）：長駐�
 
 | 元件 | 職責 |
 |---|---|
-| 汲取層 | 兩類輸入：診斷對話（`line_chat` / `problem_cards`，汲取機制＝**直連品牌 DB 唯讀輪詢**——只撿 `knowledge_ready=TRUE` 的卡，`REFINERY_TENANT_ID` default-deny，比照 rag 服務治理；2026-07-10 CR-0139 D1 裁決銷案，實作 `refinery/`）+ 產品素材（YouTube / 影片 / 官網 / 手冊）〔標注 2026-07-11：CR-0157 佈局重整，實作目錄遷至 `knowledge-pipeline/refinery/`〕|
+| 汲取層 | 兩類輸入：診斷對話（`line_chat` / `problem_cards`，汲取機制現況＝**直連品牌 DB 唯讀輪詢**——只撿 `knowledge_ready=TRUE` 的卡，`REFINERY_TENANT_ID` default-deny，比照 rag 服務治理；2026-07-10 CR-0139 D1 裁決銷案，實作 `refinery/`。**〔標注 2026-07-28：[ADR-042](./14_ADR/ADR-042_refinery資料進入契約定版受控API.md) 已定版 refinery 主入口為受控 API（因 refinery 確立為可售收費服務）；本直讀路徑自此為 interim，比照 `X-Internal-Token` 加使用量計數、歸零後移除 `REFINERY_POSTGRES_URI`。〕**）+ 產品素材（YouTube / 影片 / 官網 / 手冊）〔標注 2026-07-11：CR-0157 佈局重整，實作目錄遷至 `knowledge-pipeline/refinery/`〕|
 | raw_to_bronze | ASR（Whisper）/ Vision LLM / bs4+markdownify 清洗轉錄 |
 | bronze_to_silver | 冪等性檢查 → LLM 語音糾錯 + 去冗 + 語意切塊 → 產 JSON array → **Python 強制覆寫 `source`/`source_type`（provenance 防幻覺）** |
 | 提煉分流器 | LLM 依第一性原則分流：「定義 agent 怎麼行為」→ 行為/精選；「被查找的事實」→ 事實 |
@@ -710,7 +710,7 @@ draft → pending → approved（Publisher 落地）
 | 品牌 api → technician-platform | OHS API（查詢/媒合/排班/認證）| `X-Service-Credential`（ADR-040 定版長期模式） |
 | agent → api | `/internal/*` 4 端點（conversations ingest / handover-state / escalations ingest / quotes respond）| `X-Service-Credential` 優先；`X-Internal-Token` fallback |
 | web → api | HTTP 走 same-origin proxy；WS/SSE 直連 | HttpOnly cookie + X-Tenant-ID；realtime URL 無 token |
-| knowledge-refinery → api/品牌庫 | API ingest 或 Publisher 灌事實語料 | `X-Service-Credential` 可 opt-in；schema 由 api 擁有 |
+| knowledge-refinery → api/品牌庫 | **寫回**：API ingest 或 Publisher 灌事實語料；**讀取**：ADR-042 定版走受控 intake API（現況直讀 DB 為 interim）| `X-Service-Credential`；schema 由 api 擁有 |
 | LINE → agent | webhook `POST /callback`（唯一入站；postback fan-out → `/internal/*`）| X-Line-Signature 驗簽 |
 
 ### 11.3 冪等 / 重播 / 最終一致原則

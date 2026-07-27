@@ -23,8 +23,8 @@ source: open_decisions.yaml
 | OD | 狀態 | 優先級 | 決策 Owner | 關聯情境 |
 |---|---|---|---|---|
 | OD-001 OHS 服務間憑證模式 | decided | P0 | PM + 平台架構師 | SC-05、SC-12、SC-14 |
-| OD-002 knowledge-refinery 的資料進入契約 | open | P0 | PM + 平台架構師 | SC-01、SC-02、SC-15、SC-16 |
-| OD-003 技師即時 WebSocket 的權威歸屬 | open | P0 | PM + 平台架構師 | SC-05、SC-06、SC-12、SC-14 |
+| OD-002 knowledge-refinery 的資料進入契約 | decided | P0 | PM + 平台架構師 | SC-01、SC-02、SC-15、SC-16 |
+| OD-003 技師即時 WebSocket 的權威歸屬 | decided | P0 | PM + 平台架構師 | SC-05、SC-06、SC-12、SC-14 |
 | OD-004 Casdoor 跨租戶 organization 與 claim 模型 | decided | P0 | PM + 平台架構師 | SC-11、SC-12、SC-14、SC-17 |
 
 ## OD-001 — OHS 服務間憑證模式
@@ -49,7 +49,7 @@ source: open_decisions.yaml
 
 ## OD-002 — knowledge-refinery 的資料進入契約
 
-- **狀態**：`open`
+- **狀態**：`decided`
 - **優先級**：P0
 - **Owner**：PM + 平台架構師
 - **Approvers**：Data Owner + Knowledge/Refinery Owner + Security Owner
@@ -59,6 +59,8 @@ source: open_decisions.yaml
   - 受控 API：明確 DTO/授權與稽核，讀取延遲較高，需提供 cursor/重試與 bulk 能力。
   - 批次匯出或唯讀 DB：最快可用，必須使用專屬唯讀帳號、資料最小化與嚴格 tenant filter；跨服務耦合較高。
   - Kafka/outbox event：低耦合、可重播，需 schema registry、DLQ、事件順序與 payload 隱私治理；適合規模化但基建未取證。
+- **裁決結果（2026-07-28，業主（兼任 approvers 三角色））**：定版受控 API 為 refinery 的唯一主入口。裁決前提是業主確認 refinery 是要賣給品牌的 收費附加服務並已列入 roadmap——這推翻了本條原記載的技術建議（該建議寫在「refinery 為 內部工具」的前提下）。收費產品的資料汲取必須是契約而不是資料庫連線：①每品牌物理分庫下 直讀代表每開一個品牌就要多配一組唯讀憑證與網路路徑（撞 WBS 3.3.1／3.5.1 開站自動化）； ②計費需要逐租戶用量計量，DB 連線沒有計量點；③賣出後 schema 即成契約，品牌端 migration 會靜默打壞付費產品；④DPA 需要逐筆 provenance 與刪除語義。refinery 的寫回路徑已走 受控 API + X-Service-Credential（apply_behavior.py），本裁決是把讀取路徑收尾到同一條 契約上，不是新工程。直讀 DB（REFINERY_POSTGRES_URI，現讀 messages／problem_cards／ knowledge_drafts／tenant 四表）比照 X-Internal-Token 處理：標為 interim、加使用量計數、 歸零才移除。Kafka/outbox 留作日後量能與延遲優化，是 API 的補充不是取代，且不得在 KAFKA_BOOTSTRAP 取得 production 證據前承載這條線。
+- **承接 ADR**：ADR-042
 - **技術建議（尚非決議）**：M2 以最小權限唯讀／批次入口完成可稽核 intake；M3 Kafka/outbox 成熟後切換為事件主路徑，API 僅供補數與人工重跑，不讓三種入口同時無規則並存。
 - **Decision gate**：在把 Refinery 標為 License 可售附加服務、或允許自動排程 intake 前，必須選定一條主入口及其回補規則。
 - **拍板前所需證據**：資料分類/PII 最小化評估、每個選項的重播與刪除語義、tenant 隔離測試、bronze provenance 範例、成本/延遲量測。
@@ -68,7 +70,7 @@ source: open_decisions.yaml
 
 ## OD-003 — 技師即時 WebSocket 的權威歸屬
 
-- **狀態**：`open`
+- **狀態**：`decided`
 - **優先級**：P0
 - **Owner**：PM + 平台架構師
 - **Approvers**：Technician Platform Owner + API Owner + SRE
@@ -78,6 +80,8 @@ source: open_decisions.yaml
   - brand API owner：貼近工單 command 真相，技師 portal 必須跨面連線，跨品牌與身份邊界較複雜。
   - technician-platform owner：貼近技師 identity/projection，需保證投影延遲、replay 與品牌事件契約。
   - gateway/聚合層：可統一通道授權，但新增部署與故障域，不得成為未受監控的第四份投影。
+- **裁決結果（2026-07-28，業主（兼任 approvers 三角色））**：定版technician-platform 持有師傅專屬 channel，brand API 只保留品牌營運 channel。 裁決依據是業主確認的產品形態：師傅在單一 app 內看到多個品牌／經銷商的需求（Uber 式 聚合視圖）。由各品牌 API 各自持有 WS 會使師傅 app 必須同時連 N 條線，且沒有任何一方 能組出統一清單；這也與 ADR-041「技師身分只有一份」不一致——身分是一份，通知線就該是 一條。本裁決只涵蓋 channel 歸屬，不涵蓋派工模式本身。業主同日另確認派工採「指派 為主、搶單為輔」（指定師傅逾時未接則釋出到公開池），該混合模式在現行 code 完全不存在 （dispatch_service 只有 candidate 評分排序，師傅端無 accept／reject／搶單），屬產品層 變更，須另開 CR 走 CIA，不得以本 ADR 代替。實際遷移仍受 Redis（跨實例 fan-out）與 Kafka（品牌事件投影）的 production 證據約束，兩者現皆為休眠 opt-in。
+- **承接 ADR**：ADR-043
 - **技術建議（尚非決議）**：technician-platform 持有技師專屬 channel 與最小工單投影；brand API 持有品牌營運 channel。先以明確 event schema/replay 驗證，再遷移 portal，禁止同一事件長期雙播而無 owner。
 - **Decision gate**：在把 API max instances 調高、或宣稱跨 instance 的技師即時派工 SLA 前，必須定版並完成兩實例與斷線復原 SIT。
 - **拍板前所需證據**：使用者/租戶/channel 授權矩陣、事件延遲預算、disconnect/replay 演練、Redis/Kafka failure trace、前端切換/rollback 計畫。

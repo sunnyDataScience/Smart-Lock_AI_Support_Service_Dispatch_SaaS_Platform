@@ -41,7 +41,7 @@ upstream:
 | api（FastAPI）| OTel Python（auto-instrument FastAPI + psycopg）| 🔜 規劃中（Phase 1）|
 | agent（LockCore）| OTel Python（aiohttp + turn 級 span）| 🔜 規劃中（Phase 1）|
 | web（Next.js）| OTel JS（server side）| 🔜 規劃中 |
-| knowledge-refinery | OTel Python | 🔜 規劃中（隨 ADR-P001 服務落地）|
+| knowledge-refinery | OTel Python | 🔜 規劃中（隨 ADR-P001 服務落地）。**〔2026-07-28 ADR-042〕refinery 為可售收費服務，intake 需逐租戶用量計量（筆數／位元組／耗時）作為計費與 SLA 依據；直讀 DB interim 路徑另需 usage counter 供退場判定。**|
 | Kafka | 事件消費 lag exporter | 🔜 規劃中（隨 ADR-P007 Phase 3）|
 | **agent → OPIK** | OPIK SDK：消費既有 `OPIK_API_KEY` / `OPIK_WORKSPACE` secret，LLM call 送 trace / prompt / eval + 環境旗標（dev 開 / prod 關）| 🔜 規劃中（Phase 1）|
 
