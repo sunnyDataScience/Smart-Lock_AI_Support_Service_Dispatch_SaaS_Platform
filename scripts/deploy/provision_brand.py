@@ -98,7 +98,15 @@ def checklist(slug: str, tenant_id: str | None, plan_tier: str, modules: list[st
         f"      BRAND={slug} docker compose -f web/brand-portal/docker-compose.yml up -d --build",
         f"      BRAND={slug} docker compose -f web/brand-portal/docker-compose.yml --profile init run --rm db-init",
         "[6] ⬜ LINE 綁定：webhook URL 填入 LINE console，rich menu 建立",
-        "[7] ⬜ 建品牌 Admin 帳號 → 通知申請人開通",
+        # CR-0186：原 [7] 只寫「建 Admin」且無工具，且**完全漏了品牌庫 saas.tenant 列**——
+        # 那是 24 個 FK 的 target，缺它則該品牌任何 per-tenant 寫入都 FK violation
+        # （本腳本把平台庫 tenant UUID 寫進 AGENT_TENANT_ID，但品牌庫並沒有這一列）。
+        "[7] ⬜ 品牌庫租戶列 + Admin 帳號（缺租戶列 → per-tenant 寫入全部 FK violation）：",
+        "      ./scripts/db/provision-brand-tenant.sh \\",
+        f"        --tenant-id {tenant_id or '<租戶UUID>'} --name '<品牌名>' \\",
+        "        --email admin@<brand>.com --admin-name '<管理員>'",
+        "      （密碼互動輸入或 export BRAND_ADMIN_PASSWORD；須先跑完 [5] 的 db-init）",
+        "[8] ⬜ 通知申請人開通",
     ])
 
 
