@@ -55,6 +55,14 @@ BEGIN
 END $$;
 
 -- 重新 ADD 包含 'sop' 的 CHECK constraint（顯式命名，避免下次再要猜）
+--
+-- ⚠️ 這句必須先 DROP IF EXISTS：上面 DO 區塊的守衛帶 `NOT LIKE '%sop%'`，
+--    本檔套用過一次後新約束已含 'sop'，守衛就再也匹配不到、不會 drop，
+--    於是這句無守衛的 ADD 會炸 "constraint ... already exists"。
+--    2026-07-28 實測：對已套用的品牌庫重跑 apply-schema-routed.sh 即在此中斷。
+ALTER TABLE saas.kb_audit_log
+    DROP CONSTRAINT IF EXISTS kb_audit_log_doc_type_check;
+
 ALTER TABLE saas.kb_audit_log
     ADD CONSTRAINT kb_audit_log_doc_type_check
     CHECK (doc_type IN ('case', 'manual', 'sop'));
