@@ -759,7 +759,9 @@
     "WBS-4.4",
     "WBS-4.5",
     "WBS-4.6",
-    "WBS-4.7"
+    "WBS-4.7",
+    "WBS-3.1.3",
+    "WBS-3.2.2"
   ],
   "relations_done": [
     "SC-01",
@@ -2423,9 +2425,19 @@
       "sequence_id": 218,
       "type": "Work Package"
     },
+    "WBS-3.1.3": {
+      "id": "c48e6ad9-25b9-4ad1-86a4-d01c4f15753a",
+      "sequence_id": 244,
+      "type": "Work Package"
+    },
     "WBS-3.2.1": {
       "id": "0d867b55-4177-468f-875e-d29528dec00b",
       "sequence_id": 219,
+      "type": "Work Package"
+    },
+    "WBS-3.2.2": {
+      "id": "953b944c-183c-4355-9385-37b1e26b252b",
+      "sequence_id": 245,
       "type": "Work Package"
     },
     "WBS-3.3.1": {

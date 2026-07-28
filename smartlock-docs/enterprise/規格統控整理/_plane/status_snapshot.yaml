@@ -5,11 +5,11 @@ source:
   instance: "https://heave-cautious-petal.ngrok-free.dev"
   workspace: lock-ai
   project_id: 4acaa966-9013-40a9-b852-03f1e2032d75
-  generated_at: "2026-07-28 01:22:37+0800"
+  generated_at: "2026-07-28 11:21:33+0800"
 coverage:
-  total: 237
+  total: 239
   covered: 171
-  uncovered: 66
+  uncovered: 68
 axes:
   # axis1 需求定版（owner=SA）—— 規格側算出，非 Plane 擁有
   axis1:
@@ -214,25 +214,27 @@ axes:
     2.6.1: In Progress
     3.1.1: Todo
     3.1.2: Todo
+    3.1.3: Backlog
     3.2.1: Todo
+    3.2.2: Todo
     3.3.1: Todo
     3.4.1: Todo
     3.5.1: Todo
-    3.6.1: Todo
-    3.6.2: Todo
-    3.6.3: Todo
-    3.6.4: Todo
-    3.6.5: Todo
-    3.6.6: Todo
-    3.6.7: Todo
-    3.6.8: Todo
-    "4.1": Todo
-    "4.2": Todo
-    "4.3": Todo
-    "4.4": Todo
-    "4.5": Todo
-    "4.6": Todo
-    "4.7": Todo
+    3.6.1: Done
+    3.6.2: Done
+    3.6.3: Done
+    3.6.4: Done
+    3.6.5: In Progress
+    3.6.6: In Progress
+    3.6.7: In Progress
+    3.6.8: Done
+    "4.1": Backlog
+    "4.2": Backlog
+    "4.3": Backlog
+    "4.4": Backlog
+    "4.5": Backlog
+    "4.6": Backlog
+    "4.7": Backlog
   # axis3_req 測試執行·依需求（owner=QA）—— requirement-coverage rollup（worst-wins）
   axis3_req:
     FR-AGT-01: open
@@ -453,7 +455,9 @@ axes:
     WBS-2.6.1: open
     WBS-3.1.1: open
     WBS-3.1.2: open
+    WBS-3.1.3: open
     WBS-3.2.1: open
+    WBS-3.2.2: open
     WBS-3.3.1: open
     WBS-3.4.1: open
     WBS-3.5.1: open

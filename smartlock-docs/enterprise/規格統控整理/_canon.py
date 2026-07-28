@@ -372,20 +372,65 @@ def load_open_decisions() -> list[dict]:
     return data.get("decisions") or []
 
 
+# 27_Product_Roadmap_WBS.md 的 WBS 表格寬度不一致：M1–M3 六欄、M3.6 多一個「優先級」
+# 欄共七欄、M4/M5 是四欄的概要表。舊版以 cells[:6] 固定索引取值，遇到七欄的 M3.6 整排
+# 右移一格——「狀態」被讀成「優先級」、「工作包」被讀成「狀態」。位置取值遇到不齊的
+# 表格不會報錯，只會把錯的字串交給下游（Plane 卡片標題因此變成「3.6.1 ✅ 2026-07-27」，
+# 真正的工作包名稱整個掉了）。改為依表頭名稱取值，日後任何區塊增減欄位都不再影響結果。
+_WBS_ALIASES = {
+    "wbs": ("WBS",),
+    "status": ("狀態",),
+    "name": ("工作包", "工作群"),   # M4/M5 概要表用「工作群」當品項名
+    "owner": ("負責",),
+    "deps": ("前置",),              # 也吃「前置／決策 gate」
+    "deliver": ("交付物",),
+}
+_WBS_ORDER = ("wbs", "status", "name", "owner", "deps", "deliver")
+
+
+def _wbs_header(cells: list[str]) -> dict[str, int]:
+    idx: dict[str, int] = {}
+    for i, cell in enumerate(cells):
+        for field, aliases in _WBS_ALIASES.items():
+            if field not in idx and any(cell.startswith(a) for a in aliases):
+                idx[field] = i
+                break
+    if "wbs" not in idx or "name" not in idx:
+        raise ValueError(
+            f"27_Product_Roadmap_WBS.md 的 WBS 表頭缺「WBS」或「工作包／工作群」欄：{cells}"
+        )
+    return idx
+
+
+def _wbs_row(cells: list[str], header: dict[str, int]) -> list[str]:
+    out = [cells[header[f]] if f in header and header[f] < len(cells) else ""
+           for f in _WBS_ORDER]
+    if "deliver" not in header:
+        # M4/M5 概要表沒有「交付物」欄，把沒對映到的欄位（內容 / 對應決策）併成交付物。
+        used = set(header.values())
+        out[-1] = " / ".join(c for i, c in enumerate(cells) if i not in used and i > 0)
+    return out
+
+
 def load_wbs() -> list[list[str]]:
-    """[milestone, wbs, owner?, name, ...] rows from 27_Product_Roadmap_WBS.md."""
+    """[milestone, wbs, status, name, owner, deps, deliver] rows from 27_Product_Roadmap_WBS.md."""
     rows: list[list[str]] = []
     milestone = ""
+    header: dict[str, int] = {}
     for line in read_lines(ROADMAP_PATH):
         if line.startswith("### "):
             milestone = plain(line[4:])
         cells = split_row(line)
-        if len(cells) < 4 or not re.match(r"^\d+(?:\.\d+){0,2}$", cells[0]):
+        if not cells:
             continue
-        if len(cells) >= 6:
-            rows.append([milestone, *cells[:6]])
-        else:
-            rows.append([milestone, cells[0], "", cells[1], "", "", " / ".join(cells[2:])])
+        if cells[0] == "WBS":
+            header = _wbs_header(cells)
+            continue
+        if not header or len(cells) < 4:
+            continue
+        if not re.match(r"^\d+(?:\.\d+){0,2}$", cells[0]):
+            continue
+        rows.append([milestone, *_wbs_row(cells, header)])
     return rows
 
 

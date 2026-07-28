@@ -40,7 +40,29 @@ SPEC_STATUS = {
     "❓ 待確認": "tbd",
     "🔴 上游 ID 衝突": "conflict",
 }
-WBS_STATE = {"✅": "Done", "🔶": "In Progress", "⬜": "Todo"}
+# 源檔 27_Product_Roadmap_WBS.md 實際用到 6 種狀態記號。舊版只列 3 種，其餘靠
+# `next(..., "⬜")` 的預設值靜默落到 Todo——🟨（code 完成、待外部 gate）與 🛑（待裁決）
+# 因此在看板上與「還沒開始」長得一模一樣。認不得的值套預設而不出聲，是 D5 同一類病。
+WBS_STATE = {
+    "✅": "Done",
+    "🔶": "In Progress",
+    "🟨": "In Progress",   # code ready／待 production 或外部演練 gate
+    "⬜": "Todo",
+    "🛑": "Backlog",       # 待裁決，不可動工
+    "": "Backlog",         # M4/M5 概要層級無狀態欄
+}
+
+
+def wbs_state(status: str) -> str:
+    """狀態原文 → Plane state 名。未知記號回 Backlog 並出聲，不靜默假裝正常。"""
+    text = (status or "").strip()
+    if not text:
+        return WBS_STATE[""]
+    for mark, name in WBS_STATE.items():
+        if mark and text.startswith(mark):
+            return name
+    print(f"    ! 未知的 WBS 狀態記號 {text[:20]!r} → 暫置 Backlog", file=sys.stderr)
+    return "Backlog"
 
 TYPES = [
     ("Scenario", "28_Scenarios 的情境脊椎 SC-*", False),
@@ -199,10 +221,18 @@ def ensure_containers(p: Plane, state: dict) -> None:
 # ---------------------------------------------------------- work items ---
 
 def _html(*blocks: tuple[str, str]) -> str:
+    """組卡片內文。
+
+    刻意輸出與 Plane 儲存形式一致的 HTML —— `quote=False`（內文不是屬性值，把 `'`
+    轉成 `&#x27;` 只會讓存回來的值與算出來的值永遠不等）、`<br>` 而非 `<br/>`。
+    否則任何「卡片是否與源檔同步」的漂移檢查都會被這兩種正規化差異灌滿假陽性。
+    Plane 仍會在最外層補一個 <div>，那層是它加的，比對時要自行剝掉。
+    """
     out = []
     for label, body in blocks:
         if body and body.strip():
-            out.append(f"<p><b>{html.escape(label)}</b><br/>{html.escape(body.strip())}</p>")
+            out.append(f"<p><b>{html.escape(label, quote=False)}</b><br>"
+                       f"{html.escape(body.strip(), quote=False)}</p>")
     return "".join(out) or "<p></p>"
 
 
@@ -417,10 +447,9 @@ def import_wbs(p: Plane, state: dict) -> None:
     for i, row in enumerate(rows, 1):
         group, wid, status, name, owner, deps, deliver = (row + [""] * 7)[:7]
         key = f"WBS-{wid}"
-        mark = next((m for m in WBS_STATE if status.startswith(m)), "⬜")
         fields: dict = {}
         if not DRY:
-            sid = states.get(WBS_STATE[mark])
+            sid = states.get(wbs_state(status))
             if sid:
                 fields["state"] = sid
             ms = state["milestones"].get(f"M{wid.split('.')[0]}")
