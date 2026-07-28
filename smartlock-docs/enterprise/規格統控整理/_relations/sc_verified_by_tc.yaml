@@ -10,107 +10,107 @@
 # **推導結果與本檔宣告的差，就是驗收覆蓋缺口**（V9）。
 #
 # 所以本檔絕對不可以從前兩條算出來——那樣 V9 恆等於零，等於沒有檢查。
-# 內容來源是 22_UAT_Report.md §4 的 S1–S9 腳本，那是 QA/UAT 獨立寫下的判斷。
+# 內容來源是 22_UAT_Report.md §4 的 UAT-01–UAT-09 腳本，那是 QA/UAT 獨立寫下的判斷。
 #
 # 每條選入的案例都由腳本步驟或完成／失敗判定逐一選定；不得由 RQ × TC 關聯反推。
 #
 # last_updated: 2026-07-27
-# source: 22_UAT_Report.md §4（S1–S9）
+# source: 22_UAT_Report.md §4（UAT-01–UAT-09）
 
 version: 1
 
 scripts:
 
-  # ── UAT S1 消費者 LINE 自助 →（必要時）轉真人 ──────────────────────
+  # ── UAT-01 消費者 LINE 自助 →（必要時）轉真人 ──────────────────────
   - scenario: SC-01
-    uat: S1
+    uat: UAT-01
     cases: [TC-CS-AI-03, TC-CS-AI-05, TC-CS-AI-06, TC-CS-AI-07, TC-CS-AI-08, TC-CS-AI-09, TC-CS-AI-11, TC-COMPLIANCE-06, TC-AGT-TURN-01, TC-SEC-MEM-01, TC-SEC-TOOL-01, TC-PERF-01, TC-NFR-PERF-01]
-    note: S1 步驟 1、3——自助回答、紅線與去重；含 Turn SAVE、記憶/工具拒絕及首回應/RAG 壓測的可觀測抽驗
+    note: UAT-01 步驟 1、3——自助回答、紅線與去重；含 Turn SAVE、記憶/工具拒絕及首回應/RAG 壓測的可觀測抽驗
 
   - scenario: SC-02
-    uat: S1
+    uat: UAT-01
     cases: [TC-CS-AI-01, TC-CS-AI-02, TC-CS-AI-09, TC-CS-AI-10, TC-CS-AI-12, TC-WO-13, TC-EXC-01, TC-SEC-MEM-01, TC-SEC-INT-01, TC-DISPATCH-03, TC-PERF-01, TC-NFR-REL-01]
-    note: S1 步驟 2——追問後轉真人與草擬卡；含 internal ingest、記憶隔離、工作台可見性及中斷重送
+    note: UAT-01 步驟 2——追問後轉真人與草擬卡；含 internal ingest、記憶隔離、工作台可見性及中斷重送
 
   - scenario: SC-03
-    uat: S1
+    uat: UAT-01
     cases: [TC-CS-AI-04, TC-COMPLIANCE-07, TC-QUOTE-06, TC-DISPATCH-08, TC-WO-01, TC-NFR-REL-01]
-    note: S1 驗收點「負面情緒被識別並升級」＋急件建單、4h 補審與重送不蒸發
+    note: UAT-01 驗收點「負面情緒被識別並升級」＋急件建單、4h 補審與重送不蒸發
 
-  # ── UAT S2 派工 → 報價確認 → 現場 → 完工 ───────────────────────────
+  # ── UAT-02 派工 → 報價確認 → 現場 → 完工 ───────────────────────────
   - scenario: SC-04
-    uat: S2
+    uat: UAT-02
     cases: [TC-QUOTE-01, TC-QUOTE-02, TC-QUOTE-03, TC-QUOTE-04, TC-QUOTE-05, TC-QUOTE-07, TC-QUOTE-08, TC-QUOTE-09, TC-WO-01, TC-WO-02, TC-WO-03, TC-CS-AI-06]
-    note: S2 步驟 1-2——補齊卡→確認→報價內外雙視圖→客戶 LIFF 確認；缺地址與未確認報價須被擋
+    note: UAT-02 步驟 1-2——補齊卡→確認→報價內外雙視圖→客戶 LIFF 確認；缺地址與未確認報價須被擋
 
   - scenario: SC-05
-    uat: S2
+    uat: UAT-02
     cases: [TC-DISPATCH-01, TC-DISPATCH-02, TC-DISPATCH-03, TC-DISPATCH-04, TC-DISPATCH-05, TC-DISPATCH-06, TC-DISPATCH-09, TC-EXC-06, TC-PERF-03, TC-NFR-PERF-01, TC-NFR-SLA-01, TC-NFR-SCAL-01]
-    note: S2 步驟 3——自動媒合 + 手動 override + 接單/逾時；含候選池空、通知恢復、投影、效能與容量抽驗
+    note: UAT-02 步驟 3——自動媒合 + 手動 override + 接單/逾時；含候選池空、通知恢復、投影、效能與容量抽驗
 
   - scenario: SC-06
-    uat: S2
+    uat: UAT-02
     cases: [TC-ONSITE-01, TC-ONSITE-05, TC-ONSITE-06, TC-WO-04, TC-WO-05, TC-WO-06, TC-WO-07, TC-WO-08, TC-WO-14, TC-CS-AI-06, TC-COMPLIANCE-06, TC-SETTLE-02, TC-DISPATCH-03, TC-DISPATCH-05, TC-NFR-SLA-01]
-    note: S2 步驟 5——完工硬閘三種缺件各擋一次，補齊後通過，主管 override、取消費、技師投影與 SLA 留痕
+    note: UAT-02 步驟 5——完工硬閘三種缺件各擋一次，補齊後通過，主管 override、取消費、技師投影與 SLA 留痕
 
   - scenario: SC-07
-    uat: S2
+    uat: UAT-02
     cases: [TC-ONSITE-02, TC-ONSITE-03, TC-ONSITE-04, TC-ONSITE-07, TC-DISPATCH-07, TC-QUOTE-04, TC-ONSITE-06]
-    note: S2 步驟 4——現場加價三檔位各走一遍；requote 由技師端發起且不含金額
+    note: UAT-02 步驟 4——現場加價三檔位各走一遍；requote 由技師端發起且不含金額
 
-  # ── UAT S3 SOP 知識螺旋（HITL）─────────────────────────────────────
+  # ── UAT-03 SOP 知識螺旋（HITL）─────────────────────────────────────
   - scenario: SC-15
-    uat: S3
+    uat: UAT-03
     cases: [TC-COMPLIANCE-08, TC-CS-AI-03, TC-AGT-RAG-01, TC-REF-SPLIT-01, TC-REF-PUBLISH-01, TC-NFR-PUB-01]
-    note: S3 步驟 1–3——bronze 來源、分流、核可 gate、雙路發布及發布後檢索效果
+    note: UAT-03 步驟 1–3——bronze 來源、分流、核可 gate、雙路發布及發布後檢索效果
 
   - scenario: SC-16
-    uat: S3
+    uat: UAT-03
     cases: [TC-COMPLIANCE-05, TC-REF-PUBLISH-01, TC-SEC-RBAC-01]
-    note: S3 步驟 2——未經家族覆核、越權角色或跨租戶發布均必須失敗
+    note: UAT-03 步驟 2——未經家族覆核、越權角色或跨租戶發布均必須失敗
 
-  # ── UAT S4 合規稽核（GDPR / 退款 / 取消）───────────────────────────
+  # ── UAT-04 合規稽核（GDPR / 退款 / 取消）───────────────────────────
   - scenario: SC-08
-    uat: S4
+    uat: UAT-04
     cases: [TC-SETTLE-02, TC-SETTLE-03, TC-SETTLE-04, TC-SETTLE-05, TC-SETTLE-06, TC-WO-12, TC-SEC-SOD-01, TC-SEC-IDEM-01, TC-QUOTE-04, TC-PAYMENT-01, TC-WEB-REPORT-01]
-    note: S4 步驟 2-3——退款雙簽同人被擋、額度分層升級、各階段取消費點測
+    note: UAT-04 步驟 2-3——退款雙簽同人被擋、額度分層升級、各階段取消費點測
 
   - scenario: SC-11
-    uat: S4
+    uat: UAT-04
     cases: [TC-SEC-SOD-01, TC-SETTLE-03, TC-EXC-01, TC-SEC-RBAC-01, TC-SETTLE-07]
-    note: S4 步驟 2 的 SoD 面；含逾期排程、越權拒絕及可匯出的裁決稽核
+    note: UAT-04 步驟 2 的 SoD 面；含逾期排程、越權拒絕及可匯出的裁決稽核
 
   - scenario: SC-19
-    uat: S4
+    uat: UAT-04
     cases: [TC-COMPLIANCE-01, TC-COMPLIANCE-02, TC-COMPLIANCE-03, TC-COMPLIANCE-04, TC-SETTLE-07, TC-SEC-MEM-01, TC-EXC-01]
-    note: S4 步驟 1、4——軟刪即時、T+30 硬刪、legal-hold 拒絕、稽核匯出與 hash 驗證
+    note: UAT-04 步驟 1、4——軟刪即時、T+30 硬刪、legal-hold 拒絕、稽核匯出與 hash 驗證
 
-  # ── UAT S5 品牌自助配置 ────────────────────────────────────────────
+  # ── UAT-05 品牌自助配置 ────────────────────────────────────────────
   - scenario: SC-18
-    uat: S5
+    uat: UAT-05
     cases: [TC-SEC-RBAC-03, TC-EXC-02, TC-PLT-FLOW-01, TC-PLT-CFG-01, TC-SETTLE-07, TC-NFR-PERF-01]
-    note: S5 步驟 1–3——DSL/config 的治理、受保護層拒絕、版本化、可觀測回滾與稽核
+    note: UAT-05 步驟 1–3——DSL/config 的治理、受保護層拒絕、版本化、可觀測回滾與稽核
 
   # ── 補齊 P0 端到端 UAT 腳本 ────────────────────────────────────────
   - scenario: SC-10
-    uat: S6
+    uat: UAT-06
     cases: [TC-CS-AI-04, TC-CS-AI-10, TC-SEC-INT-01, TC-DISPATCH-03, TC-AGT-TURN-01]
-    note: S6——接管後 AI 靜音、雙方訊息全量入庫；旗標/寫入故障不得讓案件蒸發
+    note: UAT-06——接管後 AI 靜音、雙方訊息全量入庫；旗標/寫入故障不得讓案件蒸發
 
   - scenario: SC-12
-    uat: S7
+    uat: UAT-07
     cases: [TC-TEC-LIFE-01, TC-DISPATCH-06, TC-SEC-WEB-02, TC-PLT-SURFACE-01, TC-DISPATCH-01, TC-WEB-SURFACE-01]
-    note: S7——技師身分、KYC、品牌授權與候選池隔離的准入閘門
+    note: UAT-07——技師身分、KYC、品牌授權與候選池隔離的准入閘門
 
   - scenario: SC-14
-    uat: S8
+    uat: UAT-08
     cases: [TC-TEC-REVOKE-01, TC-DISPATCH-06, TC-DISPATCH-01, TC-DISPATCH-09, TC-EXC-06, TC-PLT-SURFACE-01]
-    note: S8——撤銷事件跨品牌傳播、候選池排除與進行中工單改派
+    note: UAT-08——撤銷事件跨品牌傳播、候選池排除與進行中工單改派
 
   - scenario: SC-17
-    uat: S9
+    uat: UAT-09
     cases: [TC-PLT-PROV-01, TC-SEC-WEB-02, TC-PLT-SURFACE-01, TC-EXC-05, TC-CS-AI-01, TC-WEB-SURFACE-01]
-    note: S9——品牌申請、建庫、License、LINE 綁定與 portal 開通的可重跑流程
+    note: UAT-09——品牌申請、建庫、License、LINE 綁定與 portal 開通的可重跑流程
 
   # ── 非主要 UAT 腳本、但有受控驗收選案 ────────────────────────────
   - scenario: SC-09

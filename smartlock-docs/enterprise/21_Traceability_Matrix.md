@@ -74,7 +74,7 @@ upstream:
 | FR-0020 | 稽核 log + hash chain + 匯出 | api E-02（audit_events hash chain）| TC-SETTLE-07 | ✅ |
 | FR-0041 | 客戶/場址/裝置主檔 | 18_DB_Design | api tests（customer CRUD / 跨租）| ✅ |
 | FR-0042 | 報價內外部視圖分離 | 00_platform/P1/07（quotes / quote_line_items）| TC-QUOTE-01/04/05/07/08 | ✅ |
-| FR-0043 | 後台 config 治理（版本化 + staged rollout + rollback ≤1min）| ADR-P009 領域配置層 | config 套件（api tests）+ UAT S5 | ✅ |
+| FR-0043 | 後台 config 治理（版本化 + staged rollout + rollback ≤1min）| ADR-P009 領域配置層 | config 套件（api tests）+ UAT-05 | ✅ |
 | FR-0049 | 例外收件匣 + 核准 | 例外框架 | TC-WO-11 | 🟡（前端 inbox 頁 🔜 規劃中）|
 | FR-0052 | 取消費 5 階段 | flow DSL cancelled 轉移 + 費率表 | TC-WO-12 | ✅ |
 | FR-0053 | GDPR forget 全流程 | api B-09（forget v2 + T+30 cron）| TC-COMPLIANCE-01/02 | ✅ |
@@ -92,7 +92,7 @@ upstream:
 | FR-0038 | 問題卡 → 工單轉換 | 00_platform/P1/07 §5 | TC-WO-01/02/08/09 | ✅ |
 | FR-0039 | 派工事件同步（CQRS 投影）| ADR-P014 §2.2 | TC-DISPATCH-05、TC-EXC-06 | 🟡（投影表 🔜 規劃中）|
 | FR-0040 | evidence 回寫 | data-pipeline P1/05 | TC-COMPLIANCE-04 | 🟡 |
-| FR-0017 / FR-0051 | SOP draft → 人審 → 發布（HITL 螺旋）| ADR-P001；`../knowledge-refinery/P1/05` | TC-COMPLIANCE-05 + UAT S3 | 🟡 |
+| FR-0017 / FR-0051 | SOP draft → 人審 → 發布（HITL 螺旋）| ADR-P001；`../knowledge-refinery/P1/05` | TC-COMPLIANCE-05 + UAT-03 | 🟡 |
 | FR-0044 | 技師 onboarding / 停權（KYC）| ADR-P004；technician-platform P1/05 | TC-DISPATCH-06 + lifecycle 套件 | 🟡 |
 | FR-0045 | 技師 AP 結算 | ADR-P014 §2.1 | TC-SETTLE-01/08 | 🟡 |
 | FR-0046 | 派工小編佣金 | ADR-P014 | TC-SETTLE-08 | 🟡 |
@@ -153,7 +153,7 @@ upstream:
 | I-9 | api ↔ Kafka ↔ technician-platform | `dispatch.assigned` / `technician.*` / `commission.accrued` 事件 | TC-DISPATCH-03、TC-EXC-06、TC-SETTLE-01 | 🟡（schema registry + 契約測試 🔜 規劃中）|
 | I-10 | web / api → Casdoor | OIDC 授權碼流 + 角色 claim | TC-SEC-RBAC-02/04 | 🟡 R1/R2 已落地 CR-0141/0146（R3 業主排程）|
 | I-11 | knowledge-refinery → 品牌庫 / agent | 事實 chunk+embed 灌語料；行為 → skill | TC-COMPLIANCE-05/08 | 🟡 |
-| I-12 | Agent Config Registry → agent | 受保護層 + 客製層合成配置 | UAT S5 + config 套件 | 🔜 規劃中 |
+| I-12 | Agent Config Registry → agent | 受保護層 + 客製層合成配置 | UAT-05 + config 套件 | 🔜 規劃中 |
 | I-13 | api / agent → SigNoz | OTel trace/metric | 監控 SLI 驗證（見 [./25_Monitoring_Spec.md](./25_Monitoring_Spec.md)）| 🔜 規劃中 |
 | I-14 | Casdoor License → provisioning | 品牌開通 → per-brand bundle 部署 | UAT 框架（部署驗收類）| 🔜 規劃中 |
 

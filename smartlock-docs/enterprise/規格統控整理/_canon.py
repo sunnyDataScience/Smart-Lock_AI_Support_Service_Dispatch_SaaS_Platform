@@ -46,6 +46,7 @@ SRS_PATH = CANON / "04_SRS.md"
 NFR_PATH = CANON / "05_NFR.md"
 TEST_CASE_PATH = CANON / "20_Test_Cases.md"
 TEST_PLAN_PATH = CANON / "19_Test_Plan.md"
+UAT_PATH = CANON / "22_UAT_Report.md"
 ADR_INDEX_PATH = CANON / "14_ADR" / "00_INDEX.md"
 OPEN_DECISIONS_PATH = CANON / "14_ADR" / "open_decisions.yaml"
 ROADMAP_PATH = CANON / "27_Product_Roadmap_WBS.md"
@@ -456,6 +457,63 @@ def load_test_scenarios() -> dict[str, dict]:
     return rows
 
 
+@dataclass
+class UatScript:
+    """One UAT-01..UAT-09 walkthrough from 22_UAT_Report section 4.
+
+    A walkthrough is one sitting: the room runs it end to end. A scenario (SC) is
+    one leg of that route, and is what gets signed off. The two are many-to-one --
+    UAT-01 covers SC-01/02/03 -- so neither replaces the other.
+    """
+
+    uat_id: str
+    name: str
+    steps: list[str]
+    acceptance: str
+    source_line: int
+
+
+_UAT_HEAD = re.compile(r"^### (UAT-\d+)\s+(.*)$")
+_UAT_STEP = re.compile(r"^(\d+)\.\s+(.*)$")
+_UAT_ACCEPT = re.compile(r"^- \*\*驗收點\*\*[：:]\s*(.*)$")
+
+
+def load_uat_scripts() -> list[UatScript]:
+    """UAT-01..UAT-09 walkthrough scripts from 22_UAT_Report section 4.
+
+    Parsed by heading rather than by position: section 4 is hand-written prose and
+    the step counts differ per script, so an index-based reader would silently
+    mis-assign the moment someone adds a step.
+    """
+    scripts: list[UatScript] = []
+    current: UatScript | None = None
+    in_section = False
+    for n, line in enumerate(read_lines(UAT_PATH), 1):
+        if line.startswith("## "):
+            # Section 4 is the only one carrying scripts; anything after it ends the scan.
+            in_section = line.startswith("## 4.")
+            if not in_section and scripts:
+                break
+            continue
+        if not in_section:
+            continue
+        head = _UAT_HEAD.match(line)
+        if head:
+            current = UatScript(head.group(1), plain(head.group(2)), [], "", n)
+            scripts.append(current)
+            continue
+        if current is None:
+            continue
+        step = _UAT_STEP.match(line.strip())
+        if step:
+            current.steps.append(f"{step.group(1)}. {plain(step.group(2))}")
+            continue
+        accept = _UAT_ACCEPT.match(line.strip())
+        if accept:
+            current.acceptance = plain(accept.group(1))
+    return scripts
+
+
 # ---------------------------------------------------------------- edges
 
 @dataclass
@@ -693,9 +751,9 @@ def component_glossary_rows() -> list[list[str]]:
 
 __all__ = [
     "GENERATED_ON", "CANON", "HERE", "RELATIONS",
-    "Persona", "Scenario", "Requirement", "NFR", "TestCase", "Relations",
+    "Persona", "Scenario", "Requirement", "NFR", "TestCase", "UatScript", "Relations",
     "load_personas", "load_scenarios", "load_requirements", "load_nfrs", "load_test_cases",
-    "load_adrs", "load_wbs", "load_test_scenarios", "load_relations",
+    "load_adrs", "load_wbs", "load_test_scenarios", "load_uat_scripts", "load_relations",
     "module_for", "module_arch", "architecture_for", "phase_for", "spec_status",
     "component_glossary_rows", "plain",
     "ROLE_DOMAIN", "KIND_DOMAIN", "PERSONA_ROLE_DOMAIN", "DERIVED_KEYS",

@@ -563,7 +563,7 @@ def import_test_runs(p: Plane, state: dict, rel) -> None:
         # run_type 不傳：TestRunWriteSerializer 沒宣告這個欄位，DRF 會靜默丟棄，
         # 且 create_fixed_test_run() 本來就硬寫 run_type="fixed"。
         run = p.create_test_run(
-            name=f"{sc_id} 驗收腳本（UAT {s.get('uat', '—')}）",
+            name=f"{sc_id} 驗收腳本（{s.get('uat') or '不走 UAT 走查'}）",
             case_ids=ids, build="spec-import",
         )
         state["test_runs"][sc_id] = run["id"]

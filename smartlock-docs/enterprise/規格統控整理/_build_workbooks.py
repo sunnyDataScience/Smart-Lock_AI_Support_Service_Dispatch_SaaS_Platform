@@ -149,6 +149,54 @@ def dropdown(ws, column: str, first: int, last: int, values: str, message: str) 
     dv.add(f"{column}{first}:{column}{max(last, first)}")
 
 
+# 四書與 Plane 是同一批東西的兩種叫法。名字對不上，兩邊的數字就永遠對不了帳，
+# 而「對帳」正是把規格推進 Plane 的唯一理由。這段是那張對照表的唯一來源；
+# 每本只列自己用得到的詞，列一整張全表等於沒有列。
+GLOSSARY_HEAD = [
+    ("", ""),
+    ("Plane 詞彙對照",
+     "本書的列在 Plane 專案管理系統裡叫什麼（依《Plane QA 工程守則》Part B）。"
+     "跨系統討論一律用右欄的名字——同一件事兩個名字，是對帳失敗最常見的起點。"),
+]
+
+# 階層四層。這四個名字在 Plane 是 work item type 的身分（level 0–3），
+# 不是顯示標籤——覆蓋率沿 Issue.parent roll-up 時，上層數字全部繼承自下層。
+GLOSSARY_HIERARCHY = [
+    ("  L1 Epic", "Plane 的 Epic（work item type，level 0，is_epic=true）。8 張：7 個子系統 ＋ NFR 全域品質地板。"),
+    ("  L2 Feature", "Plane 的 Feature（level 1）。32 張能力群。"),
+    ("  L3 ＝ Story", "FR 在 Plane 是 Story（level 2）。「驗收契約掛在這一層」，上面兩層的數字都是繼承來的。"),
+    ("  L3 ＝ Quality requirement",
+     "NFR 在 Plane 是 Quality requirement，「與 Story 同階、不是子層」。"
+     "NFR 橫跨所有層級，做成子層會逼它選一個歸屬，而「Feature 層的效能要求」就無處可放。"),
+    ("  WBS 工作包", "Plane 的 Task（level 3），列在《規格統控規劃書》③。它是工程任務，不是 User Story。"),
+]
+
+GLOSSARY_SCENARIO = [
+    ("  旅程 SC",
+     "Plane 的 Scenario 型別卡。「刻意不進 Epic/Feature/Story 階層樹」——一張卡只能有一個 parent，"
+     "而旅程橫跨多個子系統，硬掛進樹會逼它選一個歸屬。它改為直接持有自己的驗收契約。"),
+    ("  分線 L1-CUS…",
+     "Plane 的 Module（範疇分組）。⚠️ 敏捷文獻常把這種價值主軸叫 Epic，"
+     "但本專案的 Epic 另有所指（＝子系統，見上），兩者不可混用。"),
+]
+
+GLOSSARY_CONTRACT = [
+    ("  驗收契約",
+     "Plane 的 Test Case。守則把 FR／驗收條件／BDD／測試案例壓成「同一個物件」——"
+     "案例就是驗收條件，省掉一整層追蹤。所以本書講「案例」與講「契約」是同一件事。"),
+    ("  驗收腳本 ＝ 一條旅程一條",
+     "本欄就是這條 SC 在 Plane 的 Test Run（19 條 SC＝19 條 run），內容是該 SC 宣告的那批案例。"
+     "建立 run 時把每張案例釘在當時的版本，所以舊紀錄不會被日後改版影響。"),
+    ("  括號裡的 UAT-01…UAT-09",
+     "22_UAT_Report §4 的走查腳本編號，是「旅程的上層分組」：一支走查涵蓋 1–4 條旅程"
+     "（UAT-01 撐 SC-01/02/03、UAT-02 撐 SC-04–07）。它回答「這次 UAT 要走哪條路線」，"
+     "而旅程回答「路線裡的這一段」。⚠️ 它在 Plane 沒有對應物件，只被寫進 run 名稱當註記。"),
+    ("  標「不走 UAT 走查」的旅程",
+     "那條旅程宣告 uat: null——它一樣有自己的 run 與案例，只是不掛在任何一支走查腳本下。"
+     "月結 cron、七帳本對帳這類後端受控驗收沒有人能「走一遍」給你看，硬編一支走查腳本只是造假。"
+     "它不是缺口，V9 也不會報它；空著不寫才會跟「漏填」混在一起。"),
+]
+
 COMMON_HOWTO = [
     ("", ""),
     ("黃色欄位", "只有人能填。系統不會、也不該幫你填。"),
@@ -181,6 +229,7 @@ class Model:
         self.open_decisions = C.load_open_decisions()
         self.wbs = C.load_wbs()
         self.ts = C.load_test_scenarios()
+        self.uat_scripts = C.load_uat_scripts()
         self.report, self.counts = V.run()
 
         self.sc_by_id = {s.sc_id: s for s in self.scenarios}
@@ -245,7 +294,9 @@ class Model:
             return "⚠ 無驗收腳本"
         uat = sorted({s.get("uat", "") for s in self.rel.sc_tc
                       if s["scenario"] == sc_id and s.get("uat")})
-        return f"{'、'.join(uat)}：{len(cases)} 案例" if uat else f"{len(cases)} 案例"
+        # uat 值自 2026-07-29 起已自帶 UAT- 前綴，這裡不再補字面「UAT」
+        return (f"{len(cases)} 案例（{'、'.join(uat)}）" if uat
+                else f"{len(cases)} 案例（不走 UAT 走查）")
 
     def scenario_gaps(self, sc_id: str) -> int:
         return sum(1 for f in self.report.findings if f.subject.startswith(sc_id))
@@ -267,18 +318,26 @@ def build_acceptance(m: Model) -> None:
          "要看這條旅程靠哪些需求撐住，才展開 ③。"),
         ("", ""),
         ("三個灰欄怎麼讀",
-         "工程證據＝關鍵路徑上 FR 的 code reality 分佈；測試覆蓋＝關鍵需求裡有幾條有案例；"
+         "工程證據＝關鍵路徑上 FR 的 code reality 分佈；驗收契約覆蓋＝關鍵需求裡有幾條有契約；"
          "驗收腳本＝這條旅程在 UAT 有沒有腳本。三個都綠才代表「可以開始驗收」，不代表「已驗收」。"),
         ("不在這本裡的東西",
          "可用性、稽核鏈、安全矩陣、migration 可重現、效能降級——這些沒有對應的客戶旅程，"
          "為它們硬掰一段客戶語言就是造假。它們宣告為 scope: global，在《整合測試計畫》③ 獨立成段。"),
+        *GLOSSARY_HEAD,
+        *GLOSSARY_SCENARIO,
+        ("  關鍵需求 / 支援需求",
+         "Plane 需求卡上的 essential_for / supporting_for 兩個欄位。"
+         "邊的屬性在 Plane 掛不上關聯（relation 不能帶屬性），所以降維成節點屬性。"),
+        *GLOSSARY_CONTRACT,
+        ("  驗收狀態", "Plane 的 SC 卡 state。這是四個狀態軸裡的軸④，「只有人能推進」——"
+                    "測試全綠、閘門 ready 都不等於驗收通過。"),
         *COMMON_HOWTO,
         ("", ""),
         ("RACI", ""),
         ("  旅程敘述", "R: BA　A: PM　來源: 28_Scenarios.md"),
         ("  旅程需要哪些需求", "R: SA　A: 架構師　來源: _relations/sc_requires_rq.yaml"),
         ("  工程證據", "R: RD　A: 架構師　來源: _spec_data.py codebase 掃描"),
-        ("  測試覆蓋 / 驗收腳本", "R: QA　A: QA Lead　來源: _relations/rq_verified_by_tc.yaml、sc_verified_by_tc.yaml"),
+        ("  驗收契約覆蓋 / 驗收腳本", "R: QA　A: QA Lead　來源: _relations/rq_verified_by_tc.yaml、sc_verified_by_tc.yaml"),
         ("  驗收狀態（黃）", "R: 業務 Owner　A: PM　只有人能推進"),
     ])
 
@@ -288,7 +347,8 @@ def build_acceptance(m: Model) -> None:
         ("PM 驗收標準（完成判定）", 40, ""),
         ("什麼情況算失敗", 38, ""),
         ("關鍵需求", 8, "derived"), ("支援需求", 8, "derived"),
-        ("工程證據", 18, "derived"), ("測試覆蓋", 12, "derived"), ("驗收腳本", 16, "derived"),
+        ("工程證據", 18, "derived"), ("驗收契約覆蓋", 14, "derived"),
+        ("驗收腳本（TestRun）", 18, "derived"),
         ("未結缺口", 9, "derived"),
         ("驗收狀態", 13, "human"), ("驗收日", 11, "human"), ("簽核人", 11, "human"),
         ("裁決備註", 28, "human"),
@@ -320,7 +380,7 @@ def build_acceptance(m: Model) -> None:
         ("SC", 7, ""), ("旅程", 20, ""), ("角色", 10, ""),
         ("需求 ID", 13, ""), ("需求名稱", 28, ""),
         ("這條邊憑什麼成立", 52, ""),
-        ("工程證據", 14, "derived"), ("測試覆蓋", 20, "derived"), ("回查", 13, "derived"),
+        ("工程證據", 14, "derived"), ("涵蓋 kind", 20, "derived"), ("回查", 13, "derived"),
     ]
     ws = table(wb, "③ 旅程展開（SC × 需求）", headers)
     kinds = [h[2] for h in headers]
@@ -425,10 +485,13 @@ def build_bom(m: Model) -> None:
         ("這本給誰", "架構師 / RD Lead。業務端、QA 端、經營層各有專屬活頁簿。"),
         ("只回答一個問題", "每條需求由哪個元件實作、現在到哪了？"),
         ("怎麼下手",
-         "② 是 L1 子系統 → L2 能力群 → L3 需求的三層樹（Excel 群組可摺疊）。"
-         "先看 L2 的 Code reality 找出 PARTIAL/TO-BE 的能力群，再展開該群的 L3。"),
-        ("L2 不是 join key",
-         "L1/L2 是顯示分群，唯一主鍵是 L3 的 FR / NFR ID。任何跨表對照都用 ID，不要用 L2 名稱。"),
+         "② 是 L1 Epic（子系統）→ L2 Feature（能力群）→ L3 Story/Quality requirement（需求）的三層樹"
+         "（Excel 群組可摺疊）。先看 L2 的 Code reality 找出 PARTIAL/TO-BE 的能力群，再展開該群的 L3。"),
+        ("L1/L2 是真的卡，但不是 join key",
+         "這兩件事要分開：①「它們在 Plane 是真的 work item」（8 張 Epic、32 張 Feature），"
+         "有 parent 鏈、有沿鏈 roll-up 的覆蓋率數字，不再只是 Excel 上的顯示分群；"
+         "②「唯一主鍵仍是 L3 的 FR / NFR ID」——L2 代號帶「（顯示）」尾綴就是這個意思，"
+         "任何跨表對照一律用 ID，不要用 L2 名稱當鍵。"),
         ("「服務旅程」欄怎麼用",
          "這是 SA 的反向檢查：一條需求如果無法解釋「它為了哪段旅程存在」，那條需求就是想像出來的。"
          "標 ⚠ 無旅程 的列要嘛補 SC 邊、要嘛宣告 scope: global、要嘛刪掉。"),
@@ -445,9 +508,13 @@ def build_bom(m: Model) -> None:
         ("「需求型別」對應 Plane 的什麼",
          "Story（FR）與 Quality requirement（NFR）在 Plane 是同階的兩種 work item type，不是上下層。"
          "NFR 橫跨所有層級，做成子層會逼它選一個歸屬，而「Feature 層的效能要求」就無處可放。"),
+        ("Story 不等於「User Story」",
+         "守則的 Story 是「需求層級的身分」（level 2，契約掛這裡），不是敏捷慣用的價值切片協商佔位符。"
+         "FR 說「系統該有什麼」，User Story 說「這個迭代要做出什麼」——本專案沒有後者那一層，"
+         "價值敘述由旅程（SC）＋Persona＋BDD 承載，硬加一層 story 只是多一份要人維護的映射。"),
         ("「目標里程碑」為什麼只有一個值",
          "Plane 的 Issue.milestone 是單值。原本的 M1/M2/M3+ 三欄容得下 M1→M3 這種區間，"
-         "單值欄位容不下，所以取區間的**終點**（交付檢查點問的是「到這關驗完了沒」）。"
+         "單值欄位容不下，所以取區間的「終點」（交付檢查點問的是「到這關驗完了沒」）。"
          "起點不丟——完整區間保留在「節點範圍」欄。目前有 5 條 FR 是跨節點的。"),
         ("NFR 的「目標里程碑」為什麼是空的",
          "106 條 NFR 目前一條都沒有節點歸屬，代表每一道驗收閘都不含任何非功能需求。"
@@ -465,11 +532,17 @@ def build_bom(m: Model) -> None:
          "形態 ③④ 的證據要登錄成 Plane 的 release evidence，平台以 (專案, key) upsert，"
          "所以 key 必須穩定，重複送出才會更新同一列而不是長出重複。"
          "⚠️ 這個端點只在內部 API，API 金鑰打不進去——只能人工在 Plane 網頁上輸入。"),
+        *GLOSSARY_HEAD,
+        *GLOSSARY_HIERARCHY,
+        ("  服務旅程", "Plane 的 Scenario 卡（SC）。它不在本表的三層樹上——旅程橫跨多個子系統，"
+                    "掛不進單一 parent，改為直接持有自己的驗收契約。"),
+        ("  子系統 / 能力群", "同時是兩件事：在「拆解軸」是 Epic/Feature 卡（本表的 L1/L2），"
+                        "在「排程軸」是 Plane 的 Module（範疇分組）。兩軸正交，不是同一個東西的兩個名字。"),
         *COMMON_HOWTO,
     ])
 
     headers = [
-        ("層級", 7, ""), ("代號（FR/NFR 為主鍵）", 20, ""),
+        ("層級", 12, ""), ("代號（FR/NFR 為主鍵）", 20, ""),
         ("parent 代號", 20, "derived"), ("需求型別", 18, "derived"),
         ("名稱 / 功能", 32, ""),
         ("上游規則 / 目標", 32, ""), ("正式元件名稱", 54, ""),
@@ -497,8 +570,8 @@ def build_bom(m: Model) -> None:
                     labels.append(label)
         l1_code = meta["name"].split("（")[0]
         row(ws, r, [
-            "L1", l1_code, "", "", meta["name"], "", "; ".join(labels),
-            meta["sad"], meta["sds"], "MIXED（見 L2）", meta["path"], "", "子系統",
+            "L1 Epic", l1_code, "", "Epic", meta["name"], "", "; ".join(labels),
+            meta["sad"], meta["sds"], "MIXED（見 L2）", meta["path"], "", "—",
             "", "、".join(sorted({terminal_milestone(p) for p in phases})),
             "", "",
             meta["description"],
@@ -517,9 +590,9 @@ def build_bom(m: Model) -> None:
             phases = {C.phase_for(q) for q in module_reqs}
             l2_code = f"{prefix}·{code}（顯示）"
             row(ws, r, [
-                "L2", l2_code, l1_code, "", module_name, "", arch["component"],
+                "L2 Feature", l2_code, l1_code, "Feature", module_name, "", arch["component"],
                 arch["sad"], arch["sds"], arch["status"], arch["path"], "",
-                "能力群（非 join key）",
+                "—",
                 "", "、".join(sorted({terminal_milestone(p) for p in phases})),
                 "", "",
                 f"{len(module_reqs)} 條 FR",
@@ -548,8 +621,8 @@ def build_bom(m: Model) -> None:
                 r += 1
 
     row(ws, r, [
-        "L1", "NFR", "", "", "全域品質地板（非功能需求）", "", "跨子系統", "05_NFR.md", "—",
-        "—", "—", "多數為 scope: global", "子系統", "", "", "", "",
+        "L1 Epic", "NFR", "", "Epic", "全域品質地板（非功能需求）", "", "跨子系統", "05_NFR.md", "—",
+        "—", "—", "多數為 scope: global", "—", "", "", "", "",
         "NFR 天生不掛單一旅程；只有客戶感知得到的才顯示 SC。",
     ], kinds, height=24)
     for cell in ws[r]:
@@ -598,7 +671,12 @@ def build_test(m: Model) -> None:
         ("只回答一個問題", "我今天要跑哪些案例、怎麼判定通過？"),
         ("怎麼下手",
          "② 是可執行清單：篩優先級與章節 → 逐列跑 → 在黃色欄填結果、日期、缺陷單。"
-         "③ 回答「這條需求測夠了沒」，④ 回答「這條旅程驗得完嗎」。"),
+         "③ 回答「這條需求測夠了沒」，④ 回答「這條旅程驗得完嗎」，⑤ 是 UAT 當天照著走的腳本。"),
+        ("④ 與 ⑤ 差在哪（最常被搞混）",
+         "④ 一列一條旅程（SC），是「簽核的單位」——19 條旅程各自算過或不過，"
+         "在 Plane 也各自是一條 Test Run。⑤ 一列一場走查（UAT-01–UAT-09），是「執行的單位」——"
+         "UAT 當天照著一支腳本從頭走到尾，一場會跑完 1–4 條旅程。兩者多對一，誰也取代不了誰："
+         "只有 ⑤ 答不出「自助解決那段到底過了沒」，只有 ④ 則沒人知道當天要怎麼走。"),
         ("兩層測什麼不一樣",
          "旅程測「順不順」——整條走得完、接縫不掉；需求測「對不對」——單一性質恆常成立。"
          "兩層都要，缺一邊的測試計畫都會在 UAT 前兩週爆炸。"),
@@ -620,6 +698,14 @@ def build_test(m: Model) -> None:
         ("scope: global 的需求",
          "可用性、稽核鏈、安全矩陣、migration 可重現、效能降級沒有客戶旅程，"
          "不會出現在業務端的驗收控制表，但 QA 一樣要測——它們在 ③ 標成「全域地板」。"),
+        *GLOSSARY_HEAD,
+        *GLOSSARY_CONTRACT,
+        ("  執行結果", "Plane 的 Test Result。「只增不改」——重測是新增一筆，不覆寫前次失敗。"),
+        ("  缺陷", "Plane 的 Defect＝一張真的 work item，不是測試系統的內部物件；"
+                 "它回到拆解軸走一般流程，這也是整條鏈閉環的地方。"),
+        ("  ③ 的 kind 欄 ＝ DoR",
+         "守則的 Definition of Ready：一條 Story 不算 ready，除非至少連結一個 happy path "
+         "與一個 unhappy path 的契約。③ 的「涵蓋 kind」就是這條的檢查，V10 是它的告警。"),
         *COMMON_HOWTO,
     ])
 
@@ -629,7 +715,7 @@ def build_test(m: Model) -> None:
         ("路徑類型", 13, "derived"), ("驗證面向", 11, "derived"), ("優先級", 8, ""),
         ("驗證哪些需求", 26, "derived"), ("屬於哪條旅程腳本", 16, "derived"),
         ("執行結果", 12, "human"), ("執行日", 11, "human"), ("執行人", 10, "human"),
-        ("缺陷單 / 備註", 26, "human"),
+        ("缺陷（Defect）/ 備註", 26, "human"),
         # 軸③ 在 Plane 的即時值（run_case latest_status），append-only 證據。
         ("Plane 執行結果", 14, "derived"),
     ]
@@ -664,7 +750,7 @@ def build_test(m: Model) -> None:
         ("需求 ID", 14, ""), ("類別", 8, ""), ("需求名稱", 30, ""),
         ("驗收條件 / 目標", 46, ""), ("服務旅程", 16, "derived"),
         ("案例數", 8, "derived"), ("涵蓋 kind", 24, "derived"),
-        ("指定案例", 40, "derived"), ("覆蓋缺口", 30, "derived"),
+        ("指定契約（TestCase）", 40, "derived"), ("覆蓋缺口", 30, "derived"),
     ]
     ws = table(wb, "③ 需求覆蓋（需求 × 案例）", headers)
     kinds = [h[2] for h in headers]
@@ -693,7 +779,7 @@ def build_test(m: Model) -> None:
     finish(ws, len(headers), r - 1)
 
     headers = [
-        ("SC", 7, ""), ("旅程", 22, ""), ("P", 5, ""), ("UAT 腳本", 10, ""),
+        ("SC", 7, ""), ("旅程", 22, ""), ("P", 5, ""), ("UAT 走查腳本", 14, ""),
         ("這段腳本跑哪些案例", 56, ""), ("腳本說明 / 缺口", 52, ""),
         ("關鍵需求", 9, "derived"), ("腳本未觸及的關鍵需求", 40, "derived"),
         ("旅程驗收結果", 14, "human"), ("執行日", 11, "human"), ("備註", 24, "human"),
@@ -711,7 +797,7 @@ def build_test(m: Model) -> None:
         if scripts:
             for x in scripts:
                 row(ws, r, [
-                    s.sc_id, s.name, s.priority, x.get("uat", "—"),
+                    s.sc_id, s.name, s.priority, x.get("uat") or "不走走查",
                     "、".join(x.get("cases") or []), C.plain(x.get("note", "")),
                     len(essential), "、".join(untouched) or "—",
                     "", "", "",
@@ -730,6 +816,51 @@ def build_test(m: Model) -> None:
             r += 1
     dropdown(ws, "I", 2, r - 1, "Pass,Fail,Blocked,Not Run", "只能填 Pass/Fail/Blocked/Not Run")
     finish(ws, len(headers), r - 1)
+
+    # -- ⑤ UAT 走查腳本：④ 是「一列一條旅程」，這裡是「一列一場走查」。
+    # 走查是 UAT 當天真正被執行的單位（一場跑完 1–4 條旅程），先前只活在
+    # 22_UAT_Report.md 裡，Excel 只看得到 S1–S9 這個編號、看不到要走什麼。
+    headers = [
+        ("走查腳本", 10, ""), ("名稱", 30, ""),
+        ("涵蓋旅程", 20, "derived"), ("旅程數", 8, "derived"), ("案例數", 8, "derived"),
+        ("步驟（逐項勾選）", 78, ""), ("驗收點", 46, ""),
+        ("走查結果", 12, "human"), ("執行日", 11, "human"), ("主持人", 10, "human"),
+        ("異常紀錄", 30, "human"),
+    ]
+    ws = table(wb, "⑤ UAT 走查腳本（UAT-01–UAT-09）", headers)
+    kinds = [h[2] for h in headers]
+    by_uat: dict[str, list[dict]] = {}
+    for x in m.rel.sc_tc:
+        by_uat.setdefault(x.get("uat") or "", []).append(x)
+    r = 2
+    for u in m.uat_scripts:
+        rows_of = by_uat.get(u.uat_id, [])
+        scs = sorted({x["scenario"] for x in rows_of})
+        cases = {c for x in rows_of for c in (x.get("cases") or [])}
+        row(ws, r, [
+            u.uat_id, u.name, "、".join(scs) or "⚠ 無旅程", len(scs), len(cases),
+            "\n".join(u.steps), u.acceptance,
+            "", "", "", "",
+        ], kinds, height=16 + 14 * max(len(u.steps), 2))
+        if not scs:
+            ws.cell(r, 3).font = Font(name=FONT, size=10, bold=True, color="C00000")
+        r += 1
+    # 沒有走查腳本的旅程也要現形，否則「19 條旅程」與「9 場走查」的差額會憑空消失。
+    off = sorted({x["scenario"] for x in by_uat.get("", [])})
+    if off:
+        off_cases = {c for x in by_uat.get("", []) for c in (x.get("cases") or [])}
+        banner(ws, r, len(headers), "不走 UAT 走查 —— 後端受控驗收，沒有人能「走一遍」給你看")
+        r += 1
+        row(ws, r, [
+            "—", "受控驗收（月結 cron、帳本對帳等）", "、".join(off), len(off), len(off_cases),
+            "無走查步驟：這些旅程宣告 uat: null，改由各自的案例與證據直接判定。",
+            "案例全綠且證據齊備即可簽核；不因缺走查腳本而視為缺口（V9 不報）。",
+            "", "", "", "",
+        ], kinds, height=44)
+        r += 1
+    dropdown(ws, "H", 2, r - 1, "Pass,Fail,Blocked,Not Run", "只能填 Pass/Fail/Blocked/Not Run")
+    finish(ws, len(headers), r - 1)
+    ws.freeze_panes = "C2"
 
     wb.save(OUTPUTS["test"])
 
@@ -760,6 +891,18 @@ def build_planning(m: Model) -> None:
          "擋生成只會讓人用假資料把洞填平，那比洞本身更糟。缺口一律放行、一律列出、一律有名有姓。"),
         ("③ 是什麼",
          "M1–M5 的 WBS 與已定案 ADR。缺口要排進哪個里程碑、動到哪條架構決策，在這裡對照。"),
+        *GLOSSARY_HEAD,
+        ("  里程碑 M1–M5", "Plane 的 Milestone（Issue.milestone，單值，所以一張卡只能掛一個節點）。"),
+        ("  階段一 / 階段二", "Plane 的 Initiative（workspace 級，掛專案而非掛卡）。"),
+        ("  WBS 工作包", "Plane 的 Task（level 3）。它有負責人與前置依賴、用技術語彙，"
+                     "是交付物分解不是價值切片——不要為了湊 Story 層把它改寫成「作為…我想要…」。"),
+        ("  本表的缺口 ≠ 出貨閘門的 blocker",
+         "本表 ② 是「規格側」的追溯缺口（V2/V7/V8/V9/V10，設計有沒有接好）；"
+         "Plane 出貨閘門的 blocker 是「執行側」的五類（failed／blocked／未結缺陷／未執行／"
+         "已排程卻零契約）。兩套各自成立、不得互推——設計全綠不代表跑得過，反之亦然。"),
+        ("  本專案目前沒有 Cycle",
+         "Plane 的 Cycle 是迭代時間盒。本專案的排程只到 Milestone 層，尚未建任何 cycle；"
+         "在那之前「這個 sprint 交付什麼」這個問題沒有載體。"),
         *COMMON_HOWTO,
     ])
 
@@ -814,13 +957,13 @@ def build_planning(m: Model) -> None:
     ws.freeze_panes = "C2"
 
     headers = [
-        ("里程碑 / 群", 30, ""), ("ID", 12, ""), ("狀態", 34, ""), ("項目", 46, ""),
+        ("里程碑（Milestone）/ 群", 30, ""), ("ID", 12, ""), ("狀態", 34, ""), ("項目", 46, ""),
         ("負責 / 領域", 12, ""), ("依賴 / 關聯", 20, ""), ("驗收 / 說明", 46, ""),
     ]
     ws = table(wb, "③ 里程碑與已定案決策", headers)
     kinds = [h[2] for h in headers]
     r = 2
-    banner(ws, r, len(headers), "WBS —— 27_Product_Roadmap_WBS.md")
+    banner(ws, r, len(headers), "WBS 工作包（Plane 的 Task 層）—— 27_Product_Roadmap_WBS.md")
     r += 1
     for values in m.wbs:
         row(ws, r, values, kinds, height=24)
@@ -974,9 +1117,9 @@ def write_health_md(m: Model) -> None:
 
 | 書 | 交給誰 | 只回答一個問題 | 列節點 | 分頁 |
 |---|---|---|---|---|
-| 業務邏輯驗收控制表 | 業務 / PM | 客戶的哪幾條旅程算不算驗收通過？ | SC | 3 |
+| 業務邏輯驗收控制表 | 業務 / PM | 客戶的哪幾條旅程算不算驗收通過？ | SC | 5 |
 | 模組功能 BOM | 架構師 / RD | 每條需求由誰實作、現在到哪了？ | FR / NFR | 3 |
-| 整合測試計畫 | QA | 我今天要跑哪些案例、怎麼判定過？ | TC | 4 |
+| 整合測試計畫 | QA | 我今天要跑哪些案例、怎麼判定過？ | TC | 5 |
 | 規格統控規劃書 | 經營層 / PM | 哪裡有洞、哪裡卡決策、什麼時候做？ | 缺口（差集） | 3 |
 
 ## 節點與邊
@@ -985,7 +1128,7 @@ def write_health_md(m: Model) -> None:
 - 邊：
   - `SC × RQ` **{n['sc_rq']} 條**（涵蓋 {n['rq_covered_by_sc']}/{n['rq_total']} 條需求，其餘宣告 `scope: global`）
   - `RQ × TC` **{n['rq_tc']} 條**（涵蓋 {n['rq_covered_by_tc']}/{n['rq_total']} 條需求）
-  - `SC × TC` **{n['sc_tc']} 條**（{len(m.rel.sc_tc)} 段 UAT 腳本）
+  - `SC × TC` **{n['sc_tc']} 條**（{len(m.rel.sc_tc)} 條旅程驗收腳本；歸屬 22_UAT_Report 的 9 支走查 UAT-01–UAT-09）
 - 三條邊各自宣告、互不推導。`SC × RQ` 與 `RQ × TC ∘ TC × SC` 的差，就是 V9 驗收覆蓋缺口——
   若第三條邊由前兩條算出，V9 會恆等於零，等於沒有檢查。
 

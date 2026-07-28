@@ -29,7 +29,7 @@ sync-source: doc
 | `07_Journey_Map.md` | 旅程 A–E | 5 | 角色旅程（太粗）| 降級為 `SC` 的**分線**（L1）|
 | `08_User_Flow.md` | UF-01–UF-10 | 10（+12 例外）| 系統流程（非客戶語言）| 降級為 `SC` 的**流程細節**參照 |
 | `19_Test_Plan.md` | TS-01–TS-12 | 12 | QA 事後歸納 | 降級為 `SC` 的**測試投影** |
-| `22_UAT_Report.md` | S1–S5 | 5 | UAT 腳本 | 降級為 `SC` 的**驗收腳本** |
+| `22_UAT_Report.md` | UAT-01–UAT-05 | 5 | UAT 腳本 | 降級為 `SC` 的**驗收腳本** |
 
 同一段旅程被寫了四次、四種粒度、四個 owner。這是「拿到規格不知道從哪下手」的根因——
 讀者找不到脊椎。本文件把脊椎定死在 `SC-*`，其餘四套全部成為它的投影或別名。
@@ -986,25 +986,25 @@ Feature: SC-19 GDPR 被遺忘權執行
 
 | SC | 旅程 | UF | TS | UAT S |
 |:---|:---|:---|:---|:---|
-| SC-01 | A | UF-02 | TS-01 | S1 |
-| SC-02 | A | UF-02 | TS-01 | S1 |
-| SC-03 | A | UF-02 / UF-10 #1 | TS-01 | S1 |
-| SC-04 | A / B | UF-03 | TS-02 | S2 |
-| SC-05 | B / C | UF-04 | TS-03 | S2 |
-| SC-06 | C / A | UF-05 / UF-06 | TS-04 | S2 |
-| SC-07 | C / A | UF-05 §8.3 | TS-04 | S2 |
-| SC-08 | A / B | UF-07 | TS-05 | S4 |
+| SC-01 | A | UF-02 | TS-01 | UAT-01 |
+| SC-02 | A | UF-02 | TS-01 | UAT-01 |
+| SC-03 | A | UF-02 / UF-10 #1 | TS-01 | UAT-01 |
+| SC-04 | A / B | UF-03 | TS-02 | UAT-02 |
+| SC-05 | B / C | UF-04 | TS-03 | UAT-02 |
+| SC-06 | C / A | UF-05 / UF-06 | TS-04 | UAT-02 |
+| SC-07 | C / A | UF-05 §8.3 | TS-04 | UAT-02 |
+| SC-08 | A / B | UF-07 | TS-05 | UAT-04 |
 | SC-09 | B | UF-07 | TS-05 | — |
-| SC-10 | B | UF-02 | TS-01 | S1 |
-| SC-11 | B | UF-07 / UF-08 | TS-05 | S4 |
+| SC-10 | B | UF-02 | TS-01 | UAT-01 |
+| SC-11 | B | UF-07 / UF-08 | TS-05 | UAT-04 |
 | SC-12 | C / D | UF-08 §9.2 | TS-06 | — |
 | SC-13 | C | — | TS-05 | — |
 | SC-14 | D | UF-09 | TS-06 | — |
-| SC-15 | — | — | TS-07 | S3 |
-| SC-16 | — | — | TS-07 | S3 |
+| SC-15 | — | — | TS-07 | UAT-03 |
+| SC-16 | — | — | TS-07 | UAT-03 |
 | SC-17 | E / D | UF-08 §9.1 | TS-08 | — |
-| SC-18 | B / D | UF-08 §9.3 | TS-12 | S5 |
-| SC-19 | A / D | — | TS-10 | S4 |
+| SC-18 | B / D | UF-08 §9.3 | TS-12 | UAT-05 |
+| SC-19 | A / D | — | TS-10 | UAT-04 |
 
 未被任何 `SC` 認領的 legacy 內容：
 

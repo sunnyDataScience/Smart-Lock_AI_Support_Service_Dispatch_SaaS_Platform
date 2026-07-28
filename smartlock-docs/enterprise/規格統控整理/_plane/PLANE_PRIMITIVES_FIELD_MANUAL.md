@@ -21,18 +21,20 @@
 
 ## 0. 目標座標與本手冊的適用範圍
 
+**本手冊描述的是後端 fork 的欄位與行為，與靶心無關**——換一個 workspace / project 不會改變
+下面任何一條。取證當時的實例（`acme-god-damn` / `LOCK`、地端 docker `10.137.80.64:8787`）
+已於 **2026-07-28 由業主裁決刪除重來**，因此本檔不再列它的卡片統計；靶心座標一律由環境變數決定，
+見 [`README.md`](README.md) §1。
+
 | 項目 | 值 |
 |---|---|
-| Plane 實例 | `http://10.137.80.64:8787`（地端 docker，2026-07-28 由 `10.137.80.45` 遷址）|
-| Workspace | `acme-god-damn`（`b5de6db6-7659-46a8-bf15-4a7397e76ef1`）|
-| 主專案 | `LOCK` — `SmartLock 智慧鎖平台`，`7608536c-5401-4acc-90f1-f99d12fbcc75` |
-| 另一專案 | `ACMEG` — `ACME-god-damn`，`861c3ad2-0a82-4614-bec9-5b2e1b18eb50`（本手冊 cycle 樣本取自此）|
 | 後端 | Plane fork `plane-QA-management`，基準 commit `4f9e0f16b` *feat: add CE work item extensions* |
+| 模型與流程的真相源 | `plane-QA-management/docs/process/plane-qa-guideline.md`（工程守則 Part B）|
 | 認證 | `X-API-Key`（`PLANE_API_KEY`，走 `.claude/settings.local.json`，已 gitignore）|
+| 連線 | `PLANE_URL` / `PLANE_WORKSPACE_SLUG` / `PLANE_PROJECT_ID` 三個環境變數 |
 
-**LOCK 現況統計（實測）**：work items 237、work item types 5、work item properties 11、
-states 5、modules 12、milestones 5、labels 0、cycles 0、intake 0、
-test folders 63、test cases 130、test runs 19。
+> 下文凡出現 `LOCK`、`ACMEG` 或具體卡片數（237 張、12 個 module…）之處，都是**取證當時的樣本**，
+> 用來證明「這個欄位真的長這樣、真的回得出值」，**不是現行狀態**。
 
 ---
 
@@ -211,10 +213,18 @@ AuditModel（TimeAuditModel + UserAuditModel + SoftDeleteModel）
 
 | 欄位 | 設計目的 |
 |---|---|
-| `is_epic` | **Epic 就是 `is_epic=true` 的型別**，沒有獨立的 epic 模型（MCP server instructions 亦如此說明）|
+| `is_epic` | **Epic 就是 `is_epic=true` 的型別**，沒有獨立的 epic 模型（MCP server instructions 亦如此說明）。實際被邏輯讀到的只有一處：封存清單排除 epic 卡（`app/views/issue/archive.py:99`）|
 | `is_active` | 停用而不刪除，既有卡片保留型別 |
-| `level` | 階層深度，供 Epic→Story→Task 這類層級呈現 |
+| `level` | 階層深度（`FloatField`，用 float 是為了日後在既有層之間插層）。**宣告用，不強制** —— 全庫只被型別清單的 `order_by("level", "name")` 讀到（`api/views/work_item_type.py:22,94`），不驗證父子關係，也**不參與覆蓋率計算** |
 | `is_default` | 未指定型別時的落點；`ProjectIssueType.is_default` 是**專案級覆寫** |
+
+> ⚠️ **兩個 `level` 不是同一個**：外層 `ProjectIssueType.level` 是 `PositiveIntegerField`
+> （專案掛載那層），內層 `type.level` 是 `FloatField`（型別本體）。上面的 JSON 範例兩個都印得出來。
+> 寫入時要清楚自己在設哪一個 —— 建型別設的是後者。
+>
+> **階層的真正載體是 `Issue.parent`**：覆蓋率 roll-up（`app/views/testing/report.py:91-95`
+> 的 `inherited()`）只走 `parent_id` 建 children map 再遞迴收集，整段不讀 `level` 也不讀 `is_epic`。
+> 型別設對是為了讓報表與匯出讀得懂層級；**掛錯 parent 才是會讓數字變假的那個錯**。
 
 > 🟥 **更正（2026-07-28 追查 UI 面後修正）**：本手冊初版寫「型別功能需專案旗標
 > `is_issue_type_enabled=true` 才在 UI 生效」—— **這是錯的**。實際情況是
@@ -691,3 +701,4 @@ curl -s -H "x-api-key: $K" "$B/testing/overview/" | python3 -m json.tool
 | 日期 | 變更 |
 |---|---|
 | 2026-07-28 | 初版。對 `10.137.80.64:8787` / `acme-god-damn` / `LOCK` 全端點實測 + fork 原始碼與 ADR 對證建立。 |
+| 2026-07-28 | §0 改為靶心無關：移除寫死的實例座標與卡片統計（該靶心已裁決刪除重來），改指向 `README.md` §1 與工程守則。文中殘留的 `LOCK` / `ACMEG` 數字一律視為取證樣本。 |
