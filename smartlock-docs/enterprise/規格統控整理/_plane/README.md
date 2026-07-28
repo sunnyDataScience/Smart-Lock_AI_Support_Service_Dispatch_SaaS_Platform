@@ -38,7 +38,8 @@
 回放規格文件自己的標記，不是 RD 的實際進度——要拿真進度得把 `PLANE_PROJECT_ID` 指向
 `LOCK` 再跑一次，或日後把 writeback 改成雙靶心。
 
-**前一個靶心（本機 docker，仍保留 id_map）**：`http://10.137.80.45:8787` / workspace `acme-god-damn` /
+**前一個靶心（本機 docker，仍保留 id_map）**：`http://10.137.80.64:8787`（2026-07-28 位址由
+`10.137.80.45` 改為此，workspace slug 與專案 UUID 不變，舊位址已不通）/ workspace `acme-god-damn` /
 project `7608536c-5401-4acc-90f1-f99d12fbcc75`。後端基準 fork commit `4f9e0f16b`
 *feat: add CE work item extensions*。遠端實例實測具備同一組 fork 端點（work-item-types /
 work-item-properties / milestones / initiatives / testing 全數 2xx）。
@@ -46,6 +47,14 @@ work-item-properties / milestones / initiatives / testing 全數 2xx）。
 **為什麼只有一個專案**：`TestCaseWorkItemLink` 的 `clean()` 強制同專案一致性 —— 需求卡（work item）與測試案例（test case）**必須在同一個 project**，否則掛不上追溯連結。所以規格脊椎、交付 WBS、QA 測試庫三者合置於 `LOCK` 單一專案，靠 work item type + 自訂欄位分層，不用多專案切分。
 
 ---
+
+> 📖 **欄位級細節請看 [`PLANE_PRIMITIVES_FIELD_MANUAL.md`](PLANE_PRIMITIVES_FIELD_MANUAL.md)** ——
+> work items／cycles／modules／views／pages／testing 六大原語逐欄位攤平＋設計目的，
+> 並含 **MCP 相容性紅線**（哪些 MCP 工具在本 fork 是壞的、哪個會靜默回空）。
+> 本節只留「有哪些原語可用」的概覽。
+>
+> 📐 **只要模組間關係（PM 視角方塊圖）→ [`PLANE_MODULE_RELATIONS_PM.md`](PLANE_MODULE_RELATIONS_PM.md)** ——
+> 容器層級、Work Item 關係中心、Testing 資產鏈，含基數與「哪些模組進不了自動化」。
 
 ## 2. 能力邊界（live 實證）
 
