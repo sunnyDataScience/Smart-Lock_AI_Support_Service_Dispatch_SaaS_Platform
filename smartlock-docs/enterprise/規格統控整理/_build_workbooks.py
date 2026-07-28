@@ -369,15 +369,21 @@ def build_acceptance(m: Model) -> None:
     # -- ⑤ BDD 行為情境：由 SC 卡 + Persona 生成（_render_bdd.py）
     headers = [
         ("SC", 7, ""), ("旅程", 18, ""), ("分線", 8, ""), ("主要 Persona", 20, ""),
-        ("情境類型", 12, ""), ("Given（前置）", 30, ""),
+        ("情境類型", 12, ""), ("涵蓋需求（由 SC 邊推導）", 34, "derived"),
+        ("Given（前置）", 30, ""),
         ("When（行為）", 40, ""), ("Then（預期）", 38, ""),
     ]
     ws = table(wb, "⑤ BDD 行為情境（生成）", headers)
     kinds = [h[2] for h in headers]
     brows = BDD.bdd_rows()
     for r, b in enumerate(brows, 2):
+        # 這條 BDD 情境在描述整段旅程，所以它涵蓋的是該旅程的必要需求集合。
+        # 這是**粗對應**：SC 級的邊，不是「這一句 Then 驗這一條 FR」的精確映射。
+        # 真正的 DoR（happy / unhappy 都要有契約）不靠這欄判定，靠 ③ 的 kind 覆蓋（見 V10）。
+        covered = m.rel.reqs_of(b["sc"], "essential")
         row(ws, r, [
             b["sc"], b["name"], b["line"], b["persona"], b["type"],
+            "、".join(covered) if covered else "⚠ 該旅程無必要需求",
             b["given"], b["when"], b["then"],
         ], kinds, tint=LINE_TINT.get(b["line"]), height=42)
         if b["type"].startswith("failure"):
@@ -388,6 +394,30 @@ def build_acceptance(m: Model) -> None:
 
 
 # ---------------------------------------------------------------- book 2
+
+# Plane 的 Issue.milestone 是單值 FK，而 phase_for() 會回傳 "M1→M3" 這種跨節點區間。
+# 交付檢查點問的是「到這一關必須驗完了嗎」，所以取區間的**終點**；
+# 起點資訊不丟，另存 `節點範圍` 欄。
+def terminal_milestone(phase: str) -> str:
+    parts = [p.strip() for p in str(phase).split("→") if p.strip()]
+    return parts[-1] if parts else ""
+
+
+def requirement_kind(req_id: str) -> str:
+    """守則 B2：需求性質由 work item type 承載，Story 與 Quality requirement 同階。"""
+    return "Quality requirement" if str(req_id).startswith("NFR") else "Story"
+
+
+def evidence_key(nfr) -> str:
+    """形態 3／4 的 ReleaseEvidence 穩定鍵。
+
+    平台以 (project, key) upsert，同一條 NFR 重複送出會更新同一列而不是長出歷史重複。
+    形態 1／2 進 case 庫，不需要 key。
+    """
+    if C.nfr_form(nfr.verification).startswith(("3", "4", "⚠")):
+        return str(nfr.req_id).lower()
+    return ""
+
 
 def build_bom(m: Model) -> None:
     wb = new_book("Smart Lock 模組功能 BOM")
@@ -408,20 +438,51 @@ def build_bom(m: Model) -> None:
         ("元件名稱從哪來",
          "③ 元件標籤字典是受控詞彙表，每個標籤都有定義、責任邊界、SAD/SDS 定位與實作路徑。"
          "不要在這裡發明 LockCore runtime 這種無法回查的概括詞。"),
+        ("「parent 代號」為什麼要有",
+         "Plane 的覆蓋率是沿 work item 的父子鏈 roll-up 出來的——L2 能力群與 L1 子系統的數字，"
+         "全部繼承自它們底下 L3 的驗收契約，沒有獨立來源。樹若只靠列序隱含，匯入器就推不出父子關係，"
+         "上層會全部顯示未覆蓋。這欄是那條鏈的唯一機器可讀來源。"),
+        ("「需求型別」對應 Plane 的什麼",
+         "Story（FR）與 Quality requirement（NFR）在 Plane 是同階的兩種 work item type，不是上下層。"
+         "NFR 橫跨所有層級，做成子層會逼它選一個歸屬，而「Feature 層的效能要求」就無處可放。"),
+        ("「目標里程碑」為什麼只有一個值",
+         "Plane 的 Issue.milestone 是單值。原本的 M1/M2/M3+ 三欄容得下 M1→M3 這種區間，"
+         "單值欄位容不下，所以取區間的**終點**（交付檢查點問的是「到這關驗完了沒」）。"
+         "起點不丟——完整區間保留在「節點範圍」欄。目前有 5 條 FR 是跨節點的。"),
+        ("NFR 的「目標里程碑」為什麼是空的",
+         "106 條 NFR 目前一條都沒有節點歸屬，代表每一道驗收閘都不含任何非功能需求。"
+         "這是已知缺口，要靠「NFR 驗證形態」分類後才能決定哪幾條進閘門、哪幾條走持續量測。"),
+        ("「NFR 驗證形態」怎麼讀",
+         "分類軸是「證據從哪來」，不是「屬於哪個品質類別」——同一個 Security 需求，"
+         "寫成「TLS 1.2+」是可掃描的，寫成「租戶隔離設計正確」就只能審查。所以先問證據來源。"
+         "① 門檻量測（k6/benchmark，有數值）與 ② 掃描（SAST/SCA/axe）進 case 庫、可自動化；"
+         "③ 審查（checklist/ADR）與 ④ 持續 SLO（生產量測/演練）出貨前根本測不了，"
+         "走 ReleaseEvidence。硬把 ④ 做成 test case，會得到一個每天「執行」卻不代表任何測試的假 case。"),
+        ("標「⚠ 跨形態」的要怎麼辦",
+         "那條需求的驗證方式同時橫跨兩種形態（例如「secret scan + audit」＝掃描＋審查）。"
+         "守則要求拆成兩條需求分開寫——混在一條的結果是其中一半永遠驗不了，而閘門看不出來少了什麼。"),
+        ("「ReleaseEvidence key」給誰用",
+         "形態 ③④ 的證據要登錄成 Plane 的 release evidence，平台以 (專案, key) upsert，"
+         "所以 key 必須穩定，重複送出才會更新同一列而不是長出重複。"
+         "⚠️ 這個端點只在內部 API，API 金鑰打不進去——只能人工在 Plane 網頁上輸入。"),
         *COMMON_HOWTO,
     ])
 
     headers = [
-        ("層級", 7, ""), ("代號（FR/NFR 為主鍵）", 20, ""), ("名稱 / 功能", 32, ""),
+        ("層級", 7, ""), ("代號（FR/NFR 為主鍵）", 20, ""),
+        ("parent 代號", 20, "derived"), ("需求型別", 18, "derived"),
+        ("名稱 / 功能", 32, ""),
         ("上游規則 / 目標", 32, ""), ("正式元件名稱", 54, ""),
         ("SAD 定位", 26, ""), ("SDS 定位", 30, ""),
         ("Code reality", 22, "derived"), ("實作證據路徑", 52, ""),
         ("服務旅程", 18, "derived"), ("需求狀態", 18, "derived"),
-        ("M1", 5, ""), ("M2", 5, ""), ("M3+", 6, ""),
+        ("目標里程碑", 12, "derived"), ("節點範圍", 12, "derived"),
+        ("NFR 驗證形態", 18, "derived"), ("ReleaseEvidence key", 22, "derived"),
         ("驗收摘要 / 出處", 50, ""),
     ]
     ws = table(wb, "② 需求 → 元件 BOM", headers)
     kinds = [h[2] for h in headers]
+    journey_col = [h[0] for h in headers].index("服務旅程") + 1
     r = 2
 
     for prefix, meta in SUBSYSTEMS.items():
@@ -434,12 +495,12 @@ def build_bom(m: Model) -> None:
             for label in (p.strip() for p in C.module_arch(prefix, code)["component"].split(";")):
                 if label and label not in labels:
                     labels.append(label)
+        l1_code = meta["name"].split("（")[0]
         row(ws, r, [
-            "L1", meta["name"].split("（")[0], meta["name"], "", "; ".join(labels),
+            "L1", l1_code, "", "", meta["name"], "", "; ".join(labels),
             meta["sad"], meta["sds"], "MIXED（見 L2）", meta["path"], "", "子系統",
-            "●" if any("M1" in p for p in phases) else "",
-            "●" if any("M2" in p for p in phases) else "",
-            "●" if any(t in p for p in phases for t in ("M3", "M4", "M5")) else "",
+            "", "、".join(sorted({terminal_milestone(p) for p in phases})),
+            "", "",
             meta["description"],
         ], kinds, height=24)
         for cell in ws[r]:
@@ -454,13 +515,13 @@ def build_bom(m: Model) -> None:
                 continue
             arch = C.module_arch(prefix, code)
             phases = {C.phase_for(q) for q in module_reqs}
+            l2_code = f"{prefix}·{code}（顯示）"
             row(ws, r, [
-                "L2", f"{prefix}·{code}（顯示）", module_name, "", arch["component"],
+                "L2", l2_code, l1_code, "", module_name, "", arch["component"],
                 arch["sad"], arch["sds"], arch["status"], arch["path"], "",
                 "能力群（非 join key）",
-                "●" if any("M1" in p for p in phases) else "",
-                "●" if any("M2" in p for p in phases) else "",
-                "●" if any(t in p for p in phases for t in ("M3", "M4", "M5")) else "",
+                "", "、".join(sorted({terminal_milestone(p) for p in phases})),
+                "", "",
                 f"{len(module_reqs)} 條 FR",
             ], kinds, height=22)
             for cell in ws[r]:
@@ -474,21 +535,21 @@ def build_bom(m: Model) -> None:
                 phase = C.phase_for(q)
                 journeys = m.journeys_of(q.req_id)
                 row(ws, r, [
-                    "L3", q.req_id, q.name, q.trace, arch["component"],
+                    "L3", q.req_id, l2_code, requirement_kind(q.req_id),
+                    q.name, q.trace, arch["component"],
                     arch["sad"], arch["sds"], arch["status"], arch["path"],
                     journeys, C.spec_status(q),
-                    "✓" if "M1" in phase else "", "✓" if "M2" in phase else "",
-                    "✓" if any(t in phase for t in ("M3", "M4", "M5")) else "",
+                    terminal_milestone(phase), phase, "", "",
                     f"驗收：{q.acceptance} ｜ 出處：04_SRS.md:{q.source_line}",
                 ], kinds, height=26)
                 if journeys.startswith("⚠"):
-                    ws.cell(r, 10).font = Font(name=FONT, size=10, bold=True, color="C00000")
+                    ws.cell(r, journey_col).font = Font(name=FONT, size=10, bold=True, color="C00000")
                 ws.row_dimensions[r].outlineLevel = 2
                 r += 1
 
     row(ws, r, [
-        "L1", "NFR", "全域品質地板（非功能需求）", "", "跨子系統", "05_NFR.md", "—",
-        "—", "—", "多數為 scope: global", "子系統", "", "", "",
+        "L1", "NFR", "", "", "全域品質地板（非功能需求）", "", "跨子系統", "05_NFR.md", "—",
+        "—", "—", "多數為 scope: global", "子系統", "", "", "", "",
         "NFR 天生不掛單一旅程；只有客戶感知得到的才顯示 SC。",
     ], kinds, height=24)
     for cell in ws[r]:
@@ -499,12 +560,14 @@ def build_bom(m: Model) -> None:
     for n in sorted(m.nfrs, key=lambda x: x.req_id):
         journeys = m.journeys_of(n.req_id)
         row(ws, r, [
-            "L3", n.req_id, n.name, n.target, "—", "05_NFR.md", "—", "—", "—",
-            journeys, n.tier, "", "", "",
+            "L3", n.req_id, "NFR", requirement_kind(n.req_id),
+            n.name, n.target, "—", "05_NFR.md", "—", "—", "—",
+            journeys, n.tier, "", "",
+            C.nfr_form(n.verification), evidence_key(n),
             f"驗證：{n.verification} ｜ 出處：05_NFR.md:{n.source_line}",
         ], kinds, height=24)
         if journeys.startswith("⚠"):
-            ws.cell(r, 10).font = Font(name=FONT, size=10, bold=True, color="C00000")
+            ws.cell(r, journey_col).font = Font(name=FONT, size=10, bold=True, color="C00000")
         ws.row_dimensions[r].outlineLevel = 2
         r += 1
 
@@ -543,6 +606,14 @@ def build_test(m: Model) -> None:
          "happy / boundary / failure / recovery。只有 happy 的需求等於沒測——"
          "訪談只問 1–4 題（不問「什麼情況算失敗」）產出的規格就長這樣。"
          "P0 旅程的需求若缺 failure/recovery，會在該列標紅並進規劃書缺口清單（V10）。"),
+        ("② 的「路徑類型」與「驗證面向」為什麼分兩欄",
+         "它們是正交的兩件事：路徑＝這個案例走哪條路（happy / failure / boundary / recovery / "
+         "timeout / 例外 / 狀態轉移），面向＝它在驗哪一種性質（功能 / 權限 / 非功能 / 冪等）。"
+         "一條功能需求的驗收條件完全可能包含一個效能門檻——用同一欄表達兩件事，"
+         "篩「所有失敗路徑」時就會漏掉標成「權限」的那些。"),
+        ("為什麼有 52 條標「⚠ 未標註」",
+         "那些案例的原始 kind 要嘛空白、要嘛只寫了面向（例如只寫「權限」而沒說走哪條路）。"
+         "不填預設值是刻意的——把它們預設成 happy 會讓「這條需求只測了正常路徑」這個真正的缺口消失。"),
         ("④ 的缺口怎麼讀",
          "V9＝這條旅程宣告需要某需求，但它的 UAT 腳本沒跑到任何驗證該需求的案例。"
          "這是規格治理裡最容易漏報的狀態：在只有一欄「對應場景」的表裡，它永遠不會現形。"),
@@ -554,7 +625,8 @@ def build_test(m: Model) -> None:
 
     headers = [
         ("TC ID", 17, ""), ("章節", 26, ""), ("前置", 30, ""), ("步驟", 42, ""),
-        ("預期結果（判定基準）", 50, ""), ("類型", 9, ""), ("優先級", 8, ""),
+        ("預期結果（判定基準）", 50, ""),
+        ("路徑類型", 13, "derived"), ("驗證面向", 11, "derived"), ("優先級", 8, ""),
         ("驗證哪些需求", 26, "derived"), ("屬於哪條旅程腳本", 16, "derived"),
         ("執行結果", 12, "human"), ("執行日", 11, "human"), ("執行人", 10, "human"),
         ("缺陷單 / 備註", 26, "human"),
@@ -563,23 +635,28 @@ def build_test(m: Model) -> None:
     ]
     ws = table(wb, "② 測試案例主表", headers)
     kinds = [h[2] for h in headers]
+    names = [h[0] for h in headers]
+    reqs_col = names.index("驗證哪些需求") + 1
+    result_col = get_column_letter(names.index("執行結果") + 1)
     script_of_case: dict[str, set] = {}
     for s in m.rel.sc_tc:
         for tc in s.get("cases") or []:
             script_of_case.setdefault(tc, set()).add(s["scenario"])
     for r, t in enumerate(m.cases, 2):
         reqs = m.rel.reqs_of_case(t.tc_id)
+        path_type, aspect = C.case_dimensions(t.kind)
         row(ws, r, [
             t.tc_id, t.heading, t.precondition, t.steps, t.expected,
-            t.kind, t.priority,
+            path_type, aspect, t.priority,
             "、".join(reqs) if reqs else "⚠ 未被任何需求指定",
             "、".join(sorted(script_of_case.get(t.tc_id, ()))) or "—",
             "", "", "", "",
             PLANE.execution_of(t.tc_id),
         ], kinds, height=44)
         if not reqs:
-            ws.cell(r, 8).font = Font(name=FONT, size=10, bold=True, color="C00000")
-    dropdown(ws, "J", 2, len(m.cases) + 1, "Pass,Fail,Blocked,N/A", "只能填 Pass/Fail/Blocked/N/A")
+            ws.cell(r, reqs_col).font = Font(name=FONT, size=10, bold=True, color="C00000")
+    dropdown(ws, result_col, 2, len(m.cases) + 1, "Pass,Fail,Blocked,N/A",
+             "只能填 Pass/Fail/Blocked/N/A")
     finish(ws, len(headers), len(m.cases) + 1)
     ws.freeze_panes = "B2"
 

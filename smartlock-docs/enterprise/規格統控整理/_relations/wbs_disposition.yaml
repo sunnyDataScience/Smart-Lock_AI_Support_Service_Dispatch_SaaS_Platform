@@ -1,0 +1,410 @@
+version: 1
+generated: "2026-07-28"
+purpose: >
+  47 張 WBS 工作包在守則模型（Epic/Feature/Story + 契約掛 Story 層）下的處置對照。
+  守則的覆蓋率與出貨閘門把「每一張非 backlog/cancelled 的 work item」都當成需要驗收契約的需求，
+  而工程工作包不該有驗收契約——本檔決定每張卡去哪裡。
+
+source: smartlock-docs/enterprise/27_Product_Roadmap_WBS.md   # 49 個工作包
+target: LOCK / 7608536c-5401-4acc-90f1-f99d12fbcc75           # 現有 47 張 Work Package 卡
+
+# ---------------------------------------------------------------- 處置類別
+dispositions_legend:
+  archive: >
+    已交付完成的歷史紀錄。封存（archived_at）而非刪除——`IssueManager` 排除已封存卡，
+    `report.py:75` 用的正是它，所以封存後即離開覆蓋率分母與出貨閘門，稽核軌跡仍可查。
+    ⚠️ v1 API 無 archive 路由，只能走 UI（內部 app API 有 bulk-archive-issues/，支援批次）。
+  merge: >
+    進行中或待辦，且明確對應某條需求。排程屬性（負責→assignee、里程碑、前置→blocked_by）
+    移交給對應的 Story 卡，工作包本身封存。
+  enabler: >
+    無對應需求的純技術工作（部署、技術債、演練）。保留為 work item，
+    但守則規則下它一樣需要驗收契約——必須補一條技術性 test case，否則會持續擋閘門。
+  rebuild: >
+    卡片資料損壞或缺漏，需重新匯入後才能判定。
+
+# ---------------------------------------------------------------- 已知資料問題
+data_issues:
+  corrupted_cards:
+    ids: ["3.6.1", "3.6.2", "3.6.3", "3.6.4", "3.6.5", "3.6.6", "3.6.7", "3.6.8"]
+    symptom: >
+      標題變成「3.6.1 ⬜」，`負責` 欄裝著工作包名稱，`前置` 裝著負責人，`狀態原文` 裝著優先級。
+      源檔 27_Product_Roadmap_WBS.md:153 的 M3.6 段表頭是 7 欄（多一個「優先級」），
+      其餘段落是 6 欄，舊解析器以固定索引取值造成整排右移。
+    fixed_in: "commit 7202f705（改依表頭取值）"
+    why_still_broken: 該修正套用於遠端 SPEC 專案，本機 LOCK 未同步
+  missing_cards:
+    ids: ["3.1.3", "3.2.2"]
+    note: 源檔有 49 個工作包，LOCK 只有 47 張。這兩張是 commit ec72d2f 後新增的
+  dangling_fr_refs:
+    note: >
+      4 張卡的「交付物 / 驗收依據」引用了已失效的舊 FR 編號體系（現行為 FR-{AGT,API,WEB,DAT,REF,TEC,PLT}-nn）。
+      本檔的 delivers 欄已改指現行編號。
+    refs:
+      "1.5.1": FR-A10   # → FR-AGT-08 / FR-AGT-11
+      "3.2.1": FR-E03   # → FR-API-12
+      "4.5":   FR-F07   # → FR-PLT-08
+      "4.6":   FR-F08   # → FR-PLT-08
+
+# ---------------------------------------------------------------- 統計
+summary:
+  archive: 21
+  merge: 12
+  enabler: 6
+  rebuild: 10          # 8 張損壞（3.6.x）+ 2 張缺漏（3.1.3 / 3.2.2）
+  total_source: 49
+  total_in_lock: 47
+  # 重建後的預期終態（rebuild 10 張各自歸位）：
+  #   3.1.3 / 3.2.2      → merge    （+2 → merge 14）
+  #   3.6.1–3.6.6        → merge    （+6 → merge 20）
+  #   3.6.7 / 3.6.8      → enabler  （+2 → enabler 8）
+  # 終態：archive 21、merge 20、enabler 8 = 49
+  with_requirement_link: 38    # 38/49 可對應到至少一條現行 FR
+
+# ---------------------------------------------------------------- 逐張處置
+items:
+
+  # ===== M1 上線硬化 =====
+  - wbs: "1.1.1"
+    name: RBAC 轉 enforce：195 條 role_required 對帳 + 逐端點落地
+    state: Done
+    disposition: archive
+    delivers: [FR-PLT-02]
+    note: CR-0130 已收案，屬歷史交付紀錄
+
+  - wbs: "1.1.2"
+    name: 角色收斂：_STAFF_ROLES 4 值、rolePolicy 移除死角色
+    state: Done
+    disposition: archive
+    delivers: [FR-PLT-02]
+
+  - wbs: "1.1.3"
+    name: fail-closed 白名單 + API_SURFACE 剔除清單測試
+    state: Done
+    disposition: archive
+    delivers: [FR-PLT-02]
+
+  - wbs: "1.2.1"
+    name: 工單狀態機對齊「報價先行＋現場修正輪」
+    state: Done
+    disposition: archive
+    delivers: [FR-API-04, FR-API-02]
+
+  - wbs: "1.2.2"
+    name: 急件事後補審引擎
+    state: Done
+    disposition: archive
+    delivers: [FR-API-19]
+    note: 卡上明確引用 FR-API-19，是 8 張有現行 FR 引用者之一
+
+  - wbs: "1.2.3"
+    name: 問題卡雙 gate schema
+    state: Done
+    disposition: archive
+    delivers: [FR-API-01]
+
+  - wbs: "1.2.4"
+    name: 對話三方全量存檔驗證
+    state: Done
+    disposition: archive
+    delivers: [FR-AGT-09]
+    note: 卡上明確引用 FR-AGT-09
+
+  - wbs: "1.3.1"
+    name: 即時通道：WS hub 遷 Redis pub-sub + cron 分散式鎖
+    state: Done
+    disposition: archive
+    delivers: [FR-API-14, FR-PLT-04]
+
+  - wbs: "1.4.1"
+    name: 可觀測性：SigNoz + OPIK 基線
+    state: In Progress
+    disposition: merge
+    delivers: [FR-PLT-06]
+    note: 尚未完成（🔶 code 面已好、部署面未收），排程屬性移交 FR-PLT-06
+
+  - wbs: "1.5.1"
+    name: AI 禁區 200 題 Eval pipeline 常態化
+    state: Done
+    disposition: archive
+    delivers: [FR-AGT-08, FR-AGT-11]
+    note: 原文引用失效編號 FR-A10
+
+  - wbs: "1.6.1"
+    name: 基礎 CD：3 Cloud Run 自動部署 + migration drift-check CI
+    state: In Progress
+    disposition: enabler
+    delivers: []
+    contract_hint: CI drift-check 對既有 migration 全數通過；三服務部署健康檢查綠燈
+
+  - wbs: "1.7.1"
+    name: "SIT：M1 範圍 TC 全綠 + 回歸"
+    state: Done
+    disposition: archive
+    delivers: []
+    note: 測試活動本身不是需求，其證據應為 TestRun 而非 work item
+
+  - wbs: "1.7.2"
+    name: "UAT：合約紅線 + 業主驗收"
+    state: Done
+    disposition: archive
+    delivers: []
+    note: 同 1.7.1；M1 Release gate 的證據落點是 TestRun
+
+  # ===== M2 身分・知識・技師平台 =====
+  - wbs: "2.1.1"
+    name: Casdoor 統一 IdP
+    state: In Progress
+    disposition: merge
+    delivers: [FR-PLT-01]
+
+  - wbs: "2.1.2"
+    name: 租戶自助開帳 + SoD 雙簽
+    state: Done
+    disposition: archive
+    delivers: [FR-PLT-01, FR-WEB-02]
+
+  - wbs: "2.2.1"
+    name: RAG 語義層：embed() + pgvector 語料 + MCP server
+    state: Done
+    disposition: archive
+    delivers: [FR-AGT-07, FR-DAT-04]
+
+  - wbs: "2.2.2"
+    name: 語料灌注：型號事實 chunk 遷移
+    state: Done
+    disposition: archive
+    delivers: [FR-DAT-04]
+
+  - wbs: "2.3.1"
+    name: knowledge-refinery 服務：素材汲取 + 提煉分流
+    state: Done
+    disposition: archive
+    delivers: [FR-REF-01, FR-REF-02]
+
+  - wbs: "2.3.2"
+    name: HITL 審核 UI
+    state: Done
+    disposition: archive
+    delivers: [FR-REF-03]
+
+  - wbs: "2.3.3"
+    name: Skill 熱更新 LiveSkill
+    state: Done
+    disposition: archive
+    delivers: [FR-REF-04, FR-AGT-07]
+
+  - wbs: "2.4.1"
+    name: technician-platform 獨立系統
+    state: In Progress
+    disposition: merge
+    delivers: [FR-TEC-01]
+
+  - wbs: "2.4.2"
+    name: 技師 KYC 註冊三層
+    state: Done
+    disposition: archive
+    delivers: [FR-TEC-02]
+
+  - wbs: "2.4.3"
+    name: OHS requote command 通道
+    state: Done
+    disposition: archive
+    delivers: [FR-TEC-07]
+    note: 卡上明確引用 FR-TEC-07
+
+  - wbs: "2.4.4"
+    name: 技師觸達：LINE 推播 + 師傅站 PWA
+    state: Done
+    disposition: archive
+    delivers: [FR-TEC-04]
+
+  - wbs: "2.5.1"
+    name: v1 API 收斂：凍結 → 遷移 ~42 caller → 移除
+    state: In Progress
+    disposition: enabler
+    delivers: []
+    contract_hint: CI 守門「新增 v1 即紅」持續有效；v1 caller 數降至 0
+    note: 技術債清理，不對應任何需求
+
+  - wbs: "2.6.1"
+    name: M2 SIT + UAT
+    state: In Progress
+    disposition: archive
+    delivers: []
+    note: 測試活動；證據落點是 TestRun
+
+  # ===== M3 多品牌規模化 =====
+  - wbs: "3.1.1"
+    name: Kafka 事件骨幹
+    state: Todo
+    disposition: merge
+    delivers: [FR-PLT-04]
+
+  - wbs: "3.1.2"
+    name: 技師工作台改吃 CQRS 投影
+    state: Todo
+    disposition: merge
+    delivers: [FR-TEC-05]
+
+  - wbs: "3.1.3"
+    name: 混合派工：指派為主、搶單為輔
+    state: 🛑 待裁決
+    disposition: rebuild
+    delivers: [FR-TEC-03, FR-TEC-04]
+    note: >
+      LOCK 缺這張卡。且 CR-0191 §8 六項業主裁決未完成前不得動 code，
+      建卡可以但狀態應為 Backlog（backlog 群組免契約，不會擋閘門）
+
+  - wbs: "3.2.1"
+    name: 期末對帳 reconcile 閘門
+    state: Todo
+    disposition: merge
+    delivers: [FR-TEC-06, FR-API-12]
+    note: 原文引用失效編號 FR-E03
+
+  - wbs: "3.2.2"
+    name: refinery intake 改走受控 API
+    state: Todo
+    disposition: rebuild
+    delivers: [FR-DAT-05]
+    note: LOCK 缺這張卡（ADR-042 後新增）
+
+  - wbs: "3.3.1"
+    name: License → provisioning 自動化
+    state: Todo
+    disposition: merge
+    delivers: [FR-PLT-03]
+
+  - wbs: "3.4.1"
+    name: 雲端拓撲對齊
+    state: Todo
+    disposition: enabler
+    delivers: []
+    contract_hint: tech / platform 面雲端部署後健康檢查與跨面連通性驗證
+
+  - wbs: "3.5.1"
+    name: 第 2 品牌租戶開站演練
+    state: Todo
+    disposition: enabler
+    delivers: []
+    contract_hint: 全流程 dry-run（申請 → 核准 → 開站 → 綁 LINE）逐步驟通過
+    note: 這是驗收演練，理想落點是 TestRun；在 #10（run 綁 cycle）落地前先當 Enabler
+
+  - wbs: "3.6.1"
+    name: 前端 mutation contract（optimistic／rollback／409 conflict UX）
+    state: Done
+    disposition: rebuild
+    delivers: [FR-WEB-01, FR-WEB-02]
+    note: 卡片欄位位移，需重匯入
+
+  - wbs: "3.6.2"
+    name: 偏好與登入資料分層：三庫 allowlist、localStorage token 退場
+    state: Done
+    disposition: rebuild
+    delivers: [FR-WEB-02, FR-DAT-03]
+
+  - wbs: "3.6.3"
+    name: Brand Portal Capability-driven Command Palette v1
+    state: Done
+    disposition: rebuild
+    delivers: [FR-WEB-03]
+
+  - wbs: "3.6.4"
+    name: API ownership matrix（mutation + sensitive read/export）
+    state: Done
+    disposition: rebuild
+    delivers: [FR-PLT-02]
+
+  - wbs: "3.6.5"
+    name: Service principal / credential lifecycle
+    state: Done
+    disposition: rebuild
+    delivers: [FR-PLT-01]
+
+  - wbs: "3.6.6"
+    name: Background job registry 與獨立 worker entrypoint
+    state: Done
+    disposition: rebuild
+    delivers: [FR-API-15]
+
+  - wbs: "3.6.7"
+    name: GCP cutover（Scheduler / Cloud Run Job pilot）
+    state: Done
+    disposition: rebuild
+    delivers: []
+    note: 重建後歸為 enabler（infra，無對應需求）
+
+  - wbs: "3.6.8"
+    name: web/shared-contract 版本化窄例外
+    state: Done
+    disposition: rebuild
+    delivers: []
+    note: 重建後歸為 enabler（工程契約封裝，無對應需求）
+
+  # ===== M4 平台化地基 =====
+  - wbs: "4.1"
+    name: flow DSL 引擎產品化
+    state: Todo
+    disposition: merge
+    delivers: [FR-PLT-07]
+
+  - wbs: "4.2"
+    name: 兩層渲染（field_metadata + ui_composition）
+    state: Todo
+    disposition: merge
+    delivers: [FR-PLT-07]
+
+  - wbs: "4.3"
+    name: Vertical Pack 打包
+    state: Todo
+    disposition: merge
+    delivers: [FR-PLT-07]
+
+  - wbs: "4.4"
+    name: 積木庫 bootstrap
+    state: Todo
+    disposition: enabler
+    delivers: []
+    contract_hint: 頭 2-3 產業積木匯入後通過靜態驗證
+    note: 內容建置工作，不是系統需求
+
+  - wbs: "4.5"
+    name: FlowEditor 拖拉
+    state: Todo
+    disposition: merge
+    delivers: [FR-PLT-08]
+    note: 原文引用失效編號 FR-F07
+
+  - wbs: "4.6"
+    name: AI Onboarding Compiler
+    state: Todo
+    disposition: merge
+    delivers: [FR-PLT-08]
+    note: 原文引用失效編號 FR-F08
+
+  - wbs: "4.7"
+    name: 第 2 產業落地
+    state: Todo
+    disposition: enabler
+    delivers: []
+    contract_hint: FDE 4 配置面（診斷／知識精煉／flow／UI 組裝）各自走通
+    note: 驗收演練性質，同 3.5.1
+
+# ---------------------------------------------------------------- 執行順序建議
+execution_order:
+  - step: 1
+    action: 修正 3.6.1–3.6.8 與補建 3.1.3 / 3.2.2
+    how: 用已修好的解析器（commit 7202f705）對 LOCK 重跑匯入
+    why: 損壞的卡無法判斷，也無法正確 merge
+  - step: 2
+    action: 封存 22 張 archive 類
+    how: UI 批次封存（v1 無此路由）
+    effect: 出貨閘門的「no acceptance contract」blocker 從 47 降到約 21
+  - step: 3
+    action: 14 張 merge 類的排程屬性移交對應 Story，然後封存
+    how: PATCH Story 的 assignee / milestone，建 blocked_by 關聯，再 UI 封存工作包
+  - step: 4
+    action: 7 張 enabler 補技術性驗收契約
+    how: 依各卡 contract_hint 建 test case 並 link
+    effect: blocker 歸零的最後一哩

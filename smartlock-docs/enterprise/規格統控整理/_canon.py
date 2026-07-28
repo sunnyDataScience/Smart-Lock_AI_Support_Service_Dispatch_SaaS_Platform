@@ -575,6 +575,80 @@ def phase_for(req: Requirement) -> str:
     return "M1→M2"
 
 
+# NFR 的四種驗證形態（Plane QA 守則 B3）。分類軸是「證據從哪來」，不是「屬於哪個品質類別」——
+# 同一個內容類別（例如 Security）會依驗收條件怎麼寫而落在不同形態，這正是不能用單一欄位表達的原因。
+#
+#   1 門檻量測  有數值門檻，k6 / benchmark 產生量測值        → 進 case 庫
+#   2 掃描      SAST / DAST / 依賴稽核，每次 PR 或 nightly   → 進 case 庫（可轉 JUnit）
+#   3 審查      checklist / ADR，一次性或架構變更時          → 走 release gate 外部證據
+#   4 持續SLO   生產環境量測 + DR 演練，持續 + 定期演練       → 走 release gate 外部證據
+#
+# 形態 3、4 在出貨前根本無法「測試」——可用性是上個月的量測結果，RTO 要靠演練證明。
+# 硬做成 test case 會得到一個每天「執行」卻不代表任何一次測試的假 case。
+NFR_FORM_RULES: list[tuple[str, tuple[str, ...]]] = [
+    ("4 持續SLO", ("SLO", "APM", "metric（", "演練", "chaos", "drill", "alert",
+                   "統計", "dashboard", "rollout", "CI/CD metrics")),
+    ("3 審查", ("稽核", "審查", "檢核", "plan", "runbook", "Runbook", "ADR",
+                "文件化", "抽查", "抽樣人審", "覆核報表", "平台保證", "audit",
+                "schedule")),
+    # 掃描＝靜態分析與弱點掃描，不是「任何跑在 CI 上的東西」。
+    # 用 "CI" 當關鍵字會把 E2E CI、契約測試 CI 這些可執行測試誤判成掃描。
+    ("2 掃描", ("scan", "掃描", "SCA", "SSL", "滲透", "drift", "schema diff", "axe")),
+    ("1 門檻量測", ()),  # 預設：其餘皆為可執行的量測或測試
+]
+
+
+def nfr_forms(verification: str) -> list[str]:
+    """Which verification forms this NFR's evidence actually comes from.
+
+    Returns every matching form, not just the first. A requirement whose
+    verification reads 「整合測試 + APM」 genuinely spans two forms, and B3 says
+    such a requirement must be split into two -- silently picking one would hide
+    the half that never gets verified.
+    """
+    text = str(verification or "")
+    hits = [form for form, keys in NFR_FORM_RULES if keys and any(k in text for k in keys)]
+    return hits or ["1 門檻量測"]
+
+
+# 測試案例的 kind 欄目前把兩個維度混在一格（"權限+例外"、"failure+recovery"、"happy+冪等"）。
+# 守則 B2 明文警告：work item 的 FR/NFR 分類 ≠ test case 的 type，不可用同一欄表達兩件事。
+# 這裡拆成正交的兩軸——
+#   路徑類型：這個案例走的是哪條路（正常 / 失敗 / 邊界 / 復原 / 逾時 / 例外 / 狀態轉移）
+#   驗證面向：它在驗哪一種性質（功能 / 權限 / 非功能 / 冪等）
+CASE_PATH_TOKENS = {
+    "happy": "happy", "failure": "failure", "recovery": "recovery",
+    "timeout": "timeout", "boundary": "boundary", "邊界": "boundary",
+    "例外": "例外", "狀態": "狀態轉移",
+}
+CASE_ASPECT_TOKENS = {"權限": "權限", "非功能": "非功能", "冪等": "冪等"}
+
+
+def case_dimensions(kind: str) -> tuple[str, str]:
+    """Split the mixed `kind` cell into (path type, verification aspect).
+
+    An unclassified case reports 「⚠ 未標註」 rather than silently defaulting to
+    happy -- 37 of the 130 cases have no kind at all, and a default would hide
+    exactly the gap this column exists to expose.
+    """
+    text = str(kind or "")
+    paths = [v for k, v in CASE_PATH_TOKENS.items() if k in text]
+    aspects = [v for k, v in CASE_ASPECT_TOKENS.items() if k in text]
+    # dict 保序去重。缺路徑一律標 ⚠——kind 寫成 "權限" 的案例同樣沒說它走哪條路，
+    # 留白會讓它與「完全沒分類」混在一起看不出來。
+    path = "＋".join(dict.fromkeys(paths)) if paths else "⚠ 未標註"
+    aspect = "＋".join(dict.fromkeys(aspects)) if aspects else "功能"
+    return path, aspect
+
+
+def nfr_form(verification: str) -> str:
+    """Single-cell rendering of nfr_forms(); flags the cross-form ones."""
+    forms = nfr_forms(verification)
+    if len(forms) == 1:
+        return forms[0]
+    return "⚠ 跨形態：" + "／".join(sorted(forms))
+
+
 def spec_status(req: Requirement) -> str:
     """What the SRS text says about itself -- never what the code does."""
     if req.duplicate:

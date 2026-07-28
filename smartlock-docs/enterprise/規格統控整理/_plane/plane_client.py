@@ -158,6 +158,15 @@ class Plane:
         # 此 fork 的欄位名是 type_id（不是 work_item_type_id）
         return self._call("POST", self._proj("/work-item-types/"), {"type_id": type_id})
 
+    def update_type(self, type_id: str, **fields) -> dict:
+        """改型別的 level / is_epic。
+
+        階層語意靠這兩個欄位表達：Epic = level 0 + is_epic、Feature = level 1、
+        Story 與 Quality requirement 同為 level 2。序列化器把 level 與 is_epic
+        都列在可寫欄位（read_only 只有 id/workspace/時間戳），所以 PATCH 得動。
+        """
+        return self._call("PATCH", self._ws(f"/work-item-types/{type_id}/"), fields)
+
     # -- custom properties -------------------------------------------------
 
     def list_properties(self) -> list[dict]:
