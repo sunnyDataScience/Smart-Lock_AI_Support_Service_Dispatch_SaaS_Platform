@@ -43,6 +43,7 @@ CANON = ROOT / "smartlock-docs" / "enterprise" / "規格統控整理"
 WB_TEST = CANON / "SmartLock_整合測試計畫.xlsx"
 WB_ACC = CANON / "SmartLock_業務邏輯驗收控制表.xlsx"
 DEFAULT_OUT = ROOT / "docs" / "uat" / "SmartLock_UAT執行追蹤表.xlsx"
+RESULTS_DIR = ROOT / "docs" / "uat" / "uat-results"
 
 SHEET_UAT = "⑤ UAT 走查腳本（UAT-01–UAT-09）"
 SHEET_TC = "② 測試案例主表"
@@ -229,6 +230,43 @@ def load_sc_meta() -> dict:
     return out
 
 
+def load_results() -> tuple[dict, list, list]:
+    """讀 docs/uat/uat-results/*.yaml 的執行結果 overlay。
+
+    **存在的理由**：本表原本把執行結果當「人手填在 xlsx」，於是每次重生都會洗掉，
+    而 xlsx 又必須隨四書更新重生 —— 兩者直接衝突。改為結果存在版本控管的 yaml、
+    生成時合併，重生就不再有損失。
+
+    yaml 不可得（未裝 PyYAML）時回空，不擋生成 —— 缺結果只是欄位空白，
+    擋生成會讓人改去手填 xlsx，回到原本的問題。
+    """
+    if not RESULTS_DIR.exists():
+        return {}, [], []
+    try:
+        import yaml  # noqa: PLC0415
+    except ImportError:
+        print("  WARN: 未安裝 PyYAML → 執行結果 overlay 略過（欄位留白）")
+        return {}, [], []
+    by_tc, defects, rounds = {}, [], []
+    for f in sorted(RESULTS_DIR.glob("*.yaml")):
+        try:
+            doc = yaml.safe_load(f.read_text(encoding="utf-8")) or {}
+        except Exception as exc:  # noqa: BLE001
+            print(f"  WARN: {f.name} 解析失敗，略過（{exc}）")
+            continue
+        meta = doc.get("meta", {}) or {}
+        rounds.append(meta)
+        for r in doc.get("results", []) or []:
+            tc = str(r.get("tc", "")).strip()
+            if tc:
+                by_tc.setdefault(tc, []).append({**r, "_round": meta.get("round", f.stem),
+                                                 "_date": meta.get("date", ""),
+                                                 "_tester": meta.get("tester", "")})
+        for d in doc.get("defects", []) or []:
+            defects.append({**d, "_round": meta.get("round", f.stem)})
+    return by_tc, defects, rounds
+
+
 def load_personas() -> dict:
     rows = _rows(WB_ACC, SHEET_PERSONA)
     hdr = list(rows[0])
@@ -330,12 +368,20 @@ def sheet_steps(wb, scripts, sc_meta, personas) -> None:
                 ws.cell(row=r, column=1).fill = WAVE_FILL
 
 
-def sheet_cases(wb, cases, sc2uat, wave_of) -> None:
+_STATUS_FILL = {
+    "PASS": PatternFill("solid", fgColor="DDEAE9"),
+    "PARTIAL": PatternFill("solid", fgColor="FFF2CC"),
+    "FAIL": PatternFill("solid", fgColor="FCE4EC"),
+    "BLOCKED": PatternFill("solid", fgColor="EDEDED"),
+}
+
+
+def sheet_cases(wb, cases, sc2uat, wave_of, results) -> None:
     ws = wb.create_sheet("④ 案例執行表")
     _head(ws, ["TC ID", "走查腳本", "最早可驗", "最晚須驗完", "優先級", "驗證面向",
                "路徑類型", "章節", "前置", "步驟", "預期結果（判定基準）", "對映旅程",
-               "驗證需求", "結果", "執行日", "執行人", "缺陷 ID"],
-          [21, 20, 9, 11, 8, 10, 13, 26, 26, 44, 52, 15, 22, 8, 11, 10, 11])
+               "驗證需求", "結果", "執行日", "執行人", "缺陷 ID", "證據 / 未驗部分"],
+          [21, 20, 9, 11, 8, 10, 13, 26, 26, 44, 52, 15, 22, 10, 11, 12, 11, 76])
     for c in sorted(cases, key=lambda x: (x["chapter"], x["tc"])):
         uats = sorted({sc2uat.get(sc, "?") for sc in c["scs"]}) or ["UAT-10"]
         u = "、".join(uats)
@@ -344,14 +390,45 @@ def sheet_cases(wb, cases, sc2uat, wave_of) -> None:
         #   最晚須驗完 = 最後那支所在波次（到此波所有前置齊備，是不可錯過的期限）
         # 只給最早會在前置未齊時誤導執行者；只給最晚會讓排程無謂拖後。
         waves = [wave_of.get(x, "W7") for x in uats]
+        # 同一案例多輪時取最後一輪（yaml 依檔名排序讀入）
+        runs = results.get(c["tc"], [])
+        last = runs[-1] if runs else None
         ws.append([c["tc"], u, min(waves), max(waves), c["prio"], c["aspect"],
                    c["path"], c["chapter"], c["pre"], c["step"], c["expect"],
-                   "、".join(c["scs"]) or "—", c["req"], "☐", "", "", ""])
+                   "、".join(c["scs"]) or "—", c["req"],
+                   last["status"] if last else "☐",
+                   last.get("_date", "") if last else "",
+                   last.get("_tester", "") if last else "",
+                   last.get("defect", "") if last else "",
+                   (last.get("evidence", "") or "").strip() if last else ""])
         r = ws.max_row
-        for col in range(1, 18):
+        for col in range(1, 19):
             ws.cell(row=r, column=col).alignment = WRAP
         if not c["scs"]:
             ws.cell(row=r, column=2).fill = WARN_FILL
+        if last and last["status"] in _STATUS_FILL:
+            cell = ws.cell(row=r, column=14)
+            cell.fill = _STATUS_FILL[last["status"]]
+            cell.font = Font(bold=True, size=10)
+
+
+def sheet_defects_found(wb, defects) -> None:
+    """已登記的缺陷（來自 results overlay）。與 ⑥ 空白登記表分開，避免混淆。"""
+    ws = wb.create_sheet("⑧ 已登記缺陷")
+    _head(ws, ["缺陷 ID", "嚴重度", "標題", "發現於", "狀態", "輪次", "細節", "修法 / 驗證"],
+          [12, 9, 54, 20, 9, 16, 96, 76])
+    for d in defects:
+        ws.append([d.get("id", ""), d.get("severity", ""), d.get("title", ""),
+                   d.get("found_in", ""), d.get("status", ""), d.get("_round", ""),
+                   (d.get("detail", "") or "").strip(),
+                   ((d.get("fix", "") or d.get("fix_suggestion", "")) + "\n"
+                    + (d.get("verified", "") or "")).strip()])
+        r = ws.max_row
+        for col in range(1, 9):
+            ws.cell(row=r, column=col).alignment = WRAP
+        if str(d.get("severity", "")).upper() in ("P0", "P1"):
+            ws.cell(row=r, column=2).fill = BLOCK_FILL
+            ws.cell(row=r, column=2).font = Font(bold=True, size=10)
 
 
 def sheet_regression(wb) -> None:
@@ -437,15 +514,19 @@ def main() -> int:
     if drift:
         sys.exit("FAIL: 案例數與 ⑤ 宣告值不一致（來源已漂移，先查四書）：\n  " + "\n  ".join(drift))
 
+    results, defects, rounds = load_results()
+
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     sheet_readme(wb, scripts, cases, orphans)
     sheet_schedule(wb)
     sheet_steps(wb, scripts, sc_meta, personas)
-    sheet_cases(wb, cases, sc2uat, wave_of)
+    sheet_cases(wb, cases, sc2uat, wave_of, results)
     sheet_regression(wb)
     sheet_defects(wb)
     sheet_signoff(wb, scripts)
+    if defects:
+        sheet_defects_found(wb, defects)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
     wb.save(args.out)
@@ -459,6 +540,15 @@ def main() -> int:
     print(f"   案例 {len(cases)} 支（有旅程 {len(cases) - len(orphans)} / 無旅程 {len(orphans)}，"
           f"其中 P0 {sum(1 for c in orphans if c['prio'] == 'P0')} 支）")
     print(f"   波次 {len(WAVES)} 個；案例數與 ⑤ 宣告值逐支一致")
+    if results:
+        tally: dict[str, int] = {}
+        for runs in results.values():
+            tally[runs[-1]["status"]] = tally.get(runs[-1]["status"], 0) + 1
+        summary = " / ".join(f"{k} {v}" for k, v in sorted(tally.items()))
+        print(f"   執行結果 overlay：{len(rounds)} 輪、{len(results)} 支案例有結果（{summary}）")
+        print(f"   已登記缺陷 {len(defects)} 筆")
+    else:
+        print("   執行結果 overlay：無（docs/uat/uat-results/ 為空）")
     return 0
 
 

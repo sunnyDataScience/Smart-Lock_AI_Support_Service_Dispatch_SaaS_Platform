@@ -163,10 +163,22 @@ services:
       args:
         # NEXT_PUBLIC_* 均 build-time 烤入 bundle(見 web/Dockerfile)。
         NEXT_PUBLIC_REALTIME_BASE_URL: "${NEXT_PUBLIC_REALTIME_BASE_URL:-ws://localhost:8001}"
-        NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-}"   # 空 → 前端 fallback localhost:8001
+        # 空值＝刻意：瀏覽器改走本站 /api-proxy(CR-0190 build-once promotion),
+        # 由下方 environment 的 API_BASE_URL 決定 server 端轉發目標。
+        # ⚠️ 這裡填非空值會讓瀏覽器直連該 URL、完全繞過 proxy —— 那是雲端
+        #    非 promotion build 的行為,本機不要這樣設,否則測不到 proxy 這條路徑。
+        NEXT_PUBLIC_API_BASE_URL: "${NEXT_PUBLIC_API_BASE_URL:-}"
         NEXT_PUBLIC_APP_MODE: "dispatch"                            # 派工方 build:擋師傅工作台路由
         NEXT_PUBLIC_PEER_PORTAL_URL: "${TECH_PORTAL_URL:-http://localhost:3001}"
         NEXT_PUBLIC_DEV_LOGIN_HINT: "1"                             # 本機保留登入頁測試帳號提示(雲端不帶)
+    # CR-0190 導入 server-side proxy(src/lib/serverApiProxy.ts)後,runtime 需要這兩個
+    # 變數才轉得出去 —— 沒有就直接回 503 API_PROXY_NOT_CONFIGURED,而且是**全站**:
+    # dashboard、auth/refresh、通知一律載入失敗。原本沒有 environment 區塊,
+    # 上一行註解「空 → 前端 fallback localhost:8001」是 CR-0190 之前的事實,已失效。
+    # 值走 service 名而非 localhost —— proxy 在容器內執行,localhost 是容器自己。
+    environment:
+      API_BASE_URL: "${BRAND_PROXY_API_BASE_URL:-http://api:8080}"
+      PLATFORM_API_BASE_URL: "${BRAND_PROXY_PLATFORM_API_BASE_URL:-http://platform-api:8080}"
     ports:
       - "${WEB_PORT:-3000}:8080"
     restart: unless-stopped

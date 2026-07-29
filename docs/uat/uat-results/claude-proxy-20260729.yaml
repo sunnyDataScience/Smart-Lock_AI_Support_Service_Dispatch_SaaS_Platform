@@ -1,0 +1,215 @@
+# UAT 執行結果 overlay — Claude 代測輪次
+#
+# 這**不是** UAT 簽核。UAT 依 22_UAT_Report.md §1 須在 prod-mirror 由實際使用角色執行，
+# 且 UAT-03 需家族稽核員、UAT-04 需法務／DPO 簽核 —— 本輪一項都不具備。
+# 本檔記錄的是「Claude 在本機環境代測、可重現的技術驗證」，供正式 UAT 縮小範圍用。
+#
+# 檔案格式：generator 會讀 docs/uat/uat-results/*.yaml 合併進追蹤表 ④，
+# 所以重跑 build_uat_execution_plan.py **不會**洗掉結果（原設計會，已修）。
+#
+# status 值域：
+#   PASS      斷言全數驗證通過，且有陽性對照排除「全掛所以全綠」
+#   PARTIAL   部分斷言驗證通過，其餘因環境限制不可達（必須寫明哪部分沒驗）
+#   FAIL      發現與預期不符
+#   BLOCKED   本機無法測（缺外部依賴）
+
+meta:
+  round: "Claude 代測 R1"
+  date: "2026-07-29"
+  tester: "Claude (代測)"
+  environment: "本機 docker stack（非 prod-mirror）"
+  build: "dev-ding@8e47a953 + fix/brand-portal-api-proxy-env"
+  stations: "brand :3000 / tech :3001 / landing :3002 / platform :3003；api :8001/:8002/:8003"
+  caveat: >-
+    本機非 prod-mirror；無真實 LINE channel、無金流、Kafka 未啟動、僅 1 個租戶。
+    因此所有「跨租戶資料不外洩」只驗到守衛會擋，未能驗證 B 租戶資料本身。
+
+results:
+  - tc: TC-SEC-WEB-01
+    status: PASS
+    evidence: >-
+      前端：dispatcher 登入後導航由 admin 的 17 項降為 7 項，/admin/roles、/admin/payout-rules、
+      /accounting 均不出現；直接輸入 URL /admin/roles 被導回 /dashboard。
+      後端（真正的邊界）：以 dispatcher 的真實 session cookie 經 /api-proxy 直打
+      m18/configs、accounting/settlements、audit/checkpoint、audit/events 四個端點，
+      全數 403 FORBIDDEN；同一 session 打 BACKOFFICE 層的 work-orders 得 200 —— 此陽性對照
+      排除「session 已失效所以全 403」的假綠。
+    instrument: Playwright（browser fetch，帶真實 session cookie）
+
+  - tc: TC-SEC-WEB-02
+    status: PASS
+    evidence: >-
+      不帶 X-Tenant-ID 呼叫 /api/v1/work-orders → 400 MISSING_TENANT
+      （RFC7807 body，error_code=MISSING_TENANT），未靜默 fallback 至預設租戶。
+    instrument: curl
+
+  - tc: TC-SEC-RBAC-05
+    status: PASS
+    evidence: >-
+      同一 token 三段觀測：登出前打 work-orders（帶 X-Tenant-ID）= 200；
+      帶該 token POST /auth/logout = 204；同一 token 重放 = 401 TOKEN_REVOKED。
+      jti 撤銷表命中確認。另於瀏覽器確認 session cookie 為 httpOnly（JS 讀不到）。
+    instrument: curl + Playwright
+
+  - tc: TC-SEC-INT-01
+    status: PASS
+    evidence: >-
+      實測：POST /internal/requote-requests 無 token → 401、錯 token → 401
+      （容器內 INTERNAL_API_TOKEN 已配置，故不觸發未配置分支）。
+      未配置 → 503 fail-closed 分支由 tests/test_internal_ingest.py::
+      test_ingest_token_not_configured_503 覆蓋，本輪實跑通過（21 passed）。
+      兩個分支皆有證據。
+    instrument: curl + pytest（指向 scratch 庫，未污染 UAT 庫）
+
+  - tc: TC-SEC-RBAC-03
+    status: PASS
+    evidence: >-
+      M18 config 寫入（PUT /tenants/{t}/m18/configs/payment_gate/enabled）：
+      admin=422（通過權限、僅 body 不合法）、dispatcher=403、customer_service=403。
+      以「空 body → 403 是權限擋、422 是通過權限」區分授權與驗證，全程未寫入任何資料。
+    instrument: curl 矩陣探測（rbac_matrix.py）
+
+  - tc: TC-SEC-RBAC-01
+    status: PARTIAL
+    evidence: >-
+      已驗：以真實 technician session（tech-portal :3001 登入）跨面打品牌 API
+      accounting/settlements 與 m18/configs 皆 403 —— CR-0182 portal claim 生效。
+      另以 dispatcher / customer_service token 對 11 個端點 × 3 角色 + 未帶 token 共 46 個
+      探測全數符合 core/deps.py 的角色階梯定義。
+      未驗：案例要求「約 80 個敏感寫入端點」全掃，本輪只取 11 個代表性端點；
+      vendor 角色本機無 seed 帳號，完全未測。
+    instrument: Playwright（technician session）+ curl 矩陣
+
+  - tc: TC-SEC-RBAC-02
+    status: PARTIAL
+    evidence: >-
+      案例要求 12 角色 × 12 資源 × 4 動作的完整矩陣自動生成。本輪為抽樣：
+      3 個品牌角色 + 1 個技師角色 × 11 端點。抽樣範圍內 deny-by-default 成立。
+      未驗：完整矩陣、operations_manager / reviewer / vendor / line_user 四個角色
+      （本機無對應 seed 帳號）。
+    instrument: curl 矩陣
+
+  - tc: TC-SEC-TENANT-01
+    status: PARTIAL
+    evidence: >-
+      已驗：以不存在的 tenant UUID 讀 m18/configs、audit/events、gdpr/forget-requests，
+      三者 × 三角色共 9 個探測全數 403（CROSS_TENANT_WRITE / CROSS_TENANT_READ），
+      未回 200、未洩存在性。媒體端點跨租戶 → 403 TENANT_MISMATCH。
+      未驗：案例要求「讀/寫 tenant_B 之客戶/工單/媒體，100 組 mutation 0 洩漏」——
+      本機 saas.tenant 只有 1 列，不存在真實的 tenant_B，因此只證明「守衛會擋」，
+      未證明「B 的資料不會外洩」。需先開第二租戶（對應 UAT-09 跑兩次）才能真正驗收。
+    instrument: curl + Playwright
+
+  - tc: TC-WEB-MEDIA-01
+    status: PARTIAL
+    defect: UAT-D-002
+    evidence: >-
+      授權邊界全數通過：缺 X-Tenant-ID → 400；跨租戶 → 403 TENANT_MISMATCH；
+      不存在的 media id → 404 NOT_FOUND（不洩存在性）；token 走 header 不進 URL；
+      授權讀取 → 200 + Blob，URL.createObjectURL 得 blob: scheme，revokeObjectURL 後
+      再次載入失敗（確認有 revoke）。
+      不通過：實際解碼失敗 —— 該筆為 image/heic，Chromium 無法解碼，
+      AuthImage 會顯示破圖而非影像。詳見 UAT-D-002。
+    instrument: Playwright（browser fetch + Image 解碼實測）
+
+  - tc: TC-A11Y-01
+    status: PARTIAL
+    evidence: >-
+      抽驗 brand :3000 與 tech :3001 登入頁與首頁：皆有「跳到主要內容」skip link
+      （a[href="#main-content"]）、有唯一 h1、所有 input 皆有 label 或 aria-label。
+      未驗：案例的完整 a11y 準則（對比度、鍵盤操作全流程、螢幕閱讀器）未執行。
+    instrument: Playwright（DOM 檢查）
+
+defects:
+  - id: UAT-D-001
+    severity: P1
+    title: brand-portal 本機全站 503 —— CR-0190 server-side proxy 缺 runtime API_BASE_URL
+    found_in: 環境啟動（非案例）
+    detail: >-
+      runtimeConfig.apiBaseUrl() 在 NEXT_PUBLIC_API_BASE_URL 為空時，瀏覽器端改走
+      本站 /api-proxy；而 serverApiProxy.proxyApiRequest() 讀不到 runtime 環境變數
+      API_BASE_URL 時直接回 503 API_PROXY_NOT_CONFIGURED。
+      web/brand-portal/docker-compose.yml 的 web service **完全沒有 environment 區塊**，
+      故 dashboard、auth/refresh、通知一律 503，前端滿版「載入失敗」，且 WS 403。
+      只有 brand-portal 受影響：tech/platform/landing 的 compose 都把
+      NEXT_PUBLIC_API_BASE_URL 烤成非空預設值，瀏覽器走直連、不碰 proxy。
+      該行的既有註解「空 → 前端 fallback localhost:8001」是 CR-0190 之前的事實，已失效。
+    fix: >-
+      compose web service 補 environment: API_BASE_URL=http://api:8080、
+      PLATFORM_API_BASE_URL=http://platform-api:8080（走 service 名，proxy 在容器內執行）。
+    verified: >-
+      修復後 /api-proxy/health → 200 且回傳真實 API 回應；瀏覽器端 login 200、
+      session 200、dashboard/stats 200、work-orders 200、technicians 200，
+      頁面「載入失敗」字樣由滿版降為 0。
+    status: FIXED
+
+  - id: UAT-D-002
+    severity: P2
+    title: 師傅現場上傳接受 HEIC，但瀏覽器無法解碼 —— 完工證據看得到列、看不到圖
+    found_in: TC-WEB-MEDIA-01
+    detail: >-
+      media_service._ALLOWED_CONTENT_TYPES 收 image/heic，而
+      web/tech-portal/src/app/my-orders/[id]/page.tsx:639 與
+      .../door-check/page.tsx:206,213 三處 accept="image/*" —— iOS 在此設定下
+      直接送 HEIC 原檔、不自動轉 JPEG。實測：GET /api/v1/media/{id} 回
+      200 image/heic（2,509,465 bytes），瀏覽器 Image 解碼 failed。
+      本機 media volume 已有 12 個 .heic。
+      **團隊已知此機制**：technician_kyc_service.py:40-41 的註解逐字寫著
+      「不收 HEIC —— 瀏覽器 <img> 無法解碼，審核頁無從預覽；前端 accept 不含 heic 時
+      iPhone 會自動轉 JPEG」，且 brand-portal 與 RegistrationDocUpload 都已收窄 accept；
+      唯獨師傅現場上傳這三處沒套用。
+      後果：師傅用 iPhone 上傳完工／門況照片 → 存得進去、完工硬閘也算「有照片」，
+      但品牌端審核時是破圖 —— 閘門過了，證據看不到。
+    fix_suggestion: >-
+      三處 accept 收窄為 image/jpeg,image/png,image/webp（比照 KYC 與 brand-portal），
+      並考慮是否要把 image/heic 移出 media_service 白名單（屬 contract 變更，需裁決）。
+    status: OPEN
+
+  - id: UAT-D-003
+    severity: P3
+    title: 6 個純 GET 端點以 CROSS_TENANT_WRITE 回報跨租戶違規（應為 READ）
+    found_in: TC-SEC-TENANT-01
+    detail: >-
+      AST 掃描 215 個純 GET 端點，其中 6 個在跨租戶時 raise ApiError("CROSS_TENANT_WRITE")：
+      audit_v2.py:58 list_audit_events_v2、audit_v2.py:98 verify_audit_chain_v2、
+      config_m18.py:124 list_config_namespaces、config_m18.py:147 get_config_active_version、
+      config_m18.py:350 list_config_audit、refunds_v2.py:130 get_refund_sod。
+      codebase 明確區分兩碼（READ 77 處 / WRITE 88 處），故此為 mislabel 而非設計。
+      阻擋行為正確（403），僅分類錯誤；但這 6 個全是治理／安全的**讀取**路徑，
+      依 error_code 做稽核分類或告警時會把讀取違規計入寫入違規。
+    status: OPEN
+
+  - id: UAT-D-004
+    severity: P3
+    title: tech / platform / landing 的 /api-proxy 路由是活的但恆回 503
+    found_in: 環境盤點
+    detail: >-
+      三站的 serverApiProxy 路由存在且可被打到（實測 /api-proxy/health → 503
+      API_PROXY_NOT_CONFIGURED），但因其 compose 已烤入非空 NEXT_PUBLIC_API_BASE_URL，
+      瀏覽器走直連故目前無人使用。屬潛在陷阱：任何一次把該 build arg 設空
+      （例如比照雲端 PROMOTION_BUILD=1 的行為）就會全站 503，與 UAT-D-001 同一根因。
+    status: OPEN
+
+  - id: UAT-D-005
+    severity: P3
+    title: media_files 有 DB 列但無對應檔案（seed 不一致）
+    found_in: TC-WEB-MEDIA-01
+    detail: >-
+      media_files 16 列中，抽測的 9d84a672-e748-4636-8a8e-495858c541df 之
+      storage_path 在 MEDIA_ROOT（/app/api/data/media，volume 掛載正確、共 323 檔）下不存在，
+      API 回 404。掛載與設定均正確，屬 seed 資料與檔案不同步。
+      影響：以該類列做 UI 驗證會得到誤導性的 404。
+    status: OPEN
+
+observations:
+  - id: OBS-01
+    note: >-
+      帳號鎖定機制運作正常但需注意：SQL/seeds/technicians.sql 的四個
+      tech-*@example.com 使用刻意不可登入的佔位 hash
+      （$2b$12$disabled.not.loginable.placeholder...），拿它們嘗試登入會累積
+      失敗次數並觸發 15 分鐘鎖定。技師站可登入帳號為 test@lock-ai.com。
+  - id: OBS-02
+    note: >-
+      跨源隔離正確：platform-console(:3003) 的 session 跨源打品牌 API(:8001)
+      被 CORS 阻擋（Failed to fetch），打自家 :8003 則 200。
+      此層是 curl 代測的盲區，只有瀏覽器測得到。
