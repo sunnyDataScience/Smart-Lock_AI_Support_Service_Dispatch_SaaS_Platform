@@ -1,0 +1,2130 @@
+{
+  "folders": {
+    "10. 非功能案例（TC-PERF / TC-SEC-INJ / TC-A11Y）": "2b17c661-dbb2-41fe-93f3-65f38afcd5f1",
+    "11. 合規案例（TC-COMPLIANCE）": "c7cf329f-0e03-4428-a52e-3e166983cb12",
+    "12. Web 與顯示整合案例（2026-07-23 codebase 對帳）": "55ab04ca-f15f-49a3-a0f7-32dd602da491",
+    "13. 追溯缺口收斂案例（TC-AGT / TC-NFR / TC-UAT）": "41ff4c54-0af1-4834-9a43-01b4f8edb4a3",
+    "3. AI 客服對話案例（TC-CS-AI）": "6a1ba5af-eefa-4f7e-836e-05a2f8568935",
+    "4. 工單生命週期案例（TC-WO）": "b42ec988-917b-4d1b-896c-be72b8c03dc0",
+    "5. 報價與 AI 邊界案例（TC-QUOTE）": "8ada7c43-bfd1-45da-af56-85f989369bd9",
+    "6. 派工與現場案例（TC-DISPATCH / TC-ONSITE）": "c692c099-0147-42f6-89b5-be5f6fda0bb3",
+    "7. 結算與退款案例（TC-SETTLE）": "3208b52f-ee95-4444-9bc6-0ccd4f75064c",
+    "8. 權限與 RBAC 案例（TC-SEC-RBAC）": "8a4d8bbf-ff42-49a8-818c-3535e6783505",
+    "9.1 系統例外": "ff1d756e-b17b-4e42-a027-0bb8454c27fa"
+  },
+  "initiatives": {
+    "階段一：鎖匠垂直深耕（單品牌）": "ccdd846d-e167-47e8-8108-9a8a01ebf252",
+    "階段二：規模化與平台化橫向展開": "3b0b6e6f-d0ce-495c-a8fb-788f6637663e"
+  },
+  "labels": {
+    "area:agt": "282ca045-dfdd-469f-8ecc-8c4b04569c02",
+    "area:api": "7432a65d-aa68-4697-8f91-03968f5ad814",
+    "area:dat": "90afc8f8-a763-45aa-a340-31cf0b68e700",
+    "area:plt": "fe2cc0ec-522a-4966-92fd-91c10d9b67c4",
+    "area:ref": "8fbe9630-4c31-45a3-bb56-83d0ba0b1857",
+    "area:tec": "1eb4d551-1081-4caa-a271-cc1b9cf38043",
+    "area:web": "1b1e4755-d142-4d48-a464-b90105da8e56",
+    "automation": "1f84d328-0061-4cfb-8d94-529a76a4f60d",
+    "journey:SC-01": "bf0d9d6b-9843-4bff-88b5-9bf6a319756b",
+    "journey:SC-02": "d56fb7e6-9a0f-43dc-a190-84550c5cd40e",
+    "journey:SC-03": "3aacd571-8499-49b2-9665-5d8560382a34",
+    "journey:SC-04": "b478f0bf-03c5-4808-86e0-561651991672",
+    "journey:SC-05": "0e1da932-50e7-4b11-80e7-ff32f9880b0c",
+    "journey:SC-06": "07e0ad75-0740-4a78-9ca9-335cbaa73852",
+    "journey:SC-07": "767e25c1-7d54-401f-a2b0-97d401848213",
+    "journey:SC-08": "d406de4b-fa76-47c1-98ed-f04e2c550aa3",
+    "journey:SC-09": "a3c39cd8-2abe-4fd6-bc84-8fa499022af0",
+    "journey:SC-10": "441f4ca5-788c-40ad-b5cb-c6a307b0229a",
+    "journey:SC-11": "48961299-ca37-4437-a0f4-1a55ca28539b",
+    "journey:SC-12": "758bede5-bbc7-4957-a5cf-4431ee27e6d8",
+    "journey:SC-13": "13dbaeb1-ec59-4cc9-9b34-c17d0cd7bfa0",
+    "journey:SC-14": "9ba62ace-071d-40b8-8b6d-0606d4e7ec8b",
+    "journey:SC-15": "425dab62-7a72-415f-add0-572bf4a7b17c",
+    "journey:SC-16": "2d37a4ce-418d-4a6e-90e6-cac6215d732b",
+    "journey:SC-17": "3c2252e2-42a7-42e4-b244-9a332188a7e1",
+    "journey:SC-18": "c8486b47-7cc4-4d6b-9be4-954c2f72f6cb",
+    "journey:SC-19": "b69c235c-c1e9-4f84-a6c1-7dd6b4fbadb0",
+    "kind:capability": "d6aaa95f-09e9-47cd-a6ac-399f92245902",
+    "kind:fr": "6c39dc28-2d0c-449a-adb4-f17c2c96da51",
+    "kind:journey": "8852659b-ad64-4d2b-868c-4b51a0e85268",
+    "kind:nfr": "6ffcdc93-e677-4306-a3b4-9e7b1acd7a2d",
+    "kind:subsystem": "b78fd919-22b5-4ed8-9bf4-1d3b8d9b16aa",
+    "kind:wbs": "1ad1bfc9-3bb7-4e9d-8b2f-d35973713727",
+    "line:cus": "94418ae7-f49c-423c-879b-924c86aaaba0",
+    "line:knw": "1d54874e-705e-4617-b35c-78ff48c8f6c0",
+    "line:ops": "940bcdbf-3696-45b6-973f-de7972f288d9",
+    "line:plt": "b98d6389-0001-4166-a704-37a9432cd4ef",
+    "line:tec": "c995231d-6d6c-4201-a13a-5975630730f2",
+    "manual": "5fafd77d-92bd-49d6-8d46-e9323fc6bdd6",
+    "nfr:contract": "f12fc27c-a840-4950-8731-20335eed58ef",
+    "nfr:slo": "d56f92ac-4363-4c7e-8356-2fa2e7385c35",
+    "quality:accessibility": "134ffeb3-bbf3-4299-8a9d-0e785d824ade",
+    "quality:audit": "a4122621-6093-453b-a02d-f95ed40946d5",
+    "quality:availability": "9bc1e2ed-fa22-43d1-83ff-acd1499a79f1",
+    "quality:compliance": "7f8252ce-9ce7-4778-a042-99c734cb5d95",
+    "quality:data-quality": "0b333447-65da-46d8-8f01-9ef5a022abfc",
+    "quality:dora": "ebe16949-dbc9-4769-a1d0-1cd81f26992b",
+    "quality:maintainability": "eed9d0f0-871b-4aef-981b-713bf4d9f64e",
+    "quality:observability": "9f5214b2-cbbc-449e-bcad-caa97c5d92ba",
+    "quality:performance": "a846fd07-ca2f-4143-aace-4ad48d4e114e",
+    "quality:privacy": "d4d1fae5-02b2-4918-94c9-1bc9a635264a",
+    "quality:publishing": "55da5560-65bd-4e5d-8e8e-20b5084d3514",
+    "quality:reliability": "5c3ecfa1-b836-40c9-938d-697f32b93e8e",
+    "quality:reporting": "b8c9ca48-1e21-4b38-8b8d-86a78110c05b",
+    "quality:scalability": "51f13011-eb4a-4dae-9772-4a09dd137aa0",
+    "quality:scheduling": "ff40371e-6969-4511-adae-e6a2fa092eef",
+    "quality:security": "213da7b5-9a4b-4c72-9496-e3c12d0621dd",
+    "quality:sla": "a6d7ada7-632a-45dd-853d-e69ecde040a1",
+    "release-blocker": "518ffb76-5773-483b-920b-cff02cf68d3e",
+    "role:ba": "6731e955-8d38-4497-9c05-056d5102305d",
+    "role:ops": "05f699f3-7f23-4183-84e2-134adab6e6f0",
+    "role:pm": "c3a34f5b-021a-4d8a-854d-007119a8a927",
+    "role:qa": "bc7f1bd8-5db0-49c2-bf74-4c712066b29b",
+    "role:rd": "f17ccb4f-f124-4a34-bcc2-c481b2c4e4da",
+    "role:sa": "c514a50a-162e-4554-b770-b08d5080fcfc",
+    "spec:finalized": "f2caab2d-b1e5-4d48-a46c-b77deb562b52",
+    "spec:planned": "2fd0d844-010d-440c-804d-68cfec74130a",
+    "spec:tbd": "59203e40-d55e-4a9e-b5a9-43ff4c0407c2",
+    "verify:review": "798da0b1-606c-4a44-b5ce-bda81efa2e8d",
+    "verify:scan": "603ab6ce-7d63-48f5-b823-ceefa75f948c",
+    "verify:slo": "4f694f91-8116-42b2-b1e3-515cbe2c8b7a",
+    "verify:threshold": "5252b3e5-b873-4fea-b8cc-a1390ac2417b"
+  },
+  "links_done": {
+    "TC-A11Y-01->FR-WEB-06": true,
+    "TC-A11Y-01->NFR-A11y-002": true,
+    "TC-A11Y-02->NFR-A11y-002": true,
+    "TC-AGT-CLARIFY-01->FR-AGT-03": true,
+    "TC-AGT-RAG-01->FR-AGT-07": true,
+    "TC-AGT-RAG-01->FR-DAT-04": true,
+    "TC-AGT-TURN-01->FR-AGT-02": true,
+    "TC-AGT-URG-01->FR-AGT-04": true,
+    "TC-COMPLIANCE-01->FR-API-16": true,
+    "TC-COMPLIANCE-01->NFR-Comp-004": true,
+    "TC-COMPLIANCE-01->NFR-Priv-005": true,
+    "TC-COMPLIANCE-01->NFR-Priv-008": true,
+    "TC-COMPLIANCE-02->FR-API-16": true,
+    "TC-COMPLIANCE-02->NFR-Comp-004": true,
+    "TC-COMPLIANCE-02->NFR-Priv-005": true,
+    "TC-COMPLIANCE-03->NFR-Comp-004": true,
+    "TC-COMPLIANCE-04->FR-API-16": true,
+    "TC-COMPLIANCE-04->NFR-Comp-004": true,
+    "TC-COMPLIANCE-04->NFR-Priv-008": true,
+    "TC-COMPLIANCE-05->FR-REF-03": true,
+    "TC-COMPLIANCE-05->FR-REF-05": true,
+    "TC-COMPLIANCE-05->NFR-Aud-004": true,
+    "TC-COMPLIANCE-05->NFR-Comp-002": true,
+    "TC-COMPLIANCE-06->FR-AGT-11": true,
+    "TC-COMPLIANCE-06->NFR-Comp-003": true,
+    "TC-COMPLIANCE-06->NFR-Sec-009": true,
+    "TC-COMPLIANCE-07->FR-AGT-04": true,
+    "TC-COMPLIANCE-07->NFR-Comp-001": true,
+    "TC-COMPLIANCE-08->FR-AGT-07": true,
+    "TC-COMPLIANCE-08->FR-DAT-01": true,
+    "TC-COMPLIANCE-08->FR-REF-01": true,
+    "TC-COMPLIANCE-08->FR-REF-04": true,
+    "TC-COMPLIANCE-08->NFR-DQ-001": true,
+    "TC-COMPLIANCE-08->NFR-DQ-003": true,
+    "TC-CS-AI-01->FR-AGT-01": true,
+    "TC-CS-AI-02->FR-AGT-01": true,
+    "TC-CS-AI-02->NFR-Sec-010": true,
+    "TC-CS-AI-03->FR-AGT-03": true,
+    "TC-CS-AI-03->FR-AGT-07": true,
+    "TC-CS-AI-03->FR-DAT-04": true,
+    "TC-CS-AI-04->FR-AGT-04": true,
+    "TC-CS-AI-04->FR-AGT-05": true,
+    "TC-CS-AI-04->FR-AGT-09": true,
+    "TC-CS-AI-05->FR-AGT-11": true,
+    "TC-CS-AI-05->FR-PLT-06": true,
+    "TC-CS-AI-05->NFR-Sec-008": true,
+    "TC-CS-AI-06->FR-AGT-11": true,
+    "TC-CS-AI-07->FR-AGT-11": true,
+    "TC-CS-AI-08->FR-AGT-10": true,
+    "TC-CS-AI-09->FR-AGT-10": true,
+    "TC-CS-AI-10->FR-AGT-05": true,
+    "TC-CS-AI-10->FR-AGT-09": true,
+    "TC-CS-AI-11->FR-AGT-01": true,
+    "TC-CS-AI-12->FR-AGT-03": true,
+    "TC-DISPATCH-01->FR-API-05": true,
+    "TC-DISPATCH-01->FR-TEC-03": true,
+    "TC-DISPATCH-02->FR-API-06": true,
+    "TC-DISPATCH-03->FR-TEC-04": true,
+    "TC-DISPATCH-03->FR-WEB-03": true,
+    "TC-DISPATCH-04->FR-API-07": true,
+    "TC-DISPATCH-04->FR-TEC-04": true,
+    "TC-DISPATCH-04->FR-WEB-03": true,
+    "TC-DISPATCH-05->FR-TEC-05": true,
+    "TC-DISPATCH-06->FR-TEC-02": true,
+    "TC-DISPATCH-06->FR-TEC-03": true,
+    "TC-DISPATCH-07->FR-TEC-07": true,
+    "TC-DISPATCH-08->FR-API-09": true,
+    "TC-DISPATCH-08->FR-API-19": true,
+    "TC-DISPATCH-09->FR-API-05": true,
+    "TC-EXC-01->FR-AGT-10": true,
+    "TC-EXC-01->FR-API-15": true,
+    "TC-EXC-02->FR-PLT-05": true,
+    "TC-EXC-03->FR-PLT-05": true,
+    "TC-EXC-04->NFR-Avail-010": true,
+    "TC-EXC-05->FR-DAT-03": true,
+    "TC-EXC-06->FR-API-14": true,
+    "TC-EXC-06->FR-DAT-05": true,
+    "TC-EXC-06->FR-PLT-04": true,
+    "TC-EXC-06->FR-TEC-04": true,
+    "TC-EXC-06->FR-TEC-05": true,
+    "TC-NFR-A11Y-01->NFR-A11y-001": true,
+    "TC-NFR-A11Y-01->NFR-A11y-003": true,
+    "TC-NFR-A11Y-01->NFR-A11y-004": true,
+    "TC-NFR-A11Y-01->NFR-A11y-005": true,
+    "TC-NFR-AUD-01->NFR-Aud-002": true,
+    "TC-NFR-AUD-01->NFR-Aud-003": true,
+    "TC-NFR-AUD-01->NFR-Aud-005": true,
+    "TC-NFR-AUD-01->NFR-Aud-006": true,
+    "TC-NFR-AUD-01->NFR-Aud-007": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-001": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-002": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-003": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-004": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-005": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-006": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-007": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-008": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-009": true,
+    "TC-NFR-AVAIL-01->NFR-Avail-011": true,
+    "TC-NFR-DORA-01->NFR-DORA-001": true,
+    "TC-NFR-DORA-01->NFR-DORA-002": true,
+    "TC-NFR-DORA-01->NFR-DORA-003": true,
+    "TC-NFR-DQ-01->NFR-DQ-002": true,
+    "TC-NFR-DQ-01->NFR-DQ-004": true,
+    "TC-NFR-MAINT-01->NFR-Maint-001": true,
+    "TC-NFR-MAINT-01->NFR-Maint-002": true,
+    "TC-NFR-MAINT-01->NFR-Maint-003": true,
+    "TC-NFR-MAINT-01->NFR-Maint-004": true,
+    "TC-NFR-MAINT-01->NFR-Maint-005": true,
+    "TC-NFR-MAINT-01->NFR-Maint-006": true,
+    "TC-NFR-MAINT-01->NFR-Maint-007": true,
+    "TC-NFR-MAINT-01->NFR-Maint-008": true,
+    "TC-NFR-OBS-01->NFR-Obs-001": true,
+    "TC-NFR-OBS-01->NFR-Obs-002": true,
+    "TC-NFR-OBS-01->NFR-Obs-003": true,
+    "TC-NFR-OBS-01->NFR-Obs-004": true,
+    "TC-NFR-OBS-01->NFR-Obs-005": true,
+    "TC-NFR-PERF-01->NFR-Perf-001": true,
+    "TC-NFR-PERF-01->NFR-Perf-002": true,
+    "TC-NFR-PERF-01->NFR-Perf-003": true,
+    "TC-NFR-PERF-01->NFR-Perf-004": true,
+    "TC-NFR-PERF-01->NFR-Perf-005": true,
+    "TC-NFR-PERF-01->NFR-Perf-006": true,
+    "TC-NFR-PERF-01->NFR-Perf-007": true,
+    "TC-NFR-PERF-01->NFR-Perf-008": true,
+    "TC-NFR-PERF-01->NFR-Perf-010": true,
+    "TC-NFR-PERF-01->NFR-Perf-011": true,
+    "TC-NFR-PERF-01->NFR-Perf-012": true,
+    "TC-NFR-PRIV-01->NFR-Priv-001": true,
+    "TC-NFR-PRIV-01->NFR-Priv-002": true,
+    "TC-NFR-PRIV-01->NFR-Priv-003": true,
+    "TC-NFR-PRIV-01->NFR-Priv-004": true,
+    "TC-NFR-PRIV-01->NFR-Priv-007": true,
+    "TC-NFR-PRIV-01->NFR-Priv-009": true,
+    "TC-NFR-PRIV-01->NFR-Priv-010": true,
+    "TC-NFR-PUB-01->NFR-PUB-001": true,
+    "TC-NFR-PUB-01->NFR-PUB-002": true,
+    "TC-NFR-PUB-01->NFR-PUB-003": true,
+    "TC-NFR-PUB-01->NFR-PUB-004": true,
+    "TC-NFR-REL-01->NFR-Rel-001": true,
+    "TC-NFR-REL-01->NFR-Rel-002": true,
+    "TC-NFR-REL-01->NFR-Rel-003": true,
+    "TC-NFR-REP-01->NFR-Rep-001": true,
+    "TC-NFR-REP-01->NFR-Rep-002": true,
+    "TC-NFR-SCAL-01->NFR-Scal-003": true,
+    "TC-NFR-SCAL-01->NFR-Scal-004": true,
+    "TC-NFR-SCAL-01->NFR-Scal-005": true,
+    "TC-NFR-SCAL-01->NFR-Scal-006": true,
+    "TC-NFR-SCAL-01->NFR-Scal-007": true,
+    "TC-NFR-SCAL-01->NFR-Scal-008": true,
+    "TC-NFR-SCH-01->NFR-Sch-001": true,
+    "TC-NFR-SCH-01->NFR-Sch-003": true,
+    "TC-NFR-SEC-01->NFR-Sec-001": true,
+    "TC-NFR-SEC-01->NFR-Sec-002": true,
+    "TC-NFR-SEC-01->NFR-Sec-004": true,
+    "TC-NFR-SEC-01->NFR-Sec-007": true,
+    "TC-NFR-SEC-01->NFR-Sec-013": true,
+    "TC-NFR-SEC-01->NFR-Sec-014": true,
+    "TC-NFR-SLA-01->NFR-SLA-001": true,
+    "TC-NFR-SLA-01->NFR-SLA-002": true,
+    "TC-NFR-SLA-01->NFR-SLA-003": true,
+    "TC-ONSITE-01->FR-API-08": true,
+    "TC-ONSITE-02->FR-API-08": true,
+    "TC-ONSITE-03->FR-API-08": true,
+    "TC-ONSITE-04->FR-API-08": true,
+    "TC-ONSITE-05->FR-API-08": true,
+    "TC-ONSITE-06->FR-API-18": true,
+    "TC-ONSITE-07->FR-TEC-07": true,
+    "TC-PAYMENT-01->FR-API-10": true,
+    "TC-PERF-01->NFR-Perf-001": true,
+    "TC-PERF-01->NFR-Scal-001": true,
+    "TC-PERF-02->NFR-Perf-001": true,
+    "TC-PERF-02->NFR-Scal-002": true,
+    "TC-PERF-03->FR-TEC-03": true,
+    "TC-PERF-03->NFR-Perf-007": true,
+    "TC-PERF-04->NFR-Scal-002": true,
+    "TC-PERF-05->NFR-Perf-009": true,
+    "TC-PLT-CFG-01->FR-PLT-08": true,
+    "TC-PLT-FLOW-01->FR-PLT-07": true,
+    "TC-PLT-PROV-01->FR-PLT-03": true,
+    "TC-PLT-SURFACE-01->FR-PLT-09": true,
+    "TC-QUOTE-01->FR-API-02": true,
+    "TC-QUOTE-01->FR-API-03": true,
+    "TC-QUOTE-01->FR-WEB-06": true,
+    "TC-QUOTE-02->FR-API-02": true,
+    "TC-QUOTE-03->FR-API-02": true,
+    "TC-QUOTE-03->FR-API-17": true,
+    "TC-QUOTE-04->FR-API-02": true,
+    "TC-QUOTE-04->FR-API-03": true,
+    "TC-QUOTE-04->FR-WEB-06": true,
+    "TC-QUOTE-05->FR-API-02": true,
+    "TC-QUOTE-05->FR-API-03": true,
+    "TC-QUOTE-05->FR-WEB-06": true,
+    "TC-QUOTE-06->FR-API-01": true,
+    "TC-QUOTE-06->FR-API-02": true,
+    "TC-QUOTE-07->FR-API-02": true,
+    "TC-QUOTE-07->FR-WEB-06": true,
+    "TC-QUOTE-08->FR-API-02": true,
+    "TC-QUOTE-08->FR-WEB-06": true,
+    "TC-QUOTE-09->FR-API-02": true,
+    "TC-REF-INTAKE-01->FR-DAT-01": true,
+    "TC-REF-INTAKE-01->FR-REF-01": true,
+    "TC-REF-PUBLISH-01->FR-REF-03": true,
+    "TC-REF-PUBLISH-01->FR-REF-04": true,
+    "TC-REF-PUBLISH-01->FR-REF-05": true,
+    "TC-REF-SPLIT-01->FR-REF-02": true,
+    "TC-SEC-IDEM-01->FR-API-10": true,
+    "TC-SEC-INJ-01->NFR-Sec-005": true,
+    "TC-SEC-INJ-02->NFR-Sec-006": true,
+    "TC-SEC-INT-01->FR-API-13": true,
+    "TC-SEC-INT-01->NFR-Sec-011": true,
+    "TC-SEC-MEM-01->FR-AGT-06": true,
+    "TC-SEC-MEM-01->NFR-Priv-006": true,
+    "TC-SEC-PIPE-01->FR-DAT-02": true,
+    "TC-SEC-PIPE-01->NFR-Sch-002": true,
+    "TC-SEC-RBAC-01->FR-PLT-02": true,
+    "TC-SEC-RBAC-01->NFR-Sec-003": true,
+    "TC-SEC-RBAC-02->FR-PLT-02": true,
+    "TC-SEC-RBAC-02->NFR-Sec-003": true,
+    "TC-SEC-RBAC-03->FR-PLT-02": true,
+    "TC-SEC-RBAC-03->NFR-Sec-003": true,
+    "TC-SEC-RBAC-04->FR-PLT-02": true,
+    "TC-SEC-RBAC-04->NFR-Sec-003": true,
+    "TC-SEC-RBAC-05->FR-PLT-02": true,
+    "TC-SEC-RBAC-05->NFR-Sec-003": true,
+    "TC-SEC-SOD-01->FR-API-18": true,
+    "TC-SEC-SOD-01->NFR-Sec-003": true,
+    "TC-SEC-TENANT-01->FR-DAT-03": true,
+    "TC-SEC-TENANT-01->NFR-Priv-006": true,
+    "TC-SEC-TOOL-01->FR-AGT-08": true,
+    "TC-SEC-TOOL-01->NFR-Sec-012": true,
+    "TC-SEC-WEB-01->FR-WEB-02": true,
+    "TC-SEC-WEB-02->FR-PLT-01": true,
+    "TC-SEC-WEB-02->FR-WEB-02": true,
+    "TC-SETTLE-01->FR-API-12": true,
+    "TC-SETTLE-01->FR-TEC-06": true,
+    "TC-SETTLE-02->FR-API-11": true,
+    "TC-SETTLE-03->FR-API-11": true,
+    "TC-SETTLE-03->FR-API-18": true,
+    "TC-SETTLE-04->FR-API-11": true,
+    "TC-SETTLE-05->FR-API-11": true,
+    "TC-SETTLE-06->FR-API-18": true,
+    "TC-SETTLE-07->FR-API-12": true,
+    "TC-SETTLE-07->FR-DAT-06": true,
+    "TC-SETTLE-07->FR-WEB-05": true,
+    "TC-SETTLE-07->NFR-Aud-001": true,
+    "TC-SETTLE-08->FR-API-12": true,
+    "TC-SETTLE-08->FR-TEC-06": true,
+    "TC-TEC-LIFE-01->FR-TEC-01": true,
+    "TC-TEC-REVOKE-01->FR-TEC-08": true,
+    "TC-WEB-MEDIA-01->FR-WEB-03": true,
+    "TC-WEB-MEDIA-01->FR-WEB-07": true,
+    "TC-WEB-OPS-01->FR-WEB-03": true,
+    "TC-WEB-REPORT-01->FR-WEB-04": true,
+    "TC-WEB-SURFACE-01->FR-WEB-01": true,
+    "TC-WO-01->FR-API-01": true,
+    "TC-WO-01->FR-API-04": true,
+    "TC-WO-02->FR-API-04": true,
+    "TC-WO-03->FR-API-01": true,
+    "TC-WO-03->FR-API-04": true,
+    "TC-WO-04->FR-API-08": true,
+    "TC-WO-04->FR-API-09": true,
+    "TC-WO-05->FR-API-08": true,
+    "TC-WO-05->FR-API-09": true,
+    "TC-WO-06->FR-API-08": true,
+    "TC-WO-06->FR-API-09": true,
+    "TC-WO-07->FR-API-08": true,
+    "TC-WO-07->FR-API-09": true,
+    "TC-WO-10->FR-API-07": true,
+    "TC-WO-11->FR-API-18": true,
+    "TC-WO-12->FR-API-11": true,
+    "TC-WO-13->FR-API-01": true,
+    "TC-WO-14->FR-WEB-06": true
+  },
+  "milestones": {
+    "M1": "f353d109-14be-45a8-9655-cb4c97981b7a",
+    "M2": "458c52f7-00dc-4634-9f70-092b77b4c49b",
+    "M3": "7a7136ee-d4e3-4fd8-a52c-ce25fbc742c9",
+    "M4": "aff75c59-2edf-4858-8d37-8bcce85b28a1",
+    "M5": "5dae31cc-a6ae-4703-9ad4-5102ccebb0ae"
+  },
+  "modules": {
+    "AGT": "26395b8b-12d6-4817-a313-21e0b305a2b0",
+    "API": "73e64e06-7ad3-4f6b-8594-0d542aaf1a91",
+    "DAT": "4b0fea83-c569-4cad-b60b-f91aea115a25",
+    "PLT": "4f9614c2-a1fb-4450-ba73-42348625d9d5",
+    "REF": "4c43026f-ea7f-4a9e-a2d6-969b41d88fcd",
+    "TEC": "fce24989-4069-493a-b356-b519c38d9d65",
+    "WEB": "b168b533-8636-48dd-bbfb-f2df6fc66311"
+  },
+  "project": {
+    "id": "c236b0ee-1be3-46a2-8665-4d020d25d345",
+    "identifier": "SLOCK"
+  },
+  "properties": {
+    "canonical_id": "f885c1b1-4a6a-4a25-ac88-2577598caeef",
+    "source_doc": "8be70223-d4aa-4ea1-8dd1-0368d1adb2d5"
+  },
+  "props_done": {
+    "rq:FR-AGT-01": true,
+    "rq:FR-AGT-02": true,
+    "rq:FR-AGT-03": true,
+    "rq:FR-AGT-04": true,
+    "rq:FR-AGT-05": true,
+    "rq:FR-AGT-06": true,
+    "rq:FR-AGT-07": true,
+    "rq:FR-AGT-08": true,
+    "rq:FR-AGT-09": true,
+    "rq:FR-AGT-10": true,
+    "rq:FR-AGT-11": true,
+    "rq:FR-API-01": true,
+    "rq:FR-API-02": true,
+    "rq:FR-API-03": true,
+    "rq:FR-API-04": true,
+    "rq:FR-API-05": true,
+    "rq:FR-API-06": true,
+    "rq:FR-API-07": true,
+    "rq:FR-API-08": true,
+    "rq:FR-API-09": true,
+    "rq:FR-API-10": true,
+    "rq:FR-API-11": true,
+    "rq:FR-API-12": true,
+    "rq:FR-API-13": true,
+    "rq:FR-API-14": true,
+    "rq:FR-API-15": true,
+    "rq:FR-API-16": true,
+    "rq:FR-API-17": true,
+    "rq:FR-API-18": true,
+    "rq:FR-API-19": true,
+    "rq:FR-DAT-01": true,
+    "rq:FR-DAT-02": true,
+    "rq:FR-DAT-03": true,
+    "rq:FR-DAT-04": true,
+    "rq:FR-DAT-05": true,
+    "rq:FR-DAT-06": true,
+    "rq:FR-PLT-01": true,
+    "rq:FR-PLT-02": true,
+    "rq:FR-PLT-03": true,
+    "rq:FR-PLT-04": true,
+    "rq:FR-PLT-05": true,
+    "rq:FR-PLT-06": true,
+    "rq:FR-PLT-07": true,
+    "rq:FR-PLT-08": true,
+    "rq:FR-PLT-09": true,
+    "rq:FR-REF-01": true,
+    "rq:FR-REF-02": true,
+    "rq:FR-REF-03": true,
+    "rq:FR-REF-04": true,
+    "rq:FR-REF-05": true,
+    "rq:FR-TEC-01": true,
+    "rq:FR-TEC-02": true,
+    "rq:FR-TEC-03": true,
+    "rq:FR-TEC-04": true,
+    "rq:FR-TEC-05": true,
+    "rq:FR-TEC-06": true,
+    "rq:FR-TEC-07": true,
+    "rq:FR-TEC-08": true,
+    "rq:FR-WEB-01": true,
+    "rq:FR-WEB-02": true,
+    "rq:FR-WEB-03": true,
+    "rq:FR-WEB-04": true,
+    "rq:FR-WEB-05": true,
+    "rq:FR-WEB-06": true,
+    "rq:FR-WEB-07": true,
+    "rq:NFR-A11y-001": true,
+    "rq:NFR-A11y-002": true,
+    "rq:NFR-A11y-003": true,
+    "rq:NFR-A11y-004": true,
+    "rq:NFR-A11y-005": true,
+    "rq:NFR-Aud-001": true,
+    "rq:NFR-Aud-002": true,
+    "rq:NFR-Aud-003": true,
+    "rq:NFR-Aud-004": true,
+    "rq:NFR-Aud-005": true,
+    "rq:NFR-Aud-006": true,
+    "rq:NFR-Aud-007": true,
+    "rq:NFR-Avail-001": true,
+    "rq:NFR-Avail-002": true,
+    "rq:NFR-Avail-003": true,
+    "rq:NFR-Avail-004": true,
+    "rq:NFR-Avail-005": true,
+    "rq:NFR-Avail-006": true,
+    "rq:NFR-Avail-007": true,
+    "rq:NFR-Avail-008": true,
+    "rq:NFR-Avail-009": true,
+    "rq:NFR-Avail-010": true,
+    "rq:NFR-Avail-011": true,
+    "rq:NFR-Comp-001": true,
+    "rq:NFR-Comp-002": true,
+    "rq:NFR-Comp-003": true,
+    "rq:NFR-Comp-004": true,
+    "rq:NFR-DORA-001": true,
+    "rq:NFR-DORA-002": true,
+    "rq:NFR-DORA-003": true,
+    "rq:NFR-DQ-001": true,
+    "rq:NFR-DQ-002": true,
+    "rq:NFR-DQ-003": true,
+    "rq:NFR-DQ-004": true,
+    "rq:NFR-Maint-001": true,
+    "rq:NFR-Maint-002": true,
+    "rq:NFR-Maint-003": true,
+    "rq:NFR-Maint-004": true,
+    "rq:NFR-Maint-005": true,
+    "rq:NFR-Maint-006": true,
+    "rq:NFR-Maint-007": true,
+    "rq:NFR-Maint-008": true,
+    "rq:NFR-Obs-001": true,
+    "rq:NFR-Obs-002": true,
+    "rq:NFR-Obs-003": true,
+    "rq:NFR-Obs-004": true,
+    "rq:NFR-Obs-005": true,
+    "rq:NFR-PUB-001": true,
+    "rq:NFR-PUB-002": true,
+    "rq:NFR-PUB-003": true,
+    "rq:NFR-PUB-004": true,
+    "rq:NFR-Perf-001": true,
+    "rq:NFR-Perf-002": true,
+    "rq:NFR-Perf-003": true,
+    "rq:NFR-Perf-004": true,
+    "rq:NFR-Perf-005": true,
+    "rq:NFR-Perf-006": true,
+    "rq:NFR-Perf-007": true,
+    "rq:NFR-Perf-008": true,
+    "rq:NFR-Perf-009": true,
+    "rq:NFR-Perf-010": true,
+    "rq:NFR-Perf-011": true,
+    "rq:NFR-Perf-012": true,
+    "rq:NFR-Priv-001": true,
+    "rq:NFR-Priv-002": true,
+    "rq:NFR-Priv-003": true,
+    "rq:NFR-Priv-004": true,
+    "rq:NFR-Priv-005": true,
+    "rq:NFR-Priv-006": true,
+    "rq:NFR-Priv-007": true,
+    "rq:NFR-Priv-008": true,
+    "rq:NFR-Priv-009": true,
+    "rq:NFR-Priv-010": true,
+    "rq:NFR-Rel-001": true,
+    "rq:NFR-Rel-002": true,
+    "rq:NFR-Rel-003": true,
+    "rq:NFR-Rep-001": true,
+    "rq:NFR-Rep-002": true,
+    "rq:NFR-SLA-001": true,
+    "rq:NFR-SLA-002": true,
+    "rq:NFR-SLA-003": true,
+    "rq:NFR-Scal-001": true,
+    "rq:NFR-Scal-002": true,
+    "rq:NFR-Scal-003": true,
+    "rq:NFR-Scal-004": true,
+    "rq:NFR-Scal-005": true,
+    "rq:NFR-Scal-006": true,
+    "rq:NFR-Scal-007": true,
+    "rq:NFR-Scal-008": true,
+    "rq:NFR-Sch-001": true,
+    "rq:NFR-Sch-002": true,
+    "rq:NFR-Sch-003": true,
+    "rq:NFR-Sec-001": true,
+    "rq:NFR-Sec-002": true,
+    "rq:NFR-Sec-003": true,
+    "rq:NFR-Sec-004": true,
+    "rq:NFR-Sec-005": true,
+    "rq:NFR-Sec-006": true,
+    "rq:NFR-Sec-007": true,
+    "rq:NFR-Sec-008": true,
+    "rq:NFR-Sec-009": true,
+    "rq:NFR-Sec-010": true,
+    "rq:NFR-Sec-011": true,
+    "rq:NFR-Sec-012": true,
+    "rq:NFR-Sec-013": true,
+    "rq:NFR-Sec-014": true,
+    "sc:SC-01": true,
+    "sc:SC-02": true,
+    "sc:SC-03": true,
+    "sc:SC-04": true,
+    "sc:SC-05": true,
+    "sc:SC-06": true,
+    "sc:SC-07": true,
+    "sc:SC-08": true,
+    "sc:SC-09": true,
+    "sc:SC-10": true,
+    "sc:SC-11": true,
+    "sc:SC-12": true,
+    "sc:SC-13": true,
+    "sc:SC-14": true,
+    "sc:SC-15": true,
+    "sc:SC-16": true,
+    "sc:SC-17": true,
+    "sc:SC-18": true,
+    "sc:SC-19": true,
+    "wbs:1.1.1": true,
+    "wbs:1.1.2": true,
+    "wbs:1.1.3": true,
+    "wbs:1.2.1": true,
+    "wbs:1.2.2": true,
+    "wbs:1.2.3": true,
+    "wbs:1.2.4": true,
+    "wbs:1.3.1": true,
+    "wbs:1.4.1": true,
+    "wbs:1.5.1": true,
+    "wbs:1.6.1": true,
+    "wbs:1.7.1": true,
+    "wbs:1.7.2": true,
+    "wbs:2.1.1": true,
+    "wbs:2.1.2": true,
+    "wbs:2.2.1": true,
+    "wbs:2.2.2": true,
+    "wbs:2.3.1": true,
+    "wbs:2.3.2": true,
+    "wbs:2.3.3": true,
+    "wbs:2.4.1": true,
+    "wbs:2.4.2": true,
+    "wbs:2.4.3": true,
+    "wbs:2.4.4": true,
+    "wbs:2.5.1": true,
+    "wbs:2.6.1": true,
+    "wbs:3.1.1": true,
+    "wbs:3.1.2": true,
+    "wbs:3.1.3": true,
+    "wbs:3.2.1": true,
+    "wbs:3.2.2": true,
+    "wbs:3.3.1": true,
+    "wbs:3.4.1": true,
+    "wbs:3.5.1": true,
+    "wbs:3.6.1": true,
+    "wbs:3.6.2": true,
+    "wbs:3.6.3": true,
+    "wbs:3.6.4": true,
+    "wbs:3.6.5": true,
+    "wbs:3.6.6": true,
+    "wbs:3.6.7": true,
+    "wbs:3.6.8": true,
+    "wbs:4.1": true,
+    "wbs:4.2": true,
+    "wbs:4.3": true,
+    "wbs:4.4": true,
+    "wbs:4.5": true,
+    "wbs:4.6": true,
+    "wbs:4.7": true
+  },
+  "states_done": {
+    "rq:FR-AGT-01": "Done",
+    "rq:FR-AGT-02": "Done",
+    "rq:FR-AGT-03": "Done",
+    "rq:FR-AGT-04": "Done",
+    "rq:FR-AGT-05": "Done",
+    "rq:FR-AGT-06": "Done",
+    "rq:FR-AGT-07": "Done",
+    "rq:FR-AGT-08": "Done",
+    "rq:FR-AGT-09": "Done",
+    "rq:FR-AGT-10": "Done",
+    "rq:FR-AGT-11": "Done",
+    "rq:FR-API-01": "Done",
+    "rq:FR-API-02": "Done",
+    "rq:FR-API-03": "Done",
+    "rq:FR-API-04": "Done",
+    "rq:FR-API-05": "In Progress",
+    "rq:FR-API-06": "In Progress",
+    "rq:FR-API-07": "In Progress",
+    "rq:FR-API-08": "Done",
+    "rq:FR-API-09": "Done",
+    "rq:FR-API-10": "In Progress",
+    "rq:FR-API-11": "In Progress",
+    "rq:FR-API-12": "In Progress",
+    "rq:FR-API-13": "In Progress",
+    "rq:FR-API-14": "In Progress",
+    "rq:FR-API-15": "In Progress",
+    "rq:FR-API-16": "Done",
+    "rq:FR-API-17": "Done",
+    "rq:FR-API-18": "Done",
+    "rq:FR-API-19": "Done",
+    "rq:FR-DAT-01": "Done",
+    "rq:FR-DAT-02": "Done",
+    "rq:FR-DAT-03": "Done",
+    "rq:FR-WEB-01": "In Progress",
+    "rq:FR-WEB-02": "In Progress",
+    "rq:FR-WEB-03": "Done",
+    "rq:FR-WEB-04": "Done",
+    "rq:FR-WEB-05": "Done",
+    "rq:FR-WEB-06": "Done",
+    "rq:FR-WEB-07": "In Progress"
+  },
+  "test_cases": {
+    "TC-A11Y-01": "4aa53970-eb3b-48be-9d6e-f059886f2380",
+    "TC-A11Y-02": "f58994dd-d236-4df0-a771-cb41828171a8",
+    "TC-AGT-CLARIFY-01": "5c0f5cfd-59a1-4cee-97f9-db0734e9bfd7",
+    "TC-AGT-RAG-01": "1e189ff7-3819-4a5f-a498-696ae4344557",
+    "TC-AGT-TURN-01": "5fb5cccf-c663-40c9-9e67-0e49813efdf9",
+    "TC-AGT-URG-01": "b6c00128-abdc-4e23-9f72-7eb6ae2f741d",
+    "TC-COMPLIANCE-01": "79bfca58-dbd1-457f-bf8b-9c1857868b9a",
+    "TC-COMPLIANCE-02": "67315dca-6dd8-445b-a7c9-0b74087c6836",
+    "TC-COMPLIANCE-03": "7710c604-ab73-4667-9c29-f34e25364e14",
+    "TC-COMPLIANCE-04": "dbc103f1-8b68-45c6-9528-00a1c9223e81",
+    "TC-COMPLIANCE-05": "c205cb5a-805b-437e-845c-549afb64628e",
+    "TC-COMPLIANCE-06": "9c60520a-468e-42bb-b9df-65cbe1dfc52e",
+    "TC-COMPLIANCE-07": "7ac9ab30-b81b-4fc3-a692-7ed759c5d56d",
+    "TC-COMPLIANCE-08": "d088571c-958b-41cf-8f3d-db13cfeed24c",
+    "TC-CS-AI-01": "22308b47-f24b-4008-a1cb-d87301e5ec8e",
+    "TC-CS-AI-02": "b2026f6e-b30d-428c-b7e9-ed1bb7ff100d",
+    "TC-CS-AI-03": "57901c37-0723-4b48-bc8e-37b8e6306392",
+    "TC-CS-AI-04": "cfaef41e-8ac4-445f-b179-652b103683e8",
+    "TC-CS-AI-05": "bb3780b2-40d5-4807-90d8-139d4aa251ec",
+    "TC-CS-AI-06": "481f5dc6-8795-404d-aee8-514236465ddc",
+    "TC-CS-AI-07": "48143902-20fb-44da-883e-27fb04508c64",
+    "TC-CS-AI-08": "dddd4c8e-a1af-41d2-8dcd-48ee1667cdc0",
+    "TC-CS-AI-09": "cc92dfde-aa47-4438-a9b7-2d656b99041b",
+    "TC-CS-AI-10": "77a37268-4e98-47fc-9e47-a2820cd1606a",
+    "TC-CS-AI-11": "521c42b0-f09b-4a42-8b1d-8aec3f572c48",
+    "TC-CS-AI-12": "1e3ef939-96ab-4fcb-8990-4aece9a26857",
+    "TC-DISPATCH-01": "697c8528-fe41-4338-a9c4-6e0a805ef8c0",
+    "TC-DISPATCH-02": "251f1c9a-e16c-4f2a-8ca8-024fbb069999",
+    "TC-DISPATCH-03": "a3b75da1-5100-4340-8a27-344f1ed50e73",
+    "TC-DISPATCH-04": "4a2c69ee-09d8-4c2a-b8ee-b9413ae2bf67",
+    "TC-DISPATCH-05": "d2349a3f-d989-4b5d-9f18-0586601b9cb9",
+    "TC-DISPATCH-06": "26b6c58d-1c0b-45fb-983e-a194760c0c97",
+    "TC-DISPATCH-07": "3ea8d25b-4ebd-4872-a25b-3821a3af9eb9",
+    "TC-DISPATCH-08": "07dd642e-43dc-497e-8b3d-f2fabe5dde3a",
+    "TC-DISPATCH-09": "d5158525-29a5-4370-ba74-1ae1b56f4cf8",
+    "TC-EXC-01": "1010a7d5-bef6-44e7-95e9-c3d140171346",
+    "TC-EXC-02": "9eeae8b7-91c1-4cce-94a7-e4100bc51b12",
+    "TC-EXC-03": "07b963e3-5527-4008-a74b-abde37223088",
+    "TC-EXC-04": "dbb7014d-9bb2-425d-a5b9-5031ceae199d",
+    "TC-EXC-05": "bbdee7e4-a1e7-4491-bfc4-ca4dea79d326",
+    "TC-EXC-06": "ab3b7cf5-5c83-400f-9b78-8790dcc9fb27",
+    "TC-NFR-A11Y-01": "4471f7e7-7a16-49cc-9fa3-57764cc792a9",
+    "TC-NFR-AUD-01": "a1d14041-620b-4019-aa18-f55a525177f0",
+    "TC-NFR-AVAIL-01": "19109629-87fa-4504-ac59-4c093cff9f5b",
+    "TC-NFR-DORA-01": "421b2533-e691-49c9-b528-f767f191f3a2",
+    "TC-NFR-DQ-01": "f9fd4fc0-3244-4bc2-907f-1c0a82f1f9c6",
+    "TC-NFR-MAINT-01": "ee238822-3fdf-4ba5-8838-ccd3bb55c177",
+    "TC-NFR-OBS-01": "02b08034-5c6b-4755-b7f8-e25a6e107dcd",
+    "TC-NFR-PERF-01": "84da31a7-27f0-4037-89eb-0e1c6e4d1ffe",
+    "TC-NFR-PRIV-01": "269c613d-76ac-4811-9eec-9df0883da716",
+    "TC-NFR-PUB-01": "757b2306-db5f-4063-86f8-0306e4721728",
+    "TC-NFR-REL-01": "1ffaf730-e542-4ca3-92cb-35258abffd8c",
+    "TC-NFR-REP-01": "7c799f38-1319-4c1b-937f-10c0555e8143",
+    "TC-NFR-SCAL-01": "4688748a-4dc0-4464-84b0-8b1087ef0486",
+    "TC-NFR-SCH-01": "34ba1041-503f-4ff4-a19d-9bfeafaf7ed7",
+    "TC-NFR-SEC-01": "5ab48f4d-4d34-457f-b038-8884f5314f94",
+    "TC-NFR-SLA-01": "eab7ef2c-ed3c-4e95-a427-80db5fc3376c",
+    "TC-ONSITE-01": "f20bd29e-bd0e-440c-8208-83718453d356",
+    "TC-ONSITE-02": "4b83a57f-f98a-44e2-8ff7-d97d36f34cbb",
+    "TC-ONSITE-03": "9e5eeeee-dd94-453f-a032-96f471b685a7",
+    "TC-ONSITE-04": "2cab0378-4a01-46cb-922e-cc70d857be7c",
+    "TC-ONSITE-05": "45579447-6a87-48b9-849f-ef9bb2390f1e",
+    "TC-ONSITE-06": "0549163c-e0f2-400c-ad8d-d6536a6a0da7",
+    "TC-ONSITE-07": "0d855dbb-2f4e-4533-8507-d8d2c1e9b8b2",
+    "TC-PAYMENT-01": "0a291800-d5fd-427f-a670-5fff8fbd8d9a",
+    "TC-PERF-01": "9844cb43-0430-4f46-91a5-e7f1f0d5a2bd",
+    "TC-PERF-02": "f9e6384a-bc5d-4c43-bd8a-a022480c00e6",
+    "TC-PERF-03": "338d69bf-1f7e-4051-9b90-435a2281de30",
+    "TC-PERF-04": "a54b72cd-1803-43ba-8718-c4c17250f4bd",
+    "TC-PERF-05": "619e9a33-2a5c-4714-89bf-685088d312e7",
+    "TC-PLT-CFG-01": "566be4b7-0709-4f93-b5f8-8b5d6d102406",
+    "TC-PLT-FLOW-01": "c797c584-520a-4b77-87a7-aab4d00650e0",
+    "TC-PLT-PROV-01": "ae6c5f77-4374-465a-8a19-e545c51672dd",
+    "TC-PLT-SURFACE-01": "284c5766-e273-4a34-bc23-48d59f80d073",
+    "TC-QUOTE-01": "35ad805e-e7f6-4f30-bc29-928dc938ec46",
+    "TC-QUOTE-02": "6aa54bd3-0b6c-4740-b35e-3c15f72be0e0",
+    "TC-QUOTE-03": "c4005a5b-7b82-47a4-9dd0-ccdd988e243a",
+    "TC-QUOTE-04": "e646eca6-e8ae-43ca-8647-48339863c5c8",
+    "TC-QUOTE-05": "653b0f3c-d194-4092-8bd0-34f1342f3a24",
+    "TC-QUOTE-06": "2b78fac0-8c30-41b1-a74a-071f01deea48",
+    "TC-QUOTE-07": "894e2031-e98b-475d-b625-51baba41dac0",
+    "TC-QUOTE-08": "1608339f-3d88-4edd-8dee-ccdc6e14b2b7",
+    "TC-QUOTE-09": "d5bd127a-1090-41ea-b967-70ab2cb1de5d",
+    "TC-REF-INTAKE-01": "dcf750ee-917b-4113-828a-294ff76a66b1",
+    "TC-REF-PUBLISH-01": "d18944d9-d143-4311-9314-85c06fe5102e",
+    "TC-REF-SPLIT-01": "6d89eaf4-9ec2-415b-9e75-2a64eef9fd9d",
+    "TC-SEC-IDEM-01": "002e6a44-b3f7-4784-aa9c-e1d4d33761d8",
+    "TC-SEC-INJ-01": "a1abc394-1d58-4ec6-95cd-ba9421f52be6",
+    "TC-SEC-INJ-02": "0dd2a784-f223-4807-9e6d-b134a4b85634",
+    "TC-SEC-INT-01": "cc6f3d93-a26e-44a5-b700-b6570a0bfab2",
+    "TC-SEC-MEM-01": "2b5c8e79-ab41-4250-a67c-df9f4366a9ec",
+    "TC-SEC-PIPE-01": "360c5529-520e-4121-8d9b-0bf98664def7",
+    "TC-SEC-RBAC-01": "0ffcb093-b359-4d5c-b5ba-dc8fbdcac7e9",
+    "TC-SEC-RBAC-02": "67e7d24a-6928-4191-be62-273a37d09a6e",
+    "TC-SEC-RBAC-03": "059d59a6-fbf2-4ec7-b523-798801f70018",
+    "TC-SEC-RBAC-04": "6be3890b-73ec-4750-9522-68eacdfc934b",
+    "TC-SEC-RBAC-05": "1ae01e31-a90f-41c7-83db-9992ee643dd6",
+    "TC-SEC-SOD-01": "ada13c4f-49dd-4afd-be73-673a2938c4f1",
+    "TC-SEC-TENANT-01": "678c8da2-bea4-4b5e-a9b6-4108ef01dc15",
+    "TC-SEC-TOOL-01": "be473b47-448b-4245-8dfa-f197ea674d44",
+    "TC-SEC-WEB-01": "411c3f02-ce8e-49fb-8075-27b208543468",
+    "TC-SEC-WEB-02": "29ab89ce-eccb-423f-ba27-1df51cea9964",
+    "TC-SETTLE-01": "7ebeb4cb-2ed4-488c-b4d3-115a5822180f",
+    "TC-SETTLE-02": "189e5a3d-6254-4ecd-bcb3-753155d8dc7e",
+    "TC-SETTLE-03": "531cb081-1cd8-49c2-a3dd-9a118467866f",
+    "TC-SETTLE-04": "7dc77771-07a8-444e-8dbc-4cbf5a630532",
+    "TC-SETTLE-05": "a0c204f8-6d6a-4cb2-bd68-50677bcbef0a",
+    "TC-SETTLE-06": "a2c39187-7c51-4ed6-ada5-eaa5ad613cf6",
+    "TC-SETTLE-07": "d32b44b2-34a7-4e3d-8c4e-08c9c27cd790",
+    "TC-SETTLE-08": "0c828d93-877d-4182-b44a-b6a1894847bd",
+    "TC-TEC-LIFE-01": "17c6d523-3027-4757-8f80-a70ed0123a9c",
+    "TC-TEC-REVOKE-01": "8c80210a-9c6d-4e52-899a-51e0f58f4b11",
+    "TC-WEB-MEDIA-01": "812c1f31-9747-400e-8741-66f36efdbd2b",
+    "TC-WEB-OPS-01": "6a243242-edc4-4539-823f-e2c34ea2ef11",
+    "TC-WEB-REPORT-01": "e2b02f35-2586-49a2-85d7-7e7b0871780d",
+    "TC-WEB-SURFACE-01": "a9a8bfb3-6eb6-42e8-806d-ca9dfb8f6eb1",
+    "TC-WO-01": "270e0a3e-bfa2-46c5-aba8-aa28ad86b8a1",
+    "TC-WO-02": "0b15f24f-4e78-4db8-a37d-c5f65da03a15",
+    "TC-WO-03": "7f4bb72c-9933-4de1-8b9e-7b401fb888ba",
+    "TC-WO-04": "5b49a802-14ba-4215-9cf2-8c2ad6070d65",
+    "TC-WO-05": "376004cf-48e1-4586-8638-7d251b4fbb96",
+    "TC-WO-06": "7cae134f-b845-45c1-b606-b5e1eb1cf20c",
+    "TC-WO-07": "25b5605f-f5f1-4b3f-a769-11d476b4ba55",
+    "TC-WO-08": "41349a3d-5bcc-497e-a015-6376a978567c",
+    "TC-WO-09": "a0ec2ae3-bfda-48ad-839c-93637bb3aa70",
+    "TC-WO-10": "41786759-dc31-48fb-b993-fbaa4eb304ff",
+    "TC-WO-11": "86165aa1-a19e-48c9-aca5-f5b148fc5f40",
+    "TC-WO-12": "322d062d-14bf-4fb9-8560-1e7f6e78104e",
+    "TC-WO-13": "620d231d-8fda-42cb-9203-4901df5ca798",
+    "TC-WO-14": "5971fe73-7758-4b7e-b8bc-0894e1d491b2"
+  },
+  "test_runs": {
+    "SC-01": "211d69f5-619a-4146-856d-c129916973b7",
+    "SC-02": "9bc3f072-b438-4a28-86dd-a694eda08210",
+    "SC-03": "9c86d54a-06ee-4246-b15f-694bc87e30e7",
+    "SC-04": "915d9bf7-42dc-432f-a596-f906788cd843",
+    "SC-05": "1f858631-6ad8-4f4a-b310-144c7f629c85",
+    "SC-06": "ef6177a0-2e9b-4361-8eac-f0d3f3b7f0f6",
+    "SC-07": "69b958b9-9f2c-44f1-9270-14046791d795",
+    "SC-08": "1773b95a-1fd0-42d9-b2c3-45537a68a56e",
+    "SC-09": "6114bfa2-48f2-4774-817c-7c5d72b7b748",
+    "SC-10": "f3b8394d-67ec-442e-9af8-5d7d363b9180",
+    "SC-11": "3699da4b-394e-4378-aac2-2fe753c5e8f3",
+    "SC-12": "e80473af-28c0-4994-b516-dc82b9444f1f",
+    "SC-13": "c641028e-98c9-4ef2-9952-3a1a83aecf26",
+    "SC-14": "c8a73fab-842f-41d2-8c19-af58d3f1c98a",
+    "SC-15": "5d711968-884e-4d60-b9d4-f8215acfbfec",
+    "SC-16": "df2cb47f-7ae4-457f-a133-b7087a7dcfaf",
+    "SC-17": "5e5abd01-06e4-4b12-b065-b27b50a3ff62",
+    "SC-18": "a9fbfd13-3184-441a-b765-bcf909ef9614",
+    "SC-19": "2213b79e-6d37-4373-95cc-7f2f089098f1"
+  },
+  "types": {
+    "Bug": "98374872-e685-43d5-8ebc-ebb888c4bfef",
+    "Epic": "fc737555-e383-41ff-bb63-903fd580ce9c",
+    "Feature": "51033e3c-7b6c-440e-839e-d012804f2948",
+    "Scenario": "24ea137f-a865-4933-a282-6b80de644b75",
+    "Story": "24bc4671-a6ab-475c-835c-94c4db20cb16",
+    "Task": "69e3bd77-f470-41a1-a97a-4a3134e35290"
+  },
+  "work_items": {
+    "epic:AGT": {
+      "id": "29b5b646-975a-4d83-bb05-a2e7eb40628b",
+      "sequence_id": 1
+    },
+    "epic:API": {
+      "id": "ec86a0ce-58e3-478a-9235-66994d633bb7",
+      "sequence_id": 2
+    },
+    "epic:DAT": {
+      "id": "d2ffca30-6864-4f1e-a430-5e6036ea95b2",
+      "sequence_id": 4
+    },
+    "epic:NFR 全域品質地板（非功能需求）": {
+      "id": "71feca18-ffbd-4adb-8a16-9285936ca909",
+      "sequence_id": 8
+    },
+    "epic:PLT": {
+      "id": "49eb7022-0ce3-4359-bcab-b5208e276dad",
+      "sequence_id": 7
+    },
+    "epic:REF": {
+      "id": "4b1cd26f-27fc-4d71-94e8-0a3bdd5fb7f8",
+      "sequence_id": 5
+    },
+    "epic:TEC": {
+      "id": "e1cbe9b6-b858-4124-918b-4c361197817a",
+      "sequence_id": 6
+    },
+    "epic:WEB": {
+      "id": "a19adde5-83e5-40cd-9582-45eb97feefee",
+      "sequence_id": 3
+    },
+    "epic:交付工作分解（WBS）": {
+      "id": "230c4997-bcb9-4411-ace7-917abc406c1b",
+      "sequence_id": 9
+    },
+    "feature:AGT.CHN": {
+      "id": "6ee921c9-9ab0-4ad0-85f8-f7891495f144",
+      "sequence_id": 10
+    },
+    "feature:AGT.GOV": {
+      "id": "d1bebccc-6559-4284-b846-149ad71ea747",
+      "sequence_id": 13
+    },
+    "feature:AGT.KNW": {
+      "id": "8e813e12-dfb4-4425-8eb3-5e829f844f60",
+      "sequence_id": 12
+    },
+    "feature:AGT.RES": {
+      "id": "9527b9f6-9f3d-4af7-8524-56c972773053",
+      "sequence_id": 11
+    },
+    "feature:API.CASE": {
+      "id": "444685c0-a914-4357-9f77-745ed0209012",
+      "sequence_id": 14
+    },
+    "feature:API.DISP": {
+      "id": "11bcebc0-bb2a-4aec-a9d0-e1eaab556f71",
+      "sequence_id": 16
+    },
+    "feature:API.FIN": {
+      "id": "554e566a-58d2-4214-91fe-31ce794f0eb0",
+      "sequence_id": 17
+    },
+    "feature:API.GOV": {
+      "id": "15bca591-7c02-462d-834e-d670e4f12c1a",
+      "sequence_id": 19
+    },
+    "feature:API.INT": {
+      "id": "104c8a82-8f9f-4085-aa31-ae2324b1c333",
+      "sequence_id": 18
+    },
+    "feature:API.WO": {
+      "id": "4ac7dec7-a705-462a-8604-58815390d1d9",
+      "sequence_id": 15
+    },
+    "feature:DAT.MED": {
+      "id": "b6d15019-9be0-48dc-9160-6b949a092558",
+      "sequence_id": 24
+    },
+    "feature:DAT.RAG": {
+      "id": "7e2545dc-81f2-40b0-b385-bdbbe6ba3e0a",
+      "sequence_id": 26
+    },
+    "feature:DAT.SCH": {
+      "id": "43d5d530-8656-4217-b584-ffefba536218",
+      "sequence_id": 25
+    },
+    "feature:DAT.SYNC": {
+      "id": "0e0ff108-3f8c-4286-9d0f-c6e822fc810c",
+      "sequence_id": 27
+    },
+    "feature:PLT.CFG": {
+      "id": "736f0943-36de-40e1-aaff-972c9daad30e",
+      "sequence_id": 41
+    },
+    "feature:PLT.EVT": {
+      "id": "29595581-2089-48d8-aac5-a10ef1fe3838",
+      "sequence_id": 37
+    },
+    "feature:PLT.FLOW": {
+      "id": "d03761c7-d606-4898-87e4-d7319153f356",
+      "sequence_id": 40
+    },
+    "feature:PLT.IAM": {
+      "id": "ad69a723-aa8b-4ed3-bbc2-0ab48e7c7b50",
+      "sequence_id": 36
+    },
+    "feature:PLT.LLM": {
+      "id": "37b115da-24a5-4187-ac8e-265fa26c0625",
+      "sequence_id": 38
+    },
+    "feature:PLT.OBS": {
+      "id": "192710c4-5486-4eea-8c4e-9b5e35cdd39d",
+      "sequence_id": 39
+    },
+    "feature:REF.HITL": {
+      "id": "00164a83-7fb3-49d2-a56d-a0e308f47d32",
+      "sequence_id": 30
+    },
+    "feature:REF.INTAKE": {
+      "id": "3b83834d-abdf-447f-93ea-37ce47c46324",
+      "sequence_id": 28
+    },
+    "feature:REF.PUB": {
+      "id": "021e7ac9-e274-4e5f-b594-324b295bb79a",
+      "sequence_id": 31
+    },
+    "feature:REF.REFINE": {
+      "id": "99e8e660-5834-496e-949c-bdbf952d413d",
+      "sequence_id": 29
+    },
+    "feature:TEC.ID": {
+      "id": "0cd9fcf2-b4a7-4f88-947c-4fad6dc72684",
+      "sequence_id": 32
+    },
+    "feature:TEC.MATCH": {
+      "id": "a8e91bf0-9272-40ef-abfc-44fdd67ab30d",
+      "sequence_id": 33
+    },
+    "feature:TEC.PROJ": {
+      "id": "6a6372ca-c114-4d84-a7a9-dac049b4cec3",
+      "sequence_id": 34
+    },
+    "feature:TEC.SET": {
+      "id": "daa29e97-114c-4847-83b8-23130713bb49",
+      "sequence_id": 35
+    },
+    "feature:WEB.AUD": {
+      "id": "db253739-d75a-4d51-8032-abcfc7e45627",
+      "sequence_id": 22
+    },
+    "feature:WEB.CX": {
+      "id": "aae278da-4dfe-4ef9-9c90-b9960f8dc348",
+      "sequence_id": 23
+    },
+    "feature:WEB.OPS": {
+      "id": "19297b13-01ab-471d-a604-a121b9d24590",
+      "sequence_id": 21
+    },
+    "feature:WEB.SHELL": {
+      "id": "52e64d23-1f88-4972-9d88-fe43ac9ad031",
+      "sequence_id": 20
+    },
+    "feature:nfr.A11y": {
+      "id": "345917c9-08db-4905-bd1a-bf7d36b92a38",
+      "sequence_id": 42
+    },
+    "feature:nfr.Aud": {
+      "id": "a0dae752-399f-4f6f-959a-b1642721501b",
+      "sequence_id": 43
+    },
+    "feature:nfr.Avail": {
+      "id": "0ded3d96-f42f-4442-a252-9669968ba160",
+      "sequence_id": 44
+    },
+    "feature:nfr.Comp": {
+      "id": "c9df6991-c1d8-4a64-95fc-2bfcfb41b8cf",
+      "sequence_id": 45
+    },
+    "feature:nfr.DORA": {
+      "id": "b66070ee-b236-482f-9e99-b8904b79fd8f",
+      "sequence_id": 46
+    },
+    "feature:nfr.DQ": {
+      "id": "05b8d525-972d-4f22-802e-e46bbb9398e3",
+      "sequence_id": 47
+    },
+    "feature:nfr.Maint": {
+      "id": "b240fb92-5c37-4ba3-aa0a-0e6432f08dce",
+      "sequence_id": 48
+    },
+    "feature:nfr.Obs": {
+      "id": "5f791056-f958-46a9-b6fc-770533c8a9a3",
+      "sequence_id": 49
+    },
+    "feature:nfr.PUB": {
+      "id": "4e2e6012-327f-46ed-9e9f-5f3ba941db90",
+      "sequence_id": 50
+    },
+    "feature:nfr.Perf": {
+      "id": "46b52372-104f-4fbb-b7e3-20f2321c6a04",
+      "sequence_id": 51
+    },
+    "feature:nfr.Priv": {
+      "id": "e22e09eb-b539-47db-9df0-54d920ad1dde",
+      "sequence_id": 52
+    },
+    "feature:nfr.Rel": {
+      "id": "df09eb96-34d6-4522-8a11-3f22c9d96940",
+      "sequence_id": 53
+    },
+    "feature:nfr.Rep": {
+      "id": "1683d201-454a-476a-bd23-bd79f6265d60",
+      "sequence_id": 54
+    },
+    "feature:nfr.SLA": {
+      "id": "9e5e7d9b-dc21-42c2-bd25-de600a77c3af",
+      "sequence_id": 55
+    },
+    "feature:nfr.Scal": {
+      "id": "9356e086-f2a4-4956-8e92-4182a71cbcbb",
+      "sequence_id": 56
+    },
+    "feature:nfr.Sch": {
+      "id": "534c70fa-7f5d-4408-897d-a1e2eb4a6e2f",
+      "sequence_id": 57
+    },
+    "feature:nfr.Sec": {
+      "id": "2941cd8a-f20c-4cc1-a685-bd7c909246f8",
+      "sequence_id": 58
+    },
+    "rq:FR-AGT-01": {
+      "id": "59660996-d731-4cc4-8ba9-8412cd82afb5",
+      "sequence_id": 78
+    },
+    "rq:FR-AGT-02": {
+      "id": "2ccfd4af-5a26-4008-b763-c75435c91dd6",
+      "sequence_id": 79
+    },
+    "rq:FR-AGT-03": {
+      "id": "dffccd53-29aa-436f-acf7-aa6d16be55f2",
+      "sequence_id": 80
+    },
+    "rq:FR-AGT-04": {
+      "id": "d07cd284-20a2-4719-8dc6-8c11d4b918f6",
+      "sequence_id": 81
+    },
+    "rq:FR-AGT-05": {
+      "id": "8dc7cad9-89c6-4dd5-82cf-920ab08e9525",
+      "sequence_id": 82
+    },
+    "rq:FR-AGT-06": {
+      "id": "e85e144a-b5a5-4cad-b53a-ca2b0e36baea",
+      "sequence_id": 83
+    },
+    "rq:FR-AGT-07": {
+      "id": "5597c6fd-3fba-4ed2-a3ea-26073dd56439",
+      "sequence_id": 84
+    },
+    "rq:FR-AGT-08": {
+      "id": "2ccb7caa-1bec-4e64-a236-0a7096e7a694",
+      "sequence_id": 85
+    },
+    "rq:FR-AGT-09": {
+      "id": "c149f1b8-a623-4cf4-b2ca-600b68bbe301",
+      "sequence_id": 86
+    },
+    "rq:FR-AGT-10": {
+      "id": "26673f6c-f04d-400d-aed0-b9058c2fdcfc",
+      "sequence_id": 87
+    },
+    "rq:FR-AGT-11": {
+      "id": "027d3ef5-7e5f-4758-a2f3-d72c12972a9e",
+      "sequence_id": 88
+    },
+    "rq:FR-API-01": {
+      "id": "6d18f2e8-954a-44f6-8f78-5664b29557d6",
+      "sequence_id": 89
+    },
+    "rq:FR-API-02": {
+      "id": "823ccec6-e5dd-4197-adf0-21e3b6848f3c",
+      "sequence_id": 90
+    },
+    "rq:FR-API-03": {
+      "id": "b2b32e10-d42c-40ff-afdf-e2174515f852",
+      "sequence_id": 91
+    },
+    "rq:FR-API-04": {
+      "id": "cb5cc6d0-8457-43b6-b404-43fbc3c30e6d",
+      "sequence_id": 92
+    },
+    "rq:FR-API-05": {
+      "id": "681aa498-4907-4909-a126-7ccec84d27d6",
+      "sequence_id": 93
+    },
+    "rq:FR-API-06": {
+      "id": "56dd75e5-db8d-4774-92b3-d1b60f443017",
+      "sequence_id": 94
+    },
+    "rq:FR-API-07": {
+      "id": "b3b461d6-dc6b-4618-96e5-04ae3cb1317f",
+      "sequence_id": 95
+    },
+    "rq:FR-API-08": {
+      "id": "f799dc7e-4427-4481-8b59-2377bf77ffb1",
+      "sequence_id": 96
+    },
+    "rq:FR-API-09": {
+      "id": "22191179-0e91-4987-a67c-5f3db24ffce9",
+      "sequence_id": 97
+    },
+    "rq:FR-API-10": {
+      "id": "742e30cf-3775-44f4-bb02-bd15e4647ae1",
+      "sequence_id": 98
+    },
+    "rq:FR-API-11": {
+      "id": "a05a45a8-01c6-418d-9f94-517697950f48",
+      "sequence_id": 99
+    },
+    "rq:FR-API-12": {
+      "id": "a38d7ceb-2279-4f3c-b2e1-e0cae937a6c6",
+      "sequence_id": 100
+    },
+    "rq:FR-API-13": {
+      "id": "df238057-f49e-4193-a2c3-7f043393ff1d",
+      "sequence_id": 101
+    },
+    "rq:FR-API-14": {
+      "id": "038f1994-6d29-447c-beaf-bbe9edca38f9",
+      "sequence_id": 102
+    },
+    "rq:FR-API-15": {
+      "id": "6471c195-5d49-450e-b4fd-22e8e6ab43ab",
+      "sequence_id": 103
+    },
+    "rq:FR-API-16": {
+      "id": "90c6463f-891d-476b-ad6d-2e23922a64ef",
+      "sequence_id": 104
+    },
+    "rq:FR-API-17": {
+      "id": "6bfa78f7-7df7-464c-952b-1ca1497a10ce",
+      "sequence_id": 105
+    },
+    "rq:FR-API-18": {
+      "id": "5b657d8a-01e4-4916-ad03-2501ca324f8e",
+      "sequence_id": 106
+    },
+    "rq:FR-API-19": {
+      "id": "3c2eab09-2b29-41e4-9aea-a40b05257afb",
+      "sequence_id": 107
+    },
+    "rq:FR-DAT-01": {
+      "id": "9f7d4980-58ef-49cc-97fc-c10e7963f7e0",
+      "sequence_id": 115
+    },
+    "rq:FR-DAT-02": {
+      "id": "c5cf2bb4-4f8f-466c-a30b-5f9b888798b1",
+      "sequence_id": 116
+    },
+    "rq:FR-DAT-03": {
+      "id": "368360a7-caae-49e5-8aaa-aabb4fe8fd60",
+      "sequence_id": 117
+    },
+    "rq:FR-DAT-04": {
+      "id": "7f103398-2940-4613-8a9d-4f171b82504a",
+      "sequence_id": 118
+    },
+    "rq:FR-DAT-05": {
+      "id": "7f538463-61b5-4591-8c16-6172686af673",
+      "sequence_id": 119
+    },
+    "rq:FR-DAT-06": {
+      "id": "6894cf2a-524f-414f-8daa-46fd7e3fb713",
+      "sequence_id": 120
+    },
+    "rq:FR-PLT-01": {
+      "id": "6a041e4d-919e-4614-9172-d742d5be6484",
+      "sequence_id": 134
+    },
+    "rq:FR-PLT-02": {
+      "id": "7c40704e-a2a6-4dbd-a814-dd526e77447e",
+      "sequence_id": 135
+    },
+    "rq:FR-PLT-03": {
+      "id": "936b289d-e625-4e3a-963c-ea8a103df650",
+      "sequence_id": 136
+    },
+    "rq:FR-PLT-04": {
+      "id": "305020c2-77cc-4370-98c2-f9e00d293e26",
+      "sequence_id": 137
+    },
+    "rq:FR-PLT-05": {
+      "id": "3e886adc-2147-4954-99e7-61ae82771ec7",
+      "sequence_id": 138
+    },
+    "rq:FR-PLT-06": {
+      "id": "bfbaa7da-016b-4f45-b5e0-9724c7072a0b",
+      "sequence_id": 139
+    },
+    "rq:FR-PLT-07": {
+      "id": "37d38075-64b5-4d12-a662-98f560fd0e1d",
+      "sequence_id": 140
+    },
+    "rq:FR-PLT-08": {
+      "id": "c3d10754-353f-46a8-b749-8fb56e341d0d",
+      "sequence_id": 141
+    },
+    "rq:FR-PLT-09": {
+      "id": "a3e2eaff-9678-4184-80cd-819b5746bd4f",
+      "sequence_id": 142
+    },
+    "rq:FR-REF-01": {
+      "id": "f0a448f5-55a0-4e2b-a143-9b0b58a9d596",
+      "sequence_id": 121
+    },
+    "rq:FR-REF-02": {
+      "id": "09fbd6cb-4e5f-4c98-9980-75efa41e2d8b",
+      "sequence_id": 122
+    },
+    "rq:FR-REF-03": {
+      "id": "bf0b9ffc-fafe-4797-a165-3d83658b15ec",
+      "sequence_id": 123
+    },
+    "rq:FR-REF-04": {
+      "id": "7463b30a-0d57-42f3-994c-ba2aaccc8094",
+      "sequence_id": 124
+    },
+    "rq:FR-REF-05": {
+      "id": "546a3953-3d46-4edd-a3f9-24139800ecbe",
+      "sequence_id": 125
+    },
+    "rq:FR-TEC-01": {
+      "id": "61727b8f-a87b-4721-88b3-29a680bda18c",
+      "sequence_id": 126
+    },
+    "rq:FR-TEC-02": {
+      "id": "9da59aa7-4b7b-4f2c-9c2e-ee8ac82d87ac",
+      "sequence_id": 127
+    },
+    "rq:FR-TEC-03": {
+      "id": "013ebcb8-5d49-4861-b526-4c140451621c",
+      "sequence_id": 128
+    },
+    "rq:FR-TEC-04": {
+      "id": "ad12773f-f7b3-4450-a2fb-69c1abf5e84a",
+      "sequence_id": 129
+    },
+    "rq:FR-TEC-05": {
+      "id": "74ade2cb-355b-4c13-bc00-aa8d8f29d821",
+      "sequence_id": 130
+    },
+    "rq:FR-TEC-06": {
+      "id": "29305688-e7bd-406f-9c3b-e9978946b3bd",
+      "sequence_id": 131
+    },
+    "rq:FR-TEC-07": {
+      "id": "e4c2c664-fc3e-4af5-abad-8c735912a4b5",
+      "sequence_id": 132
+    },
+    "rq:FR-TEC-08": {
+      "id": "4ed6c181-cf2a-4d9d-a600-e008fecf8d7a",
+      "sequence_id": 133
+    },
+    "rq:FR-WEB-01": {
+      "id": "0c5740ca-2846-46e3-af7c-22cf839ec3da",
+      "sequence_id": 108
+    },
+    "rq:FR-WEB-02": {
+      "id": "0731bbdb-9838-49af-a579-f513ce0098fb",
+      "sequence_id": 109
+    },
+    "rq:FR-WEB-03": {
+      "id": "caf89672-7bd5-4b21-afdf-f228b7f7d896",
+      "sequence_id": 110
+    },
+    "rq:FR-WEB-04": {
+      "id": "30f44c13-7831-4384-bdcb-7210a7432421",
+      "sequence_id": 111
+    },
+    "rq:FR-WEB-05": {
+      "id": "2c5e4224-b5f9-4d89-82d8-a84a81f1e60a",
+      "sequence_id": 112
+    },
+    "rq:FR-WEB-06": {
+      "id": "96633eab-2525-48c5-bd65-507cc1616f02",
+      "sequence_id": 113
+    },
+    "rq:FR-WEB-07": {
+      "id": "cd1075c4-d82f-4ef6-9a45-f2ff8059278c",
+      "sequence_id": 114
+    },
+    "rq:NFR-A11y-001": {
+      "id": "7ca4d841-cecc-408b-a277-f5dfcfb6afc5",
+      "sequence_id": 237
+    },
+    "rq:NFR-A11y-002": {
+      "id": "932503b3-1e56-4969-8a28-c43f5f975385",
+      "sequence_id": 238
+    },
+    "rq:NFR-A11y-003": {
+      "id": "eb1f8548-0401-481f-bd8f-f845ecd4914e",
+      "sequence_id": 239
+    },
+    "rq:NFR-A11y-004": {
+      "id": "71eaa772-55ad-4dff-bd7b-7b19c6d89215",
+      "sequence_id": 240
+    },
+    "rq:NFR-A11y-005": {
+      "id": "fe0465fc-1c14-4b63-9f93-79b4c73450a6",
+      "sequence_id": 241
+    },
+    "rq:NFR-Aud-001": {
+      "id": "4a0ce3aa-43fc-4fb1-999b-1dcca56b314f",
+      "sequence_id": 209
+    },
+    "rq:NFR-Aud-002": {
+      "id": "aa0bfc9a-15c2-4ab2-a3c4-70acb7e7f93c",
+      "sequence_id": 210
+    },
+    "rq:NFR-Aud-003": {
+      "id": "77efe94e-fbce-4a8f-b8c5-d18bdc583182",
+      "sequence_id": 211
+    },
+    "rq:NFR-Aud-004": {
+      "id": "3a58adb7-9030-4104-95b0-92ffed8105c6",
+      "sequence_id": 212
+    },
+    "rq:NFR-Aud-005": {
+      "id": "1b7f5d24-99ed-46f9-bc68-9804dc643b9f",
+      "sequence_id": 213
+    },
+    "rq:NFR-Aud-006": {
+      "id": "c0fe6ab9-213b-4095-9e80-a723ec29daec",
+      "sequence_id": 214
+    },
+    "rq:NFR-Aud-007": {
+      "id": "9049be82-b90f-4a36-a94f-b0aafc3bc499",
+      "sequence_id": 215
+    },
+    "rq:NFR-Avail-001": {
+      "id": "7697b8a3-5d12-45e3-b6e1-6b5172b551f9",
+      "sequence_id": 155
+    },
+    "rq:NFR-Avail-002": {
+      "id": "c994afe5-045d-4ec8-ba4f-c2ff36d9e7a5",
+      "sequence_id": 156
+    },
+    "rq:NFR-Avail-003": {
+      "id": "a56e8d22-b3c5-4e19-9c6f-2c58646eff98",
+      "sequence_id": 157
+    },
+    "rq:NFR-Avail-004": {
+      "id": "68a5586c-80b5-42f1-aa4c-d03f19faf371",
+      "sequence_id": 158
+    },
+    "rq:NFR-Avail-005": {
+      "id": "a92f5577-8aa6-45b9-977e-de80f7ba6251",
+      "sequence_id": 159
+    },
+    "rq:NFR-Avail-006": {
+      "id": "f5983bd0-fbb5-49e5-a418-bf57888c3697",
+      "sequence_id": 160
+    },
+    "rq:NFR-Avail-007": {
+      "id": "3a31d11b-57fc-439b-9f91-d98dd1ba0da3",
+      "sequence_id": 161
+    },
+    "rq:NFR-Avail-008": {
+      "id": "e974219c-fd88-4c51-a29c-ad73c031a821",
+      "sequence_id": 162
+    },
+    "rq:NFR-Avail-009": {
+      "id": "dbc07644-9cb2-48b9-b85d-6286685ed1d3",
+      "sequence_id": 163
+    },
+    "rq:NFR-Avail-010": {
+      "id": "5ae59077-00ec-416d-b1e2-0d9ef79eadd9",
+      "sequence_id": 164
+    },
+    "rq:NFR-Avail-011": {
+      "id": "0a534881-0613-4d53-b591-061ad9bde85f",
+      "sequence_id": 165
+    },
+    "rq:NFR-Comp-001": {
+      "id": "15dce8b6-3898-46c6-aca7-44cd7a29d084",
+      "sequence_id": 242
+    },
+    "rq:NFR-Comp-002": {
+      "id": "35141be4-88e3-4cbe-ae1b-8b122e3acece",
+      "sequence_id": 243
+    },
+    "rq:NFR-Comp-003": {
+      "id": "f9667e75-8f5e-4405-8f15-4d80a3ccfaa4",
+      "sequence_id": 244
+    },
+    "rq:NFR-Comp-004": {
+      "id": "9d795fcc-925b-4955-88d3-d081224e109c",
+      "sequence_id": 245
+    },
+    "rq:NFR-DORA-001": {
+      "id": "a064659e-be45-4e2f-a9b9-3bae43f032a0",
+      "sequence_id": 246
+    },
+    "rq:NFR-DORA-002": {
+      "id": "048bf204-f7dc-47ae-8a13-b85b5b6023fa",
+      "sequence_id": 247
+    },
+    "rq:NFR-DORA-003": {
+      "id": "c3cb1700-1646-4149-9aa7-8c594e1ce0ad",
+      "sequence_id": 248
+    },
+    "rq:NFR-DQ-001": {
+      "id": "73804f3c-6bd7-4c80-83c5-8b9751fad7ac",
+      "sequence_id": 216
+    },
+    "rq:NFR-DQ-002": {
+      "id": "d0022818-0f2a-4d92-aeb1-8bf0347f951c",
+      "sequence_id": 217
+    },
+    "rq:NFR-DQ-003": {
+      "id": "4c27138d-9e6b-4743-aa9a-5b32ea246947",
+      "sequence_id": 218
+    },
+    "rq:NFR-DQ-004": {
+      "id": "30505dca-7db1-4c9d-852a-3ff54a69cbfe",
+      "sequence_id": 219
+    },
+    "rq:NFR-Maint-001": {
+      "id": "8d54a830-3be5-4420-a216-b8ad2a14784d",
+      "sequence_id": 229
+    },
+    "rq:NFR-Maint-002": {
+      "id": "92855365-ca3a-4075-af74-300291d9cbe3",
+      "sequence_id": 230
+    },
+    "rq:NFR-Maint-003": {
+      "id": "20bb2998-d0a0-4fca-8428-0af9e8e90439",
+      "sequence_id": 231
+    },
+    "rq:NFR-Maint-004": {
+      "id": "315d9a3a-0f83-4030-bfa3-cfc3bef43233",
+      "sequence_id": 232
+    },
+    "rq:NFR-Maint-005": {
+      "id": "928240c5-5e64-4b83-b7d5-a510ee38fd88",
+      "sequence_id": 233
+    },
+    "rq:NFR-Maint-006": {
+      "id": "8dd7b8fc-0086-4203-b796-6488b76cf7a8",
+      "sequence_id": 234
+    },
+    "rq:NFR-Maint-007": {
+      "id": "b9ad508d-eb8d-4c1e-ada1-6473af00fe78",
+      "sequence_id": 235
+    },
+    "rq:NFR-Maint-008": {
+      "id": "291421f1-7542-404a-b57f-8387428491a5",
+      "sequence_id": 236
+    },
+    "rq:NFR-Obs-001": {
+      "id": "fab64a98-2992-4474-9438-8dcdedb1e693",
+      "sequence_id": 204
+    },
+    "rq:NFR-Obs-002": {
+      "id": "f390d7ba-ea4a-4624-96b8-9acb066c8b94",
+      "sequence_id": 205
+    },
+    "rq:NFR-Obs-003": {
+      "id": "5670c96d-8bf0-4a28-9f9e-233b13cc5f40",
+      "sequence_id": 206
+    },
+    "rq:NFR-Obs-004": {
+      "id": "f5089a80-5cfe-48d3-ad24-801d5f47fb63",
+      "sequence_id": 207
+    },
+    "rq:NFR-Obs-005": {
+      "id": "393a9d2c-8fcc-4691-ab10-7396e025f9e3",
+      "sequence_id": 208
+    },
+    "rq:NFR-PUB-001": {
+      "id": "3da045d1-ac19-4a6e-9a86-406b56123a6a",
+      "sequence_id": 220
+    },
+    "rq:NFR-PUB-002": {
+      "id": "6c51e0bd-9b92-4cd9-8e2f-77756330e12c",
+      "sequence_id": 221
+    },
+    "rq:NFR-PUB-003": {
+      "id": "932af586-3e69-4975-b14c-d48b3a5f45c7",
+      "sequence_id": 222
+    },
+    "rq:NFR-PUB-004": {
+      "id": "ad379a66-69a3-4d99-bf9b-56e47ee98fd4",
+      "sequence_id": 223
+    },
+    "rq:NFR-Perf-001": {
+      "id": "8c91ac56-3d27-4633-bc51-fc5b27bb88fd",
+      "sequence_id": 143
+    },
+    "rq:NFR-Perf-002": {
+      "id": "bd47f56d-ea77-4f2d-9235-34d9b233347c",
+      "sequence_id": 144
+    },
+    "rq:NFR-Perf-003": {
+      "id": "17a2dc5b-89eb-4797-b447-9d737705496f",
+      "sequence_id": 145
+    },
+    "rq:NFR-Perf-004": {
+      "id": "9cac6140-a057-4ecc-8182-cb3f3310b8a7",
+      "sequence_id": 146
+    },
+    "rq:NFR-Perf-005": {
+      "id": "cfd1baf8-cfa1-4f88-bcb8-0456407c3a2d",
+      "sequence_id": 147
+    },
+    "rq:NFR-Perf-006": {
+      "id": "ac63110d-f754-4a1a-bd25-b3f23fd3ee70",
+      "sequence_id": 148
+    },
+    "rq:NFR-Perf-007": {
+      "id": "ee0bb068-4162-4d73-b519-86f588d36046",
+      "sequence_id": 149
+    },
+    "rq:NFR-Perf-008": {
+      "id": "d3b6417a-6509-4397-9333-f9f76d33576f",
+      "sequence_id": 150
+    },
+    "rq:NFR-Perf-009": {
+      "id": "ee09c8ae-1376-4236-88cb-bb763fb297b1",
+      "sequence_id": 151
+    },
+    "rq:NFR-Perf-010": {
+      "id": "06b32ab8-9b9b-4d13-9795-6b70e5617ab9",
+      "sequence_id": 152
+    },
+    "rq:NFR-Perf-011": {
+      "id": "c12f7414-c48d-4239-8bdf-a611ec2dea0d",
+      "sequence_id": 153
+    },
+    "rq:NFR-Perf-012": {
+      "id": "f2944ebe-e331-4f08-860a-c8412a9f5b12",
+      "sequence_id": 154
+    },
+    "rq:NFR-Priv-001": {
+      "id": "d67dac55-4861-4ba0-8a95-866b34679839",
+      "sequence_id": 194
+    },
+    "rq:NFR-Priv-002": {
+      "id": "cc86223e-24a0-4076-9191-0ad2dfcaf063",
+      "sequence_id": 195
+    },
+    "rq:NFR-Priv-003": {
+      "id": "6cf52c23-f544-4e4c-814f-a1f4d2f96ea1",
+      "sequence_id": 196
+    },
+    "rq:NFR-Priv-004": {
+      "id": "346792dc-e9d3-4175-9f31-2874c54fd1b8",
+      "sequence_id": 197
+    },
+    "rq:NFR-Priv-005": {
+      "id": "1e67ec43-8046-48e0-acf3-ef064b8fdecf",
+      "sequence_id": 198
+    },
+    "rq:NFR-Priv-006": {
+      "id": "9fafde31-1a63-46dd-b189-4af9c1d39d23",
+      "sequence_id": 199
+    },
+    "rq:NFR-Priv-007": {
+      "id": "4b018cd6-988c-49f2-94b7-d429d0030723",
+      "sequence_id": 200
+    },
+    "rq:NFR-Priv-008": {
+      "id": "0b84a9c4-ae1d-4d24-9842-32f31d7d01cc",
+      "sequence_id": 201
+    },
+    "rq:NFR-Priv-009": {
+      "id": "594fdd7c-d238-43b1-beb1-9c3581a8faab",
+      "sequence_id": 202
+    },
+    "rq:NFR-Priv-010": {
+      "id": "60e3bab1-ee4c-4a30-bba9-3e3ae04a9051",
+      "sequence_id": 203
+    },
+    "rq:NFR-Rel-001": {
+      "id": "1b66efd4-c716-4916-bc4e-90ab0b9f5432",
+      "sequence_id": 166
+    },
+    "rq:NFR-Rel-002": {
+      "id": "27ac21c4-1741-467f-99f5-18f2ff493904",
+      "sequence_id": 167
+    },
+    "rq:NFR-Rel-003": {
+      "id": "60663220-9d0c-41bb-9d84-9d81ad8dae2c",
+      "sequence_id": 168
+    },
+    "rq:NFR-Rep-001": {
+      "id": "832c2201-adea-4d6b-b556-0392fe38f571",
+      "sequence_id": 227
+    },
+    "rq:NFR-Rep-002": {
+      "id": "a5cc18e4-c69b-4754-a3b1-c820fa96b828",
+      "sequence_id": 228
+    },
+    "rq:NFR-SLA-001": {
+      "id": "2fee6f71-8c0f-4c32-ae4a-c9db929bdb1e",
+      "sequence_id": 169
+    },
+    "rq:NFR-SLA-002": {
+      "id": "fc2c0ccf-b08a-40f7-9c63-5832bf727117",
+      "sequence_id": 170
+    },
+    "rq:NFR-SLA-003": {
+      "id": "d4065684-b4d8-4869-81ad-77c724408d4c",
+      "sequence_id": 171
+    },
+    "rq:NFR-Scal-001": {
+      "id": "5b32a527-262b-487c-a690-f4430da2e784",
+      "sequence_id": 172
+    },
+    "rq:NFR-Scal-002": {
+      "id": "94e73327-b787-4c4e-8556-d29289cd406b",
+      "sequence_id": 173
+    },
+    "rq:NFR-Scal-003": {
+      "id": "8440508b-06e7-43b7-9a27-43e4dfc636de",
+      "sequence_id": 174
+    },
+    "rq:NFR-Scal-004": {
+      "id": "b2e33ffd-d3fa-4e9d-8ec8-2bd8bc8e68fa",
+      "sequence_id": 175
+    },
+    "rq:NFR-Scal-005": {
+      "id": "7dd7bacd-beb0-484f-beac-78c0c5e09fb4",
+      "sequence_id": 176
+    },
+    "rq:NFR-Scal-006": {
+      "id": "ebf53471-3cdf-4651-b701-1c9058bb8f94",
+      "sequence_id": 177
+    },
+    "rq:NFR-Scal-007": {
+      "id": "fe410381-0c55-4126-a774-a7db42304d52",
+      "sequence_id": 178
+    },
+    "rq:NFR-Scal-008": {
+      "id": "cf073307-5d7a-43b5-851a-c218c2735c4a",
+      "sequence_id": 179
+    },
+    "rq:NFR-Sch-001": {
+      "id": "13b82452-0e7d-4db7-9eb4-30ba52df0253",
+      "sequence_id": 224
+    },
+    "rq:NFR-Sch-002": {
+      "id": "c7132c2f-cd0e-4f79-9815-f1d09feba625",
+      "sequence_id": 225
+    },
+    "rq:NFR-Sch-003": {
+      "id": "eb458299-7034-405e-bdd0-8c840a38a7d6",
+      "sequence_id": 226
+    },
+    "rq:NFR-Sec-001": {
+      "id": "9156c5a2-a717-4fb6-9766-f9d5dd2e9805",
+      "sequence_id": 180
+    },
+    "rq:NFR-Sec-002": {
+      "id": "341cf0fd-43d5-4e2d-9d9a-27d0f94b6367",
+      "sequence_id": 181
+    },
+    "rq:NFR-Sec-003": {
+      "id": "b46b4f25-383c-46ac-affe-92145da991b2",
+      "sequence_id": 182
+    },
+    "rq:NFR-Sec-004": {
+      "id": "fe20e81a-c7dc-409d-9fa6-fa4e362b9674",
+      "sequence_id": 183
+    },
+    "rq:NFR-Sec-005": {
+      "id": "6f22c0b2-ac02-4d7c-af72-a6a335da0fa1",
+      "sequence_id": 184
+    },
+    "rq:NFR-Sec-006": {
+      "id": "1c5f598e-34fd-4338-a35a-de8ef6646404",
+      "sequence_id": 185
+    },
+    "rq:NFR-Sec-007": {
+      "id": "94f4130a-3b61-4319-86ba-23f56f26c608",
+      "sequence_id": 186
+    },
+    "rq:NFR-Sec-008": {
+      "id": "523e0740-a34d-4746-b66f-c5ee8a07303d",
+      "sequence_id": 187
+    },
+    "rq:NFR-Sec-009": {
+      "id": "ea253946-7661-4f72-9a6a-42f58540e7cd",
+      "sequence_id": 188
+    },
+    "rq:NFR-Sec-010": {
+      "id": "dbf0cabe-b36e-41e8-a69a-700feb18aa78",
+      "sequence_id": 189
+    },
+    "rq:NFR-Sec-011": {
+      "id": "70c1c1da-11f5-4056-b7d3-9c43bda67353",
+      "sequence_id": 190
+    },
+    "rq:NFR-Sec-012": {
+      "id": "114bfb0e-9c34-4ccc-a643-a2993dbf9145",
+      "sequence_id": 191
+    },
+    "rq:NFR-Sec-013": {
+      "id": "2a1bc6ad-b471-403c-b6a9-2201cd8bab16",
+      "sequence_id": 192
+    },
+    "rq:NFR-Sec-014": {
+      "id": "bcf7f7ff-2389-4f95-bb8f-76e2cf6ee41c",
+      "sequence_id": 193
+    },
+    "sc:SC-01": {
+      "id": "54035fcc-7a81-465a-96aa-8cbf596146c2",
+      "sequence_id": 59
+    },
+    "sc:SC-02": {
+      "id": "79328c98-55b0-4f5d-af5d-a71a5f20b91b",
+      "sequence_id": 60
+    },
+    "sc:SC-03": {
+      "id": "5ce4c045-5da9-41a3-9013-e876b4e55966",
+      "sequence_id": 61
+    },
+    "sc:SC-04": {
+      "id": "12df98da-9288-4991-a7df-10e33e8ae5e6",
+      "sequence_id": 62
+    },
+    "sc:SC-05": {
+      "id": "b007703f-100e-4420-879f-cb8088a97f81",
+      "sequence_id": 63
+    },
+    "sc:SC-06": {
+      "id": "249fc277-e22a-4823-b627-a5caf8918cc4",
+      "sequence_id": 64
+    },
+    "sc:SC-07": {
+      "id": "a8962cb8-2a8f-4147-aca6-1da1ca4b9916",
+      "sequence_id": 65
+    },
+    "sc:SC-08": {
+      "id": "2f8d9879-cce9-4556-bff5-6222a1cbe64c",
+      "sequence_id": 66
+    },
+    "sc:SC-09": {
+      "id": "09f29160-a8b9-448a-82fc-5e881fe58ba9",
+      "sequence_id": 67
+    },
+    "sc:SC-10": {
+      "id": "f82e87a3-fc88-47a6-8546-d7ae03144d09",
+      "sequence_id": 68
+    },
+    "sc:SC-11": {
+      "id": "fd392818-22b3-45bb-8b6b-4076a5f40b92",
+      "sequence_id": 69
+    },
+    "sc:SC-12": {
+      "id": "8b7bdffe-1d92-4080-8087-4646e9f85cf6",
+      "sequence_id": 70
+    },
+    "sc:SC-13": {
+      "id": "b6bab1c2-e03b-4145-80d0-e9d15f9acfc9",
+      "sequence_id": 71
+    },
+    "sc:SC-14": {
+      "id": "a16115b9-3265-4088-8e92-06dfe81e0fca",
+      "sequence_id": 72
+    },
+    "sc:SC-15": {
+      "id": "a21c847a-cfae-44ae-a170-91e75cf90fea",
+      "sequence_id": 73
+    },
+    "sc:SC-16": {
+      "id": "905ea470-8f3f-493b-8246-85867d9b07ec",
+      "sequence_id": 74
+    },
+    "sc:SC-17": {
+      "id": "5322084b-3ddc-4539-b4ff-4e46f193e67d",
+      "sequence_id": 75
+    },
+    "sc:SC-18": {
+      "id": "9c75e497-3add-4d43-92f4-a17df00916b9",
+      "sequence_id": 76
+    },
+    "sc:SC-19": {
+      "id": "4dee6184-9f5f-4913-a46b-a038c8b2b7e3",
+      "sequence_id": 77
+    },
+    "wbs:1.1.1": {
+      "id": "6759212c-36d7-4d0f-bcd1-6497a7bea22e",
+      "sequence_id": 250
+    },
+    "wbs:1.1.2": {
+      "id": "a35a7f18-713c-4357-9963-a2db79546f7d",
+      "sequence_id": 251
+    },
+    "wbs:1.1.3": {
+      "id": "85c67d99-a462-4849-843f-d6d481cd44ad",
+      "sequence_id": 252
+    },
+    "wbs:1.2.1": {
+      "id": "adc2fa2a-39f6-471d-868e-81f21072a11c",
+      "sequence_id": 254
+    },
+    "wbs:1.2.2": {
+      "id": "1cd5475b-16d9-400e-bf5b-8f30978c67c7",
+      "sequence_id": 255
+    },
+    "wbs:1.2.3": {
+      "id": "6881beaf-3a36-482e-9fc1-bf157cd7b230",
+      "sequence_id": 256
+    },
+    "wbs:1.2.4": {
+      "id": "f4ae5220-23bf-4cfc-aa27-0bb58ad61ce9",
+      "sequence_id": 257
+    },
+    "wbs:1.3.1": {
+      "id": "b0f58ec1-ed47-4749-b80a-3c3748878e80",
+      "sequence_id": 259
+    },
+    "wbs:1.4.1": {
+      "id": "82c96995-d14e-40f2-8e7e-90a0d9706a0e",
+      "sequence_id": 261
+    },
+    "wbs:1.5.1": {
+      "id": "25fa1229-35fb-44a5-9ce6-f83ee291c521",
+      "sequence_id": 263
+    },
+    "wbs:1.6.1": {
+      "id": "ed303f5b-6105-4d16-836b-56639748bce8",
+      "sequence_id": 265
+    },
+    "wbs:1.7.1": {
+      "id": "61377989-6b40-493d-b3bf-01af802ae8b0",
+      "sequence_id": 267
+    },
+    "wbs:1.7.2": {
+      "id": "d53e9d32-4a0d-4b67-bc31-56e5dce433cc",
+      "sequence_id": 268
+    },
+    "wbs:2.1.1": {
+      "id": "24ca072e-9827-4b14-94d4-a03e7b07c318",
+      "sequence_id": 270
+    },
+    "wbs:2.1.2": {
+      "id": "b8458dee-25ff-4f90-9ca7-05c8398adc97",
+      "sequence_id": 271
+    },
+    "wbs:2.2.1": {
+      "id": "f6a025f5-9fe8-464c-90af-c7b53adc0080",
+      "sequence_id": 273
+    },
+    "wbs:2.2.2": {
+      "id": "0afe5f30-23ca-46c6-8f04-f61a686000f5",
+      "sequence_id": 274
+    },
+    "wbs:2.3.1": {
+      "id": "a6fcbd7c-dffa-4bcd-8dc4-a41938e03e8f",
+      "sequence_id": 276
+    },
+    "wbs:2.3.2": {
+      "id": "f0c0b5f9-8c4a-4f6e-b01b-06df3e7bcb11",
+      "sequence_id": 277
+    },
+    "wbs:2.3.3": {
+      "id": "48192c5d-4034-480a-8d50-165f0aa4cd8a",
+      "sequence_id": 278
+    },
+    "wbs:2.4.1": {
+      "id": "460ddbc3-9411-41a5-9f3b-2a9570a8e51d",
+      "sequence_id": 280
+    },
+    "wbs:2.4.2": {
+      "id": "777fa871-fe8a-46c4-88a8-7f6f38eb145f",
+      "sequence_id": 281
+    },
+    "wbs:2.4.3": {
+      "id": "6c23be6b-b7ff-4641-b1b2-6033f35cf8b3",
+      "sequence_id": 282
+    },
+    "wbs:2.4.4": {
+      "id": "b17feb05-3835-4751-b959-f742147cfc49",
+      "sequence_id": 283
+    },
+    "wbs:2.5.1": {
+      "id": "c9e51d9a-703b-40b6-a0d9-dba5638f8ad8",
+      "sequence_id": 285
+    },
+    "wbs:2.6.1": {
+      "id": "45adc94f-d9d6-4755-9ad8-575b892299e6",
+      "sequence_id": 287
+    },
+    "wbs:3.1.1": {
+      "id": "63f03781-b42e-4b4d-8644-419664873e3c",
+      "sequence_id": 289
+    },
+    "wbs:3.1.2": {
+      "id": "0c35b1b8-abcf-4b2a-8054-4555cb130b0c",
+      "sequence_id": 290
+    },
+    "wbs:3.1.3": {
+      "id": "bb9d1323-fdd1-4412-ac82-71ad4c376641",
+      "sequence_id": 291
+    },
+    "wbs:3.2.1": {
+      "id": "4dbb2d56-e065-484d-8970-9b70c4b33ad7",
+      "sequence_id": 293
+    },
+    "wbs:3.2.2": {
+      "id": "a343160e-add1-4fdf-acaf-a522db923cba",
+      "sequence_id": 294
+    },
+    "wbs:3.3.1": {
+      "id": "819ae95b-2811-4588-bd14-acec2783046c",
+      "sequence_id": 296
+    },
+    "wbs:3.4.1": {
+      "id": "49340bb5-3c72-4ab7-8cdc-b693ee3d8e5b",
+      "sequence_id": 298
+    },
+    "wbs:3.5.1": {
+      "id": "7ea67569-3720-40b4-a349-3ae8a0edf633",
+      "sequence_id": 300
+    },
+    "wbs:3.6.1": {
+      "id": "2efa95a8-2f34-4276-81a7-03cf6bd2b1fa",
+      "sequence_id": 302
+    },
+    "wbs:3.6.2": {
+      "id": "0313b006-0453-43b0-a6bd-52daabc3cc13",
+      "sequence_id": 303
+    },
+    "wbs:3.6.3": {
+      "id": "8455cad3-6bdf-4904-953a-85960afa2f76",
+      "sequence_id": 304
+    },
+    "wbs:3.6.4": {
+      "id": "e08cdddb-cc5f-4504-a558-53912f42181b",
+      "sequence_id": 305
+    },
+    "wbs:3.6.5": {
+      "id": "3d3634da-ae6a-4fa2-b221-05391ac54b88",
+      "sequence_id": 306
+    },
+    "wbs:3.6.6": {
+      "id": "da923cf8-06da-4958-8ffb-0053ead71a03",
+      "sequence_id": 307
+    },
+    "wbs:3.6.7": {
+      "id": "4af02400-075f-48c1-ab02-6f053fab1e5e",
+      "sequence_id": 308
+    },
+    "wbs:3.6.8": {
+      "id": "ff904b93-11bd-40e7-97df-74e085023844",
+      "sequence_id": 309
+    },
+    "wbs:4.1": {
+      "id": "80d72441-d75b-4ea6-87f9-f22a5514ff2d",
+      "sequence_id": 311
+    },
+    "wbs:4.2": {
+      "id": "1b8cfad8-fd60-43ff-9dde-a6ac743747cc",
+      "sequence_id": 313
+    },
+    "wbs:4.3": {
+      "id": "f1affc3d-f470-4658-a5f4-177ba4de515b",
+      "sequence_id": 315
+    },
+    "wbs:4.4": {
+      "id": "e2b874ff-dc8f-463b-a40d-720335fcba24",
+      "sequence_id": 317
+    },
+    "wbs:4.5": {
+      "id": "dde662ed-366d-4a80-bf8c-421f434e0bc7",
+      "sequence_id": 319
+    },
+    "wbs:4.6": {
+      "id": "120a90f8-7908-44a6-96f1-f8d50696c7bd",
+      "sequence_id": 321
+    },
+    "wbs:4.7": {
+      "id": "38a480bb-e011-4f2b-9b07-d39f6c541538",
+      "sequence_id": 323
+    },
+    "wbsgrp:1.1": {
+      "id": "699ddedb-4651-41c5-a4ef-4abca748fdc4",
+      "sequence_id": 249
+    },
+    "wbsgrp:1.2": {
+      "id": "961df46b-9582-4c77-8723-207ee5bb3382",
+      "sequence_id": 253
+    },
+    "wbsgrp:1.3": {
+      "id": "841d3d89-4c59-47ca-a6ff-c1952e020e91",
+      "sequence_id": 258
+    },
+    "wbsgrp:1.4": {
+      "id": "155a7962-da0e-4d8b-8116-bc026351dd75",
+      "sequence_id": 260
+    },
+    "wbsgrp:1.5": {
+      "id": "264fe6d1-8d08-4f3d-9da1-892acde6dd2a",
+      "sequence_id": 262
+    },
+    "wbsgrp:1.6": {
+      "id": "6713706c-7323-44f7-a599-d04b5d290a0d",
+      "sequence_id": 264
+    },
+    "wbsgrp:1.7": {
+      "id": "eb98a6ac-b699-44ee-b70c-9dc36e835bb5",
+      "sequence_id": 266
+    },
+    "wbsgrp:2.1": {
+      "id": "00e9e057-a654-494e-8b24-25ac1228d9d7",
+      "sequence_id": 269
+    },
+    "wbsgrp:2.2": {
+      "id": "19ba5c4e-0c12-4088-a478-328ab78bfdec",
+      "sequence_id": 272
+    },
+    "wbsgrp:2.3": {
+      "id": "6c8a53cb-4f88-4545-9fdf-4d0b0333f56a",
+      "sequence_id": 275
+    },
+    "wbsgrp:2.4": {
+      "id": "857cef2c-e301-43cf-8e4a-a32ea2795fce",
+      "sequence_id": 279
+    },
+    "wbsgrp:2.5": {
+      "id": "3f9ee579-31d9-455e-a402-5af42d85f01c",
+      "sequence_id": 284
+    },
+    "wbsgrp:2.6": {
+      "id": "169f8cfa-95c5-4779-952f-e6a35438f9c2",
+      "sequence_id": 286
+    },
+    "wbsgrp:3.1": {
+      "id": "03ec61c6-15c0-4114-92db-a7e305aedec8",
+      "sequence_id": 288
+    },
+    "wbsgrp:3.2": {
+      "id": "610383de-d866-4aa3-bb5d-b8965d948911",
+      "sequence_id": 292
+    },
+    "wbsgrp:3.3": {
+      "id": "0d493836-887c-41ec-83b1-007ac9e191bb",
+      "sequence_id": 295
+    },
+    "wbsgrp:3.4": {
+      "id": "7d19df87-4aa6-4a08-af64-caf1e82f5b08",
+      "sequence_id": 297
+    },
+    "wbsgrp:3.5": {
+      "id": "ea3979ee-52ef-4292-92b6-1fe62e67c578",
+      "sequence_id": 299
+    },
+    "wbsgrp:3.6": {
+      "id": "f6c02e9e-5cc6-41f3-a7c1-0ab67a3e6137",
+      "sequence_id": 301
+    },
+    "wbsgrp:4.1": {
+      "id": "310f23a4-ca7e-487e-908d-d0c70b4a7e1c",
+      "sequence_id": 310
+    },
+    "wbsgrp:4.2": {
+      "id": "f70f873e-25be-4d3f-a373-cdc00d83402b",
+      "sequence_id": 312
+    },
+    "wbsgrp:4.3": {
+      "id": "d2843036-0ec3-4ca1-8669-9aa4134fcf0e",
+      "sequence_id": 314
+    },
+    "wbsgrp:4.4": {
+      "id": "0f99c811-512b-4f4f-9548-9135e1685a27",
+      "sequence_id": 316
+    },
+    "wbsgrp:4.5": {
+      "id": "722e31eb-39cd-49df-a94b-1b870e0eb80e",
+      "sequence_id": 318
+    },
+    "wbsgrp:4.6": {
+      "id": "c497a490-0f30-4da9-bbfe-d3422805c1a0",
+      "sequence_id": 320
+    },
+    "wbsgrp:4.7": {
+      "id": "7ddc0b79-6806-4df5-b32a-dbcbfac8e344",
+      "sequence_id": 322
+    }
+  }
+}

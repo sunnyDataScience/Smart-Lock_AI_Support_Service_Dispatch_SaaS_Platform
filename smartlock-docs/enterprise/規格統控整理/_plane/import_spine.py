@@ -1,56 +1,80 @@
-"""把四書脊椎推進 Plane 的 LOCK 專案（README §8 的九步）。
+#!/usr/bin/env python3
+"""把四書脊椎推進 Plane，形狀比照 lock-ai 的 demo 專案。
 
 單向：markdown/YAML 是規格 SSOT，本腳本只讀不寫上游。
 冪等：所有建立都先查 id_map，命中就跳過／PATCH，未命中才 POST。
 中斷可續跑：每一步結束就落盤 id_map（per-target，見 Plane.state_file()）。
 
-用法：
-    cd smartlock-docs/enterprise/規格統控整理
     PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py [--dry-run] [--until=STAGE]
 
-`--until` 在指定階段做完後收工（階段名見 PIPELINE）。分段是為了讓人在卡片長相、
-自訂欄位、追溯連結各自落地後有機會在 UI 上驗一次再往下推——Plane 沒有批次刪除，
-一次推完 500 個物件而形狀錯了，清理成本遠高於分兩次跑。續跑冪等，直接再跑一次
-即可，已建的會從 id_map 命中跳過。
-"""
+先跑 `bootstrap_target.py` 建好專案、型別、label 與容器，本檔只建卡與測試資產。
 
+## 模型（2026-07-29 對標 demo 後改寫）
+
+    Epic     level 0   7 個子系統 ＋ 1 個 NFR 全域地板 ＋ 1 個 WBS 交付分解
+      Feature  level 1   32 個 L2 能力群 ／ NFR 依品質類別分群 ／ WBS 工作群
+        Story    level 2   65 FR ＋ 106 NFR（NFR 不另立型別，見下）
+        Task     level 3   49 個 WBS 工作包
+    Scenario level 0   19 條旅程，不進 parent 樹，自持驗收契約
+
+**三個對標 demo 而改掉的舊做法：**
+
+1. **NFR 不是獨立型別**，是 Story ＋ 標籤。demo 用 `Requirement kind` 欄位區分
+   functional/non_functional；本專案改用 label（理由見 2），語義相同。
+
+2. **人看得見的維度一律走 label，不走自訂欄位。** 這版 web UI 的
+   `use-issue-properties.tsx` 是 16 行空實作，寫進 `custom_properties` 的值
+   人在畫面上一個都看不到。demo 的 13 個 label 用 `area:` / `quality:` / `role:`
+   命名空間承載所有分類，正是為此。自訂欄位只留 `canonical_id` 與 `source_doc`
+   兩個純機器追溯欄——照搬 11 個欄位＝3,069 次 PUT 換來全部隱形。
+
+3. **測試契約直接連需求卡。** demo 的 TC-1 同時掛 Epic ＋ Feature ＋ Story；
+   覆蓋率雖沿 parent roll-up，直連讓「這條契約在驗哪一條需求」在 UI 上看得見。
+"""
 from __future__ import annotations
 
 import html
 import json
 import os
-import re
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import _canon as canon  # noqa: E402
+from _plane.bootstrap_target import QUALITY_GROUPS, VERIFY_FORMS  # noqa: E402
 from _plane.plane_client import Plane, PlaneError, doc  # noqa: E402
+from _spec_data import MODULES, SUBSYSTEMS  # noqa: E402
 
-HERE = Path(__file__).resolve().parent
-ID_MAP: Path | None = None   # per-target，main() 依 Plane.state_file() 決定
 DRY = "--dry-run" in sys.argv
+# 補標籤模式：卡已存在時只 PATCH labels。分類法後來才補齊時用得上，
+# 不必刪卡重建（Plane 沒有批次刪除，重建的代價遠高於一次 PATCH）。
+RELABEL = "--relabel" in sys.argv
+ID_MAP: Path | None = None
 
 PRIORITY = {"P0": "urgent", "P1": "high", "P2": "medium", "": "none"}
 SPEC_STATUS = {
-    "✅ 需求定版": "finalized",
-    "🔶 部分規劃中": "partial",
-    "🔜 規劃中": "planned",
-    "❓ 待確認": "tbd",
-    "🔴 上游 ID 衝突": "conflict",
+    "✅ 需求定版": "finalized", "🔶 部分規劃中": "planned", "🔜 規劃中": "planned",
+    "❓ 待確認": "tbd", "🔴 上游 ID 衝突": "tbd",
 }
-# 源檔 27_Product_Roadmap_WBS.md 實際用到 6 種狀態記號。舊版只列 3 種，其餘靠
-# `next(..., "⬜")` 的預設值靜默落到 Todo——🟨（code 完成、待外部 gate）與 🛑（待裁決）
-# 因此在看板上與「還沒開始」長得一模一樣。認不得的值套預設而不出聲，是 D5 同一類病。
+# 源檔 27_Product_Roadmap_WBS.md 實際用到 6 種狀態記號。只列 3 種會讓 🟨（code
+# 完成、待外部 gate）與 🛑（待裁決）靜默落到 Todo，在看板上與「還沒開始」無法區分。
 WBS_STATE = {
-    "✅": "Done",
-    "🔶": "In Progress",
-    "🟨": "In Progress",   # code ready／待 production 或外部演練 gate
-    "⬜": "Todo",
-    "🛑": "Backlog",       # 待裁決，不可動工
-    "": "Backlog",         # M4/M5 概要層級無狀態欄
+    "✅": "Done", "🔶": "In Progress", "🟨": "In Progress",
+    "⬜": "Todo", "🛑": "Backlog", "": "Backlog",
 }
+
+NFR_EPIC = "NFR 全域品質地板（非功能需求）"
+WBS_EPIC = "交付工作分解（WBS）"
+
+
+def step(msg: str) -> None:
+    print(f"\n=== {msg}", flush=True)
+
+
+def tick(done: int, total: int, label: str) -> None:
+    if done % 20 == 0 or done == total:
+        print(f"    {label}: {done}/{total}", flush=True)
 
 
 def wbs_state(status: str) -> str:
@@ -64,525 +88,406 @@ def wbs_state(status: str) -> str:
     print(f"    ! 未知的 WBS 狀態記號 {text[:20]!r} → 暫置 Backlog", file=sys.stderr)
     return "Backlog"
 
-TYPES = [
-    ("Scenario", "28_Scenarios 的情境脊椎 SC-*", False),
-    ("Requirement", "04_SRS 的功能需求 FR-*", False),
-    ("NFR", "05_NFR 的非功能需求 NFR-*", False),
-    ("Work Package", "27_Product_Roadmap_WBS 的工作包", False),
-    ("Work Group", "WBS 工作群（1.1 / 2.3 …）", True),
-]
 
-SUBSYSTEMS = ["AGT", "API", "WEB", "DAT", "REF", "TEC", "PLT"]
-LINES = ["L1-CUS", "L1-OPS", "L1-TEC", "L1-KNW", "L1-PLT"]
-MILESTONES = [
-    ("M1", "M1 上線硬化"), ("M2", "M2 身分・知識・技師平台"),
-    ("M3", "M3 多品牌規模化"), ("M4", "M4 平台化地基"), ("M5", "M5 第 2 產業落地"),
-]
-INITIATIVES = [("階段一", "階段一：鎖匠垂直深耕（單品牌）"), ("階段二", "階段二：規模化與平台化橫向展開")]
+# TestCaseVersion.case_type 的值域是 functional / performance / security /
+# reliability / compliance —— 它問的是「這個契約**用什麼方式驗**」，不是「需求是功能
+# 還是非功能」。fork 的模型註解自己就寫了 "this never doubles as an FR/NFR
+# classification -- that lives on the work item"，這也正是守則 B2 禁止的「用同一欄
+# 表達兩件事」。需求的功能/非功能分類在 work item 的 kind:fr / kind:nfr 標籤上。
+CASE_TYPE = {"功能": "functional", "權限": "security", "非功能": "performance",
+             "冪等": "reliability"}
+
+
+def case_type_of(aspect: str) -> str:
+    """驗證面向 → case_type。混合面向（權限＋冪等）取第一個命中的。"""
+    for part in str(aspect or "").split("＋"):
+        hit = CASE_TYPE.get(part.strip())
+        if hit:
+            return hit
+    return "functional"
+
+
+def _html(*blocks: tuple[str, str]) -> str:
+    """組卡片內文，輸出與 Plane 儲存形式一致的 HTML。
+
+    `quote=False`（內文不是屬性值，把 `'` 轉成 `&#x27;` 只會讓存回來的值與算出來
+    的值永遠不等）、`<br>` 而非 `<br/>`。否則任何漂移檢查都會被正規化差異灌滿假陽性。
+    """
+    out = []
+    for label, body in blocks:
+        if body and str(body).strip():
+            text = html.escape(str(body).strip(), quote=False).replace("\n", "<br>")
+            out.append(f"<p><b>{html.escape(label, quote=False)}</b><br>{text}</p>")
+    return "".join(out) or "<p></p>"
 
 
 # ---------------------------------------------------------------- state ---
 
 def load_state() -> dict:
-    if ID_MAP.exists():
+    if ID_MAP and ID_MAP.exists():
         return json.loads(ID_MAP.read_text(encoding="utf-8"))
-    return {k: {} for k in ("types", "properties", "modules", "milestones",
-                            "initiatives", "work_items", "folders", "test_cases", "test_runs")}
+    return {}
 
 
 def save_state(state: dict) -> None:
-    if DRY:
+    if DRY or not ID_MAP:
         return
     ID_MAP.parent.mkdir(parents=True, exist_ok=True)
     ID_MAP.write_text(json.dumps(state, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                       encoding="utf-8")
 
 
-def step(msg: str) -> None:
-    print(f"\n=== {msg}", flush=True)
+class Ctx:
+    """把 id_map 查表與「這張卡要掛哪些 label」的計算集中在一處。"""
 
+    def __init__(self, p: Plane, state: dict, rel, scenarios):
+        self.p, self.state, self.rel = p, state, rel
+        self.labels: dict[str, str] = state.get("labels", {})
+        self.types: dict[str, str] = state.get("types", {})
+        self.milestones: dict[str, str] = state.get("milestones", {})
+        self.modules: dict[str, str] = state.get("modules", {})
+        self.items: dict[str, dict] = state.setdefault("work_items", {})
+        self.sc_by_id = {s.sc_id: s for s in scenarios}
+        self._states: dict[str, str] = {}
+        self._warned: set[str] = set()
 
-def tick(done: int, total: int, label: str) -> None:
-    if done % 20 == 0 or done == total:
-        print(f"    {label}: {done}/{total}", flush=True)
+    def lab(self, *names: str) -> list[str]:
+        """label 名 → id。查不到就跳過而不是硬塞——寧可少一個標籤，不要 400 整批。"""
+        out: list[str] = []
+        for n in names:
+            i = self.labels.get(n)
+            if i:
+                if i not in out:
+                    out.append(i)
+            elif n not in self._warned:
+                self._warned.add(n)
+                print(f"    ! 沒有 label {n}（先跑 bootstrap_target.py）", file=sys.stderr)
+        return out
 
+    def journeys_of(self, rid: str) -> list[str]:
+        return [f"journey:{sc}" for sc in sorted(self.rel.scenarios_of(rid))]
 
-# ------------------------------------------------------------- schema ----
+    def priority_of_req(self, rid: str) -> str:
+        """需求本身沒有優先級；取它服務的旅程裡最高的那一個。
 
-# 沒開這兩個旗標，自訂 type 與 Module 在 API 上會建得起來、在 UI 上卻看不到，
-# 是最難察覺的一種「匯入成功但沒東西」。開靶前先對齊。
-REQUIRED_FEATURES = {"is_issue_type_enabled": True, "module_view": True}
+        沒有旅程的需求（NFR 多半如此）回 none 而不是猜一個——猜出來的優先級會讓
+        「這條沒有任何旅程要求它先做」這個事實消失。
+        """
+        prios = {self.sc_by_id[sc].priority for sc in self.rel.scenarios_of(rid)
+                 if sc in self.sc_by_id}
+        for tag in ("P0", "P1", "P2"):
+            if tag in prios:
+                return PRIORITY[tag]
+        return "none"
 
+    def state_id(self, name: str):
+        if not self._states:
+            self._states = {s["name"]: s["id"] for s in self.p.paged(self.p._proj("/states/"))}
+        return self._states.get(name)
 
-def ensure_project_features(p: Plane) -> None:
-    step("⓪ 專案功能開關")
-    proj = p.get_project()
-    missing = {k: v for k, v in REQUIRED_FEATURES.items() if proj.get(k) != v}
-    print(f"    {proj.get('identifier')} {proj.get('name')} — "
-          + " ".join(f"{k}={proj.get(k)}" for k in REQUIRED_FEATURES))
-    if not missing:
-        return
-    if DRY:
-        print(f"    [dry] enable {sorted(missing)}")
-        return
-    p.update_project(**missing)
-    print(f"    已開啟 {sorted(missing)}")
-
-
-def ensure_types(p: Plane, state: dict) -> None:
-    step("① work item types")
-    existing = {t["name"]: t["id"] for t in p.list_types()}
-    for name, desc, is_epic in TYPES:
-        if name in state["types"]:
-            continue
-        tid = existing.get(name)
-        if not tid:
-            if DRY:
-                print(f"    [dry] create type {name}")
-                continue
-            tid = p.create_type(name, desc, is_epic)["id"]
-        try:
-            p.attach_type(tid)
-        except PlaneError as exc:
-            if exc.status not in (400, 409):  # 已關聯
-                raise
-        state["types"][name] = tid
-        print(f"    {name} -> {tid}")
-    save_state(state)
-
-
-def ensure_properties(p: Plane, state: dict, personas: list) -> None:
-    step("② 自訂欄位")
-    scs = [s.sc_id for s in canon.load_scenarios()]
-    specs = [
-        ("canonical_id", "text", None, "四書正典編號"),
-        ("source_doc", "text", None, "上游出處（檔名 §節次）"),
-        ("subsystem", "select", SUBSYSTEMS, "所屬子系統"),
-        ("nfr_category", "select", sorted({n.category for n in canon.load_nfrs()}), "NFR 品質屬性"),
-        ("nfr_tier", "select", ["contract", "slo"], "合約下限 / 營運目標"),
-        ("value_line", "select", LINES, "價值鏈分線"),
-        ("personas", "multi_select", [pe.per_id for pe in personas], "體現的 Persona"),
-        ("spec_status", "select", list(SPEC_STATUS.values()), "狀態軸①：需求定版（owner=SA）"),
-        ("essential_for", "multi_select", scs, "此需求是哪些旅程的 essential"),
-        ("supporting_for", "multi_select", scs, "此需求是哪些旅程的 supporting"),
-        ("owner_role", "select", ["SA", "BA", "QA", "RD", "OPS", "PM", "業主"], "負責角色"),
-    ]
-    existing = {pr["name"]: pr for pr in p.list_properties()}
-    for name, kind, options, desc in specs:
-        if name in state["properties"]:
-            continue
-        found = existing.get(name)
-        if not found:
-            if DRY:
-                print(f"    [dry] create property {name} ({kind})")
-                continue
-            payload = [{"label": o, "value": o} for o in options] if options else None
-            found = p.create_property(name, kind, payload, desc)
-        state["properties"][name] = {
-            "id": found["id"],
-            "kind": kind,
-            "options": {o["value"]: o["id"] for o in found.get("options", [])},
-        }
-        print(f"    {name} ({kind}) -> {found['id']}")
-    save_state(state)
-
-
-def ensure_containers(p: Plane, state: dict) -> None:
-    step("③ Module / Milestone / Initiative")
-    mods = {m["name"]: m["id"] for m in p.list_modules()}
-    for name in LINES + [f"子系統 {s}" for s in SUBSYSTEMS]:
-        if name in state["modules"]:
-            continue
+    def card(self, key: str, **fields):
+        """check-then-create：id_map 命中就跳過。Plane 一般寫入沒有冪等機制。"""
+        hit = self.items.get(key)
+        if hit:
+            if RELABEL and fields.get("labels") and not DRY:
+                self.p.update_work_item(hit["id"], labels=fields["labels"])
+            return hit["id"]
         if DRY:
-            print(f"    [dry] module {name}")
-            continue
-        state["modules"][name] = mods.get(name) or p.create_module(name)["id"]
-    miles = {m["name"]: m["id"] for m in p.list_milestones()}
-    for key, name in MILESTONES:
-        if key in state["milestones"]:
-            continue
-        if DRY:
-            print(f"    [dry] milestone {name}")
-            continue
-        state["milestones"][key] = miles.get(name) or p.create_milestone(name)["id"]
-    inits = {i["name"]: i["id"] for i in p.list_initiatives()}
-    for key, name in INITIATIVES:
-        if key in state["initiatives"]:
-            continue
-        if DRY:
-            print(f"    [dry] initiative {name}")
-            continue
-        state["initiatives"][key] = inits.get(name) or p.create_initiative(name)["id"]
-    print(f"    modules={len(state['modules'])} milestones={len(state['milestones'])} "
-          f"initiatives={len(state['initiatives'])}")
-    save_state(state)
+            return None
+        made = self.p.create_work_item(**{k: v for k, v in fields.items() if v is not None})
+        self.items[key] = {"id": made["id"], "sequence_id": made.get("sequence_id")}
+        return made["id"]
+
+    def cid(self, key: str):
+        return (self.items.get(key) or {}).get("id")
 
 
-# ---------------------------------------------------------- work items ---
+# ---------------------------------------------------------------- stages ---
 
-def _html(*blocks: tuple[str, str]) -> str:
-    """組卡片內文。
-
-    刻意輸出與 Plane 儲存形式一致的 HTML —— `quote=False`（內文不是屬性值，把 `'`
-    轉成 `&#x27;` 只會讓存回來的值與算出來的值永遠不等）、`<br>` 而非 `<br/>`。
-    否則任何「卡片是否與源檔同步」的漂移檢查都會被這兩種正規化差異灌滿假陽性。
-    Plane 仍會在最外層補一個 <div>，那層是它加的，比對時要自行剝掉。
-    """
-    out = []
-    for label, body in blocks:
-        if body and body.strip():
-            out.append(f"<p><b>{html.escape(label, quote=False)}</b><br>"
-                       f"{html.escape(body.strip(), quote=False)}</p>")
-    return "".join(out) or "<p></p>"
-
-
-def _by_uuid(state: dict, values: dict) -> dict:
-    """把 {欄位名: 值} 轉成 API 要的 {property_uuid: 值}，並剔掉空值。"""
-    out = {}
-    for name, value in values.items():
-        if value in (None, "", []):
-            continue
-        prop = state["properties"].get(name)
-        if prop:
-            out[prop["id"]] = value
-    return out
+def import_epics(c: Ctx) -> None:
+    step(f"① Epic（{len(SUBSYSTEMS)} 子系統 + NFR 地板 + WBS 分解）")
+    tid = c.types["Epic"]
+    for prefix, meta in SUBSYSTEMS.items():
+        c.card(f"epic:{prefix}", name=meta["name"], type_id=tid,
+               labels=c.lab("kind:subsystem", f"area:{prefix.lower()}"),
+               description_html=_html(("子系統", meta.get("short", "")),
+                                      ("說明", meta.get("description", "")),
+                                      ("架構定位", f"{meta.get('sad', '')}　{meta.get('sds', '')}")))
+    c.card(f"epic:{NFR_EPIC}", name=NFR_EPIC, type_id=tid,
+           description_html=_html(("定位", "NFR 天生不掛單一旅程——「可用性 99.9%」不對應任何一段"
+                                          "客戶旅程，它是所有旅程共用的地板。")))
+    c.card(f"epic:{WBS_EPIC}", name=WBS_EPIC, type_id=tid,
+           description_html=_html(("定位", "27_Product_Roadmap_WBS 的工程工作分解。它是交付軸，"
+                                          "與需求軸正交：需求軸回答「做完算不算數」，這裡回答"
+                                          "「誰在什麼時候做」。")))
+    print(f"    Epic {len(SUBSYSTEMS) + 2}")
+    save_state(c.state)
 
 
-def _set_props(p: Plane, state: dict, issue_id: str, values: dict) -> None:
-    """補寫既有卡的欄位（每欄一次 PUT）。新建卡走 create 的 inline properties，不會走到這。"""
-    for pid, value in _by_uuid(state, values).items():
-        try:
-            p.set_property_value(issue_id, pid, value)
-        except PlaneError as exc:
-            print(f"    ! property {pid} on {issue_id}: {exc}", file=sys.stderr)
+def import_features(c: Ctx, nfrs) -> None:
+    step("② Feature（L2 能力群 + NFR 品質分群）")
+    tid = c.types["Feature"]
+    n = 0
+    for prefix, groups in MODULES.items():
+        parent = c.cid(f"epic:{prefix}")
+        for code, name, _ in groups:
+            arch = canon.module_arch(prefix, code)
+            c.card(f"feature:{prefix}.{code}", name=f"{prefix}·{code} {name}", type_id=tid,
+                   parent=parent, labels=c.lab("kind:capability", f"area:{prefix.lower()}"),
+                   description_html=_html(("能力群", name), ("元件", arch.get("component", "")),
+                                          ("Code reality", arch.get("status", ""))))
+            n += 1
+    nfr_parent = c.cid(f"epic:{NFR_EPIC}")
+    for cat in sorted({x.category for x in nfrs}):
+        slug = QUALITY_GROUPS.get(cat, cat.lower())
+        c.card(f"feature:nfr.{cat}", name=f"NFR·{cat} 品質屬性", type_id=tid, parent=nfr_parent,
+               labels=c.lab("kind:capability", f"quality:{slug}"),
+               description_html=_html(("品質類別", cat),
+                                      ("說明", "同一類別的非功能需求彙整於此；覆蓋率沿 parent roll-up。")))
+        n += 1
+    print(f"    Feature {n}")
+    save_state(c.state)
 
 
-def _upsert(p: Plane, state: dict, key: str, name: str, type_name: str,
-            description_html: str, priority: str = "none",
-            props: dict | None = None, fields: dict | None = None) -> dict:
-    """建立或取回一張卡。
-
-    自訂欄位走 create 的 inline `properties`（serializer 支援，見
-    IssueSerializer._validate_properties）—— 每張卡因此只花 1 次 API 呼叫而不是
-    1+N 次。後端限速 60/min，這個差別是整份匯入 40 分鐘 vs 7 分鐘。
-
-    額外的原生欄位（state / milestone / parent…）走 `fields` dict 而不是 **kwargs：
-    Plane 的欄位名 `state` 會和本函式的 `state` 參數撞名。
-    """
-    hit = state["work_items"].get(key)
-    if hit:
-        if props and key not in state.setdefault("props_done", []):
-            _set_props(p, state, hit["id"], props)   # 舊資料補欄位
-            state["props_done"].append(key)
-            save_state(state)
-        return hit
-    if DRY:
-        print(f"    [dry] {key} {name[:40]}")
-        return {"id": "dry", "sequence_id": 0}
-    item = p.create_work_item(
-        name=name[:250], type_id=state["types"][type_name],
-        description_html=description_html, priority=priority,
-        properties=_by_uuid(state, props or {}), **(fields or {}),
-    )
-    rec = {"id": item["id"], "sequence_id": item["sequence_id"], "type": type_name}
-    state["work_items"][key] = rec
-    state.setdefault("props_done", []).append(key)
-    save_state(state)  # 立即落盤：中斷時不留孤兒卡（Plane 無寫入冪等）
-    return rec
+def import_scenarios(c: Ctx, scenarios) -> None:
+    step(f"③ Scenario 旅程（{len(scenarios)}）")
+    tid = c.types["Scenario"]
+    for s in scenarios:
+        line = s.line.split("-")[1].lower() if "-" in s.line else s.line.lower()
+        c.card(f"sc:{s.sc_id}", name=f"{s.sc_id} {s.name}", type_id=tid,
+               priority=PRIORITY.get(s.priority, "none"),
+               labels=c.lab("kind:journey", f"line:{line}", f"journey:{s.sc_id}"),
+               description_html=_html(("主要 Actor", s.actor), ("觸發", s.trigger),
+                                      ("主要步驟", s.steps), ("完成判定", s.done),
+                                      ("失敗與例外", s.fail)))
+    print(f"    Scenario {len(scenarios)}")
+    save_state(c.state)
 
 
-def import_scenarios(p: Plane, state: dict, rel, personas) -> None:
-    step("④a 情境卡 SC（19）")
-    scenarios = canon.load_scenarios()
-    for i, sc in enumerate(scenarios, 1):
-        _upsert(p, state, sc.sc_id, f"{sc.sc_id} {sc.name}", "Scenario",
-                _html(("主要 Actor", sc.actor), ("觸發", sc.trigger),
-                      ("主要步驟", sc.steps), ("完成判定", sc.done), ("失敗與例外", sc.fail)),
-                PRIORITY.get(sc.priority, "none"),
-                props={
-                    "canonical_id": sc.sc_id,
-                    "source_doc": "28_Scenarios.md",
-                    "value_line": sc.line,
-                    "personas": rel.personas_of(sc.sc_id),
-                    "owner_role": "業主",
-                })
-        tick(i, len(scenarios), "SC")
-    save_state(state)
-
-
-def import_requirements(p: Plane, state: dict, rel) -> None:
-    step("④b 功能需求 FR（65）")
-    reqs = canon.load_requirements()
-    for i, r in enumerate(reqs, 1):
-        _upsert(p, state, r.req_id, f"{r.req_id} {r.name}", "Requirement",
-                _html(("前置條件", r.precondition), ("主流程", r.flow),
-                      ("後置條件與驗收", r.acceptance), ("追溯", r.trace)),
-                props={
-                    "canonical_id": r.req_id,
-                    "source_doc": f"04_SRS.md {r.heading}",
-                    "subsystem": r.prefix,
-                    "spec_status": SPEC_STATUS.get(canon.spec_status(r), "tbd"),
-                    "essential_for": [s for s in rel.scenarios_of(r.req_id)
-                                      if r.req_id in rel.reqs_of(s, "essential")],
-                    "supporting_for": [s for s in rel.scenarios_of(r.req_id)
-                                       if r.req_id in rel.reqs_of(s, "supporting")],
-                    "owner_role": "SA",
-                })
-        tick(i, len(reqs), "FR")
-    save_state(state)
-
-    step("④c 非功能需求 NFR（106）")
-    nfrs = canon.load_nfrs()
+def import_stories(c: Ctx, frs, nfrs) -> None:
+    step(f"④ Story（FR {len(frs)} + NFR {len(nfrs)}）")
+    tid = c.types["Story"]
+    for i, q in enumerate(frs, 1):
+        code, _ = canon.module_for(q)
+        spec = SPEC_STATUS.get(canon.spec_status(q), "planned")
+        c.card(f"rq:{q.req_id}", name=f"{q.req_id} {q.name}", type_id=tid,
+               parent=c.cid(f"feature:{q.prefix}.{code}"),
+               priority=c.priority_of_req(q.req_id),
+               milestone=c.milestones.get(canon.phase_for(q).split("→")[-1]),
+               labels=c.lab("kind:fr", f"area:{q.prefix.lower()}", f"spec:{spec}", "role:sa",
+                            *c.journeys_of(q.req_id)),
+               description_html=_html(("前置", q.precondition), ("主流程", q.flow),
+                                      ("後置與驗收", q.acceptance), ("追溯", q.trace)))
+        tick(i, len(frs), "FR")
     for i, n in enumerate(nfrs, 1):
-        _upsert(p, state, n.req_id, f"{n.req_id} {n.name}", "NFR",
-                _html(("目標值", n.target), ("驗證方式", n.verification), ("分層", n.tier)),
-                props={
-                    "canonical_id": n.req_id,
-                    "source_doc": f"05_NFR.md {n.heading}",
-                    "nfr_category": n.category,
-                    "nfr_tier": "contract" if n.tier.startswith("合約下限") else "slo",
-                    "spec_status": "finalized",
-                    "essential_for": [s for s in rel.scenarios_of(n.req_id)
-                                      if n.req_id in rel.reqs_of(s, "essential")],
-                    "supporting_for": [s for s in rel.scenarios_of(n.req_id)
-                                       if n.req_id in rel.reqs_of(s, "supporting")],
-                    "owner_role": "SA",
-                })
+        slug = QUALITY_GROUPS.get(n.category, n.category.lower())
+        forms = [f"verify:{VERIFY_FORMS[f]}" for f in canon.nfr_forms(n.verification)
+                 if f in VERIFY_FORMS]
+        tier = "contract" if "合約" in (n.tier or "") else "slo"
+        c.card(f"rq:{n.req_id}", name=f"{n.req_id} {n.name}", type_id=tid,
+               parent=c.cid(f"feature:nfr.{n.category}"),
+               priority=c.priority_of_req(n.req_id),
+               labels=c.lab("kind:nfr", f"quality:{slug}", f"nfr:{tier}", "role:sa",
+                            *forms, *c.journeys_of(n.req_id)),
+               description_html=_html(("目標值", n.target), ("驗證方式", n.verification),
+                                      ("分層", n.tier)))
         tick(i, len(nfrs), "NFR")
-    save_state(state)
+    save_state(c.state)
 
 
-def attach_modules(p: Plane, state: dict) -> None:
-    step("④d 掛 Module（分線 / 子系統）")
-    if DRY:
+def import_wbs(c: Ctx, wbs) -> None:
+    step(f"⑤ Task 工作包（{len(wbs)}）")
+    ftid, ttid = c.types["Feature"], c.types["Task"]
+    epic = c.cid(f"epic:{WBS_EPIC}")
+    groups: dict[str, str] = {}
+    for milestone, wid, status, item, owner, deps, accept in wbs:
+        grp = ".".join(str(wid).split(".")[:2])
+        if grp not in groups:
+            groups[grp] = c.card(f"wbsgrp:{grp}", name=f"WBS {grp} 工作群", type_id=ftid,
+                                 parent=epic, description_html=_html(("里程碑", milestone)))
+        c.card(f"wbs:{wid}", name=f"{wid} {item}", type_id=ttid, parent=groups.get(grp),
+               state=c.state_id(wbs_state(status)),
+               milestone=c.milestones.get(str(milestone).split()[0]),
+               labels=c.lab("kind:wbs", "role:rd"),
+               description_html=_html(("負責", owner), ("前置", deps),
+                                      ("交付物 / 驗收依據", accept), ("狀態原文", status)))
+    print(f"    工作群 {len(groups)}　工作包 {len(wbs)}")
+    save_state(c.state)
+
+
+def import_states(c: Ctx, frs) -> None:
+    """把 FR 卡的 state 設成工程證據軸的值（owner=RD，來源＝codebase 掃描）。
+
+    **為什麼一定要設**：守則 B5 規則③「backlog 與 cancelled 狀態群組免契約」。
+    建卡時不給 state 就落到專案預設的 Backlog，於是 273 條追溯連結全部連上了卻
+    一條都不計入覆蓋率分母——`requirements.total` 只剩下有明確 state 的 WBS 卡，
+    平台的品質機制對規格卡整個失效。這不是數字好不好看的問題，是機制有沒有在運作。
+
+    **為什麼只設 FR**：
+      - FR 有 `_spec_data` 的 codebase 掃描結果，那就是工程證據軸的來源
+      - NFR 沒有逐條的 code 掃描；形態 3/4 的更是出貨前根本驗不了，
+        留在 Backlog 才誠實（它們的證據缺口由 Page ④ 證據負債追）
+      - SC 旅程的 state 是**業務驗收軸**，只有人能推進，一律留 Backlog＝未驗收
+      - Epic / Feature 是 roll-up 容器，覆蓋率沿 parent 繼承，不需要自己有契約
+    """
+    step(f"⑤b FR 工程證據狀態（{len(frs)}）")
+    done = c.state.setdefault("states_done", {})
+    mapping = {"AS-BUILT": "Done", "PARTIAL": "In Progress", "MIXED": "In Progress",
+               "TO-BE": "Todo"}
+    n = 0
+    for i, q in enumerate(frs, 1):
+        key = f"rq:{q.req_id}"
+        iid = c.cid(key)
+        if not iid or done.get(key) or DRY:
+            continue
+        status = str(canon.architecture_for(q).get("status") or "")
+        name = next((v for k, v in mapping.items() if status.startswith(k)), "Todo")
+        sid = c.state_id(name)
+        if sid:
+            c.p.update_work_item(iid, state=sid)
+            done[key] = name
+            n += 1
+        if i % 20 == 0:
+            save_state(c.state)
+        tick(i, len(frs), "state")
+    print(f"    設定 {n} 張")
+    save_state(c.state)
+
+
+def import_properties(c: Ctx, frs, nfrs, scenarios, wbs) -> None:
+    step("⑥ 自訂欄位值（canonical_id / source_doc）")
+    props = c.state.get("properties", {})
+    cid, sdoc = props.get("canonical_id"), props.get("source_doc")
+    if not (cid and sdoc):
+        print("    ! 找不到自訂欄位，跳過")
         return
+    done = c.state.setdefault("props_done", {})
+    plan: list[tuple[str, str, str]] = []
+    plan += [(f"sc:{s.sc_id}", s.sc_id, "28_Scenarios.md") for s in scenarios]
+    plan += [(f"rq:{q.req_id}", q.req_id, f"04_SRS.md:{q.source_line}") for q in frs]
+    plan += [(f"rq:{n.req_id}", n.req_id, f"05_NFR.md:{n.source_line}") for n in nfrs]
+    plan += [(f"wbs:{r[1]}", str(r[1]), "27_Product_Roadmap_WBS.md") for r in wbs]
+    for i, (key, value, source) in enumerate(plan, 1):
+        if done.get(key) or key not in c.items or DRY:
+            continue
+        iid = c.items[key]["id"]
+        c.p.set_property_value(iid, cid, value)
+        c.p.set_property_value(iid, sdoc, source)
+        done[key] = True
+        if i % 40 == 0:
+            save_state(c.state)
+        tick(i, len(plan), "props")
+    save_state(c.state)
+
+
+def attach_modules(c: Ctx, frs) -> None:
+    step("⑦ 掛 Module（子系統範疇分組）")
     buckets: dict[str, list[str]] = {}
-    for sc in canon.load_scenarios():
-        rec = state["work_items"].get(sc.sc_id)
-        if rec:
-            buckets.setdefault(sc.line, []).append(rec["id"])
-    for r in canon.load_requirements():
-        rec = state["work_items"].get(r.req_id)
-        if rec:
-            buckets.setdefault(f"子系統 {r.prefix}", []).append(rec["id"])
-    for name, ids in buckets.items():
-        mid = state["modules"].get(name)
-        if not mid:
-            continue
-        for chunk in (ids[i:i + 50] for i in range(0, len(ids), 50)):
-            p.add_module_issues(mid, chunk)
-        print(f"    {name}: {len(ids)}")
-
-
-def import_relations(p: Plane, state: dict, rel) -> None:
-    step("⑤ sc_requires_rq relation（132，relates_to 供導航）")
-    if DRY:
-        return
-    done = state.setdefault("relations_done", [])
-    by_sc: dict[str, list[str]] = {}
-    for e in rel.sc_rq:
-        rec = state["work_items"].get(e["requirement"])
-        if rec:
-            by_sc.setdefault(e["scenario"], []).append(rec["id"])
-    for i, (sc_id, targets) in enumerate(sorted(by_sc.items()), 1):
-        if sc_id in done:
-            continue
-        src = state["work_items"].get(sc_id)
-        if not src:
-            continue
-        try:
-            p.add_relation(src["id"], "relates_to", targets)
-            done.append(sc_id)
-        except PlaneError as exc:
-            print(f"    ! relation {sc_id}: {exc}", file=sys.stderr)
-        tick(i, len(by_sc), "SC→RQ")
-    save_state(state)
-
-
-WBS_TITLE = re.compile(r"^(\d+\.\d+(?:\.\d+)?)\s")
-
-
-def adopt_existing_wbs(p: Plane, state: dict) -> None:
-    """把「不是本匯入器建的」既有 WBS 卡認領進 id_map。
-
-    遠端 LOCK 早於本管線就在跑交付看板，1.1.1 / 2.4.3 這些工作包已是人工開的卡。
-    不認領就會被 ⑥ 當成未建、再開一張同號的——同一個工作包在看板上長出兩張卡，
-    而 Plane 的寫入沒有冪等可以擋。標題前綴的編號就是它的 canonical_id，直接拿來
-    對號入座；認領後補上 type / milestone，讓人工卡與匯入卡在資料模型上齊平。
-    """
-    step("⑥a 認領既有 WBS 卡")
-    if DRY:
-        return
-    known = {rec["id"] for rec in state["work_items"].values()}
-    adopted = state.setdefault("adopted", [])
-    hit = 0
-    for it in p.list_work_items():
-        m = WBS_TITLE.match(it.get("name") or "")
-        if not m or it["id"] in known:
-            continue
-        key = f"WBS-{m.group(1)}"
-        if key in state["work_items"]:
-            continue
-        state["work_items"][key] = {"id": it["id"], "sequence_id": it["sequence_id"],
-                                    "type": "Work Package"}
-        fields = {"type_id": state["types"]["Work Package"]}
-        ms = state["milestones"].get(f"M{m.group(1).split('.')[0]}")
-        if ms:
-            fields["milestone"] = ms
-        try:
-            p.update_work_item(it["id"], **fields)
-        except PlaneError as exc:
-            print(f"    ! adopt {key}: {exc}", file=sys.stderr)
-        adopted.append(key)
-        hit += 1
-    print(f"    認領 {hit} 張既有卡（不再重複建立）")
-    save_state(state)
-
-
-def import_wbs(p: Plane, state: dict) -> None:
-    step("⑥ WBS 工作包")
-    rows = [r for r in canon.load_wbs() if re.fullmatch(r"\d+\.\d+(\.\d+)?", (r[1] or "").strip())]
-    states = {s["name"]: s["id"] for s in p.paged(
-        f"/api/v1/workspaces/{p.slug}/projects/{p.project_id}/states/")} if not DRY else {}
-    for i, row in enumerate(rows, 1):
-        group, wid, status, name, owner, deps, deliver = (row + [""] * 7)[:7]
-        key = f"WBS-{wid}"
-        fields: dict = {}
+    for q in frs:
+        mid, item = c.modules.get(q.prefix), c.cid(f"rq:{q.req_id}")
+        if mid and item:
+            buckets.setdefault(mid, []).append(item)
+    for prefix, mid in c.modules.items():
+        epic = c.cid(f"epic:{prefix}")
+        if epic:
+            buckets.setdefault(mid, []).append(epic)
+    for mid, ids in buckets.items():
         if not DRY:
-            sid = states.get(wbs_state(status))
-            if sid:
-                fields["state"] = sid
-            ms = state["milestones"].get(f"M{wid.split('.')[0]}")
-            if ms:
-                fields["milestone"] = ms
-        _upsert(p, state, key, f"{wid} {name}", "Work Package",
-                _html(("狀態原文", status), ("負責", owner), ("前置", deps),
-                      ("交付物 / 驗收依據", deliver), ("里程碑", group)),
-                props={
-                    "canonical_id": wid,
-                    "source_doc": "27_Product_Roadmap_WBS.md",
-                    "owner_role": "PM",
-                }, fields=fields)
-        tick(i, len(rows), "WBS")
-    save_state(state)
+            c.p.add_module_issues(mid, ids)
+    print(f"    {len(buckets)} 個 Module，共 {sum(len(v) for v in buckets.values())} 張卡")
 
 
-# ------------------------------------------------------------- testing ---
+def import_testing(c: Ctx, cases) -> None:
+    step(f"⑧ 測試契約（folder + {len(cases)} case + 追溯連結）")
+    folders = c.state.setdefault("folders", {})
+    tcs = c.state.setdefault("test_cases", {})
+    links = c.state.setdefault("links_done", {})
 
-def _domain_path(tc_id: str) -> str:
-    """TC 編號的中段就是它自己的分類法，直接展成資料夾層級。
+    for t in cases:
+        fname = (t.heading or "").strip() or "未分類"
+        if fname not in folders and not DRY:
+            folders[fname] = c.p.create_folder(fname)["id"]
+    save_state(c.state)
 
-    TC-CS-AI-01   → CS/AI
-    TC-SEC-RBAC-03→ SEC/RBAC
-    TC-NFR-SEC-01 → NFR/SEC      （與 TC-SEC-* 分開，兩者不同來源）
-    TC-WO-14      → WO
-    """
-    mid = re.sub(r"-\d+$", "", re.sub(r"^TC-", "", tc_id))
-    return mid.replace("-", "/") or "OTHER"
-
-
-def ensure_folder(p: Plane, state: dict, path: str) -> str | None:
-    if path in state["folders"]:
-        return state["folders"][path]
-    parent = None
-    walked = ""
-    for part in path.split("/"):
-        walked = f"{walked}/{part}".strip("/")
-        if walked not in state["folders"]:
-            if DRY:
-                return None
-            state["folders"][walked] = p.create_folder(part, parent)["id"]
-        parent = state["folders"][walked]
-    return parent
-
-
-def import_test_cases(p: Plane, state: dict, rel) -> None:
-    step("⑦ 測試案例 TC（130）+ 追溯連結（273）")
-    cases = canon.load_test_cases()
-    sc_of_tc: dict[str, str] = {}
-    for s in rel.sc_tc:
-        for c in s.get("cases") or []:
-            sc_of_tc.setdefault(c, s["scenario"])
     for i, t in enumerate(cases, 1):
-        if t.tc_id not in state["test_cases"]:
-            folder = ensure_folder(p, state, f"測試庫/{_domain_path(t.tc_id)}")
-            kinds = [k for k in re.split(r"[+、,]", t.kind or "") if k.strip()]
-            tags = [t.tc_id] + kinds + ([t.priority] if t.priority else [])
-            sc = sc_of_tc.get(t.tc_id)
-            if sc:
-                tags.append(sc)
-            if DRY:
-                print(f"    [dry] {t.tc_id}")
+        if t.tc_id in tcs or DRY:
+            continue
+        path, aspect = canon.case_dimensions(t.kind)
+        tags = [x for x in [t.priority, *path.split("＋"), *aspect.split("＋")]
+                if x and not x.startswith("⚠")]
+        made = c.p.create_test_case(
+            title=f"{t.tc_id} {(t.expected or '')[:56]}".strip(),
+            folder_id=folders.get((t.heading or "").strip() or "未分類"),
+            priority=PRIORITY.get(t.priority, "none"),
+            case_type=case_type_of(aspect),
+            tags=tags,
+            description=doc(f"驗收契約：{t.expected}"),
+            preconditions=doc(t.precondition),
+            steps=[{"action": doc(t.steps), "expected_result": doc(t.expected)}],
+        )
+        tcs[t.tc_id] = made["id"]
+        if i % 20 == 0:
+            save_state(c.state)
+        tick(i, len(cases), "case")
+    save_state(c.state)
+
+    n = 0
+    for t in cases:
+        case_id = tcs.get(t.tc_id)
+        if not case_id:
+            continue
+        for rid in c.rel.reqs_of_case(t.tc_id):
+            iid = c.cid(f"rq:{rid}")
+            key = f"{t.tc_id}->{rid}"
+            if not iid or links.get(key) or DRY:
                 continue
-            case = p.create_test_case(
-                title=f"{t.tc_id} {(t.expected or t.steps or '')[:60]}"[:250],
-                folder_id=folder,
-                priority=PRIORITY.get(t.priority, "none"),
-                tags=sorted(set(tags)),
-                description=doc(t.steps),
-                preconditions=doc(t.precondition),
-                steps=[{"action": doc(t.steps), "expected_result": doc(t.expected)}],
-            )
-            state["test_cases"][t.tc_id] = {"id": case["id"], "sequence": case["sequence"]}
-            save_state(state)
-        tick(i, len(cases), "TC")
-    save_state(state)
-
-    linked = state.setdefault("links_done", [])
-    edges = sorted({(e["requirement"], e["case"]) for e in rel.rq_tc})
-    for i, (req_id, tc_id) in enumerate(edges, 1):
-        tag = f"{req_id}|{tc_id}"
-        if tag in linked or DRY:
-            continue
-        issue = state["work_items"].get(req_id)
-        case = state["test_cases"].get(tc_id)
-        if not issue or not case:
-            continue
-        try:
-            p.link_case_to_work_item(case["id"], issue["id"])
-            linked.append(tag)
-        except PlaneError as exc:
-            if exc.status in (400, 409):
-                linked.append(tag)
-            else:
-                print(f"    ! link {tag}: {exc}", file=sys.stderr)
-        tick(i, len(edges), "link")
-    save_state(state)
+            try:
+                c.p.link_case_to_work_item(case_id, iid)
+            except PlaneError as e:
+                if e.status not in (400, 409):
+                    raise
+            links[key] = True
+            n += 1
+            if n % 40 == 0:
+                save_state(c.state)
+    print(f"    追溯連結 +{n}")
+    save_state(c.state)
 
 
-def import_test_runs(p: Plane, state: dict, rel) -> None:
-    step("⑧ 驗收腳本 TestRun（19）")
-    for s in rel.sc_tc:
-        sc_id = s["scenario"]
-        if sc_id in state["test_runs"] or DRY:
+def import_runs(c: Ctx, scenarios) -> None:
+    step("⑨ TestRun（一條旅程一條）")
+    runs = c.state.setdefault("test_runs", {})
+    tcs = c.state.get("test_cases", {})
+    for s in scenarios:
+        if s.sc_id in runs or DRY:
             continue
-        ids = [state["test_cases"][c]["id"] for c in (s.get("cases") or [])
-               if c in state["test_cases"]]
+        ids = [tcs[t] for t in c.rel.script_cases(s.sc_id) if t in tcs]
         if not ids:
             continue
-        # run_type 不傳：TestRunWriteSerializer 沒宣告這個欄位，DRF 會靜默丟棄，
-        # 且 create_fixed_test_run() 本來就硬寫 run_type="fixed"。
-        run = p.create_test_run(
-            name=f"{sc_id} 驗收腳本（{s.get('uat') or '不走 UAT 走查'}）",
+        uat = next((x.get("uat") for x in c.rel.sc_tc if x["scenario"] == s.sc_id), None)
+        made = c.p.create_test_run(
+            name=f"{s.sc_id} 驗收腳本（{uat or '不走 UAT 走查'}）",
             case_ids=ids, build="spec-import",
+            description=doc(f"{s.name}｜"
+                            f"{'UAT 走查 ' + uat if uat else '後端受控驗收，不走 UAT 走查'}"),
+            configuration={"source": "spec-import", "environment": "spec",
+                           "walkthrough": uat or "none"},
         )
-        state["test_runs"][sc_id] = run["id"]
-        print(f"    {sc_id}: {len(ids)} cases -> {run['id']}")
-    save_state(state)
+        runs[s.sc_id] = made["id"]
+        print(f"    {s.sc_id}: {len(ids)} cases")
+        save_state(c.state)
 
 
-def verify(p: Plane, state: dict) -> None:
-    step("⑨ 驗收對帳")
+def verify(c: Ctx) -> None:
+    step("⑩ 驗收對帳")
     if DRY:
         return
-    cov = p.requirement_coverage()
-    reqs = {r.req_id for r in canon.load_requirements()} | {n.req_id for n in canon.load_nfrs()}
-    print(f"    work items      : {len(state['work_items'])}")
-    print(f"    test cases      : {len(state['test_cases'])}")
-    print(f"    test runs       : {len(state['test_runs'])}")
-    print(f"    coverage total  : {cov.get('total')}  covered={cov.get('covered')} "
-          f"uncovered={cov.get('uncovered')}")
-    print(f"    需求基線 (FR+NFR): {len(reqs)}")
+    ov = c.p.quality_overview()
+    print(f"    work items   : {len(c.items)}")
+    print(f"    test cases   : {len(c.state.get('test_cases', {}))}")
+    print(f"    test runs    : {len(c.state.get('test_runs', {}))}")
+    for k in ("library", "requirements", "release_gate"):
+        print(f"    {k:<13}: {json.dumps(ov.get(k), ensure_ascii=False)}")
 
 
 def main() -> int:
@@ -593,22 +498,30 @@ def main() -> int:
     p = Plane()
     ID_MAP = p.state_file()
     state = load_state()
+    if not state.get("types"):
+        print("id_map 沒有型別——先跑 _plane/bootstrap_target.py", file=sys.stderr)
+        return 2
+
     rel = canon.load_relations()
-    personas = canon.load_personas()
+    scenarios = canon.load_scenarios()
+    frs = canon.load_requirements()
+    nfrs = canon.load_nfrs()
+    cases = canon.load_test_cases()
+    wbs = canon.load_wbs()
+    c = Ctx(p, state, rel, scenarios)
 
     pipeline = [
-        ("features",     lambda: ensure_project_features(p)),
-        ("types",        lambda: ensure_types(p, state)),
-        ("properties",   lambda: ensure_properties(p, state, personas)),
-        ("containers",   lambda: ensure_containers(p, state)),
-        ("scenarios",    lambda: import_scenarios(p, state, rel, personas)),
-        ("requirements", lambda: import_requirements(p, state, rel)),
-        ("modules",      lambda: attach_modules(p, state)),
-        ("relations",    lambda: import_relations(p, state, rel)),
-        ("wbs",          lambda: (adopt_existing_wbs(p, state), import_wbs(p, state))),
-        ("testing",      lambda: import_test_cases(p, state, rel)),
-        ("runs",         lambda: import_test_runs(p, state, rel)),
-        ("verify",       lambda: verify(p, state)),
+        ("epics", lambda: import_epics(c)),
+        ("features", lambda: import_features(c, nfrs)),
+        ("scenarios", lambda: import_scenarios(c, scenarios)),
+        ("stories", lambda: import_stories(c, frs, nfrs)),
+        ("wbs", lambda: import_wbs(c, wbs)),
+        ("states", lambda: import_states(c, frs)),
+        ("props", lambda: import_properties(c, frs, nfrs, scenarios, wbs)),
+        ("modules", lambda: attach_modules(c, frs)),
+        ("testing", lambda: import_testing(c, cases)),
+        ("runs", lambda: import_runs(c, scenarios)),
+        ("verify", lambda: verify(c)),
     ]
     names = [n for n, _ in pipeline]
     until = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--until=")), names[-1])
@@ -617,8 +530,7 @@ def main() -> int:
         return 2
 
     print(f"靶心 {p.base} / {p.slug} / {p.project_id}")
-    print(f"id_map {ID_MAP}")
-    print(f"階段 {names[0]} → {until}")
+    print(f"id_map {ID_MAP.name}\n階段 {names[0]} → {until}")
     for name, run in pipeline:
         run()
         if name == until:

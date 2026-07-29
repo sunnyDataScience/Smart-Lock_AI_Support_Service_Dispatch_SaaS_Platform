@@ -163,9 +163,18 @@ class Plane:
     def list_types(self) -> list[dict]:
         return self.paged(self._ws("/work-item-types/"))
 
-    def create_type(self, name: str, description: str = "", is_epic: bool = False) -> dict:
-        return self._call("POST", self._ws("/work-item-types/"),
-                          {"name": name, "description": description, "is_epic": is_epic})
+    def create_type(self, name: str, description: str = "", is_epic: bool = False,
+                    level: float | None = None) -> dict:
+        """建立 workspace 級型別。
+
+        `level` 一併帶進來是刻意的：分兩步（先 create 再 PATCH level）會在中間留下
+        一個 level=0 的型別，而 0 正是 Epic 層——真的有人在那個空窗期讀報表就會拿到
+        錯的階層。demo 專案裡那五個殘留型別 level 全是 0.0 就是這樣來的。
+        """
+        body: dict = {"name": name, "description": description, "is_epic": is_epic}
+        if level is not None:
+            body["level"] = level
+        return self._call("POST", self._ws("/work-item-types/"), body)
 
     def attach_type(self, type_id: str) -> dict:
         # 此 fork 的欄位名是 type_id（不是 work_item_type_id）
@@ -262,6 +271,33 @@ class Plane:
 
     def list_test_runs(self) -> list[dict]:
         return self.paged(self._proj("/testing/test-runs/"))
+
+    # -- labels / cycles ---------------------------------------------------
+    # 這兩個是這版 UI 少數「機器可寫 ＋ 人看得見」的軸（自訂欄位與型別都沒有呈現面），
+    # 所以凡是要給人在看板上分辨的維度，一律落這裡而不是自訂欄位。
+
+    def list_labels(self) -> list[dict]:
+        return self.paged(self._proj("/labels/"))
+
+    def create_label(self, name: str, color: str = "#6D7B8A") -> dict:
+        return self._call("POST", self._proj("/labels/"), {"name": name, "color": color})
+
+    def list_cycles(self) -> list[dict]:
+        return self.paged(self._proj("/cycles/"))
+
+    def create_cycle(self, name: str, start_date: str, end_date: str, **extra) -> dict:
+        return self._call("POST", self._proj("/cycles/"),
+                          {"name": name, "start_date": start_date, "end_date": end_date, **extra})
+
+    def add_cycle_issues(self, cycle_id: str, issue_ids: list[str]) -> dict:
+        return self._call("POST", self._proj(f"/cycles/{cycle_id}/cycle-issues/"),
+                          {"issues": issue_ids})
+
+    def delete_label(self, label_id: str) -> None:
+        self._call("DELETE", self._proj(f"/labels/{label_id}/"))
+
+    def delete_cycle(self, cycle_id: str) -> None:
+        self._call("DELETE", self._proj(f"/cycles/{cycle_id}/"))
 
     # -- 回復 ---------------------------------------------------------------
     # 對映 README §6 的「id_map 是我們建了什麼的完整紀錄」——回復就是倒著刪它記的東西，

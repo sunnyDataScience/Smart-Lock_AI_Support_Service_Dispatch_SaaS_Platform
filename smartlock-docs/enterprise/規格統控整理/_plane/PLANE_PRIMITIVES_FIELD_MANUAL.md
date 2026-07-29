@@ -492,7 +492,19 @@ API 另回 `work_item_ids`（追溯連結）、`latest_status`、`current`（**�
 | `description` | JSON | 說明，實測形如 `{"text": "…"}` |
 | `preconditions` | JSON | 前置條件 |
 | `priority` | `urgent`/`high`/`medium`/`low`/`none` | 與 issue 同一組值域 |
+| `case_type` | `functional` / `performance` / `security` / `reliability` / `compliance`（預設 `functional`）| **「這個契約用什麼方式驗」，不是「需求是功能還是非功能」**——見下 |
 | `tags` | JSON list | 自由標籤，實測用來放 `["P0","SC-02","TC-CS-AI-01","happy"]` |
+
+> 🟥 **`case_type` 最容易被誤用成 FR/NFR 分類**（2026-07-29 實際踩到，送
+> `"non_functional"` 直接 400）。模型自己的註解寫得很清楚：
+>
+> > *acceptance conditions, so this never doubles as an FR/NFR classification —
+> > that lives on the work item.*
+>
+> 需求是功能還是非功能，屬於**需求管理**，落在 work item（本專案用 `kind:fr` /
+> `kind:nfr` 標籤）；`case_type` 屬於**測試管理**，回答「這條契約靠效能量測、
+> 靠安全掃描、還是靠合規稽核來驗」。這正是守則 B2 明文警告的「不要用同一個欄位
+> 表達兩件事」——一條功能需求的驗收條件完全可能包含一個效能門檻。
 
 **不可變**：`save()` 在非新增時擲「Published test case versions are immutable.」
 另：`project_id` / `workspace_id` 由父 case 自動帶入，不用給。

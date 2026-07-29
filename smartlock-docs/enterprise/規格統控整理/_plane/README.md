@@ -60,14 +60,17 @@
 `order_by("level", "name")` 讀到；`is_epic` 只在封存清單排除 epic 卡時用到。
 真正承載階層、也是覆蓋率 roll-up 唯一走的路徑是 **`Issue.parent`**。本專案的落點：
 
-| 層 | level | is_epic | 型別名 | 來源 | 數量 |
+| 層 | level | is_epic | 型別 | 來源 | 數量 |
 |---|---|---|---|---|---|
-| Epic | 0 | ✅ | `Work Group` | BOM L1 的 7 個子系統 ＋ 1 個 NFR 全域區塊 | **8** |
-| Feature | 1 | — | `Feature` | BOM L2 的能力群（`_spec_data.MODULES`）| **32** |
-| Story | 2 | — | `Requirement` | `04_SRS` 的 FR | **65** |
-| Quality requirement | 2 | — | `NFR` | `05_NFR` 的 NFR，**與 Story 同階** | **106** |
-| Task | 3 | — | `Work Package` | `27_Product_Roadmap_WBS` 的工作包 | **49** |
+| Epic | 0 | ✅ | `Epic` | 7 個子系統 ＋ NFR 全域地板 ＋ WBS 交付分解 | **9** |
+| Feature | 1 | — | `Feature` | 32 個 L2 能力群 ＋ 17 個 NFR 品質分群 ＋ 26 個 WBS 工作群 | **75** |
+| Story | 2 | — | `Story` | `04_SRS` 的 FR ＋ `05_NFR` 的 NFR（**同一個型別**，見下）| **171** |
+| Task | 3 | — | `Task` | `27_Product_Roadmap_WBS` 的工作包 | **49** |
 | （不進樹） | 0 | — | `Scenario` | `28_Scenarios` 的 SC | 19 |
+
+**NFR 不另立型別**：demo 用 `Requirement kind` = `functional` / `non_functional` 區分，
+本專案改用 `kind:fr` / `kind:nfr` 標籤表達同一件事（理由見 §3.2——自訂欄位沒有 UI）。
+守則 B0 說「Quality requirement 與 Story 同階、不另開子層」，兩種做法都符合。
 
 **SC 刻意不進 parent 樹**：一張卡只能有一個 parent，而 L1/L2/L3 已經佔用了它；
 旅程橫跨多個子系統，硬掛進樹會逼它選一個歸屬。SC 改為**直接持有自己的驗收契約**——
@@ -86,9 +89,18 @@ Valuable（對終端使用者不構成可感知價值）三條。它是 PMBOK �
 1. **沿階層 roll-up** —— 契約掛在 Story（驗收在那裡決定），Feature 與 Epic 繼承其下所有後代的契約。
    parent 鏈沒建，Epic 層就會顯示 UNCOVERED，**而 Epic 正是管理層唯一會看的那層**。
 2. **缺陷不算需求** —— 由失敗結果產生的缺陷是證據，不是待驗需求。
-3. **`backlog` / `cancelled` 狀態群組免契約，其餘全部在範圍內** —— 這條會咬人：
-   一旦把 WBS 卡從 Backlog 拉出來排程，平台就要求它有驗收契約，
-   而工程工作包本來不該有。處置對照見 `../_relations/wbs_disposition.yaml`。
+3. **`backlog` / `cancelled` 狀態群組免契約，其餘全部在範圍內** —— 這條兩頭都會咬：
+   - **不給 state**：建卡時省略 `state` 會落到專案預設的 Backlog，於是**整批規格卡
+     免契約**。實測過一次：273 條追溯連結全部連上、`library.linked_percent` 97.7%，
+     但 `requirements.total` 只有 41（剩下的都是 Backlog），`coverage_percent` 0.0%。
+     連結建好了卻一條都不算數——**平台的品質機制看起來在跑，實際上是空轉**。
+     所以 `import_spine.py` 有 ⑤b `states` 階段，把 FR 的 state 設成工程證據軸的值。
+   - **給了 state**：一旦把 WBS 卡從 Backlog 拉出來排程，平台就要求它有驗收契約，
+     而工程工作包本來不該有。處置對照見 `../_relations/wbs_disposition.yaml`。
+
+   **只有 FR 設 state**：NFR 沒有逐條 code 掃描（形態 3/4 的更是出貨前驗不了）、
+   SC 的 state 是業務驗收軸只有人能推、Epic/Feature 是 roll-up 容器不需要自己的契約。
+   對它們填一個猜出來的狀態，只會讓「這條還沒有人量測」這個事實消失。
 
 多個契約回答同一個需求時**最差狀態勝出**：`failed` > `blocked` > `open` > `skipped` > `passed`。
 
@@ -102,25 +114,37 @@ Valuable（對終端使用者不構成可感知價值）三條。它是 PMBOK �
 `Feature` 型別可能已由守則的 `seed_testing_demo` 建在 workspace 裡，**建立前先查再決定 create 或 attach**，
 否則會長出同名重複。
 
-### 3.2 自訂欄位（project 級）
+### 3.2 自訂欄位只有兩個，其餘維度全部走 label
 
-| 欄位 | kind | 選項 | 掛在 |
+| 欄位 | kind | 掛在 | 為什麼還留著 |
 |---|---|---|---|
-| `canonical_id` | text | — | 全部（`SC-01` / `FR-AGT-01` / `NFR-Sec-001` / `1.2.3`）|
-| `source_doc` | text | — | 全部（回指出處，如 `04_SRS.md §3.1`）|
-| `subsystem` | select | AGT / API / WEB / DAT / REF / TEC / PLT | Requirement · Work Package |
-| `nfr_category` | select | Perf / Avail / Rel / SLA / Scal / Sec / Priv / Obs / Aud / DQ / PUB / Sch / Rep / Maint / A11y / Comp / DORA（17） | NFR |
-| `nfr_tier` | select | `contract`（合約下限）/ `slo`（營運目標） | NFR |
-| `value_line` | select | L1-CUS / L1-OPS / L1-TEC / L1-KNW / L1-PLT | Scenario |
-| `personas` | multi_select | PER-CUS-01 …（10） | Scenario |
-| `spec_status` | select | `finalized` / `planned` / `tbd` | Requirement · NFR（**狀態軸①**）|
-| `essential_for` | multi_select | SC-01 … SC-19 | Requirement · NFR |
-| `supporting_for` | multi_select | SC-01 … SC-19 | Requirement · NFR |
-| `owner_role` | select | SA / BA / QA / RD / OPS / PM / 業主 | 全部 |
+| `canonical_id` | text | 全部 | 正典編號的**機器鍵**。標題也帶著它，但靠解析標題取值太脆 |
+| `source_doc` | text | 全部 | 回指出處（`04_SRS.md:312`），讓人從卡片走得回正典 |
 
-⚠️ **自訂欄位在這個 fork 的 web UI 完全沒有呈現面**（`use-issue-properties.tsx` 是 16 行空實作）。
-寫進去的值只有 API 與報表讀得到，**人在畫面上一個都看不到**。所以它們適合當機器可讀的追溯載體，
-**不適合當人要維護的欄位**。細節見 `PLANE_PRIMITIVES_FIELD_MANUAL.md` §2.5。
+⚠️ **自訂欄位在這個 fork 的 web UI 完全沒有呈現面**（`use-issue-properties.tsx` 是 16 行空實作，
+收下參數後直接 `return;`）。寫進去的值只有 API 與報表讀得到，**人在畫面上一個都看不到，
+也沒有篩選器**。所以：
+
+> **凡是要給人看、給人篩的維度，一律做成 label。** 自訂欄位只留純機器追溯用的。
+
+這不是取巧，是 demo 專案自己的做法——它那 13 個 label 用 `area:` / `quality:` / `role:`
+命名空間承載了全部分類。照搬 11 個自訂欄位的代價是 **3,069 次 PUT（約 56 分鐘）換來全部隱形**，
+而 label 可以在建卡時一次帶上，一次呼叫都不多花。
+
+### 3.2.1 label 分類法（72 個）
+
+| 前綴 | 承載什麼 | 值 |
+|---|---|---|
+| `kind:` | **型別的代理**——型別在 UI 沒有篩選器，沒有這組就做不出任何依層級篩的 View | `subsystem` `capability` `journey` `fr` `nfr` `wbs` |
+| `area:` | 子系統 | `agt` `api` `web` `dat` `ref` `tec` `plt` |
+| `line:` | 五分線價值主軸 | `cus` `ops` `tec` `knw` `plt` |
+| `journey:` | 服務哪條旅程（**M:N，一張卡可掛多個**——這正是 relation 做不到而 label 天生成立的地方）| `SC-01` … `SC-19` |
+| `quality:` | NFR 的品質類別 | `security` `privacy` `performance` `availability` …（17） |
+| `verify:` | NFR 的驗證形態，決定它進不進測試庫 | `threshold` `scan` `review` `slo` |
+| `nfr:` | 合約下限 vs 營運目標 | `contract` `slo` |
+| `spec:` | 需求定版狀態（狀態軸①） | `finalized` `planned` `tbd` |
+| `role:` | 責任角色 | `sa` `ba` `qa` `rd` `pm` `ops` |
+| （扁平） | 沿用 demo 同名標記，同一件事不要兩個名字 | `release-blocker` `manual` `automation` |
 
 ### 3.3 容器與關係
 
@@ -332,26 +356,37 @@ workspace 級的 type 與 Initiative 跨專案共用，預設保留；`--detach-
 
 ## 9. 匯入順序
 
-`import_spine.py` 建卡與容器，`rebuild_hierarchy.py` 建拆解軸。**兩支都跑完才是完整的守則模型**——
-只跑前者會得到一張平的板（parent 全空、Epic/Feature 層覆蓋率全空）。
+兩支腳本，**先骨架後內容**：`bootstrap_target.py` 建空靶心（專案 / 型別 / label / 容器），
+`import_spine.py` 建卡與測試資產。**骨架沒建，匯入器會直接拒跑**——它從 id_map 讀型別與
+label id，讀不到就退出，而不是拿著空 dict 建出一堆沒有型別、沒有標籤的裸卡。
 
 ```
-── import_spine.py（--until=STAGE 可在任一階段收工）───────────────
-⓪ features      對齊專案功能開關（is_issue_type_enabled / module_view）
-                沒開的話 type 與 Module 在 API 建得起來、UI 卻看不到
-① types         建 work item type 並關聯到專案
-② properties    建 11 個自訂欄位（含 select/multi_select 選項）
-③ containers    Module（5 分線 + 7 子系統）、Milestone（M1–M5）、Initiative（階段一/二）
-④ scenarios     19 張 SC 卡
-⑤ requirements  65 FR + 106 NFR，寫入自訂欄位            → 產出 id_map
-⑥ modules       卡片掛 Module
-⑦ relations     essential_for / supporting_for 欄位值 + relates_to relation
-⑧ wbs           認領既有 WBS 卡後補建其餘（canon 共 49 條）
-⑨ testing       130 case + folder 樹 + 273 條追溯連結
-⑩ runs          19 條 TestRun（sc_verified_by_tc）
-⑪ verify        requirement-coverage 對帳
+── bootstrap_target.py（冪等，可重跑補漏）─────────────────────────
+① 專案         建專案並開五個旗標（is_issue_type_enabled / module_view /
+               cycle_view / issue_views_view / page_view）
+② 型別         Epic 0 · Feature 1 · Story 2 · Bug 2 · Task 3 · Scenario 0
+               level 在 create 時一次帶對——分兩步會在中途留下 level=0 的型別，
+               而 0 正是 Epic 層，那個空窗期讀報表就會拿到錯的階層
+③ label        66 個，命名空間 kind: / area: / line: / journey: / quality: /
+               verify: / nfr: / spec: / role:
+④ 自訂欄位     只有 canonical_id 與 source_doc 兩個（理由見 §3.2）
+⑤ 容器         Module（7 子系統）、Milestone（M1–M5）、Initiative（階段一/二）
 
-── rebuild_hierarchy.py（--only=STAGE）─────────────────────────
+── import_spine.py（--until=STAGE 可在任一階段收工，--relabel 補標籤）──
+① epics        9 張：7 子系統 + NFR 全域地板 + WBS 交付分解
+② features     49 張：32 個 L2 能力群 + 17 個 NFR 品質分群
+③ scenarios    19 張旅程（不進 parent 樹）
+④ stories      171 張：65 FR + 106 NFR，parent 掛到 Feature
+⑤ wbs          49 個工作包 + 工作群 Feature，parent 掛到 WBS Epic
+⑤b states      FR 卡的 state ← codebase 掃描（工程證據軸）——**不設會讓覆蓋率
+               整個失效**，見下
+⑥ props        canonical_id / source_doc（每張卡 2 次 PUT）
+⑦ modules      FR 與子系統 Epic 掛 Module（批次）
+⑧ testing      folder + 130 條契約 + 273 條追溯連結
+⑨ runs         19 條 TestRun（一條旅程一條）
+⑩ verify       quality overview 對帳
+
+── rebuild_hierarchy.py（--only=STAGE）—— 舊靶心的階層修補工具，非主線 ──
 types     設定型別的 level / is_epic（Feature 型別若已在 workspace 則只掛載）
 epics     建 8 張 Epic（7 子系統 + NFR 全域區塊）
 features  建 32 張 Feature（L2 能力群）
@@ -370,21 +405,23 @@ verify    對帳實際形狀是否等於 §2.1 宣告的數量（8/32/65/106/19�
 
 ```bash
 cd smartlock-docs/enterprise/規格統控整理
-PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py --dry-run          # 只讀，先看要動什麼
-PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py --until=relations  # 只推到規格卡
-PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py                    # 全部
-PLANE_PROJECT_ID=<uuid> python3 _plane/rebuild_hierarchy.py --dry-run     # 再建拆解軸
-PLANE_PROJECT_ID=<uuid> python3 _plane/rebuild_hierarchy.py
-PLANE_PROJECT_ID=<uuid> python3 _plane/writeback.py                       # Plane 狀態 → status_snapshot.yaml
+python3 _plane/bootstrap_target.py --identifier SLOCK --name "SmartLock 智慧鎖平台"
+PLANE_PROJECT_ID=<新專案 uuid> python3 _plane/import_spine.py --until=wbs   # 先只推卡
+PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py                      # 全部
+PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py --relabel --until=wbs # 分類法後補時
+PLANE_PROJECT_ID=<uuid> python3 _plane/writeback.py                         # Plane → snapshot
 ```
 
-分段的理由是 **Plane 沒有批次刪除**：一次推完約 500 個物件而形狀錯了，清理成本遠高於分兩次跑。
-續跑冪等，已建的會從 id_map 命中跳過。
+分段的理由是 **Plane 沒有批次刪除**：一次推完約 1,400 個物件而形狀錯了，清理成本遠高於
+分兩次跑。續跑冪等，已建的會從 id_map 命中跳過。
 
-> **重來時的注意事項**：兩支腳本目前是**先建平的、再補階層**。新靶心從零開始時這個順序仍成立
-> （`rebuild_hierarchy` 冪等且會先查現況），但 `import_spine.TYPES` 沒有帶 `level`，
-> 所以**跳過 `rebuild_hierarchy --only=types` 就等於沒有階層語意**。
-> 要不要把 level 併回 `import_spine` 的步驟①屬結構調整，動了要走 CIA。
+> **`--relabel` 為什麼存在**：label 分類法是會長的（例如 `kind:*` 是發現「型別沒有
+> 篩選器」之後才補的）。卡已經建好時，重建的代價遠高於一次 PATCH，所以 `card()`
+> 在 id_map 命中且帶 `--relabel` 時只更新 labels，其餘欄位一律不動。
+
+> **`rebuild_hierarchy.py` 已退役**：它是「先建平的、再補階層」那一版的補丁。
+> 現行 `import_spine.py` 依 Epic → Feature → Story/Task 的順序建卡，parent 在
+> create 時就帶上，不需要事後回填。
 
 ### 速率限制（實測踩過）
 
@@ -423,8 +460,8 @@ PLANE_PROJECT_ID=<uuid> python3 _plane/writeback.py                       # Plan
 | 檔 | 用途 | 入 git |
 |---|---|---|
 | `plane_client.py` | REST client（stdlib only）+ 速率節流 + `state_file()` 靶心解析 | ✅ |
-| `import_spine.py` | 12 階段匯入，冪等、可續跑 | ✅ |
-| `rebuild_hierarchy.py` | 建 Epic/Feature 與 parent 鏈，冪等、`--dry-run`、可回復 | ✅ |
+| `bootstrap_target.py` | 建空靶心：專案 / 型別 / label / 自訂欄位 / 容器，冪等 | ✅ |
+| `import_spine.py` | 10 階段匯入，冪等、可續跑、`--relabel` 補標籤 | ✅ |
 | `writeback.py` | Plane → `status_snapshot.yaml` | ✅ |
 | `rollback_target.py` | 依 id_map 倒著刪，把靶心還原到匯入前 | ✅ |
 | `snapshot.py` | 給 `_build_workbooks.py` 讀 snapshot | ✅ |
@@ -432,6 +469,7 @@ PLANE_PROJECT_ID=<uuid> python3 _plane/writeback.py                       # Plan
 | `status_snapshot.yaml` | 四軸狀態快照（生成物）| ✅ |
 | `PLANE_PRIMITIVES_FIELD_MANUAL.md` | 六大原語逐欄位＋設計目的＋MCP 相容性紅線 | ✅ |
 | `PLANE_MODULE_RELATIONS_PM.md` | PM 視角關係圖（四軸與接合點，不含欄位）| ✅ |
+| `VIEWS_AND_PAGES_DESIGN.md` | 13 個 View 與 5 個 Page 的設計規格（**只能人工建立**）| ✅ |
 
 ## 變更紀錄
 
