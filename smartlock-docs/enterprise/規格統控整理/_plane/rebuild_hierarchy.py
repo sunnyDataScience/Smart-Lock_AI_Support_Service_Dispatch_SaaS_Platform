@@ -1,27 +1,38 @@
 #!/usr/bin/env python3
-"""把平坦的卡片重建成 Epic → Feature → Story 三層 parent 鏈。
+"""建拆解軸：把平坦的卡片接成 Epic → Feature → Story 三層 `parent` 鏈。
 
-**為什麼要有這支**：Plane 的需求覆蓋率與出貨閘門是沿 `Issue.parent` roll-up 出來的——
+**為什麼要有這支**：覆蓋率與出貨閘門是沿 `Issue.parent` roll-up 出來的——
 `report.py` 的 `inherited()` 讓父卡收集自己與所有後代的契約，子卡不繼承父卡。
-目前 LOCK 的 238 張卡 `parent` 全空，於是 Epic / Feature 層的覆蓋率數字全部是空的，
-而那正是管理層唯一會看的一層。這支補的就是那條鏈。
+`import_spine.py` 只建卡與容器、不建 parent，單跑它會得到一張平的板：
+Epic / Feature 層覆蓋率全空，**而 Epic 正是管理層唯一會看的那層**。
+
+形狀的真相源是 `README.md` §2.1（層級表）與 §9（匯入順序）；本檔的
+`TYPE_LEVELS` 與 `EXPECTED` 是那兩節的機器可讀複本，對不上時 verify 階段會紅。
 
 **不是重新匯入**：只新增 L1/L2 兩層卡，並回填既有 L3 卡的 parent。
 既有卡的標題、本文、測試連結、自訂欄位、milestone 一律不動。
 
     PLANE_PROJECT_ID=<uuid> python3 _plane/rebuild_hierarchy.py [--dry-run] [--only=STAGE]
 
-STAGE ∈ types | epics | features | parents | sclinks（省略＝依序全跑）
+STAGE ∈ types | epics | features | parents | sclinks | verify（省略＝依序全跑）
+順序有依賴：features 要先有 epics，parents 要先有 features。
+`--dry-run` 只能完整預覽 types / epics / sclinks——features 與 parents 依賴前一階段
+產生的真實 id，dry-run 下必然顯示 0。
 
 冪等：每個階段都先查現況再決定要不要寫，重跑不會長出第二份。
-回復：新建的卡片 id 記進 per-target id_map 的 `hierarchy` 區塊，`rollback_target.py`
-      的刪除範圍完全由 id_map 決定，所以人工開的卡不會被誤刪。
+卡片以 `canonical_id` 自訂欄位反查（README §7：比標題前綴比對可靠），
+找不到該欄位才退回標題前綴並出聲。
+
+回復：新建卡片 id 記進 per-target id_map 的 `hierarchy` 區塊；改既有卡的 parent
+      前先存 `parents_before`、建立的契約連結逐筆記 `sc_links`——動到不是自己建的
+      東西而沒留原值就回不去。`rollback_target.py` 的刪除範圍完全由 id_map 決定。
 """
 
 from __future__ import annotations
 
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -74,13 +85,42 @@ class Rebuilder:
         return self._items
 
     def by_code(self) -> dict[str, dict]:
-        """既有卡片以標題第一個 token 當鍵（卡片標題形如 `FR-AGT-01 LINE 進線與驗簽`）。"""
+        """既有卡片以正典編號當鍵。
+
+        優先讀 `canonical_id` 自訂欄位，找不到才退回標題第一個 token
+        （標題形如 `FR-AGT-01 LINE 進線與驗簽`）。README §7 的理由：
+        標題會被人改——WBS 卡的工作包名尤其常改——而 canonical_id 是匯入器寫的
+        機器欄位，不會因為有人潤了句子就對不上。
+        """
         out: dict[str, dict] = {}
+        prop_id = self._canonical_prop_id()
+        if prop_id:
+            for w in self.items():
+                value = (w.get("custom_properties") or {}).get(prop_id)
+                if value:
+                    out.setdefault(str(value).strip(), w)
+        matched_by_prop = len(out)
         for w in self.items():
             head = str(w.get("name", "")).split(" ", 1)[0].strip()
             if head:
                 out.setdefault(head, w)
+        if prop_id:
+            log(f"    索引：canonical_id 命中 {matched_by_prop}，"
+                f"其餘退回標題前綴 {len(out) - matched_by_prop}")
+        else:
+            log("    ⚠ 找不到 canonical_id 自訂欄位，全部退回標題前綴比對"
+                "（匯入器的步驟② 尚未跑過？）")
         return out
+
+    def _canonical_prop_id(self) -> str | None:
+        if not hasattr(self, "_canon_prop"):
+            try:
+                self._canon_prop = next(
+                    (p["id"] for p in self.pc.list_properties() if p.get("name") == "canonical_id"),
+                    None)
+            except PlaneError:
+                self._canon_prop = None
+        return self._canon_prop
 
     def by_title(self) -> dict[str, dict]:
         return {str(w.get("name", "")).strip(): w for w in self.items()}
@@ -291,7 +331,50 @@ class Rebuilder:
         log(f"    新增連結 {linked}，已存在 {already}，找不到對應 {missing}")
 
 
-STAGES = ["types", "epics", "features", "parents", "sclinks"]
+    def stage_verify(self) -> None:
+        """對帳：實際建出來的東西是否等於 README §2.1 宣告的形狀。
+
+        數量寫死在這裡是刻意的——canon 增減需求時這裡會紅，逼人回頭更新 README，
+        而不是讓兩邊靜默分歧。
+        """
+        log("\n▸ verify：對帳 README §2.1 宣告的形狀")
+        self.items(refresh=True)
+        name_of = {t["id"]: t["name"] for t in self.pc.list_types()}
+        counts: Counter[str] = Counter()
+        parented = 0
+        for w in self.items():
+            counts[name_of.get(w.get("type_id"), "（無型別）")] += 1
+            if w.get("parent"):
+                parented += 1
+        ok = True
+        for label, got, want in [
+            ("Epic（Work Group）", counts.get("Work Group", 0), EXPECTED["epics"]),
+            ("Feature", counts.get("Feature", 0), EXPECTED["features"]),
+            ("Story（Requirement）", counts.get("Requirement", 0), EXPECTED["stories"]),
+            ("Quality req.（NFR）", counts.get("NFR", 0), EXPECTED["quality"]),
+            ("Scenario", counts.get("Scenario", 0), EXPECTED["scenarios"]),
+            ("有 parent 的卡", parented, EXPECTED["parented"]),
+        ]:
+            mark = "✅" if got == want else "❌"
+            if got != want:
+                ok = False
+            log(f"    {mark} {label:<22} 實際 {got:>4}   README {want:>4}")
+        if not ok:
+            log("    ⚠ 有數字對不上：不是 canon 變了（那要更新 README §2.1），"
+                "就是某個階段沒跑完")
+
+
+# README §2.1 宣告的形狀。改 canon 導致這裡變動時，README 要同步改。
+EXPECTED = {
+    "epics": 8,        # 7 子系統 + 1 NFR 全域區塊
+    "features": 32,    # BOM L2 能力群
+    "stories": 65,     # 04_SRS 的 FR
+    "quality": 106,    # 05_NFR
+    "scenarios": 19,   # 28_Scenarios，不進 parent 樹
+    "parented": 203,   # 171 條 L3 + 32 個 Feature
+}
+
+STAGES = ["types", "epics", "features", "parents", "sclinks", "verify"]
 
 
 def main() -> int:

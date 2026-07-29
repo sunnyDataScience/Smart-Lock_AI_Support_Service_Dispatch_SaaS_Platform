@@ -357,7 +357,16 @@ epics     建 8 張 Epic（7 子系統 + NFR 全域區塊）
 features  建 32 張 Feature（L2 能力群）
 parents   回填 171 張 L3 卡的 parent（改值前先存 parents_before）
 sclinks   把 sc_verified_by_tc 的 145 條契約連上 19 張 SC 卡
+verify    對帳實際形狀是否等於 §2.1 宣告的數量（8/32/65/106/19、有 parent 203）
 ```
+
+> `rebuild_hierarchy.py` 的 `TYPE_LEVELS` 與 `EXPECTED` 是 §2.1 那張表的機器可讀複本。
+> canon 增減需求時 verify 階段會紅，逼人回頭更新 §2.1，而不是讓文件與腳本靜默分歧。
+> 卡片反查優先讀 `canonical_id` 自訂欄位（見 §7），找不到才退回標題前綴並出聲——
+> 標題會被人改，canonical_id 不會。
+>
+> `--dry-run` 只能完整預覽 `types` / `epics` / `sclinks`：`features` 與 `parents`
+> 依賴前一階段產生的真實 id，dry-run 下必然顯示 0，那不是錯誤。
 
 ```bash
 cd smartlock-docs/enterprise/規格統控整理
