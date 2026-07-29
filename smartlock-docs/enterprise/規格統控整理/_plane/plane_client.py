@@ -324,6 +324,11 @@ class Plane:
         """
         return self.paged(self._proj("/work-item-types/"))
 
+    def delete_type(self, type_id: str) -> None:
+        """刪 workspace 級型別。**跨專案共享**，刪之前務必先確認沒有專案掛載、
+        沒有卡片使用——這是少數會波及同 workspace 其他專案的破壞性操作。"""
+        self._call("DELETE", self._ws(f"/work-item-types/{type_id}/"))
+
     def detach_type(self, link_id: str) -> None:
         self._call("DELETE", self._proj(f"/work-item-types/{link_id}/"))
 

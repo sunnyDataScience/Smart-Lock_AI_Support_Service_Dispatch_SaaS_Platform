@@ -88,7 +88,7 @@
 |---|---|---|---|---|
 | **V7** | `🐞 未結缺陷` | State group ∈ {Backlog, Unstarted, Started} ＋ Label = `release-blocker`（缺陷卡由測試失敗自動產生，記得補這個 label）| Board / Group by Priority | 還有幾個缺陷沒關 |
 | **V8** | `⚠️ P0 旅程的需求` | Priority = Urgent ＋ Label = `kind:fr` | Spreadsheet / Group by Label（看 `journey:*`） | P0 旅程靠哪些需求撐住 |
-| **V9** | `🔬 需人工證據的 NFR` | Label ∈ {`verify:review`, `verify:slo`} | Spreadsheet / Group by Label | **那 50 條出貨前測不了的需求**（見 Page ④） |
+| **V9** | `🔬 需人工證據的 NFR` | Label ∈ {`verify:review`, `verify:slo`} | Spreadsheet / Group by Label | **那 54 條出貨前測不了的需求**（見 Page ④） |
 
 ### 🔨 交付（RD Lead）
 
@@ -151,13 +151,15 @@ Page 的 `access` 是 **0=Public、1=Private**（與 View 相反）。
 
 1. **測試庫健康** — 契約總數、已連需求比例、覆蓋率（取 `/testing/overview/` 的 `library` 與 `requirements`）
 2. **每輪 scorecard** — 逐 run 的 passed/failed/blocked/open，附 build 與 configuration
-3. **NFR 四形態分布** — 門檻量測 45 ／ 掃描 7 ／ 審查 31 ／ 持續 SLO 19（＋4 條跨形態）
+3. **NFR 四形態分布** — 門檻量測 45 ／ 掃描 7 ／ 審查 31 ／ 持續 SLO 19（＋4 條跨形態）；
+   **需人工證據的相異 NFR 共 54 條**（形態 3 或 4，含跨形態）
 
 第 3 段連到 **V9**，並帶出下一頁的主題。
 
 ### ⚖️ Page ④「證據負債」 — ⭐ 第二個建議，也是最容易被忽略的風險
 
-**50 條 NFR 在這個平台上無處可放。** 驗證形態 ③ 審查（31 條）與 ④ 持續 SLO（19 條）
+**54 條 NFR 在這個平台上無處可放。** 驗證形態 ③ 審查與 ④ 持續 SLO（單一形態 31 ＋ 19，
+另 4 條跨兩種形態，相異共 54 條）
 的證據不是「跑一次測試」能產生的——可用性是上個月的量測結果，RTO 要靠演練證明。
 平台的 `release-evidence` 端點**只在內部 app API，API 金鑰打不進去**，
 所以它們：
@@ -166,7 +168,7 @@ Page 的 `access` 是 **0=Public、1=Private**（與 View 相反）。
 - 不在覆蓋率分母裡
 - **不在任何現有報表上**
 
-但其中有 **18 條標著「合約下限」**——是賣給品牌時白紙黑字的承諾。
+但其中有 **11 條標著「合約下限」**（全庫合約下限 NFR 共 19 條）——是賣給品牌時白紙黑字的承諾。
 **一個在所有儀表板上都看不見的合約級承諾，就是負債。**
 
 這頁把它們逐條列出，每列四欄：需求 ID ｜ 目標值 ｜ 證據形態 ｜ **誰在什麼時候提供證據**。
@@ -193,6 +195,55 @@ Page 的 `access` 是 **0=Public、1=Private**（與 View 相反）。
 | `role:` | 責任角色 | `role:sa`、`role:qa` |
 
 ---
+
+## 4.5 逐步建置清單（照著點，每個 View 附「應該看到幾筆」）
+
+### 共通流程（每個 View 都一樣，只做一次就熟了）
+
+1. 左側欄選 **SLOCK** 專案 → **Views**
+2. 建立新 View → 填 **名稱**（用下表的名稱，emoji 一起貼）、**Access = Public**
+3. 進入該 View 後，用頂端的 **Filters** 設條件、**Display** 設 Layout 與 Group by
+4. 存檔
+
+三個操作上的提醒：
+
+- **label 有 72 個**，Filters 的 label 下拉要**用打字搜尋**（輸入 `kind:` 就會收斂到 6 個）
+- **同一個 facet 內多選＝OR**（例如 label 同時勾 `verify:review` 與 `verify:slo`），
+  **跨 facet＝AND**（label ＋ priority）。**沒有跨 facet 的 OR，也沒有否定**
+- **Group by Label 時，一張卡會出現在多個群組**——因為 label 是 M:N。
+  這是預期行為，不是重複資料（`journey:*` 尤其明顯，一條需求服務 3 條旅程就出現 3 次）
+
+### 逐 View 設定與驗收筆數
+
+> 「應看到」是依正典算出來的期望值。**點完數字對不上就是 filter 設錯了**，
+> 最常見的原因是 label 選到同名前綴的另一個值。
+
+| # | 名稱 | Filters | Display | 應看到 |
+|---|---|---|---|---|
+| **V1** | `🚦 出貨阻擋項` | Label: `release-blocker` | Spreadsheet ／ Group by State | **0**（目前沒有卡被標；有值就是真的出事了）|
+| **V1b** | `🔥 進行中的 P0` | Priority: `Urgent`；State group: `Unstarted` + `Started` | Board ／ Group by Milestone | **25**（55 條 P0 FR 中已 Done 的有 30）|
+| **V2** | `🧭 旅程驗收狀態` | Label: `kind:journey` | Board ／ Group by State | **19**（全部在 Backlog＝未驗收，這是對的）|
+| **V3** | `🎯 節點剩餘量` | Label: `kind:fr` + `kind:nfr` | Spreadsheet ／ Group by Milestone | **171** |
+| **V4** | `📐 需求定版缺口` | Label: `spec:planned` + `spec:tbd` | Spreadsheet ／ Group by Label | **19**（planned 17 ＋ tbd 2）|
+| **V5** | `🧩 全域地板 NFR` | Label: `kind:nfr` | Board ／ Group by Label | **106** |
+| **V6** | `🏗️ 子系統交付視圖` | （不設）| Spreadsheet ／ Group by Module | 65 條 FR 分佈在 7 個 Module ＋ 7 張子系統 Epic |
+| **V7** | `🐞 未結缺陷` | State group: `Backlog` + `Unstarted` + `Started`；Label: `release-blocker` | Board ／ Group by Priority | **0**（缺陷由測試失敗產生，目前尚未執行任何一輪）|
+| **V8** | `⚠️ P0 旅程的需求` | Priority: `Urgent`；Label: `kind:fr` | Spreadsheet ／ Group by Label | **55** |
+| **V9** | `🔬 需人工證據的 NFR` | Label: `verify:review` + `verify:slo` | Spreadsheet ／ Group by Label | **54** ⚠️ 這是 Page ④ 的清單 |
+| **V10** | `🔨 本迭代工作` | Cycle: 當前；Label: `kind:wbs` | Board ／ Group by State | **目前 0** —— 專案還沒有任何 cycle，見 §6 |
+| **V11** | `⛔ 待裁決卡住的工作` | Label: `kind:wbs`；State: `Backlog` | Spreadsheet ／ Group by Milestone | **8**（🛑 待裁決的工作包）|
+| **V12** | `🤖 自動化 vs 人工` | Label: `automation` + `manual` | Board ／ Group by Label | **0**（這兩個標籤目前掛在測試契約的 tags 上，不在卡片上）|
+
+### 三個「應看到 0」不是錯
+
+V1／V7／V12 現在都是 0，且**三個都是對的**：
+
+- **V1 = 0** —— 還沒有人標 `release-blocker`。這個 label 是給人在發現阻擋時手動掛的
+- **V7 = 0** —— 缺陷卡由失敗的測試結果自動產生，而目前 19 條 TestRun 一輪都還沒執行
+- **V12 = 0** —— `automation` / `manual` 目前落在 **test case 的 `tags[]`**，不是 work item
+  的 label。要讓這個 View 有值，得決定「自動化與否」是測試屬性還是需求屬性——
+  我建議維持在 test case 上，把 V12 改成到 **Testing → Cases** 用 tag 篩，
+  而不是硬把它複製到卡片上（同一件事兩個地方記，一定會漂）
 
 ## 5. 建置順序（照這個順序點，前面是後面的前提）
 
