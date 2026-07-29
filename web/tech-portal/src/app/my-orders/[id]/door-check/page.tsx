@@ -200,17 +200,19 @@ export default function DoorCheckPage() {
       )}
       {/* 不設 capture：桌機/模擬器無相機會「點了沒反應」，真手機被鎖成只能即拍。
           改用標準選擇器，手機仍可選拍照或相簿現成照片。 */}
+      {/* 不收 HEIC：瀏覽器 <img> 無法解碼 → 品牌端審核門況照只看到破圖（UAT-D-002）。
+          accept 不含 heic 時 iPhone 自動轉 JPEG。對齊 KYC 與 brand-portal。 */}
       <input
         ref={fileInputBeforeRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(e) => handleFileChange("before", e)}
       />
       <input
         ref={fileInputAfterRef}
         type="file"
-        accept="image/*"
+        accept="image/jpeg,image/png,image/webp"
         className="hidden"
         onChange={(e) => handleFileChange("after", e)}
       />

@@ -636,7 +636,11 @@ export default function MyOrderDetailPage() {
                     >
                       <input
                         type="file"
-                        accept="image/*"
+                        // 不收 HEIC：瀏覽器 <img> 無法解碼，品牌端審核完工證據時只會看到破圖，
+                        // 而完工硬閘仍算「有照片」＝閘門過了、證據看不到（UAT-D-002 實測：
+                        // API 回 200 image/heic 2.5MB，Image 解碼 failed）。accept 不含 heic 時
+                        // iPhone 會自動轉 JPEG，故收窄即解。對齊 KYC 與 brand-portal 既有作法。
+                        accept="image/jpeg,image/png,image/webp"
                         // 不設 capture：桌機/手機模擬器無相機會「點了沒反應」，真手機則被鎖
                         // 成只能即拍、無法選相簿現成照片。改用標準選擇器，手機仍可選拍照或相簿。
                         className="hidden"

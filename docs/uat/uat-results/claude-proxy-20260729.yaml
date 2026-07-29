@@ -112,6 +112,40 @@ results:
       AuthImage 會顯示破圖而非影像。詳見 UAT-D-002。
     instrument: Playwright（browser fetch + Image 解碼實測）
 
+  - tc: TC-WO-03
+    status: PASS
+    evidence: >-
+      兩條分支皆驗（在 scratch 庫，UAT 庫零寫入）：
+      ①非急件、無已確認報價 → UI 的「開單」按鈕 disabled 並顯示「尚無報價——須先建立報價
+      並取得客戶確認才能開單」；**繞過 UI 直打端點**仍被擋，回
+      425 QUOTE_NOT_CUSTOMER_CONFIRMED，訊息逐字對上 BR-WO-01
+      （「急件請於問題卡標記 emergency_class 走事後補審」）。前端 gate 與後端邊界一致。
+      ②急件 carve-out：PATCH emergency_class=locked_out 後同一請求 → 201 建單成功，
+      且 DB 確認自動建立 state=retrospective_audit_only 的補審佔位報價
+      （quote 591c9400…，同時掛在該卡與該單）。
+      注意實碼回 425 而非案例文字暗示的 422/409 —— 語意正確（Too Early），已記碼差異。
+    instrument: Playwright（UI 觀察 + browser fetch 繞過前端）+ psql
+
+  - tc: TC-WO-01
+    status: FAIL
+    defect: UAT-D-007
+    evidence: >-
+      問題卡 → 工單轉換本身成功（201，工單 daf0eb58…）。但案例要求的**事件溯源**不成立：
+      GET /tenants/{t}/work-orders/{id}/events 回 200 但事件數 = 0；
+      psql 複驗 work_order_events **全表 0 筆**，且 `seq` 欄不存在。
+      即建單路徑完全沒有寫入事件流。詳見 UAT-D-007。
+    instrument: Playwright（browser fetch）+ psql
+
+  - tc: TC-SEC-IDEM-01
+    status: PARTIAL
+    evidence: >-
+      已驗：所有 POST 強制 Idempotency-Key —— 未帶時回 400 MISSING_IDEMPOTENCY_KEY
+      （在業務邏輯之前擋下）。同一 key 連送兩次，兩次回應的 status 與 error_code 完全一致，
+      且工單數不變（回放而非重複寫）。
+      未驗：案例要求的 TTL 24h 行為（需等待或改時鐘，本輪未做）；
+      成功路徑的回放（本輪同 key 重送測的是錯誤路徑，成功路徑未測）。
+    instrument: Playwright（browser fetch）
+
   - tc: TC-A11Y-01
     status: PARTIAL
     evidence: >-
@@ -228,6 +262,25 @@ defects:
       web component 的 deploy 步驟都帶 API_BASE_URL，workflow 內加 `test -n "${vars.RUNTIME_API_BASE_URL}"`；
       ③staging smoke 對 web component 改打 /api-proxy/health 而非 /，讓 503 真的擋住晉升。
       另補文件：把兩個 RUNTIME_* 變數寫進 23_Deployment_Guide §7.2 必設清單。
+    status: OPEN
+
+  - id: UAT-D-007
+    severity: P1
+    title: 工單事件溯源未實作 —— work_order_events 全表 0 筆且無 seq 欄
+    found_in: TC-WO-01
+    detail: >-
+      問題卡 → 工單轉換成功後，`GET /tenants/{t}/work-orders/{id}/events` 回 200 但
+      事件數 0；psql 複驗 `work_order_events` **全表 0 筆**（不是該單沒有，是整個表空的），
+      且 `information_schema` 確認**沒有 `seq` 欄**。
+      即 create_from_problem_card 只發 WS/Kafka 通知，不落事件流。
+      TC-WO-01 要求「工單建立後事件可溯源、seq 單調遞增」，此條無從成立。
+      端點存在且回 200（空陣列）而非 404 —— 從 API 表面看不出功能缺席，
+      這比直接 404 更容易讓驗收誤判為通過。
+    fix_suggestion: >-
+      需業主裁決範圍：①若事件溯源是 V1 承諾，需補 work_order_events 寫入與 seq 欄
+      （屬 DB schema + domain model 變更，命中 CIA）；②若非 V1 範圍，
+      應把 TC-WO-01 的事件溯源斷言移出 V1 驗收並在案例上標注，
+      否則每輪 UAT 都會卡在同一條假失敗。
     status: OPEN
 
 incident:
