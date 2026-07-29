@@ -26,6 +26,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from collections import defaultdict
@@ -267,6 +268,25 @@ def load_results() -> tuple[dict, list, list]:
     return by_tc, defects, rounds
 
 
+def load_testability() -> dict:
+    """讀本機可達性分類（local-testability-*.json）。
+
+    與執行結果分開：可達性是「這支能不能在本機被測到」，執行結果是「測了沒、過沒過」。
+    兩者混在一欄會讓「還沒測」與「測不了」看起來一樣，而後者需要的是補環境不是排人力。
+    """
+    if not RESULTS_DIR.exists():
+        return {}
+    out: dict = {}
+    for f in sorted(RESULTS_DIR.glob("local-testability-*.json")):
+        try:
+            doc = json.loads(f.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            print(f"  WARN: {f.name} 解析失敗，略過（{exc}）")
+            continue
+        out.update(doc.get("cases", {}))
+    return out
+
+
 def load_personas() -> dict:
     rows = _rows(WB_ACC, SHEET_PERSONA)
     hdr = list(rows[0])
@@ -376,12 +396,13 @@ _STATUS_FILL = {
 }
 
 
-def sheet_cases(wb, cases, sc2uat, wave_of, results) -> None:
+def sheet_cases(wb, cases, sc2uat, wave_of, results, testability) -> None:
     ws = wb.create_sheet("④ 案例執行表")
     _head(ws, ["TC ID", "走查腳本", "最早可驗", "最晚須驗完", "優先級", "驗證面向",
-               "路徑類型", "章節", "前置", "步驟", "預期結果（判定基準）", "對映旅程",
-               "驗證需求", "結果", "執行日", "執行人", "缺陷 ID", "證據 / 未驗部分"],
-          [21, 20, 9, 11, 8, 10, 13, 26, 26, 44, 52, 15, 22, 10, 11, 12, 11, 76])
+               "路徑類型", "本機可達性", "可達性理由 / 阻礙", "章節", "前置", "步驟",
+               "預期結果（判定基準）", "對映旅程", "驗證需求",
+               "結果", "執行日", "執行人", "缺陷 ID", "證據 / 未驗部分"],
+          [21, 20, 9, 11, 8, 10, 13, 15, 70, 26, 26, 44, 52, 15, 22, 10, 11, 12, 11, 76])
     for c in sorted(cases, key=lambda x: (x["chapter"], x["tc"])):
         uats = sorted({sc2uat.get(sc, "?") for sc in c["scs"]}) or ["UAT-10"]
         u = "、".join(uats)
@@ -393,8 +414,11 @@ def sheet_cases(wb, cases, sc2uat, wave_of, results) -> None:
         # 同一案例多輪時取最後一輪（yaml 依檔名排序讀入）
         runs = results.get(c["tc"], [])
         last = runs[-1] if runs else None
+        tb = testability.get(c["tc"], {})
         ws.append([c["tc"], u, min(waves), max(waves), c["prio"], c["aspect"],
-                   c["path"], c["chapter"], c["pre"], c["step"], c["expect"],
+                   c["path"], tb.get("verdict", ""),
+                   (tb.get("why", "") or "") + ("\n阻礙：" + tb["blocker"] if tb.get("blocker") else ""),
+                   c["chapter"], c["pre"], c["step"], c["expect"],
                    "、".join(c["scs"]) or "—", c["req"],
                    last["status"] if last else "☐",
                    last.get("_date", "") if last else "",
@@ -402,12 +426,12 @@ def sheet_cases(wb, cases, sc2uat, wave_of, results) -> None:
                    last.get("defect", "") if last else "",
                    (last.get("evidence", "") or "").strip() if last else ""])
         r = ws.max_row
-        for col in range(1, 19):
+        for col in range(1, 21):
             ws.cell(row=r, column=col).alignment = WRAP
         if not c["scs"]:
             ws.cell(row=r, column=2).fill = WARN_FILL
         if last and last["status"] in _STATUS_FILL:
-            cell = ws.cell(row=r, column=14)
+            cell = ws.cell(row=r, column=16)
             cell.fill = _STATUS_FILL[last["status"]]
             cell.font = Font(bold=True, size=10)
 
@@ -515,13 +539,14 @@ def main() -> int:
         sys.exit("FAIL: 案例數與 ⑤ 宣告值不一致（來源已漂移，先查四書）：\n  " + "\n  ".join(drift))
 
     results, defects, rounds = load_results()
+    testability = load_testability()
 
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     sheet_readme(wb, scripts, cases, orphans)
     sheet_schedule(wb)
     sheet_steps(wb, scripts, sc_meta, personas)
-    sheet_cases(wb, cases, sc2uat, wave_of, results)
+    sheet_cases(wb, cases, sc2uat, wave_of, results, testability)
     sheet_regression(wb)
     sheet_defects(wb)
     sheet_signoff(wb, scripts)

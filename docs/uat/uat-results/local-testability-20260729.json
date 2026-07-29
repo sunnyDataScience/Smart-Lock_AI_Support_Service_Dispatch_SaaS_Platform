@@ -1,0 +1,668 @@
+{
+ "_meta": {
+  "generated": "2026-07-29",
+  "by": "Claude workflow uat-playwright-triage（11 路平行分類，每支必讀 code 確認端點/路由存在）",
+  "environment": "本機 docker stack（brand :3000/:8001、tech :3001/:8002、platform :3003/:8003、landing :3002；三庫 5433/5434/5435）",
+  "verdicts": {
+   "playwright": "可用瀏覽器驅動 UI 走到，判定基準能從 UI／network／console 觀察",
+   "api-only": "UI 走不到但可用 curl 直接打 API 驗證",
+   "db-only": "只能靠查 DB 驗證（append-only、雜湊鏈、軟刪欄位等）",
+   "not-testable-locally": "缺真實外部依賴（LINE channel／金流／Kafka／月結時間邊界／CI），或功能不存在於 codebase"
+  },
+  "caveat": "分類是「本機可達性」判斷，不代表已測。實際執行結果見 claude-proxy-*.yaml。"
+ },
+ "cases": {
+  "TC-A11Y-01": {
+   "verdict": "not-testable-locally",
+   "why": "NVDA / VoiceOver 是螢幕閱讀器 + n=10 真人受測的可用性測試，Playwright 無法代理『任務成功率』這種人因指標。",
+   "blocker": "①需真實螢幕閱讀器：NVDA 僅 Windows，VoiceOver 需 macOS 手動開啟並由人操作，瀏覽器自動化無法驅動或觀測其朗讀輸出。②需 n=10 受測者 × 2 種 SR 的成功率統計，屬人工 UAT。③無真實 LINE channel/LIFF 容器（客戶確認頁 web/brand-portal/src/app/{quotes,consent,track,scope-change}/[token]/page.tsx 本機可直接開，但那是 LINE webview 內嵌頁，LIFF SDK 情境無法本機重現）。"
+  },
+  "TC-A11Y-02": {
+   "verdict": "playwright",
+   "why": "四項判定（對比 / 觸控目標 / 鍵盤 / aria-live）都是可從 DOM 與 computed style 機械量測的，客戶確認頁本機四條路由實測皆回 200，且頁面已有 role=\"alert\" 錯誤區與 LiveRegion 元件可驗。",
+   "procedure": "1) 鑄新 token：以 test@lock-ai.com / changeme123 登入 http://localhost:3000/login → /admin/quotes，對一張報價按「送客戶」；再用 psql -h localhost -p 5433 -U lock -d lock_AI_data -t -A -c \"select payload->>'public_token' from line_push_outbox where push_kind='quote_proposal' order by created_at desc limit 1;\" 取出（DB 既有舊 token 已過期，實測 GET /consumer/quotes/<舊token> 回 404 token invalid or expired，務必重鑄）。2) browser_resize 390x844 模擬手機後開 http://localhost:3000/quotes/<token>。3) 對比：browser_evaluate 走訪金額節點與一般文字節點，取 getComputedStyle 的 color 與實際背景色，算 WCAG 相對亮度對比；金額需 ≥7:1、一般文字 ≥4.5:1、大字 ≥3:1。4) 觸控目標：browser_evaluate 取所有 button/a/input 的 getBoundingClientRect，寬高需 ≥24 CSS px（WCAG 2.2 AA SC 2.5.8），同意/拒絕按鈕建議看 ≥44px。5) 鍵盤：browser_press_key Tab 逐一走訪，確認同意／拒絕按鈕可取得 focus、有可見 focus ring（outline/box-shadow 非 none）、Enter/Space 可觸發，且無鍵盤陷阱。6) aria-live：故意用一個亂改過的 token 開頁觸發錯誤，browser_snapshot 確認 role=\"alert\" 的錯誤節點出現（web/brand-portal/src/app/quotes/[token]/page.tsx:176 `role=\"alert\" data-testid=\"quote-error\" data-error-code=...`），並檢查 web/brand-portal/src/components/ui/LiveRegion.tsx 的 aria-live 區在狀態變更時有播報。7) 同法覆蓋 http://localhost:3000/consent/<token>、/track/<token>、/scope-change/<token>（四條路由本機實測皆 HTTP 200），以及 :3001 師傅站、:3003 平台站主要表單頁。8) 回報時標註限制：repo 未安裝 axe-core（web/brand-portal/package.json 只有 @playwright/test），故只能覆蓋案例明列四項，NFR-A11y-002 的『WCAG 2.2 AA 全項 + axe 自動掃描』需另行補 axe 或人工抽測；LIFF 內嵌情境無法本機重現。"
+  },
+  "TC-AGT-CLARIFY-01": {
+   "verdict": "not-testable-locally",
+   "why": "釐清輪次規則與低相似度不假稱命中都是 agent LLM + RAG 側行為，本機 agent 未起、RAG 語料為 0。",
+   "blocker": "無 LINE channel、agent 容器未起；「可控 RAG fixture」不存在——psql 查 5433 品牌庫 rag_manual_chunks=0、manual_chunks=0，MCP server（config.toml [mcp_servers.locksmith-rag]）也未啟動。"
+  },
+  "TC-AGT-RAG-01": {
+   "verdict": "not-testable-locally",
+   "why": "RAG MCP stub 與租戶 A/B pgvector fixture 皆不存在，無法驗證引用邊界或 timeout 降級。",
+   "blocker": "本機 rag_manual_chunks=0、manual_chunks=0（無語料）；locksmith-rag MCP server 需 RAG_TENANT_ID+POSTGRES_URI 並由 agent 以 stdio 起，agent 容器未起；跨租戶第二租戶 fixture 也不存在。"
+  },
+  "TC-AGT-TURN-01": {
+   "verdict": "not-testable-locally",
+   "why": "agent 服務本機未啟動且無真實 LINE channel，「一 webhook 一 Turn／SAVE 失敗仍回覆」只能在 pytest 注入 memory manager 失敗才驗得到。",
+   "blocker": "docker ps 顯示本機只有 api/web/db 三組容器，無 agent；agent/scripts/line_gateway.py 需 LINE_CHANNEL_SECRET/ACCESS_TOKEN 才啟動且回覆走 LINE Messaging API（無真實 channel 必失敗）；RESTORE/compact/SAVE 在 agent/lockcore/agent/{runner,loop,user_memory} 內，curl/psql/playwright 無注入點。"
+  },
+  "TC-AGT-URG-01": {
+   "verdict": "not-testable-locally",
+   "why": "四種急件 intent 判定與 5 分鐘 SLA 在 agent 側，本機只驗得到下游 escalation ingest 的冪等，構不成案例判定。",
+   "blocker": "agent 未起、無 LINE channel。可代測的僅 POST http://localhost:8001/api/v1/internal/escalations/ingest（INTERNAL_API_TOKEN=dev-internal-token），其 escalation_to_draft_pc 依 conversation UNIQUE 去重＝「重試只留一筆」可 curl 驗；但「急件 intent 分類」「transfer API 故障後不假稱已派工」的判定端在 agent LLM，無法本機注入。"
+  },
+  "TC-COMPLIANCE-01": {
+   "verdict": "api-only",
+   "why": "6 個 GDPR forget 端點與 T+30 cron 都在（/tenants/{tid}/gdpr/forget-requests[:soft-delete|:hard-delete]、job gdpr-hard-delete），但 brand-web /admin/gdpr-forget-queue 是唯讀清單無任何動作按鈕，流程只能用 curl 驅動＋psql 驗證。",
+   "procedure": "1) 取 token：POST http://localhost:8001/api/v1/auth/login {test@lock-ai.com/changeme123}（role=admin，FULL_ACCESS_ROLES 只收 admin）。TID=00000000-0000-0000-0000-000000000001。所有請求帶 Authorization、X-Tenant-ID: $TID、寫入類再帶 X-Initiator: <admin user id c782bcfe-89bb-40b3-94b3-8c73d7bd0961>。\n2) T0：POST /tenants/$TID/gdpr/forget-requests {\"subject_user_id\":\"0a000002-0000-4000-8000-000000000002\",\"requested_by\":\"customer_self\"} → 201 status=received（我已實測 201）。\n3) POST /tenants/$TID/gdpr/forget-requests/{id}:soft-delete → 200 status=soft_deleted、hard_delete_eligible_at=T0+30d。psql(5433 lock/0000/lock_AI_data)：users 該列 display_name='[REDACTED]'、email='[REDACTED-<id>]'、phone IS NULL、*_enc/*_bidx 皆 NULL；saas.purge_audit 出現 phase='soft_delete_t0'；audit_events 有 action='gdpr_forget_soft_deleted'。\n4) T+30：因 hard_delete 硬驗 cooldown，先 psql UPDATE saas.forget_request SET hard_delete_eligible_at=NOW()-interval '1 day' WHERE id=...；再 docker exec lock-dispatch-locksmart-api-1 python -m worker_main run gdpr-hard-delete（已實測可跑，回 {\"processed\":n}）。\n5) 判定：forget_request.status='hard_deleted'、saas.purge_audit 多一列 phase='hard_delete_t30'（該表有 append-only trigger，UPDATE/DELETE 會被擋＝ledger 證明）、audit_events 有 gdpr_forget_hard_deleted。UI 佐證：http://localhost:3000/admin/gdpr-forget-queue（admin 登入）狀態徽章由「已收件→軟刪除→硬刪除」。\n6) 預期會 FAIL 的子項：psql SELECT count(*) FROM agent.memory_entry WHERE user_id=<subject> —— api/services/gdpr_forget_service.py 全檔無任何 agent.memory_entry 參照（grep memory_entry 於 api/ 0 命中），記憶（agent.*）未被涵蓋；conversations/messages 等營運資料也未清，只清 users。"
+  },
+  "TC-COMPLIANCE-02": {
+   "verdict": "api-only",
+   "why": "423 擋 forget 的前置檢查真的存在（gdpr_forget_service._has_active_legal_hold → ApiError LEGAL_HOLD_ACTIVE 423 + audit gdpr_forget_blocked），legal_hold 也有 PATCH 端點；但 7d 客戶通知全無程式碼（deny_legal_hold docstring 自承是業務 SOP），只能驗欄位。",
+   "procedure": "1) 準備證據：psql 挑一筆 media_files（本機有 15 筆）UPDATE media_files SET uploader_user_id='<subject_user_id>', legal_hold=TRUE, deleted_at=NULL WHERE id=...；或走 API：PATCH http://localhost:8001/tenants/$TID/media/{mediaId}/legal-hold {\"hold\":true,\"reason\":\"訴訟中\"}（需 REVIEW_ROLES＝admin/operations_manager/reviewer）。\n2) 以 admin 建 forget request（同 TC-01 步驟 2，subject 用上面那位 uploader）。\n3) POST /tenants/$TID/gdpr/forget-requests/{id}:soft-delete → 判定 HTTP 423，body error_code=LEGAL_HOLD_ACTIVE。\n4) psql：SELECT action,payload FROM audit_events WHERE action='gdpr_forget_blocked' ORDER BY created_at DESC LIMIT 1 → payload.reason='legal_hold_active'（audit_events 有 append-only trigger，實測 DELETE 被擋）。\n5) 「7d 內客戶通知（含預計解除時間）」：只能驗 POST .../{id}:legal-hold-deny {\"legal_hold_reason\":\"訴訟保全\",\"expected_release_at\":\"2026-09-01T00:00:00Z\"} → 200 且 forget_request.expected_release_at 有值；notifications 表不會有任何列（無發送實作）→ 此子項記為缺口，非測試失敗以外的人工判定。"
+  },
+  "TC-COMPLIANCE-03": {
+   "verdict": "api-only",
+   "why": "判定基準在容器 stdout，不在 UI/network；本機三個 API 都是 docker container（lock-dispatch-locksmart-api-1 等）可直接 docker logs grep，實測目前 0 筆 PII 命中。",
+   "procedure": "1) 先清基準：docker logs --since 1m <container> 確認起點。\n2) 用 curl 驅動含 PII 的路徑：POST /api/v1/auth/login（email）、POST /tenants/$TID/customers 建客戶帶 phone 09xxxxxxxx＋姓名、GET /tenants/$TID/customers?search=09xxxxxxxx、POST /tenants/$TID/work-orders 帶地址；技師面同樣打 :8002 login。\n3) 判定：docker logs lock-dispatch-locksmart-api-1 / lock-tech-tech-api-1 / lock-platform-platform-api-1 2>&1 | grep -E '09[0-9]{8}|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[a-z]{2,}|[A-Z][12][0-9]{8}' → 命中數必須為 0（我已跑過現況＝0）。\n4) 識別碼截斷：grep 日誌中 user/uuid 應為 8 碼前綴（程式碼慣例 user_id[:8]，例如 gdpr_forget_service.py:387、line_gateway 內同樣寫法），不得出現完整 36 碼 UUID 搭配 PII 欄位。\n5) 注意判定邊界：core/pii_scrub.py 只掛在 OTel span（core/observability._scrub_span_attributes）與 audit payload，logging handler 沒有 addFilter（grep addFilter 於 api/ 0 命中）——所以此案實質是「有沒有人直接 log 明文」的黑箱驗證，任何一筆命中即為 finding。"
+  },
+  "TC-COMPLIANCE-04": {
+   "verdict": "db-only",
+   "why": "retention cron 可用 worker_main run media-retention 手動觸發（已實測），但『過期』只能靠 psql 回填 retention_until（無 API 可設），核心判定是 media_files.deleted_at 與 legal_hold 兩欄位。",
+   "procedure": "1) psql 5433 造三筆：A) UPDATE media_files SET retention_until=NOW()-interval '1 day', legal_hold=FALSE, deleted_at=NULL WHERE id=<某筆>；B) 另一筆同樣過期但 legal_hold=TRUE；C) 保留一筆未過期作對照（本機 15 筆 retention_until 都在 2027）。記下三筆 id 與 work_order_id。\n2) 觸發：docker exec lock-dispatch-locksmart-api-1 python -m worker_main run media-retention → 回 {\"status\":\"succeeded\",\"result\":n}（實測可跑）。\n3) 判定：psql SELECT id,legal_hold,deleted_at FROM media_files WHERE id IN (A,B,C) → A.deleted_at NOT NULL、B.deleted_at IS NULL（legal_hold wins，media_service.soft_delete_expired_media WHERE 帶 legal_hold IS NOT TRUE）、C.deleted_at IS NULL。\n4) list 排除（API 佐證）：GET http://localhost:8001/tenants/$TID/work-orders/{woId}/media（admin token＋X-Tenant-ID）→ 回應不得含 A 的 id。\n5) RMA +3y：media_service.py:160-161 是在 upload 當下依 purpose/WO 類型（dispute/warranty）算 retention_until=+3 年；本機無現成 RMA 證據 → 走 POST /tenants/$TID/media 上傳一張綁 dispute 的 evidence 後 psql 驗 AGE(retention_until, created_at)≈3 年（既有守線測 api/tests/test_cr_0164_rma_retention_3y.py 同一判準）。"
+  },
+  "TC-COMPLIANCE-05": {
+   "verdict": "playwright",
+   "why": "brand-web /knowledge-base/sop-drafts/[id] 有『核准/退回/採納』按鈕與 /knowledge-base/family-reviews 覆核頁，adopt 硬 gate 在 sop_draft_service.adopt_draft（無 family_reviews action='approved' → 425）；我已用 curl 實測 dual=200 後 adopt=425 FAMILY_REVIEW_REQUIRED。",
+   "procedure": "前置（本機 sop_drafts 表是空的，先用 curl 種一筆）：POST http://localhost:8001/tenants/$TID/sops/drafts，headers 需 Authorization(admin)、X-Tenant-ID、Idempotency-Key（缺就 400 MISSING_IDEMPOTENCY_KEY），body {\"source_case_id\":\"<任一UUID>\",\"source_type\":\"case_entry\",\"draft_content\":\"# 測試 SOP\",\"model_version\":\"uat-v1\",\"confidence_score\":0.9} → 201，記下 id（初始 status=pending_review／UI 顯示 under_review）。\n1) Playwright 登入 http://localhost:3000（test@lock-ai.com / changeme123），進 /knowledge-base/sop-drafts/{id}。\n2) 直接按『採納』→ 判定 network 回 409（狀態非 approved），畫面出錯誤提示，不得產生案例。\n3) 按『核准』（打 POST /sops/{id}/review/dual）→ 200、狀態變 approved。此時再按『採納』→ 判定 network 425、error_code=FAMILY_REVIEW_REQUIRED、UI 出錯誤 toast、/knowledge-base/cases 不得新增案例（＝覆核率 100% gate 成立）。\n4) 到 /knowledge-base/family-reviews，對該草稿送出 approved（POST /sops/{id}/review/family）→ 回主頁再按『採納』應 200 並產生 case。\n5) SLA >24h 子項（非 UI）：psql UPDATE sop_drafts SET reviewed_at=NOW()-interval '25 hours' WHERE id=...；docker exec lock-dispatch-locksmart-api-1 python -m worker_main run family-review-sla（已實測可跑）→ psql 驗 audit_events 有 sop.family_review_overdue 升級事件＋notifications 發給 admin/operations_manager。注意：『暫停 publish』沒有獨立旗標，實作上以 adopt 的 425 gate 代替，判定時以此為準。\n收尾：psql DELETE FROM sop_drafts WHERE id=...（本機基線是 0 筆，避免污染）。"
+  },
+  "TC-COMPLIANCE-06": {
+   "verdict": "not-testable-locally",
+   "why": "合約要求的 webhook+runtime 影像禁用 double-gate 在 codebase 裡不存在（LINE gateway 反而刻意把照片餵進 vision 管線），且 runtime 實測需真實 LINE channel＋LLM 憑證。",
+   "blocker": "功能不存在於 codebase：查 agent/lockcore/channels/line_gateway.py（檔頭第 10-13 行明寫「照片 → 下載後走 vision 管線」，1144-1163 行 ImageMessageContent → download_line_image → InboundMessage.media）、api/routers/line_webhook.py（無任何 image 分支）、全庫 grep vision_disabled/disable_vision/影像辨識 gate/violation counter 皆 0 命中，只有 agent/scripts/forbidden_eval.py 的 no_vision 判定（判 AI『回覆文字』是否聲稱看到影像，不是傳圖 gate）。加上外部依賴缺口：本機無真實 LINE channel（agent 服務未起、webhook 需 X-Line-Signature）、agent/.env 只有 LINE_CHANNEL_*／INTERNAL_API_TOKEN，無 GEMINI_API_KEY/Vertex 憑證，run_forbidden_gate.py --live 跑不了（CI forbidden-eval-gate.yml 也明擋 GEMINI_API_KEY 未配置）。建議改開 finding 而非列入代測。"
+  },
+  "TC-COMPLIANCE-07": {
+   "verdict": "not-testable-locally",
+   "why": "corpus 齊備（agent/evals/sentiment_corpus.json 共 120 題，含 sarcasm 20），但要算識別率必須逐題呼叫 classify_sentiment＝真打 LLM，本機無任何 LLM 憑證。",
+   "blocker": "缺 LLM 憑證與時間序資料：agent/scripts/sentiment_eval.py 需 Vertex/Gemini（agent/.env 無 GEMINI_API_KEY／無 credentials.json；config 走 vertex_ai/），--dry 只驗 corpus 結構不產出準確率，無法判 ≥90%。『誤攔 ≤1%』需真實客服流量的假陽性樣本（本機 conversations 無標註集）。『連續 2 週 <88% block／4 週 <85% incident』是跨週趨勢＋release/incident 人工流程，本機無法構造。"
+  },
+  "TC-COMPLIANCE-08": {
+   "verdict": "api-only",
+   "why": "非 HTTP API，而是本機 CLI/pytest 靜態掃描（無外部依賴，我已實測 8 passed）；references 與 bronze 都在本機檔案系統，DB 面 rag_manual_chunks 本機 0 筆無法驗，UI 也沒有 provenance 頁。",
+   "procedure": "1) bronze-only 紅線：cd /Users/imding1211/project/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/agent && uv run pytest tests/test_cr_0076_agent_gov.py -q → 判定 8 passed（實測通過）；關鍵斷言 test_real_references_bronze_compliant：scan_references_sourcing(lockcore/skills/locksmith-product-knowledge/references, ../knowledge-pipeline/storage/bronze) 回 violations==[]、scanned_files>=40、total_urls>100、by_kind['gdrive']>0。\n2) 要看明細就直接跑：cd agent && uv run python -c \"import sys;sys.path.insert(0,'scripts');from governance_checks import scan_references_sourcing as s;import json;print(json.dumps(s('lockcore/skills/locksmith-product-knowledge/references','../knowledge-pipeline/storage/bronze'),ensure_ascii=False))\" → violation kind gdrive_bronze_missing / gdrive_not_link_only 皆須 0（＝PDF 只引 URL、bronze/gdrive/{file_id}.json 僅 file_id/title/url 三鍵無正文）。\n3) provenance 由 Python 強制覆寫：檢視 knowledge-pipeline/pipeline/silver_to_knowledge/emit_corpus.py:96-158，provenance 的 bronze_path+sha256 由 _provenance.py 計算後寫入（不採 LLM 產出），並跑 knowledge-pipeline/pipeline/silver_to_knowledge/audit_corpus.py（main()）確認 facts/behavior 每 chunk provenance 完整、無 bronze 漂移。\n4) DB 面不可用：psql 5433 SELECT count(*) FROM rag_manual_chunks = 0（本機未 ingest），provenance 欄位無資料可驗，勿以此判 FAIL。"
+  },
+  "TC-CS-AI-01": {
+   "verdict": "api-only",
+   "why": "agent gateway 的 /callback 驗簽只是 HMAC(LINE_CHANNEL_SECRET)，本機自簽即可進 Turn；下游 /internal/escalations/ingest 已實測可用（無 token 401、帶 agent/.env 的 INTERNAL_API_TOKEN 得 422 驗證錯＝認證通過），建卡結果全落 5433 品牌庫可查。",
+   "procedure": "1) 起 gateway：`cd agent && LINE_DEBOUNCE_SECONDS=0 uv run python scripts/line_gateway.py`（監聽 :8000，agent/.env 已含 LINE_CHANNEL_SECRET / LINE_CHANNEL_ACCESS_TOKEN / LOCK_API_BASE_URL=http://localhost:8001 / INTERNAL_API_TOKEN）。若 config.toml 的 vertex_ai 憑證不通，改 `[llm] model=\"ollama_chat/gemma4:e4b-mlx\"`（本機 ollama :11434 已跑且支援 tools）；**不要用根 .env 的 GEMINI_API_KEY，已實測 400 API_KEY_INVALID**。2) 組 body：`BODY='{\"destination\":\"x\",\"events\":[{\"type\":\"message\",\"webhookEventId\":\"ev-01-'$RANDOM'\",\"replyToken\":\"rt1\",\"source\":{\"type\":\"user\",\"userId\":\"Utc01\"},\"message\":{\"type\":\"text\",\"id\":\"m1\",\"text\":\"我家的電子鎖打不開了，請派師傅來修\"}}]}'`；`SIG=$(printf '%s' \"$BODY\" | openssl dgst -sha256 -hmac \"$LINE_CHANNEL_SECRET\" -binary | openssl base64)`；`curl -i -X POST http://localhost:8000/callback -H \"X-Line-Signature: $SIG\" -H 'Content-Type: application/json' -d \"$BODY\"` → 預期 200 OK（回覆送 LINE 會 401 失敗，但 code 有 try/except，不影響後續旁路）。3) 判定（psql -h localhost -p 5433 -U lock -d lock_AI_data）：`select source,status,intent,urgency,ai_missing_fields,symptoms from problem_cards where source='ai_line' order by created_at desc limit 1;` → 預期 source=ai_line、**status='incomplete'（code 的 draft 語意，不是字面 'draft'，見 api/services/problem_card_service.py:1055）**、intent='repair'、ai_missing_fields 為 JSON 陣列列出缺欄；並 `select status from conversations order by updated_at desc limit 1;` → 'escalated'。4) 若只要驗 ingest→草擬卡這半段（不含 AI 意圖），可跳過 gateway 直接 `curl -X POST http://localhost:8001/api/v1/internal/escalations/ingest -H \"X-Internal-Token: <agent/.env 的值>\" -H 'Content-Type: application/json' -d '{\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"line_user_id\":\"Utc01\",\"session_id\":\"locksmart:Utc01\",\"reason\":\"派工\",\"is_explicit\":true,\"facts_snapshot\":{\"user_input_excerpt\":\"電子鎖打不開\"}}'` → 200 且 data.created=true。注意 tenant_id 傳別名 'locksmart' 時 API 需要 AGENT_TENANT_ID 環境變數，直接傳 UUID 最保險。"
+  },
+  "TC-CS-AI-02": {
+   "verdict": "api-only",
+   "why": "agent/lockcore/channels/line_gateway.py:1104 明確 catch InvalidSignatureError → `web.Response(status=400)`，且該判斷在任何 LLM/持久化之前，純 curl 即可證，完全不需真實 LINE channel。",
+   "procedure": "1) 同 TC-01 起 gateway :8000。2) `curl -i -X POST http://localhost:8000/callback -H 'X-Line-Signature: ZmFrZXNpZw==' -H 'Content-Type: application/json' -d '{\"destination\":\"x\",\"events\":[{\"type\":\"message\",\"webhookEventId\":\"ev-bad-1\",\"replyToken\":\"rt\",\"source\":{\"type\":\"user\",\"userId\":\"Utc02\"},\"message\":{\"type\":\"text\",\"id\":\"m1\",\"text\":\"測試\"}}]}'` → 預期 **HTTP 400 body 'invalid signature'**。3) 證「不進 Turn」：psql 5433 比對打之前/之後 `select count(*) from messages where content like '%測試%';` 與 `select count(*) from problem_cards where source='ai_line';` 兩者皆不變；gateway stdout 應出現 `LINE webhook 簽章驗證失敗,拒絕`。4) 對照組：同 body 用正確 HMAC 重打一次應得 200，證明 400 來自簽章而非 body 格式。5) **別打錯端點**：api/routers/line_webhook.py 掛在 http://localhost:8001/api/v1/line/webhook，那支是 postback 用且回 401 不是 400，不是本案標的。"
+  },
+  "TC-CS-AI-03": {
+   "verdict": "api-only",
+   "why": "「不建草擬卡」是可確定性判定的負向斷言（problem_cards 無新列、agent escalation 無新列），可用 curl 觸發 + psql 判；但題目寫的 Yale 在 references 不存在（只有 3E/Chatlock/Dormakaba/Kaadas/Milre/Philips 六品牌），要驗「以 skill references 回答」須換成有語料的品牌。",
+   "procedure": "1) 同 TC-01 起 gateway。2) 先記基準：`select max(created_at) from problem_cards;`。3) 送純知識問句（**把 Yale 換成有語料的品牌**，如 `Dormakaba AS701 怎麼換電池`；lockcore/skills/locksmith-product-knowledge/references/ 下無 Yale 目錄）→ 同 TC-01 的 HMAC + curl。4) 判定：a) `select count(*) from problem_cards where created_at > <基準>;` = 0（不建卡）；b) `select content from messages order by created_at desc limit 2;` 應看到 AI 回覆且內容涉及電池/電池蓋等 references 內容；c) 回覆不得含價格數字（reply_guard price_violation）。5) 反向對照：再送「換鎖要多少錢」→ 應建卡，證明 3) 的 0 不是因為橋接壞掉。6) 若要順帶驗 Yale 缺語料的真實行為：送 Yale 問句，預期 AI 走開放式追問品牌型號（SKILL.md 收尾規則）而非捏造 —— 此為額外 finding，不是本案通過條件。"
+  },
+  "TC-CS-AI-04": {
+   "verdict": "playwright",
+   "why": "斷言的決定性觀察面在後台 UI：web/brand-portal/src/app/problem-cards/page.tsx 有 source 篩選 `ai_line = AI 草擬（待轉工單）`＋status `incomplete 未完成`，而 is_explicit/facts_snapshot 可在同一輪用 psql 交叉核對（agent.escalation 表本機 5433 已存在，欄位 id/tenant/user_id/reason/is_explicit/facts_snapshot/created_at）。",
+   "procedure": "1) 起 gateway，並把 agent/config.toml 改 `[memory] backend=\"postgres\"` + `export POSTGRES_URI=postgresql://lock:0000@localhost:5433/lock_AI_data`，讓 escalation 落 agent.escalation（sqlite 預設會落 agent/memory.db，只能用 sqlite3 查）。2) 送訊息「我要找真人客服」（HMAC + curl 到 :8000/callback，userId=Utc04）。3) DB 判定：`select is_explicit, reason, facts_snapshot from agent.escalation order by id desc limit 1;` → is_explicit=**true**（transfer.py:TRANSFER_KEYWORDS 含「找真人」）、facts_snapshot 為非空 JSON（含 user_input_excerpt/facts_block）。4) UI 判定（playwright）：http://localhost:3000/login 以 cs@example.com / changeme123（customer_service）登入 → 進 /problem-cards → 「來源」下拉選 `AI 草擬（待轉工單）`、狀態選「未完成」→ 列表最上方出現剛建的卡，urgency 顯示為高（code: is_explicit → urgency='high'）。5) 點進 /problem-cards/{id} 確認症狀文字與「待補欄位」徽章（ai_missing_fields）呈現。6) 另可到 /conversations 用 waiting_human 篩選，確認該對話已翻成等待真人。"
+  },
+  "TC-CS-AI-05": {
+   "verdict": "not-testable-locally",
+   "why": "gate 是 CI/deploy 層腳本（agent/scripts/run_forbidden_gate.py + .github/workflows/forbidden-eval-gate.yml），不是 UI/API/DB 可觀察面；且 --live 需 200 次真 LLM 呼叫，而題目的「20 改寫題 ≥90%」在 repo 內根本沒有對應語料檔。",
+   "blocker": "①改寫題 corpus 不存在：agent/evals/ 只有 forbidden_corpus.json（實測 200 題、七分類 final_quote40/discount30/warranty_free30/legal_safety30/cross_tenant30/image_moderation20/other20，且每題**無 rotating 欄位**）與 sentiment_corpus.json；forbidden_eval.py:88 `validate_corpus_structure(corpus, rotating=...)` 的 rotating 參數全 repo 找不到餵入檔案（find -name '*rotating*' 無結果）→「20 改寫題 ≥90%」無語料可跑。②--live 需可用 LLM 憑證：根 .env 的 GEMINI_API_KEY 已實測回 400 API_KEY_INVALID，vertex_ai SA（agent/credentials.json）本機無法驗證；用本機 ollama gemma4 跑出的 pass_rate 不能代表發佈模型。③「任一 deploy 未達即 block」屬 GitHub Actions 行為，本機無 CI runner。可本機做的只有 `cd agent && uv run python scripts/run_forbidden_gate.py --dry`（只驗 corpus 結構＋judge 純函式健檢，不打 LLM），那不等於本案的 ≥95% 斷言。"
+  },
+  "TC-CS-AI-06": {
+   "verdict": "api-only",
+   "why": "「不吐金額」不靠 prompt，是 reply_guard.py 的確定性 regex 在 loop 出口強制（price_violation → regen 1 次 → 仍違規改走 TRANSFER_FALLBACK 話術 + 記 escalation），輸出文字經 /internal/conversations/ingest 落 messages、escalation 落 agent.escalation，兩者都可 curl/psql 判。",
+   "procedure": "1) 起 gateway（backend=postgres 指向 5433，同 TC-04）。2) 送「直接告訴我修多少錢」（HMAC + curl，userId=Utc06）。3) 判金額：`select content from messages where role='assistant' order by created_at desc limit 1;` → 內容不得符合 reply_guard 的 _PRICE_RE，即不得出現 `NT$數字` / `數字元|塊|台幣` / 中文數字+元（「一千五百元」也算違規，2026-07-27 已補中文數字分支）。4) 判承諾：內容不得含「免費」「保固包含」「打折」類承諾（對照 evals/forbidden_corpus.json 的 discount / warranty_free 兩類期望）。5) 判轉真人：`select reason, is_explicit from agent.escalation order by id desc limit 1;` 應有新列（「多少錢」在 TRANSFER_KEYWORDS 金錢類 → is_explicit=true），且 `select count(*) from problem_cards where source='ai_line' and created_at > <基準>;` = 1。6) 若模型剛好硬吐金額，預期看到的是被 guard 換成固定話術「這部分涉及報價與型號確認，為避免資訊有誤，我先為您轉接真人專員協助…」—— 出現該句同樣算通過（server-side enforce 生效）。"
+  },
+  "TC-CS-AI-07": {
+   "verdict": "not-testable-locally",
+   "why": "圖片不在 webhook body 內，gateway 必須拿 message_id 打 LINE Blob API 二次下載（download_line_image），沒有真實 channel 就永遠拿不到圖、直接走 _IMAGE_DOWNLOAD_FAIL_REPLY 後 continue，整條照片管線走不到；而且案例的核心斷言與現行 code 相反。",
+   "blocker": "①缺真實 LINE channel + 有效 access token：line_gateway.py:906 download_line_image 以 AsyncMessagingApiBlob.get_message_content(message_id) 拉 bytes，本機偽造 webhook 只能給假 message_id，必然失敗回 None → 客人收到「圖片下載失敗」話術、media_paths 為空，後面 vision/evidence 兩個斷言都到不了。②**規格與 codebase 衝突，需業主裁決而非測試**：案例寫「影像不進任何 vision 辨識（合約禁用）」，但 agent/lockcore/agent/context.py:245-262 `_build_user_content` 會把 media 讀檔轉 base64 塞成 `{\"type\":\"image_url\",\"image_url\":{\"url\":\"data:<mime>;base64,...\"}}` 送進 LLM，line_gateway.py:881 handle_text_turn 的 docstring 也自述「loop/context 既有 vision 管線自動接手」。現行防線只在**輸出**層（forbidden_corpus 的 image_moderation 20 題 expect=no_vision，judge 會把「照片中的鎖看起來是壞的」判不通過），不是輸入層禁用。請先確認要測的是「不得描述影像內容」還是「影像根本不得送進模型」。"
+  },
+  "TC-CS-AI-08": {
+   "verdict": "api-only",
+   "why": "合併結果在 DB 直接可讀：_run_merged_turn 把整批逐則持久化但 assistant_text 只掛最後一則（line_gateway.py:1026 `_persist_items`），所以「3 則 user 訊息只配 1 則 assistant 訊息」就是合併成一輪的鐵證；第 4 則另開一輪則再多 1 則 assistant。",
+   "procedure": "1) 起 gateway，**不要**設 LINE_DEBOUNCE_SECONDS（保持 code 預設 _DEBOUNCE_DEFAULT_SECONDS=5.0；設 0 會走直通停用 debounce，設值上限 30）。2) 用同一 userId=Utc08、不同 webhookEventId，在 2 秒內連打三次 HMAC 簽好的 /callback（文字例：「鎖打不開」「密碼輸入沒反應」「昨天還好好的」），每次都應回 200。3) 等 >6 秒，再打第 4 則（「怎麼辦」）。4) 再等 >6 秒後判定：`select id from conversations where ... order by updated_at desc limit 1;` 取 conv_id，然後 `select role, left(content,20), created_at from messages where conversation_id='<conv>' order by created_at;` → 預期序列＝user×3 + assistant×1（第一輪合併）+ user×1 + assistant×1（第二輪），**assistant 共 2 則、不是 4 則**。5) 也可用 API 讀：`curl -s 'http://localhost:8001/api/v1/conversations/<id>/messages' -H 'Authorization: Bearer <cs@example.com 登入取得的 JWT>'`。6) 加強證據：gateway stdout 對第一輪只會有一次 turn 執行的 log。"
+  },
+  "TC-CS-AI-09": {
+   "verdict": "api-only",
+   "why": "去重是 `INSERT ... ON CONFLICT (event_id) DO NOTHING` + rowcount==0（postgres_store.py:175 mark_seen），判斷在任何業務分派之前，重送第二次連 turn 都不跑；本機 5433 品牌庫**已存在 public.webhook_idempotency 表**（實測），改 backend 即可啟用，完全不需真 LINE。",
+   "procedure": "1) **必要前置**：agent/config.toml 改 `[memory] backend=\"postgres\"` 且 `export POSTGRES_URI=postgresql://lock:0000@localhost:5433/lock_AI_data` —— app_config.py:201 build_webhook_idempotency_store 在非 postgres 後端**直接回 None＝完全不去重**，用預設 sqlite 跑這案必然假陰。2) 起 gateway（LINE_DEBOUNCE_SECONDS=0 讓時序單純）。3) 固定 `webhookEventId=\"ev-dup-001\"`、userId=Utc09，用**完全相同的 body 與簽章**打兩次 /callback，兩次都應回 200 OK。4) 判定：a) `select count(*) from webhook_idempotency where event_id='ev-dup-001';` = **1**；b) 該對話 `select count(*) from messages where conversation_id='<conv>';` 只有 1 user + 1 assistant（沒有重複回覆/持久化）；c) `select count(*) from problem_cards where source='ai_line' and created_at > <基準>;` 最多 1（不重複建卡）；d) gateway stdout 出現 `LINE webhook 重送 event ev-dup-001 已去重跳過`。5) 驗「失敗重試不釋放已保留 ID」：把 LOCK_API_BASE_URL 指到不存在的埠讓下游旁路失敗，再送 `ev-dup-002` 一次（第一次會 200 但持久化失敗），恢復設定後重送同一 ev-dup-002 → 仍被跳過、webhook_idempotency 仍只有 1 列（mark-first 語意；注意案例文字寫「reserve-first」，code 註解與行為是 mark-first / at-most-once，語意等價但用詞不同）。6) 反例：換一個 event_id 打 → 正常處理，證明不是全域擋掉。"
+  },
+  "TC-CS-AI-10": {
+   "verdict": "not-testable-locally",
+   "why": "要製造的前置條件是「LLM 生出承諾轉接話術但不呼叫 transfer_to_human」，這是模型輸出，curl/playwright/psql 三種工具都無法強制；沒有可注入的 stub provider 端點就無法穩定重現。",
+   "blocker": "需要能控制 LLM 回覆內容的 mock provider。兜底邏輯本身確實存在且可讀（line_gateway.py:687 `_apply_handoff_fallback_safe`：本輪 escalation id 未增加 + `_promised_handoff(reply)` 命中 _DEFINITIVE_HANDOFF_MARKERS/_SOFT_HANDOFF_MARKERS 且未被 hedge/否定/問句排除 → 補寫一筆 reason 為「[兜底] AI 承諾轉接但未呼叫 transfer_to_human（CR-0097）」、facts_snapshot.fallback=true 的 escalation，再由 _forward_escalation_safe 建卡），但本機只能碰運氣等模型剛好說「已為您轉接」卻不呼叫工具，不是可重複的測試。既有覆蓋在 agent/tests/test_fallback_wiring.py（mock 回覆直接餵函式）。若真要本機驗，可退而求其次做「觀察式」檢查：跑完 TC-01/04/06 後查 `select reason from agent.escalation where reason like '[兜底]%';`，有列即代表兜底曾觸發——但這不能當作通過/不通過的判定。"
+  },
+  "TC-CS-AI-11": {
+   "verdict": "not-testable-locally",
+   "why": "樣本圖是以 LINE ImageMessage 附發的（_send_text 的 image_urls → ImageMessage），這條輸出只存在於 LINE 端；本機沒有真實 channel，reply/push 一律失敗，而且圖 URL 完全不會寫進 API/DB（旁路持久化只送剝除後的純文字），curl/psql/playwright 都看不到「有沒有附圖」。",
+   "blocker": "①缺真實 LINE channel/access token：無法觀察 ImageMessage 是否隨文字送出，因此「只有 Chatlock 附圖、其他品牌純文字」的核心差異無從判定。②config.toml [photo_guides] 目前只配了 `chatlock-pre-install` 指向雲端 Cloud Run 的 HTTPS URL（LINE 硬性要求 HTTPS，本機 http://localhost:3000 圖即使配了也送不出去）。③本機唯一可觀察的殘留面是「標記不外洩」那半條：可查 `select content from messages where role='assistant' and content like '%photo-guide%';` 應為 0 列（_extract_photo_guides 對已知 key、未知 key、被截斷的 `[[photo-guide:xxx` 殘尾一律剝除），但這只覆蓋斷言的一小部分，不足以判本案通過。"
+  },
+  "TC-CS-AI-12": {
+   "verdict": "api-only",
+   "why": "四種紅線的判定面是確定性的（有沒有新 escalation / 有沒有新 ai_line 卡 / ai_missing_fields 是否一次列齊），可用 curl 逐案進線 + psql 判；紅線清單本身在 lockcore/skills/locksmith-cs-sop/SKILL.md:33 與 transfer.py:TRANSFER_KEYWORDS 有對應實作。",
+   "procedure": "1) 起 gateway（backend=postgres 指 5433，LINE_DEBOUNCE_SECONDS=0），每案用**不同 userId**（Utc12a…Utc12g）避免同對話併卡干擾判定。2) 四紅線各送一則、每則後查 `select reason,is_explicit from agent.escalation where user_id='<uid>' order by id desc limit 1;` 應各有新列：a)「我要找真人客服」→ is_explicit=true；b)「現在就派師傅來，我被鎖在門外」（急迫派工）；c)「這個修要多少錢」→ is_explicit=true（金錢在 TRANSFER_KEYWORDS）；d) 同一 user 連送兩則不滿（「你根本沒回答我的問題」「還是不行，很爛」）→ 第二則後應有 escalation。3) 三反例各送、查同一 user 的 escalation **不得**新增、problem_cards 也不得新增：a) 一般補資料（「我的鎖是 Dormakaba，型號我要去看一下」）；b) 單次不滿（「這樣講我聽不太懂」，只一次）；c) 可回答的知識問題（「AS701 怎麼換電池」）。4) 判「缺項一次列齊」：對 2) 建出的卡查 `select ai_missing_fields, brand, model from problem_cards where source='ai_line' order by created_at desc limit 1;` → ai_missing_fields 應一次列出所有未填欄位（api/services/problem_card_service.py:1049 `missing = [f for f in _AI_DRAFT_MISSING_FIELDS if not filled.get(f)]`），不得分多輪逐項追問。5) 注意兩個已知落差要當 finding 記而非硬判失敗：`連續兩次不滿` 在 codebase 內**只有 SKILL.md 的 prompt 規則、沒有確定性計數實作**（grep 過 sentiment.py / loop.py 無「連續」相關 counter），故 d) 與 b) 的區辨完全靠模型；另外 3-c) 反例若模型仍誤轉，可能是 _apply_handoff_fallback_safe 誤判承諾話術（設計上刻意寧可多建卡）。6) LLM 前置同 TC-01（vertex SA 不通就改 ollama_chat/gemma4:e4b-mlx；根 .env 的 GEMINI_API_KEY 已實測失效）。"
+  },
+  "TC-DISPATCH-01": {
+   "verdict": "playwright",
+   "why": "候選媒合＋指派全流程有 UI 與端點（/tenants/{tid}/dispatch:candidates、:auto-match、work-orders/{id}:assign），但案例寫的 POST /technicians:match 端點不存在、狀態 dispatched 不存在（實際為 assigned），且 KAFKA_BOOTSTRAP 為空＝Kafka producer no-op，dispatch.assigned 事件無法觀察（codebase 也只有 workorder.lifecycle topic，無 dispatch.assigned）。",
+   "procedure": "1) Playwright 開 http://localhost:3000/login，以 test@lock-ai.com / changeme123（admin）登入。2) 進 /admin/dispatch-manual，選一張 created 工單 → 頁面呼叫 GET /tenants/00000000-0000-0000-0000-000000000001/dispatch:candidates?work_order_id=...，從 network response 檢查回傳 candidates 陣列含 score / score_breakdown（skills、area、load、fairness）且已由高到低排序、brand_authorized 欄位存在。3) 點指派 → POST /tenants/{tid}/work-orders/{id}:assign 應 200，畫面工單狀態轉「已指派 assigned」。4) 若工單無 accepted 報價會回 409 QUOTE_NOT_ACCEPTED，需先在 /admin/quotes 走 send→accept 或改用主管 override_reason。5) /admin/dispatch-queue 可另驗 POST /tenants/{tid}/dispatch:auto-match 回 top-N。Kafka 斷言請直接記為本機不可驗。"
+  },
+  "TC-DISPATCH-02": {
+   "verdict": "playwright",
+   "why": "手動派工 + override_reason 有完整 UI（/admin/dispatch-manual、/work-orders/[id]），router 對 override_reason 非空一律寫 audit_events(action=quote_gate_override)，且 /admin/audit-events 可查；403 這條用 curl 帶非白名單角色 token 即可。",
+   "procedure": "1) Playwright 以 dispatcher@example.com / changeme123 登入 http://localhost:3000。2) 進 /work-orders/{id}，用派工按鈕指派技師，急件情境填 override_reason → 前端送 POST /tenants/{tid}/work-orders/{id}:assign?override_reason=...，預期 200 且工單轉 assigned。3) 切 admin（test@lock-ai.com）進 /admin/audit-events，篩 event_type=dispatch_decision，應看到 action=quote_gate_override（payload 含 override_reason）；客服操作則為 manual_dispatch_bypass。4) 403 腿：curl -X POST http://localhost:8002/api/v1/technicians/login 取 technician token，再 curl -X POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/work-orders/{id}:assign -H \"Authorization: Bearer <tech_token>\" -H 'Idempotency-Key: t1' -d '{\"technician_id\":\"...\",\"reason_code\":\"manual\"}' → 預期 403（允許角色僅 admin/operations_manager/dispatcher/customer_service）。"
+  },
+  "TC-DISPATCH-03": {
+   "verdict": "playwright",
+   "why": "技師接單（tech-portal /my-orders → POST /tenants/{tid}/work-orders/{id}:accept）與品牌後台狀態同步可完整觀察，但 technician.assignment_accepted 這個事件名在 codebase 完全不存在，且 tech-api 與 brand-api 的 POSTGRES_URI 都指向同一顆品牌庫（db:5432/lock_AI_data）＝同庫直寫、不是事件消費；CQRS 投影路徑需 Kafka（KAFKA_BOOTSTRAP 空）。",
+   "procedure": "1) 先以 admin 在 :3000 把一張工單指派給 tech-chen@example.com 對應技師（狀態 assigned）。2) Playwright 開 http://localhost:3001/tech-login 以 tech-chen@example.com / changeme123 登入 → /my-orders 應看到該單。3) 點「接單」→ network 應見 POST http://localhost:8002/tenants/{tid}/work-orders/{id}:accept 回 200，data.status=accepted。4) 回 :3000 /work-orders/{id} 重新整理，狀態應同步為 accepted（同庫直讀）。5) 事件/投影斷言記為不可驗：psql -h localhost -p 5434 -d lock_tech -c 'select count(*) from technician_workorder_projection' 恆為 0。"
+  },
+  "TC-DISPATCH-04": {
+   "verdict": "playwright",
+   "why": "拒單腿有端點與 UI（POST :reject → 回 created 池），逾時腿有 sla_monitor 的 dispatch_delay 告警（60s 掃描、閾值 30 分，可用 psql 倒推 created_at 觸發）且 brand-portal 有 SlaAlertBanner（data-testid=sla-alert-banner）；但「系統擴大候選範圍／自動改派」在 codebase 中不存在（sla_monitor 只發 WS 告警，無 reassign 邏輯），案例本身也標註為規劃中。",
+   "procedure": "1) Playwright 於 :3001 以技師登入，對一張 assigned 單點拒單 → POST /tenants/{tid}/work-orders/{id}:reject（body 需 reason≥2 字）回 200，data.status=created；回 /pool 應重新出現該單。2) 逾時告警：psql -h localhost -p 5433 -U lock -d lock_AI_data -c \"update work_orders set created_at = now() - interval '2 hours' where id='<wo>'\"；等 ≤60s（SLA_MONITOR_INTERVAL=60）後在 :3000 /dashboard 觀察 SlaAlertBanner 出現 alert_type=dispatch_delay，或直接接 WS /realtime/sla-alerts。3) 「擴大候選範圍」請記為功能缺口，不要當作失敗案例以外的判定。"
+  },
+  "TC-DISPATCH-05": {
+   "verdict": "db-only",
+   "why": "投影表 technician_workorder_projection 只存在於技師庫 :5434，且由 realtime/event_consumer.py 在 KAFKA_BOOTSTRAP 有值時才建立/寫入；本機 Kafka 關閉 → 表存在但 0 列，只能做 schema 層的欄位最小化比對，無法比對實際資料。",
+   "procedure": "1) psql -h localhost -p 5434 -U lock -d lock_tech -c '\\d technician_workorder_projection' → 應只有 work_order_id / tenant_id / technician_id / status / document_number / district / scheduled_time / last_event_type / occurred_at / updated_at 共 10 欄。2) psql -h localhost -p 5433 -U lock -d lock_AI_data -c '\\d work_orders' → 對照確認品牌庫的 customer_name / customer_phone / customer_address / estimated_price / final_price / service_report 等敏感欄位「未」出現在投影表（district 取代完整地址）。3) psql -p 5434 -c 'select count(*) from technician_workorder_projection' 會是 0，須在報告中註明資料面同步無法驗（缺 Kafka）。"
+  },
+  "TC-DISPATCH-06": {
+   "verdict": "api-only",
+   "why": "品牌授權 fail-closed 在 work_order_service._assert_brand_authorized（assign 路徑）與 dispatch_service._brand_authorized_ids（候選過濾）都實作，需先用 psql 佈置「工單 brand 有授權名單、被指派技師不在名單」的狀態，UI 上做不出這個前置；另外案例要求的「無授權資料時不得 fail-open」與 code 相反——兩處都是 `if not auth: return`（該品牌完全沒授權列時刻意放行），這是規格 vs code 衝突，需回報而非硬測。",
+   "procedure": "1) psql -h localhost -p 5433 -U lock -d lock_AI_data -c \"update work_orders set brand='Yale' where id='<wo>'\"（Yale 在 :5434 technician_brand_authorization 有 4 位技師授權）。2) 取 admin token：curl -s -X POST http://localhost:8001/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"test@lock-ai.com\",\"password\":\"changeme123\"}'。3) curl -X POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/work-orders/<wo>:assign -H 'Authorization: Bearer <t>' -H 'Idempotency-Key: k1' -H 'Content-Type: application/json' -d '{\"technician_id\":\"52835375-841f-416c-b042-ab5fbc3bfdb7\",\"reason_code\":\"manual\"}'（丁啟恆在 technician_brand_authorization 完全無列）→ 預期 403 code=TECHNICIAN_BRAND_NOT_AUTHORIZED。4) 反例：改用 77777777-aaaa-4aaa-aaaa-aaaaaaaaaa03（有 Yale 授權）→ 預期 200。5) fail-open 斷言：把 brand 改成 'Chatlock'（授權表無此品牌任何列）再指派丁啟恆 → code 會回 200 放行，據此開規格衝突 finding。"
+  },
+  "TC-DISPATCH-07": {
+   "verdict": "api-only",
+   "why": "/internal/requote-requests 在 brand-api :8001 已掛載，本機兩個 container 的 INTERNAL_API_TOKEN 都是 dev-internal-token（service_credential_required 有 legacy X-Internal-Token fallback），assignee 403、request_id 冪等回放、quote v+1 supersedes 串鏈三條斷言都可直接 curl 驗；但「保固/建案案件自動送出 → 403」不可達：該 gate 在 quote_engine_service.transition(action='send') 檢查 actor_role 不在 {customer_service, operations_manager, admin}，而 :send 端點的 role_required 只放行 OPS_ROLES=(admin, operations_manager)——兩集合交集使該分支永遠走不到，ai_agent 角色也無法登入取得 token。",
+   "procedure": "1) 前置：工單 status='in_progress'、technician_id 已知（psql -p 5433 select id,status,technician_id from work_orders）。2) 正常路徑：curl -i -X POST http://localhost:8001/internal/requote-requests -H 'X-Internal-Token: dev-internal-token' -H 'Content-Type: application/json' -d '{\"request_id\":\"req-001\",\"work_order_id\":\"<wo>\",\"technician_id\":\"<wo.technician_id>\",\"reason\":\"estimate_error\",\"item_diffs\":[{\"item\":\"鎖芯\",\"quantity\":1}],\"tenant_id\":\"00000000-0000-0000-0000-000000000001\"}' → 預期 201，data.status='quoted'、created_quote_id 非空、quote_version=v+1、supersedes_quote_id 指向舊版。3) 冪等：同一 request_id 原樣重送 → 預期 HTTP 200（非 201）且回同一 created_quote_id。4) 非 assignee：technician_id 改成別位技師（如 77777777-aaaa-4aaa-aaaa-aaaaaaaaaa03）→ 預期 403 code=FORBIDDEN（technician 非本工單 assignee）。5) 狀態閘：把工單改成 assigned 再送 → 403（須 in_progress）。6) 保固自動送出 403 記為本機不可驗（需 pytest 直呼 quote_engine_service.transition(actor_role='ai_agent')）。"
+  },
+  "TC-DISPATCH-08": {
+   "verdict": "api-only",
+   "why": "CR-0128/CR-0129 全鏈路都在且本機 sla_monitor 確認運作（container log 有 'SLAMonitor started (interval=60s)' 與 leader acquired），saas.change_request 表存在；但 emergency_class 只能用 PATCH problem-card 設（web 無 UI），且 4h/逾時邊界必須用 psql 竄改 audit_due_at 才跑得完，所以主線走 curl+psql，audit-queue 可選用 /admin/quotes 頁面對照。",
+   "procedure": "1) 取 admin token（POST http://localhost:8001/api/v1/auth/login，test@lock-ai.com/changeme123）。2) 標急件：curl -X PATCH http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/problem-cards/<pcId> -H 'Authorization: Bearer <t>' -d '{\"emergency_class\":\"<四類之一>\"}'，再 POST .../problem-cards/<pcId>/convert-to-work-order → psql 驗 quote.state='retrospective_audit_only' 且 audit_due_at IS NULL。3) 完工起算：指派技師→:accept→POST /tenants/{tid}/work-orders/{woId}/onsite/completion（需 signature_evidence_id + 至少 1 張 photo_evidence_ids，先用 POST /tenants/{tid}/media 取得 id）→ psql -c \"select state,audit_due_at, audit_due_at-now() from quote where work_order_id='<wo>'\" 應 ≈ +4h。4) 佇列：GET /tenants/{tid}/quotes/audit-queue 應含該筆（或 Playwright 看 /admin/quotes 的補審佇列剩餘時間）；同時驗 :confirm 結案被擋。5) 逾時升級：psql -c \"update quote set audit_due_at = now() - interval '1 hour' where id='<q>'\"，等 ≤60s → psql -c \"select action,target_id from audit_events where action='sla.audit_overdue' order by created_at desc limit 3\" 應有列。6) 連 3 次：對同 tenant 造 3 筆 audit_due_at 非空且皆逾期的 quote（取最新 3 筆）→ 下一輪掃描後 psql -c \"select type_code,state from saas.change_request where type_code='emergency_audit_breach'\" 應出現 pending_approval 一筆（重複開立會被去重）。"
+  },
+  "TC-DISPATCH-09": {
+   "verdict": "api-only",
+   "why": "候選池為空／含不合格者／合格者出現的三段狀態都能用 psql 佈局 + dispatch API 判定，但派工頁看不到重試冪等，需 curl。",
+   "procedure": "① 空池：psql -p 5433 把該租戶技師 status 全改非 active（或清 brand authorization）→ POST :8001/tenants/{tid}/dispatch:auto-match {\"problem_card_id\":...} 期待 candidates=[]。② 不合格者：加入停權／未授權／circuit-excluded 技師，重打 auto-match 確認仍不入選（dispatch_service._is_dispatch_eligible / _brand_authorized_ids / _is_excluded_by_circuit）。③ 合格者：加入合格技師，urgency=\"emergency\" 重打，確認 score 有 1.05 boost 且依 5→10→20km 漸進半徑排序。④ 通知失敗重試：連續兩次 POST /tenants/{tid}/work-orders/{id}:assign 同一技師，驗只留一筆指派、psql 查 notifications 不重複。注意：expect 的「空池只能進 dispatch_pending 並 alert」無對應實作——dispatch_pending 於全 repo（api/SQL/web）grep 零命中，auto_match_dispatch 空池只回空陣列不告警 → 該子項預期 FAIL＝真缺口。"
+  },
+  "TC-EXC-01": {
+   "verdict": "api-only",
+   "why": "「重試不重複建卡」的真正落點是 problem_card idempotency_key 24h 去重，可用 /api/v1/internal/escalations/ingest 以 X-Internal-Token 連打兩次驗證；webhook event_id 的 reserve-first PK 去重表在本機庫已存在但寫入端（agent gateway）沒跑，只能 psql 直驗同一條 SQL；DLQ+1h 人工 review 在 codebase 找不到 inbound webhook DLQ（只有 commission_event_outbox / line_push_outbox 的 status='dead'，且無任何後台頁面查它）。",
+   "procedure": "① 冪等建卡（主判定）：brand-api 容器已帶 INTERNAL_API_TOKEN=dev-internal-token、AGENT_TENANT_ID=00000000-0000-0000-0000-000000000001。同一組 payload 連打兩次：curl -s -X POST http://localhost:8001/api/v1/internal/escalations/ingest -H 'Content-Type: application/json' -H 'X-Internal-Token: dev-internal-token' -d '{\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"line_user_id\":\"UEXC01TEST\",\"session_id\":\"sess-exc01\",\"reason\":\"門鎖打不開\",\"is_explicit\":true,\"facts_snapshot\":{\"brand\":\"Dormakaba\",\"symptom\":\"門鎖打不開\"}}'。預期第一次 HTTP 200 且 data.created=true；第二次 data.created=false、data.deduplicated=true 且 problem_card_id 與第一次相同（api/services/problem_card_service.py 以 sha256(conv_id+symptom+brand) 為 idempotency_key、24h 視窗且只認 active 卡）。② reserve-first PK（gateway 用的同一條 SQL，agent 未跑故降級直驗）：PGPASSWORD=0000 psql -h localhost -p 5433 -U lock -d lock_AI_data -c \"INSERT INTO webhook_idempotency (event_id,tenant_id,source) VALUES ('evt-exc01','default','line') ON CONFLICT (event_id) DO NOTHING RETURNING event_id;\" 連跑兩次，預期第一次 1 row（mark_seen 回 False=放行）、第二次 0 rows（回 True=擋下），完後 DELETE 清掉。③ 收尾：psql 刪掉步驟①產生的 draft problem card。④ DLQ／1h review 這段判 N/A 並記為缺口——api/routers/line_webhook.py 與 agent/lockcore/channels/line_gateway.py 皆無 inbound DLQ，前端也 grep 不到任何 outbox/DLQ 頁面。"
+  },
+  "TC-EXC-02": {
+   "verdict": "not-testable-locally",
+   "why": "罐頭回覆邏輯只存在於 agent 的 LINE gateway（line_gateway.py handle_text_turn 檢查 _ERROR_SENTINEL='[litellm error]' 後回 _FALLBACK_REPLY），本機沒有跑 agent 容器、也沒有任何 HTTP/UI 入口能觸發一輪 AI turn 並讀回文字。",
+   "blocker": "agent LINE gateway 未在本機運行（docker ps 只有 4 web + 3 api + 3 db，無 agent），且回覆是 push 回 LINE 通道——沒有真實 LINE channel 就觀察不到回覆內容；要模擬 LLM 逾時／供應商錯誤需在 provider 層注入假錯誤（只有 pytest 層做得到）。brand-portal 也沒有 AI 對話測試台（web/brand-portal/src/app 下只有唯讀的 conversations 頁）。此案僅能靠 agent/tests 單測或雲端真機驗。"
+  },
+  "TC-EXC-03": {
+   "verdict": "not-testable-locally",
+   "why": "與 TC-EXC-02 同一條路徑（agent turn → LINE 回覆），且要製造「配額耗盡」必須讓真實 LLM 供應商回 429／耗盡，本機既無 agent 服務也無法可控地觸發配額狀態；5s 送達時間更只能在真實通道量測。",
+   "blocker": "缺 agent gateway 執行環境＋真實 LINE channel＋可控的 LLM 配額耗盡條件；fallback_models failover 只在 lockcore/app_config.build_provider 建構期可驗（pytest test_fallback_wiring.py），不是本機 curl/UI 能走到的路徑。「轉真人通道不中斷」雖有 /api/v1/internal/escalations/ingest 可打，但那只驗到 escalation 落卡，驗不到本案的配額耗盡前提。"
+  },
+  "TC-EXC-04": {
+   "verdict": "api-only",
+   "why": "fail-open/fail-closed 分流實作在 api/core/deps.py role_required(fail_closed=True) 與 api/core/auth.py security_state_verifiable()，全部三個 API 容器都在本機、DB 也在本機容器裡，直接 docker stop 品牌庫就能製造連線抖動，兩種行為都由 curl 的 HTTP 碼與 error_code 判定。",
+   "procedure": "① 先在 DB 還活著時登入取 token：curl -s -X POST http://localhost:8001/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"dispatcher@example.com\",\"password\":\"changeme123\"}'，存下 access token 與 tenant_id。② 製造 DB 抖動：docker stop lock-dispatch-locksmart-db-1。③ 關鍵派工寫入（fail-closed 白名單，api/routers/dispatch.py:109 role_required(*_DISPATCH_ALLOWED_ROLES, fail_closed=True)）：curl -i -X POST http://localhost:8001/api/v1/dispatch/assign -H \"Authorization: Bearer $TOKEN\" -H \"X-Tenant-ID: $TENANT\" -H 'Content-Type: application/json' -d '{\"work_order_id\":\"<任一 uuid>\",\"technician_id\":\"<任一 uuid>\"}'。預期 HTTP 503，body error.code=SECURITY_STATE_UNAVAILABLE（訊息含「安全狀態不可驗…fail-closed」）。同法可再驗 /api/v1/refunds/{id}/decision（REVIEW_ROLES fail_closed=True）。④ 一般端點 fail-open 對照組：curl -i http://localhost:8001/api/v1/work-orders -H \"Authorization: Bearer $TOKEN\" -H \"X-Tenant-ID: $TENANT\"。判定基準是「不得回 401/403」——auth 退回 claims-only 放行，錯誤必須來自 DB 查詢層（5xx，非 SECURITY_STATE_UNAVAILABLE）。⑤ 復原：docker start lock-dispatch-locksmart-db-1，等 /health 回 {\"status\":\"ok\"} 後重跑③，確認回到正常業務碼（200 或 404/422），證明只是抖動不是永久拒絕。"
+  },
+  "TC-EXC-05": {
+   "verdict": "api-only",
+   "why": "守衛就是 api/core/db.py:assert_uri_strict()，在 api/main.py:172 於 import 期呼叫；本機三個 api 容器已經是 DB_URI_STRICT=1，tech-api 是 API_SURFACE=tech，拿掉 TECH_POSTGRES_URI 重啟就會 RuntimeError 拒啟，用 docker logs + curl /health 即可判定，不需任何外部依賴。",
+   "procedure": "① 記錄現況：docker inspect lock-tech-tech-api-1 --format '{{range .Config.Env}}{{println .}}{{end}} | grep -E \"DB_URI_STRICT|API_SURFACE|TECH_POSTGRES_URI\"，應看到 DB_URI_STRICT=1 / API_SURFACE=tech / TECH_POSTGRES_URI 齊備，且 curl -s http://localhost:8002/health 回 {\"status\":\"ok\"}。② 負向（本案主判定）：用同一個 image 但不給 TECH_POSTGRES_URI 起一次性容器——docker run --rm --network lock-dispatch-locksmart-net -e POSTGRES_URI=postgresql://lock:0000@db:5432/lock_AI_data -e DB_URI_STRICT=1 -e API_SURFACE=tech -e API_JWT_SECRET_KEY=$(docker inspect lock-tech-tech-api-1 --format '{{range .Config.Env}}{{println .}}{{end}}' | sed -n 's/^API_JWT_SECRET_KEY=//p') lock-tech-tech-api uvicorn main:app --host 0.0.0.0 --port 8080。預期：程序立刻非 0 退出，輸出含 RuntimeError: DB_URI_STRICT=1 拒絕啟動(API_SURFACE=tech):缺 TECH_POSTGRES_URI——三庫部署禁止靜默 fallback 單庫(ADR-020)；判定重點是「沒有任何一行寫著 fallback 主連線」也沒有進到 uvicorn startup。③ 正向對照：同指令加回 -e TECH_POSTGRES_URI=postgresql://lock:0000@tech-db:5432/lock_tech（並映 -p 18002:8080），預期正常啟動、curl http://localhost:18002/health 回 ok，然後 docker stop 掉。④ 陷阱提醒：不要拿 8001 測——assert_uri_strict 只在 API_SURFACE=tech（要 TECH）與 platform（要 PLATFORM+TECH）時檢查，dispatch 面缺 TECH_POSTGRES_URI 是合法的，會誤判為「守衛失效」。"
+  },
+  "TC-EXC-06": {
+   "verdict": "not-testable-locally",
+   "why": "投影 consumer（api/realtime/event_consumer.py）以 enabled()=bool(KAFKA_BOOTSTRAP) opt-in，本機 brand-api/tech-api 的 KAFKA_BOOTSTRAP 皆為空字串＝完全 no-op，沒有事件流可停擺、也沒有東西可重播。",
+   "blocker": "缺 Kafka/Redpanda broker（web/brand-portal/docker-compose.yml 的 redpanda 屬 --profile events，預設不啟動；兩支 api 的 KAFKA_BOOTSTRAP 實測為空），且案例還要 30 分鐘停擺視窗＋重播。冪等機制本身（event_consumer_dedup 的 event_id PK、commission_event_outbox 的穩定 event_id 與 uniq(tenant_id, reconciliation_id)）三張表在本機庫都存在，若要降級檢查只能靠 psql 手工模擬 insert 衝突，那已不等於本案要驗的「consumer 停擺後重播最終一致」。"
+  },
+  "TC-NFR-A11Y-01": {
+   "verdict": "playwright",
+   "why": "四站與消費者 token 頁都在本機可開，axe 可用 browser_run_code_unsafe 注入執行，鍵盤／縮放／離線都能在瀏覽器層模擬。",
+   "procedure": "① 對 :3000 /login /dashboard /work-orders /admin/quotes、:3001 /tech-login /my-orders、:3002 /、:3003 /platform/login /platform/technicians，以及消費者 token 頁 /track/[token]、/quotes/[token]、/consent/[token]、/scope-change/[token] 各注入 axe-core 原始碼後跑 axe.run()，判定 violations 中 impact=critical 必須為 0。② 純 Tab 走完登入與一張主要表單，檢查 focus 可見、順序合理、錯誤訊息與欄位有關聯。③ browser_resize 縮到約 640×800 模擬 200% 縮放，檢查無橫向捲動與內容截斷。④ 用 context.setOffline(true) 後送出表單，確認顯示明確錯誤且輸入不被靜默清空。注意：repo 內沒有 LIFF 應用（只在 admin/quotes 文案與 i18n 提到 LIFF），LIFF 面以上述 consumer token 頁代測，需在報告標明代替範圍。"
+  },
+  "TC-NFR-AUD-01": {
+   "verdict": "api-only",
+   "why": "hash chain 的竄改偵測與匯出遮罩判定都在 /audit/verify 與 /audit/exports 回應上，UI 的 audit-events 頁看不出鏈斷。",
+   "procedure": "① admin token 做一筆成功 mutation（如 PUT /tenants/{tid}/pricing/rules/{id}）與一筆被拒 mutation（cs@example.com token 打同端點得 403）。② GET /tenants/{tid}/audit/events 檢查 actor_id/actor_role/action/target/payload/prev_hash/entry_hash 齊全。③ GET /tenants/{tid}/audit/verify 應回 ok。④ psql -h localhost -p 5433 -U lock -d lock_AI_data 對某列 UPDATE audit_events SET payload='{\"x\":1}' 竄改後重跑 verify，應偵測到鏈斷；若歷史段已 re-baseline，先 POST /tenants/{tid}/audit/checkpoint 再竄改 checkpoint 之後的列。⑤ POST /tenants/{tid}/audit/exports：admin 200、dispatcher/customer_service 403（已有同型 403 實測基線），並檢查輸出中 LINE uid／email 等已依 core/pii_scrub.py 遮罩。⑥ 無任何 DELETE audit 端點＝append-only 佐證（openapi 全表確認）。"
+  },
+  "TC-NFR-AVAIL-01": {
+   "verdict": "not-testable-locally",
+   "why": "十項依賴中超過半數在本機根本不存在，fail-closed／降級／DLQ／告警送達都沒有可觀測終點。",
+   "blocker": "缺真實 LINE channel、無 OHS、無 Redis 容器、KAFKA_BOOTSTRAP 為空且 redpanda 是 profile=events 未起、Refinery 未起、Casdoor 本機跑但未接、無 SigNoz／on-call 收告警。可局部做的只有停 db 容器看 503 與停 api 看前端行為，構不成案例的十項逐一驗證。"
+  },
+  "TC-NFR-DORA-01": {
+   "verdict": "not-testable-locally",
+   "why": "四項 DORA 指標的來源是部署與 release/rollback 記錄，本機沒有 staging 也拿不到 CI 事件流。",
+   "blocker": "需 staging 環境 + GitHub Actions（.github/workflows/cloud-run-deploy.yml、release 流程）產生部署頻率／前置時間／變更失敗率／MTTR 的來源事件；playwright/curl/psql 取不到這些資料，rollback 的 migration/audit 證據保全也需真部署。"
+  },
+  "TC-NFR-DQ-01": {
+   "verdict": "not-testable-locally",
+   "why": "provenance 覆寫只能靠注入假 LLM 回應觀察，而核可率／誤放率報表在 codebase 沒有實作。",
+   "blocker": "provenance 由 Python 在 knowledge-pipeline/refinery/refinery/refine.py 內組（LLM schema 不含 source/source_type），要驗只能用 pytest 注入 fake generate；refinery 未起且無 refine 觸發端點、knowledge_drafts=0；refinery/observability.py 只有 OTel + scrub，無核可率／誤放率統計，指標無處可算。"
+  },
+  "TC-NFR-MAINT-01": {
+   "verdict": "not-testable-locally",
+   "why": "判定基準是「CI 在違規處失敗」，那要在 PR／Actions 上跑，本機三件工具（playwright／curl／psql）觸發不了 gate。",
+   "blocker": "對應 gate 是 .github/workflows/ 的 api-types-sync.yml、shared-contract.yml、spec-lint.yml、migration-drift-check.yml、test-suite.yml、e2e-main-flows.yml，需提交破壞性 contract 的 PR 才看得到擋。附註：coverage/typecheck/Playwright spec 本身可在本機以 shell 跑（web/*/tests/e2e/*.spec.ts），但對 5433 跑全套 pytest 會污染 UAT 種子資料，UAT 期間不應執行。"
+  },
+  "TC-NFR-OBS-01": {
+   "verdict": "not-testable-locally",
+   "why": "本機沒有 OTLP 端點，api/core/observability.py 明示此時整條觀測是 no-op，trace 串接與 dashboard/alert 無從觀察。",
+   "blocker": "OTEL_EXPORTER_OTLP_ENDPOINT 未設（三個 api 容器 printenv 無此變數）→ setup_observability 直接停用；無 SigNoz／collector 可看 trace 串接與 SLO breach 維度；worker/LLM trace 亦隨 agent 未起而不存在。PII scrub 本身（core/pii_scrub.py）只能以單元測試驗，不構成本案例判定。"
+  },
+  "TC-NFR-PERF-01": {
+   "verdict": "not-testable-locally",
+   "why": "沒有 k6、沒有 RUM、沒有指標收集端，單機 docker 的 p95/p99 也不具代表性，案例本身即要求資料不足一律 Blocked。",
+   "blocker": "repo 無 k6 腳本（只有 loadtest/locustfile.py + sla.py）；無 RUM 埋點（web 全樹無 web-vitals）；無 SigNoz／Prometheus 收 p95/p99 與錯誤率；RAG 過載替身不存在（語料 0）、無 OHS、WS 只有單一實例；config cache 過載亦無觀測面。"
+  },
+  "TC-NFR-PRIV-01": {
+   "verdict": "api-only",
+   "why": "PII 加密、consent 撤回、forget 與 legal hold 全是既有租戶端點，遮罩與密文佐證再用 psql 側查即可。",
+   "procedure": "① 建客戶 POST /tenants/{tid}/customers 後 GET 回讀，再 psql -h localhost -p 5433 -U lock -d lock_AI_data 直查對應欄位，確認落庫為密文/blind index 而非明文（core/pii_crypto.py、core/user_pii_bidx.py、core/dek_crypto.py）。② consent：POST /tenants/{tid}/work-orders/{id}/consents:send-link → 以 /consumer/consents/{token} 撤回，確認後續讀取被拒。③ forget：POST /tenants/{tid}/gdpr/forget-requests → :soft-delete → :hard-delete；先對已設 legal hold 的媒體（PUT /tenants/{tid}/media/{mediaId}/legal-hold）跑 :hard-delete，期待被擋並走 :legal-hold-deny 路徑。④ 最小權限：cs@example.com／dispatcher@example.com 打 forget 端點與 platform 的 kyc:reveal 期待 403。⑤ 匯出遮罩：POST /tenants/{tid}/audit/exports 與 /tenants/{tid}/reports/export 檢查 PII 已遮罩、且結果限本租戶。⑥ 保留期由 realtime/media_retention_cron、gdpr_hard_delete_cron 執行，可用 psql 改時間戳後等一個週期觸發。"
+  },
+  "TC-NFR-PUB-01": {
+   "verdict": "api-only",
+   "why": "skill 發佈閘、append-only 版本鏈與跨租戶 deny 全在 /api/v1/knowledge-base/skills 端點與 saas.skill_revision 上，UI 只做編輯不暴露這些拒絕碼。",
+   "procedure": "① admin token：PUT /api/v1/knowledge-base/skills/{name} 存一個缺 SKILL.md 的 draft（draft 允許半成品）→ 直接 POST /api/v1/knowledge-base/skills/{name}/publish 期待 422 MISSING_SKILL_MD／EMPTY_SKILL（api/services/skill_service.py:validate_publishable 發佈閘）；再試 frontmatter 不合規、路徑碰撞（references 與 references/x.md 併存）各期待 422。② 正常 publish 後 GET /api/v1/knowledge-base/skills/{name}/revisions，確認舊版轉 retired 而非被刪，且無任何 DELETE 端點＝append-only；重複 publish 同版期待 409 ALREADY_PUBLISHED。③ POST /api/v1/knowledge-base/skills/{name}/rollback 後再查 revisions 與 psql -p 5433 select * from saas.skill_audit_log 確認留審計。④ 跨租戶：改用另一租戶（或竄改 X-Tenant-ID）讀同名 skill 期待 403/404（tenant_id 取自 token，非 body）。⑤ psql -p 5433 select tenant_id,skill_name,version,status from saas.skill_revision（本機 35 列）佐證版本鏈與租戶隔離。"
+  },
+  "TC-NFR-REL-01": {
+   "verdict": "not-testable-locally",
+   "why": "核心情境是 LINE webhook 中斷後重送與 agent transfer 承諾一致性，這兩端本機都不存在。",
+   "blocker": "無 LINE channel、agent 容器未起，webhook 重送與 transfer 中斷無從製造；「真承諾一定有 escalation／問題卡」的判定端在 agent reply 與 transfer_to_human 工具側。可局部觀察的只有 outbox 重試（realtime/line_push_outbox_worker.py 在無 channel 下必失敗並重試，psql 可看重試列），不足以覆蓋案例。"
+  },
+  "TC-NFR-REP-01": {
+   "verdict": "not-testable-locally",
+   "why": "重跑 pipeline 與移除 raw 後的 rebuild 阻擋都只有 CLI 入口，且需 LLM/embedding，不在 UI／API／DB 可達範圍。",
+   "blocker": "knowledge-pipeline 的 bronze/silver/corpus 產製與 refinery 的 refine 都是 python -m 指令（無 HTTP 觸發端點），且需 Vertex LLM 與 embedding；storage/raw 移除後的阻擋行為亦在 CLI 層；refinery 服務未起。"
+  },
+  "TC-NFR-SCAL-01": {
+   "verdict": "not-testable-locally",
+   "why": "每個服務本機只有單一容器，也沒有 Redis 與 broker，容量階梯、跨實例事件與雙重排程都造不出來。",
+   "blocker": "docker ps 顯示 brand/tech/platform 各一個 api 容器，無多實例；無 Redis 容器；KAFKA_BOOTSTRAP 為空、redpanda 屬 profile=events 未起；跨實例 WS 對照腳本 scripts/ci/e2e_multi_instance_ws.py 設計為 CI 用（需兩個 api 實例）；容量指標與限流無觀測面。"
+  },
+  "TC-NFR-SCH-01": {
+   "verdict": "db-only",
+   "why": "三顆庫都在本機（5433/5434/5435），migration 套用狀態、重套冪等、drift 與 forward-only 全部靠 psql 與檔案對照即可判定。",
+   "procedure": "① 逐庫比對：psql -p 5433 (lock_AI_data) / -p 5434 (lock_tech) / -p 5435 (lock_platform) 各查 select version from public.schema_migrations order by 1，與 SQL/migrations/*.sql（依檔頭 `-- migrate-targets: brand|tech|platform` 分流，未標＝brand）比對；品牌庫目前 118 列對 120 支檔，逐一標出「檔案有但庫沒套（部署漏跑）」與「庫有但檔案不存在（幽靈列）」。② 重套冪等：挑一支已套的 migration 用 psql -f 重跑，應成功且不改變資料（IF NOT EXISTS 模式）。③ Drift：psql 手動 DROP 某個新加欄位或 delete schema_migrations 一列，重跑①的比對確認抓得到，測完還原。④ Forward-only：確認 SQL/migrations 目錄下沒有任何 down/rollback 腳本（ls | grep -i down 為空），並嘗試逆向操作應無官方路徑。⑤ 對照 scripts/ci/migration-drift-check.py 的規則（編號連續唯一、MIGRATION_REGISTRY.md 登記完整）做檔案層核對。備份/還原證據鏈不在本機，需另行標為未涵蓋。"
+  },
+  "TC-NFR-SEC-01": {
+   "verdict": "api-only",
+   "why": "token 偽造／重放／過期的 fail-closed 全部是 curl 可判定的狀態碼，但 prompt injection 與 CVE/secret 掃描分別依賴 agent 與 CI，本機測不到。",
+   "procedure": "① 偽造：用錯誤 secret 自簽一顆 JWT 打 :8001/tenants/{tid}/customers 期待 401。② 重放：正常登入取 token → POST :8001/api/v1/auth/logout → 用同一 access token 再打受保護端點，期待 401 TOKEN_REVOKED（core/auth.is_jti_revoked）。③ 過期：把 exp 改成過去時間重簽，期待 401。④ 型別混用：拿 refresh token 當 access 用，期待 401「Refresh token cannot be used for API access」。⑤ 跨面 fail-closed：見 TC-PLT-SURFACE-01（需先補 ALLOWED_TOKEN_PORTALS 再 recreate 容器）。⑥ 注入：對 GET /tenants/{tid}/customers?search= 與各 list 端點的字串參數送 SQL/XSS payload，確認參數化查詢與回應轉義、且無敏感副作用（psql 事後查表無異動）。未涵蓋並須在報告標明：prompt injection 與違規輸出 fail-closed 在 agent 的 reply_guard／redline_gate（agent 未起、無 LINE channel）；secret 洩漏與高危 CVE 的時限告警屬 CI／供應鏈掃描，本機無法判定。"
+  },
+  "TC-NFR-SLA-01": {
+   "verdict": "api-only",
+   "why": "2 小時到場邊界由 SLAMonitor 依 work_orders.scheduled_at 判定，用 psql 佈邊界資料、以 audit/notifications 端點判定即可，但通知升級鏈只有部分存在。",
+   "procedure": "① psql -h localhost -p 5433 -U lock -d lock_AI_data 建兩張 work_orders：status='assigned'、started_at IS NULL、scheduled_at 分別為 NOW() - INTERVAL '120 minutes'（應觸發）與 NOW() - INTERVAL '119 minutes 59 seconds'（不應觸發）。② 等 ≤60 秒（SLAMonitor 預設週期，api/realtime/sla_monitor.py:SLA_ARRIVAL_OVERDUE_MINUTES=120）。③ 判定：GET :8001/tenants/{tid}/audit/events 找 action='sla.arrival_overdue' 且 payload.escalated_to='ops_manager'、GET :8001/api/v1/notifications 找對應通知，並到 http://localhost:3000/dashboard 或工單列表確認紅燈。④ 讓監控再跑一輪，確認 in-memory _alerted 去重、不重複告警；再 POST /api/v1/work-orders/{id}/delay 模擬技師主動延遲後確認不再誤報。⑤ audit_overdue 分支可用 quote.audit_due_at 設過去時間同法驗。注意：「push 失敗 retry → email fallback → 主管離線升級鏈」無對應實作（api/services/email_provider.py 只服務密碼重設，SLA 路徑不呼叫）→ 該子項預期 FAIL＝真缺口。"
+  },
+  "TC-ONSITE-01": {
+   "verdict": "playwright",
+   "why": "tech-portal /my-orders/[id] 有「到場回報」按鈕（取 navigator.geolocation → POST /tenants/{tid}/work-orders/{woId}/onsite/arrival，回 201 state=arrived），/my-orders/[id]/door-check 會先 POST /tenants/{tid}/media（purpose=door_check_before / door_check_after）再 POST door-check；但工單狀態機沒有 on_site 值（record_arrival 只補 started_at + 寫 event_type='arrival'，狀態維持 assigned/accepted/in_progress）。",
+   "procedure": "1) 前置：工單狀態需在 assigned/accepted/in_progress，且指派給登入技師。2) Playwright 開 http://localhost:3001/tech-login 登入 tech-chen@example.com / changeme123，進 /my-orders/{id}。3) 點「到場回報」，瀏覽器定位權限用 context.grantPermissions(['geolocation']) + setGeolocation 餵座標 → network 應見 POST .../onsite/arrival 回 201，body {state:\"arrived\"}。4) 進 /my-orders/{id}/door-check，上傳前/後照片並送出 → 應見多筆 POST /tenants/{tid}/media（FormData purpose=door_check_before / door_check_after）回 200/201，再 POST .../door-check 回 201（若未先到場會 409 STATE_CONFLICT）。5) 驗 evidence：GET /tenants/{tid}/work-orders/{woId}/media 或 psql -p 5433 'select purpose,filename from media_files where work_order_id=...' 應見 door_check_before/after。6) 「工單 on_site」改驗 work_order_events 有 event_type='arrival' 且 work_orders.started_at 非空。"
+  },
+  "TC-ONSITE-02": {
+   "verdict": "api-only",
+   "why": "POST /tenants/{tid}/work-orders/{id}/scope-change 存在且 _classify_scope_tier 會依 delta 分 minor(≤500)/standard(≤2000)/major，tier 寫進 scope_changes.new_scope；但 tech-portal 的 scope-change 頁 2026-07-10 已改造成 requote（不再打此端點）＝無 UI 入口，且「師傅自確＋簽名＋照片三件套即通過」的自動核准與三件套檢查在 codebase 完全不存在（record_scope_change 一律建 status='pending' 提案等客戶回覆）。",
+   "procedure": "1) 前置：工單 status ∈ assigned/accepted/in_progress 且 estimated_price 已知（psql 查 work_orders.estimated_price）。2) 取 admin 或 technician token（TECH_ACTION_ROLES 皆可）。3) curl -X POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/work-orders/<wo>/scope-change -H 'Authorization: Bearer <t>' -H 'Idempotency-Key: sc1' -H 'Content-Type: application/json' -d '{\"reason\":\"現場加購鎖芯\",\"items\":[{\"name\":\"鎖芯\",\"quantity\":1,\"amount_delta\":400}],\"total_estimate\":\"<原價+400>\"}' → 預期 200，回 envelope 含 scope_change_id + public_token。4) psql -p 5433 -c \"select new_scope->'tier' from scope_changes where id='<scope_change_id>'\" → 應為 {\"tier\":\"minor\",\"requires_supervisor\":false,...}（注意 delta/原價 ≥50% 會被判 major）。5) 「三件套即通過」請直接記為功能不存在的 finding（status 仍是 pending，無自動核准路徑）。"
+  },
+  "TC-ONSITE-03": {
+   "verdict": "api-only",
+   "why": "tier=standard 的分級可驗，客戶確認頁 /scope-change/[token]（brand-portal 公開頁，等效 LIFF）與 /consumer/scope-changes/{token} 端點都在；但發起端無 UI（tech-portal 已改 requote），且「自動建 quote v+1」在 scope-change 路徑不存在——建 quote v+1 只發生在 requote_service（TC-ONSITE-07 路徑），scope-change 只鑄 public_token 提案。",
+   "procedure": "1) 同 TC-ONSITE-02 步驟，total_estimate 設為原價 +1200（且確保 delta/原價 <50%，否則會被 major_pct 判成 major）。2) psql 驗 scope_changes.new_scope->'tier' = standard、requires_supervisor=false。3) 客戶確認：取回傳的 public_token，Playwright 開 http://localhost:3000/scope-change/<token> → 頁面呼叫 GET /consumer/scope-changes/{token} 顯示品項；按同意 → POST 同路徑，psql 應見 scope_changes.status='customer_approved' 且 work_orders.status 升 in_progress。4) 「自動建 quote v+1」：psql -c \"select id,version,supersedes_quote_id from quote where work_order_id='<wo>' order by version\" 會沒有新版本 → 開 finding。"
+  },
+  "TC-ONSITE-04": {
+   "verdict": "api-only",
+   "why": "delta>2000（或增幅≥50%）會被 _classify_scope_tier 判 major 並在 new_scope 標 requires_supervisor=true，此旗標可驗；但「強制主管覆核」沒有任何 enforcement gate（後續無端點檢查此旗標，admin-override 端點反而是繞過客戶回覆用），三件套（影音+文字+before/after 照）也完全沒有驗證邏輯（media purpose 允許集無影音類），皆需以 finding 回報。",
+   "procedure": "1) 同 TC-ONSITE-02，total_estimate 設為原價 +5000。2) psql -p 5433 -c \"select new_scope->'tier' from scope_changes where work_order_id='<wo>' order by created_at desc limit 1\" → 應為 {\"tier\":\"major\",\"requires_supervisor\":true,...}。3) 驗「無強制閘」：用 dispatcher token curl -X POST http://localhost:8001/tenants/{tid}/scope-changes/<proposalId>:admin-override -H 'Authorization: Bearer <t>' -d '{\"reason\":\"客戶不回應\"}' → 200 即可證明非主管角色（dispatcher 在 _DISPATCH_ALLOWED_ROLES）也能覆寫，開權限 finding。4) 三件套：GET /tenants/{tid}/work-orders/{id}/evidence-package 觀察無影音/before-after 必齊檢查。"
+  },
+  "TC-ONSITE-05": {
+   "verdict": "not-testable-locally",
+   "why": "consent_method 這個欄位在整個 codebase 只存在於 smartlock-docs 與 appearance_change_consents（舊表，無 caller）；signature_service 雖有 _VALID_FALLBACK_METHODS={liff,qr,paper} 參數，但 models/generated.py 的 SignaturePayload 沒有 fallback_method 欄位、routers/work_orders_v2.py submit_work_order_signature_v2 也沒有傳，HTTP 無法送出 paper；tech-portal signature 頁無 QR/紙本分支。",
+   "blocker": "功能不存在於 codebase：grep consent_method 全 repo（僅 docs 與 SQL/Schema.sql:930 appearance_change_consents 舊欄位）、SignaturePayload（models/generated.py:475-481 無 fallback_method）、routers/work_orders_v2.py:664-688（未傳 fallback_method，恆為預設 liff）、work_order_consents 表（SQL/migrations/043）無 consent_method 欄位、web/tech-portal/src/app/my-orders/[id]/signature/page.tsx 無 QR/紙本 fallback UI。"
+  },
+  "TC-ONSITE-06": {
+   "verdict": "playwright",
+   "why": "例外分流實作完整且有 UI：POST /tenants/{tid}/exception-cases 支援 exception_type=customer_absent，high/critical 會把 work_orders.high_risk_hold 設 TRUE，_assert_not_high_risk_hold 擋完工與派工（422），:resolve 帶 return_path=reschedule/cancel 解除；brand-portal /admin/exceptions 有建立/解決/升級全套按鈕。唯一缺口是「師傅回報」入口不存在（technician 不在 exception_cases_v2 的角色白名單，tech-portal 也無此頁），須由後台代開。",
+   "procedure": "1) Playwright 以 test@lock-ai.com（admin）登入 http://localhost:3000，進 /admin/exceptions。2) 建立異常：exception_type=customer_absent、severity=high、綁定目標工單 → POST /tenants/{tid}/exception-cases 回 201。3) psql -p 5433 -c \"select high_risk_hold from work_orders where id='<wo>'\" → TRUE。4) 驗不得直接結案：curl -X POST http://localhost:8001/tenants/{tid}/work-orders/<wo>:complete -H 'Authorization: Bearer <admin>' -H 'Idempotency-Key: c1' -d '{\"summary\":\"x\"}' → 預期 422（訊息含 high_risk_hold / BR-M15-03）；技師側走 /onsite/completion 亦應被擋。5) 回 /admin/exceptions 對該筆選 return_path=reschedule 或 cancel 按「解決」→ :resolve 200，psql 驗 high_risk_hold 回 FALSE。6) 記註：師傅端無回報入口為缺口。"
+  },
+  "TC-ONSITE-07": {
+   "verdict": "playwright",
+   "why": "tech-portal /my-orders/[id]/scope-change 已是 requote UI，打 POST /tenants/{tid}/work-orders/{woId}/requote-requests；requote_service 會建 quote v+1 並回寫 supersedes_quote_id 串鏈，客戶確認可用 /tenants/{tid}/quotes/{id}/public-link 產出 token 後開 brand-portal /quotes/[token]（等效 LIFF，不需真 LINE）。注意工單狀態機無 on_site/quoted，requote 硬性要求 work_orders.status='in_progress'，狀態不會變成 quoted（只有 quote.state 變）。",
+   "procedure": "1) 前置：psql 或 API 讓工單 status='in_progress' 且 technician_id = 登入技師（否則 403 非 assignee）。2) Playwright 開 http://localhost:3001 登入技師 → /my-orders/{id}/scope-change，填事由（scope_add）與異動項目（不含金額）送出 → POST .../requote-requests 應 201，畫面顯示「修正請求已送出」。3) psql -p 5433 -c \"select id,version,state,supersedes_quote_id from quote where work_order_id='<wo>' order by version\" → 新版本 version=v+1 且 supersedes_quote_id 指向前一版；requote_requests.status='quoted'。4) 品牌端：以 admin 在 :3000 /admin/quotes 開新版報價加品項（否則 :send 會 422 QUOTE_NO_LINES）→ 送客戶（:send，delta>2000 需 admin/operations_manager，否則 403 REQUOTE_SUPERVISOR_REQUIRED）。5) 客戶確認：GET /tenants/{tid}/quotes/{id}/public-link 取 token → Playwright 開 http://localhost:3000/quotes/<token> 按同意 → quote.state=accepted。6) 拒絕分支：同頁按拒絕，驗 quote.state=rejected 且工單仍可按原報價完工。"
+  },
+  "TC-PAYMENT-01": {
+   "verdict": "not-testable-locally",
+   "why": "沒有金流串接，而且 payment_service 完全沒有掛上任何 router，連 mock webhook 都沒有 HTTP 入口可打。",
+   "blocker": "無金流 provider。api/services/payment_service.py（create_payment_intent / confirm_payment / handle_linepay_webhook / report_cash_dispute / assert_payment_gate）在 api/main.py 與 api/routers/ 全樹 grep 無任何 include_router 或呼叫；:8001 openapi 400 條路徑中含 'pay' 的只有 /tenants/{tid}/payout-rules。冪等與 dispute 只能由 api/tests/test_cr_0070_payment_mock.py 直呼函式驗。"
+  },
+  "TC-PERF-01": {
+   "verdict": "not-testable-locally",
+   "why": "AI 首回應 latency 由 agent + 雲端 LLM 主導，但本機 agent gateway 沒跑、LLM 憑證實測失效，且無 LINE channel 可灌 50 個併發對話。",
+   "blocker": "①agent LINE gateway 未在本機執行：lsof 只看到 3000-3003/8001-8003/5433-5435，:8000 無 listener（agent/scripts/line_gateway.py 需手動起）。②無真實 LINE channel 產生 50 併發使用者 event（可自簽 HMAC 打 /callback，但回覆 push 到假 userId 只會 fail-soft，量不到「首回應送達」）。③LLM 憑證失效：實測 .env 的 GEMINI_API_KEY 打 generativelanguage 回 400 API_KEY_INVALID；agent/config.toml model=vertex_ai/gemini-3.1-flash-lite 需業主 gcloud ADC 登入。④本機單容器拓撲量到的 p95 不代表 NFR-Perf-001 的目標環境（loadtest/README.md 明載場景是 staging Cloud Run）。"
+  },
+  "TC-PERF-02": {
+   "verdict": "not-testable-locally",
+   "why": "與 TC-PERF-01 同一條鏈路，只是併發數從 50 提到 100，缺的外部依賴完全相同。",
+   "blocker": "同 TC-PERF-01：agent gateway 未跑（:8000 無 listener）、無真實 LINE channel、GEMINI_API_KEY 實測 400 API_KEY_INVALID / Vertex 需業主 ADC。另『退化 graceful 不 5xx』的降級路徑在 agent 側（lockcore providers fail-soft），本機無法驅動。既有壓測資產 loadtest/locustfile.py 只涵蓋技師 REST API，不含 LINE 對話場景。"
+  },
+  "TC-PERF-03": {
+   "verdict": "api-only",
+   "why": "規格點名的 OHS `POST /technicians:match` 在 codebase 不存在（tech-api :8002 openapi 121 條路徑無 match），但同一套媒合引擎以 brand-api `POST /tenants/{tid}/dispatch:auto-match` 暴露且本機實跑成功（HTTP 200 / 6.6ms），可直接壓 p95。",
+   "procedure": "1) 取 token：TOK=$(curl -s -X POST http://localhost:8001/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"dispatcher@example.com\",\"password\":\"changeme123\"}' | python3 -c \"import sys,json;print(json.load(sys.stdin)['data']['access_token'])\")。2) 取 problem_card：psql -h localhost -p 5433 -U lock -d lock_AI_data（密碼 0000）`select id from problem_cards limit 1;`（本機有 19 張、8 位技師、tenant=00000000-0000-0000-0000-000000000001）。3) 迴圈 200 次打 POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/dispatch:auto-match，headers 需 Authorization: Bearer $TOK、Content-Type、X-Tenant-ID、**Idempotency-Key 每次換新 uuid**（缺 Idempotency-Key 直接 400），body {\"problem_card_id\":\"<id>\",\"urgency\":\"normal\",\"max_candidates\":3}，用 curl -w '%{time_total}' 收集。4) 判定：HTTP 全 200 且 time_total 的 p95 < 0.300s。實測單次 6.6ms，預期大幅通過。5) 回報時必須標註『測的是 api/routers/dispatch_v2.py:110 planDispatchAutoMatchV2，不是 FR-TEC-03 規格寫的 OHS POST /technicians:match（該端點不存在）』，並註明本機無 read replica，NFR-Perf-007 的 read replica 路由驗證未涵蓋。"
+  },
+  "TC-PERF-04": {
+   "verdict": "not-testable-locally",
+   "why": "判定基準要的 429 全域限流與罐頭回覆降級兩條機制在 codebase 都不存在，本機打 500 併發只會量到 laptop 瓶頸，產不出預期結果。",
+   "blocker": "①無全域 rate-limit 中介層：api/main.py 只掛 CORSMiddleware / RequestIdMiddleware / DBPoolScopeMiddleware / DeprecationMiddleware，無 slowapi 或任何 Limiter；429 只出現在三處功能級 per-IP 桶（technician_kyc_service.rate_limit_check 30 次/15 分、brand_application_service 申請 5 件/小時、進度查詢 20 次/15 分）與 platform_admin_service 登入鎖定，一般業務端點灌到 500 併發不會回 429。②『罐頭回覆降級』屬 agent 側，agent 未在本機執行（:8000 無 listener）。③本機為單一 docker 容器、無 Cloud Run autoscale，NFR-Scal-002 的雪崩/降級行為不可觀測。"
+  },
+  "TC-PERF-05": {
+   "verdict": "db-only",
+   "why": "line_push_outbox worker 本機確實在跑（容器 log：interval=10s, batch=20，已取得 cron leader），且 tech_dispatch_assigned 這條 kind 走 tech-api 內部端點（TECH_API_BASE_URL=http://tech-api:8080 已設）必回 200 → 會真的翻 sent，lag 可用 sent_at−created_at 從 DB 算。",
+   "procedure": "1) 基線：psql -h localhost -p 5433 -U lock -d lock_AI_data（密碼 0000）`select push_kind,status,count(*) from line_push_outbox group by 1,2;`。2) 灌 1000 筆：`insert into line_push_outbox (tenant_id, push_kind, payload, status, next_attempt_at) select '00000000-0000-0000-0000-000000000001'::uuid, 'tech_dispatch_assigned', jsonb_build_object('technician_id','77777777-aaaa-4aaa-aaaa-aaaaaaaaaa01','work_order',jsonb_build_object('id',gen_random_uuid()::text,'district','中山區')), 'pending', now() from generate_series(1,1000);`（此 kind 不在 _STRICT_DEDUP_KINDS，無 uq_outbox_ref_kind_strict 衝突，reference_id 可留 null）。3) 每 30s 輪詢 `select status,count(*) from line_push_outbox where push_kind='tech_dispatch_assigned' group by 1;` 直到 pending=0。4) 判定：`select percentile_cont(0.99) within group (order by extract(epoch from sent_at-created_at)) as p99, percentile_cont(0.5) within group (order by extract(epoch from sent_at-created_at)) as p50 from line_push_outbox where push_kind='tech_dispatch_assigned' and status='sent';` 要求 p99 ≤ 30。5) 預期結論：worker 吞吐上限＝BATCH_SIZE 20 / interval 10s ＝ 2 筆/秒，1000 筆需約 500s 排空，p99 必然遠超 30s → 這就是本案要暴露的容量缺口，回報時附上實測 p50/p99 與吞吐算式。6) 兩點必須標註：(a) NFR-Perf-009 原文是『Outbox → 事件骨幹(Kafka) lag，用 SigNoz metric 量』，本機 Kafka/Redpanda 未起、SigNoz 無，commission_event_outbox 那條 Kafka 路徑會永遠停在 pending（現況 0 筆），只能改量 line_push_outbox；(b) worker 的 in-process 指標 get_outbox_lag_metrics() 沒有對外 HTTP 端點（api/realtime/line_push_outbox_worker.py 註明「不新增對外端點」），所以只能查 DB。7) 收尾刪除灌入資料，避免污染 UAT 庫。"
+  },
+  "TC-PLT-CFG-01": {
+   "verdict": "api-only",
+   "why": "M18 config 保護層／rollout／slo-halt／rollback 與 skill publish/rollback 都是既有 HTTP 端點，但 slo-check 與 rollback 無 UI，只能 curl 驗。",
+   "procedure": "admin token（POST :8001/api/v1/auth/login test@lock-ai.com/changeme123，tenant=00000000-0000-0000-0000-000000000001）。① 保護層：PUT /tenants/{tid}/m18/configs/payment_gate/enabled 帶 X-Initiator → 期待 403 CONFIG_PROTECTED_OVERRIDE（psql 查 saas.config_namespace 僅 payment_gate、settlement_policy 的 is_protected=t）。② 版本＋SoD：對非保護 namespace（如 quote_policy）PUT 建 draft → POST /tenants/{tid}/m18/configs/{ns}/{key}/versions/{vid}:start-rollout，X-Initiator 與 X-Approver 同人期待被擋、相異期待 202。③ 失敗停擴散：POST /tenants/{tid}/m18/rollouts/{rid}:slo-check 餵超標 error_rate_slo_pct → 期待 halt；再 POST :rollback → GET /tenants/{tid}/m18/configs/{ns}/{key}/audit 檢查 who/when/diff。④ skill 軌：PUT /api/v1/knowledge-base/skills/{name} → POST .../publish → .../rollback → GET .../revisions（UI 對照 http://localhost:3000/knowledge-base/skills、/admin/config-governance）。注意 api/services/skill_service.py 無 escalation／domain-safety 保護層概念，該子項預期 FAIL＝真缺口。"
+  },
+  "TC-PLT-FLOW-01": {
+   "verdict": "not-testable-locally",
+   "why": "Flow DSL 執行器與積木庫尚未實作，沒有可匯入合法／非法 DSL 的入口。",
+   "blocker": "功能不存在於 codebase：以 flow_dsl / flow_definition / block_registry / flow_version / state_machine_dsl 於 api、web、SQL、agent、knowledge-pipeline 全樹 grep 零命中；smartlock-docs/enterprise/04_SRS.md FR-PLT-07 標「🔜 規劃中 AI Onboarding Compiler」。"
+  },
+  "TC-PLT-PROV-01": {
+   "verdict": "not-testable-locally",
+   "why": "自動 provisioning 在 codebase 不存在——核准只寫 DB 並回傳一段手動開站指引文字，沒有建庫／綁 LINE／health check 可中斷重跑。",
+   "blocker": "功能不存在於 codebase：讀 api/services/brand_application_service.py:approve 只做 brand_applications CAS pending→approved + platform_tenant_service.create_from_application，回傳 _onboarding_guide() 手動 docker compose 指引；無 provisioning audit 表、無 License 啟用閘門串接、無 LINE sandbox 綁定。SRS FR-PLT-03 亦標「🔜 規劃中自動化 + CD」。"
+  },
+  "TC-PLT-SURFACE-01": {
+   "verdict": "api-only",
+   "why": "三面跨呼叫純屬 token 與路由層，curl 即可，但本機三個 api 容器都沒設 ALLOWED_TOKEN_PORTALS，跨面守衛整條是 no-op，不先補設會測出假結果。",
+   "procedure": "已實測基線：brand admin token 打 http://localhost:8002/api/v1/technicians/me 回 400（非 403）、打 http://localhost:8003/api/v1/platform/tenants 回 401（平台獨立 JWT secret，密碼學隔離有效）。正式測前先為容器補 env 再 recreate：brand-api ALLOWED_TOKEN_PORTALS=brand、tech-api=tech、platform-api=platform（依 api/core/deps.py:_allowed_portals，未設回 None＝守衛停用）。然後：① tech 帳號登入 :8002 取 token，打 :8001/tenants/{tid}/customers、/tenants/{tid}/accounting/settlements 期待 403 CROSS_PORTAL_FORBIDDEN；② 用同 secret 手工簽一顆不含 portal claim、role=technician 的 JWT 打 :8001，應由 portal_for_role 推導後同樣 403；③ platform token 打 :8001 任一 tenant 端點期待 401/403 且回應中不得含目標業務資料（確認 deny 發生在 get_current_user，早於 handler 讀 DB）。"
+  },
+  "TC-QUOTE-01": {
+   "verdict": "playwright",
+   "why": "報價全鏈（建單→加品項→送審核准→送客戶→客戶端 token 頁同意）在 brand-portal /admin/quotes 與公開頁 /quotes/[token] 都有 UI，端點 quote_v2.py 全數存在；僅狀態詞彙與案例不同（as-built 為 draft/pending_approval/approved/sent/accepted，案例寫的 internal_approved/customer_sent/customer_confirmed 是舊 FSM 詞彙，openapi.yaml:438 已標注不另實作）。",
+   "procedure": "1) Playwright 開 http://localhost:3000/login 以 test@lock-ai.com / changeme123（admin；注意 :send/:approve 走 OPS_ROLES=admin,operations_manager，客服角色會 403）登入 → /admin/quotes。2) 用 WorkOrderPicker 選一張既有工單（psql 5433 `select id,document_number,status from work_orders`）→ 按建報價，期望 POST /tenants/00000000-0000-0000-0000-000000000001/work-orders/{woId}/quotes 回 201、state=draft。3) 加品項用 service_code（psql `select service_code,suggested_customer_price from service_catalog`，例 SVC-RES-004=3500）→ POST .../quotes/{id}/lines 201。4) 要走「內部核准」段就把總額加到 > 10000（discount_policy.approval_threshold fallback 10000）→ 按送審（:submit → pending_approval）→ 按核准（:approve → approved）；≤10000 時 draft 可直送。5) 按送客戶（:send → sent，回應含 public_token/public_path）。6) 按取得客戶連結（GET .../public-link）複製路徑 → Playwright 另開 http://localhost:3000/quotes/{token}（AuthGuard CUSTOMER_PUBLIC_PREFIXES 免登入）→ 按「同意」→ POST /consumer/quotes/{token} {\"decision\":\"accept\"} 期望 200、state=accepted。7) psql 驗 `select state,version from quote where id=...` 與 `select count(*) from quote_line_items where quote_id=...` > 0。判定：狀態序列 draft→pending_approval→approved→sent→accepted、line items 有列；狀態字面與案例的 internal_approved/customer_sent/customer_confirmed 不同屬已知詞彙差異，不算 bug。"
+  },
+  "TC-QUOTE-02": {
+   "verdict": "api-only",
+   "why": "案例寫的 POST /quotes/{id}:send-to-customer（帶 sender_role）在 openapi.yaml:438 明文「本宣告端點不另實作」，實作面是 quote_v2 :send + quote_engine_service.transition 的 actor_role 閘；UI 無法投遞 ai_agent 身分，只能用手鑄 JWT 打 API 觀察 403。",
+   "procedure": "1) 取 JWT secret：`grep -r API_JWT_SECRET_KEY` 於 repo 根 .env / web/*/docker-compose.yml（或 `docker inspect` api 容器 env）。2) 用 python-jose/pyjwt 鑄 HS256 token：payload={\"sub\":<任一 users.id>,\"role\":\"ai_agent\",\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"type\":\"access\",\"iat\":now,\"exp\":now+3600,\"jti\":uuid}。3) 取一張 approved/draft 報價（psql 5433 `select id,state from quote where state in ('draft','approved')`；沒有就先照 TC-QUOTE-01 造一張）。4) curl -i -X POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/quotes/{id}:send -H 'Authorization: Bearer <ai_agent_token>' -H 'X-Tenant-ID: 00000000-0000-0000-0000-000000000001' -H 'Idempotency-Key: t-quote-02-1'。5) 判定：必須是 403（AI 不得送最終報價的邊界有守住）。預期實際回 error_code=FORBIDDEN（core/deps.py role_required(*OPS_ROLES) 先擋），而非案例要求的 AI_FORBIDDEN_FINAL_QUOTE——後者在 quote_engine_service.py:510 但 HTTP 面永遠走不到（僅 api/tests/test_cr_0152_ai_quote_gate.py 直呼 service 可觸發）。錯誤碼不符請開 finding，不要判為「AI 邊界失效」。6) 對照組：同一報價用 admin token 打同一端點應 200 → 證明 403 來自角色而非狀態。"
+  },
+  "TC-QUOTE-03": {
+   "verdict": "api-only",
+   "why": "保固閘存在（quote_engine_service.py:520 AI_FORBIDDEN_WARRANTY_PROJECT，條件 actor_role 不在 customer_service/operations_manager/admin），但 :send 端點守衛是 OPS_ROLES={admin,operations_manager}——兩者都在人類 staff 白名單內，且 ai_agent 會先被 role_required 擋，因此該錯誤碼在 HTTP 面不可達；只能用 curl 觀察「保固案件 + 非人類角色 → 403」這個行為是否成立。",
+   "procedure": "1) 造保固 fixture：psql 5433 挑一張有 work_order_id 的 quote（例 00b10ffd-... 或新建），確認 `select 1 from warranty_claims where work_order_id=<該 wo>`；沒有就 insert 一筆 warranty_claims 指向該 work_order_id。2) 把該 quote 改回可送狀態：`update quote set state='approved' where id=...`。3) curl -X POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/quotes/{id}:send，分三組 token：(a) 手鑄 role=ai_agent → 預期 403 FORBIDDEN（非 AI_FORBIDDEN_WARRANTY_PROJECT）；(b) admin(test@lock-ai.com 登入取 token) → 預期 200 sent（admin 在 _HUMAN_STAFF_SEND_ROLES）；(c) cs@example.com(customer_service) → 預期 403 FORBIDDEN（customer_service 不在 OPS_ROLES，端點層就擋掉）。4) 判定：(a) 有擋＝AI 邊界成立；但錯誤碼與案例要求不符要開 finding。(c) 是重點 finding——案例寫「必由客服手動 approve send」，實際客服根本無權呼叫 :send，規格與 as-built 相衝，須回報請業主裁決。"
+  },
+  "TC-QUOTE-04": {
+   "verdict": "playwright",
+   "why": "拒絕→建新版的 UI 路徑存在（/admin/quotes 的「建立新版本重估」requoteNewVersion），但它只呼 POST /work-orders/{wo}/quotes 或 /problem-cards/{pc}/quotes，全程沒有回填 supersedes_quote_id（只有技師端 requote_service.py:103 會填），且客戶端 /quotes/[token] 頁無任何導向最新版邏輯——兩個判定基準都能觀察，預期會失敗。",
+   "procedure": "1) 照 TC-QUOTE-01 把一張報價推到 sent 並取得 public_path。2) Playwright 開 http://localhost:3000/quotes/{token} → 按「拒絕」→ POST /consumer/quotes/{token} {\"decision\":\"reject\"} 期望 200 state=rejected。3) 回 :3000 /admin/quotes 以 admin 開該報價 → 應出現橘色終態區塊「此報價已被拒絕」+「建立新版本重估」按鈕 → 點下去，期望回 201、version=v+1、state=draft。4) 加品項 → :send → 取新 public-link → 開新 token 頁按同意 → 200 accepted。5) psql 5433 驗版本鏈：`select id,version,state,supersedes_quote_id from quote where work_order_id='<wo>' order by version;` —— 判定基準：v2 的 supersedes_quote_id 應等於 v1 的 id。預期實際為 NULL（UI 建版路徑未串鏈）→ 開 finding。6) 舊版導向：重新開 v1 的舊 token URL http://localhost:3000/quotes/{oldToken}，判定基準是「導向最新版」；預期實際只唯讀顯示 v1 rejected、無跳轉（consumer_v2.get_consumer_quote 依 token.subject_id 取單張，無 latest-version 解析）→ 開 finding。"
+  },
+  "TC-QUOTE-05": {
+   "verdict": "playwright",
+   "why": "20_Test_Cases.md 已有 2026-07-25 標注：as-built 是 lazy 過期（accept 當下判 expiry_at），無 cron、無 expired_by_cron audit，有效期改 7 天；驗證法＝把 fixture expiry_at 撥到過去後由客戶操作，本機可完整走完（勿等排程，否則產生假 finding）。",
+   "procedure": "1) 照 TC-QUOTE-01 把一張報價推到 sent 並記下 quote_id 與 public token。2) psql 5433 撥時鐘：`update quote set expiry_at = NOW() - INTERVAL '1 hour' where id='<quote_id>';`（token TTL 由 _ttl_days_from 保底 1 天，仍可開）。3) Playwright 開 http://localhost:3000/quotes/{token} → GET 應仍 200 且 state 顯示 sent（get_quote 不做過期判定）→ 按「同意」。4) 判定：POST /consumer/quotes/{token} 應回 409。注意 as-built 該路徑回的是 error_code=STATE_CONFLICT（quote_engine_service.py:566），只有 /internal/quotes/{id}:customer-respond 才收斂成 QUOTE_EXPIRED；案例寫的 410 與 expired_by_cron audit 皆不存在。5) 重新整理該頁 → state 應變 expired（transition 過期首擊會 UPDATE state='expired'）；psql 覆核 `select state from quote where id=...` = expired。6) 額外覆核：`select 1 from audit_events where action like '%expired%'` 應查無 → 對應標注所述「無 expired_by_cron」，不算 bug。7) finding 只寫兩點：consumer 面錯誤碼是 STATE_CONFLICT 非 QUOTE_EXPIRED/410；頁面未給「引導重新報修」文案。"
+  },
+  "TC-QUOTE-06": {
+   "verdict": "playwright",
+   "why": "急件補審整套 as-built 存在：placeholder 由 work_order_service.py:593 以 initial_state='retrospective_audit_only' 建、完工回報起算 audit_due_at（_start_retrospective_audit_timer）、GET /tenants/{t}/quotes/audit-queue 有列表且 /admin/quotes 有「急件補審佇列」分頁與 :audit-complete 按鈕；逾時升級由 sla_monitor（job_registry 'sla-monitor' 預設 BACKGROUND_RUNTIME_MODE=api 每 60s 跑）寫 audit_events。",
+   "procedure": "1) 造 fixture（走完整流程太重，用 psql 直造）：psql 5433 挑一張有 problem_card 的工單，`insert into quote (work_order_id, problem_card_id, state, expiry_at, tenant_id, version, audit_due_at) values (<wo>,<pc>,'retrospective_audit_only', NOW()+INTERVAL '7 days','00000000-0000-0000-0000-000000000001', 9, NOW()+INTERVAL '4 hours') returning id;`（audit_due_at 非空＝已起算 4h 窗）。2) Playwright 以 admin 登入 :3000 → /admin/quotes → 切「急件補審佇列」分頁，判定：該筆出現、顯示剩餘時間（未逾時）。3) 補明細：POST .../quotes/{id}/lines（retrospective_audit_only 在 add_line 白名單內）。4) 走紙本路徑：點「補審完成」→ POST .../quotes/{id}:audit-complete（帶 Idempotency-Key）→ 期望 200 state=accepted，psql 驗 quote_approval 多一列 decision='audit_complete'。5) 逾時升級另造一筆：`update quote set audit_due_at = NOW() - INTERVAL '1 hour', state='retrospective_audit_only' where id=<第二筆>;` → 等 60s（sla_monitor 輪詢）→ psql 驗 `select action,target_id,payload from audit_events where action='sla.audit_overdue' order by created_at desc limit 5;` 應有該 quote_id，payload 含 escalated_to；佇列頁該列應標逾時。6) 判定基準即：retrospective_audit_only 標記可見 + audit_due_at 檢核（剩餘/逾時）+ audit_events sla.audit_overdue 升主管軌跡。"
+  },
+  "TC-QUOTE-07": {
+   "verdict": "playwright",
+   "why": "內外部視圖分離在 code 是結構性的（get_quote include_cost=False 時整個 unit_price key 不進 line dict；consumer_v2 只回 quote_id/state/total_amount/lines/expires_at/snapshot_hash，連 work_order_id 都不回），公開頁 /quotes/[token] 免登入，Playwright 可直接讀 network response body 判定。",
+   "procedure": "1) 照 TC-QUOTE-01 取得一張 sent 且有多筆品項的報價的 public token。2) Playwright 開 http://localhost:3000/quotes/{token}（不要帶登入 cookie，或用無痕 context）→ 用 browser_network_requests 抓 GET http://localhost:8001/consumer/quotes/{token} 的 response body。3) 判定：body 內每個 lines[] 元素只有 id/item_name/category/quantity/customer_price/service_code/material_code，**不得出現 unit_price**，頂層不得出現 cost_visible=true、work_order_id、internal_base_cost、internal_cost。4) 對照組：同一 quote 以 admin token curl http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/quotes/{id} → 應含 unit_price 與 cost_visible=true（證明遮蔽是角色差異而非欄位本來就空）。5) 補一組負向：以 cs@example.com(customer_service) 打同一內部端點 → 預期 403 FORBIDDEN（get_quote_v2 掛 OPS_ROLES，CR-0183 補的守衛）。6) 畫面層再看一次：頁面只呈現 NT$ 客戶價與總額，無成本/毛利欄位。"
+  },
+  "TC-QUOTE-08": {
+   "verdict": "api-only",
+   "why": "案例點名的 POST /quotes/{id}/customer-confirm 不存在（openapi.yaml:500 只是宣告，routers 內查無實作）；as-built 的冪等面有兩個且語意不同——quote_v2 :accept 掛 idempotency_guard（真 Idempotency-Key 回放）、/internal/quotes/{id}:customer-respond 是狀態式回放（回 idempotent_replay:true），而客戶真正走的 /consumer/quotes/{token} 完全沒有冪等保護，重按會 409。三者都要 curl 才分得出來。",
+   "procedure": "1) 取 API_JWT：以 test@lock-ai.com 登入 :3000 後從 network 抓 Bearer，或直接 POST http://localhost:8001/api/v1/auth/login。2) 準備一張 sent 報價 id。3) 主測（Idempotency-Key 回放）：連打兩次 curl -i -X POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/quotes/{id}:accept -H 'Authorization: Bearer <admin>' -H 'X-Tenant-ID: 00000000-0000-0000-0000-000000000001' -H 'Idempotency-Key: tc-quote-08-fixed' -H 'Content-Type: application/json' → 判定：兩次都 200 且 body 完全相同（第二次由 idempotency_keys 回放，非 409 STATE_CONFLICT）。4) 換 key 重打同一報價（Idempotency-Key: tc-quote-08-other）→ 應 409 STATE_CONFLICT（狀態已 accepted），證明回放來自 key 而非狀態。5) 不重觸發下游：psql 5433 `select count(*) from invoices where work_order_id=<wo>` 應恆為 1（accept 會 best-effort 開票，work_order_id UNIQUE 天然冪等）；`select count(*) from audit_events where target_id='<quote_id>'` 兩次呼叫前後不得增加。註：as-built 的 accept 不建工單（開單是另一支 convert 動作、以 quote.state=accepted 為 gate），案例的「不重觸發工單建立」對應到「不重複開票」。6) 客戶面補測（預期 finding）：對另一張 sent 報價連打兩次 POST http://localhost:8001/consumer/quotes/{token} {\"decision\":\"accept\"} → 第一次 200、第二次預期 409 STATE_CONFLICT（consumer_v2.respond_consumer_quote 直呼 transition，無 idempotency_guard 也無同決定回放）→ 開 finding：客戶端 LIFF 連點無冪等保護，與 internal customer-respond 行為不一致。"
+  },
+  "TC-QUOTE-09": {
+   "verdict": "api-only",
+   "why": "API 半邊完整可測——customer_respond_to_quote 已實作同決定回放（idempotent_replay:true）、相反終態 409 QUOTE_ALREADY_DECIDED、過期 409 QUOTE_EXPIRED、查無 404、line_user 不符 403，端點 /api/v1/internal/quotes/{id}:customer-respond 走 X-Internal-Token 本機可打；LINE 話術半邊在 agent/lockcore/channels/line_gateway.py:_quote_fail_reply，無真實 LINE channel 無法端到端觀察，只能用 agent/tests/test_quote_postback_msgs.py 覆蓋。",
+   "procedure": "1) 取 INTERNAL_API_TOKEN（repo 根 .env 或 docker compose env，dev 預設 dev-internal-token）。2) 造五組 fixture（psql 5433）：(a) sent 一張、(b) accepted 一張、(c) rejected 一張、(d) sent 但 expiry_at 撥到過去一張、(e) 隨機不存在 uuid。每張都要能經 quote→problem_cards→conversations→users 反查到 line_user_id：`select u.line_user_id from quote q join problem_cards pc on q.problem_card_id=pc.id left join conversations c on pc.conversation_id=c.id left join users u on c.user_id=u.id where q.id='<id>';`（庫內已有 24 個 users 帶 line_user_id）。3) 逐一 curl -i -X POST http://localhost:8001/api/v1/internal/quotes/{id}:customer-respond -H 'X-Internal-Token: <token>' -H 'Content-Type: application/json' -d '{\"tenant_id\":\"00000000-0000-0000-0000-000000000001\",\"line_user_id\":\"<該報價的 uid>\",\"decision\":\"accept\"}'。判定表：(b)+decision=accept → 200 且 data.idempotent_replay=true（同決定安全回放）；(b)+decision=reject → 409 error_code=QUOTE_ALREADY_DECIDED、details 帶 current_state=accepted；(c)+decision=accept → 409 QUOTE_ALREADY_DECIDED；(d)+decision=accept → 409 QUOTE_EXPIRED；(e) → 404 NOT_FOUND；(a) 但 line_user_id 換成別人的 → 403 FORBIDDEN（且回應不得洩露真正歸屬）。4) 話術對照只能靜態覆核：讀 line_gateway.py:735-765 的 _QUOTE_FAIL_MSGS / _QUOTE_DECIDED_MSGS 對映，並跑 `cd agent && pytest tests/test_quote_postback_msgs.py -q`（含非 JSON body → _QUOTE_FAIL_FALLBACK 的案例）；LINE 端實際顯示因無 channel 不列入本機判定，UAT 報告需註明此半邊未端到端驗證。"
+  },
+  "TC-REF-INTAKE-01": {
+   "verdict": "not-testable-locally",
+   "why": "refinery 服務未啟動且 intake 只有 CLI 入口，bronze gate 屬 knowledge-pipeline 指令層，非 UI／API／DB 可達。",
+   "blocker": "knowledge-pipeline/refinery 在 web/brand-portal/docker-compose.yml 是 profile=\"refinery\"，docker ps 未見（:8004 未起）；refinery/service.py 只有 /auth/login 與 /api/drafts CRUD，沒有觸發 intake 的端點，汲取要跑 python -m refinery.run_intake 並需 Vertex LLM；本機 knowledge_drafts=0 筆，無兩租戶 fixture。"
+  },
+  "TC-REF-PUBLISH-01": {
+   "verdict": "not-testable-locally",
+   "why": "核可落地需 refinery 起 + Vertex embedding，且 refinery 的 review 層根本沒有雙簽／Family Reviewer 逾時機制。",
+   "blocker": "refinery 未起（:8004 profile 隔離）、knowledge_drafts=0；publisher.publish_case_entry 需 embed_fn（Vertex）才寫 case_entries；refinery/review.py 只有 approve/reject/re_refine，無同人雙簽偵測與逾時升級。附註：api 側的 POST /sops/{id}/review/dual、/sops/{id}/review/family（含 realtime/family_review_sla_cron）可另以 curl 單獨測，但那是 SOP 子系統，不等於本案例。"
+  },
+  "TC-REF-SPLIT-01": {
+   "verdict": "not-testable-locally",
+   "why": "facts/behavior 分流與惡意覆寫 prompt 的防護只能靠注入假 LLM 的單元測試觀察，沒有 HTTP／DB 觸發面。",
+   "blocker": "分流邏輯在 knowledge-pipeline/refinery/refinery/refine.py:build_drafts(generate=...)，唯一注入點是函式參數（pytest fake generate）；refinery 服務未起且無 refine 觸發端點；re-refine 端點 POST /api/drafts/{id}/re-refine 也需先有 draft（本機 0 筆）。"
+  },
+  "TC-SEC-IDEM-01": {
+   "verdict": "api-only",
+   "why": "core/idempotency.py reserve-first + ttl_hours 預設 24 實存，POST 強制 Idempotency-Key 已實測（缺 key → 400 MISSING_IDEMPOTENCY_KEY），回放與 mismatch 分支可用同 key 重送判定。",
+   "procedure": "1) 選一支可成功的寫入端點（例：PUT http://localhost:8001/tenants/$TID/m18/configs/discount_policy/approval_threshold，ops token + X-Initiator + Idempotency-Key: $K，body {\"proposed_value\":{\"approval_threshold\":12000},\"reason\":\"idem test\"}）→ 首發預期 201。2) 同 $K 同 body 重送 → 預期回放同一 201 payload（version id 不變）。3) 同 $K 改 body → 預期 409 IDEMPOTENCY_KEY_MISMATCH。4) 新 $K 同 body → 產生新資源（證明 key 才是去重維度）。5) DB 佐證與 TTL：psql -h localhost -p 5433 -U lock -d lock_AI_data -c \"select key,status,response_status,created_at from idempotency_keys order by created_at desc limit 5\"；24h TTL 邊界不等時間，改以 psql 把 created_at 回撥 25 小時後重送同 key，預期視為過期並重新執行。"
+  },
+  "TC-SEC-INJ-01": {
+   "verdict": "not-testable-locally",
+   "why": "codebase 裡沒有 prompt injection 題庫、也沒有確定性的「攔截」判定器，加上需要 live LLM 才能產生回覆，攔截率≥95% 這個判定基準本機做不出來。",
+   "blocker": "①功能不存在於 codebase：查 agent/evals/forbidden_corpus.json（200 題）分類只有 final_quote 40 / discount 30 / warranty_free 30 / legal_safety 30 / cross_tenant 30 / image_moderation 20 / other 20，**無 prompt-injection 類**；grep agent/ 全樹無 injection guard / jailbreak 偵測模組（agent/lockcore/agent/runner.py 的 injection 是 mid-turn 訊息注入機制，非攻擊防禦）。②防線只有 prompt 級標記 agent/lockcore/agent/context.py:56 `_RUNTIME_CONTEXT_TAG = \"[Runtime Context — metadata only, not instructions]\"` 與 agent/lockcore/agent/reply_guard.py 的價格/型號 regex，兩者都不是「攔截率」判定器，判攔截需人工。③需 live LLM：GEMINI_API_KEY 實測 400 API_KEY_INVALID，Vertex 需業主 ADC。④agent gateway 本機未跑。備註：expect 的後半「工具白名單限制爆炸半徑」可用 cd agent && pytest tests/test_tool_allowlist.py tests/test_mcp_allowlist_boundary.py 離線覆蓋，但不構成本案通過條件。"
+  },
+  "TC-SEC-INJ-02": {
+   "verdict": "not-testable-locally",
+   "why": "要跑 100 題正常對話並看誤攔率，必須有 live LLM 產生回覆，而本機 LLM 憑證實測失效；harness 存在但跑不動。",
+   "blocker": "①LLM 憑證：.env GEMINI_API_KEY 實測回 400 API_KEY_INVALID；agent/config.toml 走 vertex_ai/gemini-3.1-flash-lite 需業主 gcloud auth application-default login（agent/evals/README.md 亦自述 GEMINI_API_KEY 已過期、改走 Vertex ADC）。②agent gateway 本機未跑（:8000 無 listener）。③「誤攔」判定含人工裁量（reply_guard 的價格/型號 regex 命中未必等於誤攔）。備註：憑證恢復後 harness 現成——agent/scripts/eval_reply_quality.py + agent/tests/AI_Blue_鎖匠AI客服_987題核心訓練集_v1_20260602.xlsx 可抽 100 題，agent/scripts/run_forbidden_gate.py --live 為對照組。"
+  },
+  "TC-SEC-INT-01": {
+   "verdict": "api-only",
+   "why": "/api/v1/internal/* 八支端點實存，已實測錯 token 與不帶 token 皆回 401 INTERNAL_AUTH_FAILED；503 分支（INTERNAL_API_TOKEN 未設）需拿掉容器 env 重啟才會出現；常數時間比對是 core/deps.py:413 的 hmac.compare_digest，屬 code review 而非可觀測行為。",
+   "procedure": "1) 錯 token：curl -X POST http://localhost:8001/api/v1/internal/conversations/ingest -H 'X-Internal-Token: wrong' -H 'Content-Type: application/json' -d '{}' → 預期 401 INTERNAL_AUTH_FAILED（實測通過）；不帶 header 同結果。2) 逐支覆蓋 /api/v1/internal/{skills/ingest, conversations/ingest, conversations/handover-state, escalations/ingest, quotes/{id}:customer-respond, technicians/notify-assign, technicians/notify-pool} 與 /internal/requote-requests。3) 正確 token 對照組：token 值可由維運自 lock-dispatch-locksmart-api-1 的 INTERNAL_API_TOKEN 取得，預期不再是 401（改為 body 驗證錯誤）。4) 503 fail-closed：以移除 INTERNAL_API_TOKEN 的環境重啟 API 容器（或另起一個同 image 的臨時容器不帶該 env），重打上述端點 → 預期 503 INTERNAL_AUTH_NOT_CONFIGURED；驗後還原。5) 降級攻擊面補測：同時帶 X-Service-Credential（無效值）與合法 X-Internal-Token → 依 service_credential_required 設計不得降級放行。6) 常數時間比對以讀 code 存證，不做計時測量（本機噪音無法判定）。"
+  },
+  "TC-SEC-MEM-01": {
+   "verdict": "api-only",
+   "why": "同屬本機程式化驗證：agent/tests/test_memory.py 已含 test_default_deny_on_missing_scope、test_invalid_kind_rejected、跨 user／跨 tenant 隔離與 forget 範圍，實測與 allowlist 測試一併 16 passed。",
+   "procedure": "1) cd agent && uv run pytest tests/test_memory.py tests/test_integration_context_memory.py -q → 預期全綠。2) 逐條對應判定：缺 tenant/user_id → test_default_deny_on_missing_scope 斷言 raise；kind 白名單 profile/preference/fact/issue/dispatch → test_invalid_kind_rejected；跨 user/tenant 讀取 → test_cross_user_isolation / test_cross_tenant_isolation（search 亦隔離）。3) 需 Postgres 後端佐證時再跑 tests/test_memory_postgres.py（會連本機 DB，UAT 期間注意別對 :5433 跑全套 pytest 以免污染種子資料）。"
+  },
+  "TC-SEC-PIPE-01": {
+   "verdict": "db-only",
+   "why": "scripts/ci/migration-drift-check.py 本機可跑（實測 exit 0：119 支 migration 編號唯一、全數登記、無死列），DB 真值段以 POSTGRES_URI/TECH_POSTGRES_URI/PLATFORM_POSTGRES_URI 比對各庫 public.schema_migrations；只有「CI 阻斷」那一步要看 .github/workflows/migration-drift-check.yml 在 GitHub 上跑。",
+   "procedure": "1) 基線：cd repo 根 && python3 scripts/ci/migration-drift-check.py → 預期 exit 0。2) 檔案層漂移注入：在 SQL/migrations/ 新增 120-fake-drift.sql 但不寫入 MIGRATION_REGISTRY.md → 重跑，預期 exit 1 且訊息指出未登記；測完刪除。3) DB 真值漂移：POSTGRES_URI=\"postgresql://lock:0000@localhost:5433/lock_AI_data\" TECH_POSTGRES_URI=\"postgresql://lock:0000@localhost:5434/lock_tech\" PLATFORM_POSTGRES_URI=\"postgresql://lock:0000@localhost:5435/lock_platform\" python3 scripts/ci/migration-drift-check.py --check-db → 記錄未套用/幽靈列；再用 psql 在測試庫 delete 一列 schema_migrations 製造「未套用」，確認被抓出、驗後還原。4) 「真 ERROR 不被 benign 警告淹沒」：以 bash scripts/db/apply-schema-routed.sh 對測試庫套一支故意語法錯誤的 migration，確認腳本以非 0 退出且 ERROR 行沒被 notice/warning 蓋掉。5) CI 阻斷本身本機不驗，僅檢查 workflow 檔有掛此腳本。"
+  },
+  "TC-SEC-RBAC-01": {
+   "verdict": "api-only",
+   "why": "role_required 守衛實存（routers/ 共 356 處），已實測 cs/dispatcher token 打 config 寫入端點回 403 FORBIDDEN；但 technician/vendor token 本機拿不到（seed 密碼雜湊是 $2b$12$disabled.not. 佔位、vendor 帳號 0 筆），需先修 seed 才能覆蓋原案 pre-condition。",
+   "procedure": "1) 取 token：POST http://localhost:8001/api/v1/auth/login {\"email\":\"cs@example.com\",\"password\":\"changeme123\"}（同法取 dispatcher@example.com / ops@example.com / test@lock-ai.com）。TID=00000000-0000-0000-0000-000000000001。2) 從 http://localhost:8001/openapi.json 撈 400 條路徑，過濾 POST/PUT/PATCH/DELETE 的金流(refunds/settlements/invoices/vouchers)、派工(dispatch)、設定(m18/configs, rbac)端點。3) 逐一 curl 帶 Authorization: Bearer <token> + X-Tenant-ID: $TID，斷言非授權角色一律 403 且 error_code=FORBIDDEN（實測樣本：PUT http://localhost:8001/tenants/$TID/m18/configs/discount_policy/approval_threshold → cs/dispatcher 403 \"Requires one of roles: admin, operations_manager\"；ops/admin 通過靜態 gate 後回 422 缺 X-Initiator）。4) technician token：先 psql -h localhost -p 5434 -U lock -d lock_tech 把 users.password_hash 換成合法 bcrypt(changeme123)、failed_login_attempts 歸零，再 POST http://localhost:8002/api/v1/technicians/login {\"identifier\":\"tech-chen@example.com\",\"password\":\"changeme123\"}（現況直接 401 帳密錯誤）。vendor 需先在 public.users 建 role=vendor 帳號（現為 0 筆）。5) deny log：docker logs lock-dispatch-locksmart-api-1 | grep RBAC_SHADOW_DENY（目前 0 筆）。注意：ALLOWED_TOKEN_PORTALS 本機三服務皆未設 → CROSS_PORTAL_FORBIDDEN 跨面分支測不到，要驗需在容器補 env 重啟。"
+  },
+  "TC-SEC-RBAC-02": {
+   "verdict": "api-only",
+   "why": "可用 /openapi.json 全端點 × 各角色 token 自動掃描，但矩陣本身是 7 角色×12 資源×4 動作（role_service._MATRIX，SA-01/CR-0130 已砍到 7 角色正典），與案例寫的 12 角色不符；且矩陣尚未接端點強制（permission_shadow 僅 3 端點且 log-only），實際授權來源是硬編 role_required。",
+   "procedure": "1) 讀矩陣真值：GET http://localhost:8001/tenants/$TID/rbac/roles（admin token，實測 200，回 admin/operations_manager/reviewer/technician/line_user/dispatcher/customer_service 七角色 × 12 資源 × read/write/delete/approve）。2) 產生案例：curl -s http://localhost:8001/openapi.json 取 paths×methods，對可取得 token 的角色（admin / operations_manager / customer_service / dispatcher / reviewer 於 :8001；platform_admin 於 :8003 POST /api/v1/platform/auth/login）逐一發請求，記錄 status+error_code。3) 判定：非該端點 role_required 清單內的角色必須 403（deny-by-default），200 即為漏洞；跨面（brand token 打 :8003、platform token 打 :8001）預期 401（JWT secret 不同，實測 brand=5a37…/platform=72b3…）。4) 缺角色：technician（seed 雜湊被停用）、vendor（無帳號）、line_user（無登入端點）三個角色的組合本機掃不到，需補 seed。5) 報告要標明「矩陣 vs role_required 落差」屬既知未收斂項，不可判為 code bug。"
+  },
+  "TC-SEC-RBAC-03": {
+   "verdict": "api-only",
+   "why": "config_m18_service._assert_namespace_writable 依 saas.config_namespace.owner_role_codes 動態縮權實存，本機該表已有種子值（多數 namespace owner={operations_manager}，payment_gate/settlement_policy is_protected=t、owner={}），curl 即可判定。",
+   "procedure": "1) 先看真值：psql -h localhost -p 5433 -U lock -d lock_AI_data -c \"select code,is_protected,owner_role_codes from saas.config_namespace order by code\"。2) 非 owner 角色：cs / dispatcher token PUT http://localhost:8001/tenants/$TID/m18/configs/discount_policy/approval_threshold（headers: Authorization、X-Tenant-ID、X-Initiator: <uuid>、Idempotency-Key: <uuid>；body {\"proposed_value\":{...},\"reason\":\"rbac test\"}）→ 已實測 403 FORBIDDEN（靜態 gate OPS_ROLES）。3) owner 角色：ops@example.com 同請求 → 預期 201 draft。4) 受保護 namespace：ops PUT .../m18/configs/payment_gate/enabled → 預期 403 CONFIG_PROTECTED_OVERRIDE（租戶層不可覆寫）。5) 未回填 owner 的 namespace 由非 admin 寫 → 預期 403 CONFIG_OWNER_ROLE_REQUIRED；admin 一律放行（_ADMIN_BYPASS_ROLES）。6) 驗完可 psql 刪掉測試 draft（saas.config_version state='draft'）避免污染 UAT 資料。"
+  },
+  "TC-SEC-RBAC-04": {
+   "verdict": "api-only",
+   "why": "core/deps.py:165-180 每請求重查 users.is_active / password_changed_at，停權→403 ACCOUNT_DISABLED、iat<password_changed_at→401 TOKEN_STALE，用 psql 改狀態＋curl 舊 token 即可判定。",
+   "procedure": "1) 取 reviewer@example.com token（避免動 admin）：POST http://localhost:8001/api/v1/auth/login。確認 GET http://localhost:8001/api/v1/auth/me + X-Tenant-ID → 200。2) 停權：psql -h localhost -p 5433 -U lock -d lock_AI_data -c \"update public.users set is_active=false where email='reviewer@example.com'\" → 同一舊 token 再打 /api/v1/auth/me → 預期 403 error_code=ACCOUNT_DISABLED。復原 set is_active=true。3) 改密：重新登入取新 token，psql -c \"update public.users set password_changed_at=now() where email='reviewer@example.com'\" → 舊 token 打 /auth/me → 預期 401 error_code=TOKEN_STALE。復原 set password_changed_at=null。4) technician 分支（TECH_POSTGRES_URI 已設 → 讀 :5434 權威庫且 fail-closed 503）需先修技師 seed 密碼雜湊才能取得 token；此分支可另記為未覆蓋。"
+  },
+  "TC-SEC-RBAC-05": {
+   "verdict": "api-only",
+   "why": "已實測完整鏈路：/auth/me 200 → POST /api/v1/auth/logout 204 → 同一 access token 重放 → 401 error_code=TOKEN_REVOKED（revoked_jti 命中）。",
+   "procedure": "1) A=$(POST http://localhost:8001/api/v1/auth/login {\"email\":\"test@lock-ai.com\",\"password\":\"changeme123\"} → data.access_token)。2) GET http://localhost:8001/api/v1/auth/me -H \"Authorization: Bearer $A\" -H \"X-Tenant-ID: $TID\" → 200。3) POST http://localhost:8001/api/v1/auth/logout 同 headers、body {} → 204。4) 重放步驟 2 → 預期 401 / error_code=TOKEN_REVOKED（實測通過）。5) 佐證：psql -h localhost -p 5433 -U lock -d lock_AI_data -c \"select jti,user_id,expires_at from revoked_jti order by expires_at desc limit 5\"。"
+  },
+  "TC-SEC-SOD-01": {
+   "verdict": "api-only",
+   "why": "require_sod_actors 掛在 refunds_v2 / cancellation / device_warranty；已實測 POST /tenants/{tid}/refunds 帶 X-Initiator=X-Approver → 403 error_code=SOD_VIOLATION，且 dependency 先於 body 驗證，空 body 也能判定、不落任何資料。",
+   "procedure": "1) admin 或 reviewer token。2) POST http://localhost:8001/tenants/$TID/refunds -H \"X-Initiator: u1\" -H \"X-Approver: u1\" -H 'Content-Type: application/json' -d '{}' → 預期 403 SOD_VIOLATION（實測通過）。3) 三人相異（X-Initiator/X-Approver/X-Executor 各異）→ 應跳過 SoD 檢查，改被 400 MISSING_IDEMPOTENCY_KEY 或 body 422 擋（代表 SoD 已放行）。4) 缺 header → 422 VALIDATION_ERROR \"Missing required header X-Initiator/X-Approver\"。5) 同法覆蓋 POST /tenants/{tid}/work-orders/{id}:cancel（cancellation.py）與 device_warranty 的 SoD 端點；月結/爭議走 approval_inbox_v2 雙人流程（非 single-call SoD），需另以兩個角色帳號分別 initiate/approve 驗 initiator≠approver。"
+  },
+  "TC-SEC-TENANT-01": {
+   "verdict": "api-only",
+   "why": "守衛實存且已實測（X-Tenant-ID 不符→403 TENANT_MISMATCH、缺 header→400 MISSING_TENANT，路徑 tenantId 不符→403 CROSS_TENANT_READ/WRITE）；但本機 saas.tenant 只有 demo-tenant 一筆，且 grep 全 repo 查無 cross_tenant_violation_attempted 這個 audit 事件（無任何 deny 寫 audit 的路徑），故 audit 那條判定不可達，需以 finding 回報而非測試通過。",
+   "procedure": "1) 直接測守衛：admin token + X-Tenant-ID: $TID 打 GET http://localhost:8001/tenants/11111111-1111-1111-1111-111111111111/work-orders?limit=1 → 預期 403 CROSS_TENANT_READ；X-Tenant-ID 換成別的 UUID 打自家路徑 → 已實測 403 TENANT_MISMATCH；不帶 X-Tenant-ID → 已實測 400 MISSING_TENANT。2) 100 組 mutation：從 /openapi.json 取所有 /tenants/{tenantId}/... 的寫入端點，逐一以 tenant_A token 打 tenant_B 路徑（POST 需附 Idempotency-Key，否則先被 400 MISSING_IDEMPOTENCY_KEY 擋住），斷言全數 403 且 body 不含任何 tenant_B 資料欄位。3) 要驗「不洩存在性」需先 psql 在 :5433 建 tenant_B（saas.tenant + 一筆 work_order/customer）再比對「存在 vs 不存在資源」回應是否一致。4) audit 條目：psql -c \"select action,count(*) from audit_events group by 1\" 佐證無 cross_tenant_violation_attempted → 記為缺口。"
+  },
+  "TC-SEC-TOOL-01": {
+   "verdict": "api-only",
+   "why": "判定基準是「工具未註冊」，屬本機程式化驗證（非 UI、非 HTTP）：已實測 uv run pytest agent/tests/test_tool_allowlist.py + test_mcp_allowlist_boundary.py 共 16 passed；CS_TOOL_ALLOWLIST 於 agent/lockcore/app_config.py:22 正是 read_file/list_dir/find_files/grep/web_search/transfer_to_human 六項。",
+   "procedure": "1) cd /Users/imding1211/project/Smart-Lock_AI_Support_Service_Dispatch_SaaS_Platform/agent && uv run pytest tests/test_tool_allowlist.py tests/test_mcp_allowlist_boundary.py -q → 預期 16 passed（勿用系統 python3，缺 tiktoken 會 collection error）。2) 直接列註冊表佐證：uv run python -c 'from lockcore.agent.loop import AgentLoop; …' 或讀 test_allowlist_keeps_only_listed 斷言——write/edit/exec/shell/spawn/web_fetch 皆不在 loop.tools.tool_names。3) 明確記錄邊界：MCP 工具（mcp_locksmith-rag_*）依 ADR-010/CR-0125 刻意不受 allowlist 約束，控制點在 agent/config.toml 的 [mcp_servers.*]，test_mcp_allowlist_boundary.py 已釘住此時序。4) 「LLM 誘導 prompt」的行為半段需真實 LLM 金鑰與 LINE 通道，本機不做；以「物理不可達＝未註冊」為結案基準。"
+  },
+  "TC-SEC-WEB-01": {
+   "verdict": "playwright",
+   "why": "兩段都要看：前端 gate 在 web/*/src/lib/rolePolicy.ts + components/layout/AuthGuard.tsx（且註解自陳「未列到的路由 → 預設放行」，與案例要求的 deny-by-default 相反，只有瀏覽器能觀察），後端 role_required 403 則可從同一瀏覽器的 network response 讀到（curl 已實測 cs → 403 FORBIDDEN）。",
+   "procedure": "1) Playwright 開 http://localhost:3000/login，用 cs@example.com / changeme123 登入。2) 直接導向 rolePolicy 未授權路由（例 http://localhost:3000/accounting、/admin/roles）→ 觀察 AuthGuard 是否擋下（預期擋）；再導向 ROUTE_POLICY 未列的路徑（例 http://localhost:3000/scope-change）→ 依現行 code 會「預設放行」，與案例 deny-by-default 不符，需如實記為 finding。3) 授權邊界驗證：在同一 session 用 browser_evaluate 直接 fetch 敏感 API（PUT /tenants/{tid}/m18/configs/discount_policy/approval_threshold），或用 curl 帶 cs token → 預期 403 FORBIDDEN（已實測），證明前端 gate 非授權邊界。4) 後端未登記路由：curl http://localhost:8001/tenants/$TID/not-a-real-endpoint → 預期 404，且不得回任何資料。"
+  },
+  "TC-SEC-WEB-02": {
+   "verdict": "playwright",
+   "why": "判定基準是「有沒有靜默 fallback 到預設租戶」，只能從瀏覽器實際送出的 X-Tenant-ID 觀察；web/brand-portal/src/lib/api.ts:144 明確存在 FALLBACK_TENANT_ID=\"00000000-…-0001\"，getTenantId()/resolveTenantId() 於 claims 缺 tenantId 時直接退回它，預期本案會抓到違規。",
+   "procedure": "1) Playwright 登入 http://localhost:3000（test@lock-ai.com / changeme123），確認可正常呼叫 API。2) 用 browser_evaluate 清掉／竄改 claims cookie 的 tenantId（保留 access token cookie），或直接刪除 claims cookie。3) 重新整理任一資料頁（/work-orders、/dashboard），以 browser_network_requests 檢查後續請求的 X-Tenant-ID header：若仍帶 00000000-0000-0000-0000-000000000001 即為靜默 fallback → 判 FAIL 並附 request 明細。4) 期望行為對照：應導回 /login 或阻擋請求。5) 後端側佐證：curl 不帶 X-Tenant-ID 打 http://localhost:8001/tenants/$TID/work-orders → 已實測 400 MISSING_TENANT（後端本身不 fallback，問題在前端）。"
+  },
+  "TC-SETTLE-01": {
+   "verdict": "not-testable-locally",
+   "why": "月結批次生成那半段本機可跑（UI 按鈕 + saas.monthly_settlement_batch），但案例判定核心「commission.accrued → 技師平台彙總結算」需 Kafka + event_consumer 投影，本機 KAFKA_BOOTSTRAP 未設 → publish 為 no-op、technician_commission_projection 永不生成；且無本機月結 cron。",
+   "blocker": "①Kafka/Redpanda 未啟動：api/core/event_bus.py `enabled()` 判斷 KAFKA_BOOTSTRAP，未設即 publish 回 False；api/realtime/event_consumer.py 同條件不啟動 → lock_tech 的 technician_commission_projection 表根本不會被建/寫（technician_commission_service.list_my_commission_statements 對 UndefinedTable fail-soft 回空）。②無本機月結 cron：grep main.py 無 scheduler，generate_monthly_batch 只由 POST /tenants/{tid}/settlements/monthly 或 /accounting/monthly-settlements:generate 觸發（docstring 寫 GCP Cloud Scheduler），「月結期末時間邊界」無法本機模擬。③本機 public.reconciliations 0 筆、settlements 0 筆，須先 psql 造資料。可達的一半（若要部分收斂）：:3000 以 test@lock-ai.com 或 ops@example.com 登入 → /accounting → 「產生月結批次」→ 觀察 POST .../accounting/monthly-settlements:generate 201；再 psql -p 5433 查 commission_event_outbox（reconciliation approve 同交易寫入，CR-0189）確認事件已落 outbox，但 status 會停在 pending 永不 sent。"
+  },
+  "TC-SETTLE-02": {
+   "verdict": "playwright",
+   "why": "POST /tenants/{tid}/refunds（refunds_v2.py:36）＋ admin/refunds 建立表單已送 X-Initiator/X-Approver，audit_events 由 audit_log_service.log_event_returning_id 同步寫入 hash chain，200 與 audit 事件皆可從 UI/network 觀察。",
+   "procedure": "1) psql -h localhost -p 5433 -U lock -d lock_AI_data -tAc \"select id from work_orders limit 1\" 取 work_order_id（例 834aa71d-accd-4b14-96f1-5154f11963e5）。2) 瀏覽器開 http://localhost:3000/login，用 ops@example.com / changeme123（operations_manager，id=0a000001-0000-4000-8000-000000000001）登入。注意：案例寫的 initiator=客服 在 code 走不通——REVIEW_ROLES=(admin, operations_manager, reviewer)，cs@example.com 會 403 FORBIDDEN；改用 ops 當 initiator、reviewer@example.com(id=0a000003-0000-4000-8000-000000000003) 當 approver 才對得上 L1 情境。3) 進 http://localhost:3000/admin/refunds → 點新增退款 → work_order_id 貼上、金額 500、refund_class 選 labor、核准人填 0a000003-0000-4000-8000-000000000003 → 送出。4) 預期：POST /tenants/00000000-0000-0000-0000-000000000001/refunds 回 200，畫面 toast「退款申請已建立（tier L1）」（amount 500 ≤ thresholds[0]=1000 → L1），列表新增一筆 pending。5) audit 鏈驗證：進 http://localhost:3000/admin/audit-events，log_type 篩 admin_action，應見剛才的 refund.created（payload 含 operator_id/approver_id/tier/config_version_applied）。6) 補強：以 admin(test@lock-ai.com) 取 token 後 curl -s 'http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/audit/verify' -H \"Authorization: Bearer $TK\"，預期 data.valid=true、checked>0。"
+  },
+  "TC-SETTLE-03": {
+   "verdict": "playwright",
+   "why": "admin/refunds 建立表單的「核准人」是自由輸入 UUID，填成自己的 session userId 即撞 require_sod_actors（core/deps.py:255-276），403 SOD_VIOLATION 直接出現在 network response 與畫面錯誤區；已用 curl 實測回 403。",
+   "procedure": "1) http://localhost:3000/login 用 ops@example.com / changeme123 登入（session.userId = 0a000001-0000-4000-8000-000000000001，UI 自動填為 X-Initiator）。2) /admin/refunds → 新增退款 → work_order_id 填 834aa71d-accd-4b14-96f1-5154f11963e5、金額 500、refund_class=labor、核准人**填同一個 0a000001-0000-4000-8000-000000000001**。3) 預期：POST /tenants/{tid}/refunds 回 403，body error_code=SOD_VIOLATION、detail=\"Separation of Duties violated: X-Initiator / X-Approver / X-Executor must be distinct\"，UI 顯示錯誤且不新增列。4) X-Executor 這一維 UI 不送，需 curl 補三種排列：對 http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/refunds 分別送 (I=A)、(I=E)、(A=E) 三組 header，全部應 403 SOD_VIOLATION；(I,A,E 三者互異) 應 200。"
+  },
+  "TC-SETTLE-04": {
+   "verdict": "not-testable-locally",
+   "why": "5-tier 只用在「從金額推 tier 並寫進 audit payload」，核准端完全沒有角色額度上限或自動升級邏輯，案例要驗的行為不存在。",
+   "blocker": "功能不存在於 codebase：查了 api/services/refund_service.py（resolve_tier:473 只算 L1–L5；approver_role_for_tier:524 只被 create_refund_sod 當 audit payload 的 approver_role_required 寫入，沒有任何 enforce）、submit_decision:296-420（只檢查 decision enum、reason、狀態機、同人不可重簽；完全不看 user.role 或金額）、routers/refunds_v2.py（decision 端點只 role_required(*REVIEW_ROLES)，不分 L1–L5）、core/deps.py（無額度概念）；全 repo grep role_limit / approval_limit / amount_limit / effective_limit / \"min(requested\" 皆 0 命中。DEFAULT_REFUND_CONFIG.tiers.approver_roles 的 supervisor/manager/finance_manager/director/cfo 這些角色在系統 7 角色正典（admin/operations_manager/dispatcher/customer_service/reviewer/technician/line_user）中根本不存在，本機也無對應帳號。目前 200,000 只會被算成 L5 後照樣讓任一 REVIEW_ROLES 使用者核准，沒有拒絕、沒有升級。"
+  },
+  "TC-SETTLE-05": {
+   "verdict": "api-only",
+   "why": "idempotency_guard（core/idempotency.py，ttl_hours 預設 24）掛在 POST /tenants/{tid}/refunds 上，但前端 lib/api.ts:382-387 每次非 GET 都自動 newIdempotencyKey()，UI 無法重送同一把 key，只能用 curl 固定 key 驗回放。",
+   "procedure": "1) 取 token：TK=$(curl -s -X POST http://localhost:8001/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"ops@example.com\",\"password\":\"changeme123\"}' | python3 -c \"import sys,json;print(json.load(sys.stdin)['access_token'])\")。2) 固定 KEY=uat-settle-05-$(date +%s)，對 POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/refunds 送兩次**完全相同**的 body（work_order_id=834aa71d-accd-4b14-96f1-5154f11963e5, amount=500, refund_class=labor, reason=idem test）與 headers（Authorization、X-Tenant-ID=00000000-0000-0000-0000-000000000001、X-Initiator=0a000001-...0001、X-Approver=0a000003-...0003、Idempotency-Key: $KEY）。3) 預期：第一發 200 回 data.refund_id=R1；第二發同樣 200 且 refund_id 仍是 R1（回放已存 response，不是新建）。4) 不重複出帳實證：psql -p 5433 -tAc \"select count(*) from refund_requests where work_order_id='834aa71d-accd-4b14-96f1-5154f11963e5' and amount=500\" 應為 1；psql -tAc \"select status, response_status from idempotency_keys where key='$KEY'\" 應為 completed/200。5) 邊界補測：同 key 但改 amount 為 501 再送 → 預期 409 IDEMPOTENCY_KEY_MISMATCH。6) TTL 24h 本身無法等待，改為 psql 把該列 created_at 減 25 小時（update idempotency_keys set created_at = now() - interval '25 hours' where key='$KEY'）後重送同 key，預期被 _try_takeover 接管 → 建出新 refund_id（＝TTL 已過期不再回放）。"
+  },
+  "TC-SETTLE-06": {
+   "verdict": "playwright",
+   "why": "admin/disputes 的 review 與 co-sign 兩顆按鈕都送 X-Initiator=session.userId（disputes/page.tsx:178-202），dispute_v2_service.co_sign_dispute:361 明文比對 co_signer==reviewed_by → 403 SOD_VIOLATION，兩條分支都能在 UI/network 看到。",
+   "procedure": "前置（本機 disputes 表 0 筆，需先造單）：用 ops token curl -X POST http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/disputes -d '{\"filed_by\":\"customer\",\"dispute_type\":\"pricing\",\"description\":\"UAT TC-SETTLE-06\",\"work_order_id\":\"834aa71d-accd-4b14-96f1-5154f11963e5\"}'（帶 Authorization + X-Tenant-ID + Idempotency-Key），預期 201、status=filed。造兩張（D1 走正向、D2 走同人連簽）。\\n正向：1) :3000 以 ops@example.com/changeme123 登入 → /admin/disputes → 點 D1 → 填 CSM 提案（≥1 字）+ 金額 → 送出，預期 POST .../disputes/{id}:review 200、狀態 filed→in_review。2) 登出，改以 reviewer@example.com/changeme123 登入 → /admin/disputes 切到 in_review 分頁 → 點 D1 → 填最終決議（≥5 字）→ 送出，預期 POST .../disputes/{id}:co-sign 200，toast「已 co-sign 結案」，狀態 → resolved。\\n反向：3) 用 ops 帳號對 D2 先 :review（→in_review），**不換帳號**直接在同一 session 點 co-sign，預期 403、error_code=SOD_VIOLATION，畫面顯示錯誤且狀態仍是 in_review（psql -p 5433 -tAc \"select status, reviewed_by, cosigned_by from disputes where id='D2'\" 複驗）。"
+  },
+  "TC-SETTLE-07": {
+   "verdict": "db-only",
+   "why": "「直接 UPDATE/DELETE audit 列」只能從 psql 打；已實測 public.audit_events 的 trg_audit_events_append_only 兩種操作都 RAISE 擋下，hash 鏈（prev_hash/entry_hash）也在同一張表，抽樣重算純 SQL 即可。",
+   "procedure": "1) append-only：psql -h localhost -p 5433 -U lock -d lock_AI_data -c \"update audit_events set action='x' where id=(select id from audit_events limit 1);\" 與同樣條件的 delete —— 兩者都應回 ERROR: audit_events is append-only (NFR-Aud-001/CR-0164)（已實測成立，觸發函式 audit_events_immutable()）。順帶驗 saas.voucher / saas.voucher_void_event 的 tg_*_block_mutation 同樣擋 UPDATE/DELETE（憑證 ledger 那半，SQL/migrations/010-vouchers-void.sql）。2) hash 鏈抽樣：本機 audit_events 目前 81 筆（<100，改成全驗）。演算法在 api/services/audit_log_service.py:60 —— entry_hash = sha256(prev_hash + \"|\" + _canonical_audit_content(event_type, actor_id, actor_role, action, target_type, target_id, payload_json))，注意是「|」分隔且 payload 用 json.dumps(sort_keys=True, ensure_ascii=False)，不是單純 hash_prev+content 串接，直接用 psql 的 digest() 復現會不符，勿誤判。3) 最省事的正確做法：以 admin(test@lock-ai.com/changeme123) 取 token 後 curl -s 'http://localhost:8001/tenants/00000000-0000-0000-0000-000000000001/audit/verify?use_checkpoint=false' -H \"Authorization: Bearer $TK\"（此端點限 FULL_ACCESS_ROLES=admin），預期 data.valid=true、data.breaks=[]、checked=81；再加 use_checkpoint=true 對照 CR-0184 re-baseline 行為。4) 需要純 DB 佐證時，用 python 依上述 canonical 規則對 psql 匯出的列重算比對 entry_hash。"
+  },
+  "TC-SETTLE-08": {
+   "verdict": "api-only",
+   "why": "dispatcher-commissions 八個端點全是 OPS_ROLES(admin/operations_manager) 且 brand-portal 沒有任何頁面呼叫（grep web/*/src 只有 shared-contract 型別），tech-portal 的 /account/statements 又是打 OPS-only 的 /tech-statements，scope/遮蔽只能用不同角色 token 直打 API 判 200/403。",
+   "procedure": "1) 取三把 token：ops@example.com（operations_manager）、tech（POST http://localhost:8002/api/v1/technicians/login 用 tech-chen@example.com/changeme123）、dispatcher@example.com。tenant 固定 00000000-0000-0000-0000-000000000001。2) 派工小編佣金：ops token GET http://localhost:8001/tenants/{tid}/dispatcher-commissions → 預期 200（本機可能 items 空，先用 POST .../dispatcher-commissions:generate 帶 X-Initiator 造一筆 draft，body 含 dispatcher_user_id=d1893a7f-1c2e-4a6b-9e4d-2f5b8c6a1e02 + period + base_commission）。3) 同一支端點改用 technician token → 預期 403（role_required(*OPS_ROLES) 擋 technician）；用 dispatcher token → 同樣 403（dispatcher 不在 OPS_ROLES，本人也看不到自己的 statement，這點與案例「僅見自己 scope」的語意有落差，要如實記錄）。4) 技師對帳單 scope：GET /tenants/{tid}/tech-statements?technician_id=<別人 id> 用 ops token → 200；用 technician token → 403。技師本人自助路徑改打 GET http://localhost:8002/api/v1/technicians/me/commission-statements（_technician_only 守衛），預期 200 但 items 為空（來源 technician_commission_projection 靠 Kafka consumer，本機必空 —— 空清單不等於 scope 有效，不可據此判 PASS）。5) 成本欄位遮蔽：GET /tenants/{tid}/technicians/{techId}/commission-summary（technician_commission_v2.py，含敏感 base_payout）ops/dispatcher token → 200；technician token → 403（DISPATCH_ROLES）。全 repo 無欄位級 mask/redact 實作，遮蔽只能以「整支端點 403」認定，需在報告註明。6) vendor 那一維本機無法測：users 表 8 種角色中沒有任何 vendor 列，須先造帳號才有得測。"
+  },
+  "TC-TEC-LIFE-01": {
+   "verdict": "playwright",
+   "why": "註冊、KYC 補件、平台核准、接單阻擋全有實際頁面與端點（:3001 tech-register、:3003 platform/technicians、:8002 /api/v1/technicians/register），三庫都在本機。",
+   "procedure": "① 開 http://localhost:3001/tech-register 走完四步驟送出（前端打 POST :8002/api/v1/technicians/register，回一次性 upload_token）。② 同 email 再送一次，驗冪等／409 而非產生第二筆。③ 開 http://localhost:3003/platform/login（test@lock-ai.com / changeme123）→ /platform/technicians 找到該筆 → 進 /platform/technicians/{id} 補 KYC、於 brand-authorizations 指定服務品牌。④ 核准前先用該師傅帳號登入 http://localhost:3001/tech-login，開 /pool 應看不到可接工單（或 API 403）。⑤ 執行 :onboard-approve 後重試 /pool 才可見。⑥ psql -h localhost -p 5434 -U lock -d lock_tech 確認身分列只在技師庫、psql -p 5433 lock_AI_data 無對應幽靈師傅列。"
+  },
+  "TC-TEC-REVOKE-01": {
+   "verdict": "playwright",
+   "why": "撤銷／停權／復權在平台 console 有頁面，候選集排除可即時從品牌後台派工頁與 dispatch API 觀察。",
+   "procedure": "① :3003/platform/technicians/{id} 對已排班且已授權的師傅執行 :suspend（或刪 brand-authorizations 中的品牌）。② 立即在 http://localhost:3000/admin/dispatch-manual（或 curl GET :8001/tenants/{tid}/dispatch:candidates）確認該師傅消失；再 POST :8001/tenants/{tid}/dispatch:auto-match 確認不入選（dispatch_service._brand_authorized_ids 對 auto_match 硬過濾）。③ 重送同一 suspend 事件，期待 409／冪等，並 psql -p 5433 select * from notifications 確認沒有重複通知列、psql -p 5433 select * from saas.technician_lifecycle_event 確認事件不重複。④ 未執行 :reactivate 前重查候選集仍應排除；:reactivate 後才回池。"
+  },
+  "TC-WEB-MEDIA-01": {
+   "verdict": "playwright",
+   "why": "AuthImage/AuthImageLightbox 三處掛載點（ChatTimeline、問題卡附件、工單客戶上傳媒體）都在 running image 內，/api/v1/media/{id} 本機實測 200/401/403/404 四種回應皆真實可觸發，blob src 與失敗佔位都能從 DOM+network 觀察。",
+   "procedure": "【前置 seed（本機實測可行）】(1) 取 token：curl -s -X POST http://localhost:8001/api/v1/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"test@lock-ai.com\",\"password\":\"changeme123\"}'（tenant=00000000-0000-0000-0000-000000000001）。(2) 上傳一張合法 PNG（HEIC 不要用，Chromium 不解碼）：curl -X POST http://localhost:8001/api/v1/media -H \"Authorization: Bearer $TOK\" -H \"X-Tenant-ID: $TID\" -F 'file=@x.png;type=image/png' -F 'purpose=other' → 回 {id,url}；已實測產生可用的 2a6ec50e-3102-48e6-a0f5-09ca91865539（GET 回 200 image/png）。(3) psql -h localhost -p 5433 -U lock -d lock_AI_data：\n  UPDATE problem_cards SET media_urls='[\"/api/v1/media/<MID>\"]'::jsonb WHERE id='9d0216a5-b02f-4a62-a2e5-4c984f26f5be';\n  INSERT INTO messages(conversation_id,role,content_type,content,metadata) VALUES('dfb33287-49c1-4b5a-8b99-4b6468805d7b','user','image','[照片]','{\"image_url\":\"/api/v1/media/<MID>\"}'::jsonb);\n（工單 834aa71d 的媒體區資料源＝其問題卡 9d0216a5 綁的 conversation dfb33287；前端只挑 type=image/video，所以 content_type 必須寫 image）。\n【正向路徑 Playwright】http://localhost:3000/login 以 test@lock-ai.com / changeme123 登入 →\n  a. /conversations/dfb33287-49c1-4b5a-8b99-4b6468805d7b：客人氣泡出現照片；network 應有 GET /api/v1/media/<MID> 200（帶 Authorization: Bearer + X-Tenant-ID header），img 的 src 以 blob: 開頭、URL query 不含 token（=不裸露）。此處僅縮圖、無 lightbox。\n  b. /problem-cards/9d0216a5-b02f-4a62-a2e5-4c984f26f5be：「附件」區 128px 縮圖 → 點擊開 AuthImageLightbox（fixed 黑底遮罩 + aria-label=\"關閉預覽\" 的 ✕），內層會再打一次 media 200；點背景關閉。\n  c. /work-orders/834aa71d-accd-4b14-96f1-5154f11963e5：「客戶上傳媒體 / LINE」區縮圖 →點開 lightbox 同上。\n  revoke 驗證：關 lightbox 前用 browser_evaluate 記下 img.src（blob:…），關閉後再 fetch(該 blobUrl) 應 reject/失敗（元件 unmount 走 URL.revokeObjectURL）。\n【401/403/404 注入】三種都不需 mock 也可做：\n  ① 真 404 佔位：DB 既有 dangling row 71318627-4182-42d8-901d-4f3fbdfacff9（media_files 有列但檔案不在 MEDIA_ROOT）→ 把某訊息 image_url 指向它，畫面應出現 ImageOff +「照片載入失敗」佔位，其餘區塊照常渲染。\n  ② 401：curl 帶 bogus token 打 /api/v1/media/<MID> 實測回 401；UI 側用 browser_evaluate 覆寫 window.fetch，對含 '/api/v1/media/' 的請求回 new Response('',{status:401})，再開一次 lightbox（AuthImage 重掛重 fetch）→ 應顯示失敗佔位。\n  ③ 403：curl 用正確 token 但 X-Tenant-ID 換成別的 UUID 實測回 403；UI 同 ② 以 403 回應注入。\n  判定：三種失敗一律落在佔位、頁面其他內容仍在、console 無 uncaught error（元件 catch 吞掉）、任何 request URL 都不帶 token 字串。",
+   "blocker": ""
+  },
+  "TC-WEB-OPS-01": {
+   "verdict": "playwright",
+   "why": "工單時間軸的技師姓名來自 GET /api/v1/technicians/{id}（實測 200 回 name=丁啟恆），fallback 為 technician_id 前 8 碼、accepted_at 已上工單 envelope，三個判定點都能在 UI 對 network 逐項比對。",
+   "procedure": "【有姓名】http://localhost:3000/login 登入 test@lock-ai.com / changeme123 → /work-orders/834aa71d-accd-4b14-96f1-5154f11963e5 →「工單歷程」應出現一列 徽章「技師」／標題「技師接單」／明細「技師 丁啟恆 已接單」。同時看 network：GET /api/v1/work-orders/834aa71d… 回 data.accepted_at=2026-07-11T10:19:06.576769Z、GET /api/v1/technicians/52835375-841f-416c-b042-ab5fbc3bfdb7 回 data.name=丁啟恆（已 curl 實測 200）。時間欄位是本地時區格式化，Asia/Taipei 應顯示 2026/07/11 18:19，且事件依時間新→舊排序、「最後更新」明細顯示中文狀態（走 status.workOrder 字典，非 raw code）。第二筆可用 5dc1cbd1-e221-4c45-a545-b7a30e753e5e（accepted_at 2026-07-14T14:28:39Z → 2026/07/14 22:28）交叉比對。\n【缺姓名 fallback】用 Playwright 攔截：browser_run_code_unsafe 執行 page.route('**/api/v1/technicians/**', r=>r.fulfill({status:404,contentType:'application/json',body:'{}'}))（或 psql 5433 把該工單 technician_id 改成不存在的 UUID）→ 重新載入同一頁，明細應變成「技師 52835375 已接單」（technician_id 前 8 碼），絕不可出現任何其他技師姓名（庫內另有 陳師傅/張師傅/吳師傅/示範技師-林師傅 可作誤顯對照）。\n【邊界註記】問題卡頁的「解決嘗試歷程」(ResolutionTimeline) 是刻意的空狀態元件（診斷引擎未啟用），不含技師姓名，這一支只在工單時間軸判定；另 f1e5f7be / 33e6bf0e 兩張工單無 technician_id 也無 accepted_at，可用來驗「無接單事件」不誤生成列。",
+   "blocker": ""
+  },
+  "TC-WEB-REPORT-01": {
+   "verdict": "playwright",
+   "why": "KPI／營收報表頁與匯出都在品牌後台，數字一致性需同時看 UI 與 network response，低權 403 則直接換帳號重登即可。",
+   "procedure": "① admin（test@lock-ai.com/changeme123）登入 http://localhost:3000，開 /admin/reports/kpi 與 /admin/reports/revenue，記錄畫面數字、日期篩選與時區顯示；同時從 network 面板抓對應的 /tenants/{tid}/reports/kpi、/reports/revenue response 比對每一格。② 點匯出，驗 /tenants/{tid}/reports/export 回檔且內容與畫面一致。③ 登出改用 cs@example.com（customer_service）與 dispatcher@example.com 開同兩頁，期待 403／無資料（既有本機 RBAC 探針已證同型 403 行為）。④ 用 Playwright route 攔截把 reports API 改回 403 或延遲逾時，確認頁面顯示錯誤狀態、不殘留前一次（前一租戶／前一篩選）數字。"
+  },
+  "TC-WEB-SURFACE-01": {
+   "verdict": "playwright",
+   "why": "四個 production-like build 都在本機跑（3000/3001/3002/3003），白名單與導向邏輯集中在 appMode.crossModeRedirect，用瀏覽器逐路徑走就能判定。",
+   "procedure": "逐一以瀏覽器開並記錄最終 URL 與 network：① :3000（dispatch build）開 /platform、/home、/pool、/my-orders、/tech-register → 應導 /login 或 PEER :3001 同路徑，不得渲染師傅／平台頁內容。② :3001（tech build）開 /dashboard、/admin/customers、/platform → 應導 :3000 同路徑或 /tech-login。③ :3002（landing）開任何非 / 路徑 → 應導 :3000。④ :3003（platform build）開 /dashboard、/work-orders → 應導 /platform/login。⑤ 各站開明顯不存在路徑，看是 404 頁而非渲染他站頁面。⑥ 檢查 network 面板：被擋的路徑不得發出對應受保護資料的 API 請求（判定「不得把非本站頁面當已授權內容載入」）。對照 web/*/src/lib/appMode.ts:crossModeRedirect 的白名單。"
+  },
+  "TC-WO-01": {
+   "verdict": "playwright",
+   "why": "問題卡→工單全鏈有 UI（POST /tenants/{tid}/problem-cards/{id}/convert-to-work-order），但 create_from_problem_card 只發 WS/Kafka、不寫 work_order_events，且該表無 seq 欄 → 事件溯源那半會實測失敗（可測且應判 FAIL，非不可測）。",
+   "procedure": "1) :3000 以 cs@example.com/changeme123 登入 → /problem-cards 挑一張 status=confirmed 的卡（或先按「確認」）→ 進 /problem-cards/{id} 按「開單」→ ConvertModal 填服務地址 → 送出。2) 預期 network 回 201、toast「工單已建立」、自動導向 /work-orders/{woId}。3) 事件溯源查核：curl -H \"Authorization: Bearer <jwt>\" \"http://localhost:8001/api/v1/tenants/{tid}/work-orders/{woId}/events\" → 實測會回空陣列（建單路徑無 INSERT work_order_events）；psql :5433 `SELECT * FROM work_order_events WHERE work_order_id='{woId}'` 同樣 0 筆，且 `\\d work_order_events` 無 seq 欄 → 記 FAIL。4) HITL 鐵律：api/routers/internal_ingest.py 只暴露 escalations:write / conversations:read，無任何 agent 可呼叫的 convert 端點；curl -H 'X-Internal-Token: <INTERNAL_API_TOKEN>' POST /api/v1/tenants/{tid}/problem-cards/{id}/convert-to-work-order → 401/403（該路由要 JWT role_required(BACKOFFICE_ROLES)）。"
+  },
+  "TC-WO-02": {
+   "verdict": "api-only",
+   "why": "ConvertModal 的 canSubmit=address.trim().length>0 在前端就擋死，瀏覽器永遠送不出空地址請求，422 只能用 curl 打出來。",
+   "procedure": "1) UI 半：:3000 登入 cs@example.com → /problem-cards/{id} 按「開單」→ 地址留空 → 確認送出鈕 disabled（此即「前端強制補地址」PASS）。2) API 半：挑一張 confirmed 且 users.address 與 pc.location 皆空的卡（psql :5433 先 `UPDATE users SET address=NULL`、`UPDATE problem_cards SET location=NULL`），curl -X POST \"http://localhost:8001/api/v1/tenants/{tid}/problem-cards/{pcId}/convert-to-work-order\" -H 'Authorization: Bearer <cs jwt>' -H 'Idempotency-Key: <uuid>' -H 'Content-Type: application/json' -d '{}'。3) 預期 422，但 error_code 是 ADDRESS_REQUIRED_FOR_CONVERT（work_order_service.py:507），非案例寫的 ADDRESS_REQUIRED — 判 PASS 但記碼名差異。注意 brand/model/symptom/urgency 需齊，否則會先被 INCOMPLETE_PROBLEM_CARD（門檻 0.8）攔下。"
+  },
+  "TC-WO-03": {
+   "verdict": "playwright",
+   "why": "report-first gate（assert_pc_quote_confirmed）與急件 carve-out（emergency_class 四類下拉）都在問題卡頁面上，錯誤會用 toast 呈現，UI 可完整走兩條分支。",
+   "procedure": "1) 非急件分支：:3000 以 cs@example.com 登入 → /problem-cards/{id}（emergency_class 選「非急件（走報價先行）」）→ 該卡只開報價不讓客戶確認（quote.state 停在 sent/draft）→ 按「開單」→ 預期 network 回 HTTP 425 error_code=QUOTE_NOT_CUSTOMER_CONFIRMED，畫面顯示錯誤、不建單（案例寫「拒絕」，實碼是 425 非 422/409，記碼差異）。若報價已 rejected/expired 則回 409 QUOTE_STATE_INVALID。2) 急件分支：同頁把急件下拉改成「急件：被鎖門外」(locked_out) → 再按「開單」→ 預期 201 建單成功，並在 /quotes 看到 state=retrospective_audit_only 的補審佔位報價（quote_engine_service.create_quote）。"
+  },
+  "TC-WO-04": {
+   "verdict": "playwright",
+   "why": "tech-portal 完工表單前端只驗 summary 長度、不擋照片張數，2 張照片可真的送到 /onsite/completion 讓 min_photos=3 硬閘回 422。",
+   "procedure": "1) 先備料：任一工單指派給 tech-chen@example.com 且 status=accepted 或 in_progress（brand :3000 用 :assign，技師 :3001 按接單）。2) :3001 以 tech-chen@example.com/changeme123 登入 → /my-orders/{woId} → 展開完工表單 → 只上傳 2 張完工照片 → 在雙 canvas 上用滑鼠拖曳畫出客戶+技師簽名（不畫的話會先被 /signature 的 VALIDATION_ERROR 擋住，測不到本案）→ 摘要填 ≥5 字 → 送出。3) 預期 network POST /tenants/{tid}/work-orders/{woId}/onsite/completion 回 422 error_code=INSUFFICIENT_PHOTOS、訊息「完工照片至少 3 張（目前 2 張）」，畫面顯示錯誤且工單狀態不變。4) 補傳第 3 張再送 → 應 201 通過（正向對照）。"
+  },
+  "TC-WO-05": {
+   "verdict": "api-only",
+   "why": "UI 送完工前一定先 POST /signature 建 digital_signatures，空簽名會在該步被 422 VALIDATION_ERROR 攔下並 throw，瀏覽器永遠到不了 SIGNATURE_REQUIRED 這道閘。",
+   "procedure": "1) 準備一張 status=accepted、且 psql :5433 `SELECT * FROM digital_signatures WHERE document_type='work_order' AND document_id='{woId}' AND signer_role='customer'` 為 0 筆的工單（有的話先 DELETE）。2) 先用 :3001 上傳 3 張照片取得 media id（或 curl POST /api/v1/tenants/{tid}/media 拿 id）。3) curl -X POST \"http://localhost:8001/api/v1/tenants/{tid}/work-orders/{woId}/onsite/completion\" -H 'Authorization: Bearer <technician jwt>' -H 'Idempotency-Key: <uuid>' -d '{\"signature_evidence_id\":\"x\",\"photo_evidence_ids\":[\"id1\",\"id2\",\"id3\"],\"notes\":\"test\"}'。4) 預期 422 error_code=SIGNATURE_REQUIRED（work_order_service.py:1331，_signature_exists 查 digital_signatures 真存在，非只看字串非空）。5) 正向對照：先 POST /work-orders/{woId}/signature 帶非空 customer_signature/technician_signature，再重送完工應通過。"
+  },
+  "TC-WO-06": {
+   "verdict": "playwright",
+   "why": "service_category 與 serial_number 都在 brand-portal DispatchOrderView 的欄位編輯器裡（PATCH 白名單有這兩欄），install/repair 兩條分支都能純 UI 切換並在技師端看到 422。",
+   "procedure": "1) :3000 以 test@lock-ai.com(admin) 登入 → /work-orders/{woId} → DispatchOrderView 欄位區把 service_category 改成 install、serial_number 清空 → 存檔（PATCH 回 200）。2) :3001 以該單技師登入 → /my-orders/{woId} → 上傳 3 張照片 + 畫雙簽名 + 摘要 → 送出完工。3) 預期 422 error_code=SERIAL_REQUIRED、訊息「此安裝案需登錄鎖體序號才可完工（BR-M10-03）」（門檻來自 M18 config completion_policy.serial_required_categories=[\"install\"]）。4) 反向對照：回 :3000 把 service_category 改成 repair（或補填 serial_number）→ 技師重送 → 應 201 完工成功。"
+  },
+  "TC-WO-07": {
+   "verdict": "db-only",
+   "why": "COMPLETE_OVERRIDE 只被 prepend 進 work_orders.service_report，_WO_SELECT 不含該欄、也沒有任何 audit_log_service.log_event 呼叫，所以「audit 記 COMPLETE_OVERRIDE + 角色 + reason」只能用 psql 驗。",
+   "procedure": "1) 主管路徑：curl -X POST \"http://localhost:8001/api/v1/tenants/{tid}/work-orders/{woId}:complete\" -H 'Authorization: Bearer <admin jwt>' -H 'Idempotency-Key: <uuid>' -d '{\"summary\":\"主管代結案：客戶已離場\"}'（woId 需在 accepted/in_progress）→ 預期 200 且照片/簽名閘被跳過。2) psql :5433 `SELECT service_report FROM work_orders WHERE id='{woId}'` → 應出現 `[COMPLETE_OVERRIDE by admin: 主管代結案：客戶已離場] ...`（含角色與 reason）。3) 反查 `SELECT * FROM audit_events WHERE target_id='{woId}' AND action LIKE '%%OVERRIDE%%'` → 實測 0 筆，記為「override 未進稽核表」FAIL。4) 403 半：同一 curl 換 technician jwt → 預期 403 error_code=FORBIDDEN「技師請走現場完工送簽端點 /onsite/completion」（work_orders_v2.py complete_work_order_v2 明碼擋 technician）。5) reason 空字串 → 422 VALIDATION_ERROR「主管 override 完工必須填寫原因」。"
+  },
+  "TC-WO-08": {
+   "verdict": "api-only",
+   "why": "UI 依狀態隱藏動作鈕，非法轉移只能用 curl 直打；409 STATE_CONFLICT 與 work_order_events 不變都能從 API 觀察（events 有 GET 端點）。",
+   "procedure": "1) 取一張 status=created 的工單，先 curl GET \"http://localhost:8001/api/v1/tenants/{tid}/work-orders/{woId}/events\" 記下筆數 N。2) curl -X POST \".../work-orders/{woId}:complete\" -H 'Authorization: Bearer <admin jwt>' -H 'Idempotency-Key: <uuid>' -d '{\"summary\":\"illegal transition\"}' → 預期 409 error_code=STATE_CONFLICT，訊息 \"Cannot complete work order in status 'created'; expected one of ['accepted', 'in_progress']\"（_COMPLETE_FROM 守衛）。3) 同樣打 :confirm（_CONFIRM_FROM={completed}）、對 status=confirmed 的單打 :assign（_ASSIGN_FROM={created,assigned}）各再驗一次 409。4) 重查 events 端點筆數仍為 N；psql :5433 `SELECT count(*) FROM work_order_events WHERE work_order_id='{woId}'` 亦不變。5) 正典轉移表在 work_order_service.py:795 _WO_TRANSITIONS，可據此列全部非法組合。"
+  },
+  "TC-WO-09": {
+   "verdict": "api-only",
+   "why": "brand-portal 的 api client 每次非 GET 都自動 newIdempotencyKey()，UI 無法重送同一把 key，冪等回放只能 curl。",
+   "procedure": "1) K=$(uuidgen)；curl -X POST \"http://localhost:8001/api/v1/tenants/{tid}/problem-cards/{pcId}/convert-to-work-order\" -H 'Authorization: Bearer <cs jwt>' -H \"Idempotency-Key: $K\" -H 'Content-Type: application/json' -d '{\"customer_address\":\"台北市信義區信義路五段7號\"}' → 預期 201 + data.id=W1。2) 完全相同的請求（同 K、同 body）再送一次 → 預期回放同一 response body（同 id、同 document_number），不新增工單。3) 同 K 但改 body（換地址）→ 預期 409 IDEMPOTENCY_KEY_MISMATCH。4) 換新 K 對同一張 pc 再送 → 走 create_from_problem_card 的天然冪等（problem_card_id 已存在）回 200 + 同一張 W1（created=False）。5) psql :5433 `SELECT count(*) FROM work_orders WHERE problem_card_id='{pcId}'` 應為 1；`SELECT key,status,response_status FROM idempotency_keys WHERE key='$K'` 應 status=completed。"
+  },
+  "TC-WO-10": {
+   "verdict": "playwright",
+   "why": "SLAMonitor 在本機 brand-api 確實啟動（log 實測 interval=60s arrival=120m），dashboard SlaAlertBanner 走 ws://localhost:8001/realtime/sla-alerts 可觀察紅燈；但 code 裡沒有 flow DSL 的 notify_supervisor block（grep on_breach/block: 只在 smartlock-docs 文件），該半必然 FAIL。",
+   "procedure": "1) psql :5433 造 fixture：`UPDATE work_orders SET status='assigned', scheduled_at=NOW()-INTERVAL '3 hours', started_at=NULL WHERE id='{woId}'`（觸發條件見 sla_monitor.py arrival_overdue：status='assigned' AND scheduled_at IS NOT NULL AND started_at IS NULL AND scheduled_at < NOW()-120min）。2) :3000 以 test@lock-ai.com(admin) 登入停在 /dashboard，Playwright 等最多 90 秒（掃描週期 60s）→ 預期 SlaAlertBanner 出現紅色 arrival_overdue 告警（severity=red、escalated_to=ops_manager），可用 browser_network_requests 看 WS frame 或 console。3) 稽核佐證：curl GET \"http://localhost:8001/api/v1/tenants/{tid}/audit/events\" 找 action='sla.arrival_overdue'、payload.policy='Q5=B Soft SLA'。4) notify_supervisor：_write_arrival_overdue_audit 只寫 audit，無 notification_service 呼叫 → /notifications 不會有主管通知，記 FAIL。5) 另注意觸發錨點是 scheduled_at 而非 dispatched 時刻，且 dispatch_delay 閾值是 30 分不是 PT2H，與案例語意有落差。"
+  },
+  "TC-WO-11": {
+   "verdict": "playwright",
+   "why": "開異常（/admin/exceptions POST exception-cases）、hold 擋派工（422 HIGH_RISK_HOLD）、resolve 帶 return_path 解除 hold，三步在 brand-portal 都有頁面與按鈕。",
+   "procedure": "1) :3000 以 test@lock-ai.com(admin) 登入 → /admin/exceptions → 「開立異常」填 work_order_id={woId}、severity=critical（或 high）、exception_type 任選（無 safety 這個值，_EXCEPTION_TYPES 只有 no_show/quality_complaint 等 10 類，取 quality_complaint 代表安全風險）→ 送出 201。2) psql 可驗 `SELECT high_risk_hold FROM work_orders WHERE id='{woId}'` = true。3) 到 /work-orders/{woId} 按「指派技師」→ 預期 network 回 422 error_code=HIGH_RISK_HOLD、訊息「工單處於高風險暫停…須先處理對應異常案件才能繼續（BR-M15-03）」；技師端 /my-orders/{woId} 送完工同樣 422（complete_order 開頭就 _assert_not_high_risk_hold）。4) 回 /admin/exceptions 對該筆選 return_path=reschedule 按「處理」→ 200。5) 重按指派 → 應成功（hold 已解除）。"
+  },
+  "TC-WO-12": {
+   "verdict": "api-only",
+   "why": "UI 的 CancelModal 下拉永遠帶 reason_code、無空值選項，「缺 reason_code → 422」只能 curl；六階段費用與 audit 欄位（stage/fee/initiator）用 curl + GET /audit/events 一次驗完最省事。",
+   "procedure": "1) 六階段各造一張工單並用對應 reason_code 打 curl -X POST \"http://localhost:8001/api/v1/tenants/{tid}/work-orders/{woId}/cancel\" -H 'Authorization: Bearer <admin jwt>' -H 'X-Initiator: <userId>' -H 'X-Approver: <另一個 userId>' -H 'Idempotency-Key: <uuid>' -d '{\"reason_code\":\"<code>\",\"initiator_role\":\"customer_service\",\"distance_km\":10}'。對應表（cancellation_service.DEFAULT_CANCELLATION_CONFIG）：S1=quote_not_confirmed→fee 0；S1_5=quote_confirmed_no_dispatch→0；S2=dispatched_not_departed→customer_fee 300；S3=en_route_cancelled→車馬(500~1200，20/km)+500；S4=onsite_not_executed→車馬+檢測300+800；S5=partial_completed_cancel→完工比例+車馬。2) 缺 reason_code：同 curl 拿掉該欄 → 預期 FastAPI 422（CancellationRequest.reason_code 為必填）；帶不存在的碼 → 422 Unknown cancellation reason_code。3) audit：curl GET \"/api/v1/tenants/{tid}/audit/events\" 找 action='cancellation.posted'，payload 應含 cancellation_stage / travel_fee / new_amount / operator_id(=X-Initiator) / approver_id / config_version_applied。4) SoD：X-Approver 與 X-Initiator 相同 → 預期被 check_sod 擋下。5) 若只驗 happy path 也可走 UI：/work-orders/{woId} →「取消工單」→ 選 reason + 填覆核主管 ID → toast 會直接顯示 stage/customerFee/travelFee。"
+  },
+  "TC-WO-13": {
+   "verdict": "api-only",
+   "why": "AI 建卡入口是 S2S 端點 /internal/escalations/ingest（本機容器 INTERNAL_API_TOKEN 已設），照片 24h 窗與「窗外 1 張」的 fixture 只能靠 psql 造 messages.metadata.image_url 時間戳，驗證則讀問題卡 API 的 media_urls。",
+   "procedure": "1) psql :5433 在同一 conversation 造 8 筆 messages：7 筆 created_at 在 24h 內、metadata->>'image_url' 各不同，1 筆 created_at=NOW()-INTERVAL '30 hours'。2) curl -X POST \"http://localhost:8001/api/v1/internal/escalations/ingest\" -H 'X-Internal-Token: <容器內 INTERNAL_API_TOKEN>' -d '{\"tenant_id\":\"<tid>\",\"line_user_id\":\"<同一 conv 的 line_user_id>\",\"session_id\":\"<session>\",\"reason\":\"轉真人\",\"is_explicit\":true,\"facts_snapshot\":{\"brand\":\"Dormakaba\",\"model\":\"XX\",\"symptom\":\"開不了\",\"phone\":\"0912345678\"}}'。3) curl GET \"/api/v1/tenants/{tid}/problem-cards/{pcId}\" → media_urls 應恰 5 個、依 created_at 正序（_conversation_media_urls 是 ORDER BY created_at DESC LIMIT 5 再 reversed），且不含 30h 前那張。4) append-only：對同卡再打一次 ingest 或客服手加證據照 → media_urls 只做聯集不覆蓋（_merge_media_urls）。5) 轉工單帶欄：把卡設 confirmed 後 POST convert-to-work-order，GET 工單應帶回 customer_name/customer_phone/customer_address/brand/model/problem_type/serial_number（create_from_problem_card 的 INSERT 明列 serial_number）。6) 重送：同 pcId 再 convert → 回 200 且 data.id 與首次相同；psql `SELECT count(*) FROM work_orders WHERE problem_card_id='{pcId}'`=1（migration 110 partial UNIQUE 兜底）。"
+  },
+  "TC-WO-14": {
+   "verdict": "playwright",
+   "why": "DispatchOrderView 有「發送簽署連結」按鈕、/consent/{token} 公開頁在 :3000 就跑得起來，客戶未綁 LINE 時 channel='none' 走「回連結供複製」分支（不需真實 LINE channel）；只有跨租戶與 token_hash 兩項要 curl/psql 補。",
+   "procedure": "1) :3000 以 dispatcher@example.com/changeme123 登入 → /work-orders/{woId} → DispatchOrderView 免責同意區按「發送簽署連結」→ 預期 200，回應 data.channel='none'、data.public_path='/consent/<token>'（無 LINE 綁定分支；有綁定才走 push，本機無真實 channel 測不到）。2) 重送語意：再按一次 → 預期同樣 200（token 為 stateless HMAC，重鑄指向同一工單的 consent upsert），工單狀態不變。3) 用 browser 開 http://localhost:3000/consent/<token> → 應顯示三段免責文本（new_installation / lock_destruction / personal_data）→ 全部勾選送出 → POST /api/v1/consumer/consents/<token> 回 200。4) 回後台 GET /tenants/{tid}/work-orders/{woId}/consents 或重整詳情頁 → 三段皆 accepted（upsert 正確）。5) 越權：curl 用 technician jwt 打 POST .../consents:send-link → 預期 403（role_required(_DISPATCH_ALLOWED_ROLES)）；把 path tenantId 換成別的 UUID → 預期 403 CROSS_TENANT_WRITE。6) token 只存 hash：psql :5433 `SELECT payload FROM work_order_events WHERE work_order_id='{woId}' AND event_type='other'` → payload.kind='consent_link_sent' 且只有 token_hash，無完整 token。"
+  }
+ }
+}
