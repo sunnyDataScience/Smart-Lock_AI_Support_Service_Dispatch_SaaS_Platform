@@ -2,14 +2,14 @@
 # 這是四書之外的第五份檔，只承載「狀態」，不承載規格。
 # 四個狀態軸各有唯一 owner，彼此不得互推（見 _build_workbooks.py 鐵律）。
 source:
-  instance: "https://heave-cautious-petal.ngrok-free.dev"
-  workspace: lock-ai
-  project_id: 4acaa966-9013-40a9-b852-03f1e2032d75
-  generated_at: "2026-07-28 11:21:33+0800"
+  instance: "http://10.137.80.64:8787"
+  workspace: acme-god-damn
+  project_id: e019e426-fbb2-4f68-ad6e-438cd42827a4
+  generated_at: "2026-07-30 00:36:57+0800"
 coverage:
-  total: 239
-  covered: 171
-  uncovered: 68
+  total: 279
+  covered: 230
+  uncovered: 49
 axes:
   # axis1 需求定版（owner=SA）—— 規格側算出，非 Plane 擁有
   axis1:

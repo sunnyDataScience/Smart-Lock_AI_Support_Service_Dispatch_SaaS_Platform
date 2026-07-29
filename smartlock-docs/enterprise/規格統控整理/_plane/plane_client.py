@@ -138,6 +138,19 @@ class Plane:
         return self._call("POST", self._ws("/projects/"),
                           {"name": name, "identifier": identifier, **fields})
 
+    def delete_project(self, project_id: str) -> None:
+        """砍掉整個專案。
+
+        存在的理由是**測試側清不乾淨**：`TestRun` 沒有 DELETE 端點
+        （`TestRunDetailEndpoint` 只有 get/post），而 `TestRunCase.test_case`
+        是 `PROTECT`，所以被 run 引用過的 test case 也刪不掉。
+        靶心要真正歸零，只能連專案一起砍——這也會一併帶走 work item、
+        module、milestone、自訂欄位與整個測試庫。
+
+        ⚠️ 不可逆，且 id_map 之外的東西（人工開的卡、執行證據）一併消失。
+        """
+        self._call("DELETE", f"/api/v1/workspaces/{self.slug}/projects/{project_id}/")
+
     def get_project(self) -> dict:
         return self._call("GET", f"/api/v1/workspaces/{self.slug}/projects/{self.project_id}/")
 
