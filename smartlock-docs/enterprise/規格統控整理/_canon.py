@@ -457,6 +457,24 @@ def load_test_scenarios() -> dict[str, dict]:
     return rows
 
 
+def load_sprint_plan() -> dict:
+    """迭代計畫（`_relations/sprint_plan.yaml`）。
+
+    與四條邊同為宣告制——排程算不出來，前置只給「不能早於」，給不出「該在哪一週」。
+    但它**不是邊**：不進 `_validate_relations.py` 的檢查，也不影響四書的節點與追溯。
+    只有《規格統控規劃書》④ 與 `_plane` 的 cycles 階段讀它。
+    """
+    path = RELATIONS / "sprint_plan.yaml"
+    if not path.exists():
+        return {"sprints": [], "blocked": [], "out_of_scope": [], "cadence": {}}
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    data.setdefault("sprints", [])
+    data.setdefault("blocked", [])
+    data.setdefault("out_of_scope", [])
+    data.setdefault("cadence", {})
+    return data
+
+
 @dataclass
 class UatScript:
     """One UAT-01..UAT-09 walkthrough from 22_UAT_Report section 4.
@@ -754,6 +772,7 @@ __all__ = [
     "Persona", "Scenario", "Requirement", "NFR", "TestCase", "UatScript", "Relations",
     "load_personas", "load_scenarios", "load_requirements", "load_nfrs", "load_test_cases",
     "load_adrs", "load_wbs", "load_test_scenarios", "load_uat_scripts", "load_relations",
+    "load_sprint_plan",
     "module_for", "module_arch", "architecture_for", "phase_for", "spec_status",
     "component_glossary_rows", "plain",
     "ROLE_DOMAIN", "KIND_DOMAIN", "PERSONA_ROLE_DOMAIN", "DERIVED_KEYS",

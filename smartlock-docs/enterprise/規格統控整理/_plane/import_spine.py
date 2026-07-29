@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import _canon as canon  # noqa: E402
 from _plane.bootstrap_target import QUALITY_GROUPS, VERIFY_FORMS  # noqa: E402
+from _canon import plain as C_plain  # noqa: E402
 from _plane.plane_client import Plane, PlaneError, doc  # noqa: E402
 from _spec_data import MODULES, SUBSYSTEMS  # noqa: E402
 
@@ -478,6 +479,41 @@ def import_runs(c: Ctx, scenarios) -> None:
         save_state(c.state)
 
 
+def import_cycles(c: Ctx, plan: dict) -> None:
+    """建每週衝刺並把工作包放進去。
+
+    Cycle 是這個平台**唯一會自動產圖**的地方（burndown）。沒有 cycle，
+    「這個節點會不會滑」就沒有任何自動訊號，只能靠人每週回報——而人回報的
+    進度一向是最樂觀的那個版本。
+
+    `1 卡 1 cycle` 是平台的基數限制，這裡正好是特性不是限制：它強迫
+    「這張卡屬於哪一個衝刺」有唯一答案，排不進去的就得誠實地留在 blocked。
+    """
+    step(f"⑪ Cycle 每週衝刺（{len(plan.get('sprints', []))}）")
+    cycles = c.state.setdefault("cycles", {})
+    have = {x["name"]: x["id"] for x in c.p.list_cycles()} if not DRY else {}
+    for sp in plan.get("sprints", []):
+        name = sp["name"]
+        cid = cycles.get(sp["id"]) or have.get(name)
+        if not cid and not DRY:
+            # Cycle.description 是純字串 TextField，不是 TestRun.description 那種
+            # {"text": ...} JSON——同名欄位在兩個模型是不同形狀，套錯直接 400。
+            cid = c.p.create_cycle(name, f"{sp['start']}T00:00:00Z", f"{sp['end']}T23:59:00Z",
+                                   description=C_plain(sp.get("goal")))["id"]
+        if cid:
+            cycles[sp["id"]] = cid
+        ids = [c.cid(f"wbs:{w}") for w in sp.get("items", [])]
+        ids = [i for i in ids if i]
+        if cid and ids and not DRY:
+            try:
+                c.p.add_cycle_issues(cid, ids)
+            except PlaneError as e:
+                if e.status not in (400, 409):
+                    raise
+        print(f"    {sp['id']} {name}：{len(ids)} 張卡")
+    save_state(c.state)
+
+
 def verify(c: Ctx) -> None:
     step("⑩ 驗收對帳")
     if DRY:
@@ -521,6 +557,7 @@ def main() -> int:
         ("modules", lambda: attach_modules(c, frs)),
         ("testing", lambda: import_testing(c, cases)),
         ("runs", lambda: import_runs(c, scenarios)),
+        ("cycles", lambda: import_cycles(c, canon.load_sprint_plan())),
         ("verify", lambda: verify(c)),
     ]
     names = [n for n, _ in pipeline]

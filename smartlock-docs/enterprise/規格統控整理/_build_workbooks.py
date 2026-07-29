@@ -230,6 +230,7 @@ class Model:
         self.wbs = C.load_wbs()
         self.ts = C.load_test_scenarios()
         self.uat_scripts = C.load_uat_scripts()
+        self.sprint_plan = C.load_sprint_plan()
         self.report, self.counts = V.run()
 
         self.sc_by_id = {s.sc_id: s for s in self.scenarios}
@@ -891,6 +892,13 @@ def build_planning(m: Model) -> None:
          "擋生成只會讓人用假資料把洞填平，那比洞本身更糟。缺口一律放行、一律列出、一律有名有姓。"),
         ("③ 是什麼",
          "M1–M5 的 WBS 與已定案 ADR。缺口要排進哪個里程碑、動到哪條架構決策，在這裡對照。"),
+        ("③ 與 ④ 差在哪",
+         "③ 回答「有哪些工作」，④ 回答「哪一週做」。排程算不出來——前置依賴只給得出"
+         "「不能早於」，給不出「應該在哪一週」，所以 ④ 的來源是宣告檔 "
+         "_relations/sprint_plan.yaml，一列一個決定。"),
+        ("④ 底下那兩段紅字要看",
+         "「待裁決」是卡在人身上、不是卡在工程；「明確排除」是範圍砍掉的決定。"
+         "兩者都刻意指名——不指名的話，期末沒做完會被讀成滑期，而它從一開始就不在範圍內。"),
         *GLOSSARY_HEAD,
         ("  里程碑 M1–M5", "Plane 的 Milestone（Issue.milestone，單值，所以一張卡只能掛一個節點）。"),
         ("  階段一 / 階段二", "Plane 的 Initiative（workspace 級，掛專案而非掛卡）。"),
@@ -974,6 +982,63 @@ def build_planning(m: Model) -> None:
     for group, adr_id, title, domain, status, rel in m.adrs:
         row(ws, r, [group, adr_id, status, title, domain, rel, ""], kinds, height=22)
         r += 1
+    finish(ws, len(headers), r - 1)
+
+    # -- ④ 迭代計畫：③ 是「有哪些工作」，這裡是「哪一週做」。
+    # 排程算不出來（前置只給「不能早於」），所以來源是宣告檔 _relations/sprint_plan.yaml。
+    plan = m.sprint_plan
+    wbs_by_id = {str(r[1]): r for r in m.wbs}
+    headers = [
+        ("衝刺", 10, ""), ("期間", 22, ""), ("衝刺目標", 40, ""),
+        ("WBS", 8, ""), ("里程碑", 8, "derived"), ("工作包", 46, "derived"),
+        ("目前狀態", 12, "derived"), ("前置", 20, "derived"),
+        ("本衝刺完成？", 13, "human"), ("實際完成日", 12, "human"), ("備註", 26, "human"),
+    ]
+    ws = table(wb, "④ 迭代計畫（每週衝刺）", headers)
+    kinds = [h[2] for h in headers]
+    r = 2
+    for sp in plan.get("sprints", []):
+        period = f"{sp.get('start')} ~ {sp.get('end')}"
+        for wid in sp.get("items", []):
+            src = wbs_by_id.get(str(wid))
+            row(ws, r, [
+                sp.get("id", ""), period, C.plain(sp.get("goal")),
+                wid,
+                (src[0].split()[0] if src else "—"),
+                (src[3] if src else "⚠ 找不到這個工作包"),
+                ((src[2] or "")[:40] or "—" if src else "—"),
+                (src[5] if src else "—"),
+                "", "", "",
+            ], kinds, height=30)
+            if not src:
+                ws.cell(r, 6).font = Font(name=FONT, size=10, bold=True, color="C00000")
+            r += 1
+
+    # 排不進去的要指名。不指名的話，8 月底沒做完會被讀成滑期，
+    # 而它從一開始就不在範圍內——範圍砍掉是決定，不是失敗。
+    if plan.get("blocked"):
+        banner(ws, r, len(headers), "🛑 不排進衝刺 —— 待裁決，裁決下來才插隊")
+        r += 1
+        for b in plan["blocked"]:
+            src = wbs_by_id.get(str(b.get("id")))
+            row(ws, r, [
+                "—", "待裁決", C.plain(b.get("reason")), b.get("id", ""),
+                b.get("milestone", ""), (src[3] if src else "—"),
+                ((src[2] or "")[:40] or "—" if src else "—"), C.plain(b.get("unblock")), "", "", "",
+            ], kinds, height=48)
+            ws.cell(r, 1).font = Font(name=FONT, size=10, bold=True, color="C00000")
+            r += 1
+    for o in plan.get("out_of_scope", []):
+        banner(ws, r, len(headers), f"⬜ 明確排除 —— {o.get('milestone', '')}：{C.plain(o.get('reason'))[:70]}")
+        r += 1
+        for wid in o.get("ids", []):
+            src = wbs_by_id.get(str(wid))
+            row(ws, r, [
+                "—", "不在本期範圍", C.plain(o.get("why_declared")), wid,
+                o.get("milestone", ""), (src[3] if src else "—"),
+                ((src[2] or "")[:40] or "—" if src else "—"), "—", "", "", "",
+            ], kinds, height=36)
+            r += 1
     finish(ws, len(headers), r - 1)
 
     wb.save(OUTPUTS["planning"])
@@ -1120,7 +1185,7 @@ def write_health_md(m: Model) -> None:
 | 業務邏輯驗收控制表 | 業務 / PM | 客戶的哪幾條旅程算不算驗收通過？ | SC | 5 |
 | 模組功能 BOM | 架構師 / RD | 每條需求由誰實作、現在到哪了？ | FR / NFR | 3 |
 | 整合測試計畫 | QA | 我今天要跑哪些案例、怎麼判定過？ | TC | 5 |
-| 規格統控規劃書 | 經營層 / PM | 哪裡有洞、哪裡卡決策、什麼時候做？ | 缺口（差集） | 3 |
+| 規格統控規劃書 | 經營層 / PM | 哪裡有洞、哪裡卡決策、什麼時候做？ | 缺口（差集） | 4 |
 
 ## 節點與邊
 

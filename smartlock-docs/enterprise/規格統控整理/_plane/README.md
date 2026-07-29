@@ -385,6 +385,9 @@ label id，讀不到就退出，而不是拿著空 dict 建出一堆沒有型別
 ⑧ testing      folder + 130 條契約 + 273 條追溯連結
 ⑨ runs         19 條 TestRun（一條旅程一條）
 ⑩ verify       quality overview 對帳
+⑪ cycles       每週衝刺（`../_relations/sprint_plan.yaml`）＋把工作包放進 cycle
+               ——cycle 是平台**唯一會自動產圖**的地方（burndown），沒有它
+               「這個節點會不會滑」就沒有任何自動訊號
 
 ── rebuild_hierarchy.py（--only=STAGE）—— 舊靶心的階層修補工具，非主線 ──
 types     設定型別的 level / is_epic（Feature 型別若已在 workspace 則只掛載）

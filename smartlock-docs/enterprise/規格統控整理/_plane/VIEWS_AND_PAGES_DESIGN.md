@@ -230,8 +230,8 @@ Page 的 `access` 是 **0=Public、1=Private**（與 View 相反）。
 | **V7** | `🐞 未結缺陷` | State group: `Backlog` + `Unstarted` + `Started`；Label: `release-blocker` | Board ／ Group by Priority | **0**（缺陷由測試失敗產生，目前尚未執行任何一輪）|
 | **V8** | `⚠️ P0 旅程的需求` | Priority: `Urgent`；Label: `kind:fr` | Spreadsheet ／ Group by Label | **55** |
 | **V9** | `🔬 需人工證據的 NFR` | Label: `verify:review` + `verify:slo` | Spreadsheet ／ Group by Label | **54** ⚠️ 這是 Page ④ 的清單 |
-| **V10** | `🔨 本迭代工作` | Cycle: 當前；Label: `kind:wbs` | Board ／ Group by State | **目前 0** —— 專案還沒有任何 cycle，見 §6 |
-| **V11** | `⛔ 待裁決卡住的工作` | Label: `kind:wbs`；State: `Backlog` | Spreadsheet ／ Group by Milestone | **8**（🛑 待裁決的工作包）|
+| **V10** | `🔨 本迭代工作` | Cycle: 當前；Label: `kind:wbs` | Board ／ Group by State | 依當週而定：S1 **2** ／ S2 **3** ／ S3 **3** ／ S4 **3** ／ S5 **5** |
+| **V11** | `⛔ 待裁決卡住的工作` | Label: `kind:wbs`；State: `Backlog` | Spreadsheet ／ Group by Milestone | **8**（1 張待裁決 3.1.3 ＋ 7 張 M4 階段二）|
 | **V12** | `🤖 自動化 vs 人工` | Label: `automation` + `manual` | Board ／ Group by Label | **0**（這兩個標籤目前掛在測試契約的 tags 上，不在卡片上）|
 
 ### 三個「應看到 0」不是錯
@@ -260,9 +260,12 @@ V1／V7／V12 現在都是 0，且**三個都是對的**：
 
 - **沒有自動更新。** Page 的數字是手動貼的快照。平台沒有 widget、沒有 API，
   自動化需要改後端——屬架構變更，須走 CIA。
-- **Cycle 目前是空的。** burndown 是平台唯一自動產的圖，但要有人把 WBS 工作包
-  放進 cycle 才會有線。這是 §2 決策地圖裡「這個節點會不會滑」唯一的自動訊號，
-  建議優先補。
+- ~~Cycle 目前是空的。~~ **已補**（2026-07-29）：5 個每週衝刺 S1–S5（07-27 ~ 08-31），
+  16 張工作包已放進對應 cycle，burndown 因此有線可看。排程宣告在
+  `../_relations/sprint_plan.yaml`，並渲染成《規格統控規劃書》④ 迭代計畫。
+  **另有 1 張待裁決（3.1.3）與 7 張明確排除（M4 階段二）刻意不進 cycle**——
+  `1 卡 1 cycle` 的基數限制在這裡是特性不是限制：它強迫「這張卡屬於哪一個衝刺」
+  有唯一答案，排不進去的就得誠實留在計畫外，而不是塞進某一週假裝有排。
 - **`release-evidence` 進不去。** Page ④ 是人工補位，不是解法。真正的解法是
   平台補一個吃 API 金鑰的 evidence 端點。
 
