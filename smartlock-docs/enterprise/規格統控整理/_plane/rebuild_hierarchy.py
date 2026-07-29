@@ -76,6 +76,8 @@ class Rebuilder:
         self.hier.setdefault("parents_before", {})
         self.hier.setdefault("sc_links", [])
         self._items: list[dict] | None = None
+        # 有沒有真的寫過東西——決定 save() 要不要落盤（見 save()）
+        self.touched = False
 
     # -- helpers -----------------------------------------------------------
 
@@ -126,7 +128,13 @@ class Rebuilder:
         return {str(w.get("name", "")).strip(): w for w in self.items()}
 
     def save(self) -> None:
-        if self.dry:
+        """只有真的建過東西才落盤。
+
+        `verify` 是唯讀階段，單跑它不該產生 id_map——寫出一份只有空 `hierarchy`
+        骨架的檔案比沒有檔案更危險：它看起來像合法的 id_map，但匯入器讀不到
+        `work_items` 會把全部卡片重建一次，而 rollback 會以為什麼都沒建過。
+        """
+        if self.dry or not self.touched:
             return
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         self.state_path.write_text(json.dumps(self.state, ensure_ascii=False, indent=1))
@@ -175,6 +183,7 @@ class Rebuilder:
             log(f"    ✎ {name:<14} level {now_level}→{want['level']}  "
                 f"is_epic {now_epic}→{want['is_epic']}")
             if not self.dry:
+                self.touched = True
                 self.pc.update_type(t["id"], **want)
 
     def _type_id(self, name: str) -> str:
@@ -206,6 +215,7 @@ class Rebuilder:
             log(f"    + {title}")
             made += 1
             if not self.dry:
+                self.touched = True
                 card = self.pc.create_work_item(
                     name=title, type_id=type_id,
                     description_html=f"<p>{meta.get('description', '')}</p>")
@@ -246,6 +256,7 @@ class Rebuilder:
                 log(f"    + {title}")
                 made += 1
                 if not self.dry:
+                    self.touched = True
                     card = self.pc.create_work_item(
                         name=title, type_id=type_id, parent=epic_id)
                     self.hier["features"][key] = card["id"]
@@ -272,6 +283,7 @@ class Rebuilder:
                 continue
             patched += 1
             if not self.dry:
+                self.touched = True
                 self.hier["parents_before"].setdefault(card["id"], card.get("parent"))
                 self.pc.update_work_item(card["id"], parent=want)
         nfr_epic = self.hier["epics"].get("NFR")
@@ -285,6 +297,7 @@ class Rebuilder:
                 continue
             patched += 1
             if not self.dry:
+                self.touched = True
                 self.hier["parents_before"].setdefault(card["id"], card.get("parent"))
                 self.pc.update_work_item(card["id"], parent=nfr_epic)
         self.save()
@@ -320,6 +333,7 @@ class Rebuilder:
                 if not self.dry:
                     try:
                         self.pc.link_case_to_work_item(cid, card["id"])
+                        self.touched = True
                         self.hier["sc_links"].append({"case": cid, "issue": card["id"]})
                     except PlaneError as exc:
                         # 已存在的連結回 400，視為已完成而非失敗
