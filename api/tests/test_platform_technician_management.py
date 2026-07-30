@@ -18,6 +18,7 @@ import uuid
 import pytest
 
 import core.db as db_module
+from tests.conftest import seed_required_kyc_docs  # CR-0195 核准需文件齊全
 
 pytestmark = pytest.mark.component
 
@@ -177,6 +178,7 @@ async def test_certification_write_requires_platform_admin(client, admin_headers
 async def test_create_then_approve_flow(client, platform_admin_headers):
     tech_id = await _create(client, platform_admin_headers)
     try:
+        await seed_required_kyc_docs(tech_id)  # CR-0195：本測試驗建檔→核准，非文件閘
         res = await client.post(
             f"{PLATFORM_TECH}/{tech_id}:onboard-approve",
             headers=platform_admin_headers, json={},

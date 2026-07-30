@@ -15,6 +15,7 @@ import uuid
 import pytest
 
 import core.db as db_module
+from tests.conftest import seed_required_kyc_docs  # CR-0195 核准需文件齊全
 
 TENANT = "00000000-0000-0000-0000-000000000001"
 
@@ -75,7 +76,8 @@ async def test_full_lifecycle_login_gate(client, platform_admin_headers):
         assert r.status_code == 403, r.text
         assert r.json()["error_code"] == "ACCOUNT_PENDING_APPROVAL"
 
-        # 2) 核准 → 可登入
+        # 2) 核准 → 可登入（CR-0195：核准需文件齊全，本測試驗登入閘非文件閘）
+        await seed_required_kyc_docs(tech_id)
         r = await client.post(
             f"/api/v1/platform/technicians/{tech_id}:onboard-approve",
             json={}, headers=platform_admin_headers,
@@ -131,6 +133,7 @@ async def test_register_creates_inactive_user(client):
 async def test_terminate_blocks_login(client, platform_admin_headers):
     tech_id, email, password = await _register(client)
     try:
+        await seed_required_kyc_docs(tech_id)  # CR-0195：本測試驗登入閘非文件閘
         r = await client.post(
             f"/api/v1/platform/technicians/{tech_id}:onboard-approve",
             json={}, headers=platform_admin_headers,

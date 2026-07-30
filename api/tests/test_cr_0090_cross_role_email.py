@@ -13,6 +13,7 @@ import uuid
 import pytest
 
 import core.db as db_module
+from tests.conftest import seed_required_kyc_docs  # CR-0195 核准需文件齊全
 from core.errors import ApiError
 from services import auth_service
 
@@ -103,6 +104,8 @@ async def test_both_accounts_login_by_role(client):
         # 本測試主題是「同 email 依角色分流」→ 先核准讓技師可登入。
         from services import technician_lifecycle_service
 
+        # CR-0195：核准需 KYC 文件齊全；本測試主題是 email 角色分流，補齊即可
+        await seed_required_kyc_docs(tech["data"]["id"])
         await technician_lifecycle_service.approve_onboarding(
             tenant_id="00000000-0000-0000-0000-000000000001",
             tech_id=tech["data"]["id"],

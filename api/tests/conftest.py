@@ -192,6 +192,40 @@ async def seed_accepted_quote(pc_id: str, tenant_id: str = DEFAULT_TENANT_ID) ->
     return str(row[0])
 
 
+async def seed_required_kyc_docs(tech_id: str) -> None:
+    """塞齊 CR-0195 核准所需的 KYC 文件（身分證正反面）的 metadata 列。
+
+    CR-0195 起 `:onboard-approve` 對文件不齊者回 422（除非顯式條件式核准）。
+    測試若不是在測「文件閘」本身，就該先把文件補齊，讓核准回到單純的
+    生命週期轉移——用 conditional=True 繞過會讓那些測試的事件型別變成
+    `onboarding_approved_conditional`，等於偷換了它們原本在驗的東西。
+
+    只寫 metadata、不寫實體檔（核准閘只查表）。
+    """
+    import uuid as _uuid
+
+    import core.db as db_module
+    from core.db import _ensure_conn
+    from services.technician_kyc_service import REQUIRED_DOC_TYPES
+
+    await _ensure_conn()
+    row = await (await db_module._conn.execute(
+        "SELECT tenant_id FROM technicians WHERE id = %s::uuid", (tech_id,)
+    )).fetchone()
+    if not row:
+        raise AssertionError(f"technician {tech_id} 不存在，無法塞 KYC 文件")
+    for doc_type in REQUIRED_DOC_TYPES:
+        await db_module._conn.execute(
+            "INSERT INTO technician_registration_document "
+            "  (id, technician_id, tenant_id, doc_type, filename, content_type, "
+            "   size_bytes, storage_path, sha256) "
+            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, %s, %s, %s, %s, %s)",
+            (str(_uuid.uuid4()), tech_id, str(row[0]), doc_type,
+             f"{doc_type}.png", "image/png", 100,
+             f"kyc-registration/{tech_id}/{doc_type}.png", _uuid.uuid4().hex * 2),
+        )
+
+
 async def audit_privileged_exec(sql: str, params: tuple = ()) -> None:
     """CR-0164：audit_events 加 append-only trigger（migration 100）後，測試的
     清理/竄改注入需 session_replication_role='replica' 特權繞過（ORIGIN 觸發器

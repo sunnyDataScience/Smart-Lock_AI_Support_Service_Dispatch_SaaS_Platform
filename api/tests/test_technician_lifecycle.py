@@ -97,6 +97,17 @@ async def test_approve_onboarding_pending_to_active(monkeypatch):
 
     monkeypatch.setattr(svc, "_ensure_conn", fake_ensure)
 
+    # CR-0195：核准前多一道 KYC 文件閘。本測試驗的是**狀態機**，不是文件閘
+    # （後者有 test_cr_0195_conditional_approval.py 專責），故直接讓它回「齊全」。
+    # 不在 FakeConn 腳本裡多塞一組假查詢結果——那會讓這測試讀起來像在驗文件，
+    # 實際只是在餵 mock。
+    from services import technician_kyc_service as _kyc
+
+    async def _no_missing(conn, *, technician_id):
+        return []
+
+    monkeypatch.setattr(_kyc, "missing_required_doc_types", _no_missing)
+
     db_module._conn = FakeConn([
         FakeCur(row=("pending_approval",)),  # _fetch_status
         FakeCur(row=("tech-1", "active",

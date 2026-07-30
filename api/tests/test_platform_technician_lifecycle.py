@@ -12,6 +12,7 @@ import uuid
 import pytest
 
 import core.db as db_module
+from tests.conftest import seed_required_kyc_docs  # CR-0195 核准需文件齊全
 
 pytestmark = pytest.mark.component
 
@@ -78,6 +79,7 @@ async def test_list_filter_and_search(client, platform_admin_headers):
 async def test_lifecycle_approve_suspend_reactivate_audit(client, platform_admin_headers):
     tech_id, _, _ = await _register(client)
     try:
+        await seed_required_kyc_docs(tech_id)  # CR-0195：本測試驗生命週期，非文件閘
         # approve
         r = await client.post(
             f"{PLATFORM_TECH}/{tech_id}:onboard-approve", json={},
@@ -116,6 +118,7 @@ async def test_lifecycle_approve_suspend_reactivate_audit(client, platform_admin
 async def test_suspend_requires_reason(client, platform_admin_headers):
     tech_id, _, _ = await _register(client)
     try:
+        await seed_required_kyc_docs(tech_id)  # CR-0195
         await client.post(
             f"{PLATFORM_TECH}/{tech_id}:onboard-approve", json={},
             headers=platform_admin_headers)

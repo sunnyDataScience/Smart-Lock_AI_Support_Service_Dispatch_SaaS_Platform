@@ -71,7 +71,24 @@ async def list_technicians(status: str | None = None, q: str | None = None) -> d
         tuple(args),
     )
     rows = await cur.fetchall()
-    return {"data": [_list_row_to_dict(r) for r in rows], "message": None}
+    data = [_list_row_to_dict(r) for r in rows]
+
+    # CR-0195 §2-S3:標出誰的 KYC 文件還沒齊。沒有這個欄位,條件式核准就只是把
+    # 漏洞制度化——平台端仍然無從知道「誰還沒補」。
+    # **刻意即時算而非在 technicians 加欄位**:加欄要動 tech_mirror 的 SELECT *
+    # 鏡射(前科兩次炸掉全體技師身分寫入,見 core/tech_mirror.py:56-73),
+    # 還要維護該欄與文件表的一致性。清單上限 200 列,一次批次查完不構成 N+1。
+    from services import technician_kyc_service as kyc_svc
+
+    missing_map = await kyc_svc.missing_required_docs_bulk(
+        conn, [row["id"] for row in data]
+    )
+    for row in data:
+        missing = missing_map.get(row["id"], list(kyc_svc.REQUIRED_DOC_TYPES))
+        row["kyc_docs_complete"] = not missing
+        row["kyc_missing_doc_types"] = missing
+
+    return {"data": data, "message": None}
 
 
 async def _resolve_tenant_id(tech_id: str) -> str:
@@ -85,11 +102,15 @@ async def _resolve_tenant_id(tech_id: str) -> str:
     return str(row[0])
 
 
-async def approve_onboarding(*, tech_id: str, actor_user_id: str, notes: str | None = None) -> dict:
+async def approve_onboarding(
+    *, tech_id: str, actor_user_id: str, notes: str | None = None,
+    conditional: bool = False, conditional_reason: str | None = None,
+) -> dict:
     tenant_id = await _resolve_tenant_id(tech_id)
     return await lifecycle_svc.approve_onboarding(
         tenant_id=tenant_id, tech_id=tech_id,
         actor_user_id=actor_user_id, actor_role=_ACTOR_ROLE, notes=notes,
+        conditional=conditional, conditional_reason=conditional_reason,
     )
 
 

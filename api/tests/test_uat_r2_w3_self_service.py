@@ -258,17 +258,33 @@ async def test_issue_upload_token_expired_rejected(client, platform_admin_header
 
 
 @pytest.mark.asyncio
-async def test_issue_upload_token_not_pending_409(client, platform_admin_headers):
-    """師傅已離開 pending_approval（如已核准）→ 簽發面直接 409，不發死 token。"""
+async def test_issue_upload_token_by_status(client, platform_admin_headers):
+    """簽發閘的狀態值域。**CR-0195 改寫了本測試的契約**（原名
+    `test_issue_upload_token_not_pending_409`，原本斷言「離開 pending 一律 409」）。
+
+    原契約是「核准前補件」的刻意設計，但它與「核准端對文件零檢查」相加，
+    造成業主實遇的死結：核准通過才發現沒傳身分證，此時後端已封死。
+    業主 2026-07-30 裁決條件式核准，補件窗口放寬到 active。
+
+    放寬**只到 active**——原設計「不發死 token」的用意仍然保留：
+    suspended/terminated 簽出來的 token 一樣過不了消費閘，故仍在簽發面擋掉。
+    """
     reg = await _register_technician(client)
     tech_id = reg["id"]
     try:
-        await db_module._conn.execute(
-            "UPDATE technicians SET status = 'active' WHERE id = %s::uuid", (tech_id,))
-        res = await client.post(
-            f"{PLATFORM_TECH}/{tech_id}:issue-upload-token",
-            headers=platform_admin_headers)
-        assert res.status_code == 409, res.text
+        for status, expected in (
+            ("pending_approval", 200),
+            ("active", 200),          # CR-0195 放寬：核准後仍可補件
+            ("suspended", 409),
+            ("terminated", 409),
+        ):
+            await db_module._conn.execute(
+                "UPDATE technicians SET status = %s WHERE id = %s::uuid",
+                (status, tech_id))
+            res = await client.post(
+                f"{PLATFORM_TECH}/{tech_id}:issue-upload-token",
+                headers=platform_admin_headers)
+            assert res.status_code == expected, f"status={status}：{res.text}"
     finally:
         await _cleanup_technician(tech_id)
 

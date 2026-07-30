@@ -25,6 +25,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import core.db as db_module
+from tests.conftest import seed_required_kyc_docs  # CR-0195 核准需文件齊全
 from core.errors import ApiError
 from tests.conftest import ADMIN_USER_ID, DEFAULT_TENANT_ID
 
@@ -121,6 +122,7 @@ async def test_r1_mirror_failure_reverts_authority_and_no_audit(monkeypatch):
         raise RuntimeError("模擬鏡射炸裂（UndefinedColumn 類）")
 
     monkeypatch.setattr(svc, "mirror_rows", _boom)
+    await seed_required_kyc_docs(tech_id)  # CR-0195：本測試驗鏡射回滾，非文件閘
     try:
         with pytest.raises(ApiError) as e:
             await svc.approve_onboarding(
@@ -152,6 +154,7 @@ async def test_r1_success_path_always_writes_audit():
 
     tech_id, user_id = await _mk_technician("pending_approval")
     try:
+        await seed_required_kyc_docs(tech_id)  # CR-0195：本測試驗稽核落地，非文件閘
         result = await svc.approve_onboarding(
             tenant_id=TID, tech_id=tech_id, actor_user_id=ADMIN_USER_ID,
         )

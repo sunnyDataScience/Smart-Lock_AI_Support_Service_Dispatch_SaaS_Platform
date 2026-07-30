@@ -251,18 +251,54 @@ async def test_upload_respects_quota_limit(client):
 
 
 @pytest.mark.asyncio
-async def test_upload_forbidden_after_decision(client, platform_admin_headers):
-    """核准前補件語意:師傅離開 pending_approval 後 token 即失效。"""
+async def test_upload_still_allowed_after_conditional_approval(
+    client, platform_admin_headers
+):
+    """**CR-0195 改寫了本測試的契約**（原名 `test_upload_forbidden_after_decision`，
+    原本斷言「核准後 token 即失效」）。
+
+    原契約＝「核准前補件」語意。但核准端當時對文件零檢查，兩者相加就是業主實遇的
+    死結：核准通過才發現沒傳身分證，補件卻已被封死。業主 2026-07-30 裁決條件式核准
+    後，補件窗口延伸到 active——**手上原本那張 token 也應該還能用**，否則師傅得等
+    管理員重新產連結，等於沒解決。
+    """
     reg = await _register(client)
     try:
         res = await client.post(
             f"{PLATFORM_TECH}/{reg['id']}:onboard-approve",
-            json={"notes": "test"},
+            json={"notes": "test", "conditional": True,
+                  "conditional_reason": "人力吃緊先放行，核准後補件"},
             headers=platform_admin_headers,
         )
         assert res.status_code == 200, res.text
         res = await client.post(UPLOAD, **_upload_kwargs(reg["upload_token"]))
-        assert res.status_code == 403, "核准後不可再憑 token 上傳"
+        assert res.status_code == 201, f"條件式核准後仍應可補件：{res.text}"
+    finally:
+        await _cleanup(reg["id"])
+
+
+@pytest.mark.asyncio
+async def test_upload_forbidden_after_terminate(client, platform_admin_headers):
+    """放寬只到 active——終態後 token 仍須立即失效（原測試的防護意圖保留在這裡）。
+
+    注意消費閘是**每次上傳即時查現況 status**，所以不需要撤銷機制：
+    簽發時可補、之後被終止，手上那張立刻失效。
+    """
+    reg = await _register(client)
+    try:
+        res = await client.post(
+            f"{PLATFORM_TECH}/{reg['id']}:onboard-approve",
+            json={"conditional": True, "conditional_reason": "人力吃緊先放行，後補件"},
+            headers=platform_admin_headers,
+        )
+        assert res.status_code == 200, res.text
+        res = await client.post(
+            f"{PLATFORM_TECH}/{reg['id']}:terminate",
+            json={"reason": "測試終止"}, headers=platform_admin_headers,
+        )
+        assert res.status_code == 200, res.text
+        res = await client.post(UPLOAD, **_upload_kwargs(reg["upload_token"]))
+        assert res.status_code == 403, "終態後不可再憑 token 上傳"
     finally:
         await _cleanup(reg["id"])
 

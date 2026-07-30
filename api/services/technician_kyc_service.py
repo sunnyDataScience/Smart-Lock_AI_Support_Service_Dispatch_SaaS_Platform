@@ -34,6 +34,16 @@ logger = logging.getLogger("api.technician_kyc_service")
 # Tier 3 文件類型(CR-0115 §1:身分證正反面/證照掃描/保險證明或良民證)
 ALLOWED_DOC_TYPES = ("id_front", "id_back", "license", "insurance")
 
+# CR-0195 §8-D1(a):核准所需的「文件齊全」判準 = 身分證正反面皆有。
+# license/insurance 依業別未必人人有,列為必要會讓條件式核准變成常態而失去意義。
+# **這是唯一判準來源**——核准閘與清單的 kyc_docs_complete 都讀這裡,
+# 各寫一份會漂移成「卡片說齊全、核准說不齊」。
+REQUIRED_DOC_TYPES = ("id_front", "id_back")
+
+# CR-0195 §2-S1:可補傳文件的師傅狀態。簽發閘與消費閘共用,兩邊分別寫死必然漂移。
+# 不含 suspended/rejected/terminated——停權中的人不該還在補件、終態補件無意義。
+_SUPPLEMENTABLE_STATUSES = frozenset({"pending_approval", "active"})
+
 TOKEN_TTL_HOURS = 48
 MAX_DOC_BYTES = 10 * 1024 * 1024  # 10 MiB(證件照/掃描檔;小於一般 media 上限)
 
@@ -103,15 +113,59 @@ async def issue_upload_token(conn: Any, *, technician_id: str) -> dict:
     return {"token": token, "expires_at": expires_at.isoformat()}
 
 
+async def missing_required_doc_types(
+    conn: Any, *, technician_id: str
+) -> list[str]:
+    """回傳該師傅**still 缺少**的必要文件型別(依 REQUIRED_DOC_TYPES 的順序)。
+
+    空 list = 齊全。核准閘(technician_lifecycle_service.approve_onboarding)與
+    平台清單的 kyc_docs_complete 都走這個函式,確保兩邊永遠是同一個答案。
+
+    收 conn 而非自己取:呼叫端可能已在交易中(核准流程),另開連線會看不到同交易
+    內的變更、也多一次往返。
+    """
+    cur = await conn.execute(
+        "SELECT DISTINCT doc_type FROM technician_registration_document "
+        "WHERE technician_id = %s::uuid AND doc_type = ANY(%s)",
+        (technician_id, list(REQUIRED_DOC_TYPES)),
+    )
+    have = {r[0] for r in await cur.fetchall()}
+    return [d for d in REQUIRED_DOC_TYPES if d not in have]
+
+
+async def missing_required_docs_bulk(
+    conn: Any, technician_ids: list[str]
+) -> dict[str, list[str]]:
+    """批次版(清單頁用)。一次查完全部,避免 N+1——清單上限 200 列。"""
+    if not technician_ids:
+        return {}
+    cur = await conn.execute(
+        "SELECT technician_id, doc_type FROM technician_registration_document "
+        "WHERE technician_id = ANY(%s::uuid[]) AND doc_type = ANY(%s)",
+        (technician_ids, list(REQUIRED_DOC_TYPES)),
+    )
+    have: dict[str, set[str]] = {}
+    for tech_id, doc_type in await cur.fetchall():
+        have.setdefault(str(tech_id), set()).add(doc_type)
+    return {
+        tid: [d for d in REQUIRED_DOC_TYPES if d not in have.get(tid, set())]
+        for tid in technician_ids
+    }
+
+
 async def issue_upload_token_for_technician(
     *, technician_id: str, actor_user_id: str | None
 ) -> dict:
     """平台管理員補發文件上傳 token(UAT R2 W3-5 免 email 補件連結)。
 
-    復用註冊時的 issue_upload_token 簽發核心;僅 pending_approval 師傅可補件
-    (與 _resolve_token 的消費閘一致 —— 已核准/已拒絕簽出的 token 上傳時必被
-    403,提前擋在簽發面給明確錯誤)。token 明文只在本 response 一次性回傳,
-    落庫僅 SHA-256;簽發行為記 log(actor)。
+    復用註冊時的 issue_upload_token 簽發核心;token 明文只在本 response 一次性
+    回傳,落庫僅 SHA-256;簽發行為記 log(actor)。
+
+    CR-0195:可補件的狀態從「僅 pending_approval」放寬為 `_SUPPLEMENTABLE_STATUSES`
+    (pending_approval + active)。原本核准後即封死,而核准端又對文件零檢查,
+    導致業主實遇的死結——核准通過才發現沒傳身分證,此時 UI 還顯示「產生補件連結」
+    按鈕但後端必回 409。suspended/rejected/terminated **仍拒絕**:停權中的人不該
+    還在補件、終態補件無意義。與 _resolve_token 的消費閘用同一組常數。
     """
     conn = await db_module.require_tech_conn()
     cur = await conn.execute(
@@ -120,10 +174,11 @@ async def issue_upload_token_for_technician(
     row = await cur.fetchone()
     if not row:
         raise ApiError("TECHNICIAN_NOT_FOUND", "Technician not found", 404)
-    if row[0] != "pending_approval":
+    if row[0] not in _SUPPLEMENTABLE_STATUSES:
         raise ApiError(
             "STATE_CONFLICT",
-            "師傅已離開待審核狀態，無法補件（僅 pending_approval 可補傳文件）",
+            f"師傅目前狀態（{row[0]}）不可補件"
+            f"（僅 {'/'.join(sorted(_SUPPLEMENTABLE_STATUSES))} 可補傳文件）",
             409,
         )
     result = await issue_upload_token(conn, technician_id=technician_id)
@@ -166,8 +221,10 @@ async def _resolve_token(conn: Any, token: str) -> tuple[str, str, str]:
     # (check-then-act 在並發下可被突破,不能作為 gate)。
     if upload_count >= max_uploads:
         raise invalid
-    # 核准前補件語意:離開 pending_approval(已核准/已拒絕/…)即不可再上傳
-    if status != "pending_approval":
+    # CR-0195:補件語意從「核准前」放寬為「核准後仍可補」(pending_approval + active)。
+    # 這裡是**消費閘**,每次上傳都即時查現況 status——所以簽發時可補、之後被停權,
+    # 手上那張 token 立刻失效,不需要額外撤銷機制。
+    if status not in _SUPPLEMENTABLE_STATUSES:
         raise invalid
     return str(token_id), str(technician_id), str(tenant_id)
 

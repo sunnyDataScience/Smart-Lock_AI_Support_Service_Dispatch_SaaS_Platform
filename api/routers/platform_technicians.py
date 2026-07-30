@@ -30,6 +30,10 @@ router = APIRouter()
 
 class ApproveBody(BaseModel):
     notes: str | None = None
+    # CR-0195 條件式核准：KYC 文件不齊時，必須顯式承認才放行（否則 422），
+    # 且理由會落進 lifecycle event 的 reason 供日後稽核。文件齊全時兩欄皆忽略。
+    conditional: bool = False
+    conditional_reason: str | None = None
 
 
 class ReasonBody(BaseModel):
@@ -102,6 +106,8 @@ async def approve(
     result = await svc.approve_onboarding(
         tech_id=technicianId, actor_user_id=user.user_id,
         notes=(body.notes if body else None),
+        conditional=(body.conditional if body else False),
+        conditional_reason=(body.conditional_reason if body else None),
     )
     return {"data": result}
 

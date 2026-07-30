@@ -46,8 +46,13 @@ _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 }
 
 # event_type ↔ (from, to) 對應
+# ⚠️ 這張表目前**沒有任何地方讀它**（全檔唯一出現處就是這個定義）——它是描述性
+# 文件而非 gate。真正的守衛是 _ALLOWED_TRANSITIONS + _check_transition，
+# 值域守衛則在 DB 的 event_type CHECK（migration 126）。維護時兩邊都要補，
+# 但別誤以為改了這裡就會生效。
 _EVENT_TRANSITIONS: dict[str, tuple[str, str]] = {
     "onboarding_approved": ("pending_approval", "active"),
+    "onboarding_approved_conditional": ("pending_approval", "active"),  # CR-0195
     "onboarding_rejected": ("pending_approval", "rejected"),
     "suspended": ("active", "suspended"),
     "reactivated": ("suspended", "active"),
@@ -218,14 +223,65 @@ async def _change_status_and_audit(
     }
 
 
+_CONDITIONAL_REASON_MIN_LEN = 10
+
+
 async def approve_onboarding(
     *, tenant_id: str, tech_id: str, actor_user_id: str,
     actor_role: str = "operations_manager", notes: str | None = None,
+    conditional: bool = False, conditional_reason: str | None = None,
 ) -> dict:
+    """核准 onboarding。CR-0195:加入 KYC 文件齊全度閘。
+
+    在此之前本函式對文件**零檢查**——實測 6 個 active 技師 100% 零文件,
+    也就是「未驗身分即上工」早已在發生,只是無人察覺、事後也查不出誰沒補。
+
+    現在分兩路(§8-D1(a) 判準 = 身分證正反面皆有):
+      - 齊全 → 行為與過去完全相同(event_type='onboarding_approved')
+      - 不齊 → 必須顯式帶 conditional=True + 實質理由,否則 422。
+               放行時落 'onboarding_approved_conditional',reason 同時帶
+               「當時缺什麼」與「當時的理由」——稽核看的是這一行。
+
+    刻意**不**新增狀態值(§8-D2(a)):條件式核准的技師就是一般 active,派工資格
+    不打折。要區分兩種 active 就得改 dispatch_service.py:186 的 fail-open
+    黑名單與散在 4 個站台的 10 份 exhaustive Record,成本高一個數量級,
+    且漏改一處 = 未驗證技師直接進派工候選集。要改請走新的 CIA。
+    """
+    from services import technician_kyc_service as kyc_svc
+
+    conn = await db_module.require_tech_conn()
+    missing = await kyc_svc.missing_required_doc_types(conn, technician_id=tech_id)
+
+    if not missing:
+        return await _change_status_and_audit(
+            tenant_id=tenant_id, tech_id=tech_id,
+            target_status="active", event_type="onboarding_approved",
+            reason="onboarding approved by " + actor_role,
+            notes=notes, actor_user_id=actor_user_id, actor_role=actor_role,
+        )
+
+    missing_label = "、".join(missing)
+    if not conditional:
+        raise ApiError(
+            "KYC_DOCUMENTS_INCOMPLETE",
+            f"此師傅尚缺必要文件（{missing_label}）。"
+            f"若因人力需求要先讓他上工，請改用條件式核准並填寫理由；"
+            f"核准後仍可產生補件連結請他補傳。",
+            422,
+        )
+    reason_text = (conditional_reason or "").strip()
+    if len(reason_text) < _CONDITIONAL_REASON_MIN_LEN:
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"條件式核准的理由至少 {_CONDITIONAL_REASON_MIN_LEN} 字"
+            f"（這行字會留在稽核紀錄裡，供日後說明為何未驗證即放行）",
+            422,
+        )
+    # reason 欄 500 字上限,由 _change_status_and_audit 截斷;缺件標記放前面確保不被截掉
     return await _change_status_and_audit(
         tenant_id=tenant_id, tech_id=tech_id,
-        target_status="active", event_type="onboarding_approved",
-        reason="onboarding approved by " + actor_role,
+        target_status="active", event_type="onboarding_approved_conditional",
+        reason=f"[conditional|missing:{','.join(missing)}] {reason_text}",
         notes=notes, actor_user_id=actor_user_id, actor_role=actor_role,
     )
 
