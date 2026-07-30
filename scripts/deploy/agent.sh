@@ -40,6 +40,17 @@ IMAGE_BASE="asia-east1-docker.pkg.dev/${PROJECT_ID}/${REPO}/${SERVICE_NAME}"
 IMAGE="${IMAGE_OVERRIDE:-${IMAGE_BASE}:${IMAGE_TAG}}"
 
 # ── Cloud Run 設定 ──
+#
+# ⚠️ `--no-cpu-throttling` 是**必要的**，不是效能微調：
+#   LINE webhook 收到訊息後在 `debouncer.push()` 就立刻 return 200
+#   （line_gateway.py:1193-1194），整輪 turn（LLM 呼叫、記憶抽取、回覆送出）
+#   全部跑在 request 生命週期**之外**的背景 asyncio task 裡。
+#   Cloud Run 預設「CPU 只在處理 request 期間配置」，request 一結束背景 task
+#   就被節流 → 每一段都被放大。min-instances=1 不會免除這件事。
+#   2026-07-30 延遲調查實測：每輪 CPU 僅 0.056~0.642 CPU-秒（佔牆鐘 1.5~6%），
+#   所以節流**不是**兩分鐘延遲的元兇（元兇是每輪三段 LLM，見 CR-0196），
+#   但它是乘在每一段上的放大器，關掉它零風險。
+#   代價：idle 期間也計 CPU 費（min-instances=1 本來就常駐）。
 SERVICE_ACCOUNT="${SERVICE_ACCOUNT:-lock-ai@${PROJECT_ID}.iam.gserviceaccount.com}"
 CLOUDSQL_INSTANCE="${CLOUDSQL_INSTANCE:-${PROJECT_ID}:${REGION}:lock-ai}"
 PORT=8080
@@ -60,6 +71,12 @@ DB_SOCKET="/cloudsql/${CLOUDSQL_INSTANCE}"
 AGENT_TENANT_ID="${AGENT_TENANT_ID:-00000000-0000-0000-0000-000000000001}"
 # API_SERVICE_NAME：用來在 deploy 時自動解析 api 的 Cloud Run URL（→ LOCK_API_BASE_URL）。
 API_SERVICE_NAME="${API_SERVICE_NAME:-smart-lock-api}"
+# ⚠️ VERTEX_LOCATION 對主 LLM 路徑是**死設定**（2026-07-30 延遲調查查證）：
+#   `app_config.load_config` 只從 config.toml 的 [llm.vertex].location 讀，
+#   留空時 `_auto_vertex_location` 依 model 自動選——gemini-3.x → "global"。
+#   本 env 只有 `tools/web.py:311` 當 fallback 用，而那裡 `config.vertex_location`
+#   永遠有值故也吃不到。LiteLLM 本身認的是 `VERTEXAI_LOCATION`（拼法不同）。
+#   → 保留不刪只為與 api.sh 對齊；**別以為改它能換 region**，要換請改 config.toml。
 ENV_VARS="VERTEX_PROJECT_ID=${PROJECT_ID},VERTEX_LOCATION=asia-northeast1"
 ENV_VARS="${ENV_VARS},AGENT_TENANT_ID=${AGENT_TENANT_ID}"
 # RAG_TENANT_ID（#16⑤ RAG 生產啟用）：設了才透傳——app_config.load_mcp_servers 以此
@@ -360,6 +377,7 @@ if $DEPLOY; then
         --memory="${MEMORY}" \
         --cpu="${CPU}" \
         --cpu-boost \
+        --no-cpu-throttling \
         --execution-environment=gen2 \
         --min-instances="${MIN_INSTANCES}" \
         --max-instances="${MAX_INSTANCES}" \
