@@ -5,7 +5,7 @@
   並提出假設情境「師傅不夠、有師傅急著要來做事，能否先讓他過去做事再叫他補件」
 - **業主裁決（2026-07-30）**：選項 3 **條件式核准**
 - **風險等級**：L2（命中 CIA 七面向之 Business flow／Domain model／Test plan）
-- **狀態**：🛑 §8 待裁決
+- **狀態**：✅ 實作完成（§8 六項全照建議，2026-07-30）。**prod 未部署**，見 §10「未做」
 
 ---
 
@@ -215,7 +215,42 @@ migration 105 未真正套進技師庫但 `schema_migrations` 已登記。
 
 ## §10 進度
 
-（待 §8 裁決後開始）
+業主 2026-07-30 裁決 **§8 全照建議**（D1(a)/D2(a)/D3(a)/D4(a)/D5(a)/D6(a)）。
+
+- ✅ S4 done（merge `6d1667e1`）：migration 126 三庫各連套兩次 rc=0，值域 11 值。
+  **順帶收斂 105 的既有 drift**——技師庫 `schema_migrations` 已登記 105 但 CHECK 實際只有
+  8 值（品牌庫 10 值）＝登記了卻沒真的套；本檔列完整 11 值讓兩庫收斂。實測技師庫
+  `brand_auth_granted` 已補回。
+- ✅ S2 done（merge `6d1667e1`）：條件式核准後端。TDD 先 RED 6 紅 → 新增 9 測試全綠。
+- ✅ S1 done（merge `6d1667e1`）：補件通道放寬至 `{pending_approval, active}`。
+  改寫 4 個既有測試的契約（原本釘死「核准後不可補件」，屬刻意規格故逐一在測試裡寫明為何改）；
+  另 6 個測試因核准現在需文件而失敗，新增 conftest fixture `seed_required_kyc_docs` 補齊
+  ——它們驗的是生命週期／登入閘／鏡射回滾，用 `conditional=True` 繞過會偷換其標的。
+- ✅ S3 done（merge `158bec33`）：平台清單「文件未齊」徽章＋篩選 chip、條件式核准對話框、
+  詳情頁 `canIssueToken` 對齊後端值域。實測時另發現兩個本 CR 造成的顯示問題並一併修：
+  生命週期歷史外洩機器格式 `[conditional|missing:...]`（`humanizeEventReason` 補規則拆解）、
+  「可於核准前補件」文案在 S1 後已與行為矛盾（改「核准前後皆可補件」）。
+- ✅ Playwright 本機實測（platform-console 無 E2E config，以手動實測補驗）：
+  建 pending 技師 → 核准跳條件式對話框 → 短理由（4 字）被擋並顯示「至少需 10 個字」 →
+  合格理由核准成功 → 事件落庫為 `onboarding_approved_conditional` 且 reason 同時帶缺件與理由 →
+  `active` 下「產生補件連結」仍可用並簽出 token（**業主原本踩到的死結解除**）→
+  清單 6 位既有零文件技師全數標記、tooltip 與 DB 實況一致。實測資料已清除，兩庫核對回基線。
+- ✅ 迴歸：全套 API 2254 passed，失敗回到基線的**同樣 13 支**（已 stash 全部變更跑基線對照確認）。
+  tsc 回到 17 支既有錯誤基線，改動檔 0 錯誤。
+- ✅ D6 done：`open_decisions.yaml` 新增 **OD-005**（未完成身分驗證的技師施工之責任、保險與揭露義務，
+  status: open，approvers = 業主 + 法務 Irene），`OPEN_DECISIONS.md` 以生成器重出。
+- ✅ 正典標注（annotation-only，四份檔案共 94 行**純新增、零刪除**）：
+  `04_SRS.md` FR-TEC-02 下方、`28_Scenarios.md` SC-12 卡片下方。
+  ⚠️ `bdd/SC-12.feature` 是 `28_Scenarios.md` 的**生成物**，手改會被洗掉 → 標注下在 SSOT，
+  且刻意放在被解析欄位之外（解析 regex 停在 `\n\n`）；**重跑生成器驗證 SC-12.feature md5 未變**。
+  `_validate_relations.py` 全部通過。
+
+### 未做（明確排除）
+
+- **prod 未部署**：本 CR 與另三支修正（LINE 深連結／待審卡／KYC 加密＋email）都只在
+  `dev-ding`；migration 126 只套本機三庫，**prod 未套**。
+- **通知技師補件**（§8-D5(a)）：本輪不做。
+- **補件期限與逾期處置**（§8-D3(a)）：另開 CR，且需 OD-005 先有法務結論。
 
 ---
 

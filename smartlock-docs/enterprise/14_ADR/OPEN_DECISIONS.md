@@ -26,6 +26,7 @@ source: open_decisions.yaml
 | OD-002 knowledge-refinery 的資料進入契約 | decided | P0 | PM + 平台架構師 | SC-01、SC-02、SC-15、SC-16 |
 | OD-003 技師即時 WebSocket 的權威歸屬 | decided | P0 | PM + 平台架構師 | SC-05、SC-06、SC-12、SC-14 |
 | OD-004 Casdoor 跨租戶 organization 與 claim 模型 | decided | P0 | PM + 平台架構師 | SC-11、SC-12、SC-14、SC-17 |
+| OD-005 未完成身分驗證的技師施工之責任、保險與揭露義務 | open | P0 | PM + 平台營運負責人 | SC-12、SC-14 |
 
 ## OD-001 — OHS 服務間憑證模式
 
@@ -109,3 +110,23 @@ source: open_decisions.yaml
 - **受影響 ADR**：ADR-004、ADR-005、ADR-016、ADR-024
 - **拍板後必回填**：12_SAD §4.5 and §8、13_Security_Architecture.md、15_SDS §7.1、16_API_Spec.yaml、23_Deployment_Guide.md
 - **受影響情境**：SC-11、SC-12、SC-14、SC-17
+
+## OD-005 — 未完成身分驗證的技師施工之責任、保險與揭露義務
+
+- **狀態**：`open`
+- **優先級**：P0
+- **Owner**：PM + 平台營運負責人
+- **Approvers**：業主 + 法務（Irene）
+- **要做的決策**：平台在「技師未完成 KYC 身分驗證即到府施工」的情境下，對客戶的責任歸屬、保險覆蓋、賠償上限與揭露義務為何；以及條件式核准是否需設補件期限與逾期處置。
+- **Current AS-BUILT**：核准端原本對 KYC 文件零檢查（technician_lifecycle_service.approve_onboarding 全鏈不查 technician_registration_document），實測本機 6 位 active 技師 100% 零文件—— 「未驗身分即上工」早已在發生，只是無人察覺。CR-0195（業主 2026-07-30 裁決）已把它 改為必須顯式「條件式核准」並落 onboarding_approved_conditional 事件，讓決定可稽核； 但責任側規則仍為空白。註冊表單有「授權背景查核」勾選（tech-register/page.tsx:438） 與 insurance/良民證 文件槽位，但查不到任何實際執行背景查核的流程或供應商 （CR-0115 §11 明列 out of scope）。另 CR-0170 師傅懲罰機制（遲到/違約自動停權） 同樣卡在法務未回，狀態為「骨架待料」。
+- **選項**：
+  - 條件式核准設補件期限（如 14 天），逾期自動停權：責任窗口有上限，但天數與申訴機制需法務給值，且與 CR-0170 懲罰機制同域。
+  - 不設期限，僅以清單標記與稽核事件追蹤：現行 CR-0195 實作，成本最低但責任窗口無上限。
+  - 條件式核准期間限制派工範圍（如不得進搶單池、僅可指定派工）：降低暴露面，但需在派工資格判定區分兩種 active，成本高一個數量級（見 evidence_required）。
+  - 停用條件式核准、回到「核准前必須驗畢」：與業主「師傅不夠時要能先上工」的營運需求衝突。
+- **技術建議（尚非決議）**：先由法務界定責任與揭露下限，再回頭決定期限與派工限制。技術面不建議在法務結論前先做 選項三——它需要改 dispatch_service.py:186 的 fail-open 黑名單與散在 4 個站台的 10 份 exhaustive Record，漏改一處即「未驗證技師直接進派工候選集」，成本與風險都不該由 未定的政策驅動。
+- **Decision gate**：在對外宣稱技師已完成身分查核之前，或條件式核准累計超過可控件數之前，必須定版。 特別注意 AI 客服的產品知識庫已對客戶明文宣稱「警政單位核發良民證核可」 （agent/lockcore/skills/locksmith-product-knowledge/references/_common/store-info.md:44， 來源為公司官網 bronze 語料）——該聲明對「公司自有鎖匠」可能為真，但對平台 onboard 的師傅目前無任何流程保證。
+- **拍板前所需證據**：法務對責任歸屬/保險覆蓋/揭露義務的書面意見；現行服務條款與隱私權政策全文（目前不在 repo， code 只有連結文案）；保險商品是否涵蓋未驗證技師；條件式核准的實際發生件數與停留時長。
+- **受影響 ADR**：ADR-041
+- **拍板後必回填**：04_SRS.md FR-TEC-02、bdd/SC-12.feature、20_Test_Cases.md TC-TEC-LIFE-01、10_UI_Spec.md、docs/4-exploration/CR-0195、docs/4-exploration/CR-0170
+- **受影響情境**：SC-12、SC-14

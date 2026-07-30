@@ -357,6 +357,23 @@ stateDiagram-v2
 | FR-TEC-07 🔜 | 現場報價修正發起（requote command）| 技師＝工單 assignee 且工單 on_site / in_progress | 師傅 web 發起（事由分類 + 項目 diff，不含金額）→ tech-api 驗身分狀態 → OHS 同步呼叫品牌 api `/internal/requote-requests`（tenant 路由 + request_id 冪等）→ 品牌引擎建 quote v+1 | 非 assignee / 狀態不符 → 403；技師端零定價權；狀態經工單投影回工作台 | ADR-027；15_SDS §4.4 |
 | FR-TEC-08 | 排班與生命週期管理 | 技師有效 | 排班/可用性設定；停權/認證撤銷即時廣播 `technician.certification_revoked` | 各品牌訂閱後更新派工可用性 | ADR-P004 §5 |
 
+> **標注（2026-07-30，CR-0195 業主裁決「條件式核准」）——不改上表原文**
+>
+> **FR-TEC-02 的後置條件「未過准入閘門不得進入派工候選集」不變且未被放寬。**
+> 本標注只補記「人工審核」這一步的新增行為：KYC 必要文件（身分證正反面）不齊時，
+> 核准端由原本的**零檢查**改為預設擋下（422 `KYC_DOCUMENTS_INCOMPLETE`）；
+> 平台管理員若因人力需求需先讓師傅上工，必須做**條件式核准**——顯式帶 `conditional`
+> 旗標與 ≥10 字理由，並落 `onboarding_approved_conditional` 生命週期事件。
+> 條件式核准後的技師狀態**就是一般 `active`**，不新增狀態值、不區分派工資格。
+>
+> 開立本例外的原因是 as-built 與本表早已背離：`approve_onboarding` 全鏈不查
+> `technician_registration_document`，實測 6 位 active 技師 100% 零文件——所謂「准入閘門」
+> 一直只靠人工審核者的眼睛，而慣例已失效。本 CR 是把既存的放行從隱形變成明示且可稽核。
+>
+> **未涵蓋（責任側空白）**：未完成身分驗證的技師施工之責任歸屬、保險覆蓋與揭露義務，
+> 見 [`14_ADR/OPEN_DECISIONS.md`](14_ADR/OPEN_DECISIONS.md) **OD-005（open，待業主＋法務裁決）**。
+> 補件期限與逾期處置亦未定（與 CR-0170 師傅懲罰機制同域，該 CR 卡在法務未回）。
+
 ### 3.7 00_platform（平台整合層）
 
 | 編號 | 需求 | 前置條件 | 主流程 | 後置條件與驗收 | 追溯 |
