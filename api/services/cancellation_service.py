@@ -395,6 +395,27 @@ async def cancel_work_order_6stage(
         "WHERE id = %s::uuid",
         (stage, reason_code, wo_id),
     )
+    # CR-0193：生命週期事件。這條容易被漏——v2 tenant-scoped 取消走本服務（ADR-0102
+    # 六階段＋費用），**不經** work_order_service.cancel_order（那條只剩 legacy flat
+    # /api/v1/work-orders/{id}/cancel 在用）。只補 cancel_order 的話，實際在用的取消
+    # 路徑仍然不落事件 → timeline 看不到「取消」。
+    from services.work_order_service import _insert_wo_event
+
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_id,
+        event_type="cancelled",
+        payload={
+            "from_status": wo["status"],
+            "cancellation_stage": stage,
+            "reason_code": reason_code,
+            "initiator_role": initiator_role,
+            "customer_fee": str(customer_fee),
+            "travel_fee": str(travel_fee),
+            "technician_penalty": str(technician_penalty),
+            "goodwill_waiver": goodwill_waiver,
+            "audit_event_id": str(audit_event_id),
+        },
+    )
 
     return {
         "work_order_id": wo_id,

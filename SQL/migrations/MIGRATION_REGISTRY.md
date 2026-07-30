@@ -185,5 +185,7 @@
 | 120 | `120-user-preferences.sql` | CR-0190 / ADR-034 | 🟢 idempotent（拋棄式 PG15 二套驗證 2026-07-27） | 三庫共用的跨裝置偏好權威表 `saas.user_preferences`：`UNIQUE(user_id, preference_key)`、tenant/user 雙重隔離、allowlist 與 16 KiB 上限由 API service 守門、`version` 支援 CAS conflict。落庫＝**品牌庫、技師庫、平台庫**；UI-only 偏好仍留 client，不寫 API。 |
 | 121 | `121-service-principal-credentials.sql` | CR-0190 / ADR-036 | 🟢 idempotent（拋棄式 PG15 二套驗證 2026-07-27） | 可撤銷機器身分：`saas.service_principal`、hash-only `saas.service_credential`、scope/audience/tenant 限縮、到期/rotation overlap/revoke 與 append-only audit；`created_action_id` 唯一防止建立重放。落庫＝**平台庫**；production principal/secret bootstrap 與 legacy fallback 歸零仍受 OD-001/OD-004 release gate 管控。 |
 
+| 122 | `122-wo-events-seq-and-lifecycle.sql` | CR-0193 / UAT-D-007 | 🟢 idempotent（拋棄式 `lock_mig122` 連套三次退出碼 0、`UPDATE 0` 證守衛有效，2026-07-30） | TC-WO-01「事件溯源 seq」缺口：①加 `work_order_events.seq`（**per-工單**連號，非全域 BIGSERIAL——全域序列的缺號無法區分「別單佔號」與「被刪」＝無溯源價值）＋依 `created_at, id` backfill 後 `SET NOT NULL`（留 NULL 會在連號開洞使缺號偵測失效）＋`UNIQUE(work_order_id, seq)`（併發取號正確性靠山）＋index `(work_order_id, seq DESC)`；②CHECK 補 7 個生命週期值 `created/accepted/completed/cancelled/reopened/escalated/confirmed`——原本 10 個轉換只有 reject/assign/reassign 寫事件（同 050/059/102/104 第 5 次同類，建議後續 CR 改參照表終結）。**⚠️ 必須先於 code 套用**：`_insert_wo_event` 與 `list_work_order_events` 都引用 seq 欄，缺欄則事件讀寫全 500。 |
+
 > 註：P1-C 無 DB migration（純 agent 截斷 + api config 佔位）。
 > 編號衝突時：P2 先用即往後順延 P3 的起始編號，更新本表。

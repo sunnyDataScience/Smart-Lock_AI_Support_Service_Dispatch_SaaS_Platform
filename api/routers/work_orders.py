@@ -237,6 +237,7 @@ async def complete_work_order(
         is_override=True,
         override_reason=body.summary,
         actor_role=user.role,
+        actor_user_id=user.user_id,  # CR-0193 生命週期事件 actor
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
@@ -260,6 +261,7 @@ async def cancel_work_order(
         tenant_id=user.tenant_id,
         wo_id=id,
         reason=body.reason if body else None,
+        actor_user_id=user.user_id,  # CR-0193 生命週期事件 actor
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
@@ -284,6 +286,7 @@ async def confirm_work_order(
         wo_id=id,
         rating=int(body.rating),
         feedback=body.feedback,
+        actor_user_id=user.user_id,  # CR-0193 生命週期事件 actor
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:
@@ -309,6 +312,7 @@ async def escalate_work_order(
         wo_id=id,
         level=level_str,
         reason=body.reason,
+        actor_user_id=user.user_id,  # CR-0193 生命週期事件 actor
     )
     payload = {"data": WorkOrder(**order).model_dump(mode="json")}
     if idem is not None:

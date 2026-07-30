@@ -280,6 +280,11 @@ async def _append_message(
     )
 
 
+# CR-0194：照片落地失敗的哨兵。用哨兵而非 None 是為了讓 caller 分得出
+# 「本來就沒照片」與「有照片但存不進去」——後者必須在訊息上留痕，不能靜默。
+_MEDIA_INGEST_FAILED = "__media_ingest_failed__"
+
+
 async def _store_ingest_media(
     *, tenant_id: str, media_base64: str, media_mime: str | None
 ) -> str | None:
@@ -307,8 +312,18 @@ async def _store_ingest_media(
         )
         return result.get("url")
     except Exception:  # noqa: BLE001 — 照片失敗不可阻斷文字持久化
-        logger.warning("ingest 照片儲存失敗（略過，僅寫文字）", exc_info=True)
-        return None
+        # CR-0194：這裡原本是 logger.warning。加了 magic bytes 驗證後，
+        # 「客人傳 HEIC」會走到這條（agent 端 detect_image_mime 沒有 HEIC 分支，
+        # HEIC 會被 fallback 宣告成 image/jpeg → 檔頭不符 → 422）。
+        # 原本的靜默略過在那個情境下＝**客人照片憑空消失、客服只看到文字**，
+        # 比「存下一張看不到的破圖」更糟（沒人知道有照片要追）。
+        # 仍維持 fail-soft（不可讓照片問題弄丟整輪對話文字），但升為 ERROR，
+        # 並回一個哨兵讓 caller 在訊息上留痕（見 ingest_turn 的 media_error）。
+        logger.error(
+            "ingest 照片儲存失敗（mime=%s, %d bytes）——已在訊息留痕，僅寫文字",
+            media_mime, len(media_base64 or "") , exc_info=True,
+        )
+        return _MEDIA_INGEST_FAILED
 
 
 async def _maybe_write_sentiment_alert(
@@ -395,18 +410,32 @@ async def ingest_turn(
     # CR-0119：照片先落地（fail-soft）；有照片但沒文字時補「[照片]」佔位，
     # 確保訊息一定寫得出來（_append_message 空字串不寫）。
     media_url: str | None = None
+    media_failed = False
     if media_base64:
-        media_url = await _store_ingest_media(
+        stored = await _store_ingest_media(
             tenant_id=tenant_id, media_base64=media_base64, media_mime=media_mime
         )
+        # CR-0194：分辨「存成功」與「有照片但存不進去」。後者不可把哨兵當 URL 用
+        # （前端會拿去 fetch 一個不存在的媒體），改在 metadata 留 media_error，
+        # 並把佔位文字寫成看得懂的訊息——客服才知道有照片要向客人重取。
+        if stored == _MEDIA_INGEST_FAILED:
+            media_failed = True
+        else:
+            media_url = stored
         if not (user_text or "").strip():
-            user_text = "[照片]"
+            user_text = "[客人傳了照片，但格式無法處理]" if media_failed else "[照片]"
+
+    _extra: dict | None = None
+    if media_url:
+        _extra = {"image_url": media_url}
+    elif media_failed:
+        _extra = {"media_error": "unsupported_or_corrupt", "media_mime": media_mime}
 
     appended = 0
     if (user_text or "").strip():
         await _append_message(
             conv_id=conv_id, role="user", content=user_text, sender_role="line_user",
-            extra_metadata={"image_url": media_url} if media_url else None,
+            extra_metadata=_extra,
         )
         appended += 1
     if (assistant_text or "").strip():

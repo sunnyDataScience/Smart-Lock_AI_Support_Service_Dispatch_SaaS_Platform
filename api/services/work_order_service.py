@@ -562,6 +562,22 @@ async def create_from_problem_card(
         raise ApiError("INTERNAL_ERROR", "Failed to insert work order", 500)
     new_wo_id = str(new_row[0])
 
+    # CR-0193 / TC-WO-01：建單事件。正典 20_Test_Cases.md:258 直接驗這一筆。
+    # 刻意放在 UNIQUE 回放路徑（上方 return wo, False）之後——併發撞號時事件已由
+    # 贏家寫過，回放路徑再寫一筆會讓同一次轉換出現兩筆 'created'。
+    await _insert_wo_event(
+        wo_id=new_wo_id, tenant_id=tenant_id, actor_user_id=created_by,
+        event_type="created",
+        payload={
+            "origin": "problem_card",
+            "problem_card_id": pc_id,
+            "urgency": pc_urgency,
+            # 急件 carve-out：跳過「報價須客戶確認」硬閘、改事後補審（CR-0128/CR-0129）
+            "emergency_class": pc_emergency_class,
+            "quote_gate_applied": True,
+        },
+    )
+
     # CR-0128：PC 階段報價回填綁定工單（可讀編號 TP-xxxxxx-Qn 隨之成立）；
     # 急件 carve-out 則建 retrospective_audit_only 佔位報價供事後補審（1.2.2 timer 追蹤）。
     if pc_emergency_class is None:
@@ -780,8 +796,23 @@ async def reopen_order(
     new_row = await insert_cur.fetchone()
     if not new_row:
         raise ApiError("INTERNAL_ERROR", "Failed to reopen work order", 500)
+    child_id = str(new_row[0])
+    # CR-0193：reopen 產生**新工單**，兩邊 timeline 都要接得上——
+    # 母單只寫「被重開為 X」（否則母單看起來像被棄置），子單寫 'created' 對齊
+    # create_from_problem_card 的慣例並回指母單。
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=created_by,
+        event_type="reopened",
+        payload={"reason": reason.strip(), "child_work_order_id": child_id},
+    )
+    await _insert_wo_event(
+        wo_id=child_id, tenant_id=tenant_id, actor_user_id=created_by,
+        event_type="created",
+        payload={"origin": "reopen", "reopened_from_work_order_id": wo_id,
+                 "reason": reason.strip()},
+    )
     return await _publish_and_return(
-        tenant_id=tenant_id, wo_id=str(new_row[0]), event_type="work_order.reopened"
+        tenant_id=tenant_id, wo_id=child_id, event_type="work_order.reopened"
     )
 
 
@@ -980,6 +1011,67 @@ async def _publish_pool_change(
         )
 
 
+# ── CR-0193 工單事件唯一寫入出口（migration 122）────────────────────────────
+# 這是全專案寫 work_order_events 的**唯一**入口，不要繞過它直接 INSERT。
+#
+# WHY 唯一出口：seq 是 per-工單連號，用途是「缺號即代表事件遺失」（TC-WO-01
+# 要的「事件溯源」）。任何一條繞過取號的寫入都會在連號上開洞，缺號就再也無法
+# 區分「被刪」與「那條路徑沒編號」，溯源價值歸零。DB 端已用 NOT NULL 兜底
+# （不給 seq 直接寫不進去），這裡是正向的取號實作。
+#
+# WHY 不用 advisory lock：core/db.py 是 autocommit=True 的**共用單一連線**，
+# xact lock 會立刻釋放（無交易可綁），改用 session lock 則漏釋放就卡死整條連線。
+# 改走「單語句取號 + UNIQUE 擋碰撞 + 重試」——autocommit 下失敗語句不會讓
+# 交易進入 aborted 狀態，所以重試是乾淨的。
+_EVENT_SEQ_MAX_ATTEMPTS = 5
+
+
+async def _insert_wo_event(
+    *,
+    wo_id: str,
+    tenant_id: str,
+    event_type: str,
+    payload: dict | None = None,
+    actor_user_id: str | None = None,
+) -> None:
+    """寫一筆 work_order_events，seq 於同一語句內取 per-工單連號。
+
+    event_type 必須是 migration 122 CHECK 清單內的值，否則 CheckViolation。
+    新增 event_type 一律要同步改該 CHECK（這是第 5 次同類 migration 的由來）。
+    """
+    from psycopg import errors as _pg_errors
+
+    sql = (
+        "INSERT INTO work_order_events "
+        "  (work_order_id, tenant_id, actor_user_id, event_type, payload, seq) "
+        "SELECT %s::uuid, %s::uuid, %s, %s, %s::jsonb, COALESCE(MAX(seq), 0) + 1 "
+        "FROM work_order_events WHERE work_order_id = %s::uuid"
+    )
+    params = (
+        wo_id,
+        tenant_id,
+        actor_user_id,
+        event_type,
+        json.dumps(payload or {}, ensure_ascii=False),
+        wo_id,
+    )
+    for attempt in range(_EVENT_SEQ_MAX_ATTEMPTS):
+        try:
+            await db_module._conn.execute(sql, params)
+            return
+        except _pg_errors.UniqueViolation as exc:
+            # 只吞「同工單併發撞號」；其他 UNIQUE 衝突照原樣拋出，不掩蓋真 bug。
+            constraint = getattr(getattr(exc, "diag", None), "constraint_name", None)
+            if constraint != "work_order_events_wo_seq_key":
+                raise
+            if attempt == _EVENT_SEQ_MAX_ATTEMPTS - 1:
+                logger.error(
+                    "work_order_events 取號重試 %d 次仍撞號 wo=%s event=%s",
+                    _EVENT_SEQ_MAX_ATTEMPTS, wo_id, event_type,
+                )
+                raise
+
+
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
     """Fetch current DB status with tenant guard. Raises NOT_FOUND if missing."""
     cur = await db_module._conn.execute(
@@ -1061,6 +1153,16 @@ async def accept_order(
         "  completion_status = 'pending_report', updated_at = NOW() "
         "WHERE id = %s::uuid",
         (claim_tech_id, wo_id),
+    )
+    # CR-0193：生命週期事件（原本 accept 不落事件流 → timeline 看不到「接單」）
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="accepted",
+        payload={
+            "technician_id": tech_id,
+            "from_status": current,
+            "claimed": bool(claim_tech_id),  # True = 從公開池搶單，非小編指派
+        },
     )
     # event=taken 從技師個人 pool 列表移除（已進 my-orders）
     if tech_id:
@@ -1144,17 +1246,10 @@ async def reject_order(
         "VALUES (%s::uuid, 'reject', %s::uuid, %s, %s)",
         (wo_id, tech_ctx["id"], reason, note),
     )
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, 'reject', %s::jsonb)",
-        (
-            wo_id, tenant_id, actor_user_id,
-            json.dumps(
-                {"technician_id": tech_ctx["id"], "reason": reason, "from_status": current},
-                ensure_ascii=False,
-            ),
-        ),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="reject",
+        payload={"technician_id": tech_ctx["id"], "reason": reason, "from_status": current},
     )
     # 拒單技師個人 pool 列表移除該單（已回無主 created，非其負責）
     await _publish_pool_change(
@@ -1508,6 +1603,9 @@ async def complete_order(
     materials_used: str | None = None,
     payment_proof: str | None = None,
     function_tests: list | None = None,
+    # CR-0193：生命週期事件要記「誰做的」。此前 complete/cancel/escalate/confirm
+    # 的 actor 沒有任何結構化留痕（_audit_action 只覆蓋 reschedule/delay 三個動作）。
+    actor_user_id: str | None = None,
 ) -> dict:
     """accepted | in_progress → completed, set completed_at = NOW (auto-fill started_at).
 
@@ -1653,6 +1751,19 @@ async def complete_order(
             )
     except Exception:  # noqa: BLE001
         logger.exception("completion auto-notify failed (non-fatal)")
+    # CR-0193：生命週期事件（原本 complete 不落事件流 → timeline 看不到「完工」，
+    # 而 evidence_package_service 正是拿事件流當爭議舉證來源）
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="completed",
+        payload={
+            "from_status": current,
+            "actor_role": actor_role,
+            "is_override": is_override,       # True = 後台代為結案，非技師現場送簽
+            "override_reason": override_reason,
+            "actual_amount": actual_amount,
+        },
+    )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.completed"
     )
@@ -1663,6 +1774,7 @@ async def cancel_order(
     tenant_id: str,
     wo_id: str,
     reason: str | None = None,
+    actor_user_id: str | None = None,  # CR-0193 生命週期事件 actor
 ) -> dict:
     """created | assigned | accepted | in_progress → cancelled."""
     if not await _ensure_conn():
@@ -1705,6 +1817,12 @@ async def cancel_order(
             event="cancelled",
         )
     await _unescalate_linked_conversation(tenant_id=tenant_id, wo_id=wo_id)
+    # CR-0193：生命週期事件（原本 cancel 不落事件流）
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="cancelled",
+        payload={"from_status": current, "reason": reason, "technician_id": tech_id},
+    )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.cancelled"
     )
@@ -1764,11 +1882,9 @@ async def _detect_schedule_conflict_and_publish(
             "window_hours": window_hours,
             "scheduled_at": scheduled_at.isoformat() if hasattr(scheduled_at, "isoformat") else str(scheduled_at),
         }
-        await db_module._conn.execute(
-            "INSERT INTO work_order_events "
-            "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-            "VALUES (%s::uuid, %s::uuid, NULL, 'schedule_conflict', %s::jsonb)",
-            (wo_id, tenant_id, json.dumps(payload, ensure_ascii=False)),
+        await _insert_wo_event(
+            wo_id=wo_id, tenant_id=tenant_id, actor_user_id=None,
+            event_type="schedule_conflict", payload=payload,
         )
         try:
             from realtime.ws_hub import hub
@@ -1996,24 +2112,15 @@ async def assign_order(
         (wo_id, technician_id, note),
     )
     # 也寫一筆 work_order_events 對齊 reassign 的 timeline 觀感
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, 'assign', %s::jsonb)",
-        (
-            wo_id,
-            tenant_id,
-            actor_user_id,
-            json.dumps(
-                {
-                    "technician_id": str(technician_id),
-                    "reason_code": reason_code,
-                    "reason_text": reason_text,
-                    "from_status": current,
-                },
-                ensure_ascii=False,
-            ),
-        ),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="assign",
+        payload={
+            "technician_id": str(technician_id),
+            "reason_code": reason_code,
+            "reason_text": reason_text,
+            "from_status": current,
+        },
     )
     # Flow 14 排班衝突軟偵測（best-effort，不阻擋 assign）
     await _detect_schedule_conflict_and_publish(
@@ -2170,24 +2277,15 @@ async def reassign_order(
         (wo_id, new_technician_id, reason),
     )
     # 也寫一筆 work_order_events 對齊 subflow timeline 觀感
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, 'reassign', %s::jsonb)",
-        (
-            wo_id,
-            tenant_id,
-            actor_user_id,
-            json.dumps(
-                {
-                    "old_technician_id": old_technician_id,
-                    "new_technician_id": str(new_technician_id),
-                    "reason": reason,
-                    "from_status": current,
-                },
-                ensure_ascii=False,
-            ),
-        ),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="reassign",
+        payload={
+            "old_technician_id": old_technician_id,
+            "new_technician_id": str(new_technician_id),
+            "reason": reason,
+            "from_status": current,
+        },
     )
     result = await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.reassigned"
@@ -2206,6 +2304,7 @@ async def escalate_order(
     wo_id: str,
     level: str,
     reason: str,
+    actor_user_id: str | None = None,  # CR-0193 生命週期事件 actor
 ) -> dict:
     """升級工單至 operations_manager / tenant_admin。
 
@@ -2245,6 +2344,13 @@ async def escalate_order(
         "WHERE id = %s::uuid",
         (note, wo_id),
     )
+    # CR-0193：生命週期事件（原本 escalate 不落事件流；本轉換不切 status，
+    # 只提 priority，所以事件是唯一能看出「何時被升級、誰升的」的地方）
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="escalated",
+        payload={"level": level, "reason": reason, "from_status": current},
+    )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.escalated"
     )
@@ -2278,6 +2384,7 @@ async def confirm_order(
     wo_id: str,
     rating: int,
     feedback: str | None = None,
+    actor_user_id: str | None = None,  # CR-0193 生命週期事件 actor
 ) -> dict:
     """completed → confirmed，寫入客戶評分與意見，set confirmed_at = NOW()。
 
@@ -2334,6 +2441,12 @@ async def confirm_order(
     )
     # CR-0117 S3：評分落庫後回寫技師聚合統計（fail-soft）
     await _rollup_tech_stats_safe(tenant_id, wo_id)
+    # CR-0193：生命週期事件（原本 confirm 不落事件流 → 結案這個終點在 timeline 上不存在）
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="confirmed",
+        payload={"from_status": current, "rating": rating, "has_feedback": bool(feedback_clean)},
+    )
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.confirmed"
     )
@@ -2580,17 +2693,9 @@ async def _append_subflow_event(
             409,
         )
     event_type = _TAG_TO_EVENT_TYPE.get(tag, "other")
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, %s, %s::jsonb)",
-        (
-            wo_id,
-            tenant_id,
-            actor_user_id,
-            event_type,
-            json.dumps(payload, ensure_ascii=False),
-        ),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type=event_type, payload=payload,
     )
     # 仍 bump updated_at 讓既有 list 排序對齊
     await db_module._conn.execute(
@@ -2738,11 +2843,9 @@ async def record_scope_change(
         "scope_change_id": scope_change_id,
         "tier": tier_info,  # CR-0038 桶4：分級閘結果入 timeline
     }
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, 'scope_change', %s::jsonb)",
-        (wo_id, tenant_id, actor_user_id, json.dumps(payload, ensure_ascii=False)),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="scope_change", payload=payload,
     )
     await db_module._conn.execute(
         "UPDATE work_orders SET updated_at = NOW() WHERE id = %s::uuid",
@@ -2869,17 +2972,9 @@ async def mark_material_request_supplied(
         "material_request_event_id": material_request_event_id,
         "note": note,
     }
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, %s, %s::jsonb)",
-        (
-            wo_id,
-            tenant_id,
-            supplied_by_user_id,
-            "supply_arrived",
-            json.dumps(payload, ensure_ascii=False),
-        ),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=supplied_by_user_id,
+        event_type="supply_arrived", payload=payload,
     )
     await db_module._conn.execute(
         "UPDATE work_orders SET updated_at = NOW() WHERE id = %s::uuid",
@@ -2985,13 +3080,10 @@ async def record_arrival(
     gps_proof = compute_arrival_gps_proof(
         g.get("ref_lat"), g.get("ref_lng"), g.get("lat"), g.get("lng")
     )
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, 'arrival', %s::jsonb)",
-        (wo_id, tenant_id, actor_user_id,
-         json.dumps({"arrived_at": arrived_at, "gps": g, "gps_proof": gps_proof},
-                    ensure_ascii=False)),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="arrival",
+        payload={"arrived_at": arrived_at, "gps": g, "gps_proof": gps_proof},
     )
     result = await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.arrived"
@@ -3177,11 +3269,14 @@ async def list_work_order_events(
         where.append("event_type = %s")
         params.append(event_type)
     params.append(limit)
+    # CR-0193：改依 seq 排序而非 created_at。seq 是 per-工單連號，回傳它才讓
+    # 「事件溯源」在 API 表面驗得到（缺號＝有事件遺失）。
+    # ⚠️ 本查詢引用 seq 欄 → migration 122 必須先套用，否則整條讀取 500。
     sql = (
-        "SELECT id, event_type, payload, actor_user_id, created_at "
+        "SELECT id, event_type, payload, actor_user_id, created_at, seq "
         "FROM work_order_events "
         f"WHERE {' AND '.join(where)} "
-        "ORDER BY created_at DESC LIMIT %s"
+        "ORDER BY seq DESC LIMIT %s"
     )
     cur = await db_module._conn.execute(sql, tuple(params))
     rows = await cur.fetchall()
@@ -3192,6 +3287,7 @@ async def list_work_order_events(
             "payload": r[2] if isinstance(r[2], dict) else (json.loads(r[2]) if r[2] else {}),
             "actor_user_id": str(r[3]) if r[3] else None,
             "created_at": r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4]),
+            "seq": r[5],
         }
         for r in rows
     ]
@@ -3316,22 +3412,14 @@ async def confirm_reschedule_by_customer(
         (start_dt, note, wo_id),
     )
     # 同時寫入結構化事件（v1.30.0 work_order_events）
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, 'reschedule_proposed', %s::jsonb)",
-        (
-            wo_id,
-            tenant_id,
-            json.dumps(
-                {
-                    "confirmed_by": "customer",
-                    "selected_start": start_dt.isoformat(),
-                    "selected_end": end_dt.isoformat(),
-                },
-                ensure_ascii=False,
-            ),
-        ),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id,
+        event_type="reschedule_proposed",
+        payload={
+            "confirmed_by": "customer",
+            "selected_start": start_dt.isoformat(),
+            "selected_end": end_dt.isoformat(),
+        },
     )
 
     # 推 WS — 前端 v1.13.0 監聽 reschedule_confirmed_by_customer
@@ -3363,15 +3451,10 @@ async def reject_reschedule_by_customer(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     # 寫事件留下記錄
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, 'reschedule_proposed', %s::jsonb)",
-        (
-            wo_id,
-            tenant_id,
-            json.dumps({"rejected_by": "customer"}, ensure_ascii=False),
-        ),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id,
+        event_type="reschedule_proposed",
+        payload={"rejected_by": "customer"},
     )
     try:
         from realtime.ws_hub import hub
@@ -3762,11 +3845,9 @@ async def notify_delay(
         "reason": reason.strip()[:500],
         "channel_attempt": "line",
     }
-    await db_module._conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, 'delay', %s::jsonb)",
-        (wo_id, tenant_id, actor_user_id, json.dumps(payload, ensure_ascii=False)),
+    await _insert_wo_event(
+        wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="delay", payload=payload,
     )
     await db_module._conn.execute(
         "UPDATE work_orders SET updated_at = NOW() WHERE id = %s::uuid",
@@ -3989,8 +4070,25 @@ async def auto_confirm_stale_completed() -> int:
         "    WHERE ec.work_order_id = work_orders.id "
         "      AND ec.status IN ('open', 'investigating', 'escalated')"
         "  ) "
-        "RETURNING id",
+        "RETURNING id, tenant_id",
         (hours,),
     )
     rows = await cur.fetchall()
+    # CR-0193：自動結案也要落事件。漏掉的話「被系統自動結案」的單在 timeline 上
+    # 完全沒有結案痕跡（比人工結案更需要留痕——沒有人可以問）。
+    # actor_user_id=None 代表 system；payload 記 policy 讓事後能重建判斷依據。
+    for _id, _tid in (rows or []):
+        if not _tid:
+            logger.warning("auto_confirm 工單 %s 無 tenant_id，事件略過", _id)
+            continue
+        try:
+            await _insert_wo_event(
+                wo_id=str(_id), tenant_id=str(_tid), actor_user_id=None,
+                event_type="confirmed",
+                payload={"origin": "auto_confirm_stale_completed",
+                         "from_status": "completed",
+                         "policy_hours": hours},
+            )
+        except Exception:  # noqa: BLE001 — cron 不因單筆事件失敗而中斷整批
+            logger.exception("auto_confirm 事件寫入失敗 wo=%s（非致命）", _id)
     return len(rows or [])

@@ -34,11 +34,23 @@ CREATE TABLE IF NOT EXISTS work_order_events (
                                 'assign',             -- migration 102 (CR-0165)
                                 'supply_arrived',     -- migration 102 (CR-0165)
                                 'reject',             -- migration 104 (CR-0166 R1)
+                                'created',            -- migration 122 (CR-0193)
+                                'accepted',           -- migration 122 (CR-0193)
+                                'completed',          -- migration 122 (CR-0193)
+                                'cancelled',          -- migration 122 (CR-0193)
+                                'reopened',           -- migration 122 (CR-0193)
+                                'escalated',          -- migration 122 (CR-0193)
+                                'confirmed',          -- migration 122 (CR-0193)
                                 'other'
                             )
                         ),
     payload             JSONB NOT NULL DEFAULT '{}'::jsonb,
-    created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+    created_at          TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    -- migration 122 (CR-0193)：per-工單事件連號。NOT NULL 是刻意的——留 NULL 的
+    -- 事件會在連號上開洞，缺號就再也無法區分「被刪」與「那條路徑沒編號」。
+    -- 所有寫入必須經 work_order_service._insert_wo_event 取號。
+    seq                 INTEGER NOT NULL,
+    CONSTRAINT work_order_events_wo_seq_key UNIQUE (work_order_id, seq)
 );
 
 CREATE INDEX IF NOT EXISTS idx_wo_events_wo
@@ -46,6 +58,10 @@ CREATE INDEX IF NOT EXISTS idx_wo_events_wo
 
 CREATE INDEX IF NOT EXISTS idx_wo_events_tenant_type
     ON work_order_events (tenant_id, event_type, created_at DESC);
+
+-- migration 122 (CR-0193)：API 依 seq 排序
+CREATE INDEX IF NOT EXISTS idx_wo_events_wo_seq
+    ON work_order_events (work_order_id, seq DESC);
 
 COMMENT ON TABLE work_order_events IS
     '工單事件結構化紀錄（取代 service_report append）。可用於 UI timeline、聚合統計、稽核';

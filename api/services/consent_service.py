@@ -161,11 +161,13 @@ async def send_sign_link(
         "notification_sent": sent,
         "token_hash": public_token.token_hash_for_audit(token),
     }
-    await conn.execute(
-        "INSERT INTO work_order_events "
-        "  (work_order_id, tenant_id, actor_user_id, event_type, payload) "
-        "VALUES (%s::uuid, %s::uuid, %s, 'other', %s::jsonb)",
-        (work_order_id, tenant_id, actor_user_id, json.dumps(payload, ensure_ascii=False)),
+    # CR-0193：改走 work_order_service._insert_wo_event 唯一出口取 per-工單連號 seq。
+    # 直接 INSERT 會因 seq NOT NULL 寫不進去（DB 端刻意的兜底）。
+    from services.work_order_service import _insert_wo_event
+
+    await _insert_wo_event(
+        wo_id=work_order_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
+        event_type="other", payload=payload,
     )
     logger.info(
         "consent sign link sent: wo=%s channel=%s sent=%s",

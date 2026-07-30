@@ -127,16 +127,24 @@ results:
     instrument: Playwright（UI 觀察 + browser fetch 繞過前端）+ psql
 
   - tc: TC-WO-01
-    status: FAIL
-    defect: UAT-D-007
+    status: PASS
+    defect: UAT-D-007（已修，CR-0193）
     evidence: >-
-      問題卡 → 工單轉換本身成功（201，工單 daf0eb58…）。但案例要求的**事件溯源**不成立：
-      GET /tenants/{t}/work-orders/{id}/events 回 200 但事件數 = 0；
-      create_from_problem_card（work_order_service.py:413-686）確認只有
-      INSERT INTO work_orders，無任何事件寫入；`seq` 欄不存在
-      （information_schema 確認 7 欄，且僅 public 一份表、無 saas 孿生）。
-      判定維持 FAIL。範圍與嚴重度已於 2026-07-30 更正，見 UAT-D-007。
-    instrument: Playwright（browser fetch）+ psql + 靜態讀碼 + scratch 庫 pytest
+      【0729 首驗 FAIL】問題卡 → 工單轉換成功（201，工單 daf0eb58…），但案例要求的
+      事件溯源不成立：GET events 回 200 但事件數 = 0；create_from_problem_card
+      （work_order_service.py:413-686）只有 INSERT INTO work_orders、無事件寫入；
+      information_schema 確認無 `seq` 欄（7 欄，僅 public 一份表、無 saas 孿生，
+      排除 schema 走錯的誤判）。
+      【0730 修後複驗 PASS】CR-0193 落地後全程走真實 HTTP API + scratch 庫重驗：
+      補卡欄位 → confirm → 標急件 → 轉工單 201（工單 412db442…）→
+      GET /tenants/{t}/work-orders/{id}/events 回 **seq=1 type=created
+      actor=c782bcfe…**，payload 含 origin=problem_card / problem_card_id /
+      urgency / emergency_class / quote_gate_applied。
+      續驗連號：escalate 200 後得 seq=2 type=escalated（actor 有值），
+      DESC 排序正確、連號無缺口。案例三項斷言（工單 created／寫入
+      work_order_events 含 seq／AI 不可觸發轉換）中前兩項此次直接實證；
+      HITL 鐵律那項屬 TC-CS-AI 系列另驗（本輪未測）。
+    instrument: 真實 HTTP API（curl）+ psql + 靜態讀碼 + scratch 庫 pytest（16 測）
 
   - tc: TC-SEC-IDEM-01
     status: PARTIAL
@@ -199,7 +207,26 @@ defects:
     fix_suggestion: >-
       三處 accept 收窄為 image/jpeg,image/png,image/webp（比照 KYC 與 brand-portal），
       並考慮是否要把 image/heic 移出 media_service 白名單（屬 contract 變更，需裁決）。
-    status: OPEN
+    owner_ruling: 2026-07-30 業主選項 2 —— 移除 image/heic ＋ 補 magic bytes（含 LINE fail-soft 配套）
+    fixed_20260730: >-
+      前端三處 accept 已於 0729 收窄（commit ae0cb016）。0730 依裁決完成 CR-0194：
+      ①media_service 白名單移除 image/heic（含 _EXT_BY_CT）；②新增 _validate_file_signature
+      檔頭驗證（對齊 technician_kyc_service 既有做法）—— 只移白名單擋不住「謊報
+      Content-Type 成 image/jpeg 再上傳 HEIC bytes」，那會變成錯標（DB 記 jpeg、副檔名
+      .jpg）比誠實破圖更難查；③配套修 conversation_service._store_ingest_media 的
+      fail-soft：加檔頭驗證後 LINE 的 HEIC 會被 422（agent detect_image_mime 無 HEIC
+      分支、fallback 宣告 jpeg），原本 except+return None 會讓客人照片靜默消失，
+      改為回哨兵並在訊息 metadata 留 media_error + 可讀佔位文字。
+      端到端實測（真 HEIC 檔取自容器、xxd 確認 ftypheic）：誠實宣告 heic→422；
+      **真 HEIC 謊報 jpeg→422**；合法 PNG→200 無回歸；既有 heic 列 GET 仍回
+      200 image/heic（＝本修不追溯既有證據，見下）。
+      詳見 docs/4-exploration/CR-0194-media-heic-removal-and-magic-bytes.md
+    residual: >-
+      既有 6 筆 heic 完工證據（completion_before/during/after、全綁工單、1.0-2.5MB）
+      仍為破圖，routers/media.py:74 直接回 DB 存的 content_type，本修只影響未來上傳。
+      處理方式待裁決（重新補拍 / 伺服器端一次性轉檔 / 審核頁顯示格式提示）。
+      附帶：磁碟 12 個 .heic vs DB 6 列 → 6 個孤兒檔。
+    status: FIXED（本機驗證通過；prod 待重佈。既有 6 筆殘留待裁決）
 
   - id: UAT-D-003
     severity: P3
@@ -296,12 +323,25 @@ defects:
       另更正 seq 的必要性理由：原設想「同交易多筆 NOW() 相同致排序不定」不成立
       （core/db.py:56 autocommit=True，逐句各自交易）；seq 的真正價值是
       per-工單連號可靠缺號證明事件未被刪，即正典寫的「溯源」。
-    owner_ruling: 2026-07-30 業主裁決事件溯源屬 V1 範圍（選項①）→ 開 CR-0193
-    fix_suggestion: >-
-      見 docs/4-exploration/CR-0193-work-order-lifecycle-event-sourcing.md，
-      待 §8 五項裁決（seq 語意 / 補事件範圍 / event_type 用獨立值或 other+kind /
-      prod backfill / API 是否同 CR 改）後實作。
-    status: OPEN（CR-0193 已開，等 §8 裁決）
+    owner_ruling: >-
+      2026-07-30 業主裁決事件溯源屬 V1 範圍（選項①）→ 開 CR-0193；
+      §8 五項全數「照建議」＝per-工單連號 / 7 個全補 / event_type 用獨立值 /
+      先查 prod backfill / API 同 CR 改。
+    fixed_20260730: >-
+      CR-0193 完成。migration 122（seq per-工單連號＋backfill＋NOT NULL＋
+      UNIQUE(work_order_id,seq)＋CHECK 補 7 值），拋棄式庫連套三次 idempotent。
+      12 條既有寫入點全數改道共用取號出口 _insert_wo_event（per-工單連號要有意義
+      就必須每筆都編號，留 NULL 會在連號開洞使缺號偵測失效）＋補 7 個生命週期事件；
+      list_work_order_events 回傳 seq、改 ORDER BY seq DESC。
+      **程式化稽核多抓 3 處**（掃全 services/realtime 的 UPDATE work_orders SET status）：
+      cancellation_service（v2 取消實際走這條、不經 cancel_order）與
+      auto_confirm_stale_completed（cron 自動結案）已補；scope_change 的
+      → in_progress 兩處需新 event_type，列 CR-0193 §11 待裁決。
+      端到端：轉工單 201 → GET events 得 seq=1 type=created actor 有值；
+      escalate 後 seq=2 連號無缺口、DESC 排序 → router actor 傳遞實證接上。
+      既有 20 支斷言測試全綠；新增 16 測；全套 2210 passed / 13 failed，
+      那 13 支已於乾淨基線（stash 全部變更＋pre-122 庫）重跑確認為既有問題。
+    status: FIXED（本機驗證通過；prod 待套 122 + 重佈。§11 一項新發現待裁決）
 
 incident:
   - id: INC-01

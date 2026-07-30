@@ -40,13 +40,23 @@ _ALLOWED_PURPOSES = {
     "other",
 }
 
-_ALLOWED_CONTENT_TYPES = {
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-    "image/heic",
-    "application/pdf",
+# CR-0194（UAT-D-002 業主裁決選項 2）：移除 image/heic ＋ 加 magic bytes 驗證。
+#
+# WHY 移除 HEIC：瀏覽器 <img> 無法解碼 HEIC，品牌端審核完工證據時只看到破圖，
+# 而完工硬閘仍算「有照片」＝閘門過了、證據看不到。前端 accept 已收窄（iPhone
+# 會自動轉 JPEG），但 accept 只是提示不是強制——桌機仍可用「所有檔案」選 .heic，
+# 所以伺服器端白名單才是真正的閘。
+#
+# WHY 同時要 magic bytes：光移除白名單擋不住「把 Content-Type 謊報成 image/jpeg
+# 再上傳 HEIC bytes」。那種檔案會以 .jpg 落盤、DB 記 image/jpeg，瀏覽器一樣解不開，
+# 但這次連「為什麼壞」都查不出來——等於把可見問題換成不可見問題。驗檔頭才真的關上。
+# 前綴表與 technician_kyc_service._KYC_CONTENT_TYPES 刻意保持一致做法。
+_ALLOWED_CONTENT_TYPES: dict[str, tuple[bytes, ...]] = {
+    "image/jpeg": (b"\xff\xd8\xff",),
+    "image/jpg": (b"\xff\xd8\xff",),
+    "image/png": (b"\x89PNG\r\n\x1a\n",),
+    "image/webp": (b"RIFF",),  # RIFF....WEBP（offset 8 另驗）
+    "application/pdf": (b"%PDF-",),
 }
 
 _EXT_BY_CT = {
@@ -54,9 +64,30 @@ _EXT_BY_CT = {
     "image/jpg": ".jpg",
     "image/png": ".png",
     "image/webp": ".webp",
-    "image/heic": ".heic",
     "application/pdf": ".pdf",
 }
+
+
+def _validate_file_signature(ct: str, file_bytes: bytes) -> None:
+    """驗 magic bytes 與宣告型別一致；不符 → 422。
+
+    HEIC 沒有自己的分支是刻意的：它已不在白名單，宣告 heic 會先被型別檢查擋掉；
+    謊報成 jpeg/png 的 HEIC 則會在這裡因檔頭不符被擋（HEIC 檔頭是
+    `....ftypheic` 之類，不會以 FFD8FF 或 PNG 簽章開頭）。
+    """
+    prefixes = _ALLOWED_CONTENT_TYPES.get(ct)
+    if prefixes is None:
+        # fail-closed：呼叫端理應已先驗白名單，但若順序被改動，這裡不可讓
+        # KeyError 逃成 500——未知型別一律當不合法。
+        raise ApiError("VALIDATION_ERROR", f"unsupported content_type '{ct}'", 422)
+    if not any(file_bytes.startswith(p) for p in prefixes):
+        raise ApiError(
+            "VALIDATION_ERROR",
+            f"檔案內容與宣告型別 '{ct}' 不符（可能是改了副檔名或 HEIC 原檔）",
+            422,
+        )
+    if ct == "image/webp" and file_bytes[8:12] != b"WEBP":
+        raise ApiError("VALIDATION_ERROR", "檔案內容與宣告型別不符", 422)
 
 
 def _build_storage_path(*, tenant_id: str, media_id: str, content_type: str) -> Path:
@@ -135,6 +166,8 @@ async def upload_media(
             f"unsupported content_type '{content_type}'; expected one of {sorted(_ALLOWED_CONTENT_TYPES)}",
             422,
         )
+    # CR-0194：client 自報的 Content-Type 不可信，驗檔頭（見 _validate_file_signature）
+    _validate_file_signature(ct, file_bytes)
 
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)

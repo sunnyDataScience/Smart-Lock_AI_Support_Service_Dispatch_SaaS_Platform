@@ -1,6 +1,6 @@
 # CR-0193 — 工單生命週期事件溯源（TC-WO-01 事件流缺口）
 
-- **狀態**：🛑 等業主裁決 §8
+- **狀態**：✅ 實作完成，本機驗證通過（prod 待套 122 + 重佈）。§8 已裁決「照建議」，另有 1 項新發現待裁決（見 §11）
 - **觸發面向**：DB schema（新欄位 + CHECK 擴充）、Domain model（事件流不變式）、API contract（events 回傳 additive）、Test plan（TC-WO-01）
 - **來源**：UAT 2026-07-29 TC-WO-01 FAIL → UAT-D-007
 - **正典依據**：`smartlock-docs/enterprise/20_Test_Cases.md:258`
@@ -167,3 +167,27 @@ additive 欄位，不破壞既有 consumer（`evidence_package_service`、v1 `wo
 ## §10 進度
 
 - 2026-07-30：CIA 產出，等 §8 裁決。UAT-D-007 的範圍與嚴重度已在 §1.1 更正。
+- 2026-07-30：**§8 業主裁決「照建議」** → D1 per-工單連號 / D2 全補 / D3 獨立值 / D4 先查 prod / D5 同 CR 做。實作完成：
+  - **S1** `SQL/migrations/122-wo-events-seq-and-lifecycle.sql`：拋棄式 `lock_mig122` **連套三次**退出碼 0（第二次 `UPDATE 0` 證守衛有效）；backfill 實測 per-工單各自從 1、依 `created_at` 排序正確；六項約束實測會咬（NOT NULL 擋無 seq、UNIQUE 擋重號、CHECK 放行 `created` 擋亂值、取號語句得 100、空集合得 1）。已套 scratch 與本機 UAT 庫。
+  - **S2** 全部 **12 條**既有寫入點改道共用出口 `_insert_wo_event`（含 `consent_service`）＋補 7 個生命週期事件。**D1 的必然後果**：per-工單連號要有意義就必須每筆都編號，所以不是新增一個 lifecycle helper，而是把全部寫入收斂到單一取號出口——留 NULL 的事件會在連號開洞、缺號就無法區分「被刪」與「沒編號」。
+  - **S3** `list_work_order_events` 回傳加 `seq`、排序改 `ORDER BY seq DESC`。
+  - **D4 backfill**：改用「migration 內直接 backfill」，不再依賴先查 prod 筆數——`WHERE seq IS NULL` 對 0 列或大量列都正確且可重套，故 D4 的前置查詢不再是阻塞項。惟 **prod 套用前仍應確認筆數**以評估鎖表時間（需業主 `gcloud auth login`）。
+  - **稽核發現並修補（超出原 7 個）**：寫了程式化稽核掃全 `services/`、`realtime/` 的 `UPDATE work_orders SET status=`，抓到 3 處原本不在清單內：
+    - `cancellation_service.cancel_work_order_6stage`（**v2 tenant-scoped 取消實際走這條**，不經 `cancel_order`——只補 `cancel_order` 的話實際在用的取消路徑仍不落事件）→ 已補
+    - `work_order_service.auto_confirm_stale_completed`（cron 自動結案）→ 已補（同 `confirmed` 型別、不需新 CHECK 值）
+    - `scope_change_service.respond_public` / `admin_override`（→ `in_progress`）→ **未補**，見 §11
+  - **驗證**：既有 20 支事件斷言測試全綠；新增 `tests/test_cr_0193_lifecycle_events.py` 16 測；全套 `2210 passed / 13 failed`，那 13 支已於**乾淨基線**（stash 全部變更 ＋ pre-122 的 `lock_base` 庫）重跑確認同樣失敗＝既有問題。`test_migration_drift_check_passes` 曾因 122 未登記而失敗（drift check 正確作用），補 `MIGRATION_REGISTRY.md` 後通過。
+  - **端到端（TC-WO-01 閘門項）**：全程走真實 HTTP API＋scratch 庫。補卡欄位→confirm→標急件→轉工單`201`→`GET events` 得 **`seq=1 type=created actor=c782bcfe…`**，payload 含 `origin/problem_card_id/urgency/emergency_class/quote_gate_applied`。再 escalate `200` → `seq=2 type=escalated actor` 有值、DESC 排序、連號無缺口 → **router 的 `actor_user_id` 傳遞已實證接上**。UAT 庫複驗 `4/19/0/84/16/0` 零污染。
+
+## §11 新發現待裁決 🛑
+
+**scope_change 的復工轉換要不要也落事件？**
+
+`scope_change_service.respond_public`（客戶用公開連結核可範圍變更）與 `admin_override`（後台強制核可）都會把工單推回 `status='in_progress'`，目前**不落事件**。
+
+這超出你裁決的 7 個，且需要**新增一個 event_type**（例如 `resumed`），所以我沒有擅自擴充 CHECK。
+
+1. 也補（migration 122 追加 `resumed`，或另開 123）——timeline 才完整；範圍變更後復工是爭議舉證常查的節點
+2. 不補——現況 `scope_change` 事件已記「有提出範圍變更」，只是看不到「何時核可復工」
+
+> 註：現有 `scope_change` 事件記的是**申請**，不是核可復工，語意不同，不建議用它兼代。
