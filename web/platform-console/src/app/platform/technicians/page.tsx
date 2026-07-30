@@ -84,6 +84,11 @@ export default function PlatformTechniciansPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  // 儀表板待審卡帶 `?status=pending_approval` 進來時要直接落在該分頁(不是「全部」)。
+  // 讀 URL 前先不打 API,否則會先用 filter="" 撈一次全部、再因 setFilter 重撈,
+  // 使用者會看到清單閃一下。慣例同 apply/page.tsx:129——純 client 頁直接讀
+  // window.location,不用 useSearchParams(那個要包 Suspense 才能 prerender)。
+  const [urlFilterRead, setUrlFilterRead] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,8 +110,16 @@ export default function PlatformTechniciansPage() {
   }, [filter, keyword]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    const s = new URLSearchParams(window.location.search).get("status") ?? "";
+    // 只認 FILTERS 內的值——擋掉手打亂參數(如 ?status=deleted)讓分頁列全部反白、
+    // 卻又真的把 status 送去後端的窘況。
+    if (s && (FILTERS as string[]).includes(s)) setFilter(s);
+    setUrlFilterRead(true);
+  }, []);
+
+  useEffect(() => {
+    if (urlFilterRead) load();
+  }, [load, urlFilterRead]);
 
   async function runAction(
     tech: PlatformTechnician,

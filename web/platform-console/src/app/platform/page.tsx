@@ -3,6 +3,8 @@
 // CR-0114 平台 console 儀表板 + CR-0116 維運監控分頁。
 // 分頁:
 //   - 概覽:待審計數卡(複用既有 list 端點 status 過濾,零新 API),點卡進審核頁。
+//     深連結帶 `?status=`,師傅頁會據此直接落在對應分頁(20260730:原本只到清單
+//     的「全部」分頁,且上排統計卡根本不是連結——見 StatCard 註解)。
 //   - 維運監控:跨品牌 /health 紅綠燈(monitor_target registry + 並發探測)。
 // UAT W6-2:文案接 i18n(platform.dashboard / platform.tenants namespace)。
 
@@ -104,6 +106,11 @@ interface Overview {
   tenants: TenantRow[];
 }
 
+// 師傅狀態值。同時用於「算計數」與「組深連結的 ?status=」——兩邊必須是同一個字串,
+// 否則卡片顯示 3 件待審、點進去卻篩不到(師傅頁只認 FILTERS 內的值,拼錯會靜默退回全部)。
+const TECH_STATUS_PENDING = "pending_approval";
+const TECH_STATUS_ACTIVE = "active";
+
 const TENANT_STATUS_CLS: Record<string, string> = {
   active: "bg-[var(--badge-success-bg)] text-[var(--badge-success-fg)] border-[var(--badge-success-fg)]/25",
   suspended: "bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)] border-[var(--badge-warn-fg)]/25",
@@ -128,8 +135,8 @@ function OverviewPanel() {
         if (cancelled) return;
         const techs = techRes.data ?? [];
         setOv({
-          techPending: techs.filter((x) => x.status === "pending_approval").length,
-          techActive: techs.filter((x) => x.status === "active").length,
+          techPending: techs.filter((x) => x.status === TECH_STATUS_PENDING).length,
+          techActive: techs.filter((x) => x.status === TECH_STATUS_ACTIVE).length,
           techTotal: techs.length,
           brandApps: brandRes.data?.length ?? 0,
           tenants: tenantRes.data ?? [],
@@ -160,14 +167,28 @@ function OverviewPanel() {
           label={t("statActiveTenants")}
           value={activeTenants}
           suffix={ov ? t("statTenantsTotal", { count: ov.tenants.length }) : ""}
+          href="/platform/tenants"
         />
         <StatCard
           label={t("statActiveTechs")}
           value={ov?.techActive ?? null}
           suffix={ov ? t("statTechsTotal", { count: ov.techTotal }) : ""}
+          href={`/platform/technicians?status=${TECH_STATUS_ACTIVE}`}
         />
-        <StatCard label={t("statPendingRequestors")} value={requestorPending} warn suffix={t("statUnit")} />
-        <StatCard label={t("statPendingTechs")} value={ov?.techPending ?? null} warn suffix={t("statUnit")} />
+        <StatCard
+          label={t("statPendingRequestors")}
+          value={requestorPending}
+          warn
+          suffix={t("statUnit")}
+          href="/platform/requestors"
+        />
+        <StatCard
+          label={t("statPendingTechs")}
+          value={ov?.techPending ?? null}
+          warn
+          suffix={t("statUnit")}
+          href={`/platform/technicians?status=${TECH_STATUS_PENDING}`}
+        />
       </div>
 
       {/* 待辦(點卡進審核頁) */}
@@ -181,7 +202,7 @@ function OverviewPanel() {
           subtitle={t("pendingRequestorsHint")}
         />
         <PendingCard
-          href="/platform/technicians"
+          href={`/platform/technicians?status=${TECH_STATUS_PENDING}`}
           icon={UserCheck}
           title={t("statPendingTechs")}
           count={ov ? ov.techPending : null}
@@ -240,20 +261,28 @@ function OverviewPanel() {
   );
 }
 
+/** 統計卡。給 href 就整張可點(導到對應清單的對應篩選)。
+ *
+ * 2026-07-30 業主回報:「待審核師傅」點下去沒反應。原因是這排卡片渲染成純 div,
+ * 而它正下方那排待辦卡長得很像、卻是連結——同一個標題出現兩次、只有一張能點,
+ * 使用者自然先點上面那張。所以這裡不是「補一個連結」而已,是**這排卡片本來就
+ * 該可點**(檔頭註解寫的「點卡進審核頁」原本只有下排做到)。 */
 function StatCard({
   label,
   value,
   suffix,
   warn,
+  href,
 }: {
   label: string;
   value: number | null;
   suffix?: string;
   warn?: boolean;
+  href?: string;
 }) {
   const highlight = warn && value !== null && value > 0;
-  return (
-    <div className="rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-5">
+  const body = (
+    <>
       <p className="text-xs font-medium text-[var(--text-secondary)]">{label}</p>
       <div className="mt-2 flex items-baseline gap-1.5">
         <span
@@ -265,7 +294,17 @@ function StatCard({
         </span>
         {suffix && <span className="text-xs text-[var(--text-secondary)]">{suffix}</span>}
       </div>
-    </div>
+    </>
+  );
+  const base = "rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] p-5";
+  if (!href) return <div className={base}>{body}</div>;
+  return (
+    <Link
+      href={href}
+      className={`${base} block transition hover:border-[var(--primary)] hover:shadow-sm`}
+    >
+      {body}
+    </Link>
   );
 }
 
