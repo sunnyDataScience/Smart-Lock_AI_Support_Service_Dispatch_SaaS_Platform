@@ -318,6 +318,23 @@ async def create_technician(
     async with tconn.transaction():
         resolved_user_id = user_id
         if resolved_user_id is None:
+            # 重複 email 檢查——與自助註冊同一條規則（auth_service.py:640-647）：
+            # 同 email 可同時是技師與廠商，但**同一角色內唯一**。
+            # 這裡原本沒檢查，而 users.email 也沒有唯一索引（實測只有非唯一的
+            # idx_users_email_tenant），所以平台代建能造出兩列 role='technician'
+            # 同 email；登入 lookup 是 role 過濾 + LIMIT 1，兩列並存時登進哪個帳號
+            # 不確定（見 auth_service._find_user_by_email 的 ORDER BY 註解）。
+            if email:
+                dup = await tconn.execute(
+                    "SELECT 1 FROM users WHERE email = %s AND role = 'technician' LIMIT 1",
+                    (email,),
+                )
+                if await dup.fetchone():
+                    raise ApiError(
+                        "EMAIL_TAKEN",
+                        f"Email {email} is already registered as a technician",
+                        409,
+                    )
             resolved_user_id = str(uuid.uuid4())
             await tconn.execute(
                 "INSERT INTO users "

@@ -59,16 +59,33 @@ async def _find_user_by_email(email: str, role_in: list[str]) -> dict | None:
         pred = "(email = %s OR email_bidx = %s)"
         pred_args = [email, user_pii_bidx.blind_index(email)]
     placeholders = ",".join(["%s"] * len(role_in))
+    # ORDER BY created_at, id：`users.email` **沒有唯一索引**（實測只有非唯一的
+    # idx_users_email_tenant），所以同 email 同 role 兩列並存在物理上是可能的。
+    # 原本無 ORDER BY 的 LIMIT 1 會由 planner 任意挑一列 —— 同一組帳密可能今天
+    # 登進 A 帳號、明天登進 B 帳號。加上排序讓它至少是**確定的**（取最早建立那列，
+    # 即本人原始帳號）。寫入面的根治在 technician_service.create_technician 的
+    # EMAIL_TAKEN 檢查；這裡是讀取面的第二層，並在偵測到重複時 fail-loud。
     cur = await conn.execute(
         f"SELECT id, email, password_hash, role, tenant_id, is_active, locked_until "
         f"FROM users "
         f"WHERE {pred} AND role IN ({placeholders}) "
-        f"LIMIT 1",
+        f"ORDER BY created_at ASC, id ASC "
+        f"LIMIT 2",
         (*pred_args, *role_in),
     )
-    row = await cur.fetchone()
-    if not row:
+    rows = await cur.fetchall()
+    if not rows:
         return None
+    if len(rows) > 1:
+        # 資料已經髒了：同 email 同角色多列。不擋登入（擋了等於把使用者鎖在門外），
+        # 但必須留下訊號讓維運查得到——否則這種帳號只會在「我明明改了密碼卻沒生效」
+        # 這類無法重現的客訴裡浮現。
+        logger.error(
+            "登入 lookup 撞到重複帳號：同 email 同角色有多列 role=%s；"
+            "已取最早建立那列。請查 users 表重複資料（email 不印）",
+            role_in,
+        )
+    row = rows[0]
     return {
         "id": str(row[0]),
         "email": row[1],
