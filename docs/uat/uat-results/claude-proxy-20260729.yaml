@@ -132,9 +132,11 @@ results:
     evidence: >-
       問題卡 → 工單轉換本身成功（201，工單 daf0eb58…）。但案例要求的**事件溯源**不成立：
       GET /tenants/{t}/work-orders/{id}/events 回 200 但事件數 = 0；
-      psql 複驗 work_order_events **全表 0 筆**，且 `seq` 欄不存在。
-      即建單路徑完全沒有寫入事件流。詳見 UAT-D-007。
-    instrument: Playwright（browser fetch）+ psql
+      create_from_problem_card（work_order_service.py:413-686）確認只有
+      INSERT INTO work_orders，無任何事件寫入；`seq` 欄不存在
+      （information_schema 確認 7 欄，且僅 public 一份表、無 saas 孿生）。
+      判定維持 FAIL。範圍與嚴重度已於 2026-07-30 更正，見 UAT-D-007。
+    instrument: Playwright（browser fetch）+ psql + 靜態讀碼 + scratch 庫 pytest
 
   - tc: TC-SEC-IDEM-01
     status: PARTIAL
@@ -266,22 +268,40 @@ defects:
 
   - id: UAT-D-007
     severity: P1
-    title: 工單事件溯源未實作 —— work_order_events 全表 0 筆且無 seq 欄
+    title: 工單生命週期事件缺口 —— 10 個轉換只有 3 個寫 work_order_events，且無 seq 欄
     found_in: TC-WO-01
     detail: >-
       問題卡 → 工單轉換成功後，`GET /tenants/{t}/work-orders/{id}/events` 回 200 但
-      事件數 0；psql 複驗 `work_order_events` **全表 0 筆**（不是該單沒有，是整個表空的），
-      且 `information_schema` 確認**沒有 `seq` 欄**。
-      即 create_from_problem_card 只發 WS/Kafka 通知，不落事件流。
-      TC-WO-01 要求「工單建立後事件可溯源、seq 單調遞增」，此條無從成立。
-      端點存在且回 200（空陣列）而非 404 —— 從 API 表面看不出功能缺席，
-      這比直接 404 更容易讓驗收誤判為通過。
+      事件數 0。靜態讀碼確認 create_from_problem_card（work_order_service.py:413-686）
+      只有 INSERT INTO work_orders，無事件寫入；information_schema 確認**無 `seq` 欄**
+      （7 欄，且僅 public 一份表、無 saas 孿生，排除 schema 走錯的誤判）。
+      正典 20_Test_Cases.md:258 明文要求「寫入 work_order_events（事件溯源 seq）」。
+      真正缺口＝10 個生命週期轉換只有 reject/assign/reassign 三個寫事件；
+      建單/接單/完工/取消/重開/升級/確認七個都沒有。subflow 事件（門檢/缺料/延遲/
+      簽名/改期）反而齊全，因為它們走共用 recorder _append_subflow_event，
+      生命週期轉換則各自手寫 INSERT、漏了沒人發現。
+      影響不只 timeline：evidence_package_service.py:18 拿 list_work_order_events
+      當爭議舉證包來源。
+      端點回 200 空陣列而非 404 —— 從 API 表面看不出功能缺席，比直接 404
+      更容易讓驗收誤判為通過。
+    correction_20260730: >-
+      本筆原文有兩處範圍錯誤，已更正：①原寫「建單路徑完全沒有寫入事件流」暗示功能缺席，
+      實測 13 條寫入路徑存在、20 支斷言測試於 scratch 庫全過（test_uat_wave1_fixes /
+      test_cr_0053_arrival_doorcheck / test_cr_0166_tech_reject /
+      test_schedule_conflict_detection / test_cr_0180_consent_send_link），
+      寫入機制是好的。②原以「全表 0 筆」當缺陷證據，但 dispatch_logs 同時也 0 筆，
+      說明這 4 張工單是 SQL 直接 seed、從未走過 API 派工 —— 空表是資料來源造成，
+      不足以證明路徑壞掉。缺陷判定不變（建單確實不寫事件、確實無 seq），
+      但範圍實際比原敘述**更大**（是 7 個轉換，不只建單）。
+      另更正 seq 的必要性理由：原設想「同交易多筆 NOW() 相同致排序不定」不成立
+      （core/db.py:56 autocommit=True，逐句各自交易）；seq 的真正價值是
+      per-工單連號可靠缺號證明事件未被刪，即正典寫的「溯源」。
+    owner_ruling: 2026-07-30 業主裁決事件溯源屬 V1 範圍（選項①）→ 開 CR-0193
     fix_suggestion: >-
-      需業主裁決範圍：①若事件溯源是 V1 承諾，需補 work_order_events 寫入與 seq 欄
-      （屬 DB schema + domain model 變更，命中 CIA）；②若非 V1 範圍，
-      應把 TC-WO-01 的事件溯源斷言移出 V1 驗收並在案例上標注，
-      否則每輪 UAT 都會卡在同一條假失敗。
-    status: OPEN
+      見 docs/4-exploration/CR-0193-work-order-lifecycle-event-sourcing.md，
+      待 §8 五項裁決（seq 語意 / 補事件範圍 / event_type 用獨立值或 other+kind /
+      prod backfill / API 是否同 CR 改）後實作。
+    status: OPEN（CR-0193 已開，等 §8 裁決）
 
 incident:
   - id: INC-01
