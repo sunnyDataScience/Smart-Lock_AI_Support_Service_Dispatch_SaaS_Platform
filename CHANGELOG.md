@@ -19,7 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OD-004 Casdoor 跨租戶 organization/claim 定版（2026-07-28 業主裁決 → [ADR-041](smartlock-docs/enterprise/14_ADR/ADR-041_跨品牌技師身分單一平台principal加品牌membership.md)）**：採單一平台 principal + 品牌 membership claim，token 一次帶齊已授權品牌；不採每品牌複製技師帳號。**品牌間競爭隔離不由收窄 token scope 達成**，而由既有的每品牌物理分庫與 `tech_mirror` 白名單投影保證（品牌庫不鏡射 `authorized_brands`／憑證／PII，稽核只存 actor_id/actor_role）；平台跨品牌治理走 platform admin principal，依 ADR-035 不接受 `X-Tenant-ID` 提權。新增風險條文：任何未來新增的品牌面端點若回傳跨品牌欄位即破壞隔離假設，須納入 BOLA 負向契約測試。
 - 兩項裁決均為 append-only 新 ADR，未改寫 ADR-036 本文（僅於其 Status 欄附註連結，此為 `open_decisions.yaml` 表頭明訂的合法回填方式）。`open_decisions.yaml` 新增 `decided_on`／`decided_by`／`resolution`／`resulting_adr` 四個必填欄位與生成器渲染；`OPEN_DECISIONS.md` 由生成器重出。回填：12_SAD §14、13_Security_Architecture §2.1/§2.3、15_SDS §6.3/§7.1、16_API_Spec.yaml（OHS tag 與 securityScheme 描述）、14_ADR/00_INDEX、27_WBS M3.6 圖例與 3.6.2/3.6.5 gate。**仍 open：OD-002（Refinery 資料進入契約）、OD-003（技師 WS 權威歸屬）。**
 
+### Fixed
+
+- **`scripts/deploy/web.sh` 在 macOS bash 3.2 下部署必中斷（空陣列展開）**：`WEB_SECRET_ARGS=()` 只在 `CASDOOR_ENDPOINT` 與 `CASDOOR_CLIENT_ID` 皆有值時才被填，而 `set -u` 下 bash 3.2 對**空陣列**的 `"${ARR[@]}"` 會噴 `unbound variable`（bash 4.4+ 才修正）。CI 跑 ubuntu bash 5 不會踩 → **這個 bug 只在本機 prod 部署時現形**，2026-07-30 重佈三個 web 站時實際踩到（build/push 成功、`gcloud run deploy` 那步中止）。改用 `${ARR[@]+"${ARR[@]}"}`，並反向驗證（新寫法空/非空皆正確、舊寫法確實炸）。同族雷：`apply-schema-routed.sh` 的 `declare -A`（bash 3.2 無此語法）。
+
 ### Added
+
+- **prod 全站對齊 HEAD（2026-07-30，業主裁決「照建議推」）**：依建議順序逐一部署並在每步之間驗證——platform-api 先（解開 service principal bootstrap 死結）→ tech-api → 三個 web → agent。
+  - **抓到一個會讓部署「假成功」的陷阱**：`api.sh` 的 `IMAGE_BASE` 由 `SERVICE_NAME` 推導，所以 `SERVICE_NAME=lock-platform-api` 用的是**另一個 image repo** `lock-platform-api:latest`，而它的 `latest` 還是舊的 `bf5eb7d1`。第一次用 `--deploy-only` 重佈 platform-api **只換了環境變數、沒換 code**（health 200、revision 遞增，但 `/api/v2/platform/service-principals` 仍 404）。改跑完整 build 後才真的上線。這正是 `reference_cloud_deploy_param_parity` 記載的「deploy 腳本缺參數／預設寫死品牌服務」同一類雷。
+  - **順帶修好 prod 的 UAT-D-006 縱深防禦**：三個 web 站部署前 env **只有 `NODE_ENV`**，`/api-proxy` 是死碼（靠烤入的 `NEXT_PUBLIC_*` 直連）。本輪部署時補上 runtime `API_BASE_URL`／`PLATFORM_API_BASE_URL`，實測三站 `/api-proxy/health` **全部由 503/死碼 → 200 由真實 API 回應**。
+  - **CORS 參數逐站帶對**（`WEB_SERVICE_NAME`）：這是 0723 那顆「tech/platform-api 重佈未帶 → 吃到 `smart-lock-web` 預設 → CORS 烤錯」的雷，本輪 platform-api 與 tech-api 的 `CORS_ORIGINS` 實測分別正確指向各自的 web 站。
+  - **surface 過濾行為驗證**：品牌 441 條路由 / tech 121 條 / platform 40 條（只留平台面）。另先驗過 `main.py:193` —— `API_SURFACE in ("tech","platform")` 時背景 worker 全部停用，故重佈後三個 API 服務**不會重複跑 cron**。
+  - **platform-web build 失敗一次**（`next/font` 抓不到 Google Fonts），重試即成功 → 判定為暫時性網路問題，非程式問題。
+  - **最終狀態**：六個服務 image tag = `989b21fb`（＝當時 HEAD，落後 0）、全含 CR-0190；品牌 API 為 `25fc8464` build（差兩個純文件 commit）。全站健康綠（`smart-lock-agent` 的 404 是已知誤報——webhook 服務無 `/health`）。**DB 資料零變動**：品牌庫 `wo_events=5 settlement=25 media=0 work_orders=81` 與部署前一致；平台庫 service principal 三表仍 0 列（bootstrap 為後續動作）。
+  - **回復點**：platform-api `00008-27s`／tech-api `00008-9ff`／brand-web `00025-xn6`／tech-web `00006-c5p`／platform-web `00006-4kk`／agent `00020-shq`／brand-api `00036-g9n`。
 
 - **prod 部署完成（2026-07-30，業主裁決「補完 CR-0190 前置再部署」）**：`smart-lock-api-00037-x67`，image digest `sha256:22f33f03…`。
   - **前置盤點才是這次的主要工作**（動 prod 前）：prod 只套到 migration 119、**落後 HEAD 35 個 commit**；`api.sh` 九個 required secret 只缺 `SERVICE_CREDENTIAL_PEPPER`；三庫 migration 缺口依各檔 `migrate-targets` 宣告算出＝brand 缺 118/120、tech 缺 120、platform 缺 120/121（`lock_tech` 停在 105、`lock_platform` 停在 084 **不是落後**，是那些 migration 不路由到該庫）。

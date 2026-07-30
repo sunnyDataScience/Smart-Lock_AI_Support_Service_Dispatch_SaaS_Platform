@@ -76,6 +76,12 @@ if [[ -f "${WEB_ENV_FILE}" ]]; then
 fi
 # Runtime 環境變數（不需要 build-time）
 ENV_VARS="NODE_ENV=production"
+# ⚠️ 空陣列展開：macOS 內建 bash 是 3.2，在 `set -u` 下 `"${ARR[@]}"` 對**空陣列**
+#    會噴 "unbound variable" 而中止（bash 4.4+ 才修正）。本陣列只在 CASDOOR_ENDPOINT
+#    與 CASDOOR_CLIENT_ID 皆有值時才被填，所以本機部署（沒設 SSO）必踩。
+#    CI 跑 ubuntu bash 5 不會踩 → 這個 bug 只在本機 prod 部署時現形，2026-07-30
+#    重佈三個 web 站時實際踩到（build/push 成功、deploy 那步中止）。
+#    使用處改用 `${ARR[@]+"${ARR[@]}"}` 形式（陣列未設/為空時整段消失）。
 WEB_SECRET_ARGS=()
 # ADR-038 build-once：API target 改由 Next same-origin proxy 在 runtime 讀取；值不烤入
 # browser bundle，staging/prod 才能使用同一 image digest。
@@ -299,7 +305,7 @@ deploy_to_cloud_run() {
         --max-instances="${MAX_INSTANCES}" \
         --timeout="${TIMEOUT}" \
         --set-env-vars="${ENV_VARS}" \
-        "${WEB_SECRET_ARGS[@]}" \
+        ${WEB_SECRET_ARGS[@]+"${WEB_SECRET_ARGS[@]}"} \
         --allow-unauthenticated \
         --quiet
 
