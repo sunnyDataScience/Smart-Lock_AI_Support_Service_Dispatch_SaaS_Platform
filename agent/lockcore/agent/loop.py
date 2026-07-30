@@ -1037,6 +1037,25 @@ class AgentLoop:
         self._background_tasks.append(task)
         task.add_done_callback(self._background_tasks.remove)
 
+    async def _record_memory_safe(
+        self, sender_id: str, user_text: str, assistant_text: str, session_key: str
+    ) -> None:
+        """CR-0196:per-user 記憶抽取的背景版(由 _state_save 排程,不阻塞回覆)。
+
+        必須自己吞例外——背景 task 的例外不會傳回 turn,若不吞會變成 asyncio
+        的 "Task exception was never retrieved" 噪音。行為與原本的
+        `try: await ...  except: pass` 等價,只是移出了關鍵路徑。
+        失敗改記 debug 而非全靜默:原本靜默是因為它在關鍵路徑上、記 log 也沒人看,
+        現在移到背景後反而需要一條線索才查得到「記憶為何沒更新」。
+        """
+        try:
+            await self._memory_manager.record_turn_async(
+                self._memory_tenant, sender_id, user_text, assistant_text,
+                session_id=session_key,
+            )
+        except Exception:  # noqa: BLE001 — 記憶寫入絕不可影響 turn
+            logger.debug("per-user 記憶抽取失敗(背景,已略過)", exc_info=True)
+
     def stop(self) -> None:
         """Stop the agent loop."""
         self._running = False
@@ -1337,10 +1356,12 @@ class AgentLoop:
         return "dispatch"
 
     async def _state_build(self, ctx: TurnContext) -> str:
-        await self.consolidator.maybe_consolidate_by_tokens(
-            ctx.session,
-            replay_max_messages=self._max_messages,
-        )
+        # CR-0196:原本這裡 `await maybe_consolidate_by_tokens(...)` 阻塞整輪
+        # ——prod 實測 BUILD 中位數 8.5s(最大 12.4s),而壓縮本身是一次 LLM 摘要。
+        # **同一個函式在 _state_save 末尾已經以 _schedule_background 排過一次**
+        # (見該處),所以這裡是重複呼叫;移除後由上一輪的背景版涵蓋。
+        # 取捨(§8-D3 業主裁決 (a)):歷史暴漲的那一輪若壓縮未完成,該輪 replay 較長,
+        # 下一輪補上。若日後量到差異,退回 _schedule_background 版本即可(選項 b)。
         self._set_tool_context(
             ctx.msg.channel,
             ctx.msg.chat_id,
@@ -1451,17 +1472,28 @@ class AgentLoop:
         regen_messages = list(all_msgs or ctx.initial_messages) + [
             {"role": "user", "content": CORRECTIVE_INSTRUCTION}
         ]
-        # 重生不串流（違規草稿不再外流；LINE 為整則出站本就無此問題）
-        new_content, new_tools, new_msgs, _stop, _inj = await self._run_agent_loop(
+        # CR-0196:重生改為**無工具的單次 LLM 呼叫**,不再跑一整輪 _run_agent_loop。
+        # prod 實測本 guard 20 輪觸發 4 次(20%),而原本每次觸發都等於把整輪 agent
+        # loop(含工具、可多次 LLM round-trip)再跑一遍——Turn A 的 RUN=82s 就是這樣來的。
+        # CORRECTIVE_INSTRUCTION 要的是「改寫措辭、移除未溯源型號」,不需要重新查資料,
+        # 故 tools=None。(§8-D2 業主裁決 (a);若日後發現重生確實需查資料才能溯源,
+        # 再升級為「完整 loop 但夾 max_iterations」= 選項 b。)
+        # **守線判定本身完全不動**(guard_violations 是 ADR-025／CR-0152 紅線),
+        # 重生結果一樣要再過一次 guard,仍違規照樣走下面的轉真人話術。
+        # 重生不串流(違規草稿不再外流;LINE 為整則出站本就無此問題)。
+        regen_resp = await self.provider.chat_with_retry(
             regen_messages,
-            on_progress=ctx.on_progress,
-            session=ctx.session,
-            channel=ctx.msg.channel,
-            chat_id=ctx.msg.chat_id,
-            message_id=ctx.msg.metadata.get("message_id"),
-            metadata=ctx.msg.metadata,
-            session_key=ctx.session_key,
+            tools=None,
+            model=self.model,
+            retry_mode=self.provider_retry_mode,
+            on_retry_wait=ctx.on_retry_wait,
         )
+        new_content = regen_resp.content
+        # 無工具 → 重生階段不可能新增 tools_used;沿用原本的即可
+        new_tools: list[str] = []
+        new_msgs = regen_messages + [
+            {"role": "assistant", "content": new_content or ""}
+        ]
         merged_tools = list(dict.fromkeys((tools_used or []) + (new_tools or [])))
         escalated2 = "transfer_to_human" in merged_tools
         if not guard_violations(new_content or "", customer_text, escalated=escalated2):
@@ -1495,18 +1527,24 @@ class AgentLoop:
         )
         # [lock-cs-agent] SAVE → 寫回該客人的 per-user 記憶(對應 Hermes sync)。
         # 記憶寫入絕不可讓 turn 失敗,故包 try/except。
+        #
+        # CR-0196:**不 await**。LLM 抽取器會打一次 provider,prod 實測這一段
+        # 中位數 8.1s(最大 12.0s);而狀態機是 RUN → SAVE → RESPOND、LINE 回覆
+        # 在整個 _process_message 返回後才送出 → 客人白等這 8~12 秒等的是
+        # 記憶簿記,不是答案。改用同函式末尾 consolidation 已在用的
+        # _schedule_background(受追蹤、關機時排空)。
+        # 取捨(§8-D1 業主裁決 (a)):下一輪 BUILD 的記憶預取可能讀不到剛抽的事實。
+        # 可接受——記憶是答案品質的加分項而非正確性依賴,且 debounce 5s ＋ 客人
+        # 打字時間通常足夠讓抽取完成。
         if self._memory_manager is not None and ctx.msg.sender_id:
-            try:
-                # async 版兼容 LLM 抽取器(會打一次 provider 抽乾淨事實)
-                await self._memory_manager.record_turn_async(
-                    self._memory_tenant,
+            self._schedule_background(
+                self._record_memory_safe(
                     ctx.msg.sender_id,
                     ctx.msg.content or "",
                     ctx.final_content or "",
-                    session_id=ctx.session_key,
+                    ctx.session_key,
                 )
-            except Exception:
-                pass
+            )
         if ctx.msg.channel == "websocket":
             self._pending_turn_latency_ms[ctx.session_key] = ctx.turn_latency_ms
         ctx.session.enforce_file_cap(on_archive=self.context.memory.raw_archive)

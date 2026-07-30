@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OD-004 Casdoor 跨租戶 organization/claim 定版（2026-07-28 業主裁決 → [ADR-041](smartlock-docs/enterprise/14_ADR/ADR-041_跨品牌技師身分單一平台principal加品牌membership.md)）**：採單一平台 principal + 品牌 membership claim，token 一次帶齊已授權品牌；不採每品牌複製技師帳號。**品牌間競爭隔離不由收窄 token scope 達成**，而由既有的每品牌物理分庫與 `tech_mirror` 白名單投影保證（品牌庫不鏡射 `authorized_brands`／憑證／PII，稽核只存 actor_id/actor_role）；平台跨品牌治理走 platform admin principal，依 ADR-035 不接受 `X-Tenant-ID` 提權。新增風險條文：任何未來新增的品牌面端點若回傳跨品牌欄位即破壞隔離假設，須納入 BOLA 負向契約測試。
 - 兩項裁決均為 append-only 新 ADR，未改寫 ADR-036 本文（僅於其 Status 欄附註連結，此為 `open_decisions.yaml` 表頭明訂的合法回填方式）。`open_decisions.yaml` 新增 `decided_on`／`decided_by`／`resolution`／`resulting_adr` 四個必填欄位與生成器渲染；`OPEN_DECISIONS.md` 由生成器重出。回填：12_SAD §14、13_Security_Architecture §2.1/§2.3、15_SDS §6.3/§7.1、16_API_Spec.yaml（OHS tag 與 securityScheme 描述）、14_ADR/00_INDEX、27_WBS M3.6 圖例與 3.6.2/3.6.5 gate。**仍 open：OD-002（Refinery 資料進入契約）、OD-003（技師 WS 權威歸屬）。**
 
+### Fixed
+
+- **LINE 客服回覆延遲約兩分鐘：兩段與答案無關的 LLM 佔住關鍵路徑（CR-0196，業主 2026-07-30 裁決 §8 五項全照建議）**：prod log 抓到完整時間軸——`POST /callback` 06:31:04 → `Turn completed` 06:32:54 = **109.8 秒**，對上業主症狀。20 個 turn 樣本：BUILD 中位數 **8.5s**（歷史壓縮，LLM）／RUN **25.0s**／SAVE **8.1s**（per-user 記憶事實抽取，LLM），狀態機前另有 12–18s（debounce 5s ＋ 接管檢查 ＋ session 載入）。**沒有單一元兇，是四段疊加。**
+  - **關鍵洞察**：狀態機是 `RUN → SAVE → RESPOND`，而 LINE 回覆在整個 `_process_message` 返回後才送出 → **客人多等的 8–12 秒等的是記憶簿記，不是答案**。且 `maybe_consolidate_by_tokens` 在 `_state_build` 阻塞 await 一次、又在 `_state_save` 末尾以 `_schedule_background` 排一次，**同一輪呼叫兩次**。
+  - **S1** `record_turn_async` 改 `_schedule_background`（新增 `_record_memory_safe` 自吞例外——背景 task 的例外不會傳回 turn，不吞會變成 asyncio `Task exception was never retrieved` 噪音；失敗由全靜默改記 debug，移到背景後反而需要線索才查得到「記憶為何沒更新」）。**S3** 移除 BUILD 的阻塞壓縮。**S2** reply-guard 重生由整輪 `_run_agent_loop` 改為 `chat_with_retry(tools=None)` 單次呼叫——prod 實測該 guard **20 輪觸發 4 次（20%）**，每次等於把整輪 agent loop（含工具、可多次 LLM round-trip）再跑一遍，Turn A 的 RUN=82s 就是這樣來的。`CORRECTIVE_INSTRUCTION` 要的是改寫措辭、不需重新查資料。**守線判定 `guard_violations` 完全未動**（ADR-025／CR-0152 紅線），重生結果一樣要再過 guard。
+  - **量測**（以 prod 中位數當模擬參數）：客人實際等待 **18.1s → 2.0s（-89%）**。對應 prod ＝ **16.6s 移出關鍵路徑**，預期端到端中位數 ~55–60s → ~38–43s。真實效果須部署後撈 prod log 對照。
+  - **§2 記錄三個被對抗式驗證推翻的假設**，以免日後重走死路：①**CPU 節流不是元兇**——實測每輪 CPU 僅 0.056–0.642 CPU-秒、變異 11 倍，節流是乘法放大器只會產生 8–9 倍的延遲分布，與「穩定兩分鐘」相反，且沒有任何機制把延遲鎖在 120 秒（降級為「放大器」，仍以 `--no-cpu-throttling` 關掉）②**turn 未超過 reply token 效期**（prod 30 天 `LINE reply 失敗,改用 push` **0 筆**）③persist spool 飽和無支持證據。另 **④「Vertex region 對齊」是假議題**：`VERTEX_LOCATION` 沒有任何程式讀它（主路徑走 `_auto_vertex_location`，gemini-3.x 自動選 `"global"`；LiteLLM 認的是 `VERTEXAI_LOCATION`，拼法不同），已加註解不改行為。
+  - 新增 `test_cr_0196_reply_latency.py` 5 測試，反向驗證舊 code 恰 3 紅；`agent/tests/` 全套 **320 passed** 零迴歸。**prod 未部署。**
+  - **另立品質議題（§8-D5(a)）**：reply-guard 20% 觸發率本身是訊號——五分之一的回覆講出無法溯源的型號被守線攔下，那是 SOP／知識庫問題，但每次攔截都讓客人多等一輪。
+
 ### Added
 
 - **條件式核准：「先上工後補件」從隱形漏洞變成可稽核的決定（CR-0195，業主 2026-07-30 裁決選項 3＋§8 六項全照建議）**：業主 UAT 回報「師傅註冊選身分證 → 管理員核准 → 才發現要補上傳身分證，但系統已擋掉補件」。8 agent 盤點＋3 路對抗式驗證後**前提翻轉**：核准端對 KYC 文件**零檢查**（`approve_onboarding` 全鏈不查 `technician_registration_document`），實測 6 位 active 技師 100% 零文件——「未驗身分即上工」早已在發生，缺的不是「能不能先做事」而是「**之後怎麼叫他補**」，而那條路被雙閘封死（簽發 409＋消費 403），且平台後台還顯示一個點下去必 409 的「產生補件連結」按鈕。

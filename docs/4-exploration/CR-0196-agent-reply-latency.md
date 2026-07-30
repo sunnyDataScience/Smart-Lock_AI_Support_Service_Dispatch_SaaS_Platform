@@ -3,7 +3,7 @@
 - **開立**：2026-07-30
 - **觸發**：業主回報「客服都會延遲大概兩分鐘才回覆」
 - **風險等級**：L2（命中 CIA 七面向之 Architecture boundary／Test plan；改 agent 核心 turn 狀態機）
-- **狀態**：🛑 §8 待裁決（選項 4 已先行，見 §7）
+- **狀態**：✅ 實作完成（§8 五項全照建議，2026-07-30）。**prod 未部署**，見 §10「未做」
 
 ---
 
@@ -200,4 +200,48 @@ LiteLLM 本身認的是 `VERTEXAI_LOCATION`（拼法不同）。
 
 ## §10 進度
 
-（待 §8 裁決後開始）
+業主 2026-07-30 裁決 **§8 全照建議**（D1(a)/D2(a)/D3(a)/D4(a)/D5(a)）。
+
+- ✅ 選項 4 done（merge `773aef77`）：`agent.sh` 補 `--no-cpu-throttling`；
+  `VERTEX_LOCATION` 加註解標示為死設定（§2-4）。
+- ✅ S1 done：`_state_save` 的 `record_turn_async` 改 `_schedule_background`，
+  新增 `_record_memory_safe` 包裝自吞例外（背景 task 的例外不會傳回 turn，
+  不吞會變成 asyncio `Task exception was never retrieved` 噪音）。
+  失敗由原本的全靜默改記 `logger.debug`——移到背景後反而需要線索才查得到
+  「記憶為何沒更新」。
+- ✅ S3 done：移除 `_state_build` 的阻塞 `await maybe_consolidate_by_tokens(...)`。
+  該函式在 `_state_save` 末尾已有 `_schedule_background` 版本，原本是同一輪呼叫兩次。
+- ✅ S2 done：reply-guard 重生由整輪 `_run_agent_loop` 改為
+  `provider.chat_with_retry(..., tools=None)` 單次呼叫。**守線判定 `guard_violations`
+  完全未動**，重生結果一樣要再過一次 guard，仍違規照舊走轉真人話術。
+
+### 量測（§9-4）
+
+以 prod 實測中位數當模擬參數（壓縮 8s／記憶抽取 8s／每次 LLM 2s）跑同一支 bench：
+
+| | 改動前 | 改動後 |
+|---|---|---|
+| BUILD | 8.0s | 0.0s |
+| RUN | 2.0s | 2.0s |
+| SAVE | 8.0s | 0.0s |
+| **客人實際等待** | **18.1s** | **2.0s（-89%）** |
+
+⚠️ 這是**受控量測**，證明的是結構改變（兩段 LLM 移出關鍵路徑），不是 prod 數字。
+對應 prod：BUILD 中位數 8.5 + SAVE 8.1 = **16.6s 移出關鍵路徑**，
+預期端到端中位數由 ~55–60s 降至 ~38–43s；另 20% 觸發 guard 的 turn 再省一整輪 loop。
+**真實效果須部署後撈 prod `State X took` log 前後對照**（§9-6）。
+
+### 測試
+
+- 新增 `agent/tests/test_cr_0196_reply_latency.py` 5 條，**反向驗證舊 code 恰好 3 紅**
+  （慢抽取拖慢 turn／壓縮阻塞／重生帶工具），行為不變的 2 條（記憶仍會寫入／
+  抽取失敗不影響 turn）兩邊都綠。
+- `agent/tests/` 全套 **320 passed**（原 315 + 新 5），零迴歸。
+
+### 未做（明確排除）
+
+- **prod 未部署**（本檔撰寫時）。
+- D4(a)：不新增結構化 latency log／metric，正式觀測與 SigNoz 一併規劃（WBS 1.4.1）。
+- D5(a)：**reply-guard 20% 觸發率另立品質議題**——五分之一的回覆講出無法溯源的型號
+  被守線攔下，那是 SOP／知識庫問題不是延遲問題，但每次攔截都讓客人多等一輪，值得追。
+- 狀態機前的 12–18s（debounce 5s ＋ 接管檢查 ＋ session 載入）本輪未動。
