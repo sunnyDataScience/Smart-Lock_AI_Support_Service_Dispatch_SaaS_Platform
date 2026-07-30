@@ -64,14 +64,30 @@ def _hash_token(raw: str) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+# 各站台的正式網址。這些值會**原封不動出現在寄給使用者的信裡**——localhost 在
+# 收信人的裝置上永遠打不開，所以未設 env 時的 fallback 不能是 localhost
+# （同 technician_line_service._DEFAULT_TECH_PORTAL_URL 的理由）。
+# prod 由 scripts/deploy/api.sh 依 surface 烤入 PASSWORD_RESET_WEB_URL，一般吃不到本預設。
+_DEFAULT_TECH_PORTAL_URL = "https://lock-tech-web-sjmxp23sqq-de.a.run.app"
+_DEFAULT_BRAND_PORTAL_URL = "https://smart-lock-web-sjmxp23sqq-de.a.run.app"
+
+
 def _reset_link(raw_token: str) -> str:
-    """組重設頁連結。base 取 env PASSWORD_RESET_WEB_URL → 依 surface 預設站台。"""
+    """組重設頁連結。base 取 env PASSWORD_RESET_WEB_URL → 依 surface 預設站台。
+
+    2026-07-30：原本 tech 面未設 env 時退 `http://localhost:3001`，而 prod 的
+    lock-tech-api **確實沒設**這個 env → 技師在正式師傅站按「忘記密碼」收到的信裡
+    是 localhost 連結。與 CR-0194 的 LINE 深連結同一類 bug：寄到使用者裝置上的
+    連結不能是 localhost。
+    """
     base = (os.getenv("PASSWORD_RESET_WEB_URL") or "").strip()
     if not base and _is_tech_surface():
-        base = "http://localhost:3001"  # 技師的重設頁在師傅站
+        base = _DEFAULT_TECH_PORTAL_URL  # 技師的重設頁在師傅站
     if not base:
-        origins = load_config().system.get("cors_origins") or ["http://localhost:3000"]
-        base = origins[0] if origins else "http://localhost:3000"
+        # 品牌/平台面：優先取 CORS 白名單首位（本機開發會是 localhost:3000，正確），
+        # 完全沒有設定時才退正式品牌站——同樣不退 localhost。
+        origins = load_config().system.get("cors_origins") or []
+        base = origins[0] if origins else _DEFAULT_BRAND_PORTAL_URL
     return f"{base.rstrip('/')}/reset-password?token={raw_token}"
 
 

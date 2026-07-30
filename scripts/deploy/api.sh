@@ -109,6 +109,16 @@ ENV_VARS="${ENV_VARS},ALLOWED_TOKEN_PORTALS=${ALLOWED_TOKEN_PORTALS}"
 # 未設會 fallback 到 example.com 死連結（0719 部署參數 parity 雷同源，故烤入）。
 WEB_BASE_URL="${WEB_BASE_URL:-https://smart-lock-web-sjmxp23sqq-de.a.run.app}"
 ENV_VARS="${ENV_VARS},WEB_BASE_URL=${WEB_BASE_URL}"
+# 忘記密碼信裡的重設頁連結 base。**依 surface 分流**：技師的重設頁在師傅站、
+# 其餘在品牌站。未設時 password_reset_service._reset_link 會退各自的正式站
+# （2026-07-30 前是退 localhost:3001 → 寄出去的信裡是打不開的連結）。
+case "${API_SURFACE}" in
+    tech) _DEFAULT_RESET_URL="https://lock-tech-web-sjmxp23sqq-de.a.run.app" ;;
+    *)    _DEFAULT_RESET_URL="${WEB_BASE_URL}" ;;
+esac
+PASSWORD_RESET_WEB_URL="${PASSWORD_RESET_WEB_URL:-${_DEFAULT_RESET_URL}}"
+ENV_VARS="${ENV_VARS},PASSWORD_RESET_WEB_URL=${PASSWORD_RESET_WEB_URL}"
+echo "  PASSWORD_RESET_WEB_URL=${PASSWORD_RESET_WEB_URL}（忘記密碼信連結）"
 
 # ── Secrets（Secret Manager → 環境變數）──
 SECRETS="POSTGRES_URI=POSTGRES_URI:latest"
@@ -132,6 +142,32 @@ SECRETS="${SECRETS},SERVICE_CREDENTIAL_PEPPER=SERVICE_CREDENTIAL_PEPPER:latest"
 # 品牌 API → technician OHS 的個別 principal credential；bootstrap 後以旗標啟用。
 if [[ "${USE_SERVICE_CREDENTIALS:-0}" == "1" ]]; then
     SECRETS="${SECRETS},TECH_API_SERVICE_CREDENTIAL=TECH_API_SERVICE_CREDENTIAL:latest"
+fi
+# ── SMTP：忘記密碼信的送達通道（CR-0025 / email_provider.py）──
+# 2026-07-30 實證：prod 三個 API 服務**都沒有任何 SMTP_* 設定**，部署腳本也沒掛，
+# 所以 `send_email` 一直走 fail-safe 回 False——token 有建、信永遠寄不出去
+# （prod log：「SMTP 未配置（缺 SMTP_HOST）— 略過寄信」）。這不是壞掉，是從未佈建。
+#
+# **條件掛載**：secret 不存在時 `gcloud run deploy` 會整個失敗，所以先探測再掛
+# ——讓「還沒建憑證」與「已建憑證」兩種狀態都能部署，建完直接重佈即生效。
+# 建立方式（業主取得供應商憑證後）：
+#   printf '%s' "smtp.sendgrid.net" | gcloud secrets create SMTP_HOST --data-file=-
+#   printf '%s' "apikey"            | gcloud secrets create SMTP_USER --data-file=-
+#   printf '%s' "<API_KEY>"         | gcloud secrets create SMTP_PASSWORD --data-file=-
+#   printf '%s' "no-reply@<domain>" | gcloud secrets create SMTP_FROM --data-file=-
+_smtp_mounted=0
+for _s in SMTP_HOST SMTP_USER SMTP_PASSWORD SMTP_FROM; do
+    if gcloud secrets describe "${_s}" --project="${PROJECT_ID}" >/dev/null 2>&1; then
+        SECRETS="${SECRETS},${_s}=${_s}:latest"
+        _smtp_mounted=$((_smtp_mounted + 1))
+    fi
+done
+if [[ "${_smtp_mounted}" -eq 0 ]]; then
+    echo "  WARN: 無任何 SMTP_* secret —— 忘記密碼信不會送達（功能其餘正常，token 照建）"
+elif [[ "${_smtp_mounted}" -lt 4 ]]; then
+    echo "  WARN: SMTP secret 只建了 ${_smtp_mounted}/4 —— 缺 SMTP_HOST 即整個停用"
+else
+    echo "  SMTP: 4/4 secret 已掛（忘記密碼信會實際送達）"
 fi
 # ── R6 多面上雲：依 API_SURFACE 掛對應面的 DB URI secret（db.py:assert_uri_strict 要求）──
 #   tech 面需 TECH_POSTGRES_URI；platform 面需 PLATFORM_POSTGRES_URI（皆指向共用 lock-ai
