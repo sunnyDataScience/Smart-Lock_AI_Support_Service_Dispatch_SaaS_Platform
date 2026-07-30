@@ -131,6 +131,19 @@ function humanizeEventReason(td: TranslateFn, raw: string): string {
     const actor = KNOWN_ACTOR_ROLES.has(m[1]) ? td(`lifecycle.actorRole.${m[1]}`) : m[1];
     return td("lifecycle.onboardApproved", { actor });
   }
+  // CR-0195 條件式核准：後端寫的是 `[conditional|missing:a,b] <審核者填的理由>`。
+  // 前綴是給機器讀的(可 grep 稽核)，但直接攤在畫面上等於把內部格式丟給使用者看，
+  // 所以這裡拆開重組——缺件型別翻成中文，理由原樣保留。
+  // [\s\S] 而非 /s flag——tsconfig target 低於 es2018，dotAll 不可用（TS1501）
+  const c = raw.match(/^\[conditional\|missing:([^\]]*)\]\s*([\s\S]*)$/);
+  if (c) {
+    const missing = c[1]
+      .split(",")
+      .filter(Boolean)
+      .map((d) => docTypeLabel(td, d.trim()))
+      .join(td("listSeparator"));
+    return td("lifecycle.onboardApprovedConditional", { missing, reason: c[2] });
+  }
   return raw;
 }
 
@@ -280,10 +293,15 @@ export default function PlatformTechnicianDetailPage({
               basePath={base}
               kyc={kyc}
               canIssueToken={
-                tech.status === "pending_approval" ||
-                !["id_front", "id_back"].every((docType) =>
-                  kyc.documents.some((d) => d.doc_type === docType),
-                )
+                // CR-0195：**先確認狀態在後端允許的值域內**，再談要不要顯示。
+                // 原本這裡只有 OR 的後半段，於是 suspended/terminated 且缺件時
+                // 也會渲染按鈕，點下去必得 409——UI 承諾了後端拒絕的事。
+                // 業主 2026-07-30 回報的正是這個（那時 active 也被後端擋）。
+                ["pending_approval", "active"].includes(tech.status ?? "") &&
+                (tech.status === "pending_approval" ||
+                  !["id_front", "id_back"].every((docType) =>
+                    kyc.documents.some((d) => d.doc_type === docType),
+                  ))
               }
             />
           )}

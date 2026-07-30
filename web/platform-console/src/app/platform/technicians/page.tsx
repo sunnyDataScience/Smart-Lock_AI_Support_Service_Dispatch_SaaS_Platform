@@ -34,6 +34,9 @@ interface PlatformTechnician {
   service_regions: string[];
   created_at: string | null;
   is_active: boolean;
+  // CR-0195：KYC 必要文件（身分證正反面）是否齊全。後端即時算，不是 DB 欄位。
+  kyc_docs_complete: boolean;
+  kyc_missing_doc_types: string[];
 }
 
 const STATUS_CLS: Record<TechStatus, string> = {
@@ -84,6 +87,7 @@ export default function PlatformTechniciansPage() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [docsIncompleteOnly, setDocsIncompleteOnly] = useState(false);
   // 儀表板待審卡帶 `?status=pending_approval` 進來時要直接落在該分頁(不是「全部」)。
   // 讀 URL 前先不打 API,否則會先用 filter="" 撈一次全部、再因 setFilter 重撈,
   // 使用者會看到清單閃一下。慣例同 apply/page.tsx:129——純 client 頁直接讀
@@ -121,14 +125,42 @@ export default function PlatformTechniciansPage() {
     if (urlFilterRead) load();
   }, [load, urlFilterRead]);
 
+  // CR-0195「文件未齊」篩選：與 status 疊加。純前端過濾——清單資料本來就帶
+  // kyc_docs_complete，多開一個後端參數只會讓兩邊的判準有第二個來源。
+  const visibleRows = docsIncompleteOnly
+    ? rows.filter((r) => !r.kyc_docs_complete)
+    : rows;
+
   async function runAction(
     tech: PlatformTechnician,
     action: Action,
     label: string,
     danger?: boolean,
   ) {
-    let body: Record<string, string> = {};
-    if (action !== "onboard-approve") {
+    let body: Record<string, unknown> = {};
+    if (action === "onboard-approve" && !tech.kyc_docs_complete) {
+      // CR-0195 條件式核准：文件不齊時後端會 422，除非顯式承認。這裡不是「多問
+      // 一句」而已——填的理由會落進 lifecycle event 的 reason 永久留存，是日後
+      // 要說明「為何未驗證身分就放行」時唯一的依據。
+      const missing = tech.kyc_missing_doc_types
+        .map((d) => t(`kycDocType.${d}`))
+        .join(t("listSeparator"));
+      const reason = await actionDialog.open({
+        title: t("conditionalApproveTitle", { name: tech.name }),
+        danger: true,
+        confirmLabel: t("conditionalApproveConfirm"),
+        input: {
+          label: t("conditionalReasonLabel"),
+          minLength: 10,
+          hint: t("conditionalReasonHint", { missing }),
+        },
+      });
+      if (reason === null) return;
+      body = {
+        conditional: true,
+        conditional_reason: typeof reason === "string" ? reason : "",
+      };
+    } else if (action !== "onboard-approve") {
       const reason = await actionDialog.open({
         title: t("actionDialogTitle", { action: label, name: tech.name }),
         danger,
@@ -191,6 +223,20 @@ export default function PlatformTechniciansPage() {
             {value === "" ? tc("all") : t(`status.${value}`)}
           </button>
         ))}
+        {/* CR-0195：與 status 是不同軸的篩選（可疊加）。資料清單本來就帶
+            kyc_docs_complete，故在前端過濾即可，不需要另一個後端參數。 */}
+        <button
+          type="button"
+          onClick={() => setDocsIncompleteOnly((v) => !v)}
+          aria-pressed={docsIncompleteOnly}
+          className={`rounded-lg border px-3 py-1.5 text-sm transition ${
+            docsIncompleteOnly
+              ? "border-[var(--badge-warn-fg)] bg-[var(--badge-warn-bg)] text-[var(--badge-warn-fg)]"
+              : "border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--bg-hover,rgba(0,0,0,0.04))]"
+          }`}
+        >
+          {t("docsIncompleteFilter")}
+        </button>
         <div className="ml-auto flex h-[38px] w-[260px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-surface)] px-3">
           <Search className="h-4 w-4 text-[var(--text-secondary)]" aria-hidden />
           <input
@@ -211,13 +257,13 @@ export default function PlatformTechniciansPage() {
 
       {loading ? (
         <p className="text-sm text-[var(--text-secondary)]">{tc("loading")}</p>
-      ) : rows.length === 0 ? (
+      ) : visibleRows.length === 0 ? (
         <p className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] px-4 py-10 text-center text-sm text-[var(--text-secondary)]">
           {t("emptyList")}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {rows.map((tech) => (
+          {visibleRows.map((tech) => (
             <div
               key={tech.id}
               className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-5"
@@ -237,6 +283,18 @@ export default function PlatformTechniciansPage() {
                     {!tech.is_active && tech.status === "active" && (
                       <span className="rounded-md border border-[var(--badge-warn-fg)]/25 bg-[var(--badge-warn-bg)] px-2 py-0.5 text-xs text-[var(--badge-warn-fg)]">
                         {t("loginNotSynced")}
+                      </span>
+                    )}
+                    {/* CR-0195：已核准卻文件未齊＝條件式核准的待補件對象，
+                        這是「誰還沒補」在畫面上唯一看得到的地方。 */}
+                    {!tech.kyc_docs_complete && (
+                      <span
+                        className="rounded-md border border-[var(--badge-warn-fg)]/25 bg-[var(--badge-warn-bg)] px-2 py-0.5 text-xs text-[var(--badge-warn-fg)]"
+                        title={tech.kyc_missing_doc_types
+                          .map((d) => t(`kycDocType.${d}`))
+                          .join(t("listSeparator"))}
+                      >
+                        {t("docsIncompleteBadge")}
                       </span>
                     )}
                   </div>
