@@ -257,8 +257,13 @@ async def upload_registration_document(
     rel_path = f"kyc-registration/{technician_id}/{doc_id}{ext}"
     abs_path = MEDIA_ROOT / rel_path
     abs_path.parent.mkdir(parents=True, exist_ok=True)
+    # 靜態加密(沿 FR-API-08 到府證據的同一套 media_crypto)。KYC 檔是身分證正反面,
+    # 敏感度高於工單照片,原本卻是唯一還在明文落盤的上傳路徑——UI 也已對師傅宣稱
+    # 「文件加密環境保存」(tech-portal zh-TW.json:2801),實作沒跟上。
+    # sha256 仍算在**明文**上(去重/完整性語意不變,同 media_service:190)。
+    from core import media_crypto
     try:
-        abs_path.write_bytes(file_bytes)
+        abs_path.write_bytes(media_crypto.encrypt_bytes(file_bytes))
     except OSError as e:
         raise ApiError("STORAGE_ERROR", f"failed to write file: {e}", 500) from e
 
@@ -427,4 +432,8 @@ async def get_document_file(
         raise ApiError(
             "NOT_FOUND", f"Document file missing on storage: {storage_path}", 404
         ) from e
+    # dual-read:既有明文檔(本次加密上線前上傳的)解不開 → decrypt_bytes 回 None,
+    # fallback 原位元組。所以**存量檔零破壞、不需即時 re-encrypt**(同 media_service:297)。
+    from core import media_crypto
+    data = media_crypto.decrypt_bytes(data) or data
     return data, ct, filename or "document"
