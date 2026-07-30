@@ -220,3 +220,11 @@ additive 欄位，不破壞既有 consumer（`evidence_package_service`、v1 `wo
   - **順帶修好別人的既有缺口**：118（CR-0188 的 `settlement_policy` namespace）
     一直沒套 prod，導致 BR-SETTLE-05 對帳閘門的開關**根本插不進去**。已套（值 false
     ＝行為不變）。加上本輪 C1 補的 v2 事件發佈，118 註解列的兩個前提之一已解除。
+
+- 2026-07-30 **更正部署範圍**（背景前置盤點 workflow 回報後複驗）：本輪只部署
+  `smart-lock-api`。我先前寫「prod code 與 dev-ding HEAD 對齊」**不正確**——
+  其餘六服務落後 45–89 個 commit 且全不含 CR-0190（`smart-lock-agent` 0d821064、
+  `smart-lock-web` 6253604a、`lock-tech-api`/`lock-platform-api` bf5eb7d1、
+  `lock-tech-web`/`lock-platform-web` bd5eca59）。本 CR 的變更全在品牌 API，
+  故 CR-0193/0194 的 prod 生效不受影響；但 CR-0190 只上了一半。
+
