@@ -236,6 +236,35 @@ build_and_push() {
         # promotion image 不可含 staging hostname；browser 改走 /api-proxy。
         api_url=""
     fi
+    # ── 跨站 cookie 守衛（2026-07-31，實測事故）────────────────────────────────
+    # 烤入 NEXT_PUBLIC_API_BASE_URL = 瀏覽器**直連 API 主機**。而 `*.run.app` 是
+    # **公開後綴（PSL 萬用字元）**，所以 lock-x-web-*.a.run.app 與 lock-x-api-*.a.run.app
+    # 在瀏覽器眼中是**不同網站**；auth cookie 是 SameSite=lax，跨站 XHR 不會送出。
+    #
+    # 失敗形態極難查：登入 POST 回 200（curl 測也 200），但緊接著的
+    # bootstrapSession() 拿不到 cookie → 401 → api.ts 丟 **純 Error**
+    # （"Cookie session bootstrap failed"，不是 ApiError）→ friendlyError 落到最後
+    # 的 generic → 畫面顯示「操作失敗，請稍後再試」。使用者只會以為密碼錯了。
+    # 2026-07-30 實際事故：業主因此以為忘記密碼，一路查到 SMTP 未佈建才發現不是那回事。
+    #
+    # 出路只有兩條（api.ts:63-64 註解已載明）：①瀏覽器走同源 /api-proxy（＝本守衛
+    # 要求的 PROMOTION_BUILD=1）②直連但設同父網域的 AUTH_COOKIE_DOMAIN——而 `.run.app`
+    # 是公開後綴，**設不了**，故 Cloud Run 預設網域下只有 ①。
+    # 自訂網域（web 與 api 同父域）下直連是合法的，所以本守衛只擋 *.run.app 對 *.run.app。
+    if [[ -n "${api_url}" && "${api_url}" == *".run.app"* && -z "${AUTH_COOKIE_DOMAIN:-}" ]]; then
+        echo "ERROR: 要把 ${api_url} 烤進 bundle 讓瀏覽器直連，但那是跨站 cookie 死路。" >&2
+        echo "  *.run.app 是公開後綴 → web 與 api 是不同網站 → SameSite=lax cookie 不會送出。" >&2
+        echo "  症狀：登入 API 回 200，但畫面顯示「操作失敗，請稍後再試」（bootstrapSession 失敗）。" >&2
+        echo "" >&2
+        echo "  改用同源 proxy 部署（本站已驗證可行）：" >&2
+        echo "    WEB_APP=${WEB_APP} SERVICE_NAME=${SERVICE_NAME} PROMOTION_BUILD=1 \\" >&2
+        echo "      API_BASE_URL=\"${api_url}\" \\" >&2
+        echo "      PLATFORM_API_BASE_URL=\"<平台 api URL>\" \\" >&2
+        echo "      ./scripts/deploy/web.sh" >&2
+        echo "" >&2
+        echo "  （web 與 api 在同一自訂父網域時可設 AUTH_COOKIE_DOMAIN 略過本守衛）" >&2
+        exit 1
+    fi
     if [[ -z "${api_url}" ]]; then
         echo "  WARN: 找不到 ${API_SERVICE_NAME} URL —— web 會 fallback 到 localhost、即時推送停用。"
         echo "        請先部署 api 再部 web。"

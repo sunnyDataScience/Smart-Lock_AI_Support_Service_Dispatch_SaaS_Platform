@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **三站在 prod 都登不進去：瀏覽器直連 API 主機 → 跨站 cookie 送不出 → 顯示「操作失敗，請稍後再試」（業主 2026-07-30 回報）**：業主回報「平台方的 admin 我登不進去」。curl 打登入端點 **200 成功**，瀏覽器卻失敗——差別就是 cookie 語意。
+  - **根因鏈**（四個實測事實）：①登入回的 auth cookie 是 `SameSite=lax`（實測 `Set-Cookie` 標頭）②`*.run.app` 是 **PSL 萬用字元公開後綴**（實測 publicsuffix.org 第 13928 行）→ `lock-x-web-*.a.run.app` 與 `lock-x-api-*.a.run.app` 是**不同網站** ③`web.sh` 手動模式把 `NEXT_PUBLIC_API_BASE_URL` 烤進 bundle → 瀏覽器**直連 API 主機**＝跨站 XHR，Lax cookie 不送 ④`loginPlatformAdmin` 登入成功後呼叫 `bootstrapSession()` 拿不到 cookie → 401 → `throw new Error("Cookie session bootstrap failed")`＝**純 Error 不是 ApiError** → `friendlyError` 落到最後的 generic → 畫面顯示「操作失敗，請稍後再試」。
+  - **這個錯誤訊息把人帶去完全錯的方向**：使用者只會以為密碼錯了 → 去按忘記密碼 → 才發現 SMTP 從未佈建（另一張單）。實際上密碼是對的。
+  - **出路只有同源 proxy**：`api.ts:63-64` 註解早已載明「直連 API／WebSocket 才需要同父網域的 `AUTH_COOKIE_DOMAIN`」，而 `.run.app` 是公開後綴**設不了** Domain。`runtimeConfig.ts` 的檔案註解也寫著「瀏覽器走本站 proxy」，但 `if (baked) return baked` 讓瀏覽器**永遠走不到**下一行的 `/api-proxy`。
+  - **處置**：三站（platform-console／brand-portal／tech-portal）改以既有的 `PROMOTION_BUILD=1`（ADR-038 build-once）重佈——該模式刻意不烤入 `NEXT_PUBLIC_API_BASE_URL`，瀏覽器改走同源 `/api-proxy`。實證：平台站走 proxy 登入 200 → 用同一 cookie jar 取 `/api/v2/platform/auth/session` **200 並回 `role: platform_admin`**（原本失敗的正是這一步）；品牌站登入 XHR 由 `smart-lock-api-*.run.app` 改為 `smart-lock-web-*/api-proxy`。
+  - **`web.sh` 新增跨站 cookie 守衛**（防再犯）：偵測到「要烤入 `*.run.app` 的 API URL 且未設 `AUTH_COOKIE_DOMAIN`」即 fail-fast，訊息直接給出正確的 promotion 部署指令。自訂網域（web 與 api 同父域）下直連仍合法，故守衛只擋 `*.run.app` 對 `*.run.app`。反向驗證：一般模式被擋、promotion 模式放行。
+  - **附帶說明**：promotion 模式會停用 WebSocket（`NEXT_PUBLIC_REALTIME_BASE_URL` 一併留空）。**這不是損失**——WS 認證同樣只走 HttpOnly cookie（`lib/realtime.ts:76`），跨站握手本來就送不出 cookie，即時推播在此之前就已經是壞的。
+
 - **LINE 客服回覆延遲約兩分鐘：兩段與答案無關的 LLM 佔住關鍵路徑（CR-0196，業主 2026-07-30 裁決 §8 五項全照建議）**：prod log 抓到完整時間軸——`POST /callback` 06:31:04 → `Turn completed` 06:32:54 = **109.8 秒**，對上業主症狀。20 個 turn 樣本：BUILD 中位數 **8.5s**（歷史壓縮，LLM）／RUN **25.0s**／SAVE **8.1s**（per-user 記憶事實抽取，LLM），狀態機前另有 12–18s（debounce 5s ＋ 接管檢查 ＋ session 載入）。**沒有單一元兇，是四段疊加。**
   - **關鍵洞察**：狀態機是 `RUN → SAVE → RESPOND`，而 LINE 回覆在整個 `_process_message` 返回後才送出 → **客人多等的 8–12 秒等的是記憶簿記，不是答案**。且 `maybe_consolidate_by_tokens` 在 `_state_build` 阻塞 await 一次、又在 `_state_save` 末尾以 `_schedule_background` 排一次，**同一輪呼叫兩次**。
   - **S1** `record_turn_async` 改 `_schedule_background`（新增 `_record_memory_safe` 自吞例外——背景 task 的例外不會傳回 turn，不吞會變成 asyncio `Task exception was never retrieved` 噪音；失敗由全靜默改記 debug，移到背景後反而需要線索才查得到「記憶為何沒更新」）。**S3** 移除 BUILD 的阻塞壓縮。**S2** reply-guard 重生由整輪 `_run_agent_loop` 改為 `chat_with_retry(tools=None)` 單次呼叫——prod 實測該 guard **20 輪觸發 4 次（20%）**，每次等於把整輪 agent loop（含工具、可多次 LLM round-trip）再跑一遍，Turn A 的 RUN=82s 就是這樣來的。`CORRECTIVE_INSTRUCTION` 要的是改寫措辭、不需重新查資料。**守線判定 `guard_violations` 完全未動**（ADR-025／CR-0152 紅線），重生結果一樣要再過 guard。
