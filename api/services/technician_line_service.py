@@ -35,6 +35,11 @@ _BIND_CODE_TTL_MINUTES = 10
 _LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
 _LINE_REPLY_URL = "https://api.line.me/v2/bot/message/reply"
 
+# 推播深連結的 base 預設值。刻意**不是** localhost——見 tech_portal_base() docstring:
+# 這串會出現在師傅手機的 LINE 訊息裡,localhost 在那裡打不開。改站台網址時改這裡
+# (env `TECH_PORTAL_URL` 仍優先,prod 由 api.sh 動態解析烤入,一般不會用到本預設)。
+_DEFAULT_TECH_PORTAL_URL = "https://lock-tech-web-sjmxp23sqq-de.a.run.app"
+
 # 綁定碼枚舉防護:per-source(line_user_id)嘗試限流(in-memory,單實例;多 replica
 # 失準同 CR-0114 已知取捨)。webhook 已驗簽 fail-closed,此為第二層縱深——擋單一 LINE
 # 帳號在 TTL 內暴力猜碼搶綁(6 位碼空間 10^6)。
@@ -84,8 +89,18 @@ def platform_line_configured() -> bool:
 
 
 def tech_portal_base() -> str:
-    """深連結 base(師傅站)。"""
-    return (os.getenv("TECH_PORTAL_URL") or "http://localhost:3001").rstrip("/")
+    """深連結 base(師傅站)。
+
+    這個值會**原封不動出現在 LINE 訊息裡、在師傅的手機上被點開**——手機不在
+    容器/開發機的 network namespace,`localhost` 在那個情境**永遠**打不開。
+    所以未設時退**正式師傅站**而非 localhost(2026-07-30 實際回報:本機 stack
+    帶著真實 PLATFORM_LINE_CHANNEL_ACCESS_TOKEN 推真單,訊息裡是
+    `http://localhost:3001/pool`,收到的人點不開)。
+
+    要在本機測仍可用 `TECH_PORTAL_URL` 覆蓋;prod 由 scripts/deploy/api.sh
+    動態解析 lock-tech-web 的 Cloud Run URL 烤入(見該檔 §tech 面 secrets)。
+    """
+    return (os.getenv("TECH_PORTAL_URL") or _DEFAULT_TECH_PORTAL_URL).rstrip("/")
 
 
 # ── 綁定碼 ────────────────────────────────────────────────────────────────────

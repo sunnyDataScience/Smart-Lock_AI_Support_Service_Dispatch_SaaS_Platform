@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **師傅 LINE 推播的深連結推 `http://localhost:3001`（業主 2026-07-30 實收回報）**：實收「📢 搶單池有新工單…先接先得:`http://localhost:3001/pool`」。**根因不是「本機沒設好環境」**——本機 stack 掛的是**真實** `PLATFORM_LINE_CHANNEL_ACCESS_TOKEN`（`web/tech-portal/.env`），所以它推的是真訊息到真手機，而手機不在容器的 network namespace，`localhost` 在那個投遞情境**永遠**打不開。也就是 `tech_portal_base()` 退 localhost 這個預設值本身在這條 code path 上就是錯的（同一函式也供指派推播 `/my-orders` 用，兩條都壞）。**prod 不受影響**（`api.sh` 動態解析 `lock-tech-web` URL 烤入，已實測 `lock-tech-api` env 正確）——這是純本機／未設環境的洞。修法：`_DEFAULT_TECH_PORTAL_URL` 常數定為正式師傅站，`web/tech-portal/docker-compose.yml` 的 `TECH_PORTAL_URL` 預設改**留空**（讓 code 端當唯一預設值，不在兩處各寫一份會漂移），env 顯式覆蓋仍優先。新增 `api/tests/test_tech_push_deeplink_not_localhost.py`（6 測試：預設非 localhost／須 https／空字串落回預設／env 覆蓋仍勝／兩條文案深連結皆可達）並**反向驗證**（舊 code 5 紅）。
+  - **仍待裁決的同族洞**：`password_reset_service.py:71` tech 面未設 `PASSWORD_RESET_WEB_URL` 時退 `http://localhost:3001`，而 **prod `lock-tech-api` 確實沒設這個 env**（`api.sh` 未烤入）→ 技師在正式師傅站按「忘記密碼」收到的信裡是 localhost 連結。**這是 live prod bug 且比本次回報的更嚴重**，但 `test_password_reset_surface_routing.py:23` 明文斷言現行 localhost 行為，改它屬刻意的行為變更而非順手修，故單獨列出等裁決。
+
 - **`scripts/deploy/web.sh` 在 macOS bash 3.2 下部署必中斷（空陣列展開）**：`WEB_SECRET_ARGS=()` 只在 `CASDOOR_ENDPOINT` 與 `CASDOOR_CLIENT_ID` 皆有值時才被填，而 `set -u` 下 bash 3.2 對**空陣列**的 `"${ARR[@]}"` 會噴 `unbound variable`（bash 4.4+ 才修正）。CI 跑 ubuntu bash 5 不會踩 → **這個 bug 只在本機 prod 部署時現形**，2026-07-30 重佈三個 web 站時實際踩到（build/push 成功、`gcloud run deploy` 那步中止）。改用 `${ARR[@]+"${ARR[@]}"}`，並反向驗證（新寫法空/非空皆正確、舊寫法確實炸）。同族雷：`apply-schema-routed.sh` 的 `declare -A`（bash 3.2 無此語法）。
 
 ### Added
