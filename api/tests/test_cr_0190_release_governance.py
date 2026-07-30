@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -217,3 +218,100 @@ def test_prism_smoke_uses_current_tenant_scoped_contract_paths():
     ):
         assert f"/tenants/00000000-0000-0000-0000-000000000000/{suffix}" in workflow
     assert "/tenants/health/work-orders/pool" in compose
+
+
+# ── UAT-D-006：promotion 的 runtime proxy 變數三層防護 ────────────────────────
+# 為什麼要用契約測試釘住：這個缺陷的失敗形態是「health check 綠、功能全死」——
+# 沒有任何功能測試會抓到，防護一旦被靜默移除也不會有人發現。三層各擋不同時機：
+#   ① web.sh pre-flight（部署腳本層）
+#   ② workflow 前置 test -n（CI 層，錯誤訊息指向 GH 變數）
+#   ③ smoke 實打 /api-proxy/health（驗收層，讓 503 真的擋住晉升）
+
+_WEB_COMPONENTS = ("brand-web", "tech-web", "platform-web", "landing")
+
+
+@pytest.mark.unit
+def test_web_deploy_steps_all_pass_runtime_api_base_url():
+    """workflow 每個 web component 的 deploy 步驟都必須帶 API_BASE_URL。
+
+    漏帶＝該站 /api-proxy 全 503。原判定曾主張「沒人會設」，紅隊查證後推翻
+    （四個 component 目前都有帶），故本測試是**釘住現狀**不讓它退化。
+    """
+    wf = (ROOT / ".github/workflows/cloud-run-deploy.yml").read_text(encoding="utf-8")
+
+    # ⚠️ 元件名在 workflow 內出現多次（artifact 命名、resource 解析、deploy…），
+    #    必須先把範圍縮到 deploy 步驟，否則會抓錯 case 分支（本測試初版就踩到）。
+    def _deploy_blocks() -> list[str]:
+        blocks = []
+        for marker in ("Deploy exact staging digest", "Deploy to production"):
+            start = wf.find(marker)
+            if start == -1:
+                continue
+            # 到下一個 `- name:` 為止
+            end = wf.find("\n      - name:", start + len(marker))
+            blocks.append(wf[start: end if end != -1 else len(wf)])
+        assert blocks, "workflow 找不到任何 deploy 步驟"
+        return blocks
+
+    # ⚠️ 不可用 `"API_BASE_URL=" in block`——`PLATFORM_API_BASE_URL=` 尾部就含
+    #    `API_BASE_URL=`，於是移除了真正的 API_BASE_URL 仍會判為存在（本測試初版
+    #    正是這樣假綠，靠反向驗證才抓到）。改用詞界：變數名前必須是行首或空白。
+    def _passes(var: str, text: str) -> bool:
+        return re.search(rf"(?:^|\s){re.escape(var)}=", text) is not None
+
+    for block in _deploy_blocks():
+        for comp in _WEB_COMPONENTS:
+            idx = block.find(f"{comp})")
+            if idx == -1:
+                continue  # 該 deploy 步驟不含此元件分支
+            case_block = block[idx: block.find(";;", idx)]
+            assert _passes("API_BASE_URL", case_block), (
+                f"{comp} 的 deploy 分支沒帶 API_BASE_URL → 該站 /api-proxy 會全數 503"
+            )
+            if comp in ("brand-web", "tech-web", "landing"):
+                assert _passes("PLATFORM_API_BASE_URL", case_block), (
+                    f"{comp} 有 /platform-api-proxy 但 deploy 沒帶 PLATFORM_API_BASE_URL"
+                )
+
+
+@pytest.mark.unit
+def test_workflow_asserts_runtime_vars_before_deploy():
+    """CI 必須在部署前先驗 GH Environment variable 非空（②）。"""
+    wf = (ROOT / ".github/workflows/cloud-run-deploy.yml").read_text(encoding="utf-8")
+    assert "RUNTIME_API_BASE_URL" in wf
+    assert 'test -n "${{ vars.RUNTIME_API_BASE_URL }}"' in wf, (
+        "workflow 缺 RUNTIME_API_BASE_URL 的前置非空檢查"
+    )
+    assert 'test -n "${{ vars.RUNTIME_PLATFORM_API_BASE_URL }}"' in wf, (
+        "workflow 缺 RUNTIME_PLATFORM_API_BASE_URL 的前置非空檢查"
+    )
+
+
+@pytest.mark.unit
+def test_smoke_actually_exercises_the_same_origin_proxy():
+    """smoke 必須實打 /api-proxy/health（③）。
+
+    只 curl `/` 的話，proxy 全 503 時頁面殼與 SSR 仍回 200 → smoke 綠、晉升通過、
+    上線功能全死。staging 與 production 兩段都要有。
+    """
+    wf = (ROOT / ".github/workflows/cloud-run-deploy.yml").read_text(encoding="utf-8")
+    assert wf.count("/api-proxy/health") >= 2, (
+        "staging 與 production 的 smoke 都必須實打 /api-proxy/health"
+    )
+    assert wf.count("/platform-api-proxy/health") >= 2, (
+        "有兩條 proxy 的站台，兩段 smoke 都要驗 /platform-api-proxy/health"
+    )
+
+
+@pytest.mark.unit
+def test_web_sh_fails_fast_on_empty_runtime_var():
+    """web.sh 必須擋「有傳入但為空」（①），且不可誤擋「完全未設」。
+
+    兩者語意不同：CI 一律傳（空值＝GH 變數漏設，要擋）；手動部署完全不傳
+    （靠 image 烤好的 NEXT_PUBLIC_* 直連，合法，不可擋）。
+    """
+    sh = (ROOT / "scripts/deploy/web.sh").read_text(encoding="utf-8")
+    assert "_require_nonempty_if_set" in sh, "web.sh 缺 pre-flight 守衛"
+    # 用 ${VAR+set} 才分得出 set-but-empty 與 unset
+    assert "+set}" in sh, "守衛必須用 ${VAR+set} 區分『有設但空』與『未設』"
+    assert "PROMOTION_BUILD" in sh

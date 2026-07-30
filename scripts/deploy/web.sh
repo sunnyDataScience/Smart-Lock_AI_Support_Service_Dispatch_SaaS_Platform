@@ -79,6 +79,53 @@ ENV_VARS="NODE_ENV=production"
 WEB_SECRET_ARGS=()
 # ADR-038 build-once：API target 改由 Next same-origin proxy 在 runtime 讀取；值不烤入
 # browser bundle，staging/prod 才能使用同一 image digest。
+#
+# ── UAT-D-006 pre-flight（fail-fast，不可降為 WARN）─────────────────────────
+# promotion 部署下 NEXT_PUBLIC_API_BASE_URL **不烤入** bundle，瀏覽器改走本站
+# /api-proxy，而 proxy 讀不到 runtime API_BASE_URL 就回 503。
+#
+# 為什麼必須 fail-fast 而不是 WARN：失敗形態是「頁面殼與 SSR 仍回 200，只有瀏覽器
+# XHR 全 503」，而 web.sh 的 health check 與 CI smoke 都只 curl `/` → **兩者都會綠**。
+# 「health 綠、功能全死」比直接 503 難察覺得多，WARN 一定會被滑過去。
+#
+# 判準刻意用「**有設但為空**」而非「未設」——兩者語意不同，混用會打壞現行流程：
+#   - CI 一律寫 `API_BASE_URL="${{ vars.RUNTIME_API_BASE_URL }}"`，GH 變數漏設時
+#     它是「有設但空字串」＝呼叫端想傳卻傳了空 → **這正是要擋的那個 bug**，
+#     且 --set-env-vars 會連 Cloud Run 上既有的值一併抹掉（不是保持原樣）。
+#   - 手動部署（無 PROMOTION_BUILD）完全不帶此變數，靠 image 裡烤好的
+#     NEXT_PUBLIC_* 直連 → 「未設」是合法的，不可擋。
+_require_nonempty_if_set() {  # $1=變數名 $2=來源說明
+    local name="$1" src="$2"
+    if [[ -n "${!name+set}" && -z "${!name}" ]]; then
+        echo "ERROR: ${name} 有傳入但為空字串（${src} 未設？）。" >&2
+        echo "  空值會讓 /api-proxy 全數回 503 API_PROXY_NOT_CONFIGURED，" >&2
+        echo "  而頁面殼與 health check 仍是 200 —— 綠燈假象。" >&2
+        echo "  且 --set-env-vars 會連 Cloud Run 上既有的值一併抹掉。" >&2
+        echo "  見 23_Deployment_Guide §7.2 必設清單。" >&2
+        exit 1
+    fi
+}
+_require_nonempty_if_set API_BASE_URL "GitHub Environment variable RUNTIME_API_BASE_URL"
+_require_nonempty_if_set PLATFORM_API_BASE_URL "RUNTIME_PLATFORM_API_BASE_URL"
+
+# promotion build 是另一回事：image 確定不含 NEXT_PUBLIC，所以 runtime 值**必須**存在
+if [[ "${PROMOTION_BUILD:-0}" == "1" ]]; then
+    if [[ -z "${API_BASE_URL:-}" ]]; then
+        echo "ERROR: PROMOTION_BUILD=1 但缺 API_BASE_URL。" >&2
+        echo "  promotion image 不烤入 NEXT_PUBLIC_API_BASE_URL，瀏覽器只能走 /api-proxy；" >&2
+        echo "  沒有 runtime API_BASE_URL 就是全站功能死而 health 綠。" >&2
+        exit 1
+    fi
+    # 有兩條 proxy 的站台缺 platform target 同樣半殘
+    case "${WEB_APP}" in
+        brand-portal|tech-portal|landing)
+            if [[ -z "${PLATFORM_API_BASE_URL:-}" ]]; then
+                echo "ERROR: ${WEB_APP} 有 /platform-api-proxy，PROMOTION_BUILD 缺 PLATFORM_API_BASE_URL。" >&2
+                exit 1
+            fi
+            ;;
+    esac
+fi
 if [[ -n "${API_BASE_URL:-}" ]]; then
     ENV_VARS="${ENV_VARS},API_BASE_URL=${API_BASE_URL}"
 fi

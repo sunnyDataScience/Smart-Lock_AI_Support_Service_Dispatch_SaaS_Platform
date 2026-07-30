@@ -269,6 +269,37 @@ secrets，production 設 required reviewer；未完成前 workflow ready 不等�
 驗證後才改為 `hybrid`，並以 `EXTERNALIZED_JOB_IDS` 指定切出的工作，避免 API 與 Job
 雙跑或在 Job 尚未就緒時先停掉 API 內建工作。
 
+> **標注（2026-07-30，UAT-D-006 / CR-0194 輪次補正；原文未改）**
+>
+> §7.2 末段已寫「瀏覽器以本站 proxy 讀 runtime `API_BASE_URL`／`PLATFORM_API_BASE_URL`」，
+> 但**未把這兩個值的來源列為必設項**，而它們是 GitHub **Environment variable**：
+>
+> | Environment variable | 用途 | 缺少的後果 |
+> |---|---|---|
+> | `RUNTIME_API_BASE_URL` | 四個 web component 的 `/api-proxy` 轉發目標 | 該站瀏覽器 XHR 全 503 |
+> | `RUNTIME_PLATFORM_API_BASE_URL` | `brand-web`／`tech-web`／`landing` 的 `/platform-api-proxy` 目標 | 平台面功能全 503 |
+>
+> **為什麼值得單獨標注**：漏設不會讓部署失敗，而是展開成空字串傳給 `web.sh`，
+> 再由 `--set-env-vars` 把 Cloud Run 上**既有的值一併抹掉**。失敗形態是
+> 「頁面殼與 SSR 仍回 200，只有瀏覽器 XHR 全 503」——而 `web.sh` 的 health check
+> 與 CI smoke 原本都只 curl `/`，**兩者都會綠**。「health 綠、功能全死」比直接
+> 503 難察覺得多。
+>
+> 現行雲端仍以手動 `./scripts/deploy/web.sh`（無 `PROMOTION_BUILD`）部署，
+> `NEXT_PUBLIC_API_BASE_URL` 有烤入、proxy 是死碼，故此洞**尚未觸發**；
+> 會在首次啟用 promotion 那一刻踩到。
+>
+> 已補三層防護（各擋不同時機，缺一仍有洞）：
+> 1. `scripts/deploy/web.sh` pre-flight：變數「有傳入但為空」即 fail-fast
+>    （刻意區分「未設」——手動流程不帶此變數是合法的，不可誤擋）。
+> 2. workflow 部署前 `test -n "${{ vars.RUNTIME_API_BASE_URL }}"`，
+>    讓錯誤訊息直指 GH 變數而非部署腳本。
+> 3. staging 與 production 的 smoke 對 web component 實打 `/api-proxy/health`
+>    與 `/platform-api-proxy/health`，讓 503 真的擋住晉升。
+>
+> 守線測試：`api/tests/test_cr_0190_release_governance.py` 四支（已反向驗證——
+> 移除 workflow 的 `API_BASE_URL` 會轉紅）。
+
 ### 7.3 per-brand provisioning 自動化 🔜 規劃中
 
 隨 ADR-P005 落地（§4 流程自動化），非基礎 CD 階段範圍。

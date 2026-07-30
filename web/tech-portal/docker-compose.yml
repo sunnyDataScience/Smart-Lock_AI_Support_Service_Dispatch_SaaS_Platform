@@ -99,6 +99,15 @@ services:
         NEXT_PUBLIC_REALTIME_BASE_URL: "${TECH_REALTIME_BASE_URL:-ws://localhost:8001}"
         NEXT_PUBLIC_APP_MODE: "tech"                                # 師傅 build:只留師傅端路由
         NEXT_PUBLIC_PEER_PORTAL_URL: "${DISPATCH_PORTAL_URL:-http://localhost:3000}"
+    # UAT-D-004：上面是 **build args**（烤進 bundle 給瀏覽器直連用）；
+    # 下面是 **runtime env**，供 server-side proxy(src/lib/serverApiProxy.ts) 轉發。
+    # 兩者缺一不可：NEXT_PUBLIC_* 為空時 runtimeConfig 會讓瀏覽器改走本站
+    # /api-proxy，而 proxy 讀不到這裡的變數就直接回 503 API_PROXY_NOT_CONFIGURED
+    # ——**全站**，且 health check 只 curl `/` 會是綠的（UAT-D-001 同一根因）。
+    # 服務名指本 stack 內部：tech-api；platform 走 host（platform stack 獨立）。
+    environment:
+      API_BASE_URL: "${TECH_PROXY_API_BASE_URL:-http://tech-api:8080}"
+      PLATFORM_API_BASE_URL: "${TECH_PROXY_PLATFORM_API_BASE_URL:-http://host.docker.internal:8003}"
     ports:
       - "${TECH_WEB_PORT:-3001}:8080"
     restart: unless-stopped

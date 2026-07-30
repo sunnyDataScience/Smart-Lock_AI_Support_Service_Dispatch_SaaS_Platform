@@ -56,7 +56,7 @@ async def list_audit_events_v2(
     # cross-tenant guard（ADR-0030）
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
-            "CROSS_TENANT_WRITE",
+            "CROSS_TENANT_READ",
             "Path tenantId does not match authenticated tenant",
             403,
         )
@@ -96,7 +96,7 @@ async def verify_audit_chain_v2(
     """
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
-            "CROSS_TENANT_WRITE",
+            "CROSS_TENANT_READ",
             "Path tenantId does not match authenticated tenant",
             403,
         )

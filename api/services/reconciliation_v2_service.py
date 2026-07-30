@@ -16,7 +16,9 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import uuid
 
 import core.db as db_module
 from core.db import _ensure_conn
@@ -220,75 +222,145 @@ async def co_sign_reconciliation(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    cur = await db_module._conn.execute(
-        "SELECT status, reviewed_by, technician_id, technician_payout "
-        "FROM saas.reconciliation "
-        "WHERE id = %s::uuid AND tenant_id = %s::uuid",
-        (recon_id, tenant_id),
-    )
-    row = await cur.fetchone()
-    if not row:
-        raise ApiError("NOT_FOUND", f"Reconciliation {recon_id} not found", 404)
+    # CR-0189 §8a（業主 2026-07-30 裁決）：event_id 必須在交易外先固定——worker 重送
+    # 時要原樣帶入，消費端 dedup 才有效。
+    commission_event_id = str(uuid.uuid4())
 
-    current_status, reviewed_by, technician_id, technician_payout = (
-        row[0], row[1], row[2], row[3]
-    )
+    # ── 原子化（CR-0189 在 legacy 修過、v2 從未修）─────────────────────────────
+    # 原本 UPDATE 與 INSERT settlement 在 autocommit 下是兩個交易：中間死掉 →
+    # approved 但無 settlement（漏出款）；兩個並發 co-sign 都讀到 in_review →
+    # 各建一筆 settlement（重複出款）。
+    # FOR UPDATE 讓第二個請求排隊，醒來時 status 已是 approved → 走 409，
+    # 而 migration 124 的 UNIQUE(reconciliation_id) 是 DB 端最後兜底。
+    #
+    # outbox 必須在**同一交易**內寫入——這是 outbox 模式的全部意義（事件與
+    # settlement 同生共死）。publish 則必須在 **commit 之後**，否則交易 rollback
+    # 就會發出一個對應不存在 settlement 的事件。
+    async with db_module._conn.transaction():
+        cur = await db_module._conn.execute(
+            "SELECT status, reviewed_by, technician_id, technician_payout "
+            "FROM saas.reconciliation "
+            "WHERE id = %s::uuid AND tenant_id = %s::uuid "
+            "FOR UPDATE",
+            (recon_id, tenant_id),
+        )
+        row = await cur.fetchone()
+        if not row:
+            raise ApiError("NOT_FOUND", f"Reconciliation {recon_id} not found", 404)
 
-    if current_status != "in_review":
-        raise ApiError(
-            "DUAL_SIGN_REQUIRED",
-            "需先經 CSM review 才能 co-sign",
-            409,
+        current_status, reviewed_by, technician_id, technician_payout = (
+            row[0], row[1], row[2], row[3]
         )
 
-    # SoD：co-signer 必須 ≠ reviewer
-    if reviewed_by and str(reviewed_by) == co_signer_id:
-        raise ApiError(
-            "SOD_VIOLATION",
-            "Separation of Duties violated: co-signer 不可與 reviewer 相同",
-            403,
+        if current_status != "in_review":
+            raise ApiError(
+                "DUAL_SIGN_REQUIRED",
+                "需先經 CSM review 才能 co-sign",
+                409,
+            )
+
+        # SoD：co-signer 必須 ≠ reviewer
+        if reviewed_by and str(reviewed_by) == co_signer_id:
+            raise ApiError(
+                "SOD_VIOLATION",
+                "Separation of Duties violated: co-signer 不可與 reviewer 相同",
+                403,
+            )
+
+        note_clean: str | None = None
+        if note and note.strip():
+            note_clean = note.strip()[:500]
+
+        # approved_by 更新 + note（co-sign 覆寫 note 若提供）
+        await db_module._conn.execute(
+            "UPDATE saas.reconciliation SET "
+            "  status = 'approved', "
+            "  approved_by = %s::uuid, "
+            "  approved_at = NOW(), "
+            "  note = COALESCE(%s, note) "
+            "WHERE id = %s::uuid",
+            (co_signer_id, note_clean, recon_id),
         )
 
-    note_clean: str | None = None
-    if note and note.strip():
-        note_clean = note.strip()[:500]
+        # INSERT saas.settlement（dual-sign 完成才建）
+        payout = float(technician_payout or 0)
+        # TI-FIN-SETTLE-04：釘選建立當下的結算費率 config 版本（best-effort，缺則 NULL）
+        from services import config_m18_service
+        ver = await config_m18_service.resolve_settlement_rate_version(tenant_id=None)
+        settlement_cur = await db_module._conn.execute(
+            "INSERT INTO saas.settlement "
+            "  (tenant_id, reconciliation_id, technician_id, amount, currency, status, "
+            "   applied_config_version_id, rate_effective_date) "
+            "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'TWD', 'pending', %s, %s) "
+            "RETURNING id, tenant_id, reconciliation_id, technician_id, amount, "
+            "          currency, status, payment_method, paid_at, created_at",
+            (tenant_id, recon_id, str(technician_id), payout,
+             ver["version_id"], ver["effective_date"]),
+        )
+        s_row = await settlement_cur.fetchone()
+        settlement = _settlement_row_to_dict(s_row)
 
-    # approved_by 更新 + note（co-sign 覆寫 note 若提供）
-    await db_module._conn.execute(
-        "UPDATE saas.reconciliation SET "
-        "  status = 'approved', "
-        "  approved_by = %s::uuid, "
-        "  approved_at = NOW(), "
-        "  note = COALESCE(%s, note) "
-        "WHERE id = %s::uuid",
-        (co_signer_id, note_clean, recon_id),
-    )
+        # 佣金事件 outbox（同交易）。共用 public.commission_event_outbox——該表無 FK，
+        # 故 v2 的 saas.reconciliation id 可安全寫入；唯一鍵
+        # uniq_commission_outbox_recon(tenant_id, reconciliation_id) 提供冪等。
+        await db_module._conn.execute(
+            "INSERT INTO commission_event_outbox "
+            "  (event_id, tenant_id, topic, event_key, reconciliation_id, settlement_id, payload) "
+            "VALUES (%s::uuid, %s::uuid, %s, %s, %s::uuid, %s::uuid, %s::jsonb) "
+            "ON CONFLICT (tenant_id, reconciliation_id) DO NOTHING",
+            (commission_event_id, tenant_id, "commission.accrued", str(technician_id),
+             recon_id, settlement["id"],
+             json.dumps({
+                 "tenant_id": tenant_id,
+                 "reconciliation_id": recon_id,
+                 "settlement_id": settlement["id"],
+                 "technician_id": str(technician_id),
+                 "amount": settlement.get("amount"),
+                 "currency": settlement.get("currency") or "TWD",
+                 "accrued_at": settlement.get("created_at"),
+                 # 標記來源路徑，讓消費端與稽核分得出 legacy／v2（兩表分裂尚未收斂，
+                 # 見 CR-0189 §8 選項 b）
+                 "source": "reconciliation_v2_co_sign",
+             })),
+        )
 
-    # INSERT saas.settlement（dual-sign 完成才建）
-    payout = float(technician_payout or 0)
-    # TI-FIN-SETTLE-04：釘選建立當下的結算費率 config 版本（best-effort，缺則 NULL）
-    from services import config_m18_service
-    ver = await config_m18_service.resolve_settlement_rate_version(tenant_id=None)
-    settlement_cur = await db_module._conn.execute(
-        "INSERT INTO saas.settlement "
-        "  (tenant_id, reconciliation_id, technician_id, amount, currency, status, "
-        "   applied_config_version_id, rate_effective_date) "
-        "VALUES (%s::uuid, %s::uuid, %s::uuid, %s, 'TWD', 'pending', %s, %s) "
-        "RETURNING id, tenant_id, reconciliation_id, technician_id, amount, "
-        "          currency, status, payment_method, paid_at, created_at",
-        (tenant_id, recon_id, str(technician_id), payout,
-         ver["version_id"], ver["effective_date"]),
-    )
-    s_row = await settlement_cur.fetchone()
-    settlement = _settlement_row_to_dict(s_row)
+        # 取最新 reconciliation（同交易內讀，保證與上面的 UPDATE 一致）
+        recon_cur = await db_module._conn.execute(
+            f"SELECT {_SELECT} FROM saas.reconciliation r "
+            f"WHERE r.id = %s::uuid AND r.tenant_id = %s::uuid",
+            (recon_id, tenant_id),
+        )
+        recon_row = await recon_cur.fetchone()
+        reconciliation = _row_to_dict(recon_row)
+    # ← COMMIT 之後才 publish
 
-    # 取最新 reconciliation
-    recon_cur = await db_module._conn.execute(
-        f"SELECT {_SELECT} FROM saas.reconciliation r "
-        f"WHERE r.id = %s::uuid AND r.tenant_id = %s::uuid",
-        (recon_id, tenant_id),
-    )
-    recon_row = await recon_cur.fetchone()
-    reconciliation = _row_to_dict(recon_row)
+    try:
+        from core.event_bus import TOPIC_COMMISSION_ACCRUED, publish_event
+        ok = await publish_event(
+            TOPIC_COMMISSION_ACCRUED,
+            {
+                "tenant_id": tenant_id,
+                "reconciliation_id": recon_id,
+                "settlement_id": settlement["id"],
+                "technician_id": str(technician_id),
+                "amount": settlement.get("amount"),
+                "currency": settlement.get("currency") or "TWD",
+                "accrued_at": settlement.get("created_at"),
+                "source": "reconciliation_v2_co_sign",
+            },
+            key=str(technician_id),
+            event_id=commission_event_id,
+        )
+        if ok:
+            await db_module._conn.execute(
+                "UPDATE commission_event_outbox SET status = 'sent', sent_at = NOW(), "
+                "  updated_at = NOW() WHERE event_id = %s::uuid AND status = 'pending'",
+                (commission_event_id,),
+            )
+    except Exception:  # noqa: BLE001 — 即時投遞失敗不影響核准；outbox 已保底，worker 重送
+        logger.warning(
+            "commission.accrued 即時投遞失敗（v2 co-sign），留 outbox 由 worker 重送 event_id=%s",
+            commission_event_id, exc_info=True,
+        )
 
     return {"reconciliation": reconciliation, "settlement": settlement}

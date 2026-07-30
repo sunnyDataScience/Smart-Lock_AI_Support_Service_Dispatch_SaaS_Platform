@@ -34,7 +34,13 @@ results:
       m18/configs、accounting/settlements、audit/checkpoint、audit/events 四個端點，
       全數 403 FORBIDDEN；同一 session 打 BACKOFFICE 層的 work-orders 得 200 —— 此陽性對照
       排除「session 已失效所以全 403」的假綠。
-    instrument: Playwright（browser fetch，帶真實 session cookie）
+    recheck_20260730: >-
+      0730 補驗（B1 修復後）以 curl 直打真實 HTTP 重測：①無 token 打三個受保護端點全 401；
+      ②未登記路由（/api/v1/__debug、/admin、含 ../ 的路徑遍歷嘗試）全 404 無 200；
+      ③reviewer / dispatcher / customer_service 各打三個管理端點全數 403；
+      ④純 GET 跨租戶回 CROSS_TENANT_READ（audit/events、audit/verify），
+      POST audit/checkpoint 仍為 CROSS_TENANT_WRITE ＝ B1 只改讀取端點、未誤動寫入端點。
+    instrument: Playwright（browser fetch，帶真實 session cookie）＋ 0730 curl 複驗
 
   - tc: TC-SEC-WEB-02
     status: PASS
@@ -110,7 +116,23 @@ results:
       再次載入失敗（確認有 revoke）。
       不通過：實際解碼失敗 —— 該筆為 image/heic，Chromium 無法解碼，
       AuthImage 會顯示破圖而非影像。詳見 UAT-D-002。
-    instrument: Playwright（browser fetch + Image 解碼實測）
+    recheck_20260730: >-
+      CR-0194 §6 轉檔後複驗（工單 834aa71d 三筆完工證據）：經 /api-proxy 授權 fetch
+      → Blob URL → **瀏覽器實際解碼成功**（2316x3088 / 4284x5712 x2），
+      blob URL 不含 token；revokeObjectURL 後再 fetch 全部失敗＝ lightbox 關閉釋放成立。
+      UAT-D-002 的原始症狀（審核看到破圖）於 UI 路徑消除。
+      仍未驗：注入 401/403 時 **UI 是否顯示失敗佔位**——需覆寫 window.fetch，
+      本輪嘗試「帶壞 header」行不通（見 note），故此條維持 PARTIAL。
+    note_20260730: >-
+      過程中差點誤報「proxy 繞過認證」的 P0：瀏覽器內帶假 token / 錯租戶打 /api-proxy
+      都回 200。查證**不是缺陷**——serverApiProxy 是透明轉發（不覆蓋 header），
+      API 同時收到假 Authorization 與**有效 session cookie**，認證以 cookie 為準；
+      錯租戶回 200 是因 tenant 取自 token claim 而非 X-Tenant-ID header，
+      這是更安全的行為（header 無法偽造租戶）。curl（無 cookie）實測即 401/403。
+      **教訓：瀏覽器探測帶 session 狀態、curl 沒有；兩者不一致時先分離變因再判定。**
+      （同類誤判本輪第 4 次，前三次為冪等回放誤判成繞過閘、殘留渲染誤判成 RBAC 破洞、
+      既有 flaky 誤判成自己的回歸）
+    instrument: Playwright（browser fetch + Image 解碼實測）＋ 0730 curl 對照
 
   - tc: TC-WO-03
     status: PASS
@@ -342,6 +364,28 @@ defects:
       既有 20 支斷言測試全綠；新增 16 測；全套 2210 passed / 13 failed，
       那 13 支已於乾淨基線（stash 全部變更＋pre-122 庫）重跑確認為既有問題。
     status: FIXED（本機驗證通過；prod 待套 122 + 重佈。§11 一項新發現待裁決）
+
+  - id: UAT-D-008
+    severity: P3
+    title: 既有 flaky 測試 test_reassign_writes_event_no_500 —— 全套執行時間歇性失敗
+    found_in: 本輪回歸執行（非案例）
+    detail: >-
+      tests/test_cr_0053_arrival_doorcheck.py::test_reassign_writes_event_no_500
+      在全套執行時約 1/3 機率失敗，單獨執行 8/8 全綠 → **跨測試污染**。
+      已排除是本輪變更造成：把本輪新增的四個測試檔全部 --ignore 後跑 3 次，
+      同一支仍在第 2 次失敗（13→14 failed），故為既有問題。
+      可疑機制（**未證實**）：該測試以 `LIMIT 2` 且**無 ORDER BY** 取兩個 active
+      技師（Postgres 不保證順序），而 reassign_order 的 _assert_brand_authorized
+      是 fail-closed（技師不在該品牌授權名單即 403）。若前序測試改動過
+      technician_brand_authorization，取到的技師對就會影響結果。
+      未進一步追精確污染源——那是獨立除錯任務。
+    impact: >-
+      CI 會出現無法重現的紅燈，長期會訓練團隊忽略紅燈（比沒有測試更糟）。
+    fix_suggestion: >-
+      ①先證實污染源（在該測試前後 dump technician_brand_authorization 比對）；
+      ②證實後再修：讓測試挑「確實具備該品牌授權」的技師，或補 ORDER BY 使其確定性。
+      不建議在未證實前就改——那是憑猜修測試。
+    status: OPEN（既有問題，非本輪造成）
 
 incident:
   - id: INC-01

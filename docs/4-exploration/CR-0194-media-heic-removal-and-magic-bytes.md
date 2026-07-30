@@ -83,15 +83,24 @@
 
 ---
 
-## §6 仍待裁決（獨立於本 CR）
+## §6 既有證據處理（業主 2026-07-30 裁決：選項 1 伺服器端轉檔）✅
 
 **既有 6 筆 heic 完工證據怎麼處理？** 全是 `completion_before/during/after`、全部綁工單、1.0–2.5 MB：
 
-1. 請師傅重新補拍（證據鏈最乾淨，但要聯絡師傅回頭補件）
-2. 伺服器端一次性轉檔為 JPEG（省事，但等於平台代為改動完工證據，稽核上要記轉檔事實）
-3. 不處理，只在審核頁顯示「此證據為 HEIC 格式無法預覽」提示
+**已執行**（腳本 `scripts/ops/convert_heic_evidence.py`，預設 dry-run、`--apply` 才寫）：
 
-附帶發現：磁碟 12 個 `.heic` 檔 vs DB 6 列 → **6 個孤兒檔**（另一 stack 或先前 reset 遺留），與本決策無關但已記錄。
+- 6 筆全部轉為 JPEG（host `sips` 解碼——容器內無 pillow-heif；PIL 有但不支援 HEIC）
+- DB 同步更新 `content_type` / `storage_path` / `size_bytes` / `sha256`（雜湊算明文）
+- 落盤走 `media_crypto.encrypt_bytes`，比照現行上傳路徑；GET 回傳 bytes 數與明文完全相符＝加解密 round-trip 正確
+- **原檔改名 `.heic.superseded` 保留**，不直接刪（留人工回復餘地）
+- **每筆寫一筆轉檔痕跡**（`work_order_events` `other` + `payload.kind=media_converted`，附原始 sha256／尺寸／原檔路徑）。措辭刻意寫明 `transcode: lossy (HEIC→JPEG q90, full resolution retained)`——HEIC→JPEG 是**有損轉碼**，不是換容器格式；留痕的目的不是主張「內容沒變」，而是讓爭議時能還原誰在何時轉的、原檔在哪。
+- 前置備份：DB pg_dump ＋ 6 個原檔複本（scratchpad）
+
+驗證：DB 已無 `image/heic` 列（`image/png` 10 / `image/jpeg` 6）；API 回 `200 image/jpeg`；**瀏覽器實測三張 `decoded: true` 並回報真實尺寸**（2316x3088、4284x5712 ×2）＝ UAT-D-002 的原始症狀（審核看到破圖）真正消除，不只是 Content-Type 變好看。
+
+**6 個孤兒檔**（磁碟有檔、DB 無列，另一 stack 或先前 reset 遺留）已逐一確認無 DB 列且無 `problem_cards.media_urls` / `messages.metadata` 引用後備份刪除。
+
+順帶產出 `scripts/ops/audit_media_consistency.py`（UAT-D-005 的長期修法）：掃 DB 列 ↔ 實檔雙向不一致。刻意保留 `71318627` 為**有記錄的 dangling fixture**（UAT 需要一個真 404 驗「照片載入失敗」佔位，補掉就沒得測），並白名單註明用途。該腳本首版把 `kyc-registration/` 誤判成孤兒（那些由技師庫的 `technician_registration_document` 管理、本來就不在 `media_files`）——已排除，否則會是穩定假警，而穩定的假警等於沒有警報。
 
 ---
 

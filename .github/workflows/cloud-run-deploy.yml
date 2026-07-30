@@ -207,6 +207,20 @@ jobs:
           echo "resource_name=${resource_name}" >> "${GITHUB_OUTPUT}"
           echo "previous_revision=${previous}" >> "${GITHUB_OUTPUT}"
           echo "health_url=${url}" >> "${GITHUB_OUTPUT}"
+      - name: Assert runtime proxy vars present (UAT-D-006)
+        # web component 的 /api-proxy 在 runtime 讀這兩個值；GH Environment variable
+        # 漏設時會展開成空字串 → web.sh 收到空值（pre-flight 會擋），但擋在部署腳本
+        # 已經是流程末端。這裡先擋一次，讓錯誤訊息指向「GH 變數沒設」而非部署失敗。
+        if: ${{ inputs.component == 'brand-web' || inputs.component == 'tech-web' || inputs.component == 'platform-web' || inputs.component == 'landing' }}
+        shell: bash
+        run: |
+          test -n "${{ vars.RUNTIME_API_BASE_URL }}" || {
+            echo "::error::Environment variable RUNTIME_API_BASE_URL 未設 —— web 站的 /api-proxy 會全數 503 而 health check 仍綠（見 23_Deployment_Guide §7.2）"; exit 1; }
+          case "${{ inputs.component }}" in
+            brand-web|tech-web|landing)
+              test -n "${{ vars.RUNTIME_PLATFORM_API_BASE_URL }}" || {
+                echo "::error::${{ inputs.component }} 有 /platform-api-proxy，但 RUNTIME_PLATFORM_API_BASE_URL 未設"; exit 1; } ;;
+          esac
       - name: Deploy exact staging digest
         shell: bash
         run: |
@@ -287,6 +301,20 @@ jobs:
           path="/"
           [[ "${{ inputs.component }}" == "api" || "${{ inputs.component }}" == "agent" ]] && path="/health"
           curl --fail --retry 6 --retry-all-errors "${HEALTH_URL}${path}"
+          # UAT-D-006：web 站只 curl `/` 驗不到功能——頁面殼與 SSR 在 proxy 全 503 時
+          # 仍回 200。必須實際打一次 /api-proxy/health，讓「health 綠、功能全死」
+          # 這個形態真的擋住晉升。
+          case "${{ inputs.component }}" in
+            brand-web|tech-web|platform-web|landing)
+              echo "→ 驗 same-origin proxy 是否真的轉得出去"
+              curl --fail --retry 6 --retry-all-errors "${HEALTH_URL}/api-proxy/health"
+              ;;
+          esac
+          case "${{ inputs.component }}" in
+            brand-web|tech-web|landing)
+              curl --fail --retry 6 --retry-all-errors "${HEALTH_URL}/platform-api-proxy/health"
+              ;;
+          esac
       - name: Migration drift
         run: uv run python scripts/ci/migration-drift-check.py
       - name: Create and validate staging release manifest
@@ -418,6 +446,20 @@ jobs:
           path="/"
           [[ "${{ inputs.component }}" == "api" || "${{ inputs.component }}" == "agent" ]] && path="/health"
           curl --fail --retry 6 --retry-all-errors "${HEALTH_URL}${path}"
+          # UAT-D-006：web 站只 curl `/` 驗不到功能——頁面殼與 SSR 在 proxy 全 503 時
+          # 仍回 200。必須實際打一次 /api-proxy/health，讓「health 綠、功能全死」
+          # 這個形態真的擋住晉升。
+          case "${{ inputs.component }}" in
+            brand-web|tech-web|platform-web|landing)
+              echo "→ 驗 same-origin proxy 是否真的轉得出去"
+              curl --fail --retry 6 --retry-all-errors "${HEALTH_URL}/api-proxy/health"
+              ;;
+          esac
+          case "${{ inputs.component }}" in
+            brand-web|tech-web|landing)
+              curl --fail --retry 6 --retry-all-errors "${HEALTH_URL}/platform-api-proxy/health"
+              ;;
+          esac
       - name: Create and validate production release manifest
         env:
           WORKFLOW_RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

@@ -37,6 +37,13 @@ services:
         NEXT_PUBLIC_DISPATCH_PORTAL_URL: "${DISPATCH_PORTAL_URL:-http://localhost:3000}"
         # 品牌申請導入頁在 platform 站 /platform/apply(品牌 CTA 外導)
         NEXT_PUBLIC_PLATFORM_PORTAL_URL: "${PLATFORM_PORTAL_URL:-http://localhost:3003}"
+    # UAT-D-004：上面 build args 給瀏覽器直連；下面 runtime env 給 server-side
+    # proxy(src/lib/serverApiProxy.ts)。NEXT_PUBLIC_* 為空時瀏覽器改走本站
+    # /api-proxy，proxy 讀不到這裡就整站 503（health check 打 `/` 仍會綠）。
+    # landing 是**獨立 stack**（無自己的 api 服務），故走 host 對外埠而非服務名。
+    environment:
+      API_BASE_URL: "${LANDING_PROXY_API_BASE_URL:-http://host.docker.internal:8001}"
+      PLATFORM_API_BASE_URL: "${LANDING_PROXY_PLATFORM_API_BASE_URL:-http://host.docker.internal:8003}"
     ports:
       - "${LANDING_WEB_PORT:-3002}:8080"
     restart: unless-stopped

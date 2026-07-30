@@ -179,7 +179,7 @@ additive 欄位，不破壞既有 consumer（`evidence_package_service`、v1 `wo
   - **驗證**：既有 20 支事件斷言測試全綠；新增 `tests/test_cr_0193_lifecycle_events.py` 16 測；全套 `2210 passed / 13 failed`，那 13 支已於**乾淨基線**（stash 全部變更 ＋ pre-122 的 `lock_base` 庫）重跑確認同樣失敗＝既有問題。`test_migration_drift_check_passes` 曾因 122 未登記而失敗（drift check 正確作用），補 `MIGRATION_REGISTRY.md` 後通過。
   - **端到端（TC-WO-01 閘門項）**：全程走真實 HTTP API＋scratch 庫。補卡欄位→confirm→標急件→轉工單`201`→`GET events` 得 **`seq=1 type=created actor=c782bcfe…`**，payload 含 `origin/problem_card_id/urgency/emergency_class/quote_gate_applied`。再 escalate `200` → `seq=2 type=escalated actor` 有值、DESC 排序、連號無缺口 → **router 的 `actor_user_id` 傳遞已實證接上**。UAT 庫複驗 `4/19/0/84/16/0` 零污染。
 
-## §11 新發現待裁決 🛑
+## §11 scope_change 復工事件（業主 2026-07-30 裁決：補，選項 1）✅
 
 **scope_change 的復工轉換要不要也落事件？**
 
@@ -187,7 +187,10 @@ additive 欄位，不破壞既有 consumer（`evidence_package_service`、v1 `wo
 
 這超出你裁決的 7 個，且需要**新增一個 event_type**（例如 `resumed`），所以我沒有擅自擴充 CHECK。
 
-1. 也補（migration 122 追加 `resumed`，或另開 123）——timeline 才完整；範圍變更後復工是爭議舉證常查的節點
-2. 不補——現況 `scope_change` 事件已記「有提出範圍變更」，只是看不到「何時核可復工」
+**已落地**：`SQL/migrations/123-wo-events-resumed.sql`（CHECK 追加 `resumed`，scratch 與本機 UAT 庫各連套兩次退出碼 0）＋ `scope_change_service.respond_public` / `admin_override` 兩處補 `_insert_wo_event`。
 
-> 註：現有 `scope_change` 事件記的是**申請**，不是核可復工，語意不同，不建議用它兼代。
+實作時多修一個**我原本會寫錯的地方**：那兩處的 `UPDATE work_orders … AND status IN ('accepted','in_progress')` 在狀態不符時**影響 0 列但不拋錯**，無條件寫事件會產生一筆「其實沒復工」的假事件——溯源最怕的正是不實事件。改以 `rowcount` 守住，並補 `test_scope_change_resume_skips_event_when_status_mismatch` 釘住。
+
+另 `respond_public` 原本沒有 `tenant_id`（公開端點只憑 token 找 proposal），改由 SELECT join `work_orders` 一併取出。
+
+> 註：現有 `scope_change` 事件記的是**申請**，不是核可復工，語意不同，不用它兼代。

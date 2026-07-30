@@ -121,7 +121,7 @@ async def list_config_namespaces(
     user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
-        raise ApiError("CROSS_TENANT_WRITE", "Path tenantId 與 token claim 不符", 403)
+        raise ApiError("CROSS_TENANT_READ", "Path tenantId 與 token claim 不符", 403)
 
     items = await svc.list_namespaces(tenantId, namespace_filter=namespace)
     return {"items": items}
@@ -144,7 +144,7 @@ async def get_config_active_version(
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
-        raise ApiError("CROSS_TENANT_WRITE", "Path tenantId 與 token claim 不符", 403)
+        raise ApiError("CROSS_TENANT_READ", "Path tenantId 與 token claim 不符", 403)
 
     result = await svc.get_active_version(tenantId, namespace, key)
     return result
@@ -347,7 +347,7 @@ async def list_config_audit(
     user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
-        raise ApiError("CROSS_TENANT_WRITE", "Path tenantId 與 token claim 不符", 403)
+        raise ApiError("CROSS_TENANT_READ", "Path tenantId 與 token claim 不符", 403)
 
     result = await svc.list_audit(
         tenant_id=tenantId,

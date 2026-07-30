@@ -128,7 +128,7 @@ async def get_refund_sod(
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
-            "CROSS_TENANT_WRITE",
+            "CROSS_TENANT_READ",
             "Path tenantId does not match authenticated tenant",
             403,
         )

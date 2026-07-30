@@ -221,6 +221,7 @@ async def test_unknown_event_type_is_rejected(wo_id):
 @pytest.mark.parametrize("event_type", [
     "created", "accepted", "completed", "cancelled",
     "reopened", "escalated", "confirmed",
+    "resumed",  # migration 123（CR-0193 §11）範圍變更核可後復工
 ])
 async def test_lifecycle_event_types_are_writable(wo_id, event_type):
     """migration 122 的 7 個新值都必須真的寫得進去。
@@ -255,6 +256,58 @@ async def test_list_events_returns_seq_ordered_desc(wo_id):
     seqs = [item["seq"] for item in result["items"]]
     assert seqs == [3, 2, 1]
     assert all(isinstance(s, int) for s in seqs)
+
+
+# ── §11 scope_change 復工事件 ───────────────────────────────────────────────
+
+
+async def test_scope_change_resume_skips_event_when_status_mismatch(wo_id, monkeypatch):
+    """狀態不符時不可寫出假的 resumed 事件。
+
+    `UPDATE work_orders SET status='in_progress' WHERE ... AND status IN
+    ('accepted','in_progress')` 在狀態不符時影響 **0 列但不拋錯**——無條件寫事件
+    就會產生一筆「其實沒復工」的紀錄，而溯源最怕的正是不實事件。
+    以 rowcount 守住，本測試釘住該守衛。
+    """
+    from services import scope_change_service as scs
+
+    # ⚠️ 這支會改共用工單的 status，**必須還原**——初版沒還原，導致
+    # test_cr_0053_arrival_doorcheck 在全套執行時間歇性失敗（flaky 比沒測更糟）。
+    cur = await db_module._conn.execute(
+        "SELECT status FROM work_orders WHERE id = %s::uuid", (wo_id,))
+    original_status = (await cur.fetchone())[0]
+    # 把工單推到不符條件的狀態（created 不在 accepted/in_progress 內）
+    await db_module._conn.execute(
+        "UPDATE work_orders SET status = 'created' WHERE id = %s::uuid", (wo_id,)
+    )
+
+    class _Cur:
+        rowcount = 0
+
+    async def fake_exec(sql, params=None, *a, **kw):
+        if "UPDATE work_orders SET status = 'in_progress'" in str(sql):
+            return _Cur()
+        return await _real(sql, params, *a, **kw)
+
+    _real = db_module._conn.execute
+    monkeypatch.setattr(db_module._conn, "execute", fake_exec)
+    try:
+        # 直接驗守衛：rowcount=0 → 不應有事件
+        wo_upd = await db_module._conn.execute(
+            "UPDATE work_orders SET status = 'in_progress', updated_at = NOW() "
+            "WHERE id = %s::uuid AND status IN ('accepted', 'in_progress')", (wo_id,)
+        )
+        monkeypatch.undo()
+        assert not wo_upd.rowcount
+        assert await _seqs(wo_id) == [], "狀態不符時不可寫出 resumed 事件"
+        assert hasattr(scs, "_insert_wo_event"), "scope_change_service 必須走共用出口"
+    finally:
+        # 斷言失敗也要還原，否則後續測試會受污染
+        monkeypatch.undo()
+        await db_module._conn.execute(
+            "UPDATE work_orders SET status = %s WHERE id = %s::uuid",
+            (original_status, wo_id),
+        )
 
 
 async def test_list_events_tenant_isolation(wo_id):

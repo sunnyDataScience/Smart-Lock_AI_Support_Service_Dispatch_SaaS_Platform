@@ -27,6 +27,9 @@ import core.db as db_module
 from core.db import _ensure_conn
 from core.errors import ApiError
 from services import audit_log_service
+# CR-0193：work_order_events 的唯一寫入出口（取 per-工單連號 seq）。
+# 直接 INSERT 會因 seq NOT NULL 寫不進去——那是 DB 端刻意的兜底。
+from services.work_order_service import _insert_wo_event
 
 logger = logging.getLogger("api.scope_change_service")
 
@@ -144,15 +147,20 @@ async def respond_public(
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
     # 1. 取目前提案 + 鎖定條件（autocommit 模式下無 row lock，採 status 條件 update）
+    # CR-0193 §11：一併取 wo.tenant_id——復工事件需要它，而本函式簽名沒有
+    # tenant_id（公開端點只憑 token 找 proposal）。
     cur = await db_module._conn.execute(
-        "SELECT status, work_order_id FROM scope_changes WHERE id = %s::uuid",
+        "SELECT sc.status, sc.work_order_id, wo.tenant_id "
+        "FROM scope_changes sc "
+        "LEFT JOIN work_orders wo ON wo.id = sc.work_order_id "
+        "WHERE sc.id = %s::uuid",
         (proposal_id,),
     )
     row = await cur.fetchone()
     if not row:
         raise ApiError("NOT_FOUND", "scope change proposal not found", 404)
 
-    current_status, work_order_id = row[0], row[1]
+    current_status, work_order_id, wo_tenant_id = row[0], row[1], row[2]
     if current_status not in ("pending",):
         raise ApiError(
             "CONFLICT",
@@ -178,11 +186,25 @@ async def respond_public(
     # 3. 連動 work_orders（accept → in_progress；reject → 不動，由後台重派）
     if decision == "accept":
         try:
-            await db_module._conn.execute(
+            wo_upd = await db_module._conn.execute(
                 "UPDATE work_orders SET status = 'in_progress', updated_at = NOW() "
                 "WHERE id = %s::uuid AND status IN ('accepted', 'in_progress')",
                 (str(work_order_id),),
             )
+            # CR-0193 §11（migration 123）：核可後復工要落事件。現有 'scope_change'
+            # 事件記的是**申請**，語意不同不可兼代——爭議時要查的是「加價何時被同意、
+            # 誰同意、何時恢復施工」。actor 為 None：這條是客戶用公開連結決議，非登入帳號。
+            #
+            # 只在 UPDATE 真的動到列時才寫事件：上面帶 `AND status IN (...)`，
+            # 狀態不符時影響 0 列**但不拋錯**，無條件寫就會產生一筆「其實沒復工」的假事件。
+            if wo_upd.rowcount and wo_tenant_id:
+                await _insert_wo_event(
+                    wo_id=str(work_order_id), tenant_id=str(wo_tenant_id), actor_user_id=None,
+                    event_type="resumed",
+                    payload={"origin": "scope_change_customer_accept",
+                             "proposal_id": str(proposal_id),
+                             "customer_decision": customer_decision},
+                )
         except Exception as exc:  # noqa: BLE001 — 主流程已寫入，連動失敗 audit
             logger.warning("scope_change accept work_order update failed: %s", exc)
 
@@ -310,11 +332,21 @@ async def admin_override(
 
     # 連動 wo（accepted/in_progress → in_progress；保證可繼續施工）
     try:
-        await db_module._conn.execute(
+        wo_upd = await db_module._conn.execute(
             "UPDATE work_orders SET status = 'in_progress', updated_at = NOW() "
             "WHERE id = %s::uuid AND status IN ('accepted', 'in_progress')",
             (str(wo_id),),
         )
+        # CR-0193 §11（migration 123）：後台強制核可後復工同樣要落事件。
+        # 這條**比客戶自願核可更需要留痕**——是平台代替客戶決定，爭議時第一個被問。
+        # 同樣以 rowcount 守住，避免狀態不符時寫出假的復工事件。
+        if wo_upd.rowcount:
+            await _insert_wo_event(
+                wo_id=str(wo_id), tenant_id=str(tenant_id), actor_user_id=approved_by_user_id,
+                event_type="resumed",
+                payload={"origin": "scope_change_admin_override",
+                         "proposal_id": str(proposal_id)},
+            )
     except Exception as exc:  # noqa: BLE001
         logger.warning("scope_change admin_override wo update failed: %s", exc)
 
