@@ -190,19 +190,36 @@ async def test_unrelated_unique_violation_is_not_swallowed(wo_id, monkeypatch):
     assert await _seqs(wo_id) == [], "不該留下半筆"
 
 
-async def test_direct_insert_without_seq_is_rejected(wo_id):
-    """DB 端兜底：繞過 _insert_wo_event 直接寫（不給 seq）必須失敗。
+async def test_direct_insert_without_seq_gets_autofilled(wo_id):
+    """繞過 _insert_wo_event 直接寫（不給 seq）→ trigger 自動補號，仍然連號。
 
-    這條守的是「唯一出口」不被繞過——留 NULL 的事件會在連號開洞。
+    ⚠️ 這條的語意在 migration 125 之後**改變了**，改變的理由值得記住：
+    122 原本只靠 `NOT NULL` 擋（fail loud）。2026-07-30 prod 實際踩到——
+    122 套用成功但 code 部署被別的 CR 的 pre-flight 擋下（缺 secret、缺 120/121），
+    prod 停在「新 schema ＋ 舊 code」，舊 code 的 12 條 INSERT 都不給 seq
+    → assign/reassign/reject/arrival/door_check 全數 500。
+
+    教訓：「migration 先於 code」的前提是 **code 一定跟得上**。code 部署可能被
+    其他原因阻擋時，schema 變更必須對舊 code 相容，否則 migration 本身就是故障。
+
+    125 加 BEFORE INSERT trigger 補號：NOT NULL 與 UNIQUE 都保留（不變式不放寬），
+    但變成 fail safe 且仍然連號——比原本更好，因為繞過出口也不再開連號缺口。
     """
-    from psycopg import errors as pg_errors
-
-    with pytest.raises(pg_errors.NotNullViolation):
+    for i in range(2):
         await db_module._conn.execute(
             "INSERT INTO work_order_events (work_order_id, tenant_id, event_type, payload) "
             "VALUES (%s::uuid, %s::uuid, 'other', '{}'::jsonb)",
             (wo_id, TENANT),
         )
+    assert await _seqs(wo_id) == [1, 2], "trigger 必須補出連號，不可留 NULL 或重號"
+
+
+async def test_seq_column_is_still_not_null(wo_id):
+    """不變式沒有被 125 放寬：seq 仍是 NOT NULL（只是有人幫你填）。"""
+    cur = await db_module._conn.execute(
+        "SELECT is_nullable FROM information_schema.columns "
+        "WHERE table_name='work_order_events' AND column_name='seq'")
+    assert (await cur.fetchone())[0] == "NO"
 
 
 async def test_unknown_event_type_is_rejected(wo_id):
