@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **prod 部署完成（2026-07-30，業主裁決「補完 CR-0190 前置再部署」）**：`smart-lock-api-00037-x67`，image digest `sha256:22f33f03…`。
+  - **前置盤點才是這次的主要工作**（動 prod 前）：prod 只套到 migration 119、**落後 HEAD 35 個 commit**；`api.sh` 九個 required secret 只缺 `SERVICE_CREDENTIAL_PEPPER`；三庫 migration 缺口依各檔 `migrate-targets` 宣告算出＝brand 缺 118/120、tech 缺 120、platform 缺 120/121（`lock_tech` 停在 105、`lock_platform` 停在 084 **不是落後**，是那些 migration 不路由到該庫）。
+  - **pepper 可安全新生的依據**：`saas.service_credential`（實際表名 `public.service_credentials`）在 prod 不存在＝**零既有 hash**，故新隨機值不會讓任何東西失效；且 `_pepper()` 是延遲檢查（只在該路徑回 503），不會讓服務起不來。用 `openssl rand -hex 32`（64 字元 > 32 下限），全程未落地未印出。
+  - **踩到並修好一次真事故**：122 套用成功後 code 部署被 pre-flight 擋下，prod 停在「新 schema ＋ 舊 code」→ 舊 code 不給 seq 的 12 條 INSERT 全數 NotNullViolation（實測確認 assign/reassign/reject/arrival/door_check 全掛）。加 **migration 125**（BEFORE INSERT trigger 補號）修復，`NOT NULL` 與 `UNIQUE` 都保留、不變式不放寬，由 fail loud 改 fail safe。**教訓：「migration 先於 code」的前提是 code 一定跟得上；code 可能被別的原因擋住時，schema 變更必須對舊 code 相容，否則 migration 本身就是一次故障。**
+  - **執行順序**：建 pepper → `gcloud sql backups create` 快照 → routed runner 套 5 次（`--dry-run` 先確認只套那 5 次）→ drift-check 三庫全綠（brand 122 支／tech 12 支／platform 3 支 ↔ `schema_migrations` 一致）→ build+push → deploy。
+  - **prod 實證四項**（用真實授權呼叫，不只看 health）：①健康頁 11 monitors 含 `commission_outbox` running ＋真指標 ＋ `alert=false`（C2）②純 GET 跨租戶回 `CROSS_TENANT_READ`（B1）③`GET .../events` 回 **`seq=1 type=assign`**（CR-0193）④誠實 heic → 422 且允許清單已無 heic；**真 HEIC 謊報 jpeg → 422 檔案內容與宣告型別不符**（CR-0194 的重點）。
+  - **資料零污染**：`media_files=0`、`work_order_events=5`、`saas.settlement=25` 全與部署前一致（兩次上傳測試皆被 422 擋下未落庫）。七個 Cloud Run 服務健康（`smart-lock-agent` 404 為已知誤報——webhook 服務無 `/health`）。
+  - **順帶修好別人的既有缺口**：**118（CR-0188）一直沒套 prod**，導致 BR-SETTLE-05 對帳閘門的開關因 `config_version.namespace` 的 FK 而**根本插不進去、永遠開不了**。已套（值 `false` ＝行為與現況相同）。該檔註解列出開啟閘門的兩個前提，其中「v2 路徑不發 `commission.accrued`」正是本輪 C1 補掉的。
+  - **一次差點造成假綠**：用 `$PSQL` 變數當指令（zsh 不支援帶參數的變數執行）導致 migration 一個都沒套，但迴圈的 echo 照印「已登記」、`rc=$?` 抓的是 pipe 末端 `sed` 的碼恆為 0。查證後 INSERT 也一起 command-not-found → **registry 從未被污染、零損害**。已補進 bash 雷區記憶（第三變體）。
+  - **另一次自我糾正**：驗證新表時查 `saas.user_preferences` 得到 MISSING，一度以為 migration 沒生效；實際表建在 `public` 且 121 的表名是複數（`service_principals`）——**是我的驗證查詢錯，不是 migration 錯**。改對後三庫全部確認存在。
+
 - **業主 2026-07-30 一次性裁決落地（14 項，A1–A3／B1–B4／C1–C2／D1–D2）**：一次收完所有待裁決項，避免逐項來回。
   - **A1 CR-0193 §11（scope_change 復工事件）**：migration `123` CHECK 追加 `resumed`；`scope_change_service.respond_public` / `admin_override` 補事件。實作時多修一處**我原本會寫錯的地方**：那兩處 `UPDATE work_orders … AND status IN ('accepted','in_progress')` 在狀態不符時**影響 0 列但不拋錯**，無條件寫事件會產生「其實沒復工」的假事件——溯源最怕不實事件，改以 `rowcount` 守住並補測試釘住。另 `respond_public` 原本沒有 `tenant_id`（公開端點只憑 token 找 proposal），改由 SELECT join `work_orders` 取出。
   - **A2 CR-0194 §6（既有 6 筆 HEIC 證據轉檔）**：`scripts/ops/convert_heic_evidence.py`（預設 dry-run）。6 筆轉 JPEG、DB 同步 `content_type/storage_path/size_bytes/sha256`、落盤走 `media_crypto` 加密（GET bytes 數與明文相符＝round-trip 正確）、**原檔保留為 `.heic.superseded`**、每筆寫轉檔痕跡（`other`+`kind=media_converted`，附原始 sha256／尺寸）。痕跡措辭刻意寫明 `transcode: lossy`——HEIC→JPEG 是**有損轉碼**不是換殼，留痕目的不是主張內容沒變，而是能還原誰在何時轉的、原檔在哪。**瀏覽器實測三張 `decoded: true` 並回報真實尺寸** ＝ UAT-D-002 原始症狀（審核看到破圖）真正消除。

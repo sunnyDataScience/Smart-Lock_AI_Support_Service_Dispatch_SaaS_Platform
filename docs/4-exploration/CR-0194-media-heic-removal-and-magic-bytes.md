@@ -1,6 +1,6 @@
 # CR-0194 — media 移除 HEIC ＋ magic bytes 驗證（UAT-D-002）
 
-- **狀態**：✅ 實作完成，本機驗證通過（prod 待重佈）
+- **狀態**：✅ **已上 prod**（2026-07-30，revision `smart-lock-api-00037-x67`）
 - **觸發面向**：API contract（上傳型別白名單收窄＋新增檔頭驗證＝行為變更）
 - **來源**：UAT 2026-07-29 TC-ONSITE 系列 → UAT-D-002
 - **業主裁決（2026-07-30）**：選項 **2 — 移除 `image/heic` ＋ 補 magic bytes 驗證**（含配套修 LINE fail-soft）

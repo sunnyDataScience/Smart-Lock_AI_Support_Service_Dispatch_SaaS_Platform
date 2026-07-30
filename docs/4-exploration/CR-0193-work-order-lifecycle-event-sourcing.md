@@ -1,6 +1,6 @@
 # CR-0193 — 工單生命週期事件溯源（TC-WO-01 事件流缺口）
 
-- **狀態**：✅ 實作完成，本機驗證通過（prod 待套 122 + 重佈）。§8 已裁決「照建議」，另有 1 項新發現待裁決（見 §11）
+- **狀態**：✅ **已上 prod**（2026-07-30，revision `smart-lock-api-00037-x67`）。§8 與 §11 均已裁決並落地
 - **觸發面向**：DB schema（新欄位 + CHECK 擴充）、Domain model（事件流不變式）、API contract（events 回傳 additive）、Test plan（TC-WO-01）
 - **來源**：UAT 2026-07-29 TC-WO-01 FAIL → UAT-D-007
 - **正典依據**：`smartlock-docs/enterprise/20_Test_Cases.md:258`
@@ -194,3 +194,29 @@ additive 欄位，不破壞既有 consumer（`evidence_package_service`、v1 `wo
 另 `respond_public` 原本沒有 `tenant_id`（公開端點只憑 token 找 proposal），改由 SELECT join `work_orders` 一併取出。
 
 > 註：現有 `scope_change` 事件記的是**申請**，不是核可復工，語意不同，不用它兼代。
+
+- 2026-07-30 **prod 部署完成**（業主裁決「補完 CR-0190 前置再部署」）：
+  - **踩到並修好一次事故**：122 套用後 code 部署被 `api.sh` pre-flight 擋下
+    （缺 CR-0190 的 `SERVICE_CREDENTIAL_PEPPER`），prod 停在「新 schema ＋ 舊 code」
+    → 舊 code 不給 seq 的 12 條 INSERT 全數 NotNullViolation（實測確認）。
+    加 migration 125（trigger 補號）修復。**教訓：「migration 先於 code」的前提是
+    code 一定跟得上；code 可能被別的原因擋住時，schema 變更必須對舊 code 相容。**
+  - **前置盤點**（動 prod 前）：prod 只套到 119、落後 HEAD 35 個 commit；
+    三庫 migration 缺口＝brand 缺 118/120、tech 缺 120、platform 缺 120/121
+    （依各檔 `migrate-targets` 宣告，非「落後」）；`api.sh` 九個 required secret
+    只缺 `SERVICE_CREDENTIAL_PEPPER`；`saas.service_credential` 表不存在
+    ＝零既有 hash，故生新 pepper 不會讓任何東西失效。
+  - **執行**：建 pepper（`openssl rand -hex 32`，64 字元 > 32 下限）→
+    `gcloud sql backups create` 快照 → routed runner 套 5 次（118 brand／120 三庫／
+    121 platform）→ drift-check 三庫全綠 → build（digest `sha256:22f33f03…`）→
+    deploy `smart-lock-api-00037-x67` 100% 流量。
+  - **prod 實證四項**（真實授權呼叫，非只看 health）：①健康頁 11 monitors 含
+    `commission_outbox` running ＋真指標 ＋`alert=false`（C2）②純 GET 跨租戶回
+    `CROSS_TENANT_READ`（B1）③`GET events` 回 `seq=1 type=assign`（本 CR）
+    ④誠實 heic → 422 且允許清單已無 heic；**真 HEIC 謊報 jpeg → 422 檔頭不符**（CR-0194）。
+  - **資料零污染**：`media_files=0`、`work_order_events=5`、`saas.settlement=25`
+    全與部署前一致（兩次上傳測試皆被 422 擋下，未落庫）。七個 Cloud Run 服務健康
+    （`smart-lock-agent` 的 404 是已知誤報——webhook 服務無 `/health`）。
+  - **順帶修好別人的既有缺口**：118（CR-0188 的 `settlement_policy` namespace）
+    一直沒套 prod，導致 BR-SETTLE-05 對帳閘門的開關**根本插不進去**。已套（值 false
+    ＝行為不變）。加上本輪 C1 補的 v2 事件發佈，118 註解列的兩個前提之一已解除。
