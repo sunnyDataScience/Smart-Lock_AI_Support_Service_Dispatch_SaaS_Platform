@@ -21,6 +21,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **SC-13～19 整合測試代跑抓到的四個守衛缺陷（業主 2026-07-31 裁決「都按照建議」）**：代跑業主負責的 SC-13～SC-19（33 個 TC）。改用 `openapi.json` 取**實際掛載**端點做系統性探測，而非照規格文字逐條手測——規格是意圖，code 才是事實。
+  - **①工單列表未依角色收斂 scope（TC-DISPATCH-05／TC-PLT-SURFACE-01）**：`GET /api/v1/work-orders` 與 `GET /tenants/{tid}/work-orders` 都只有 `Depends(require_tenant)`，`technician_id` 純粹是可選過濾參數。實測技師 token 拿到的回應與品牌 admin **位元組完全相同**（4 筆／4966 bytes，含未指派給他的工單與 `customer_name`／`customer_phone`）；把參數換成別人的 `technicians.id` 還能撈到別人的單。修法**不是回 403**（師傅站「我的工單」正常功能就是讀這兩支），而是新增 `technician_scope_filter` 強制收斂並**不採信 client 傳入值**；查無 technicians 列時退 nil UUID sentinel 而非「不過濾」。
+  - **②對帳閘門真空通過（TC-EXC-06）**：`reconcile_commission` 在 Kafka 未設時回 `gate_pass=True`，原註解稱「fail-open by design」。**無法驗證 ≠ 驗證通過**——租戶一旦打開 `reconcile_gate_enforce`（明示要求把關），Kafka 沒開反而靜默放行。改 `gate_pass=False`，並分出 `RECONCILE_GATE_UNAVAILABLE`（跑不起來）與 `RECONCILE_GATE_UNMET`（跑了不平）兩種錯誤——要修的東西不同，訊息不可混用。爆炸半徑僅限已開 enforce 的租戶（預設 off）。
+  - **③品牌授權 fail-open（TC-DISPATCH-06）**：`_brand_authorized_ids` 在該品牌查無授權列時回 `None`，而 auto-match 與 `_assert_brand_authorized` 對 `None` **都選擇不阻擋**（原註解：「該品牌無授權資料 → 不阻擋」）。規格明文要求 fail-closed。**且本機 seed 上這是唯一會走到的分支**：所有 work_order 的 brand 都是 `Chatlock`，授權表卻只有 Generic／Kaadas／Philips／Samsung／Yale → 閘門對真實資料完全沒有作用。改回空集合＋warning；手動派工新增 `BRAND_AUTHORIZATION_LIST_EMPTY` 403。主管 `override_reason` 安全閥維持不變——那是 fail-closed 能安全落地的前提。
+  - **④四站靜默 fallback 至 1 號租戶（TC-SEC-WEB-02）**：原始碼早有 `TODO(安全)` 標注「屬業主裁決範圍」。**實測補正嚴重度**：伺服器端確實擋得住跨租戶（A 租戶 token 帶 `X-Tenant-ID=B`，v1／v2 三種路徑實測皆 403），所以修的不是資料外洩，而是「cookie 掉了的人拿到一串 403 而非被送回登入」。原 TODO 寫的「多租戶資料外洩風險」與實測不符，已更正。單點改 `resolveTenantId` 複用既有 `handleSessionExpired()`，不動公開頁的 4 處直接使用。
+  - **驗收**：新增 `test_sc13_19_findings.py`（9 測試），反向驗證 stash 掉修正後**恰 6 條轉紅**、3 條對照組與安全閥照常綠。三支釘住舊契約的既有測試同步更新（cr_0060／cr_0114／cr_0166）並各自標注契約為何改變，**不是刪測試繞過**。全套對照 scratch 庫基線 **129 → 123 失敗，零新增**。四站 tsc 零新增型別錯誤、前端 unit 零回歸。
+  - **🛑 部署前置**：③是行為改變，**必須先確認 prod 的 `technician_brand_authorization` 涵蓋實際在用的品牌**。若 prod 同樣是「工單 brand 沒有對應授權列」，上線後那些單將無法自動派工（手動派工可由主管 override）。**需營運先補資料，不可直接上線。**
+  - **測試方法學（比發現本身更值得留存）**：本輪犯了兩次同類錯誤並被自己的對照組戳破——(a) 把 `400 MISSING_TENANT` 當成守衛擋下（品牌 admin token 打同一端點**也是** 400，那是 tenant header 檢查、跑在角色守衛之前，183 筆等於沒測到）(b) 把「本機沒設 `ALLOWED_TOKEN_PORTALS` 的行為」當成 prod 行為（prod 三個服務各自設了 brand／tech／platform，本機三個容器全未設＝CR-0182 跨面守衛 no-op）。**安全類測試的結論必須同時具備①對照組②環境參數比對，缺一不可。**
+
 - **師傅站卡片「背景色跟文字顏色太像」：一個 `--primary` token 兼差兩種用途（業主 2026-07-31 回報）**：用瀏覽器逐節點量測（合成實際背景色後算 WCAG 對比）取代目測，五個頁面 × 明暗兩主題全掃。**深色模式是災區、淺色模式幾乎全過**——這解釋了為什麼是「太像」而不是「看不到」。
   - **根因一（就是業主看到的那個）**：`--primary` 同時當「實心填色」與「彩色文字」。dark 值 `#0D9488` 是 teal-600，鋪在 `--primary-light`（teal 16% 疊在卡片底）上只有 **2.97:1**——teal 字配 teal 底。改 dark `--primary` 為 teal-400 `#2DD4BF`（tint 5.98／卡片 7.86／頁面 10.06），實心填色改配深墨 `#04262A`（8.57）。填色的墨色沿用本檔既有的單檔 class 補丁做法（師傅站有 50 處 `bg-[var(--primary)]`，逐處改元件的回歸風險遠大於一條規則）。
   - **根因二**：`.tech-soft` 把 `--bg-page` 從 `#F8FAFC` 換成偏綠的 `#F3F8F6`，使 `--text-secondary` 從檔頭註解宣稱的 5.18 掉到 **4.43**——**註解的數字對師傅站早已過期**。同理 `--text-disabled` `#64748B` 鋪在卡片 `#1E293B` 上只有 3.07（工單編號／時間戳／說明小字全中招）、灰膠囊 4.04。
