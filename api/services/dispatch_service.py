@@ -309,6 +309,12 @@ async def _enrich_workload_fairness(candidates: list[dict], tenant_id: str) -> l
 async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
     """CR-0060 / BR-M07-01：回授權該品牌（未過期）的技師 id 集合。
 
+    **追溯鏈補正（2026-07-31，CR-0197）**：`BR-M07-01` 在現行正典 `smartlock-docs/`
+    **全庫零命中**（研判隨 2026-07-08 大掃除刪除 tracked `docs/` 樹一併消失，查 git 歷史）。
+    現行對應條文為 `04_SRS.md` **FR-TEC-02**（驗收：「未過准入閘門不得進入派工候選集」）
+    與 **FR-TEC-03**（媒合條件含品牌授權）；整合測試計畫 TC-DISPATCH-06 亦追溯至此二者。
+    此處保留原編號以免切斷與 CHANGELOG／既有測試的關聯，僅補上現行指向。
+
     CR-0114 R4：technician_brand_authorization 是師傅身分域,改讀共用師傅庫
     authority（require_tech_conn;單庫 fallback 同顆連線,SQL 不變 → 行為不變）。
 
