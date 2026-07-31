@@ -295,7 +295,21 @@ export async function bootstrapSession(): Promise<CurrentSession | null> {
  * 來源語意刻意對齊原 caller（session claim，而非任意 request tenant）。
  */
 export function resolveTenantId(): string {
-  return getCurrentSession()?.tenantId ?? FALLBACK_TENANT_ID;
+  const tenantId = getCurrentSession()?.tenantId;
+  if (tenantId) return tenantId;
+  // 2026-07-31（TC-SEC-WEB-02）：原本無 session 時靜默退回 1 號租戶。
+  // 規格要求「擋下並導回登入，不得靜默 fallback 至預設租戶」。
+  //
+  // 實測補充（避免把嚴重度講得比實際高）：伺服器端**確實**擋得住跨租戶 ——
+  // 帶 A 租戶 token 但 X-Tenant-ID 指向 B，v1 與 v2 路徑實測皆回 403。
+  // 所以這裡修的不是資料外洩，而是「claims cookie 掉了的使用者會拿到一串
+  // 403 錯誤，而不是被乾淨地送回登入頁」。
+  //
+  // 仍回傳字串而非 throw：導向是非同步的，呼叫端（24 個頁面/元件）在導向
+  // 完成前還會跑完當前這一輪 render，回 null 會讓它們崩在型別上。
+  // 這一輪送出的請求由伺服器 403 收尾，不會拿到別人的資料。
+  handleSessionExpired();
+  return FALLBACK_TENANT_ID;
 }
 
 let refreshInFlight: Promise<boolean> | null = null;
