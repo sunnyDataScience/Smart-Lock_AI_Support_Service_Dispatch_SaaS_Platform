@@ -201,7 +201,7 @@ export default function PoolOrderDetailPage() {
               <span className="text-[11px] font-medium text-[var(--text-secondary)]">
                 {t("fieldReward")}
               </span>
-              <span className="text-[16px] font-bold text-[#059669]">
+              <span className="text-[16px] font-bold text-[var(--text-money)]">
                 {formatNTD(wo.estimated_reward)}
               </span>
             </div>

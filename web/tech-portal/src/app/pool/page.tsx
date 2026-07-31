@@ -169,7 +169,7 @@ export default function PoolPage() {
                     {wo.district}
                   </span>
                   {wo.estimated_reward && (
-                    <span className="text-[#059669] font-semibold">
+                    <span className="text-[var(--text-money)] font-semibold">
                       {t("estimatedReward", {
                         amount: formatNTD(wo.estimated_reward),
                       })}

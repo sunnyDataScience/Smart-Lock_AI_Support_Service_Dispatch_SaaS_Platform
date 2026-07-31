@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **師傅站卡片「背景色跟文字顏色太像」：一個 `--primary` token 兼差兩種用途（業主 2026-07-31 回報）**：用瀏覽器逐節點量測（合成實際背景色後算 WCAG 對比）取代目測，五個頁面 × 明暗兩主題全掃。**深色模式是災區、淺色模式幾乎全過**——這解釋了為什麼是「太像」而不是「看不到」。
+  - **根因一（就是業主看到的那個）**：`--primary` 同時當「實心填色」與「彩色文字」。dark 值 `#0D9488` 是 teal-600，鋪在 `--primary-light`（teal 16% 疊在卡片底）上只有 **2.97:1**——teal 字配 teal 底。改 dark `--primary` 為 teal-400 `#2DD4BF`（tint 5.98／卡片 7.86／頁面 10.06），實心填色改配深墨 `#04262A`（8.57）。填色的墨色沿用本檔既有的單檔 class 補丁做法（師傅站有 50 處 `bg-[var(--primary)]`，逐處改元件的回歸風險遠大於一條規則）。
+  - **根因二**：`.tech-soft` 把 `--bg-page` 從 `#F8FAFC` 換成偏綠的 `#F3F8F6`，使 `--text-secondary` 從檔頭註解宣稱的 5.18 掉到 **4.43**——**註解的數字對師傅站早已過期**。同理 `--text-disabled` `#64748B` 鋪在卡片 `#1E293B` 上只有 3.07（工單編號／時間戳／說明小字全中招）、灰膠囊 4.04。
+  - **根因三**：語意彩字硬編。金額 `text-[#059669]` 白底 3.77／深底 3.88，**兩種主題都不過**。新增 `--text-money`／`--text-success`／`--text-warning` 三個 token（與既有 `--badge-*-fg` 的差別：badge 那組是配對**淺色 badge 底**用的，鋪到白底或深底都不合格），替換 9 處裸用。
+  - **首頁最大的按鈕也不合格**：「上線中」白字在 `#10B981` 上 **2.54**、待命態 `#F59E0B` 上 **2.15**。改逐狀態選墨色（亮底配深墨、暗底配白字）而非把顏色調暗，保留「上線＝鮮綠」的辨識度。
+  - **兩個被自己抓到的誤判**（都沒有寫進修正）：①導覽列一度量到 3.07，是**同一個 task 內改主題又立刻讀樣式**的計算時序假象，分兩次呼叫重測即合格 ②首頁問候語量到 1.07:1（白字白底）看似重大，實為稽核只看 `background-color`、漏算 hero 的 `linear-gradient`；稽核已改為偵測到漸層即排除。
+  - **一次真的回歸、由稽核當場擋下**：`--text-secondary` 原本只寫在 `.tech-soft`，但自訂屬性看的是「最近的定義」而非選擇器特定度，深色模式因此吃到淺色值、掉到 **2.68**（比修之前更糟）。已於 dark 區塊明確寫回。
+  - **刻意不動的**：成對 badge（`bg-[#FEF3C7]`＋`#92400E`、`bg-[#DBEAFE]`＋`#1E40AF`、`bg-[#DCFCE7]`＋`#15803D`）兩色都不隨主題翻轉、本身可讀，改了反而變成淺字配淺底——已在程式碼標注原因並實測確認未受波及。圖示類（LINE 品牌綠、警示三角）屬非文字 3:1 門檻，本輪不動並列為已知項。
+  - 新增 `tests/unit/themeContrast.test.ts`（13 測試，解析 `globals.css` 直接算對比，不需瀏覽器）；反向驗證把 `--primary` 改回舊值，恰 3 條轉紅且數字就是原本量到的 2.97／3.91。驗收：五頁 × 兩主題稽核**全部歸零**，`test:unit` 27 passed、`lint` 0 errors。**prod 未部署。**
+
 - **三站在 prod 都登不進去：瀏覽器直連 API 主機 → 跨站 cookie 送不出 → 顯示「操作失敗，請稍後再試」（業主 2026-07-30 回報）**：業主回報「平台方的 admin 我登不進去」。curl 打登入端點 **200 成功**，瀏覽器卻失敗——差別就是 cookie 語意。
   - **根因鏈**（四個實測事實）：①登入回的 auth cookie 是 `SameSite=lax`（實測 `Set-Cookie` 標頭）②`*.run.app` 是 **PSL 萬用字元公開後綴**（實測 publicsuffix.org 第 13928 行）→ `lock-x-web-*.a.run.app` 與 `lock-x-api-*.a.run.app` 是**不同網站** ③`web.sh` 手動模式把 `NEXT_PUBLIC_API_BASE_URL` 烤進 bundle → 瀏覽器**直連 API 主機**＝跨站 XHR，Lax cookie 不送 ④`loginPlatformAdmin` 登入成功後呼叫 `bootstrapSession()` 拿不到 cookie → 401 → `throw new Error("Cookie session bootstrap failed")`＝**純 Error 不是 ApiError** → `friendlyError` 落到最後的 generic → 畫面顯示「操作失敗，請稍後再試」。
   - **這個錯誤訊息把人帶去完全錯的方向**：使用者只會以為密碼錯了 → 去按忘記密碼 → 才發現 SMTP 從未佈建（另一張單）。實際上密碼是對的。

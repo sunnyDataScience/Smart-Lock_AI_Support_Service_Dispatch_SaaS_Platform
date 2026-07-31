@@ -75,7 +75,7 @@ export default function RequotePage() {
       <div className="mx-auto max-w-md px-4 py-6">
         {done ? (
           <div className="py-8 text-center">
-            <CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-[#15803D]" />
+            <CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-[var(--text-success)]" />
             <h1 className="mb-2 text-lg font-bold text-[var(--text-primary)]">修正請求已送出</h1>
             <p className="mb-6 text-sm leading-relaxed text-[var(--text-secondary)]">
               品牌後台將重新估價並經客戶確認,結果會通知您。

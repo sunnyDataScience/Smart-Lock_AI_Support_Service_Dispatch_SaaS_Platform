@@ -52,16 +52,23 @@ export default function GoOnlineToggle({ availability, onChanged, tone = "card" 
   // hero（深色漸層底）時離線態改白底深字：深底上的灰鈕不夠醒目，
   // 「上線接案」是首頁第一行動，需為視覺最強元素。
   const heroOffline = tone === "hero" && !locked && !readOnly && !isOnline;
-  const bg = locked
-    ? "#EF4444"
+
+  // 2026-07-31 對比度修正：原本一律配白字,但白字在鮮綠 #10B981 上只有 2.54:1、
+  // 在琥珀 #F59E0B 上只有 2.15:1、在紅 #EF4444 上 3.76:1 —— 這是首頁最大、
+  // 最該一眼看清的按鈕(15–17px 文字,適用 AA 4.5:1),三個狀態都不合格。
+  //
+  // 修法不是把顏色調暗(會失去「上線中=鮮綠」的辨識度),而是**逐狀態選墨色**:
+  // 亮底配深墨、暗底配白字。紅色兩者都不夠 → 改用 red-600。
+  // 括號內為量測對比值。
+  const [bg, fg] = locked
+    ? (["#DC2626", "#FFFFFF"] as const) // 4.83（原 #EF4444 白字 3.76）
     : isOnline
-      ? "#10B981"
+      ? (["#10B981", "#04241A"] as const) // 6.51（原白字 2.54）— 保留鮮綠
       : readOnly
-        ? "#F59E0B"
+        ? (["#F59E0B", "#422006"] as const) // 6.79（原白字 2.15）— 保留琥珀
         : heroOffline
-          ? "#FFFFFF"
-          : "#64748B";
-  const fg = heroOffline ? "#0F172A" : "#FFFFFF";
+          ? (["#FFFFFF", "#0F172A"] as const) // 高對比,原本就合格
+          : (["#64748B", "#FFFFFF"] as const); // 4.76,原本就合格
 
   const label = locked
     ? t("locked")

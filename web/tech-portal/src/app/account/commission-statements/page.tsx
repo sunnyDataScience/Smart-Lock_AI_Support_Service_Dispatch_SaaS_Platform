@@ -133,7 +133,7 @@ export default function MyCommissionStatementsPage() {
                   <span className="block text-[11px] text-[var(--text-disabled)]">
                     獎金
                   </span>
-                  <span className="font-bold text-[#059669]">
+                  <span className="font-bold text-[var(--text-money)]">
                     {formatNTD(s.commission_amount)}
                   </span>
                 </div>

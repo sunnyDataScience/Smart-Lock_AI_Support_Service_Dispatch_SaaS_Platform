@@ -180,7 +180,7 @@ export default function MyStatementsPage() {
                     <span className="block text-[11px] text-[var(--text-disabled)]">
                       淨額
                     </span>
-                    <span className="font-bold text-[#059669]">
+                    <span className="font-bold text-[var(--text-money)]">
                       {formatDecimal(s.net_amount)}
                     </span>
                   </div>

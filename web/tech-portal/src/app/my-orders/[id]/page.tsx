@@ -324,6 +324,9 @@ export default function MyOrderDetailPage() {
           <>
             <UrgencyBadge urgency={wo.urgency} />
             <StatusBadge status={wo.status} />
+            {/* 下面**刻意**保留硬編 #15803D:它與 bg-[#DCFCE7] 是成對的淺底/深字
+                badge,兩色都不隨主題翻轉,本身就可讀。若換成 --text-success,
+                深色模式會變成淺綠字配淺綠底。*/}
             {hasArrived && !isTerminal && (
               <span className="whitespace-nowrap rounded-full bg-[#DCFCE7] px-2 py-[2px] text-[11px] font-medium text-[#15803D]">
                 {t("arrivedTag")}
@@ -467,7 +470,7 @@ export default function MyOrderDetailPage() {
                 <span className="block text-[11px] text-[var(--text-disabled)]">
                   {t("estimatedReward")}
                 </span>
-                <span className="font-bold text-[#059669]">
+                <span className="font-bold text-[var(--text-money)]">
                   {formatNTD(wo.estimated_reward)}
                 </span>
               </div>
@@ -537,7 +540,7 @@ export default function MyOrderDetailPage() {
                 </>
               )}
               {wo.actual_arrival && (
-                <div className="flex items-center gap-1 text-[12px] text-[#15803D]">
+                <div className="flex items-center gap-1 text-[12px] text-[var(--text-success)]">
                   <CheckCircle2 className="h-4 w-4" />
                   {t("arrivedAt", {
                     time: new Date(wo.actual_arrival).toLocaleString("zh-TW"),
@@ -702,8 +705,8 @@ export default function MyOrderDetailPage() {
                 <span
                   className={
                     completionPhotos.length >= 3
-                      ? "text-[11px] text-[#15803D]"
-                      : "text-[11px] text-[#B45309]"
+                      ? "text-[11px] text-[var(--text-success)]"
+                      : "text-[11px] text-[var(--text-warning)]"
                   }
                 >
                   {tForm("photosCounter", { n: completionPhotos.length })}

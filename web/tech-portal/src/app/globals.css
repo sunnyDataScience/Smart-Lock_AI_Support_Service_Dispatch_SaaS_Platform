@@ -66,6 +66,18 @@
   --badge-muted-bg: #F1F5F9;
   --badge-muted-fg: #64748B;
 
+  /* 語意「彩色文字」token —— 直接鋪在頁面/卡片底上的彩字（金額、已完成、待補齊）。
+   * 與上面 --badge-*-fg 的關鍵差別:badge 那組是**配對淺色 badge 底**用的，
+   * 鋪到白底或深底都不合格。過去這類文字硬編 #059669 / #15803D / #B45309，
+   * 白底只有 3.5–5.0、深色模式更掉到 2.9 → 這就是「背景色跟文字顏色太像」。
+   * 對比(量測值)：light 白底 / 深色 #1E293B 卡片底
+   *   --text-money    #047857 5.48 / #34D399 7.61
+   *   --text-success  #15803D 5.02 / #4ADE80 8.40
+   *   --text-warning  #B45309 5.02 / #FBBF24 8.76 */
+  --text-money: #047857;
+  --text-success: #15803D;
+  --text-warning: #B45309;
+
   /* Surface tokens — 給卡片、區塊用 */
   --surface-elevated: #FFFFFF;
   --surface-subtle: #F8FAFC;
@@ -148,6 +160,12 @@
   --badge-danger-fg: #FCA5A5;
   --badge-muted-bg: #1E293B;
   --badge-muted-fg: #94A3B8;
+
+  /* 語意彩色文字 — 深底版本（見 :root 同段說明；淺色系的深綠/深琥珀鋪在
+   * #1E293B 上只有 2.9:1，必須換成提亮版）*/
+  --text-money: #34D399;
+  --text-success: #4ADE80;
+  --text-warning: #FBBF24;
 
   /* Surface tokens — elevated/subtle/strong 在深底要「往上提亮」一階
    * 而不是 light mode 的「往下加深」邏輯（深色設計通則） */
@@ -445,21 +463,64 @@ html { color-scheme: light dark; }
  * 2026-07-07 師傅端與 landing 同語言改版:在 tech 外殼(TechShell/tech-login/
  * tech-register)重映射既有 theme 變數 → 全師傅端換 teal 親和配色,零逐頁改色。
  * 品牌後台不掛此 class,不受影響。
- * 對比:light --primary #0F766E 白字 5.9:1(AA);dark #0D9488 白字 3.9:1
- * (與原 dark 藍 #3B82F6 3.7:1 同級,按鈕大字可讀),於深底當文字 5.1:1。 */
+ * 對比:light --primary #0F766E 白字 5.9:1(AA)。
+ *
+ * ── 2026-07-31 對比度修正 ──────────────────────────────────────────────
+ * 業主回報「師傅站卡片背景色跟文字顏色太像」。用瀏覽器逐節點量測(合成實際
+ * 背景色後算 WCAG)，深色模式是主要災區,根因有三:
+ *
+ *  (1) --primary 一個 token 同時當「實心填色」與「彩色文字」兩種用途。
+ *      原 dark #0D9488 是 teal-600,鋪在深底當文字只有 3.9:1;鋪在
+ *      --primary-light(teal 16% 疊在 #1E293B)上更只有 **2.97:1** ——
+ *      teal 字配 teal 底,正是業主說的「太像」。
+ *      修法:dark --primary 提亮到 teal-400 #2DD4BF(當文字 tint 5.98 /
+ *      卡片 7.86 / 頁面 10.06),實心填色則改配深墨(見下方 .bg-[var(--primary)] 規則)。
+ *
+ *  (2) 原 dark 註解宣稱「白字 3.9:1 按鈕大字可讀」—— 但 AA 大字門檻是
+ *      18.66px+bold 或 24px+,師傅站主 CTA 是 15px,套的是 4.5:1,並不合格。
+ *
+ *  (3) .tech-soft 把 --bg-page 從 #F8FAFC 換成偏綠的 #F3F8F6,
+ *      使 --text-secondary #64748B 從檔頭註解宣稱的 5.18 掉到 4.43(不過 AA)。
+ *      → 在本 scope 補償為 #5B6B7F(白底 5.45 / 頁底 5.08 / 膠囊底 4.97)。
+ * ─────────────────────────────────────────────────────────────────────── */
 .tech-soft {
   --primary: #0F766E;
   --primary-hover: #115E59;
   --primary-light: #CCFBF1;
   --bg-page: #F3F8F6;
+  /* 見上 (3)。注意:此宣告掛在 .tech-soft 這個 div 上,會蓋掉從
+   * html[data-theme="dark"] **繼承**下來的深色值(自訂屬性看的是「最近的定義」,
+   * 不是選擇器誰比較特定)→ 深色模式必須在下方 dark 區塊明確寫回,否則
+   * 深底會配上這個淺色系灰,只剩 2.68:1。 */
+  --text-secondary: #5B6B7F;
   --tech-shadow-sm: 0 4px 16px -8px rgba(13, 148, 136, 0.18);
   --tech-shadow: 0 10px 28px -14px rgba(13, 148, 136, 0.25);
 }
 [data-theme="dark"] .tech-soft {
-  --primary: #0D9488;
-  --primary-hover: #14B8A6;
+  --primary: #2DD4BF;        /* 見上 (1) */
+  --primary-hover: #5EEAD4;
   --primary-light: rgba(20, 184, 166, 0.16);
   --bg-page: #0B1220;
+  /* 寫回深色值 —— 抵銷上面 .tech-soft 的淺色 --text-secondary(見該處說明) */
+  --text-secondary: #94A3B8; /* 卡片 5.71 / 頁面 7.30 */
+  /* #64748B 鋪在卡片 #1E293B 上只有 3.07:1(工單編號/時間/註解小字全中招) */
+  --text-tertiary: #8A99AE;  /* 卡片 5.05 / 頁面 6.46 */
+  --text-disabled: #8A99AE;
+  /* 灰膠囊(品牌型號):#94A3B8 在 #334155 上 4.04 → 底色壓深一階至 4.83 */
+  --surface-strong: #2A3546;
   --tech-shadow-sm: 0 4px 16px -8px rgba(0, 0, 0, 0.45);
   --tech-shadow: 0 10px 28px -14px rgba(0, 0, 0, 0.55);
+}
+
+/* --primary 提亮後,實心 primary 底上的白字會掉到 1.9:1 → 改深墨。
+ * 沿用本檔既有的「單檔 class 補丁」做法(見上方深色相容補丁段):師傅站有 50 處
+ * bg-[var(--primary)],逐處改元件的回歸風險遠大於此規則。
+ * 對比:#04262A 在 #2DD4BF 上 8.57、在 hover #5EEAD4 上 10.79。
+ * 第二、三個 selector 是給「圖示容器 + 子層 text-white」的情形(容器色不會贏
+ * 子層自己的 .text-white,必須明寫)。
+ * 注意 bg-[var(--primary)]/10 這種 alpha 變體是不同的 class token,不會被選到。*/
+[data-theme="dark"] .tech-soft .bg-\[var\(--primary\)\],
+[data-theme="dark"] .tech-soft .bg-\[var\(--primary\)\] .text-white,
+[data-theme="dark"] .tech-soft .bg-\[var\(--primary\)\] .text-\[var\(--text-inverse\)\] {
+  color: #04262A;
 }
