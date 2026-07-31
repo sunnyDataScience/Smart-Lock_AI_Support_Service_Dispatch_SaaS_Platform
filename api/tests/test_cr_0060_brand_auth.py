@@ -12,8 +12,10 @@ async def test_brand_authorized_ids_and_expiry():
     assert await db_module._ensure_conn()
     auth = await ds._brand_authorized_ids("Yale")
     assert auth is not None and len(auth) >= 1   # seed 授權 active 技師
-    # 未知品牌 → None（保守不過濾）
-    assert await ds._brand_authorized_ids("NoSuchBrand_zzz999") is None
+    # 2026-07-31（TC-DISPATCH-06 fail-closed 修正）：本行原本斷言未知品牌回 None
+    # 「保守不過濾」——那正是被整合測試計畫判為不合規的 fail-open。改為回空集合
+    # ＝誰都不符 ＝ 下游自然 fail-closed。None 現在只保留給「根本沒有 brand 可判」。
+    assert await ds._brand_authorized_ids("NoSuchBrand_zzz999") == set()
     # 認證過期 → 該技師排除
     tid = next(iter(auth))
     await db_module._conn.execute(

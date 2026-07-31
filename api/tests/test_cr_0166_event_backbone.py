@@ -130,7 +130,11 @@ async def test_unknown_topic_ignored():
 async def test_reconcile_skipped_when_kafka_disabled(monkeypatch):
     monkeypatch.delenv("KAFKA_BOOTSTRAP", raising=False)
     r = await recon.reconcile_commission(tenant_id=TID)
-    assert r["skipped"] is True and r["gate_pass"] is True
+    # 2026-07-31（TC-EXC-06）：原斷言 gate_pass is True（「fail-open by design」）。
+    # 「對帳跑不起來」不該回報成「對帳通過」——否則 reconcile_gate_enforce 一旦打開，
+    # Kafka 沒開反而靜默放行。skipped 仍為 True，呼叫端可分辨沒跑 vs 跑了不過。
+    assert r["skipped"] is True and r["gate_pass"] is False
+    assert r.get("reason"), "略過時必須說明原因，否則無從診斷"
 
 
 @pytest.mark.asyncio

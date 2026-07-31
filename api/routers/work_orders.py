@@ -76,6 +76,12 @@ async def list_work_orders(
     technician_id: str | None = Query(default=None, description="過濾特定技師的工單"),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    # 2026-07-31（TC-DISPATCH-05）：本端點只有 require_tenant，技師 token 原本
+    # 可列出全租戶工單。改為依角色收斂（技師一律只看自己的派工，且不採信
+    # client 傳入的 technician_id）。詳見 technician_scope_filter docstring。
+    technician_id = await work_order_service.technician_scope_filter(
+        actor_role=user.role, actor_user_id=user.user_id, requested=technician_id
+    )
     page = await work_order_service.list_orders(
         tenant_id=user.tenant_id,
         cursor=cursor,

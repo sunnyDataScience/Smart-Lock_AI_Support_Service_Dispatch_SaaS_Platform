@@ -288,6 +288,42 @@ async def _fetch_technician_for_user(user_id: str | None) -> dict | None:
     return {"id": str(row[0]), "status": row[1]} if row else None
 
 
+#: 技師身分查無對應 technicians 列時使用的過濾值 —— nil UUID 保證比不中任何工單。
+#: 用 sentinel 而非「不加過濾」，是因為後者等於 fail-open（正是本次要修的缺陷）。
+_NO_TECHNICIAN_SENTINEL = "00000000-0000-0000-0000-000000000000"
+
+
+async def technician_scope_filter(
+    *, actor_role: str | None, actor_user_id: str | None, requested: str | None
+) -> str | None:
+    """工單列表的角色 scope 收斂（2026-07-31，TC-DISPATCH-05 / TC-PLT-SURFACE-01）。
+
+    背景：`GET /api/v1/work-orders`（v1）與 `GET /tenants/{tid}/work-orders`（v2）
+    都只有 `Depends(require_tenant)`，`technician_id` 純粹是「可選過濾參數」。
+    實測技師 token 拿到的回應與品牌 admin **位元組完全相同**（含未指派給他的工單、
+    customer_name、customer_phone）。TC-DISPATCH-05 要求技師只看得到自己的派工。
+
+    為什麼不是回 403：師傅站的「我的工單」正常功能就是讀這兩支，擋掉會直接壞掉。
+    正解是**收斂 scope** 而不是拒絕存取。
+
+    為什麼要**忽略** client 傳來的 technician_id：否則技師只要把參數換成別人的
+    technicians.id 就能繞過（實測 v1 可行）。呼叫端傳什麼一律不採信。
+
+    非技師角色（admin / dispatcher / ops…）維持原行為：沿用傳入的過濾參數。
+    """
+    if actor_role != "technician":
+        return requested
+    tech = await _fetch_technician_for_user(actor_user_id)
+    if not tech:
+        # 有技師 token 但品牌庫查無對應 technicians 列 → 不得退回「不過濾」
+        logger.warning(
+            "technician token 查無對應 technicians 列 user=%s → 工單列表收斂為空",
+            str(actor_user_id)[:8],
+        )
+        return _NO_TECHNICIAN_SENTINEL
+    return tech["id"]
+
+
 async def list_work_order_pool(
     *,
     tenant_id: str,
@@ -1975,10 +2011,17 @@ async def _assert_brand_authorized(
     """手動派工品牌授權 fail-closed（UAT 缺口修補）：工單品牌若有授權名單，
     被指派技師須在名單內，否則 403。
 
-    語意對齊 dispatch_service._brand_authorized_ids：該品牌「無任何授權資料」
-    → 無從判斷、不阻擋（避免未建授權的品牌全面無法派工）；有授權資料但技師
-    不在名單 → fail-closed 擋下。主管（admin/ops）帶 override_reason 可強制
-    派工（沿用報價 gate / 熔斷同一安全閥；稽核由 router 記）。
+    語意對齊 dispatch_service._brand_authorized_ids。
+
+    **2026-07-31 fail-closed 修正（TC-DISPATCH-06）**：原本「該品牌無任何授權資料」
+    → 不阻擋，理由是「避免未建授權的品牌全面無法派工」。但那讓閘門在**最需要它的
+    情境**（名單還沒建 = 沒人被驗證過）失效，且整合測試計畫明文要求 fail-closed。
+    改為一律擋下，錯誤訊息直接指出兩條出路（建名單 / 主管 override），
+    不是讓人對著 403 猜。
+
+    主管（admin/ops）帶 override_reason 的安全閥**維持不變** —— 這是 fail-closed
+    可以安全落地的前提：品牌授權名單尚未建立時，營運仍有合法途徑把單派出去。
+    （沿用報價 gate / 熔斷同一安全閥；稽核由 router 記。）
     """
     if (
         actor_role in _QUOTE_GATE_OVERRIDE_ROLES
@@ -1999,7 +2042,16 @@ async def _assert_brand_authorized(
         "  AND (cert_expires_at IS NULL OR cert_expires_at >= CURRENT_DATE)",
         (brand,))).fetchall()
     if not auth:
-        return  # 該品牌無授權資料 → 不阻擋（與候選過濾 None 語意一致）
+        # fail-closed：無授權資料 ≠ 可以派給任何人（TC-DISPATCH-06）
+        logger.warning(
+            "品牌「%s」無任何有效授權技師，手動派工被擋 wo=%s", brand, wo_id[:8]
+        )
+        raise ApiError(
+            "BRAND_AUTHORIZATION_LIST_EMPTY",
+            f"品牌「{brand}」尚未建立任何技師授權名單，依授權閘門不可派工。"
+            f"請先於平台後台建立該品牌的技師授權，或由主管帶 override_reason 強制派工",
+            403,
+        )
     authorized_ids = {str(r[0]) for r in auth}
     if technician_id not in authorized_ids:
         raise ApiError(

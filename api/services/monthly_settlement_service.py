@@ -51,8 +51,12 @@ async def _assert_reconcile_gate(tenant_id: str) -> None:
     比照 CR-0132 Gate① 前例：M18 config 開關（namespace=settlement_policy，
     `reconcile_gate_enforce`，**預設 off**——沿用現行「ops 手動打 reconciliation-gate
     端點」行為，業主確認 Kafka 投影穩定後開啟）。開啟時重用
-    `event_reconcile_service.reconcile_commission`（Kafka 未啟用＝skipped、
-    gate_pass=True fail-open by design，單庫/無事件不誤擋）。
+    `event_reconcile_service.reconcile_commission`。
+
+    **2026-07-31（TC-EXC-06）**：原本 Kafka 未啟用＝skipped 且 gate_pass=True
+    （註解稱 fail-open by design）。已改為 skipped 時 gate_pass=False ——
+    閘門既然被明示打開，就不該在「根本沒對到帳」時放行。未開啟 enforce 的租戶
+    行為完全不變（上面那個 early return 就走掉了）。
     """
     from services import config_m18_service, event_reconcile_service
 
@@ -66,6 +70,18 @@ async def _assert_reconcile_gate(tenant_id: str) -> None:
     result = await event_reconcile_service.reconcile_commission(tenant_id=tenant_id)
     if result.get("gate_pass", True):
         return
+    if result.get("skipped"):
+        # 「對帳跑不起來」與「對帳跑了但不平」是兩件事，錯誤訊息不可混用：
+        # 前者要修的是投影/設定，後者要修的是帳。
+        raise ApiError(
+            "RECONCILE_GATE_UNAVAILABLE",
+            "期末對帳閘門已啟用，但對帳無法執行："
+            f"{result.get('reason', '事件投影未啟用')}。"
+            "請啟用事件投影後重跑，或由業主決定關閉 settlement_policy.reconcile_gate_enforce",
+            409,
+            details=[{"field": "reconciliation", "issue": "unavailable", "gate": "settle",
+                      "reason": result.get("reason")}],
+        )
     raise ApiError(
         "RECONCILE_GATE_UNMET",
         "期末對帳閘門未過（BR-SETTLE-05）——品牌計費 vs 技師平台結算不對平，"

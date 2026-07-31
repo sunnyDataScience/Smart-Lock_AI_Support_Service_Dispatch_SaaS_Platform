@@ -185,6 +185,11 @@ async def list_work_orders_v2(
 ) -> dict:
     _cross_tenant_read(user, tenantId)
 
+    # 2026-07-31（TC-DISPATCH-05）：與 v1 同一道收斂 —— 師傅站實際打的是這支，
+    # 原本技師 token 可列出全租戶工單（含 customer_name / customer_phone）。
+    technician_id = await work_order_service.technician_scope_filter(
+        actor_role=user.role, actor_user_id=user.user_id, requested=technician_id
+    )
     page = await work_order_service.list_orders(
         tenant_id=tenantId,
         cursor=cursor,

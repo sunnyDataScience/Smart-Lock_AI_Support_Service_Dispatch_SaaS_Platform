@@ -63,5 +63,7 @@ async def test_auto_match_still_filters_unauthorized():
     """裁決 7:auto_match 只選已授權 —— _brand_authorized_ids 有值時為過濾集合。"""
     auth = await ds._brand_authorized_ids("Yale")
     assert auth is not None and len(auth) >= 1
-    # 未知品牌 → None(保守不過濾,語義不變)
-    assert await ds._brand_authorized_ids("NoSuchBrand_zzz") is None
+    # 2026-07-31（TC-DISPATCH-06）：原斷言未知品牌回 None「保守不過濾」。
+    # 「保守」的方向反了 —— 沒有授權名單時放行任何人，才是風險最大的一邊。
+    # 改為空集合：auto_match 過濾後候選為空，明確 fail-closed。
+    assert await ds._brand_authorized_ids("NoSuchBrand_zzz") == set()

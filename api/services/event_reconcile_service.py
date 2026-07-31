@@ -37,9 +37,17 @@ async def reconcile_commission(*, tenant_id: str) -> dict:
     from core.event_bus import enabled as _kafka_enabled
 
     if not _kafka_enabled():
+        # 2026-07-31（TC-EXC-06）：原本這裡回 gate_pass=True，註解稱「fail-open by
+        # design，單庫/無事件不誤擋」。但**無法驗證不等於驗證通過** —— 一旦租戶明示
+        # 打開 reconcile_gate_enforce（＝要求對帳把關），Kafka 沒開反而靜默放行，
+        # 閘門形同虛設。skipped 仍為 True，呼叫端可分辨「沒跑」與「跑了不過」。
+        #
+        # 爆炸半徑：`reconcile_gate_enforce` 預設 off（config namespace
+        # settlement_policy），未開啟的租戶結算路徑完全不受影響。
         return {"checked": 0, "matched": 0, "mismatched": [], "missing": [],
-                "skipped": True, "gate_pass": True,
-                "reason": "KAFKA_BOOTSTRAP 未設，投影未啟用——對帳閘門略過（單庫/無事件）"}
+                "skipped": True, "gate_pass": False,
+                "reason": "KAFKA_BOOTSTRAP 未設，投影未啟用——對帳無法執行，"
+                          "故不判定為通過（如需結算請關閉 reconcile_gate_enforce 或啟用事件投影）"}
 
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)

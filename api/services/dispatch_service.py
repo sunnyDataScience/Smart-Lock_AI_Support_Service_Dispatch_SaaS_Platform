@@ -311,8 +311,23 @@ async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
 
     CR-0114 R4：technician_brand_authorization 是師傅身分域,改讀共用師傅庫
     authority（require_tech_conn;單庫 fallback 同顆連線,SQL 不變 → 行為不變）。
-    brand 為空、或該品牌「無任何授權資料」→ None（語意=無授權資料可判,
-    list_dispatch_candidates 標示為 null、auto_match 保守不過濾）。
+
+    **2026-07-31 fail-closed 修正（TC-DISPATCH-06）**：原本「該品牌無任何授權資料」
+    也回 None,而 auto_match 與 _assert_brand_authorized 對 None **都選擇不阻擋** ——
+    等於「還沒建授權名單的品牌 = 誰都可以派」。整合測試計畫 TC-DISPATCH-06 明文
+    要求「無授權資料時 fail-closed **不得** fail-open」。
+
+    實測影響面：本機 seed 的 technician_brand_authorization 只有 Generic / Kaadas /
+    Philips / Samsung / Yale 五個品牌,但**所有** work_order 的 brand 都是 Chatlock
+    → 修正前這道閘門對真實資料完全沒有作用。
+
+    改後語意（三態收斂為兩態）：
+      brand 為空       → None（**沒有品牌可判**,與「判了但沒人符合」不同,維持不阻擋;
+                         品牌必填另由 _assert_dispatch_ready 把關）
+      有 brand         → 一律回集合。查無授權列 = 空集合 = **誰都不符** = fail-closed。
+
+    安全閥不變：手動派工仍可由主管帶 override_reason 強制通過
+    （work_order_service._assert_brand_authorized,與報價 gate / 熔斷同一機制）。
     """
     if not brand:
         return None
@@ -325,7 +340,13 @@ async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
     )
     rows = await cur.fetchall()
     if not rows:
-        return None
+        # 不再回 None —— 空集合才能讓下游「過濾」與「斷言」自然 fail-closed。
+        # 記 warning:這是可行動的營運訊號（該品牌尚未建授權名單）,不該靜默。
+        logger.warning(
+            "品牌「%s」無任何有效授權技師 → 派工 fail-closed（需先建立品牌授權名單，"
+            "或由主管帶 override_reason 手動派工）", brand,
+        )
+        return set()
     return {str(r[0]) for r in rows}
 
 
