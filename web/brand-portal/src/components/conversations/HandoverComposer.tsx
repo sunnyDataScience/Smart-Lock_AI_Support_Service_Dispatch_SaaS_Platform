@@ -19,6 +19,17 @@ interface HandoverComposerProps {
   enabled: boolean;
   /** 訊息成功送出後通知上層 refetch / append */
   onSent: (msg: Message) => void;
+  /**
+   * 客服主動接管（active → escalated）。2026-08-02 新增。
+   *
+   * 放在這裡而不是頁面別處：`enabled=false` 時客服的視線正好落在下面那行
+   * 「僅在對話被升級為…」的提示上——那是他被擋住的當下。把自救按鈕放在
+   * 別的地方等於沒做（業主 2026-08-01 卡住時，全站根本沒有任何入口）。
+   * 未傳則不顯示按鈕（沿用舊行為）。
+   */
+  onRequestHandover?: () => void;
+  /** 接管請求進行中（避免連點） */
+  requestingHandover?: boolean;
 }
 
 /**
@@ -35,6 +46,8 @@ export default function HandoverComposer({
   tenantId,
   enabled,
   onSent,
+  onRequestHandover,
+  requestingHandover = false,
 }: HandoverComposerProps) {
   const { toast } = useToast();
   const [content, setContent] = useState("");
@@ -76,8 +89,20 @@ export default function HandoverComposer({
   return (
     <div className="flex flex-col gap-2 border-t border-[var(--border)] bg-[var(--bg-surface)] p-4">
       {!enabled && (
-        <div className="text-[12px] text-[var(--text-secondary)]">
-          僅在對話被升級為「等待人工」狀態時可發送訊息
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="text-[12px] text-[var(--text-secondary)]">
+            僅在對話被升級為「等待人工」狀態時可發送訊息
+          </div>
+          {onRequestHandover && (
+            <button
+              type="button"
+              onClick={onRequestHandover}
+              disabled={requestingHandover}
+              className="shrink-0 rounded-md border border-[var(--primary)] px-3 py-1.5 text-[13px] font-medium text-[var(--primary)] transition-colors hover:bg-[var(--primary-light)] focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] disabled:opacity-50"
+            >
+              {requestingHandover ? "接管中…" : "接管對話"}
+            </button>
+          )}
         </div>
       )}
 

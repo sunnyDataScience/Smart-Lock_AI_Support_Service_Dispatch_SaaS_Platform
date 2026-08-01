@@ -81,6 +81,27 @@ export default function ConversationDetailPage({
   const [createPcError, setCreatePcError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [resolvingHandover, setResolvingHandover] = useState(false);
+  const [requestingHandover, setRequestingHandover] = useState(false);
+
+  // 2026-08-02：客服**主動**接管（active → escalated）。
+  // 在此之前只有 AI 呼叫 transfer_to_human 那條路會翻狀態，AI 沒翻成功時
+  // 客服零復原手段——發訊框是 status==="waiting_human" 嚴格比對，狀態沒翻
+  // 就誰都回不了那位客人的 LINE，對話也結不掉（業主 2026-08-01 即因此卡住）。
+  const handleRequestHandover = async () => {
+    if (requestingHandover) return;
+    setRequestingHandover(true);
+    try {
+      const updated = await api.post<Conversation>(
+        tenantPath(`/conversations/${encodeURIComponent(id)}/request-handover`),
+      );
+      setConv(updated);
+      setToast("已接管對話，AI 已靜音，可直接回覆客人");
+    } catch (e) {
+      setToast(`接管失敗：${friendlyError(e)}`);
+    } finally {
+      setRequestingHandover(false);
+    }
+  };
 
   const handleResolveHandover = async () => {
     if (resolvingHandover) return;
@@ -297,6 +318,8 @@ export default function ConversationDetailPage({
                 conversationId={id}
                 tenantId={tenantId}
                 enabled={conv?.status === "waiting_human"}
+                onRequestHandover={handleRequestHandover}
+                requestingHandover={requestingHandover}
                 onSent={(msg) =>
                   // messages 由 API 以 DESC 回傳（新→舊），ChatTimeline 內部
                   // reverse 為 ASC 顯示。新送出的訊息應 prepend 到 DESC 列表

@@ -251,6 +251,47 @@ async def send_chat_message_v2(
 
 
 @router.post(
+    "/tenants/{tenantId}/conversations/{id}/request-handover",
+    operation_id="requestConversationHandover",
+    summary="客服手動接管對話（active → escalated）",
+    response_model=Conversation,
+    tags=["Conversations"],
+)
+async def request_conversation_handover_v2(
+    tenantId: str = Path(..., description="租戶 UUID（ADR-0030）"),
+    id: str = Path(..., description="對話 UUID"),
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
+) -> dict:
+    """客服主動接管對話（status active → escalated），與 resolve-handover 互為鏡像。
+
+    **為什麼要有這支**：在此之前全系統只有 AI 那條路會把對話翻成 escalated
+    （transfer_to_human → escalation ingest → problem_card_service:952）。AI 那條路
+    一旦沒走成，客服在 UI 上**零復原手段**——發訊框開關是 status==="waiting_human"
+    嚴格比對，狀態沒翻就誰都回不了那位客人的 LINE，對話也結不掉。
+    業主 2026-08-01 即因此卡住。
+
+    權限比照 resolve-handover：僅 admin / customer_service / manager / supervisor。
+    已在接管中 → 409（呼叫端要能分辨「我翻的」與「本來就翻了」）。
+    非 active（已結案等）→ 409，避免誤翻已結束的對話。
+    """
+    if user.tenant_id and user.tenant_id != tenantId:
+        raise ApiError(
+            "CROSS_TENANT_WRITE",
+            "Path tenantId does not match authenticated tenant",
+            403,
+        )
+    if user.role not in {"admin", "customer_service", "manager", "supervisor"}:
+        raise ApiError(
+            "FORBIDDEN",
+            "Only customer service or supervisor roles can request handover",
+            403,
+        )
+
+    conv = await conversation_service.request_handover(tenant_id=tenantId, conv_id=id)
+    return _safe_conv(conv)
+
+
+@router.post(
     "/tenants/{tenantId}/conversations/{id}/resolve-handover",
     operation_id="resolveConversationHandover",
     summary="結束接管 / 交還 AI（CR-0024，escalated → active）",

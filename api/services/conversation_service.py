@@ -620,6 +620,65 @@ async def send_message(
     return _msg_row_to_dict(msg_row)
 
 
+async def request_handover(
+    *, tenant_id: str, conv_id: str, reason: str | None = None
+) -> dict:
+    """客服**手動**接管對話：active → escalated（2026-08-02，業主回報卡住）。
+
+    為什麼需要這支：在此之前，全系統把 `status='escalated'` 寫進去的地方**只有一處**
+    —— AI 呼叫 transfer_to_human 後由 `problem_card_service.escalation_to_draft_pc`
+    連帶翻的（該檔 :952）。也就是說：
+
+      **AI 那條路一旦沒走成，客服在 UI 上零復原手段。**
+
+    而客服發訊框的開關是 `conv.status === "waiting_human"` 嚴格比對
+    （brand-portal `conversations/[id]/page.tsx:299`），狀態沒翻＝誰都回不了那位客人的
+    LINE。業主 2026-08-01 就是這樣卡住：AI 說了「幫您轉接給真人專員」，狀態卻仍是
+    active，客服接不了手、對話也結不掉。
+
+    與 `resolve_handover` 互為鏡像，狀態機兩個方向都補齊：
+        active ──request_handover──▶ escalated ──resolve_handover──▶ active
+
+    非 active（已 escalated / 已結案）→ 409，避免誤翻已結束的對話。
+    交還後 agent gateway 下次查 handover-state 得 escalated=true → AI 靜音。
+    """
+    if not await _ensure_conn():
+        raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    cur = await db_module._conn.execute(
+        "SELECT c.status FROM conversations c JOIN users u ON c.user_id = u.id "
+        "WHERE c.id = %s::uuid AND u.tenant_id = %s::uuid",
+        (conv_id, tenant_id),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Conversation not found", 404)
+    if row[0] in _HANDOVER_ALLOWED_DB_STATUSES:
+        # 已在接管中 → 409 而非靜默成功：呼叫端要能分辨「我翻的」與「本來就翻了」
+        raise ApiError(
+            "CONVERSATION_ALREADY_ESCALATED",
+            f"Conversation is already under human handover (current DB status: {row[0]})",
+            409,
+        )
+    if row[0] != "active":
+        raise ApiError(
+            "CONVERSATION_NOT_ACTIVE",
+            f"Only active conversations can be escalated (current DB status: {row[0]})",
+            409,
+        )
+
+    await db_module._conn.execute(
+        "UPDATE conversations SET status = 'escalated', updated_at = NOW() "
+        "WHERE id = %s::uuid AND status = 'active'",
+        (conv_id,),
+    )
+    logger.info(
+        "客服手動接管對話 conv=%s tenant=%s reason=%r",
+        conv_id[:8], tenant_id[:8], (reason or "")[:100],
+    )
+    return await get_conversation(tenant_id=tenant_id, conv_id=conv_id)
+
+
 async def resolve_handover(*, tenant_id: str, conv_id: str) -> dict:
     """結束接管 / 交還 AI：對話 escalated → active（CR-0024 Phase 1，D3）。
 

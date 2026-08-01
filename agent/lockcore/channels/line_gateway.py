@@ -352,13 +352,23 @@ async def _post_ingest(base_url: str, token: str, payload: dict) -> bool:
         return False
 
 
-async def _spool_append(payload: dict) -> None:
+#: 轉真人 escalation 的獨立 spool（2026-08-02）。
+#
+# 為什麼要另開一個檔而不共用 persist spool：兩者的 **payload 形狀與目標端點都不同**
+# （persist → /internal/conversations/ingest 帶整批訊息；escalation →
+# /internal/escalations/ingest 帶 facts_snapshot），混在同一個 jsonl 補送時無從分辨。
+_ESCALATION_SPOOL_PATH = os.environ.get(
+    "ESCALATION_SPOOL_PATH", "data/escalation_spool.jsonl"
+)
+
+
+async def _spool_append(payload: dict, path: str = "") -> None:
     """失敗批次落本機 spool(jsonl,上限 _PERSIST_SPOOL_MAX 防爆量;超限丟最舊並 ERROR)。"""
     import json as _json
 
     async with _get_spool_lock():
         try:
-            p = Path(_PERSIST_SPOOL_PATH)
+            p = Path(path or _PERSIST_SPOOL_PATH)
             p.parent.mkdir(parents=True, exist_ok=True)
             lines = p.read_text(encoding="utf-8").splitlines() if p.exists() else []
             lines.append(_json.dumps(payload, ensure_ascii=False))
@@ -403,6 +413,80 @@ async def _flush_persist_spool(base_url: str, token: str) -> None:
                 logger.info("對話持久化 spool 補送成功 {} 筆,殘留 {} 筆", sent, len(remain))
         except Exception as e:  # noqa: BLE001
             logger.error("[ARCHIVE_ALERT] spool 補送異常: {!r}", e)
+
+
+async def _post_escalation(base_url: str, token: str, payload: dict) -> bool:
+    """單筆 escalation ingest。回 True=已送達（含 2xx），False=需重試。"""
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=_PERSIST_TIMEOUT_SEC) as client:
+            resp = await client.post(
+                f"{base_url.rstrip('/')}/api/v1/internal/escalations/ingest",
+                json=payload,
+                headers=_bridge_auth_headers(token),
+            )
+        if resp.status_code < 400:
+            return True
+        # 4xx 多半是 payload 本身有問題，重試也不會好 → 不留 spool（避免無限累積）；
+        # 5xx / 逾時才是「對方暫時不行」，值得補送。
+        if 400 <= resp.status_code < 500:
+            logger.error(
+                "[ESCALATION_ALERT] escalation 遭拒（{}），payload 有問題不重試：{}",
+                resp.status_code, resp.text[:200],
+            )
+            return True  # 視為終局，不再佔用 spool
+        logger.warning("escalation 轉發回 {}:{}", resp.status_code, resp.text[:160])
+        return False
+    except Exception as e:  # noqa: BLE001
+        logger.warning("escalation 轉發失敗（將落 spool 補送）: {!r}", e)
+        return False
+
+
+async def _flush_escalation_spool(base_url: str, token: str) -> None:
+    """補送 escalation spool。成功者移除、失敗者保留（下次再試）。
+
+    2026-08-02：在此之前**轉真人轉發是唯一沒有耐久性的旁路** —— 對話持久化失敗會落
+    spool、下次補送、發 [ARCHIVE_ALERT] ERROR；escalation 轉發失敗只有一行 WARNING，
+    不重試、不落 spool、不告警，一次 5xx 或逾時就**永久遺失**。
+
+    後果正是業主 2026-08-01 看到的畫面：訊息看得到（persist 成功）、AI 也說了
+    「幫您轉接給真人專員」，但對話狀態沒翻成等待人工、後台也沒有問題卡
+    —— 因為翻狀態與建卡都是 API 端收到 escalation 後的副作用，那個 POST 掉了就全沒了。
+    """
+    import json as _json
+
+    async with _get_spool_lock():
+        try:
+            p = Path(_ESCALATION_SPOOL_PATH)
+            if not p.exists():
+                return
+            lines = [ln for ln in p.read_text(encoding="utf-8").splitlines() if ln.strip()]
+            if not lines:
+                return
+            remain: list[str] = []
+            sent = 0
+            for ln in lines:
+                try:
+                    payload = _json.loads(ln)
+                except ValueError:
+                    continue  # 壞行直接丟
+                if await _post_escalation(base_url, token, payload):
+                    sent += 1
+                else:
+                    remain.append(ln)
+            if remain:
+                p.write_text("\n".join(remain) + "\n", encoding="utf-8")
+                logger.error(
+                    "[ESCALATION_ALERT] 仍有 {} 筆轉真人未送達 —— 這些客人在後台看不到，"
+                    "客服接不了手", len(remain),
+                )
+            else:
+                p.unlink(missing_ok=True)
+            if sent:
+                logger.info("escalation spool 補送成功 {} 筆,殘留 {} 筆", sent, len(remain))
+        except Exception as e:  # noqa: BLE001
+            logger.error("[ESCALATION_ALERT] escalation spool 補送異常: {!r}", e)
 
 
 async def _handover_active_safe(tenant: str, user_id: str) -> bool:
@@ -486,19 +570,15 @@ async def _forward_escalation_safe(
         "is_explicit": bool(rec.is_explicit),
         "facts_snapshot": snapshot,
     }
-    try:
-        import httpx
-
-        async with httpx.AsyncClient(timeout=_PERSIST_TIMEOUT_SEC) as client:
-            resp = await client.post(
-                f"{base_url.rstrip('/')}/api/v1/internal/escalations/ingest",
-                json=payload,
-                headers=_bridge_auth_headers(token),
-            )
-            if resp.status_code >= 400:
-                logger.warning("escalation 轉發回 {}:{}", resp.status_code, resp.text[:160])
-    except Exception:  # noqa: BLE001 — 轉發絕不可影響客服回覆
-        logger.warning("escalation 轉發失敗(已略過,不影響客人)", exc_info=True)
+    # 2026-08-02：先補送歷史失敗，再送本輪 —— 與對話持久化同一套耐久性
+    # （原本這裡失敗只記一行 WARNING 就永久遺失，見 _flush_escalation_spool docstring）。
+    await _flush_escalation_spool(base_url, token)
+    if not await _post_escalation(base_url, token, payload):
+        logger.error(
+            "[ESCALATION_ALERT] 轉真人未送達，已落 spool 待補送 user={} path={}",
+            user_id[:8], _ESCALATION_SPOOL_PATH,
+        )
+        await _spool_append(payload, _ESCALATION_SPOOL_PATH)
 
 
 # CR-0097 方案 A 兜底：LLM tool-calling 不可靠 —— 會生成「已轉接/已安排師傅」話術卻
