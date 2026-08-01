@@ -620,8 +620,46 @@ async def send_message(
     return _msg_row_to_dict(msg_row)
 
 
+async def _audit_handover(
+    *, action: str, conv_id: str, tenant_id: str,
+    from_status: str, to_status: str,
+    actor_id: str | None, actor_role: str | None, reason: str | None = None,
+) -> None:
+    """接管狀態變更留痕（2026-08-02）。
+
+    **為什麼補這個**：2026-08-01 追一筆「AI 說轉真人但對話還是進行中」的事故時，
+    DB 三張稽核表（cs_audit_log / audit_events / audit_log）在事發時間窗**零筆紀錄**，
+    最後只能靠 Cloud Run request log 才查出是有人按了「結束接管」——而那種 log 會過期。
+
+    把客人從真人手上拿回給 AI（或反過來）是會直接影響客戶體驗的動作，
+    卻比改一個 config 還沒留痕。兩個方向都記，接管狀態才有完整變更史。
+
+    best-effort：稽核失敗不得阻斷接管本身（比照 audit_log_service.log_event 的契約）。
+    """
+    try:
+        from services import audit_log_service
+
+        await audit_log_service.log_event(
+            event_type=f"conversation.{action}",
+            actor_id=actor_id,
+            actor_role=actor_role,
+            action=action,
+            target_type="conversation",
+            target_id=conv_id,
+            payload={
+                "tenant_id": tenant_id,
+                "from_status": from_status,
+                "to_status": to_status,
+                **({"reason": reason[:200]} if reason else {}),
+            },
+        )
+    except Exception:  # noqa: BLE001 — 稽核不可阻斷主流程
+        logger.exception("接管稽核寫入失敗 conv=%s action=%s", conv_id[:8], action)
+
+
 async def request_handover(
-    *, tenant_id: str, conv_id: str, reason: str | None = None
+    *, tenant_id: str, conv_id: str, reason: str | None = None,
+    actor_id: str | None = None, actor_role: str | None = None,
 ) -> dict:
     """客服**手動**接管對話：active → escalated（2026-08-02，業主回報卡住）。
 
@@ -676,10 +714,18 @@ async def request_handover(
         "客服手動接管對話 conv=%s tenant=%s reason=%r",
         conv_id[:8], tenant_id[:8], (reason or "")[:100],
     )
+    await _audit_handover(
+        action="handover_requested", conv_id=conv_id, tenant_id=tenant_id,
+        from_status=row[0], to_status="escalated",
+        actor_id=actor_id, actor_role=actor_role, reason=reason,
+    )
     return await get_conversation(tenant_id=tenant_id, conv_id=conv_id)
 
 
-async def resolve_handover(*, tenant_id: str, conv_id: str) -> dict:
+async def resolve_handover(
+    *, tenant_id: str, conv_id: str,
+    actor_id: str | None = None, actor_role: str | None = None,
+) -> dict:
     """結束接管 / 交還 AI：對話 escalated → active（CR-0024 Phase 1，D3）。
 
     流程：
@@ -712,6 +758,11 @@ async def resolve_handover(*, tenant_id: str, conv_id: str) -> dict:
         "UPDATE conversations SET status = 'active', updated_at = NOW() "
         "WHERE id = %s::uuid",
         (conv_id,),
+    )
+    await _audit_handover(
+        action="handover_resolved", conv_id=conv_id, tenant_id=tenant_id,
+        from_status=row[0], to_status="active",
+        actor_id=actor_id, actor_role=actor_role,
     )
     return await get_conversation(tenant_id=tenant_id, conv_id=conv_id)
 

@@ -101,3 +101,65 @@ async def test_technician_cannot_take_over(client, technician_headers):
     r = await client.post(_path(conv_id, "request-handover"), headers=technician_headers)
     assert r.status_code == 403, r.text
     assert await _db_status(conv_id) == "active", "被拒絕就不該留下副作用"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# 稽核（2026-08-02）
+#
+# 2026-08-01 追事故時，三張稽核表在事發時間窗**零筆紀錄**，最後只能靠
+# Cloud Run request log 查出是有人按了「結束接管」——而那種 log 會過期。
+# 把客人從真人手上拿回給 AI 是直接影響客戶體驗的動作，卻比改一個 config 還沒留痕。
+# ─────────────────────────────────────────────────────────────────────────
+
+
+async def _audit_rows(conv_id: str) -> list[tuple]:
+    cur = await db_module._conn.execute(
+        "SELECT action, actor_role, payload FROM audit_events "
+        "WHERE target_type = 'conversation' AND target_id = %s "
+        "ORDER BY created_at",
+        (conv_id,),
+    )
+    return await cur.fetchall()
+
+
+async def test_take_over_is_audited(client, admin_headers):
+    """接管要留痕：誰、對哪個對話、從什麼狀態到什麼狀態。"""
+    conv_id = await _seed_conversation("active")
+    assert (await client.post(_path(conv_id, "request-handover"), headers=admin_headers)).status_code == 200
+
+    rows = await _audit_rows(conv_id)
+    assert len(rows) == 1, "接管必須留下恰好一筆稽核"
+    action, actor_role, payload = rows[0]
+    assert action == "handover_requested"
+    assert actor_role == "admin"
+    assert payload["from_status"] == "active" and payload["to_status"] == "escalated"
+
+
+async def test_hand_back_is_audited(client, admin_headers):
+    """交還同樣要留痕——這正是 2026-08-01 查不到的那個動作。"""
+    conv_id = await _seed_conversation("escalated")
+    assert (await client.post(_path(conv_id, "resolve-handover"), headers=admin_headers)).status_code == 200
+
+    rows = await _audit_rows(conv_id)
+    assert len(rows) == 1
+    action, actor_role, payload = rows[0]
+    assert action == "handover_resolved"
+    assert actor_role == "admin"
+    assert payload["from_status"] == "escalated" and payload["to_status"] == "active"
+
+
+async def test_round_trip_leaves_full_history(client, admin_headers):
+    """一來一回要留兩筆且順序正確——接管狀態的變更史必須可重建。"""
+    conv_id = await _seed_conversation("active")
+    await client.post(_path(conv_id, "request-handover"), headers=admin_headers)
+    await client.post(_path(conv_id, "resolve-handover"), headers=admin_headers)
+
+    actions = [r[0] for r in await _audit_rows(conv_id)]
+    assert actions == ["handover_requested", "handover_resolved"]
+
+
+async def test_rejected_take_over_leaves_no_audit(client, admin_headers):
+    """被 409 擋下不得留痕——否則稽核會出現「其實沒發生」的狀態變更。"""
+    conv_id = await _seed_conversation("closed")
+    assert (await client.post(_path(conv_id, "request-handover"), headers=admin_headers)).status_code == 409
+    assert await _audit_rows(conv_id) == []

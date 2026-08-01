@@ -287,7 +287,9 @@ async def request_conversation_handover_v2(
             403,
         )
 
-    conv = await conversation_service.request_handover(tenant_id=tenantId, conv_id=id)
+    conv = await conversation_service.request_handover(
+        tenant_id=tenantId, conv_id=id, actor_id=user.user_id, actor_role=user.role,
+    )
     return _safe_conv(conv)
 
 
@@ -321,7 +323,11 @@ async def resolve_conversation_handover_v2(
             403,
         )
 
-    conv = await conversation_service.resolve_handover(tenant_id=tenantId, conv_id=id)
+    # 2026-08-02：帶 actor 進去留痕——事故追查時「誰把客人從真人手上拿回給 AI」
+    # 原本只能靠會過期的 Cloud Run request log 才查得到。
+    conv = await conversation_service.resolve_handover(
+        tenant_id=tenantId, conv_id=id, actor_id=user.user_id, actor_role=user.role,
+    )
     return _safe_conv(conv)
 
 
