@@ -195,7 +195,43 @@ async def test_settlement_gate_blocks_when_projection_unavailable(monkeypatch):
 # ─────────────────────────────────────────────────────────────────────────
 
 
-async def test_brand_without_authorization_data_is_fail_closed():
+def _enforce(monkeypatch, on: bool):
+    """切換 M18 開關 dispatch_policy.brand_auth_enforce（CR-0197 D1(c)）。"""
+    async def _cfg(*_a, **_k):
+        return {"brand_auth_enforce": on}
+    monkeypatch.setattr("services.config_m18_service.read_global_value", _cfg)
+
+
+async def test_brand_gate_off_by_default_preserves_legacy_behaviour(monkeypatch):
+    """**預設 off**：維持 CR-0060 以來的行為（無授權資料回 None＝不阻擋）。
+
+    這條比 fail-closed 那條更重要——它釘住「業主還沒開閘門之前，派工不會被打斷」。
+    prod 的授權表只有 CR-0060 的 is_mock seed，硬性 fail-closed 會擋掉
+    Chatlock/Dormakaba 等實際在用品牌的自動派工。
+    """
+    from services import dispatch_service
+
+    assert await db_module._ensure_conn(), "測試需要真實 DB 連線（scratch 庫）"
+    _enforce(monkeypatch, False)
+    unknown_brand = f"NoSuchBrand-{uuid.uuid4().hex[:8]}"
+    assert await dispatch_service._brand_authorized_ids(unknown_brand) is None
+
+
+async def test_brand_gate_falls_back_to_off_when_config_unreadable(monkeypatch):
+    """config 讀不到時視為未啟用——default-off 開關讀取失敗不該變成擋人。"""
+    from services import dispatch_service
+
+    assert await db_module._ensure_conn()
+
+    async def _boom(*_a, **_k):
+        raise RuntimeError("config store down")
+
+    monkeypatch.setattr("services.config_m18_service.read_global_value", _boom)
+    assert await dispatch_service.brand_auth_enforced() is False
+    assert await dispatch_service._brand_authorized_ids(f"X-{uuid.uuid4().hex[:6]}") is None
+
+
+async def test_brand_without_authorization_data_is_fail_closed(monkeypatch):
     """該品牌無任何授權列 → 不得回 None（None 會讓兩個呼叫端一起放行）。
 
     TC-DISPATCH-06：「無授權資料時不得 fail-open」。
@@ -203,18 +239,20 @@ async def test_brand_without_authorization_data_is_fail_closed():
     from services import dispatch_service
 
     assert await db_module._ensure_conn(), "測試需要真實 DB 連線（scratch 庫）"
+    _enforce(monkeypatch, True)
     unknown_brand = f"NoSuchBrand-{uuid.uuid4().hex[:8]}"
     ids = await dispatch_service._brand_authorized_ids(unknown_brand)
     assert ids is not None, "無授權資料應回空集合（＝誰都不符），不是 None（＝不判斷）"
     assert ids == set()
 
 
-async def test_manual_assign_blocked_when_brand_has_no_authorization():
+async def test_manual_assign_blocked_when_brand_has_no_authorization(monkeypatch):
     """手動指派：品牌無授權資料時應擋下，不再靜默放行。"""
     from core.errors import ApiError
     from services import work_order_service
 
     assert await db_module._ensure_conn(), "測試需要真實 DB 連線（scratch 庫）"
+    _enforce(monkeypatch, True)
     conn = db_module._conn
     wo_id = str(uuid.uuid4())
     await conn.execute(
@@ -229,7 +267,7 @@ async def test_manual_assign_blocked_when_brand_has_no_authorization():
     assert exc.value.status_code == 403
 
 
-async def test_manual_assign_override_still_works_for_supervisor():
+async def test_manual_assign_override_still_works_for_supervisor(monkeypatch):
     """安全閥不可一起關掉：主管帶 override_reason 仍可強制派工（沿用報價 gate 機制）。
 
     fail-closed 若沒有這條，品牌尚未建授權名單時會整個派不出去。

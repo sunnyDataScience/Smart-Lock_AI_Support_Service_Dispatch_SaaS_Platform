@@ -1,7 +1,7 @@
 ---
 id: CR-0197
 title: 品牌授權閘門要不要真的啟用（fail-closed 已實作，等營運資料與業主裁決）
-status: awaiting-decision
+status: decided
 created: 2026-07-31
 author: Claude（代跑 SC-13～19 整合測試時發現）
 triggers: [Architecture boundary, Test plan]
@@ -143,7 +143,49 @@ commit `49de54d3`：
 
 ---
 
-## 8. 🛑 Human Decisions Required
+## 8. ✅ Human Decisions（業主 2026-08-01 裁決：「照你建議處理」）
+
+### 裁決結果
+
+| # | 裁決 | 落地 |
+|---|---|---|
+| **D1** | **(c) 折衷** —— fail-closed + M18 config 開關，預設 off，逐租戶啟用 | migration 127 + `dispatch_service.brand_auth_enforced()` |
+| **D2** | 暫不補資料 —— 開關預設 off，補資料不阻塞。待業主決定啟用時機再產 SQL 或做 UI | 未動 |
+| **D3** | **(a) 不處理** 77 張 `brand` NULL 的歷史工單 —— 都是 2026-06-07 前的 demo 資料，且 NULL 不觸發閘門；回填反而會讓它們**開始**受閘門約束 | 未動 |
+| **D4** | **(a) 指向 FR-TEC-02 / FR-TEC-03**，保留原編號不切斷與 CHANGELOG／既有測試的關聯 | `dispatch_service._brand_authorized_ids` docstring |
+
+### 實作摘要（commit 見 §10）
+
+- **migration 127** `dispatch-policy-namespace.sql`：註冊 `dispatch_policy` namespace，
+  `brand_auth_enforce` 預設 **false**。完全比照 118 的成因——`config_version.namespace`
+  有 FK 指向 `config_namespace(code)`，**namespace 沒註冊開關就永遠開不了**。
+  `is_protected=true` + owner 空集合（admin-only），准入閘門不得由租戶 override 關閉。
+- **`dispatch_service.brand_auth_enforced()`**：讀開關；**config 讀取失敗一律視為未啟用**
+  （default-off 開關讀不到設定時採現況行為才安全，比照 `_assert_reconcile_gate`）。
+- 兩個判斷點共用同一開關（`_brand_authorized_ids` 與 `work_order_service._assert_brand_authorized`），
+  語意必須一致，否則自動派工與手動派工會分岔。
+- **關閉時記 info 而非靜默**：「閘門存在但沒在擋」必須看得見，否則會被誤以為派工資格已受控。
+
+### 驗收
+
+- `test_sc13_19_findings.py` 增為 **11 測試**，新增兩條釘住預設行為：
+  `test_brand_gate_off_by_default_preserves_legacy_behaviour`（預設 off 不阻擋）與
+  `test_brand_gate_falls_back_to_off_when_config_unreadable`（config 掛掉不變成擋人）。
+  **這兩條比 fail-closed 那三條更重要** —— 它們釘住「業主還沒開閘門之前派工不會被打斷」。
+- 兩支既有測試（cr_0060／cr_0114）改回釘**預設行為**（`is None`）並註明現在由開關決定；
+  fail-closed 側由 `test_sc13_19_findings.py` 以 monkeypatch 開啟開關後驗證。
+- migration 127 於 scratch 與 `lock_AI_data` 兩庫各連套兩次退出碼 0（冪等）。
+- 全套對照 scratch 基線 **129 → 123 失敗，零新增**（含 drift check 綠）。
+
+### 尚未做（等業主決定啟用時機）
+
+1. 補 5 個品牌的授權名單（Chatlock／Dormakaba／美樂／Xiaomi／Gateman）
+2. 平台 console 的品牌授權維護 UI（目前只有 API，四站台無 UI）
+3. prod 套 migration 127 + 部署（**值為 false ＝ 行為與現況相同，可安全部署**）
+
+---
+
+## 8-原. 🛑 原始待裁決項（保留供追溯）
 
 ### D1：品牌授權閘門要不要真的啟用？
 

@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **品牌授權閘門改為「fail-closed + 預設關閉的開關」（CR-0197，業主 2026-08-01 裁決 D1(c)）**：業主問「原本有需要授權的要求嗎」——查證結果**有，且在業主自己的正典裡**：`04_SRS.md` **FR-TEC-02** 驗收欄明文「未過准入閘門不得進入派工候選集」、**FR-TEC-03** 把品牌授權列為媒合條件、`03_PRD.md` **FR-J01** 列入技師身分單一真相；整合測試計畫 TC-DISPATCH-06 的「驗證哪些需求」欄正是 FR-TEC-02／FR-TEC-03，**追溯鏈完整**。
+  - **但正典沒規定「整個品牌都沒有授權名單」怎麼辦**——FR-TEC-02 規範的是「技師」未過閘門不得進候選集。那個邊界是 CR-0060 實作時自己補的判斷，測試計畫後來判為不合規；兩種讀法都能自圓其說，故需業主裁決。
+  - **原本的 fail-open 是歷史脈絡不是疏漏**：CHANGELOG 對 CR-0060 的記載是「**沿會議 mock-first 授權**建資料模型…seed 示範（**is_mock**）…無授權資料保守不過濾」——當時整張表都是假資料，真擋下去 demo 會跑不動。
+  - **prod 唯讀盤點**（cloud-sql-proxy，只有 SELECT）：授權表只有 Generic／Kaadas／Philips／Samsung／Yale **各 13 筆＝那批 is_mock seed 原封不動，營運從未填過真實資料**；實際在用的 Chatlock／Dormakaba／美樂／Xiaomi／Gateman 一筆都沒有。另 81 張工單有 77 張 `brand` 為 NULL（閘門對 95% 工單無作用）——查過成因，`create_from_problem_card` 確實有帶 `pc_brand` 且 NULL 那批停在 06-07，是**歷史 demo 資料而非程式缺陷**。
+  - **裁決落地**：**migration 127** 註冊 `dispatch_policy` namespace，開關 `brand_auth_enforce` **預設 false**。完全比照 118 的成因——`config_version.namespace` 有 FK 指向 `config_namespace(code)`，**namespace 沒註冊開關就永遠開不了**；`is_protected=true` + owner 空集合（admin-only），准入閘門不得由租戶 override 關閉。新增 `dispatch_service.brand_auth_enforced()`，**config 讀取失敗一律視為未啟用**（default-off 開關讀不到設定時採現況行為才安全）。兩個判斷點共用同一開關，否則自動派工與手動派工會分岔。**關閉時記 info 而非靜默**——「閘門存在但沒在擋」必須看得見。
+  - **其餘裁決**：D2 暫不補資料（開關 off 不阻塞）；D3 不回填 77 張 NULL 工單（回填反而會讓它們**開始**受閘門約束）；D4 `BR-M07-01` 在正典**全庫零命中**（隨 0708 大掃除刪 `docs/` 樹一併消失），補上現行指向 FR-TEC-02／03 但保留原編號不切斷與既有測試的關聯。
+  - **驗收**：新增兩條測試釘住預設行為（`預設 off 不阻擋`、`config 掛掉不變成擋人`）——**這兩條比 fail-closed 那三條更重要**，它們釘住「業主還沒開閘門之前派工不會被打斷」。兩支既有測試改回釘預設行為並註明現在由開關決定。migration 兩庫各連套兩次冪等；全套對照 scratch 基線 **129 → 123，零新增**（含 drift check 綠）。**prod 未部署**（值為 false ＝行為與現況相同，可安全部署）。
+
 - **SC-13～19 整合測試代跑抓到的四個守衛缺陷（業主 2026-07-31 裁決「都按照建議」）**：代跑業主負責的 SC-13～SC-19（33 個 TC）。改用 `openapi.json` 取**實際掛載**端點做系統性探測，而非照規格文字逐條手測——規格是意圖，code 才是事實。
   - **①工單列表未依角色收斂 scope（TC-DISPATCH-05／TC-PLT-SURFACE-01）**：`GET /api/v1/work-orders` 與 `GET /tenants/{tid}/work-orders` 都只有 `Depends(require_tenant)`，`technician_id` 純粹是可選過濾參數。實測技師 token 拿到的回應與品牌 admin **位元組完全相同**（4 筆／4966 bytes，含未指派給他的工單與 `customer_name`／`customer_phone`）；把參數換成別人的 `technicians.id` 還能撈到別人的單。修法**不是回 403**（師傅站「我的工單」正常功能就是讀這兩支），而是新增 `technician_scope_filter` 強制收斂並**不採信 client 傳入值**；查無 technicians 列時退 nil UUID sentinel 而非「不過濾」。
   - **②對帳閘門真空通過（TC-EXC-06）**：`reconcile_commission` 在 Kafka 未設時回 `gate_pass=True`，原註解稱「fail-open by design」。**無法驗證 ≠ 驗證通過**——租戶一旦打開 `reconcile_gate_enforce`（明示要求把關），Kafka 沒開反而靜默放行。改 `gate_pass=False`，並分出 `RECONCILE_GATE_UNAVAILABLE`（跑不起來）與 `RECONCILE_GATE_UNMET`（跑了不平）兩種錯誤——要修的東西不同，訊息不可混用。爆炸半徑僅限已開 enforce 的租戶（預設 off）。

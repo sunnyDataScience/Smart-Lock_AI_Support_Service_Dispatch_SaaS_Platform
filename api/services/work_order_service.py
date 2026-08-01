@@ -2042,7 +2042,17 @@ async def _assert_brand_authorized(
         "  AND (cert_expires_at IS NULL OR cert_expires_at >= CURRENT_DATE)",
         (brand,))).fetchall()
     if not auth:
-        # fail-closed：無授權資料 ≠ 可以派給任何人（TC-DISPATCH-06）
+        # fail-closed：無授權資料 ≠ 可以派給任何人（TC-DISPATCH-06）。
+        # 但由 M18 開關控制是否真的擋（CR-0197 D1(c)，預設 off）——
+        # 與 dispatch_service._brand_authorized_ids 共用同一個開關，語意必須一致。
+        from services.dispatch_service import brand_auth_enforced
+
+        if not await brand_auth_enforced():
+            logger.info(
+                "品牌「%s」無有效授權技師，但 dispatch_policy.brand_auth_enforce 未啟用 "
+                "→ 手動派工不阻擋 wo=%s", brand, wo_id[:8],
+            )
+            return
         logger.warning(
             "品牌「%s」無任何有效授權技師，手動派工被擋 wo=%s", brand, wo_id[:8]
         )

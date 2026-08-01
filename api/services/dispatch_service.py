@@ -306,6 +306,29 @@ async def _enrich_workload_fairness(candidates: list[dict], tenant_id: str) -> l
     return candidates
 
 
+async def brand_auth_enforced() -> bool:
+    """品牌授權閘門是否啟用（CR-0197 §8 D1(c)，業主 2026-08-01 裁決）。
+
+    M18 config `dispatch_policy.brand_auth_enforce`，**預設 off**，比照
+    `settlement_policy.reconcile_gate_enforce` 前例（monthly_settlement_service）。
+
+    為什麼要開關而不是直接 fail-closed：prod 的 `technician_brand_authorization`
+    只有 CR-0060 留下的 `is_mock` seed（Generic/Kaadas/Philips/Samsung/Yale 各 13 筆），
+    營運從未填過真實資料；實際在用的 Chatlock/Dormakaba/美樂/Xiaomi/Gateman 一筆都沒有。
+    硬性啟用會讓這些品牌無法自動派工，而目前**平台後台還沒有維護授權名單的 UI**。
+
+    config 讀取失敗一律視為「未啟用」—— 這是 default-off 開關，讀不到設定時
+    採現況行為才是安全的（比照 _assert_reconcile_gate 的 except 分支）。
+    """
+    from services import config_m18_service
+
+    try:
+        cfg = await config_m18_service.read_global_value(namespace="dispatch_policy")
+    except Exception:  # noqa: BLE001 — 讀取失敗視同未配置（gate 預設 off）
+        return False
+    return bool(isinstance(cfg, dict) and cfg.get("brand_auth_enforce"))
+
+
 async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
     """CR-0060 / BR-M07-01：回授權該品牌（未過期）的技師 id 集合。
 
@@ -346,13 +369,21 @@ async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
     )
     rows = await cur.fetchall()
     if not rows:
-        # 不再回 None —— 空集合才能讓下游「過濾」與「斷言」自然 fail-closed。
-        # 記 warning:這是可行動的營運訊號（該品牌尚未建授權名單）,不該靜默。
-        logger.warning(
-            "品牌「%s」無任何有效授權技師 → 派工 fail-closed（需先建立品牌授權名單，"
-            "或由主管帶 override_reason 手動派工）", brand,
+        # 空集合＝誰都不符＝下游自然 fail-closed；None＝不判斷＝維持原本的放行。
+        # 由 M18 開關決定走哪一邊（CR-0197 D1(c)）。
+        if await brand_auth_enforced():
+            logger.warning(
+                "品牌「%s」無任何有效授權技師 → 派工 fail-closed（需先建立品牌授權名單，"
+                "或由主管帶 override_reason 手動派工）", brand,
+            )
+            return set()
+        # 閘門未啟用：維持 CR-0060 以來的行為。記 info 而非靜默 ——
+        # 「閘門存在但沒在擋」必須看得見，否則會被誤以為派工資格已受控。
+        logger.info(
+            "品牌「%s」無有效授權技師，但 dispatch_policy.brand_auth_enforce 未啟用 "
+            "→ 不阻擋（CR-0197 D1(c)：待營運補齊名單後再開）", brand,
         )
-        return set()
+        return None
     return {str(r[0]) for r in rows}
 
 

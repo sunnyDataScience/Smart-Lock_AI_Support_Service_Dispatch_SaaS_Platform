@@ -12,10 +12,12 @@ async def test_brand_authorized_ids_and_expiry():
     assert await db_module._ensure_conn()
     auth = await ds._brand_authorized_ids("Yale")
     assert auth is not None and len(auth) >= 1   # seed 授權 active 技師
-    # 2026-07-31（TC-DISPATCH-06 fail-closed 修正）：本行原本斷言未知品牌回 None
-    # 「保守不過濾」——那正是被整合測試計畫判為不合規的 fail-open。改為回空集合
-    # ＝誰都不符 ＝ 下游自然 fail-closed。None 現在只保留給「根本沒有 brand 可判」。
-    assert await ds._brand_authorized_ids("NoSuchBrand_zzz999") == set()
+    # CR-0197 D1(c)（業主 2026-08-01 裁決）：無授權資料的行為現在**由 M18 開關決定**
+    #   dispatch_policy.brand_auth_enforce = false（預設）→ None（不阻擋，即本行）
+    #                                      = true         → set()（fail-closed）
+    # 本檔釘「開關未啟用時的預設行為」；fail-closed 那一側由
+    # test_sc13_19_findings.py 以 monkeypatch 開啟開關後驗證。
+    assert await ds._brand_authorized_ids("NoSuchBrand_zzz999") is None
     # 認證過期 → 該技師排除
     tid = next(iter(auth))
     await db_module._conn.execute(
