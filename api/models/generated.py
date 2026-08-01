@@ -124,7 +124,20 @@ class ProblemCard(BaseModel):
         None, description='AI 分類信心分數（閾值 0.6 以下觸發人工覆核）'
     )
     status: ProblemCardStatus
-    media_urls: list[AnyUrl] | None = None
+    # 2026-08-01：原為 list[AnyUrl]，但**寫入端存的是相對路徑**
+    # `/api/v1/media/{id}`（CR-0179 自動掛對話照片，problem_card_service
+    # `_conversation_media_urls`／`_merge_media_urls`），AnyUrl 要求絕對 URL
+    # → pydantic 驗證失敗 → 整個 GET /problem-cards **回 500**，
+    # 前端顯示「載入失敗：系統發生問題，請稍後再試」，該對話等於卡死。
+    #
+    # prod 實證（業主 2026-08-01 回報）：全庫**唯一一張**帶 media_urls 的卡就是
+    # CR-0179 在 prod 第一次觸發產生的，一觸發就炸——這個欄位從未被真實資料驗證過。
+    #
+    # 相對路徑才是正確的存法，不是資料錯：前端用 AuthImage 帶認證去取
+    # （`problem-cards/[id]/page.tsx:928` 註解：「/api/v1/media/{id} 需認證，
+    # 裸連結點擊 401」），走同源 proxy；改存絕對 API URL 反而會打壞認證流程。
+    # 故收斂方向是**放寬型別**而非改資料。
+    media_urls: list[str] | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime
     # CR-0022/ADR-0112：問題卡來源 + AI 草擬待補欄位 hint（optional，反相容；regen 後須重加）
@@ -1104,7 +1117,9 @@ class ProblemCardCreateRequest(BaseModel):
     network_status: NetworkStatus | None = None
     symptoms: list[str] | None = None
     intent: Intent | None = None
-    media_urls: list[AnyUrl] | None = None
+    # 見 ProblemCard.media_urls 說明：寫入端存相對路徑 /api/v1/media/{id}，
+    # 請求端同樣要收得下，否則客服用 UI 附照片會被 422 擋掉。
+    media_urls: list[str] | None = None
 
 
 class ProblemCardUpdateRequest(BaseModel):
@@ -1114,7 +1129,9 @@ class ProblemCardUpdateRequest(BaseModel):
     category: str | None = None
     urgency: Urgency | None = None
     status: ProblemCardStatus | None = None
-    media_urls: list[AnyUrl] | None = None
+    # 見 ProblemCard.media_urls 說明：寫入端存相對路徑 /api/v1/media/{id}，
+    # 請求端同樣要收得下，否則客服用 UI 附照片會被 422 擋掉。
+    media_urls: list[str] | None = None
     # CR-0128：急件標記（四類；空字串=清除回非急件）
     emergency_class: str | None = None
     # CR-0132 雙 gate 欄位（漸進補寫；enum 於 service 驗證）
