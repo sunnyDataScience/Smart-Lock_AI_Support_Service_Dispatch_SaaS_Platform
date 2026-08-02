@@ -13,6 +13,7 @@ import Link from "next/link";
 import { ChevronLeft, Eye, FileText, Link2, Pencil, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
 import { friendlyError } from "@/lib/apiError";
+import BrandAuthorizationPanel from "@/components/technicians/BrandAuthorizationPanel";
 import { cacheInvalidate } from "@/lib/cache";
 import { useActionDialog } from "@/components/ui/ActionDialog";
 import { useToast } from "@/components/ui/Toast";
@@ -351,6 +352,10 @@ export default function PlatformTechnicianDetailPage({
           </section>
 
           {/* 生命週期歷史 */}
+
+          {/* CR-0197：品牌授權名單維護——在此之前四站台都沒有這個畫面，
+              營運只能打 API 或下 SQL，名單因此永遠補不齊、閘門也就永遠不能開。 */}
+          <BrandAuthorizationPanel technicianId={id} />
           <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-6">
             <h2 className="mb-4 text-base font-semibold text-[var(--text-primary)]">{td("lifecycle.title")}</h2>
             {events.length === 0 ? (
