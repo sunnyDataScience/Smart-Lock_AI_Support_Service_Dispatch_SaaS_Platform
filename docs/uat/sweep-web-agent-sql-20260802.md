@@ -94,14 +94,18 @@ git add -A → 🔴 機密會被 commit
 
 反向驗證確認：把 code 還原成第一版寫法，新測試會紅。
 
-## 六、未修的 MEDIUM / LOW（附具體修法）
+## 六、原「未修的 MEDIUM / LOW」——業主追問後全部修完
 
-| 位置 | 問題 | 建議修法 |
+| 位置 | 問題 | 實際修法 |
 |---|---|---|
-| `web/brand-portal/.../work-orders/page.tsx:82` | 客戶姓名/電話/地址經搜尋框進 URL query string，明文落在**兩層** Cloud Run access log（brand-portal + API），繞過 RBAC 且不產生 audit | 搜尋改用 POST body，或前端先雜湊；屬 API contract 變更需走 CIA |
-| `web/brand-portal/.../work-orders/kanban` | 搜尋框逐鍵發 request 且無取消 → 較舊查詢的結果覆蓋較新的 | `AbortController` + debounce |
-| `web/brand-portal/.../admin/disputes/page.tsx:131` | 爭議證據照片載入失敗被靜默吞掉，畫面顯示「0 個檔案」而客服據此裁決賠償 | 同師傅站首頁的做法：加 error state |
-| `agent/config.toml:31` | 硬寫 `backend="sqlite"` 無 runtime 覆寫 → 多實例下 per-instance sqlite，去重失效 | 加 env 覆寫；但目前 `MIN=MAX=1` 單實例，影響未實現 |
+| `work-orders/page.tsx:82` | 客戶姓名/電話/地址經搜尋框進 URL query string，明文落在**兩層** Cloud Run access log，繞過 RBAC 且不留 audit | 新增 `POST /tenants/{tid}/work-orders:search`（參數走 body，與 GET 版共用同一 service 呼叫含技師收斂）；`usePaginatedFetch` 加可選 `searchViaPost`（預設 false，既有使用者零影響）。**端到端驗證：GET 與 POST 回傳 items 完全一致，且 POST 的 URL 不含 keyword** |
+| `work-orders/kanban` | 逐鍵發 request 無取消 → 較舊查詢覆蓋較新的 | 遞增序號丟棄過期回應 + 300ms debounce。debounce 只是減量，正確性靠序號守衛 |
+| `admin/disputes/page.tsx:131` | 證據載入失敗 → 顯示「0 個檔案」而客服據此裁決賠償 | 加 `mediaError`，失敗時明說「證據載入失敗，請重新整理後再裁決」 |
+| `agent/config.toml:31` | 硬寫 `backend="sqlite"` 無 runtime 覆寫 | 加 `AGENT_MEMORY_BACKEND` env 覆寫（未設就照 toml，預設行為不變） |
+
+順手補了一個型別漏洞：`usePaginatedFetch` 的 `query` 型別不含 `string[]`，
+但 `api.ts:80-81` 早就支援多值（`Array.isArray → searchParams.append`）——
+型別比實作窄，`status` 多值篩選一直靠 `as` 或繞路過。
 
 ## 七、驗證
 
