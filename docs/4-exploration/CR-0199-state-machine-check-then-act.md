@@ -87,6 +87,24 @@ async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
 
 ### 4.2 異型並發：狀態機被繞過
 
+> ⚠️ **2026-08-02 實測更正**：本節原本舉的「拒單 vs 改派」案例**是錯的**。
+> `reject_order` 在 UPDATE 前會另查一次 `technician_id` 並比對
+> （`work_order_service.py:1324`），改派已換掉 technician_id，
+> 所以那條路徑**既有 code 就擋得住**——`test_reject_loses_race_to_reassign`
+> 在修正前即為綠燈。
+>
+> 真正會失效的是「**status 改變但 technician_id 不變**」的組合，已由測試證實三組：
+>
+> | 組合 | 修正前的實際結果（實測，非推導） |
+> |---|---|
+> | 拒單 vs 客戶取消 | 🔴 已取消的單被打回 `created`，**重新出現在派工池** |
+> | 接單 vs 客戶取消 | 🔴 已取消的單變成 `accepted` |
+> | 取消 vs 技師完工 | 🔴 **已完工的單被改成 `cancelled`** |
+>
+> 第三組最嚴重——完工是計酬依據。
+>
+> 以下保留原始推導供對照（**機制描述仍然正確**，只是選錯了案例）：
+
 技師 A 被派工單 W（`status=assigned`, `technician_id=A`）：
 
 ```
@@ -112,16 +130,20 @@ UPDATE SET status='created',
 
 ### 4.3 影響評估
 
-| 面向 | 評估 |
+| 面向 | 評估（2026-08-02 實測後修訂） |
 |---|---|
 | 資料遺失 | ❌ 無——工單本體不會消失 |
-| 金流錯誤 | ❌ 無——settlement 那條路徑 CR-0189 已原子化 |
-| 狀態不一致 | ✅ **有**——狀態機 invariant 可被繞過，稽核紀錄與實際狀態對不上 |
-| 可恢復性 | ✅ 高——重新派工即可 |
+| 金流錯誤 | ⚠️ **間接有**——「已完工被改成 cancelled」會影響計酬依據；settlement 本身 CR-0189 已原子化 |
+| 狀態不一致 | ✅ **有且已實測證實三組**——狀態機 invariant 可被繞過 |
+| 可恢復性 | 中——狀態可人工改回，但已發出的通知與稽核紀錄無法回收 |
 | 目前是否已發生 | **無證據**。UAT 階段並發量低，未見相關 finding |
 
-**嚴重度：MEDIUM。** 不是 CRITICAL——後果可恢復、不涉金流。
-但它是**沉默失效**：不會報錯，只會讓狀態悄悄不對。
+**嚴重度：MEDIUM～HIGH**（原評 MEDIUM，實測後上修）。
+
+上修的理由是「取消 vs 完工」這組：**已完工的單可被取消覆寫**，而完工是計酬依據。
+原本評估時我假設後果只是「工單回池、可重派」，實測發現受影響的組合包含完工狀態。
+
+它是**沉默失效**：不會報錯，只會讓狀態悄悄不對。
 
 ---
 
@@ -216,5 +238,11 @@ UPDATE 必須帶樂觀條件**」。
   後逐一檢查 WHERE 子句是否含 `status`
 - autocommit 的事實依據為 `work_order_service.py:607` 的既有註解（UAT R3-6），
   非推測
-- **未執行任何寫入、未改動任何 code**
-- 併發失效路徑為**推導**，尚未以實際並發測試證實——這是 §7 D3 的內容
+- ~~未執行任何寫入、未改動任何 code~~ —— 業主 2026-08-02 裁決方案 A，已進入實作
+- ~~併發失效路徑為推導，尚未證實~~ → **已證實**。
+  `api/tests/test_state_machine_optimistic_lock.py` 用「精確競態窗口注入」
+  （monkeypatch `_fetch_status_for_update`，在回傳過期 status 之前先改 DB）
+  取代真並發，每次必然重現、不依賴時序運氣。修正前 3 紅 3 綠：
+  - 🔴 reject vs cancel、accept vs cancel、cancel vs complete —— 缺陷確認
+  - ✅ 兩個 happy path —— 釘住正常路徑
+  - ✅ reject vs reassign —— **既有 code 已擋**，據此更正 §4.2 的主案例

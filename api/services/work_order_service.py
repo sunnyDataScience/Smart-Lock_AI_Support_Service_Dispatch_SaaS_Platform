@@ -1162,7 +1162,15 @@ async def _insert_wo_event(
 
 
 async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
-    """Fetch current DB status with tenant guard. Raises NOT_FOUND if missing."""
+    """讀取當前 status（含 tenant 守衛），查不到就 404。
+
+    ⚠️ **名字裡的 `for_update` 是歷史遺留，這裡沒有列鎖，也不可能有。**
+    本專案的連線是 autocommit、無顯式交易，`FOR UPDATE` 的鎖不跨語句
+    （見 CR-0199 §3.2 與本檔 L607 的 UAT R3-6 註解）。
+
+    因此**呼叫端若要依據回傳值做寫入，UPDATE 必須自己帶樂觀條件**——
+    用 `_assert_transition_applied()` 檢查 rowcount，不要假設狀態在期間沒被改動。
+    """
     cur = await db_module._conn.execute(
         f"SELECT wo.status {_WO_JOIN} "
         f"WHERE wo.id = %s::uuid AND COALESCE(wo.tenant_id, u.tenant_id) = %s::uuid",
@@ -1172,6 +1180,25 @@ async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
     if not row:
         raise ApiError("NOT_FOUND", "Work order not found", 404)
     return row[0]
+
+
+def _assert_transition_applied(cur, *, expected_status: str, action: str) -> None:
+    """樂觀鎖檢查（CR-0199 方案 A）：UPDATE 沒中任何列 = 狀態已被他人改變。
+
+    搭配 `WHERE ... AND status = <剛才讀到的 status>` 使用。rowcount == 0 有兩種可能：
+    工單被刪（極罕見），或**狀態在檢查與寫入之間被另一個請求改掉了**——
+    兩者都該讓呼叫端重讀後重試，語意上都是 409。
+
+    刻意回 409 STATE_CONFLICT 而非 500：這不是程式錯誤，是正常的並發競爭結果，
+    且與本檔其他狀態守衛（`if current not in _XXX_FROM`）回的錯誤碼一致，
+    呼叫端不需要為此新增分支。
+    """
+    if cur.rowcount == 0:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"工單狀態已被其他操作變更（{action} 前為 '{expected_status}'），請重新載入後再試",
+            409,
+        )
 
 
 async def accept_order(
@@ -1235,14 +1262,16 @@ async def accept_order(
         from core.tech_mirror import ensure_technician_projection
         await ensure_technician_projection(claim_tech_id)
 
-    await db_module._conn.execute(
+    # CR-0199：WHERE 帶 status 樂觀條件——狀態在檢查與寫入之間被改掉就不寫（rowcount=0 → 409）
+    _cur = await db_module._conn.execute(
         # CR-0043 Tier②：技師接單後完工細狀態進「待完工回報」（M05 Q052 起點）
         "UPDATE work_orders SET status = 'accepted', accepted_at = NOW(), "
         "  technician_id = COALESCE(%s::uuid, technician_id), "
         "  completion_status = 'pending_report', updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (claim_tech_id, wo_id),
+        "WHERE id = %s::uuid AND status = %s",
+        (claim_tech_id, wo_id, current),
     )
+    _assert_transition_applied(_cur, expected_status=current, action="接單")
     # CR-0193：生命週期事件（原本 accept 不落事件流 → timeline 看不到「接單」）
     await _insert_wo_event(
         wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
@@ -1325,11 +1354,14 @@ async def reject_order(
         raise ApiError("STATE_CONFLICT", "只能拒絕指派給本人的工單", 409)
 
     note = f"[REJECTED] {tech_ctx['id']}: {reason}"
-    await db_module._conn.execute(
+    # CR-0199：樂觀條件——避免把「已被取消/已被他人改派」的單打回派工池
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET status = 'created', technician_id = NULL, "
-        "  status_reason = %s, updated_at = NOW() WHERE id = %s::uuid",
-        (reason, wo_id),
+        "  status_reason = %s, updated_at = NOW() "
+        "WHERE id = %s::uuid AND status = %s",
+        (reason, wo_id, current),
     )
+    _assert_transition_applied(_cur, expected_status=current, action="拒單")
     await db_module._conn.execute(
         "INSERT INTO dispatch_logs (work_order_id, action, technician_id, rejection_reason, notes) "
         "VALUES (%s::uuid, 'reject', %s::uuid, %s, %s)",
@@ -1890,15 +1922,17 @@ async def cancel_order(
     tech_row = await cur.fetchone()
     tech_id = str(tech_row[0]) if tech_row and tech_row[0] else None
     # 寫入結構化 status_reason 欄（同步保留 service_report 字串軌跡）
-    await db_module._conn.execute(
+    # CR-0199：樂觀條件——最嚴重的一組是「取消 vs 完工」，完工是計酬依據，不可被覆寫
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  status = 'cancelled', "
         "  status_reason = %s, "
         "  service_report = COALESCE(service_report, '') || E'\\n[CANCELLED] ' || %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (reason, reason, wo_id),
+        "WHERE id = %s::uuid AND status = %s",
+        (reason, reason, wo_id, current),
     )
+    _assert_transition_applied(_cur, expected_status=current, action="取消")
     # event=cancelled 把該 tech pool 該 wo 移除（若已派）
     if tech_id:
         await _publish_pool_change(
