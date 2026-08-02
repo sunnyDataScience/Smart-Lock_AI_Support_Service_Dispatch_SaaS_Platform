@@ -585,6 +585,32 @@ async def create_refund_sod(
     if wo_tenant != tenant_id:
         raise ApiError("NOT_FOUND", "Work order not found", 404)  # 跨 tenant 偽裝 404
 
+    # 3.5 冪等：同 WO 同 refund_class 已有 active 退款 → 409（2026-08-02 資安/資料掃描）
+    #
+    # 本路徑原本**兩道防線都沒有**，而 create_refund_request 兩道都有：
+    #   - DB：`uniq_refund_wo_reason_active ON (work_order_id, reason_code)
+    #     WHERE status NOT IN ('rejected','cancelled')`——但 create_refund_sod
+    #     的欄位清單裡**沒有 reason_code**，該欄留 NULL，而 Postgres 的
+    #     NULL 不參與唯一性比較，所以這個索引對 SoD 路徑**完全不生效**。
+    #   - service：create_refund_request 有等價的前置查詢（見該函式 step 2）。
+    # 結果是同一張工單可以重複建立 SoD 退款請求，走完雙簽就重複出款。
+    #
+    # 這裡先補 service 層那道（零 schema 風險、立即生效）。DB 層要對稱補上
+    # 涵蓋 SoD 的唯一索引，屬 schema 變更且需先盤點存量重複資料，另案處理。
+    dup = await db_module._conn.execute(
+        "SELECT id FROM refund_requests "
+        "WHERE work_order_id = %s::uuid AND refund_class = %s "
+        "  AND status NOT IN ('rejected', 'cancelled') "
+        "LIMIT 1",
+        (work_order_id, refund_class),
+    )
+    if await dup.fetchone():
+        raise ApiError(
+            "DUPLICATE_REFUND",
+            f"該工單已有進行中的「{refund_class}」退款請求，不可重複建立",
+            409,
+        )
+
     # 4. audit（三維行為人記於 payload）→ 取回 audit_event_id（NOT NULL）
     from services import audit_log_service
 

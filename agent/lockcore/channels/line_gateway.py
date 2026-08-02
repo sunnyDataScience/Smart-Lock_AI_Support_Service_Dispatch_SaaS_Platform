@@ -45,7 +45,14 @@ _LINE_TEXT_LIMIT = 4900
 # 內部錯誤外洩防線:LiteLLMProvider 失敗時 content 會是 "[litellm error] ..."。
 # 這類字串(或空回覆)絕不可原文丟給客人,改回友善話術。
 _ERROR_SENTINEL = "[litellm error]"
-_FALLBACK_REPLY = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
+# ⚠️ 這句話**不可以**含 CR-0097 的轉接承諾字樣（_SOFT/_DEFINITIVE_HANDOFF_MARKERS）。
+# 2026-08-02 掃描實測：原措辭「…或留言由專員與您聯繫」命中 soft marker「專員與您」，
+# 於是 LLM 一次逾時 → 兜底回覆 → _promised_handoff() 判為 True → 補一筆 escalation
+# → 對話翻成 escalated → **該客人的 AI 從此永久靜音**，而客人以為有專員會聯繫。
+# 系統暫時故障是監控該處理的事（上游已有 logger.exception），不該轉成客服事件。
+# 客人的訊息仍會持久化，客服在對話管理看得到，只是不再自動建卡也不再翻 escalated。
+# 改動這句話時請務必重跑 agent/tests/test_fallback_reply_no_handoff.py。
+_FALLBACK_REPLY = "不好意思,系統暫時無法回應,請稍後再傳一次訊息 🙏"
 
 # VLN(2026-07-03):非文字/照片型別的友善回覆(原本靜默丟棄=已讀不回)。
 _UNSUPPORTED_MEDIA_REPLY = (

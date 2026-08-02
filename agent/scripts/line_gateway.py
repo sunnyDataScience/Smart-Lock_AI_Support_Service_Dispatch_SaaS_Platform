@@ -16,7 +16,6 @@
 import logging
 import os
 import sys
-import shutil
 import tempfile
 from pathlib import Path
 
@@ -44,40 +43,8 @@ from lockcore.app_config import (
     load_config,
 )
 from lockcore.bus.queue import MessageBus
+from lockcore.config.schema import ToolsConfig
 from lockcore.channels.line_gateway import build_webapp, load_dotenv
-
-
-def _seed_builtin_skills(workspace: Path) -> None:
-    """把 builtin skills 複製進 workspace/skills，作為 restrict_to_workspace 下的保底。
-
-    開啟工具沙箱後，agent 只能讀 workspace 內的檔案。builtin skills 位於
-    ``lockcore/skills/``（workspace 外），若不鋪進來，SkillSync 首輪完成前、
-    或品牌庫連不上時，產品知識的 ``references/`` 會整個讀不到。
-
-    fail-soft：複製失敗只記 ERROR 不中止啟動——沒有知識庫的 agent 仍能轉真人，
-    但起不來的 agent 什麼都做不了。
-    """
-    try:
-        from lockcore.agent import skills as _skills_mod
-
-        # skills.py 在 lockcore/agent/ 底下 → 上溯兩層才是 lockcore/，
-        # builtin skills 在 lockcore/skills/（不是 agent/skills/）
-        builtin_dir = Path(_skills_mod.__file__).resolve().parent.parent / "skills"
-        if not builtin_dir.is_dir():
-            logging.getLogger("line_gateway").warning(
-                "builtin skills 目錄不存在(%s)——沙箱下將無離線保底知識", builtin_dir,
-            )
-            return
-        dest = workspace / "skills"
-        shutil.copytree(builtin_dir, dest, dirs_exist_ok=True, symlinks=False)
-        n = len([d for d in dest.iterdir() if d.is_dir()])
-        logging.getLogger("line_gateway").info(
-            "builtin skills 已鋪進 workspace(%s 個)：%s", n, dest,
-        )
-    except Exception:
-        logging.getLogger("line_gateway").exception(
-            "builtin skills 複製失敗——沙箱下產品知識可能查不到（不中止啟動）",
-        )
 
 
 def main() -> None:
@@ -95,23 +62,26 @@ def main() -> None:
     esc = build_escalation_store(cfg)
     workspace = Path(tempfile.mkdtemp(prefix="lockcore-line-"))
 
-    # 2026-08-02 資安掃描：把 builtin skills 先鋪進 workspace，再開 restrict_to_workspace。
+    # 2026-08-02 資安掃描：把檔案類工具關進 workspace 沙箱。
     #
-    # 兩件事必須一起做，缺一不可：
-    #   1. 不開 restrict → 白名單裡的 read_file/list_dir/find_files/grep 可存取**整個檔案
-    #      系統**（`restrict_to_workspace` 在 lockcore/config/schema.py:298 預設 False，
-    #      config.toml 也沒設）。這是面向 LINE 使用者的客服 agent，使用者能用 prompt
-    #      injection 誘導它去讀 `.env`（GEMINI_API_KEY / LINE_CHANNEL_ACCESS_TOKEN）
-    #      或 credentials.json 並把內容回覆出來。
-    #   2. 只開 restrict 而不鋪 builtin → SkillSync 尚未完成首輪（或 DB 掛掉）時
-    #      workspace/skills 是空的，agent 讀不到 references，產品知識查詢直接失效。
-    #      builtin 的定位本來就是「出廠範本＋離線保底」（CLAUDE.md ADR-032 補充），
-    #      保底不能因為加了沙箱就消失。
+    # 不設的話，白名單裡的 read_file / list_dir / find_files / grep 可存取**整個檔案
+    # 系統**（`restrict_to_workspace` 在 lockcore/config/schema.py 預設 False）。
+    # 這是面向 LINE 使用者的客服 agent——任何加好友的陌生人都能用 prompt injection
+    # 誘導它讀 `/proc/self/environ`，一次帶走 deploy 腳本注入的全部機密：
+    # LINE_CHANNEL_ACCESS_TOKEN（可冒名推播全體好友）、POSTGRES_URI（可直連 Cloud SQL）、
+    # INTERNAL_API_TOKEN（可打 /api/v1/internal/*）。reply_guard 只驗金額與型號，
+    # 對 token/URI 字串一律放行。
     #
-    # 複製而非 symlink：symlink 會被 resolve() 解回 workspace 外的真實路徑，
-    # 沙箱判定當場失效。SkillSync 之後物化的版本目錄會依既有 overlay 規則覆蓋同名 skill。
-    _seed_builtin_skills(workspace)
-
+    # ⚠️ **必須走 tools_config，不能用 AgentLoop 的 restrict_to_workspace kwarg**：
+    # 那個 kwarg 只轉給 SubagentManager（loop.py:256→288），而檔案工具讀的是
+    # `ToolContext(config=self.tools_config)`（loop.py:484），兩者之間沒有任何同步。
+    # 傳 kwarg 會得到一個「看起來修好了但完全沒生效」的假象——本次修正第一版就踩了
+    # 這個坑，由對抗驗證實跑抓出來。守線測試 test_tool_workspace_sandbox.py 直接
+    # 斷言工具的 _allowed_dir，不看設定欄位，就是為了擋這種 no-op。
+    #
+    # builtin skills 不受影響：上游在 filesystem.py 內建了
+    # `extra_read = [BUILTIN_SKILLS_DIR]`，沙箱開啟時自動把 lockcore/skills/ 列入
+    # 可讀白名單（已實測：/etc/hosts 擋下、SKILL.md 與 references/ 仍可讀）。
     loop = AgentLoop(
         bus=MessageBus(),
         provider=provider,
@@ -121,9 +91,7 @@ def main() -> None:
         memory_tenant=cfg.tenant,
         escalation_store=esc,
         tool_allowlist=CS_TOOL_ALLOWLIST,
-        # 檔案類工具一律關進 workspace（見上方註解）。這不影響 skill 本體載入——
-        # SkillsLoader 走內部 API（skills.py 直接 read_text），不經工具沙箱。
-        restrict_to_workspace=True,
+        tools_config=ToolsConfig(restrict_to_workspace=True),
         # RAG-via-MCP(ADR-010):未配置(env 缺)=空 dict,行為不變;連線失敗 fail-soft 重試
         mcp_servers=load_mcp_servers(),
     )

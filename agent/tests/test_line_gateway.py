@@ -409,12 +409,20 @@ def test_handle_text_turn_truncates_long_reply():
 
 
 def test_handle_text_turn_masks_internal_error():
-    """LLM/provider 失敗時的 [litellm error] 不可外洩給客人,改友善話術。"""
+    """LLM/provider 失敗時的 [litellm error] 不可外洩給客人,改友善話術。
+
+    2026-08-02：原本用 `assert "專員" in out` 當「友善話術」的標記，但那個字
+    正好命中 CR-0097 的轉接承諾偵測——兜底話術因此會觸發轉真人、讓 AI 永久靜音
+    （見 test_fallback_reply_no_handoff.py）。改為直接斷言「就是那個 fallback 常數」，
+    意圖更明確，且措辭調整時不會誤紅。
+    """
+    from lockcore.channels.line_gateway import _FALLBACK_REPLY
+
     loop = _FakeLoop("[litellm error] litellm.BadRequestError: ...403 billing...")
     out = asyncio.run(handle_text_turn(loop, "locksmart", "U1", "你好"))
     assert "litellm" not in out
     assert "error" not in out.lower()
-    assert "專員" in out   # 友善 fallback
+    assert out == _FALLBACK_REPLY   # 友善 fallback（非內部錯誤原文）
 
 
 def test_handle_text_turn_empty_reply_returns_empty():

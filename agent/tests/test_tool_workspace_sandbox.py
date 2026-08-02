@@ -1,45 +1,124 @@
 """檔案類工具的 workspace 沙箱（2026-08-02 資安掃描）。
 
 **原問題**：`CS_TOOL_ALLOWLIST` 開了 `read_file / list_dir / find_files / grep`，
-而 `restrict_to_workspace` 在 `lockcore/config/schema.py` 的預設是 **False**，
-`agent/config.toml` 也沒設定它，`line_gateway.py` 建 `AgentLoop` 時同樣沒傳——
-三者疊加＝這個**面向 LINE 使用者**的客服 agent 可以讀取整個檔案系統。
+而 `restrict_to_workspace` 在 `lockcore/config/schema.py` 預設 **False**、
+`agent/config.toml` 沒設、`line_gateway.py` 也沒傳——這個**面向 LINE 使用者**的
+客服 agent 可以讀取整個檔案系統。
 
-實際攻擊面：使用者用 prompt injection 誘導 AI 讀 `.env`
-（`GEMINI_API_KEY` / `LINE_CHANNEL_ACCESS_TOKEN`）或 `credentials.json`
-並把內容回覆出來。門檻只是「會打字」，比需要知道 UUID 的漏洞低得多。
+任何加官方帳號好友的陌生人都能用 prompt injection 誘導它讀 `/proc/self/environ`，
+一次帶走 `scripts/deploy/agent.sh` 注入的全部機密：`LINE_CHANNEL_ACCESS_TOKEN`
+（冒名推播全體好友）、`POSTGRES_URI`（直連 Cloud SQL）、`INTERNAL_API_TOKEN`
+（呼叫 `/api/v1/internal/*`）。`reply_guard` 只驗金額與型號，對 token/URI 一律放行。
 
-**修法**：`line_gateway.py` 傳 `restrict_to_workspace=True`，
-並在啟動時把 builtin skills 複製進 workspace。
+## 這個檔案為什麼直接斷言工具狀態，而不是斷言設定欄位
 
-## 為什麼兩件事必須綁在一起
+本次修正的**第一版是 no-op**：傳了 `AgentLoop(restrict_to_workspace=True)`，
+看起來合理，實際上完全沒生效——那個 kwarg 只轉給 `SubagentManager`
+（loop.py:256 → 288），而檔案工具讀的是 `ToolContext(config=self.tools_config)`
+（loop.py:484），中間沒有任何一行同步。當時若只斷言「有傳這個參數」，測試會是綠的，
+漏洞卻原封不動。是對抗驗證實跑 `read_file('/etc/hosts')` 才抓出來。
 
-只開沙箱而不鋪 builtin skills，`SkillSync` 首輪完成前（或品牌庫連不上時）
-`workspace/skills/` 是空的，agent 讀不到 `references/`，產品知識查詢直接失效。
-builtin 的定位本來就是「出廠範本＋離線保底」，保底不能因為加了沙箱就消失。
-
-所以本檔的兩組測試是一體的：**沙箱開著** ＋ **保底還在**。
-少任何一邊，這個修正就是壞的。
+所以本檔的核心測試**直接建出工具、檢查 `_allowed_dir`、真的去讀 workspace 外的檔案**。
+設定怎麼傳是實作細節，工具擋不擋得住才是要守的東西。
 """
 
 from __future__ import annotations
 
 import ast
 import pathlib
-import shutil
 import tempfile
 
 import pytest
 
+from lockcore.agent.tools.context import ToolContext
+from lockcore.agent.tools.filesystem import ReadFileTool
+from lockcore.config.schema import ToolsConfig
+
 GATEWAY = pathlib.Path(__file__).resolve().parent.parent / "scripts" / "line_gateway.py"
 
 
-def _agentloop_kwargs() -> dict[str, ast.expr]:
-    """從原始碼取出 line_gateway 建 AgentLoop 時傳的 keyword 參數。
+def _make_tool(tools_config: ToolsConfig, workspace: pathlib.Path) -> ReadFileTool:
+    return ReadFileTool.create(
+        ToolContext(
+            config=tools_config,
+            workspace=str(workspace),
+            bus=None,
+            subagent_manager=None,
+            cron_service=None,
+            file_state_store=None,
+        )
+    )
 
-    用 AST 而非執行：`main()` 會真的起 web server 並要求 LINE 憑證，
-    測試不該有那些副作用。AST 讀的是「原始碼寫了什麼」，正是要釘住的東西。
+
+@pytest.fixture
+def workspace(tmp_path: pathlib.Path) -> pathlib.Path:
+    (tmp_path / "inside.txt").write_text("workspace 內的檔案\n", encoding="utf-8")
+    return tmp_path
+
+
+# =============================================================================
+# 行為層：工具真的擋得住嗎（這才是要守的東西）
+# =============================================================================
+
+
+@pytest.mark.asyncio
+async def test_sandboxed_tool_blocks_reads_outside_workspace(workspace):
+    """核心：沙箱開啟時，workspace 外的檔案必須讀不到。"""
+    tool = _make_tool(ToolsConfig(restrict_to_workspace=True), workspace)
+    assert tool._allowed_dir is not None, "沙箱沒生效——_allowed_dir 仍是 None"
+
+    result = await tool.execute(path="/etc/hosts")
+    assert "outside" in str(result).lower() or "error" in str(result).lower(), (
+        f"workspace 外的檔案竟然讀得到：{str(result)[:120]}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_sandboxed_tool_still_reads_builtin_skills(workspace):
+    """沙箱不可把知識庫關在外面。
+
+    上游在 filesystem.py 內建 `extra_read = [BUILTIN_SKILLS_DIR]`，
+    開啟沙箱時自動把 lockcore/skills/ 列入可讀白名單。這條釘住那個行為——
+    若上游哪天拿掉，產品知識查詢會整個失效而沒人知道。
     """
+    from lockcore.agent.skills import BUILTIN_SKILLS_DIR
+
+    skill_md = pathlib.Path(BUILTIN_SKILLS_DIR) / "locksmith-product-knowledge" / "SKILL.md"
+    if not skill_md.is_file():
+        pytest.skip(f"builtin skill 不存在：{skill_md}")
+
+    tool = _make_tool(ToolsConfig(restrict_to_workspace=True), workspace)
+    result = str(await tool.execute(path=str(skill_md)))
+    assert "outside" not in result.lower(), "沙箱把 builtin skills 擋掉了——產品知識會查不到"
+
+
+@pytest.mark.asyncio
+async def test_sandboxed_tool_still_reads_inside_workspace(workspace):
+    tool = _make_tool(ToolsConfig(restrict_to_workspace=True), workspace)
+    result = str(await tool.execute(path=str(workspace / "inside.txt")))
+    assert "outside" not in result.lower(), "workspace 內的檔案被誤擋"
+
+
+@pytest.mark.asyncio
+async def test_unsandboxed_tool_would_read_anything(workspace):
+    """釘住「為什麼一定要設」——預設狀態確實讀得到 /etc/hosts。
+
+    若上游哪天把預設改成安全的，這條會紅。那是好消息，屆時可簡化 line_gateway。
+    """
+    tool = _make_tool(ToolsConfig(), workspace)
+    assert tool._allowed_dir is None
+    result = str(await tool.execute(path="/etc/hosts"))
+    assert "outside" not in result.lower(), (
+        "上游預設已改為安全——請重新評估 line_gateway 的顯式設定是否仍必要"
+    )
+
+
+# =============================================================================
+# 接線層：gateway 用的是會生效的那條路徑
+# =============================================================================
+
+
+def _agentloop_kwargs() -> dict[str, ast.expr]:
     tree = ast.parse(GATEWAY.read_text(encoding="utf-8"))
     for node in ast.walk(tree):
         if isinstance(node, ast.Call):
@@ -50,34 +129,20 @@ def _agentloop_kwargs() -> dict[str, ast.expr]:
     raise AssertionError("line_gateway.py 裡找不到 AgentLoop(...) 的建構呼叫")
 
 
-# =============================================================================
-# 沙箱必須是開的
-# =============================================================================
-
-
-def test_agent_loop_restricts_tools_to_workspace():
-    """這是本檔的核心：拿掉 restrict_to_workspace=True 就會紅。"""
+def test_gateway_passes_tools_config_not_the_noop_kwarg():
+    """gateway 必須用 tools_config；用 restrict_to_workspace kwarg 是 no-op。"""
     kwargs = _agentloop_kwargs()
-    assert "restrict_to_workspace" in kwargs, (
-        "line_gateway 沒有傳 restrict_to_workspace——"
-        "lockcore 的預設是 False，等於檔案工具可讀整個檔案系統"
+
+    assert "restrict_to_workspace" not in kwargs, (
+        "line_gateway 傳了 AgentLoop(restrict_to_workspace=...) —— **那是 no-op**。"
+        "該 kwarg 只轉給 SubagentManager，檔案工具讀的是 tools_config。"
+        "請改用 tools_config=ToolsConfig(restrict_to_workspace=True)。"
     )
-    node = kwargs["restrict_to_workspace"]
-    assert isinstance(node, ast.Constant) and node.value is True, (
-        f"restrict_to_workspace 必須是 True，實際是 {ast.dump(node)}"
-    )
+    assert "tools_config" in kwargs, "line_gateway 沒傳 tools_config——沙箱不會生效"
 
-
-def test_lockcore_default_is_still_unsafe_so_we_must_pass_it_explicitly():
-    """釘住「為什麼一定要顯式傳」——上游預設是 False。
-
-    若日後上游把預設改成 True，這條會紅，屆時可以簡化 line_gateway。
-    它紅掉是好消息，不是壞消息。
-    """
-    from lockcore.config.schema import ToolsConfig
-
-    assert ToolsConfig().restrict_to_workspace is False, (
-        "上游預設已改變——請重新評估 line_gateway 的顯式設定是否仍必要"
+    src = ast.unparse(kwargs["tools_config"])
+    assert "restrict_to_workspace=True" in src.replace(" ", ""), (
+        f"tools_config 沒開沙箱：{src}"
     )
 
 
@@ -87,59 +152,3 @@ def test_file_tools_are_in_the_allowlist():
 
     for tool in ("read_file", "list_dir", "find_files", "grep"):
         assert tool in CS_TOOL_ALLOWLIST, f"{tool} 不在白名單——本測試的前提已改變"
-
-
-# =============================================================================
-# 保底必須還在（沙箱不能把知識庫關在外面）
-# =============================================================================
-
-
-def test_seed_copies_builtin_skills_with_references():
-    """builtin skills 與其 references 必須真的被複製進 workspace。"""
-    from scripts.line_gateway import _seed_builtin_skills
-
-    ws = pathlib.Path(tempfile.mkdtemp(prefix="sandbox-test-"))
-    try:
-        _seed_builtin_skills(ws)
-        dest = ws / "skills"
-        assert dest.is_dir(), "workspace/skills 沒被建立"
-
-        names = {d.name for d in dest.iterdir() if d.is_dir()}
-        assert "locksmith-product-knowledge" in names, f"產品知識 skill 沒進來：{names}"
-        assert "locksmith-cs-sop" in names, f"客服 SOP skill 沒進來：{names}"
-
-        refs = dest / "locksmith-product-knowledge" / "references"
-        assert refs.is_dir(), "references/ 沒跟著複製——沙箱下產品知識會查不到"
-        assert sum(1 for _ in refs.rglob("*.md")) > 0, "references/ 是空的"
-    finally:
-        shutil.rmtree(ws, ignore_errors=True)
-
-
-def test_seed_does_not_create_symlinks_that_escape_the_sandbox():
-    """symlink 會被 resolve() 解回 workspace 外的真實路徑，沙箱判定當場失效。"""
-    from scripts.line_gateway import _seed_builtin_skills
-
-    ws = pathlib.Path(tempfile.mkdtemp(prefix="sandbox-test-"))
-    try:
-        _seed_builtin_skills(ws)
-        escaped = [p for p in (ws / "skills").rglob("*") if p.is_symlink()]
-        assert not escaped, f"複製後出現 symlink，沙箱可被繞過：{escaped}"
-    finally:
-        shutil.rmtree(ws, ignore_errors=True)
-
-
-def test_seed_is_fail_soft(monkeypatch, caplog):
-    """複製失敗只記錄不中止——起不來的 agent 什麼都做不了，連轉真人都不行。"""
-    from scripts import line_gateway as gw
-
-    def boom(*a, **kw):
-        raise OSError("disk full")
-
-    monkeypatch.setattr(gw.shutil, "copytree", boom)
-    ws = pathlib.Path(tempfile.mkdtemp(prefix="sandbox-test-"))
-    try:
-        with caplog.at_level("ERROR"):
-            gw._seed_builtin_skills(ws)   # 不可拋出
-        assert any(r.levelname == "ERROR" for r in caplog.records), "失敗時沒有留下記錄"
-    finally:
-        shutil.rmtree(ws, ignore_errors=True)

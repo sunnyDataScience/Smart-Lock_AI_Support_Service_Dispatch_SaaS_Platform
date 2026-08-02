@@ -27,6 +27,7 @@ from lockcore.app_config import (
 )
 from lockcore.bus.events import InboundMessage
 from lockcore.bus.queue import MessageBus
+from lockcore.config.schema import ToolsConfig
 
 
 def _content(out) -> str:
@@ -50,6 +51,11 @@ async def main(config_path: str | None = None):
         memory_tenant=cfg.tenant,
         escalation_store=esc,
         tool_allowlist=CS_TOOL_ALLOWLIST,
+        # 與 line_gateway 對齊：檔案工具關進 workspace 沙箱。
+        # demo 雖然不對外，但它是驗證 turn 行為的地方——沙箱開著才測得出
+        # 真實生產行為（例如 agent 找不到 workspace 外的檔案時會怎麼回覆）。
+        # 必須走 tools_config，AgentLoop 的 restrict_to_workspace kwarg 是 no-op。
+        tools_config=ToolsConfig(restrict_to_workspace=True),
         # RAG-via-MCP(ADR-010):未配置(env 缺)=空 dict,行為不變;連線失敗 fail-soft 重試
         mcp_servers=load_mcp_servers(),
     )
