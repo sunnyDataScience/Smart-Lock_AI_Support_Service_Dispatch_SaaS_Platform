@@ -185,6 +185,9 @@ class AgentLoop:
         tool_hint_max_length: int | None = None,
         cron_service: CronService | None = None,
         restrict_to_workspace: bool = False,
+        # [lock-cs-agent] 多使用者通道應傳 False——workspace-global history 會跨客人洩漏
+        # （見 ContextBuilder.__init__ 的 inject_workspace_history）。預設 True = 上游行為。
+        inject_workspace_history: bool = True,
         session_manager: SessionManager | None = None,
         mcp_servers: dict | None = None,
         channels_config: ChannelsConfig | None = None,
@@ -266,7 +269,8 @@ class AgentLoop:
         self._tool_allowlist = tool_allowlist
         self.context = ContextBuilder(workspace, timezone=timezone, disabled_skills=disabled_skills,
                                       memory_manager=memory_manager, tenant=memory_tenant,
-                                      skills_dir=skills_dir)
+                                      skills_dir=skills_dir,
+                                      inject_workspace_history=inject_workspace_history)
         self.sessions = session_manager or SessionManager(workspace)
         self._webui_turns = WebuiTurnCoordinator(
             bus=self.bus,

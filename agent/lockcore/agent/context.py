@@ -59,7 +59,8 @@ class ContextBuilder:
     _RUNTIME_CONTEXT_END = "[/Runtime Context]"
 
     def __init__(self, workspace: Path, timezone: str | None = None, disabled_skills: list[str] | None = None,
-                 memory_manager=None, tenant: str = "locksmart", skills_dir: Path | None = None):
+                 memory_manager=None, tenant: str = "locksmart", skills_dir: Path | None = None,
+                 inject_workspace_history: bool = True):
         self.workspace = workspace
         self.timezone = timezone
         self.memory = MemoryStore(workspace)
@@ -70,6 +71,16 @@ class ContextBuilder:
         # [lock-cs-agent] per-user 記憶層注入(DI)。預設 None → 行為與上游一致。
         self.memory_manager = memory_manager
         self.tenant = tenant
+        # [lock-cs-agent] workspace-global history 注入開關(預設 True = 上游行為)。
+        #
+        # 上游把 workspace/memory/history.jsonl 無條件注入 system prompt 的「# Recent
+        # History」——那是**單機私人助理**的設計：一個人、一個 workspace、一份歷史。
+        #
+        # 多使用者通道(如 LINE gateway)是一個 process 一個 workspace 服務**所有**客人，
+        # 於是 A 客人被 consolidation 歸檔的對話會出現在 B 客人的 system prompt 裡，
+        # 而 read_unprocessed_history() 只用 cursor 過濾、沒有任何使用者維度。
+        # 那類通道應傳 False;per-user 記憶另由 memory_manager 提供(有 tenant+user_id 隔離)。
+        self.inject_workspace_history = inject_workspace_history
 
     def build_system_prompt(
         self,
@@ -112,7 +123,12 @@ class ContextBuilder:
         if skills_summary:
             parts.append(render_template("agent/skills_section.md", skills_summary=skills_summary))
 
-        entries = self.memory.read_unprocessed_history(since_cursor=self.memory.get_last_dream_cursor())
+        # [lock-cs-agent] 多使用者通道會關掉這段(見 __init__ 的 inject_workspace_history)
+        entries = (
+            self.memory.read_unprocessed_history(since_cursor=self.memory.get_last_dream_cursor())
+            if self.inject_workspace_history
+            else []
+        )
         if entries:
             capped = entries[-self._MAX_RECENT_HISTORY:]
             history_text = "\n".join(

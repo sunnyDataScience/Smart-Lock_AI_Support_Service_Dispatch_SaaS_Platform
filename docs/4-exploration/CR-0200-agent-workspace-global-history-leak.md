@@ -1,12 +1,20 @@
 ---
 id: CR-0200
 title: agent workspace 全域 history.jsonl 會把 A 客人的對話注入 B 客人的 system prompt
-status: awaiting-decision
+status: implemented
 created: 2026-08-02
+resolved: 2026-08-02
+decision: 方案 B（加開關關閉注入），業主 2026-08-02「照你建議修」
 author: Claude（web/agent/SQL 全維度掃描）
 triggers: [Architecture boundary, Domain model]
 related: [CR-0167, ADR-032, ADR-0107]
 ---
+
+> ## 進度
+>
+> ✅ **S1 done**：採方案 B。`ContextBuilder` / `AgentLoop` 加向後相容的
+> `inject_workspace_history`（預設 True＝上游行為不變），LINE gateway 傳 False。
+> 詳見 §7。
 
 # CR-0200 — workspace 全域 history 造成跨使用者對話洩漏
 
@@ -90,3 +98,70 @@ disabled_skills / memory_manager / tenant / skills_dir），要關掉得改 vend
 
 2026-08-02 用 `defect-patterns.md` 對 `agent/` 做租戶隔離維度掃描時發現，
 經對抗驗證確認 code 事實無誤。本 CR 只記錄，未動 code。
+
+---
+
+# 7. 實作結果（2026-08-02，方案 B）
+
+## 7.1 §5 的 D2 疑慮已解除
+
+我原本擔心「改 vendor code 牴觸 Architecture Lock 第 1 條」。
+實查 `lockcore/agent/context.py` 發現 **`ContextBuilder.__init__` 早就有本專案加的
+`[lock-cs-agent]` 標記參數**（`skills_dir`、`memory_manager`、`tenant`），
+且 `lockcore/VENDOR.md` 有成文的「本地改動紀錄」章節與慣例：
+
+> 向後相容、新增**可選**參數、未注入 → 行為與上游一致
+
+我的修改完全落在這個模式裡，不是「另寫核心」。已依格式登記進 VENDOR.md。
+
+## 7.2 改了什麼
+
+| 檔案 | 改動 |
+|---|---|
+| `lockcore/agent/context.py` | `__init__` 加 `inject_workspace_history: bool = True`；為 False 時 `build_system_prompt` 不注入「# Recent History」 |
+| `lockcore/agent/loop.py` | `AgentLoop.__init__` 加同名可選參數，直接轉給 ContextBuilder |
+| `scripts/line_gateway.py` | 傳 `inject_workspace_history=False` |
+| `lockcore/VENDOR.md` | 依既有格式登記本地改動 |
+
+**預設值是 `True`** —— 上游行為與其他呼叫端（`real_turn_demo.py`、測試）完全不變，
+只有多使用者通道關掉。
+
+## 7.3 為什麼關掉不損失功能
+
+本專案的 per-user 記憶走 `memory_manager`（`lockcore/agent/user_memory/`），
+有 tenant + user_id 隔離，且已在 BUILD 階段注入「# Customer Memory」區塊
+（見 VENDOR.md 階段②）。
+
+workspace-global history 是上游**單機私人助理**情境的設計——
+一個人、一個 workspace、一份歷史。客服通道用不到它，而且用了就是洩漏。
+
+## 7.4 驗證
+
+測試檔 `agent/tests/test_workspace_history_isolation.py`，5 支全綠。
+
+**測法刻意不是「斷言有沒有傳這個旗標」**——本輪已經在沙箱修正上失手過一次
+（第一版是 no-op，只看設定欄位的測試會是綠的）。這裡是**寫一筆 A 客人的內容
+進 history，再檢查 B 客人的 system prompt 裡有沒有**：
+
+```python
+_LEAK = "客戶王小明 0912345678 台北市信義路100號 反映指紋辨識失靈"
+```
+
+| 測試 | 守什麼 |
+|---|---|
+| `test_history_leaks_across_users_when_injection_is_on` | **釘住漏洞本身**——證明測試抓得到，不是恆真 |
+| `test_history_is_not_injected_when_disabled` | 核心：關掉後 A 的內容不可出現 |
+| `test_disabling_history_keeps_the_rest_of_the_prompt` | 沒把別的區塊一起關掉 |
+| `test_default_is_upstream_behaviour` | 不傳參數 == 上游行為（向後相容） |
+| `test_line_gateway_disables_it` | 接線層真的關了 |
+
+agent 全套 **346 passed / 1 failed**（既有的 live LLM 測試）。
+
+## 7.5 未處理的部分
+
+- **既有 workspace 的殘留資料**：workspace 是 `tempfile.mkdtemp()`，
+  每次 process 重啟就是新的空目錄，所以沒有存量資料要清。
+- **`real_turn_demo.py` 維持預設（True）**：它是單使用者的 demo，
+  workspace-global history 在那個情境是正常功能，不需關。
+- **上游若日後改變 history 的設計**，這個開關要重新評估——
+  `test_history_leaks_across_users_when_injection_is_on` 會在那時變紅並提醒。

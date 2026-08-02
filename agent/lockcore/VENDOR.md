@@ -57,6 +57,17 @@
   - `build_system_prompt(...)` 新增可選 `user_id`、`memory_query`;當有注入 memory_manager 且帶
     user_id 時,於 BUILD 注入「# Customer Memory」區塊(per-user，tenant+user_id 隔離)。
   - 未注入或未帶 user_id → 行為與上游一致。整合測試見 `../tests/test_integration_context_memory.py`。
+- **`agent/context.py` `ContextBuilder`**(CR-0200,向後相容):
+  - `__init__` 新增可選 `inject_workspace_history=True`(預設＝上游行為)。
+  - 為 False 時 `build_system_prompt` 不再注入「# Recent History」。
+  - 理由:上游把 workspace/memory/history.jsonl 無條件注入是**單機私人助理**的設計
+    (一個人、一個 workspace、一份歷史);多使用者通道(LINE gateway)是一個 process
+    一個 workspace 服務所有客人,而 `read_unprocessed_history()` 只用 cursor 過濾、
+    無使用者維度 → A 客人的歸檔對話會出現在 B 客人的 prompt 裡。
+  - per-user 記憶另由 `memory_manager` 提供(tenant+user_id 隔離),關掉不損失功能。
+  - 測試:`../tests/test_workspace_history_isolation.py`(含「開著時確實會洩漏」的反證)。
+- **`agent/loop.py` `AgentLoop`**(CR-0200):`__init__` 新增可選
+  `inject_workspace_history=True`,直接轉給 ContextBuilder。
 - **`agent/context.py` `build_messages`**:呼叫 `build_system_prompt` 時帶入 `user_id=sender_id`、
   `memory_query=current_message` —— 這是 loop 實際呼叫的方法,讓 BUILD 自動注入該客人記憶。
 - **`agent/loop.py` `AgentLoop`**:

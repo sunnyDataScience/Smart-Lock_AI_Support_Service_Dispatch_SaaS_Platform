@@ -92,6 +92,17 @@ def main() -> None:
         escalation_store=esc,
         tool_allowlist=CS_TOOL_ALLOWLIST,
         tools_config=ToolsConfig(restrict_to_workspace=True),
+        # CR-0200：關掉 workspace-global history 注入。
+        # 這個 process 只有**一個** workspace 服務所有 LINE 客人，而上游會把
+        # workspace/memory/history.jsonl 無條件注入 system prompt 的「# Recent History」，
+        # 且 read_unprocessed_history() 只用 cursor 過濾、沒有使用者維度——
+        # A 客人被 consolidation 歸檔的對話會出現在 B 客人的 prompt 裡（姓名、地址、電話）。
+        # 而且 dream cursor 在 gateway 從不前進（/dream 未被排程），那筆內容會永久留著。
+        #
+        # 關掉不損失任何東西：本專案的 per-user 記憶走 memory_manager
+        # （lockcore/agent/user_memory/，有 tenant+user_id 隔離），
+        # workspace-global history 是上游單機私人助理情境的殘留，客服用不到。
+        inject_workspace_history=False,
         # RAG-via-MCP(ADR-010):未配置(env 缺)=空 dict,行為不變;連線失敗 fail-soft 重試
         mcp_servers=load_mcp_servers(),
     )
