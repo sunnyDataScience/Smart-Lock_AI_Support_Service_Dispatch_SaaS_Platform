@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **本輪掃描修正全數上線（2026-08-02，七個服務）**：`15e57944` 部署到 prod，七個服務全部對齊（先前只有 `smart-lock-api` 是 0915 的 `57ce5a6b`，其餘落後更多）。
+  - **服務與 revision**：`smart-lock-api` 00042-hbx · `lock-tech-api` 00013-ktv · `lock-platform-api` 00014-jw9 · `smart-lock-agent` 00024-n2l · `smart-lock-web` · `lock-tech-web` · `lock-platform-web`。
+  - **pre-flight**：本輪**無 SQL 變更**（`git diff SQL/` 空），prod migration 127 = repo 127 已同步 → 純 code 更新，不涉 migration-first 風險。
+  - **參數 parity 逐一複驗**（CHANGELOG 記載過兩次的雷）：三個 API 的 `API_SURFACE` / `ALLOWED_TOKEN_PORTALS` / `CORS_ORIGINS` 都指向自己那面（tech-api → lock-tech-web，不是品牌站）；三個 web 的 `API_BASE_URL` 各自指向對應 api；`lock-platform-api` 的 `TECH_POSTGRES_URI` 仍掛著（0724 split-brain 教訓）。
+  - **`web.sh` 的守衛擋下了我第一次的錯誤呼叫**：未帶 `PROMOTION_BUILD=1` 時腳本主動報錯並印出正確用法（`*.run.app` 是 PSL wildcard，跨站 cookie 是死路 —— ADR-038）。這道守衛有效，值得保留。
+  - **行為驗證（不只 health 200）**：`POST /tenants/{tid}/work-orders:search` 已掛載（未認證回 401 而非 404）；**用舊的 dev HMAC 金鑰簽 token 打 prod 回 `token invalid`**，並以本機對照（同 token 在 env=舊金鑰時驗得過）證明那個 404 是簽章失敗而非工單不存在；GET 列表端點仍在（沒打壞舊路徑）；openapi 443 個端點含新端點。
+  - **agent 沙箱不影響知識庫**：啟動 log 顯示 `SkillSync 換裝完成：stamp=6，2 個 skill`，無沙箱或 skill 相關錯誤。
+  - **`PUBLIC_TOKEN_HMAC_SECRET` 已建立並掛載**：Secret Manager 64 bytes 隨機（version 1），IAM 授予 `lock-ai` SA，`scripts/deploy/api.sh` 已納入 SECRETS 清單。掛載前查證影響範圍：public token 是**無狀態簽章**（不存 DB，無法精確統計未使用連結），以近 30 天工單數（**3 張**）與 pending 範圍變更（**0 筆**）估上界 → 連結失效的實際衝擊接近零。
+  - ⚠️ **待業主實測**：agent 的 LINE 對話、師傅站/品牌後台的 UI 流程。本輪有行為變更（狀態機 409、v2 取消對 technician/vendor 回 403、agent 檔案沙箱），curl 級驗證涵蓋不到 UI 與對話。
+
 - **全維度缺陷掃描的 14 個修復（2026-08-02，業主「全部處理」）**：業主問「所有沒有掃到 Bug?」——答案是**沒有**。當時只掃了 defect-patterns 24 節裡的 2 節、1551 個檔案裡的 4 個（涵蓋率 < 0.3%）。以該清單為判準對 `api/services` + `api/routers` 做 8 維度平行掃描，每個 finding 派 skeptic 對抗驗證，14 個全部存活並修復。詳見 `docs/uat/full-defect-sweep-20260802.md`。
   - **最嚴重是 public token 的 HMAC 金鑰**：`_get_secret()` 在 env 未設時**靜默** fallback 到原始碼裡的 `"dev-secret-do-not-use-in-prod"`。那把 13 個消費者端點的簽章打開了——不只唯讀，還包括 `POST /consumer/quotes/{token}`（代客戶接受報價）與 `POST /consumer/scope-changes/{token}`（代客戶核可加價）；payload 是明文 base64，偽造只需知道工單 UUID。repo 內找不到任何地方設定此 env。改為 process 啟動時隨機產生 + `logger.critical`，**刻意不做啟動失敗**（若 prod 確實漏設，fail-fast 會直接變 outage；隨機金鑰只讓既有公開連結失效）。⚠️ **prod 是否真的漏設本次未證實**——第一次查證用了 `gcloud ... || echo "未設"`，而 gcloud 失敗時也會走到 `||`，當時 token 已過期。這是與「183 個端點回 400 就當守衛擋下」同類的方法學錯誤。
   - **一個是我自己前一個 commit 的洞**：CR-0199 加在 `work_order_service` 的完工樂觀鎖，被 v2 六階段取消**從反方向繞過**——`cancellation_service` 不經 `work_order_service.cancel_order`（該檔 CR-0193 註解自己寫明了）。技師完工的同時客服取消 → 已完工工單被翻成 cancelled，客戶照收 S3/S4 取消費、技師照記罰則。教訓：修併發保護時要問「還有誰會寫這個欄位」，不只是「這個函式的競態修好了嗎」。
