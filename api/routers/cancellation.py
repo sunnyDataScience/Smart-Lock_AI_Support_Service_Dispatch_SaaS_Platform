@@ -17,7 +17,13 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Path
 
-from core.deps import CurrentUser, SodActors, require_sod_actors, require_tenant
+from core.deps import (
+    BACKOFFICE_ROLES,
+    CurrentUser,
+    SodActors,
+    require_sod_actors,
+    role_required,
+)
 from core.errors import ApiError
 from core.idempotency import IdempotencyContext, idempotency_guard
 from models.internal import CancellationEnvelope, CancellationRequest
@@ -36,7 +42,20 @@ async def cancel_work_order_6stage(
     body: CancellationRequest,
     tenantId: str = Path(...),
     woId: str = Path(...),
-    user: CurrentUser = Depends(require_tenant),
+    # 2026-08-02 掃描：原本只有 require_tenant（**無角色檢查**），而同一業務動作的
+    # legacy 孿生端點 work_orders.py:266 早就有 role_required(*BACKOFFICE_ROLES)——
+    # v2 漏掛。後果：任何該租戶的已認證帳號（technician / vendor）拿自己的 token
+    # 就能取消租戶內**任一張**非終態工單，並用 client 可控的 initiator_role 與
+    # goodwill_waiver 決定要不要收取消費，還會觸發後續通知與結算。
+    #
+    # require_sod_actors 擋不住：它只檢查 X-Initiator / X-Approver 有值且彼此相異，
+    # 兩個任意字串就過，且從不比對真實使用者身分。
+    #
+    # ⚠️ 未修的部分：X-Initiator 仍是 client 提供的字串而非取自 token。
+    # 真實身分有另外進 audit（cancellation_service 的 actor_id/actor_role），
+    # 所以稽核不會被騙，但 SoD 的「發起人」欄位本身仍不可信。
+    # 要改成以 token user_id 覆寫屬 SoD 設計變更，需先確認雙簽流程的意圖，另案處理。
+    user: CurrentUser = Depends(role_required(*BACKOFFICE_ROLES)),
     sod: SodActors = Depends(require_sod_actors),
     idem: IdempotencyContext | None = Depends(idempotency_guard),
 ) -> dict:

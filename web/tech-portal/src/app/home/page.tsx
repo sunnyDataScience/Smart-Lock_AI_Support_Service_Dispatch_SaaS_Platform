@@ -34,6 +34,10 @@ export default function TechHomePage() {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [workload, setWorkload] = useState<WorkloadData | null>(null);
   const [loading, setLoading] = useState(false);
+  // 2026-08-02 掃描：四支 API 全走 Promise.allSettled，但 rejected 一律沒有 else 分支
+  // → 工單載入失敗時 orders 保持 []，畫面顯示「目前沒有進行中的工單・前往案件池接單」。
+  // 師傅會以為今天沒單，實際上是 API 掛了。至少工單這支要讓失敗看得見。
+  const [ordersError, setOrdersError] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -77,6 +81,10 @@ export default function TechHomePage() {
 
     if (ordersRes.status === "fulfilled" && ordersRes.value) {
       setOrders(ordersRes.value.items ?? []);
+      setOrdersError(false);
+    } else {
+      // 不清空 orders：舊資料比「假的空清單」有用，配合錯誤提示讓師傅知道那是舊的
+      setOrdersError(true);
     }
     if (stmtsRes.status === "fulfilled" && stmtsRes.value) {
       const res = stmtsRes.value;
@@ -157,7 +165,7 @@ export default function TechHomePage() {
         {/* 主內容：桌面雙欄 */}
         <div className="grid gap-4 md:grid-cols-2">
           <div className="flex flex-col gap-4">
-            <TodayScheduleSummary orders={orders} loading={loading} />
+            <TodayScheduleSummary orders={orders} loading={loading} loadFailed={ordersError} onRetry={load} />
             <WorkloadHeatmap workload={workload} loading={loading} />
           </div>
           <div className="flex flex-col gap-4">

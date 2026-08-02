@@ -28,13 +28,17 @@ function isOverdue(wo: WorkOrder): boolean {
 interface Props {
   orders: WorkOrder[];
   loading: boolean;
+  /** 工單載入失敗（2026-08-02）：原本 rejected 被靜默丟棄，
+   *  畫面會顯示「沒有工單」讓師傅誤以為今天沒單。 */
+  loadFailed?: boolean;
+  onRetry?: () => void;
 }
 
 /**
  * TodayScheduleSummary — 決策屏「今日行程」：進行中工單數 + 釘住當前/下一張工單卡。
  * 資料來自父層的我的工單列表（GET /work-orders?technician_id），前端過濾 active 狀態。
  */
-export default function TodayScheduleSummary({ orders, loading }: Props) {
+export default function TodayScheduleSummary({ orders, loading, loadFailed, onRetry }: Props) {
   const t = useTranslations("techPortal.home.today");
 
   const active = orders
@@ -66,6 +70,20 @@ export default function TodayScheduleSummary({ orders, loading }: Props) {
       {loading && orders.length === 0 ? (
         <div className="py-6 text-center text-[13px] text-[var(--text-disabled)]">
           {t("loading")}
+        </div>
+      ) : loadFailed ? (
+        // 載入失敗必須與「真的沒有工單」分開顯示——後者會讓師傅放心去做別的事
+        <div className="flex flex-col items-center gap-2 py-6 text-center">
+          <p className="text-[13px] text-[var(--text-warning)]">{t("loadFailed")}</p>
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-full border border-[var(--border)] px-3 py-1.5 text-[12px] font-semibold text-[var(--text-primary)]"
+            >
+              {t("retry")}
+            </button>
+          ) : null}
         </div>
       ) : !current ? (
         <div className="flex flex-col items-center gap-1 py-6 text-center">

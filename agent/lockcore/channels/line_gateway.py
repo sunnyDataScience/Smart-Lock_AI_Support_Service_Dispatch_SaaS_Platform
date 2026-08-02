@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import time as _time
 import re
 import time
 from pathlib import Path
@@ -126,6 +127,12 @@ _HANDOVER_CHECK_TIMEOUT_SEC = 5.0
 # 下一次持久化前先補送；連 ERROR 級告警（雲端 alerting 依 severity 掛規則）。
 _PERSIST_SPOOL_PATH = os.environ.get("PERSIST_SPOOL_PATH", "data/persist_spool.jsonl")
 _PERSIST_SPOOL_MAX = int(os.environ.get("PERSIST_SPOOL_MAX", "500"))
+# 2026-08-02 掃描：補送**在 turn 路徑上、且持 process 全域鎖**。原本一次序列重送整個
+# spool（上限 500 筆 × _PERSIST_TIMEOUT_SEC），API 掛過一段時間累積 spool 之後，
+# 下一個客人的 turn 會拿著鎖把整批送完——期間**所有其他客人的下一輪全部卡死**。
+# 改成每輪只送一小批且有總時間預算：spool 仍會被逐輪清空，但 turn 不再被拖住。
+_SPOOL_FLUSH_MAX_PER_TURN = int(os.environ.get("PERSIST_SPOOL_FLUSH_BATCH", "5"))
+_SPOOL_FLUSH_BUDGET_SEC = float(os.environ.get("PERSIST_SPOOL_FLUSH_BUDGET_SEC", "3.0"))
 _spool_lock: "asyncio.Lock | None" = None
 
 
@@ -403,7 +410,18 @@ async def _flush_persist_spool(base_url: str, token: str) -> None:
                 return
             remain: list[str] = []
             sent = 0
-            for ln in lines:
+            deadline = _time.monotonic() + _SPOOL_FLUSH_BUDGET_SEC
+            for idx, ln in enumerate(lines):
+                # 超出批次上限或時間預算 → 剩下的原封保留，下一輪再送。
+                # 這是刻意的部分完成：spool 是 at-least-once 的補送佇列，
+                # 晚幾輪送到不影響正確性；把 turn 拖死才會影響所有客人。
+                if idx >= _SPOOL_FLUSH_MAX_PER_TURN or _time.monotonic() >= deadline:
+                    remain.extend(lines[idx:])
+                    logger.info(
+                        "spool 補送達批次/時間上限,剩 {} 筆留待下輪(已送 {})",
+                        len(lines) - idx, sent,
+                    )
+                    break
                 try:
                     payload = _json.loads(ln)
                 except ValueError:

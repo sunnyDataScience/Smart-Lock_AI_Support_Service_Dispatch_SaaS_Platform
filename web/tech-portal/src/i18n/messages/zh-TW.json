@@ -2476,7 +2476,9 @@
         "navigate": "導航前往",
         "viewAll": "全部工單",
         "scheduledAt": "預約 {time}",
-        "overdue": "已逾時"
+        "overdue": "已逾時",
+        "loadFailed": "工單載入失敗，請下拉重新整理",
+        "retry": "重試"
       },
       "monthly": {
         "title": "月度快照",

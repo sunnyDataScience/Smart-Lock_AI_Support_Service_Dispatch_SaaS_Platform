@@ -2476,7 +2476,9 @@
         "navigate": "Navigate",
         "viewAll": "All orders",
         "scheduledAt": "Scheduled {time}",
-        "overdue": "Overdue"
+        "overdue": "Overdue",
+        "loadFailed": "Failed to load work orders — pull to refresh",
+        "retry": "Retry"
       },
       "monthly": {
         "title": "Monthly snapshot",
