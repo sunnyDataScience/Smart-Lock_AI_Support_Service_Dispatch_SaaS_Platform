@@ -21,6 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **狀態機 transition 補樂觀鎖（CR-0199，業主 2026-08-02 裁決方案 A）**：所有工單／問題卡的 transition 都是「SELECT status 檢查 → UPDATE」兩個獨立語句，而連線是 **autocommit、無交易**；`work_order_service.py:607` 的既有註解早已記載「autocommit 下 FOR UPDATE 鎖不跨語句」（UAT R3-6），加上 UPDATE 只有 `WHERE id`、**28 處零樂觀條件**，兩個並發的異型 transition 會雙雙通過各自的狀態守衛，後寫的覆蓋先寫的。
+  - **發現方式**：用當日新建的 `defect-patterns.md` §A5（併發）掃 code 時，`_fetch_status_for_update` 這個名字與其實作不符引起注意——**函式名說 for update，SQL 裡沒有 `FOR UPDATE`**，只是「讀 status + 驗 tenant」。後續開發者看到 `_for_update` 會以為有列鎖保護，因而放心做 check-then-act。`problem_card_service` 有獨立一份同名函式，同樣誤導。
+  - **實測證實三組失效**（精確競態窗口注入，非推導）：拒單 vs 取消 → 已取消的單被打回 `created` **重新出現在派工池**；接單 vs 取消 → 已取消的單變成 `accepted`；**取消 vs 完工 → 已完工的單被改成 `cancelled`**。第三組最嚴重，完工是計酬依據，據此把嚴重度自 MEDIUM 上修為 MEDIUM～HIGH。
+  - **CR 原本舉錯了主案例**：原寫「拒單 vs 改派」，但 `reject_order` 在 UPDATE 前會另查 `technician_id` 比對，那條路徑既有 code 就擋得住（該測試在修正前即為綠燈）。真正失效的是「**status 改變但 technician_id 不變**」的組合。
+  - **樂觀條件綁「允許集合」而非「快照值」**——這是實作時被多代理對抗審查推翻的一點。原方案寫 `AND status = %s` 帶 `current`，但當允許集合有多個值時，status 在集合內的合法變動會讓 rowcount 變 0。實例：`complete_order`（`_COMPLETE_FROM={accepted,in_progress}`）技師讀到 `accepted` 後要跑完整完工硬閘（百毫秒級），期間客戶核可範圍變更把狀態合法推進到 `in_progress`——而 `in_progress` 本來就是合法完工來源，綁快照值會讓技師傳完照片與簽名後才收到 409。改綁 `AND status = ANY(%s)` 帶 `sorted(_XXX_FROM)`，與前置檢查 `if current not in _XXX_FROM` **語意等價**，不可能比既有檢查更嚴。
+  - **範圍**：16 處加樂觀鎖、**12 處判定 SKIP**（只改與狀態無關的欄位如附加媒體 URL、備註、scope 變更——加條件反而會誤擋合法操作）、1 處 UNCLEAR 未動。
+  - **修過頭抓到兩次，這比成功的部分重要**：①`accept_order` 綁死 `_ACCEPT_FROM={assigned}` **打壞技師搶單**（`created→accepted`）——該函式的允許集合是動態的 `allowed_from`，由全套比對出現 1 支新增失敗抓到；②`request_reschedule` 只改了 SQL 沒加 rowcount 檢查，等於**靜默通過還照發 audit 與 LINE push**，比不改更糟，由三要素機械掃描抓到。補了一道系統性驗證：逐處比對「前置檢查的謂詞」與「樂觀條件綁的常數」是否同一個，16 處全部一致。
+  - **命名不改，改補警告**：改名要動 21+3 處呼叫點且零行為變更，而認知陷阱用 docstring 就能解除——明寫「這裡沒有列鎖也不可能有，呼叫端要寫入就必須自己帶樂觀條件」。
+  - **驗收**：全套 **20 failed / 2296 passed**，對照基線 20 failed / 2284 passed **零新增失敗**（+12 為本次測試）。反向驗證用 worktree 退回修正前，**6 支競態測試全紅**；另 6 支（4 個 happy path + 2 個既有保護已足夠的）前後都綠——並非每個 transition 都真的可被攻破，保留那些是為釘住既有保護不退化。
+
 - **品牌授權閘門改為「fail-closed + 預設關閉的開關」（CR-0197，業主 2026-08-01 裁決 D1(c)）**：業主問「原本有需要授權的要求嗎」——查證結果**有，且在業主自己的正典裡**：`04_SRS.md` **FR-TEC-02** 驗收欄明文「未過准入閘門不得進入派工候選集」、**FR-TEC-03** 把品牌授權列為媒合條件、`03_PRD.md` **FR-J01** 列入技師身分單一真相；整合測試計畫 TC-DISPATCH-06 的「驗證哪些需求」欄正是 FR-TEC-02／FR-TEC-03，**追溯鏈完整**。
   - **但正典沒規定「整個品牌都沒有授權名單」怎麼辦**——FR-TEC-02 規範的是「技師」未過閘門不得進候選集。那個邊界是 CR-0060 實作時自己補的判斷，測試計畫後來判為不合規；兩種讀法都能自圓其說，故需業主裁決。
   - **原本的 fail-open 是歷史脈絡不是疏漏**：CHANGELOG 對 CR-0060 的記載是「**沿會議 mock-first 授權**建資料模型…seed 示範（**is_mock**）…無授權資料保守不過濾」——當時整張表都是假資料，真擋下去 demo 會跑不動。

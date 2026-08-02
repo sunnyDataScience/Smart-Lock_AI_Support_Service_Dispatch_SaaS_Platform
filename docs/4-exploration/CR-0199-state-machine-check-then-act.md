@@ -1,12 +1,22 @@
 ---
 id: CR-0199
 title: 工單／問題卡狀態機是無鎖 check-then-act，並發異型 transition 會 lost update
-status: awaiting-decision
+status: implemented
 created: 2026-08-02
+resolved: 2026-08-02
+decision: 方案 A（UPDATE 帶樂觀條件），業主 2026-08-02 裁決
 author: Claude（用 defect-patterns §A5 清單掃出）
 triggers: [Domain model, Architecture boundary]
 related: [CR-0189, CR-0166, UAT-R3-6]
 ---
+
+> ## 進度
+>
+> ✅ **S1 done（merge d5bd3474）**：方案 A 全部落地。16 處 transition 加樂觀條件
+> （`AND status = ANY(%s)` 綁允許集合）、12 處判定 SKIP、12 個測試、零 regression。
+> 詳見 §9。
+
+
 
 # CR-0199 — 狀態機 transition 無鎖、無樂觀條件，並發下狀態機可被繞過
 
@@ -246,3 +256,102 @@ UPDATE 必須帶樂觀條件**」。
   - 🔴 reject vs cancel、accept vs cancel、cancel vs complete —— 缺陷確認
   - ✅ 兩個 happy path —— 釘住正常路徑
   - ✅ reject vs reassign —— **既有 code 已擋**，據此更正 §4.2 的主案例
+
+---
+
+# 9. 實作結果（2026-08-02，方案 A）
+
+## 9.1 最終做法：綁「允許集合」而非「快照值」
+
+原 §6 方案 A 寫的是 `AND status = <剛才讀到的 status>`。**實作時被多代理對抗審查推翻**——
+那會誤擋合法操作。最終做法是綁**前置檢查的同一個謂詞**：
+
+```sql
+WHERE id = %s::uuid AND status = ANY(%s)     -- 參數傳 sorted(_XXX_FROM)
+```
+
+搭配 `_assert_transition_applied(cur, allowed=_XXX_FROM, action=...)`，`rowcount == 0` → 409。
+
+### 為什麼快照值會出事（實證，非推導）
+
+`complete_order`（`_COMPLETE_FROM = {accepted, in_progress}`）：
+技師讀到 `accepted` 後要跑完整完工硬閘（多次 M18 config 讀取與 DB 查詢，百毫秒級），
+期間客戶在公開連結核可了範圍變更 → `scope_change_service.py:190/336` 把狀態合法推進到
+`in_progress`。而 `in_progress` **本來就是合法的完工來源**。綁快照值會讓技師傳完
+照片與簽名之後才收到 409，被迫重送整包。
+
+綁集合則與 `if current not in _XXX_FROM: raise 409` **語意完全等價**，
+所以不可能比既有檢查更嚴：`rowcount == 0` 只剩兩種成因——狀態被改到集合之外
+（正是要擋的競態），或該列被刪除。
+
+## 9.2 涵蓋範圍
+
+| | 數量 | 說明 |
+|---|---|---|
+| **加樂觀鎖** | **16** | 讀 status 做決策後才寫入的 check-then-act |
+| **判定 SKIP** | 12 | 只改與狀態無關的欄位（附加媒體 URL、備註、scope 變更…），加條件反而會誤擋合法操作 |
+| UNCLEAR | 1 | `escalation_to_draft_pc` L1034——留待日後釐清，未動 |
+
+加樂觀鎖的 16 處：
+
+- `work_order_service`：accept / reject / complete / cancel / assign / reassign /
+  escalate / confirm / propose_reschedule / record_arrival /
+  confirm_reschedule_by_customer / request_reschedule / approve_reschedule（僅 revert 分支）
+- `problem_card_service`：confirm_card / resolve_card / dismiss_card
+
+## 9.3 修過頭抓到兩次
+
+**這一節比成功的部分重要**——樂觀條件加錯地方會誤擋合法操作，那比漏擋更糟。
+
+| # | 問題 | 怎麼被抓到 |
+|---|---|---|
+| 1 | `accept_order` 綁死 `_ACCEPT_FROM={assigned}`，**打壞技師搶單**（`created → accepted`） | 全套比對出現 1 支新增失敗 `test_tech_claims_created_wo_sets_technician_id` |
+| 2 | `request_reschedule` 只改了 SQL 沒加 rowcount 檢查，等於**靜默通過還照發 audit 與 LINE push**——比不改更糟 | 機械掃描三要素（SQL／參數／helper）是否齊備 |
+
+第 1 個的根因是 `accept_order` 的允許集合是**動態**的：
+
+```python
+allowed_from = {"created", "assigned"} if tech_ctx else _ACCEPT_FROM
+```
+
+已改綁那個變數。並補了一道系統性驗證：**逐處比對「前置檢查的謂詞」與「樂觀條件綁的常數」
+是否為同一個**，16 處全部一致。
+
+## 9.4 驗證
+
+| 項目 | 結果 |
+|---|---|
+| 全套測試 | **20 failed / 2296 passed**（基線 20 failed / 2284 passed） |
+| 逐條比對 | `comm -13` **零新增失敗**（+12 為本次測試） |
+| 三要素掃描 | 16 處的 SQL 條件、參數常數、helper 參數三者一致 |
+| 謂詞一致性 | 16 處綁的集合皆與其前置檢查相同 |
+| **反向驗證** | worktree 退回修正前，**6 支競態測試全紅**；修正後全綠 |
+
+反向驗證的細節（誠實記錄）：12 個測試中
+
+- **6 支證明了缺陷**（修正前紅、修正後綠）：reject/accept/complete/confirm/reassign
+  各自 vs cancel，以及 cancel vs complete
+- **6 支前後都綠**：4 個 happy path（釘住不誤擋）、`reject vs reassign`
+  （既有擁有權比對已擋）、`assign vs cancel`（既有前置檢查已足夠）
+
+換句話說，**並非每個 transition 都真的可被攻破**——有些既有 code 已有足夠保護。
+保留那些測試是為了釘住既有保護不退化。
+
+## 9.5 命名（原 §7 D2）
+
+**沒有改名**，改為在 `_fetch_status_for_update` 的 docstring 明確警告：
+
+> ⚠️ 名字裡的 `for_update` 是歷史遺留，這裡沒有列鎖，也不可能有。
+> 本專案的連線是 autocommit、無顯式交易，`FOR UPDATE` 的鎖不跨語句。
+> 因此呼叫端若要依據回傳值做寫入，UPDATE 必須自己帶樂觀條件。
+
+理由：改名要動 21 + 3 處呼叫點且無行為改變，而認知陷阱用 docstring 就能解除。
+`problem_card_service` 的同名函式也補了同樣警告。
+
+## 9.6 未做的部分
+
+- **UNCLEAR 那 1 處**（`escalation_to_draft_pc` L1034）未動——分析代理判定需要更多脈絡
+- **12 處 SKIP 未加條件**——這是刻意的，理由見 9.2
+- 原 §7 D3 提到的「可控並發夾具」未建。本次改用**精確競態窗口注入**
+  （monkeypatch `_fetch_status_for_update`，回傳過期值前先改 DB），
+  每次必然重現、不依賴時序運氣，在 CI 上不會 flaky
