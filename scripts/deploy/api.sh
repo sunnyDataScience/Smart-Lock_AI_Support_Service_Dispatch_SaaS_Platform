@@ -137,6 +137,14 @@ SECRETS="${SECRETS},LINE_CHANNEL_SECRET=LINE_CHANNEL_SECRET:latest"
 SECRETS="${SECRETS},GDPR_DEK_KEK=GDPR_DEK_KEK:latest"
 SECRETS="${SECRETS},USER_PII_BIDX_KEY=USER_PII_BIDX_KEY:latest"
 SECRETS="${SECRETS},MEDIA_ENC_KEY=MEDIA_ENC_KEY:latest"
+# PUBLIC_TOKEN_HMAC_SECRET（2026-08-02 資安掃描）：消費者公開連結的簽章金鑰。
+# 保護 13 個 /api/v1/public + /consumer 端點，其中含**金額決策**
+# （POST /consumer/quotes/{token} 代客戶接受報價、
+#   POST /consumer/scope-changes/{token} 代客戶核可加價）。
+# 未掛 → public_token.py 改用 process 啟動時隨機金鑰並記 CRITICAL：
+# 服務仍可服務其他流量，但既有公開連結每次重啟就失效。
+# （在此之前是靜默 fallback 到原始碼裡的固定字串，等於人人可簽。）
+SECRETS="${SECRETS},PUBLIC_TOKEN_HMAC_SECRET=PUBLIC_TOKEN_HMAC_SECRET:latest"
 # ADR-036：新 S2S credential 的 keyed hash pepper；只掛 reference、不讀值。
 SECRETS="${SECRETS},SERVICE_CREDENTIAL_PEPPER=SERVICE_CREDENTIAL_PEPPER:latest"
 # 品牌 API → technician OHS 的個別 principal credential；bootstrap 後以旗標啟用。
