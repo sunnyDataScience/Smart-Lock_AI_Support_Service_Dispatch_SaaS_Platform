@@ -21,6 +21,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **全維度缺陷掃描的 14 個修復（2026-08-02，業主「全部處理」）**：業主問「所有沒有掃到 Bug?」——答案是**沒有**。當時只掃了 defect-patterns 24 節裡的 2 節、1551 個檔案裡的 4 個（涵蓋率 < 0.3%）。以該清單為判準對 `api/services` + `api/routers` 做 8 維度平行掃描，每個 finding 派 skeptic 對抗驗證，14 個全部存活並修復。詳見 `docs/uat/full-defect-sweep-20260802.md`。
+  - **最嚴重是 public token 的 HMAC 金鑰**：`_get_secret()` 在 env 未設時**靜默** fallback 到原始碼裡的 `"dev-secret-do-not-use-in-prod"`。那把 13 個消費者端點的簽章打開了——不只唯讀，還包括 `POST /consumer/quotes/{token}`（代客戶接受報價）與 `POST /consumer/scope-changes/{token}`（代客戶核可加價）；payload 是明文 base64，偽造只需知道工單 UUID。repo 內找不到任何地方設定此 env。改為 process 啟動時隨機產生 + `logger.critical`，**刻意不做啟動失敗**（若 prod 確實漏設，fail-fast 會直接變 outage；隨機金鑰只讓既有公開連結失效）。⚠️ **prod 是否真的漏設本次未證實**——第一次查證用了 `gcloud ... || echo "未設"`，而 gcloud 失敗時也會走到 `||`，當時 token 已過期。這是與「183 個端點回 400 就當守衛擋下」同類的方法學錯誤。
+  - **一個是我自己前一個 commit 的洞**：CR-0199 加在 `work_order_service` 的完工樂觀鎖，被 v2 六階段取消**從反方向繞過**——`cancellation_service` 不經 `work_order_service.cancel_order`（該檔 CR-0193 註解自己寫明了）。技師完工的同時客服取消 → 已完工工單被翻成 cancelled，客戶照收 S3/S4 取消費、技師照記罰則。教訓：修併發保護時要問「還有誰會寫這個欄位」，不只是「這個函式的競態修好了嗎」。
+  - **一個 except 是死碼**：接管回覆的 LINE 推送用 `try/except Exception` 包住，但 `push_text` 的 docstring 明寫 `"Never raises — callers can rely on the boolean"`——它永遠回 bool 而不拋例外，那個 except 從不執行，而唯一的失敗訊號（回傳值）被丟棄。推送失敗完全無痕跡，客服卻收到 201「已送出」。改為檢查回傳值並記 ERROR。
+  - **跨租戶三處**：GDPR forget-request 的明細與四個狀態端點完全不帶 tenant 過濾（品牌 A 可**硬刪**品牌 B 的使用者）；三組 statement（technician / brand_b2b / dispatcher_commission）的 detail 與五個狀態轉換只吃 statement_id（知道 UUID 就能讀他人金額並核准、標記已付款）；M18 config rollback 已 SELECT 出 tenant_id 卻從不比對。全部改為必填 `tenant_id` 參數或加比對，不符**回 404 而非 403**（403 會確認存在性可被列舉）。
+  - **WebSocket 工單頻道無租戶命名空間**：頻道名不含租戶、`_ws_authorized_subscribe` 在此處沒帶任何約束參數、`verify_ws_token` 的租戶比對又只在 client 自願附上 query 時才跑——三者疊加＝任何登入者知道 wo_id 就能訂閱他租戶工單並收到未遮罩 PII。改頻道名會動 3 處 publish 與前端既有連線（breaking），改為訂閱時驗歸屬（新增 `extra_check` hook，在 accept 之前跑）。
+  - **兩個死參數**：報表匯出的 `from`/`to`（四種報表下游沒有一個吃日期區間，匯出的一直是全期間，而前端 ReportExportModal 確實會帶）——回 422 會打壞既有 UI，靜默忽略則讓人拿全期間資料當選定區間，折衷是標注進報表 subtitle + warning；技師列表的 `availability`/`level`（原註解說「DB 沒對應實值」，**實查兩個欄位都在**，該說法已過時，直接補上 WHERE）。
+  - **驗收**：全套 20 failed / 2305 passed，對照基線 20/2284 逐條比對零新增失敗。反向驗證退回 `cf62c3e2` 本批測試 6 紅 3 綠。**未寫測試的部分已明文標注**：#1 `reject_reconciliation` 需跨連線並發夾具（現有 FakeConn 模擬不出，修法無回歸保護）、五處跨租戶只驗了既有測試沒壞而無負向測試。
+  - **對抗驗證 0 駁回值得存疑**：上一輪駁回 5/16，這次 0/14。skeptic 並非照單全收（主動下修了 8 個嚴重度），但 0 駁回仍應視為可能偏鬆的訊號。
+  - **仍未掃**：`web/` 565 個 tsx、`agent/` 59 個自有 py、`SQL/` 163 個 migration。
+
 - **狀態機 transition 補樂觀鎖（CR-0199，業主 2026-08-02 裁決方案 A）**：所有工單／問題卡的 transition 都是「SELECT status 檢查 → UPDATE」兩個獨立語句，而連線是 **autocommit、無交易**；`work_order_service.py:607` 的既有註解早已記載「autocommit 下 FOR UPDATE 鎖不跨語句」（UAT R3-6），加上 UPDATE 只有 `WHERE id`、**28 處零樂觀條件**，兩個並發的異型 transition 會雙雙通過各自的狀態守衛，後寫的覆蓋先寫的。
   - **發現方式**：用當日新建的 `defect-patterns.md` §A5（併發）掃 code 時，`_fetch_status_for_update` 這個名字與其實作不符引起注意——**函式名說 for update，SQL 裡沒有 `FOR UPDATE`**，只是「讀 status + 驗 tenant」。後續開發者看到 `_for_update` 會以為有列鎖保護，因而放心做 check-then-act。`problem_card_service` 有獨立一份同名函式，同樣誤導。
   - **實測證實三組失效**（精確競態窗口注入，非推導）：拒單 vs 取消 → 已取消的單被打回 `created` **重新出現在派工池**；接單 vs 取消 → 已取消的單變成 `accepted`；**取消 vs 完工 → 已完工的單被改成 `cancelled`**。第三組最嚴重，完工是計酬依據，據此把嚴重度自 MEDIUM 上修為 MEDIUM～HIGH。
