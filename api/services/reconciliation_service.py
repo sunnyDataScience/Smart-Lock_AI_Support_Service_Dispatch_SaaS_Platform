@@ -320,32 +320,49 @@ async def reject_reconciliation(
     if len(reason_clean) < 3:
         raise ApiError("VALIDATION_ERROR", "駁回原因必填（至少 3 字）", 422)
 
-    cur = await db_module._conn.execute(
-        f"SELECT r.status {_JOIN} "
-        f"WHERE r.id = %s::uuid AND t.tenant_id = %s::uuid",
-        (recon_id, tenant_id),
-    )
-    row = await cur.fetchone()
-    if not row:
-        raise ApiError("NOT_FOUND", f"Reconciliation {recon_id} not found", 404)
-
-    current_status = row[0]
-    if current_status not in _REJECT_FROM:
-        raise ApiError(
-            "STATE_CONFLICT",
-            f"Cannot reject reconciliation in status '{current_status}'; expected 'pending'",
-            409,
+    # 2026-08-02 資安/併發掃描：本函式原本是「純 SELECT 讀 status → 無條件 UPDATE」，
+    # 而同檔的 approve_reconciliation 早已被 CR-0189 包成 transaction + FOR UPDATE。
+    # **純 SELECT 不會被 FOR UPDATE 擋住**，所以兩支端點在 approve/reject 並發時可以
+    # 雙雙通過各自的 pending 檢查：approve 先 commit（已寫入 settlements 並投遞
+    # commission.accrued），reject 的 UPDATE 隨後把狀態覆寫成 'rejected'。
+    # 結果＝營運端看到「已駁回」但技師照樣被結算出款，且該列此時的 'rejected'
+    # 兩支端點都只會回 409，API 層沒有撤銷那筆 settlement 的路徑。
+    #
+    # 修法與 approve 對稱（同一把列鎖才能真正互斥），並額外保留樂觀條件作雙保險。
+    async with db_module._conn.transaction():
+        cur = await db_module._conn.execute(
+            f"SELECT r.status {_JOIN} "
+            f"WHERE r.id = %s::uuid AND t.tenant_id = %s::uuid "
+            f"FOR UPDATE OF r",
+            (recon_id, tenant_id),
         )
+        row = await cur.fetchone()
+        if not row:
+            raise ApiError("NOT_FOUND", f"Reconciliation {recon_id} not found", 404)
 
-    await db_module._conn.execute(
-        "UPDATE reconciliations SET "
-        "  status = 'rejected', "
-        "  rejected_by = %s::uuid, "
-        "  rejected_at = NOW(), "
-        "  reject_reason = %s "
-        "WHERE id = %s::uuid",
-        (rejecter_user_id, reason_clean[:500], recon_id),
-    )
+        current_status = row[0]
+        if current_status not in _REJECT_FROM:
+            raise ApiError(
+                "STATE_CONFLICT",
+                f"Cannot reject reconciliation in status '{current_status}'; expected 'pending'",
+                409,
+            )
+
+        upd = await db_module._conn.execute(
+            "UPDATE reconciliations SET "
+            "  status = 'rejected', "
+            "  rejected_by = %s::uuid, "
+            "  rejected_at = NOW(), "
+            "  reject_reason = %s "
+            "WHERE id = %s::uuid AND status = ANY(%s)",
+            (rejecter_user_id, reason_clean[:500], recon_id, sorted(_REJECT_FROM)),
+        )
+        if upd.rowcount == 0:
+            raise ApiError(
+                "STATE_CONFLICT",
+                "對帳單狀態已被其他操作變更（駁回需要狀態為 pending），請重新載入後再試",
+                409,
+            )
 
     cur = await db_module._conn.execute(
         f"SELECT {_SELECT} {_JOIN} WHERE r.id = %s::uuid AND t.tenant_id = %s::uuid",

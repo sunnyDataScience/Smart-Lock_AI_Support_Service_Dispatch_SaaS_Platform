@@ -387,14 +387,29 @@ async def cancel_work_order_6stage(
             audit_event_id, config_version, note,
         ),
     )
-    await db_module._conn.execute(
+    # CR-0199 補洞（2026-08-02）：本 UPDATE 原本只有 WHERE id，從**反方向**繞過了
+    # work_order_service 那邊剛加的完工樂觀鎖——技師送完工的同時客服取消，
+    # 完工端的 `AND status = ANY(...)` 成立而寫入 'completed'，本端隨後無條件覆寫成
+    # 'cancelled'：實際已完工的工單被翻成取消，客戶照收 S3/S4 取消費、技師照記罰則。
+    # 這正是上面 L317 `_TERMINAL_STATUSES` 想守的不變量（completed 的單不得被取消）。
+    #
+    # 條件寫成 `<> ALL` 而非 `= ANY`，因為這裡的前置檢查是**排除清單**
+    # （`if wo["status"] in _TERMINAL_STATUSES → 409`），樂觀條件必須複製同一個謂詞。
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  status = 'cancelled', "
         "  service_report = COALESCE(service_report, '') || E'\\n[CANCELLED:' || %s || '] ' || %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (stage, reason_code, wo_id),
+        "WHERE id = %s::uuid AND status <> ALL(%s)",
+        (stage, reason_code, wo_id, sorted(_TERMINAL_STATUSES)),
     )
+    if _cur.rowcount == 0:
+        raise ApiError(
+            "WO_STATE_INVALID",
+            "工單狀態已被其他操作變更（已完工／已確認／已取消的單不可再取消），"
+            "請重新載入後再試",
+            409,
+        )
     # CR-0193：生命週期事件。這條容易被漏——v2 tenant-scoped 取消走本服務（ADR-0102
     # 六階段＋費用），**不經** work_order_service.cancel_order（那條只剩 legacy flat
     # /api/v1/work-orders/{id}/cancel 在用）。只補 cancel_order 的話，實際在用的取消

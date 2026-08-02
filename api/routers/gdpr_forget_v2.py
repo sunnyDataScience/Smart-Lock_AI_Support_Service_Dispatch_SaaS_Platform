@@ -108,7 +108,7 @@ async def get_request(
     user: CurrentUser = Depends(role_required(*FULL_ACCESS_ROLES)),
 ) -> dict:
     _guard_tenant(user, tenantId)
-    return {"data": await svc._get_request(requestId)}
+    return {"data": await svc._get_request(requestId, tenant_id=tenantId)}
 
 
 @router.post(
@@ -127,6 +127,7 @@ async def legal_hold_deny(
     _guard_tenant(user, tenantId, write=True)
     result = await svc.deny_legal_hold(
         request_id=requestId,
+        tenant_id=tenantId,
         legal_hold_reason=body.legal_hold_reason,
         expected_release_at=body.expected_release_at,
         actor_user_id=initiator,
@@ -147,7 +148,8 @@ async def soft_delete(
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
-    result = await svc.soft_delete(request_id=requestId, actor_user_id=initiator)
+    result = await svc.soft_delete(
+        request_id=requestId, tenant_id=tenantId, actor_user_id=initiator)
     return {"data": result}
 
 
@@ -164,7 +166,8 @@ async def hard_delete(
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
-    result = await svc.hard_delete(request_id=requestId, actor_user_id=initiator)
+    result = await svc.hard_delete(
+        request_id=requestId, tenant_id=tenantId, actor_user_id=initiator)
     return {"data": result}
 
 
@@ -181,5 +184,6 @@ async def cancel_request(
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
-    result = await svc.cancel_request(request_id=requestId, actor_user_id=initiator)
+    result = await svc.cancel_request(
+        request_id=requestId, tenant_id=tenantId, actor_user_id=initiator)
     return {"data": result}

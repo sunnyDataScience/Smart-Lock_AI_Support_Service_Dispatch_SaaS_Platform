@@ -54,9 +54,22 @@ logger = logging.getLogger("api.public_token")
 
 TokenPurpose = Literal["work_order_status", "scope_change", "quote_view"]
 
-# secret 來源：env var → 生產 GCP Secret Manager 注入；dev 用固定 fallback
-_DEV_SECRET = "dev-secret-do-not-use-in-prod"  # noqa: S105 — explicit dev fallback
+# secret 來源：env var → 生產由 GCP Secret Manager 注入
 _SECRET_ENV = "PUBLIC_TOKEN_HMAC_SECRET"
+
+# 2026-08-02 資安掃描：原本這裡是 `_DEV_SECRET = "dev-secret-do-not-use-in-prod"`，
+# 且 `_get_secret()` 在 env 未設時**靜默** fallback 到它。那等於任何讀得到本檔的人
+# 都能簽發合法的消費者 token——而這些 token 保護的不只是唯讀端點，還包括
+# `POST /consumer/quotes/{token}`（代客戶接受報價）與
+# `POST /consumer/scope-changes/{token}`（代客戶核可加價）等金額決策。
+# payload 是明文 base64，偽造只需要知道工單 UUID。
+#
+# 改為 process 啟動時隨機產生，並記 CRITICAL。刻意**不**做成啟動失敗：
+# 若 prod 目前確實漏設，fail-fast 會直接變成 outage；隨機 secret 則只讓既有的
+# 公開連結失效（那些連結若真是用已知 secret 簽的，本來就該失效），
+# 服務仍可服務其他流量，而 log 會大聲叫。
+_EPHEMERAL_SECRET = secrets.token_urlsafe(48)
+_secret_warning_emitted = False
 
 # in-memory 撤銷清單（TODO: 換 Redis）
 _revoked_token_hashes: set[str] = set()
@@ -86,8 +99,24 @@ class TokenExpiredError(Exception):
 # =============================================================================
 
 def _get_secret() -> bytes:
-    secret = os.getenv(_SECRET_ENV) or _DEV_SECRET
-    return secret.encode("utf-8")
+    """取簽章金鑰。env 未設時用**本次 process 隨機產生**的金鑰，不是固定常數。
+
+    隨機金鑰的後果是「重啟後既有公開連結全失效」——這是刻意的：
+    寧可連結失效被使用者回報，也不要用一個寫在原始碼裡、人人可簽的金鑰。
+    """
+    secret = os.getenv(_SECRET_ENV)
+    if secret:
+        return secret.encode("utf-8")
+
+    global _secret_warning_emitted
+    if not _secret_warning_emitted:
+        _secret_warning_emitted = True
+        logger.critical(
+            "%s 未設定！已改用本次 process 隨機金鑰——所有既有公開連結將失效，"
+            "且服務重啟後再次失效。請在部署環境注入此 secret（GCP Secret Manager）。",
+            _SECRET_ENV,
+        )
+    return _EPHEMERAL_SECRET.encode("utf-8")
 
 
 def _b64url_encode(raw: bytes) -> str:

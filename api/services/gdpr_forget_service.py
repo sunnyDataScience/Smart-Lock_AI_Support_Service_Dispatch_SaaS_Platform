@@ -144,10 +144,19 @@ async def create_forget_request(
         action="gdpr_forget_received", tenant_id=tenant_id,
         subject_user_id=subject_user_id, actor_user_id=actor_user_id,
         request_id=request_id, extra={"requested_by": requested_by})
-    return await _get_request(request_id)
+    return await _get_request(request_id, tenant_id=tenant_id)
 
 
-async def _get_request(request_id: str) -> dict:
+async def _get_request(request_id: str, *, tenant_id: str | None = None) -> dict:
+    """讀單筆 forget request。
+
+    ⚠️ **一定要傳 tenant_id**（2026-08-02 資安掃描）：本表的 request_id 是 UUID，
+    但端點只驗「JWT tenant == path tenantId」，不驗「這筆 request 屬於該 tenant」。
+    漏了就等於品牌 A 的 admin 可以讀、軟刪、**硬刪**品牌 B 的使用者 PII。
+
+    不符時回 404 而非 403——403 會確認該 id 存在，可被用來列舉他租戶的請求。
+    `tenant_id=None` 只保留給明確不需要租戶收斂的內部呼叫。
+    """
     cur = await db_module._conn.execute(
         "SELECT id, tenant_id, subject_user_id, subject_email, status, "
         "       requested_by, legal_hold_reason, expected_release_at, "
@@ -158,6 +167,12 @@ async def _get_request(request_id: str) -> dict:
     )
     row = await cur.fetchone()
     if not row:
+        raise ApiError("NOT_FOUND", "forget_request not found", 404)
+    if tenant_id is not None and str(row[1]) != str(tenant_id):
+        logger.warning(
+            "cross-tenant forget_request access blocked req=%s owner=%s caller=%s",
+            request_id, row[1], tenant_id,
+        )
         raise ApiError("NOT_FOUND", "forget_request not found", 404)
     return {
         "id": str(row[0]),
@@ -180,6 +195,7 @@ async def _get_request(request_id: str) -> dict:
 async def deny_legal_hold(
     *,
     request_id: str,
+    tenant_id: str,
     legal_hold_reason: str,
     expected_release_at: datetime | None = None,
     actor_user_id: str | None = None,
@@ -214,7 +230,7 @@ async def deny_legal_hold(
             "request not in 'received' state for legal_hold_denied",
             409,
         )
-    _r = await _get_request(request_id)
+    _r = await _get_request(request_id, tenant_id=tenant_id)
     await _forget_audit(
         action="gdpr_forget_legal_hold_denied", tenant_id=_r["tenant_id"],
         subject_user_id=_r["subject_user_id"], actor_user_id=actor_user_id,
@@ -223,7 +239,7 @@ async def deny_legal_hold(
 
 
 async def soft_delete(
-    *, request_id: str, actor_user_id: str | None = None,
+    *, request_id: str, tenant_id: str, actor_user_id: str | None = None,
 ) -> dict:
     """T0+：received → soft_deleted。
 
@@ -233,7 +249,7 @@ async def soft_delete(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    req = await _get_request(request_id)
+    req = await _get_request(request_id, tenant_id=tenant_id)
     if req["status"] != "received":
         raise ApiError(
             "STATE_CONFLICT",
@@ -321,11 +337,11 @@ async def soft_delete(
         subject_user_id=subject_user_id, request_id=request_id,
         actor_user_id=actor_user_id, crypto_shredded=_shredded,
         detail={"hard_delete_eligible_at": eligible_at.isoformat()})
-    return await _get_request(request_id)
+    return await _get_request(request_id, tenant_id=tenant_id)
 
 
 async def hard_delete(
-    *, request_id: str, actor_user_id: str | None = None,
+    *, request_id: str, tenant_id: str, actor_user_id: str | None = None,
 ) -> dict:
     """T+30：soft_deleted → hard_deleted (physical delete users row)。
 
@@ -334,7 +350,7 @@ async def hard_delete(
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
 
-    req = await _get_request(request_id)
+    req = await _get_request(request_id, tenant_id=tenant_id)
     if req["status"] != "soft_deleted":
         raise ApiError(
             "STATE_CONFLICT",
@@ -414,11 +430,11 @@ async def hard_delete(
         subject_user_id=subject_user_id, request_id=request_id,
         actor_user_id=actor_user_id, physical_deleted=physical_deleted,
         detail={"disposition": "physical_delete" if physical_deleted else "anonymized_retained_fk"})
-    return await _get_request(request_id)
+    return await _get_request(request_id, tenant_id=tenant_id)
 
 
 async def cancel_request(
-    *, request_id: str, actor_user_id: str | None = None,
+    *, request_id: str, tenant_id: str, actor_user_id: str | None = None,
 ) -> dict:
     """客戶撤回 forget request（received → cancelled）。"""
     if not await _ensure_conn():
@@ -437,7 +453,7 @@ async def cancel_request(
         raise ApiError(
             "STATE_CONFLICT", "only 'received' state can be cancelled", 409,
         )
-    _r = await _get_request(request_id)
+    _r = await _get_request(request_id, tenant_id=tenant_id)
     await _forget_audit(
         action="gdpr_forget_cancelled", tenant_id=_r["tenant_id"],
         subject_user_id=_r["subject_user_id"], actor_user_id=actor_user_id,

@@ -117,7 +117,7 @@ async def submit(
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
-    return {"data": await svc.submit_for_review(statement_id=statementId)}
+    return {"data": await svc.submit_for_review(statement_id=statementId, tenant_id=tenantId)}
 
 
 @router.post(
@@ -135,7 +135,7 @@ async def dispute(
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
     return {"data": await svc.dispute_statement(
-        statement_id=statementId, dispute_reason=body.dispute_reason,
+        statement_id=statementId, tenant_id=tenantId, dispute_reason=body.dispute_reason,
     )}
 
 
@@ -153,7 +153,7 @@ async def approve(
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
     return {"data": await svc.approve_statement(
-        statement_id=statementId, reviewer_id=initiator,
+        statement_id=statementId, tenant_id=tenantId, reviewer_id=initiator,
     )}
 
 
@@ -172,7 +172,7 @@ async def reject(
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
     return {"data": await svc.reject_statement(
-        statement_id=statementId, reviewer_id=initiator, reason=body.reason,
+        statement_id=statementId, tenant_id=tenantId, reviewer_id=initiator, reason=body.reason,
     )}
 
 
@@ -189,4 +189,4 @@ async def mark_paid(
     initiator: str = Depends(_require_initiator),
 ) -> dict:
     _guard_tenant(user, tenantId, write=True)
-    return {"data": await svc.mark_paid(statement_id=statementId)}
+    return {"data": await svc.mark_paid(statement_id=statementId, tenant_id=tenantId)}

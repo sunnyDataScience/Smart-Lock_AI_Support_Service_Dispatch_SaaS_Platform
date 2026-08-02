@@ -187,12 +187,13 @@ async def test_submit_window_7d(monkeypatch):
     monkeypatch.setattr(svc, "_ensure_conn", fake_ensure)
 
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant
         FakeCur(row=("draft",)),
         FakeCur(),
         FakeCur(row=_row(status="pending_review")),
     ])
 
-    result = await svc.submit_for_review(statement_id="comm-1")
+    result = await svc.submit_for_review(statement_id="comm-1", tenant_id="t1")
     assert result["status"] == "pending_review"
 
 
@@ -208,12 +209,13 @@ async def test_dispute_window_expired(monkeypatch):
 
     past = datetime.now(timezone.utc) - timedelta(days=1)
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant
         FakeCur(row=("pending_review", past)),
     ])
 
     with pytest.raises(ApiError) as e:
         await svc.dispute_statement(
-            statement_id="comm-1", dispute_reason="算錯 commission",
+            statement_id="comm-1", tenant_id="t1", dispute_reason="算錯 commission",
         )
     assert "過期" in e.value.message
 
@@ -229,7 +231,7 @@ async def test_dispute_short_reason_rejected(monkeypatch):
 
     with pytest.raises(ApiError) as e:
         await svc.dispute_statement(
-            statement_id="comm-1", dispute_reason="x",
+            statement_id="comm-1", tenant_id="t1", dispute_reason="x",
         )
     assert e.value.error_code == "VALIDATION_ERROR"
 
@@ -244,13 +246,14 @@ async def test_approve_happy(monkeypatch):
     monkeypatch.setattr(svc, "_ensure_conn", fake_ensure)
 
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant
         FakeCur(row=("pending_review",)),
         FakeCur(row=("comm-1",)),
         FakeCur(row=_row(status="approved")),
     ])
 
     result = await svc.approve_statement(
-        statement_id="comm-1", reviewer_id="admin-1",
+        statement_id="comm-1", tenant_id="t1", reviewer_id="admin-1",
     )
     assert result["status"] == "approved"
 
@@ -265,10 +268,10 @@ async def test_mark_paid_only_from_approved(monkeypatch):
 
     monkeypatch.setattr(svc, "_ensure_conn", fake_ensure)
 
-    db_module._conn = FakeConn([FakeCur(row=("draft",))])
+    db_module._conn = FakeConn([FakeCur(row=("t1",)), FakeCur(row=("draft",))])  # 首個 cursor 供 _assert_tenant
 
     with pytest.raises(ApiError) as e:
-        await svc.mark_paid(statement_id="comm-1")
+        await svc.mark_paid(statement_id="comm-1", tenant_id="t1")
     assert e.value.status_code == 409
 
 

@@ -51,7 +51,7 @@ async def test_legal_hold_blocks_soft_delete_with_423_and_audit():
         req = await svc.create_forget_request(
             tenant_id=TID, subject_user_id=uid, requested_by="customer_self", actor_user_id=None)
         with pytest.raises(ApiError) as exc:
-            await svc.soft_delete(request_id=req["id"], actor_user_id=None)
+            await svc.soft_delete(request_id=req["id"], tenant_id=TID, actor_user_id=None)
         assert exc.value.status_code == 423
         assert exc.value.error_code == "LEGAL_HOLD_ACTIVE"
         blk = await (await db_module._conn.execute(
@@ -69,7 +69,7 @@ async def test_forget_flow_writes_audit():
     try:
         req = await svc.create_forget_request(
             tenant_id=TID, subject_user_id=uid, requested_by="dpo", actor_user_id=None)
-        await svc.soft_delete(request_id=req["id"], actor_user_id=None)
+        await svc.soft_delete(request_id=req["id"], tenant_id=TID, actor_user_id=None)
         rows = await (await db_module._conn.execute(
             "SELECT action FROM audit_events WHERE target_id=%s::uuid ORDER BY created_at", (uid,))).fetchall()
         actions = {r[0] for r in rows}
@@ -94,12 +94,12 @@ async def test_hard_delete_fk_blocked_anonymized_retained():
             "VALUES (%s::uuid, 'service', '測試客訴')", (uid,))
         req = await svc.create_forget_request(
             tenant_id=TID, subject_user_id=uid, requested_by="admin", actor_user_id=None)
-        await svc.soft_delete(request_id=req["id"], actor_user_id=None)
+        await svc.soft_delete(request_id=req["id"], tenant_id=TID, actor_user_id=None)
         # 讓 cooldown 立即過
         await db_module._conn.execute(
             "UPDATE saas.forget_request SET hard_delete_eligible_at=NOW()-INTERVAL '1 day' "
             "WHERE id=%s::uuid", (req["id"],))
-        out = await svc.hard_delete(request_id=req["id"], actor_user_id=None)
+        out = await svc.hard_delete(request_id=req["id"], tenant_id=TID, actor_user_id=None)
         assert out["status"] == "hard_deleted"
         # user 列仍在（FK 擋、匿名化終態），非假性刪除
         still = await (await db_module._conn.execute(

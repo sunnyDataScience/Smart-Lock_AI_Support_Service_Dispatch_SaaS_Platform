@@ -157,6 +157,7 @@ async def test_submit_sets_dispute_window_7_days(monkeypatch):
     now = datetime.now(timezone.utc)
     window_ends = now + timedelta(days=7)
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant 的 SELECT tenant_id
         FakeCur(row=("draft",)),  # SELECT status
         FakeCur(),  # UPDATE
         FakeCur(row=_row(
@@ -165,7 +166,7 @@ async def test_submit_sets_dispute_window_7_days(monkeypatch):
         )),
     ])
 
-    result = await svc.submit_for_review(statement_id="stmt-1")
+    result = await svc.submit_for_review(statement_id="stmt-1", tenant_id="t1")
     assert result["status"] == "pending_review"
     assert result["dispute_window_ends_at"] is not None
 
@@ -181,11 +182,12 @@ async def test_submit_not_from_draft_rejected(monkeypatch):
     monkeypatch.setattr(svc, "_ensure_conn", fake_ensure)
 
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant 的 SELECT tenant_id
         FakeCur(row=("approved",)),
     ])
 
     with pytest.raises(ApiError) as e:
-        await svc.submit_for_review(statement_id="stmt-1")
+        await svc.submit_for_review(statement_id="stmt-1", tenant_id="t1")
     assert e.value.status_code == 409
 
 
@@ -203,13 +205,14 @@ async def test_dispute_within_window_happy(monkeypatch):
 
     future = datetime.now(timezone.utc) + timedelta(days=3)
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant 的 SELECT tenant_id
         FakeCur(row=("pending_review", future)),
         FakeCur(row=("stmt-1",)),  # UPDATE RETURNING
         FakeCur(row=_row(status="disputed")),
     ])
 
     result = await svc.dispute_statement(
-        statement_id="stmt-1", dispute_reason="車馬費扣多了",
+        statement_id="stmt-1", tenant_id="t1", dispute_reason="車馬費扣多了",
     )
     assert result["status"] == "disputed"
 
@@ -227,12 +230,13 @@ async def test_dispute_window_expired_rejected(monkeypatch):
 
     past = datetime.now(timezone.utc) - timedelta(days=1)
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant 的 SELECT tenant_id
         FakeCur(row=("pending_review", past)),
     ])
 
     with pytest.raises(ApiError) as e:
         await svc.dispute_statement(
-            statement_id="stmt-1", dispute_reason="window 已過期想申訴",
+            statement_id="stmt-1", tenant_id="t1", dispute_reason="window 已過期想申訴",
         )
     assert e.value.status_code == 409
     assert "過期" in e.value.message
@@ -249,7 +253,7 @@ async def test_dispute_short_reason_rejected(monkeypatch):
 
     with pytest.raises(ApiError) as e:
         await svc.dispute_statement(
-            statement_id="stmt-1", dispute_reason="x",
+            statement_id="stmt-1", tenant_id="t1", dispute_reason="x",
         )
     assert e.value.error_code == "VALIDATION_ERROR"
 
@@ -266,13 +270,14 @@ async def test_approve_happy(monkeypatch):
     monkeypatch.setattr(svc, "_ensure_conn", fake_ensure)
 
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant 的 SELECT tenant_id
         FakeCur(row=("pending_review",)),
         FakeCur(row=("stmt-1",)),
         FakeCur(row=_row(status="approved")),
     ])
 
     result = await svc.approve_statement(
-        statement_id="stmt-1", reviewer_id="admin-1",
+        statement_id="stmt-1", tenant_id="t1", reviewer_id="admin-1",
     )
     assert result["status"] == "approved"
 
@@ -288,11 +293,12 @@ async def test_mark_paid_only_from_approved(monkeypatch):
     monkeypatch.setattr(svc, "_ensure_conn", fake_ensure)
 
     db_module._conn = FakeConn([
+        FakeCur(row=("t1",)),  # _assert_tenant 的 SELECT tenant_id
         FakeCur(row=("pending_review",)),  # 非 approved
     ])
 
     with pytest.raises(ApiError) as e:
-        await svc.mark_paid(statement_id="stmt-1")
+        await svc.mark_paid(statement_id="stmt-1", tenant_id="t1")
     assert e.value.status_code == 409
 
 

@@ -176,7 +176,7 @@ async def test_deny_legal_hold_happy(monkeypatch):
     ])
 
     result = await svc.deny_legal_hold(
-        request_id="req-1", legal_hold_reason="active dispute pending",
+        request_id="req-1", tenant_id="t1", legal_hold_reason="active dispute pending",
         actor_user_id="admin-1",
     )
     assert result["status"] == "legal_hold_denied"
@@ -194,7 +194,7 @@ async def test_deny_legal_hold_short_reason_rejected(monkeypatch):
 
     with pytest.raises(ApiError) as e:
         await svc.deny_legal_hold(
-            request_id="req-1", legal_hold_reason="x",
+            request_id="req-1", tenant_id="t1", legal_hold_reason="x",
         )
     assert e.value.error_code == "VALIDATION_ERROR"
 
@@ -231,7 +231,7 @@ async def test_soft_delete_sets_eligibility_30_days(monkeypatch):
         )),
     ])
 
-    result = await svc.soft_delete(request_id="req-1", actor_user_id="admin-1")
+    result = await svc.soft_delete(request_id="req-1", tenant_id="t1", actor_user_id="admin-1")
     assert result["status"] == "soft_deleted"
     assert result["soft_deleted_at"] is not None
     assert result["hard_delete_eligible_at"] is not None
@@ -257,7 +257,7 @@ async def test_soft_delete_only_from_received(monkeypatch):
     ])
 
     with pytest.raises(ApiError) as e:
-        await svc.soft_delete(request_id="req-1")
+        await svc.soft_delete(request_id="req-1", tenant_id="t1")
     assert e.value.status_code == 409
 
 
@@ -285,7 +285,7 @@ async def test_hard_delete_cooldown_not_yet_passed(monkeypatch):
     ])
 
     with pytest.raises(ApiError) as e:
-        await svc.hard_delete(request_id="req-1")
+        await svc.hard_delete(request_id="req-1", tenant_id="t1")
     assert e.value.status_code == 409
     assert "cooldown" in str(e.value.message)
 
@@ -321,7 +321,7 @@ async def test_hard_delete_cooldown_passed_happy(monkeypatch):
         )),
     ])
 
-    result = await svc.hard_delete(request_id="req-1")
+    result = await svc.hard_delete(request_id="req-1", tenant_id="t1")
     assert result["status"] == "hard_deleted"
 
 
@@ -343,7 +343,7 @@ async def test_cancel_only_from_received(monkeypatch):
     ])
 
     with pytest.raises(ApiError) as e:
-        await svc.cancel_request(request_id="req-1")
+        await svc.cancel_request(request_id="req-1", tenant_id="t1")
     assert e.value.status_code == 409
 
 

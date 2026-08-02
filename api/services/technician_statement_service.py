@@ -152,6 +152,32 @@ async def generate_statement(
     return await _get(str(row[0]))
 
 
+async def _assert_tenant(statement_id: str, tenant_id: str) -> None:
+    """驗證 statement 屬於該租戶（2026-08-02 資安掃描）。
+
+    原本 list 端點有租戶收斂，但 **detail 與全部狀態轉換（submit/dispute/approve/
+    reject/mark_paid）完全不驗**——只要知道 statement UUID，任何租戶的管理者都能
+    讀取他人的金額並核准、標記已付款。
+
+    回 404 而非 403：403 會確認該 id 存在，可被用來列舉他租戶的對帳單。
+
+    statement 的 tenant_id 不會變更，所以「驗證後才寫入」不存在 TOCTOU 問題。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT tenant_id FROM saas.technician_statement WHERE id = %s::uuid",
+        (statement_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "statement not found", 404)
+    if str(row[0]) != str(tenant_id):
+        logger.warning(
+            "cross-tenant statement access blocked stmt=%s owner=%s caller=%s",
+            statement_id, row[0], tenant_id,
+        )
+        raise ApiError("NOT_FOUND", "statement not found", 404)
+
+
 async def _get(statement_id: str) -> dict:
     cur = await db_module._conn.execute(
         "SELECT id, tenant_id, technician_id, period_year, period_month, "
@@ -198,10 +224,12 @@ def _dec(v) -> str:
     return f"{float(v):.2f}"
 
 
-async def submit_for_review(*, statement_id: str) -> dict:
+async def submit_for_review(*, statement_id: str, tenant_id: str) -> dict:
     """draft → pending_review；設 dispute_window_ends_at = NOW + 7 days。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
 
     cur = await db_module._conn.execute(
         "SELECT status FROM saas.technician_statement WHERE id = %s::uuid",
@@ -225,13 +253,15 @@ async def submit_for_review(*, statement_id: str) -> dict:
 
 
 async def dispute_statement(
-    *, statement_id: str, dispute_reason: str,
+    *, statement_id: str, tenant_id: str, dispute_reason: str,
 ) -> dict:
     """技師舉報異議：pending_review → disputed。"""
     if not dispute_reason or len(dispute_reason.strip()) < 5:
         raise ApiError("VALIDATION_ERROR", "dispute_reason ≥5 字元", 422)
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
 
     cur = await db_module._conn.execute(
         "SELECT status, dispute_window_ends_at "
@@ -266,11 +296,13 @@ async def dispute_statement(
 
 
 async def approve_statement(
-    *, statement_id: str, reviewer_id: str,
+    *, statement_id: str, tenant_id: str, reviewer_id: str,
 ) -> dict:
     """pending_review → approved (主管核准)。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
 
     cur = await db_module._conn.execute(
         "SELECT status FROM saas.technician_statement WHERE id = %s::uuid",
@@ -295,11 +327,13 @@ async def approve_statement(
 
 
 async def reject_statement(
-    *, statement_id: str, reviewer_id: str, reason: str | None = None,
+    *, statement_id: str, tenant_id: str, reviewer_id: str, reason: str | None = None,
 ) -> dict:
     """pending_review|disputed → rejected (退回 draft 修)。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
 
     cur = await db_module._conn.execute(
         "SELECT status FROM saas.technician_statement WHERE id = %s::uuid",
@@ -323,10 +357,12 @@ async def reject_statement(
     return await _get(statement_id)
 
 
-async def mark_paid(*, statement_id: str) -> dict:
+async def mark_paid(*, statement_id: str, tenant_id: str) -> dict:
     """approved → paid (匯款執行)。"""
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
 
     cur = await db_module._conn.execute(
         "SELECT status FROM saas.technician_statement WHERE id = %s::uuid",

@@ -167,6 +167,28 @@ def _dec(v) -> str:
     return f"{float(v):.2f}"
 
 
+async def _assert_tenant(statement_id: str, tenant_id: str) -> None:
+    """驗證 statement 屬於該租戶（2026-08-02 資安掃描）。
+
+    list 端點有租戶收斂，但 detail 與全部狀態轉換沒有——知道 UUID 就能讀他人金額
+    並核准／標記已付款。回 404 而非 403（403 會確認存在性，可被列舉）。
+    statement 的 tenant_id 不會變更，故驗證後才寫入不存在 TOCTOU。
+    """
+    cur = await db_module._conn.execute(
+        "SELECT tenant_id FROM saas.brand_b2b_statement WHERE id = %s::uuid",
+        (statement_id,),
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "statement not found", 404)
+    if str(row[0]) != str(tenant_id):
+        logger.warning(
+            "cross-tenant statement access blocked stmt=%s owner=%s caller=%s",
+            statement_id, row[0], tenant_id,
+        )
+        raise ApiError("NOT_FOUND", "statement not found", 404)
+
+
 async def _get(statement_id: str) -> dict:
     cur = await db_module._conn.execute(
         "SELECT id, tenant_id, brand_partner_id, brand_name, contract_ref, "
@@ -215,9 +237,11 @@ async def _get(statement_id: str) -> dict:
 
 # ---- 狀態機 ops (鏡像 FR-0045/0046) ----
 
-async def submit_for_review(*, statement_id: str) -> dict:
+async def submit_for_review(*, statement_id: str, tenant_id: str) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
     cur = await db_module._conn.execute(
         "SELECT status FROM saas.brand_b2b_statement WHERE id = %s::uuid",
         (statement_id,),
@@ -237,12 +261,14 @@ async def submit_for_review(*, statement_id: str) -> dict:
 
 
 async def dispute_statement(
-    *, statement_id: str, dispute_reason: str,
+    *, statement_id: str, tenant_id: str, dispute_reason: str,
 ) -> dict:
     if not dispute_reason or len(dispute_reason.strip()) < 5:
         raise ApiError("VALIDATION_ERROR", "dispute_reason ≥5 字元", 422)
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
     cur = await db_module._conn.execute(
         "SELECT status, dispute_window_ends_at FROM saas.brand_b2b_statement "
         "WHERE id = %s::uuid", (statement_id,),
@@ -265,9 +291,11 @@ async def dispute_statement(
     return await _get(statement_id)
 
 
-async def approve_statement(*, statement_id: str, reviewer_id: str) -> dict:
+async def approve_statement(*, statement_id: str, tenant_id: str, reviewer_id: str) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
     cur = await db_module._conn.execute(
         "SELECT status FROM saas.brand_b2b_statement WHERE id = %s::uuid",
         (statement_id,),
@@ -289,10 +317,12 @@ async def approve_statement(*, statement_id: str, reviewer_id: str) -> dict:
 
 
 async def reject_statement(
-    *, statement_id: str, reviewer_id: str, reason: str | None = None,
+    *, statement_id: str, tenant_id: str, reviewer_id: str, reason: str | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
     cur = await db_module._conn.execute(
         "SELECT status FROM saas.brand_b2b_statement WHERE id = %s::uuid",
         (statement_id,),
@@ -314,9 +344,11 @@ async def reject_statement(
     return await _get(statement_id)
 
 
-async def mark_paid(*, statement_id: str) -> dict:
+async def mark_paid(*, statement_id: str, tenant_id: str) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    await _assert_tenant(statement_id, tenant_id)
     cur = await db_module._conn.execute(
         "SELECT status FROM saas.brand_b2b_statement WHERE id = %s::uuid",
         (statement_id,),
