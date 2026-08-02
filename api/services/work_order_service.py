@@ -324,6 +324,52 @@ async def technician_scope_filter(
     return tech["id"]
 
 
+async def assert_technician_may_read(
+    *, wo_id: str, actor_role: str | None, actor_user_id: str | None
+) -> None:
+    """技師讀「單筆工單／其子資源」的擁有權守衛（2026-08-02）。
+
+    **為什麼要有這支**：2026-08-02 補上工單**列表**的角色收斂後，SC-13～19 探針實跑
+    抓到收斂只做了一半 —— 單筆與子資源（quote-items / document / evidence-package /
+    events）全都只有 `Depends(require_tenant)`，技師拿別人的工單 id 直接打就 200：
+      - detail 與 admin 逐欄比對只差 customer_phone 與 address
+      - quote-items 品項、對外價、總額全露（unit_price 有遮蔽，但那只是成本欄）
+      - **document 回 200 application/pdf，位元組數與 admin 取得的完全一致**
+    對照組已排除「守衛整支沒掛」：換租戶 id 時 admin 與技師都 403 CROSS_TENANT_READ，
+    所以缺的是同租戶內的 per-work-order 擁有權檢查。
+
+    **可見範圍不能只寫「指派給我」** —— 搶單池的單本來就要讓技師看得到才能決定接不接。
+    對齊 `list_work_order_pool` 對技師的過濾（status='created' AND technician_id IS NULL）：
+        指派給我  OR  未被認領且仍在 created  → 放行
+        其餘                                  → 擋
+
+    **回 404 而非 403**：技師沒有任何合法管道得知這張單存在（自己的列表濾掉了、
+    池子也濾掉了），回 403 等於確認存在性、可被拿來枚舉租戶內的工單 id。
+    真正的原因記在 server log，營運查得到、客戶端問不出來。
+
+    非技師角色（admin / ops / dispatcher / cs…）不受本守衛影響。
+    """
+    if actor_role != "technician":
+        return
+    tech = await _fetch_technician_for_user(actor_user_id)
+    cur = await db_module._conn.execute(
+        "SELECT technician_id, status FROM work_orders WHERE id = %s::uuid", (wo_id,)
+    )
+    row = await cur.fetchone()
+    if not row:
+        raise ApiError("NOT_FOUND", "Work order not found", 404)
+    assigned_to, status = (str(row[0]) if row[0] else None), row[1]
+    if tech and assigned_to == tech["id"]:
+        return
+    if assigned_to is None and status == "created":
+        return  # 搶單池可見
+    logger.warning(
+        "技師讀取未授權工單被擋 wo=%s actor_user=%s assigned_to=%s status=%s",
+        wo_id[:8], str(actor_user_id)[:8], (assigned_to or "-")[:8], status,
+    )
+    raise ApiError("NOT_FOUND", "Work order not found", 404)
+
+
 async def list_work_order_pool(
     *,
     tenant_id: str,

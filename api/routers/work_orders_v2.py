@@ -220,6 +220,9 @@ async def get_work_order_v2(
     id: str = Path(...),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    await work_order_service.assert_technician_may_read(
+        wo_id=id, actor_role=user.role, actor_user_id=user.user_id,
+    )
     _cross_tenant_read(user, tenantId)
 
     # UAT P1-4：帶 actor 讓技師查非本人名下的單（池詳情）時套接單前隱私遮蔽
@@ -989,6 +992,9 @@ async def list_quote_items_v2(
     id: str = Path(...),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    await work_order_service.assert_technician_may_read(
+        wo_id=id, actor_role=user.role, actor_user_id=user.user_id,
+    )
     _cross_tenant_read(user, tenantId)
     include_cost = (user.role or "") in _COST_VISIBLE_ROLES
     return await quote_service.list_line_items(
@@ -1033,6 +1039,9 @@ async def get_work_order_document_v2(
     id: str = Path(...),
     user: CurrentUser = Depends(require_tenant),
 ) -> Response:
+    await work_order_service.assert_technician_may_read(
+        wo_id=id, actor_role=user.role, actor_user_id=user.user_id,
+    )
     _cross_tenant_read(user, tenantId)
     pdf = await work_order_document_service.render_document(
         tenant_id=tenantId, work_order_id=id,
@@ -1055,6 +1064,9 @@ async def get_work_order_evidence_package_v2(
     id: str = Path(...),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    await work_order_service.assert_technician_may_read(
+        wo_id=id, actor_role=user.role, actor_user_id=user.user_id,
+    )
     _cross_tenant_read(user, tenantId)
     pkg = await evidence_package_service.get_evidence_package(
         tenant_id=tenantId, wo_id=id, role=user.role,

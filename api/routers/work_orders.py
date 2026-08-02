@@ -143,6 +143,9 @@ async def get_work_order(
     id: str = Path(),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    await work_order_service.assert_technician_may_read(
+        wo_id=id, actor_role=user.role, actor_user_id=user.user_id,
+    )
     # UAT P1-4：帶 actor 讓技師查非本人名下的單（池詳情）時套接單前隱私遮蔽
     order = await work_order_service.get_order(
         tenant_id=user.tenant_id, wo_id=id,
@@ -562,6 +565,9 @@ async def list_work_order_events(
     limit: int = Query(default=100, ge=1, le=500),
     user: CurrentUser = Depends(require_tenant),
 ) -> dict:
+    await work_order_service.assert_technician_may_read(
+        wo_id=id, actor_role=user.role, actor_user_id=user.user_id,
+    )
     return await work_order_service.list_work_order_events(
         tenant_id=user.tenant_id,
         wo_id=id,
