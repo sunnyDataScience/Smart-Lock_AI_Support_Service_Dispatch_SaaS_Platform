@@ -68,6 +68,12 @@ _SECRET_ENV = "PUBLIC_TOKEN_HMAC_SECRET"
 # 若 prod 目前確實漏設，fail-fast 會直接變成 outage；隨機 secret 則只讓既有的
 # 公開連結失效（那些連結若真是用已知 secret 簽的，本來就該失效），
 # 服務仍可服務其他流量，而 log 會大聲叫。
+#
+# ⚠️ 這個 fallback 的行為依賴**單 instance** 部署（`scripts/deploy/api.sh` 目前
+# MIN_INSTANCES=MAX_INSTANCES=1）：單 instance 下的表現是「每次重啟後既有連結
+# 一致失效」，可預期也好排查。若日後調高 max-instances，每個 instance 會各自
+# 持有不同金鑰，症狀會變成**間歇性**失效（同一條連結時好時壞），那比一致失效
+# 難 debug 得多。屆時必須先把這個 secret 真的設進環境，不能再靠 fallback。
 _EPHEMERAL_SECRET = secrets.token_urlsafe(48)
 _secret_warning_emitted = False
 

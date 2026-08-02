@@ -123,7 +123,8 @@ async def create_forget_request(
             "forget_request idempotent hit: user=%s existing=%s status=%s",
             subject_user_id[:8], str(existing[0])[:8], existing[1],
         )
-        return await _get_request(str(existing[0]))
+        # 上游冪等查詢的 WHERE 已帶 tenant_id，這裡再帶一次純屬防禦（值必相符）
+        return await _get_request(str(existing[0]), tenant_id=tenant_id)
 
     cur = await db_module._conn.execute(
         "INSERT INTO saas.forget_request "
@@ -486,7 +487,8 @@ async def list_forget_requests(
     items = []
     for r in rows:
         try:
-            items.append(await _get_request(str(r[0])))
+            # list 的 where 已含 tenant_id；再帶一次純屬防禦
+            items.append(await _get_request(str(r[0]), tenant_id=tenant_id))
         except ApiError:
             continue
     return {"items": items, "total": len(items)}
