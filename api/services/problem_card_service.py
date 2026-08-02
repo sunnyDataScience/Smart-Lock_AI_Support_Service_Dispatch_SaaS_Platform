@@ -276,6 +276,25 @@ async def _fetch_status_for_update(pc_id: str, tenant_id: str) -> str:
     return row[0]
 
 
+def _assert_transition_applied(cur, *, allowed: set[str], action: str) -> None:
+    """樂觀鎖檢查（CR-0199 方案 A）——與 work_order_service 同名函式同語意。
+
+    ⚠️ 上面的 `_fetch_status_for_update` 名字裡的 `for_update` 是歷史遺留，
+    **這裡沒有列鎖**：本專案連線是 autocommit、無交易，`FOR UPDATE` 不跨語句。
+    所以要寫入就得自己帶樂觀條件 `AND status = ANY(%s)`，參數傳 `sorted(_XXX_FROM)`。
+
+    綁「允許集合」而非「讀到的快照值」的理由見 work_order_service 同名函式的 docstring：
+    綁集合與前置檢查 `if current not in _XXX_FROM` 語意等價，不會誤擋集合內的合法變動。
+    """
+    if cur.rowcount == 0:
+        raise ApiError(
+            "STATE_CONFLICT",
+            f"問題卡狀態已被其他操作變更（{action}需要狀態為 {'、'.join(sorted(allowed))}），"
+            "請重新載入後再試",
+            409,
+        )
+
+
 async def confirm_card(*, tenant_id: str, pc_id: str) -> dict:
     """incomplete → confirmed。對齊 OpenAPI draft → confirmed。
 
@@ -314,11 +333,13 @@ async def confirm_card(*, tenant_id: str, pc_id: str) -> dict:
                 details=[{"field": f, "issue": "missing", "gate": "intake"} for f in missing],
             )
 
-    await db_module._conn.execute(
+    # CR-0199：樂觀條件——避免覆蓋期間被作廢的卡
+    _cur = await db_module._conn.execute(
         "UPDATE problem_cards SET status = 'confirmed', updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (pc_id,),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (pc_id, sorted(_CONFIRM_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_CONFIRM_FROM, action="確認")
     return await get_card(tenant_id=tenant_id, pc_id=pc_id)
 
 
@@ -353,7 +374,8 @@ async def resolve_card(
             f"resolution_channel must be one of {sorted(_RESOLUTION_CHANNELS)}",
             422,
         )
-    await db_module._conn.execute(
+    # CR-0199：樂觀條件——結案不可覆蓋期間被作廢的卡
+    _cur = await db_module._conn.execute(
         "UPDATE problem_cards SET "
         "  status = 'resolved', "
         "  resolution_layer = %s, "
@@ -362,11 +384,12 @@ async def resolve_card(
         "  resolution_channel = COALESCE(%s, resolution_channel, %s), "
         "  resolved_by = COALESCE(%s::uuid, resolved_by), "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
+        "WHERE id = %s::uuid AND status = ANY(%s)",
         (resolution_layer, resolution_layer,
          resolution_channel, _LAYER_DEFAULT_CHANNEL.get(resolution_layer),
-         resolved_by, pc_id),
+         resolved_by, pc_id, sorted(_RESOLVE_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_RESOLVE_FROM, action="結案")
     await _recompute_gates(pc_id)
     return await get_card(tenant_id=tenant_id, pc_id=pc_id)
 
@@ -423,15 +446,17 @@ async def dismiss_card(
             409,
         )
 
-    await db_module._conn.execute(
+    # CR-0199：樂觀條件——作廢是終態，不可覆蓋期間已結案的卡
+    _cur = await db_module._conn.execute(
         "UPDATE problem_cards SET "
         "  status = 'dismissed', "
         "  dismissed_at = NOW(), "
         "  dismiss_reason = %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (reason, pc_id),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (reason, pc_id, sorted(_DISMISS_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_DISMISS_FROM, action="作廢")
 
     # 作廢是終態且屬治理動作 → 留稽核（problem_card_service 原本無 audit 寫入）
     try:

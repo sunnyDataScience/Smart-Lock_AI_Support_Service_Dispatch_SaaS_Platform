@@ -1182,21 +1182,34 @@ async def _fetch_status_for_update(wo_id: str, tenant_id: str) -> str:
     return row[0]
 
 
-def _assert_transition_applied(cur, *, expected_status: str, action: str) -> None:
-    """樂觀鎖檢查（CR-0199 方案 A）：UPDATE 沒中任何列 = 狀態已被他人改變。
+def _assert_transition_applied(cur, *, allowed: set[str], action: str) -> None:
+    """樂觀鎖檢查（CR-0199 方案 A）：UPDATE 沒中任何列 = 狀態已離開允許集合。
 
-    搭配 `WHERE ... AND status = <剛才讀到的 status>` 使用。rowcount == 0 有兩種可能：
-    工單被刪（極罕見），或**狀態在檢查與寫入之間被另一個請求改掉了**——
-    兩者都該讓呼叫端重讀後重試，語意上都是 409。
+    搭配 `WHERE ... AND status = ANY(%s)` 使用，參數傳 `sorted(_XXX_FROM)`。
 
-    刻意回 409 STATE_CONFLICT 而非 500：這不是程式錯誤，是正常的並發競爭結果，
-    且與本檔其他狀態守衛（`if current not in _XXX_FROM`）回的錯誤碼一致，
-    呼叫端不需要為此新增分支。
+    ## 為什麼綁「允許集合」而不是「剛才讀到的那個值」
+
+    直覺會想寫 `AND status = %s` 帶 `current`，但那**會誤擋合法操作**——
+    當允許集合有多個值時，status 在集合內的合法變動會讓 rowcount 變 0。
+
+    實例（`complete_order`，`_COMPLETE_FROM = {accepted, in_progress}`）：
+    技師讀到 `accepted` 後要跑完整完工硬閘（多次 config 讀取與 DB 查詢，百毫秒級），
+    期間客戶在公開連結核可了範圍變更，`scope_change_service` 把狀態推進到
+    `in_progress`——那是合法轉移，且 `in_progress` 本來就是合法的完工來源。
+    若綁快照值，技師傳完照片與簽名後會收到 409 並被迫重送整包。
+
+    綁集合則與前置檢查 `if current not in _XXX_FROM: raise 409` **語意完全等價**，
+    因此不可能比既有檢查更嚴：rowcount == 0 只剩兩種成因——狀態被改到集合之外
+    （正是要擋的競態），或該列被刪除。
+
+    註：`sorted()` 是必要的，psycopg3 不會轉換 `set`。`work_orders.status` 是
+    VARCHAR(50) 而非 enum，所以 `varchar = ANY(text[])` 可解析。
     """
     if cur.rowcount == 0:
         raise ApiError(
             "STATE_CONFLICT",
-            f"工單狀態已被其他操作變更（{action} 前為 '{expected_status}'），請重新載入後再試",
+            f"工單狀態已被其他操作變更（{action}需要狀態為 {'、'.join(sorted(allowed))}），"
+            "請重新載入後再試",
             409,
         )
 
@@ -1262,16 +1275,18 @@ async def accept_order(
         from core.tech_mirror import ensure_technician_projection
         await ensure_technician_projection(claim_tech_id)
 
-    # CR-0199：WHERE 帶 status 樂觀條件——狀態在檢查與寫入之間被改掉就不寫（rowcount=0 → 409）
+    # CR-0199：樂觀條件必須綁**上面那個動態的** allowed_from，不是常數 _ACCEPT_FROM——
+    # 技師搶單走 created → accepted（tech_ctx 存在時 allowed_from 含 'created'），
+    # 綁死 _ACCEPT_FROM={assigned} 會讓搶單全部 409。
     _cur = await db_module._conn.execute(
         # CR-0043 Tier②：技師接單後完工細狀態進「待完工回報」（M05 Q052 起點）
         "UPDATE work_orders SET status = 'accepted', accepted_at = NOW(), "
         "  technician_id = COALESCE(%s::uuid, technician_id), "
         "  completion_status = 'pending_report', updated_at = NOW() "
-        "WHERE id = %s::uuid AND status = %s",
-        (claim_tech_id, wo_id, current),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (claim_tech_id, wo_id, sorted(allowed_from)),
     )
-    _assert_transition_applied(_cur, expected_status=current, action="接單")
+    _assert_transition_applied(_cur, allowed=allowed_from, action="接單")
     # CR-0193：生命週期事件（原本 accept 不落事件流 → timeline 看不到「接單」）
     await _insert_wo_event(
         wo_id=wo_id, tenant_id=tenant_id, actor_user_id=actor_user_id,
@@ -1358,10 +1373,10 @@ async def reject_order(
     _cur = await db_module._conn.execute(
         "UPDATE work_orders SET status = 'created', technician_id = NULL, "
         "  status_reason = %s, updated_at = NOW() "
-        "WHERE id = %s::uuid AND status = %s",
-        (reason, wo_id, current),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (reason, wo_id, sorted(_REJECT_FROM)),
     )
-    _assert_transition_applied(_cur, expected_status=current, action="拒單")
+    _assert_transition_applied(_cur, allowed=_REJECT_FROM, action="拒單")
     await db_module._conn.execute(
         "INSERT INTO dispatch_logs (work_order_id, action, technician_id, rejection_reason, notes) "
         "VALUES (%s::uuid, 'reject', %s::uuid, %s, %s)",
@@ -1773,7 +1788,7 @@ async def complete_order(
             final_price = float(actual_amount)
         except ValueError as e:
             raise ApiError("VALIDATION_ERROR", "actual_amount is not a valid decimal", 422) from e
-    await db_module._conn.execute(
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  status = 'completed', "
         "  completed_at = NOW(), "
@@ -1790,15 +1805,18 @@ async def complete_order(
         "  completion_summary = COALESCE(%s, completion_summary), "
         "  function_tests = COALESCE(%s::jsonb, function_tests), "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
+        # CR-0199：樂觀條件——完工不可覆蓋期間被取消的單。綁「允許集合」而非讀到的
+        # 快照值：客戶核可範圍變更會把 accepted 合法推進到 in_progress，兩者都可完工
+        "WHERE id = %s::uuid AND status = ANY(%s)",
         (summary, final_price,
          (teaching_note.strip() if teaching_note and teaching_note.strip() else None),
          (materials_used.strip() if materials_used and materials_used.strip() else None),
          (payment_proof.strip() if payment_proof and payment_proof.strip() else None),
          clean_summary,
          (json.dumps(function_tests) if function_tests else None),
-         wo_id),
+         wo_id, sorted(_COMPLETE_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_COMPLETE_FROM, action="完工回報")
     # CR-0129 / 15_SDS §4.5：急件單完工回報＝補審 4h 窗起算——佔位/已送補審報價寫
     # audit_due_at（窗長讀 M18 config emergency_audit_policy.audit_window_hours，缺省 4h）。
     # fail-soft：起算失敗記 ERROR（可告警人工補），不阻斷完工。
@@ -1929,10 +1947,10 @@ async def cancel_order(
         "  status_reason = %s, "
         "  service_report = COALESCE(service_report, '') || E'\\n[CANCELLED] ' || %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid AND status = %s",
-        (reason, reason, wo_id, current),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (reason, reason, wo_id, sorted(_CANCEL_FROM)),
     )
-    _assert_transition_applied(_cur, expected_status=current, action="取消")
+    _assert_transition_applied(_cur, allowed=_CANCEL_FROM, action="取消")
     # event=cancelled 把該 tech pool 該 wo 移除（若已派）
     if tech_id:
         await _publish_pool_change(
@@ -2242,16 +2260,18 @@ async def assign_order(
         await dispatch_mode_service.get_dispatch_mode(tenant_id)
     )
 
-    await db_module._conn.execute(
+    # CR-0199：樂觀條件——指派不可覆蓋期間被取消或已被他人指派的單
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  technician_id = %s::uuid, "
         "  status = 'assigned', "
         "  dispatched_via = %s, "
         "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (technician_id, _via, note, wo_id),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (technician_id, _via, note, wo_id, sorted(_ASSIGN_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_ASSIGN_FROM, action="指派")
     # CR-0165 F9：手動派工補 dispatch_logs（原僅 reassign 寫，四條手動入口全斷鏈）。
     # action='assign' 對齊 API enum / seeds 慣例；match_score/factors 留 NULL（人工派無演算法分數）。
     await db_module._conn.execute(
@@ -2407,7 +2427,8 @@ async def reassign_order(
     await _assert_brand_authorized(wo_id, str(new_technician_id), actor_role, reason)
 
     note = f"[REASSIGN] {old_technician_id or 'unassigned'} → {new_technician_id}: {reason}"
-    await db_module._conn.execute(
+    # CR-0199：樂觀條件——改派不可覆蓋期間被取消或技師已自行接單的單
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  technician_id = %s::uuid, "
         "  status = 'assigned', "
@@ -2415,9 +2436,10 @@ async def reassign_order(
         # CR-0048 / BR-M05-01：改派原因落結構化 status_reason（不只塞 service_report 字串）
         "  status_reason = %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (new_technician_id, note, reason.strip(), wo_id),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (new_technician_id, note, reason.strip(), wo_id, sorted(_REASSIGN_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_REASSIGN_FROM, action="改派")
     # dispatch_logs audit（schema: 無 tenant_id；隔離靠 join）
     await db_module._conn.execute(
         "INSERT INTO dispatch_logs "
@@ -2485,14 +2507,17 @@ async def escalate_order(
         )
 
     note = f"[ESCALATED:{level}] {reason.strip()[:500]}"
-    await db_module._conn.execute(
+    # CR-0199：本轉換不切 status，但升級的前提是單仍未結案（_ESCALATE_FROM），
+    # 期間被取消/完工就不該再升級——綁允許集合，語意同前置檢查
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  priority = CASE WHEN priority = 'urgent' THEN priority ELSE 'urgent' END, "
         "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (note, wo_id),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (note, wo_id, sorted(_ESCALATE_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_ESCALATE_FROM, action="升級")
     # CR-0193：生命週期事件（原本 escalate 不落事件流；本轉換不切 status，
     # 只提 priority，所以事件是唯一能看出「何時被升級、誰升的」的地方）
     await _insert_wo_event(
@@ -2576,7 +2601,7 @@ async def confirm_order(
                 422,
             )
 
-    await db_module._conn.execute(
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  status = 'confirmed', "
         "  confirmed_at = NOW(), "
@@ -2585,9 +2610,11 @@ async def confirm_order(
         # CR-0043 Tier②：客戶確認結案 → 完工細狀態進「已結案」（M05 Q052 終點）
         "  completion_status = 'closed', "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (rating, feedback_clean, wo_id),
+        # CR-0199：樂觀條件——客戶確認不可覆蓋期間被取消的單
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (rating, feedback_clean, wo_id, sorted(_CONFIRM_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_CONFIRM_FROM, action="客戶確認")
     # CR-0117 S3：評分落庫後回寫技師聚合統計（fail-soft）
     await _rollup_tech_stats_safe(tenant_id, wo_id)
     # CR-0193：生命週期事件（原本 confirm 不落事件流 → 結案這個終點在 timeline 上不存在）
@@ -2712,14 +2739,16 @@ async def propose_reschedule(
     if warning_acknowledged_at:
         note += f" ack={warning_acknowledged_at}"
 
-    await db_module._conn.execute(
+    # CR-0199：改期不切 status，但前提是單仍在 _RESCHEDULE_FROM（未結案）
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  scheduled_at = %s::timestamptz, "
         "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (new_start, note, wo_id),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (new_start, note, wo_id, sorted(_RESCHEDULE_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_RESCHEDULE_FROM, action="改期")
     return await _publish_and_return(
         tenant_id=tenant_id, wo_id=wo_id, event_type="work_order.rescheduled"
     )
@@ -3219,11 +3248,13 @@ async def record_arrival(
             409,
         )
     # 補到場時點（started_at；COALESCE 不覆蓋既有，arrival KPI 用）
-    await db_module._conn.execute(
+    # CR-0199：到場回報的前提是單仍在 _SUBFLOW_FROM，期間被取消就不該再記到場
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET started_at = COALESCE(started_at, NOW()), updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (wo_id,),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (wo_id, sorted(_SUBFLOW_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_SUBFLOW_FROM, action="到場回報")
     # TI-M08-01：若 gps 帶服務地址參考座標（ref_lat/ref_lng）則算到場 proof（距離+容忍判定）。
     g = gps or {}
     gps_proof = compute_arrival_gps_proof(
@@ -3552,14 +3583,16 @@ async def confirm_reschedule_by_customer(
         f"[CUSTOMER_RESCHEDULE_CONFIRMED {_now_iso()}] "
         f"customer chose {start_dt.isoformat()}~{end_dt.isoformat()}"
     )
-    await db_module._conn.execute(
+    # CR-0199：客戶確認改期不切 status，前提是單仍在 _RESCHEDULE_FROM
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  scheduled_at = %s::timestamptz, "
         "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (start_dt, note, wo_id),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (start_dt, note, wo_id, sorted(_RESCHEDULE_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_RESCHEDULE_FROM, action="客戶確認改期")
     # 同時寫入結構化事件（v1.30.0 work_order_events）
     await _insert_wo_event(
         wo_id=wo_id, tenant_id=tenant_id,
@@ -3773,16 +3806,21 @@ async def request_reschedule(
         f"from={old_scheduled.isoformat() if old_scheduled else 'unset'} "
         f"to={new_dt.isoformat()} reason={reason.strip()[:_RESCHEDULE_REASON_MAX]}"
     )
-    await db_module._conn.execute(
+    # CR-0199：改期申請不切 status，前提是單仍在 _RESCHEDULE_FROM。
+    # rowcount 檢查必須擋在下面的 audit 與 LINE push 之前，否則會為一筆沒生效的
+    # 改期發出稽核紀錄與客戶通知。
+    _cur = await db_module._conn.execute(
         "UPDATE work_orders SET "
         "  scheduled_at = %s::timestamptz, "
         "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
         # CR-0048 / BR-M05-01：改期原因落結構化 status_reason
         "  status_reason = %s, "
         "  updated_at = NOW() "
-        "WHERE id = %s::uuid",
-        (new_dt, note, reason.strip()[:_RESCHEDULE_REASON_MAX], wo_id),
+        "WHERE id = %s::uuid AND status = ANY(%s)",
+        (new_dt, note, reason.strip()[:_RESCHEDULE_REASON_MAX], wo_id,
+         sorted(_RESCHEDULE_FROM)),
     )
+    _assert_transition_applied(_cur, allowed=_RESCHEDULE_FROM, action="申請改期")
 
     # ─── audit + LINE push ────────────────────────────────────────────────
     await _audit_action(
@@ -3895,14 +3933,18 @@ async def approve_reschedule(
         note += f" comment={comment.strip()[:_RESCHEDULE_REASON_MAX]}"
 
     if decision == "reject" and revert_to is not None:
-        await db_module._conn.execute(
+        # CR-0199：駁回改期會回寫 scheduled_at，前提是單仍在 _RESCHEDULE_FROM
+        # （下面的 else 分支只 append service_report 文字，不綁條件——見 CR-0199 §6
+        #  的 SKIP 判定：純文字附加誤擋的代價高於漏擋）
+        _cur = await db_module._conn.execute(
             "UPDATE work_orders SET "
             "  scheduled_at = %s::timestamptz, "
             "  service_report = COALESCE(service_report, '') || E'\\n' || %s, "
             "  updated_at = NOW() "
-            "WHERE id = %s::uuid",
-            (revert_to, note, wo_id),
+            "WHERE id = %s::uuid AND status = ANY(%s)",
+            (revert_to, note, wo_id, sorted(_RESCHEDULE_FROM)),
         )
+        _assert_transition_applied(_cur, allowed=_RESCHEDULE_FROM, action="駁回改期")
     else:
         await db_module._conn.execute(
             "UPDATE work_orders SET "
