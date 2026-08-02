@@ -26,6 +26,7 @@ from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
 from core.auth import hash_password
+from core.pii_crypto import mask_email_for_log
 from core.config import load_config
 from core.db import _ensure_conn
 from core.errors import ApiError
@@ -102,7 +103,7 @@ async def request_reset(*, email: str, request_ip: str | None = None) -> None:
         conn = None
     if conn is None:
         # DB 不可用：仍不洩漏，但記 log（呼叫端照常回 200）
-        logger.error("request_reset: DB unavailable, email=%s", email)
+        logger.error("request_reset: DB unavailable, email=%s", mask_email_for_log(email))
         return
 
     # CR-0176 S5 前置（A1）：品牌庫雙謂詞（明文 OR bidx）；tech 面走技師權威庫
@@ -122,7 +123,7 @@ async def request_reset(*, email: str, request_ip: str | None = None) -> None:
         )
     row = await cur.fetchone()
     if not row:
-        logger.info("request_reset: 無此帳號（安靜略過）email=%s", email)
+        logger.info("request_reset: 無此帳號（安靜略過）email=%s", mask_email_for_log(email))
         return
     user_id, is_active = str(row[0]), row[1]
     if not is_active:

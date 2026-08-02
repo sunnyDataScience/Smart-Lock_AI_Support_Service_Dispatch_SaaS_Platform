@@ -13,6 +13,7 @@ import uuid
 
 import core.db as db_module
 from core.auth import hash_password
+from core.pii_crypto import mask_email_for_log
 from core.errors import ApiError
 from services.auth_service import _STAFF_ROLES, _find_user_by_email
 
@@ -71,7 +72,10 @@ async def submit(
         (app_id, tenant_id, name.strip(), email.strip(), (phone or "").strip() or None,
          hash_password(password)),
     )
-    logger.info("staff_application 新申請 id=%s tenant=%s email=%s", app_id, tenant_id, email)
+    logger.info(
+        "staff_application 新申請 id=%s tenant=%s email=%s",
+        app_id, tenant_id, mask_email_for_log(email),
+    )
     return {
         "data": {"id": app_id, "status": "pending"},
         "message": "申請已送出,待品牌管理員審核並指派角色",

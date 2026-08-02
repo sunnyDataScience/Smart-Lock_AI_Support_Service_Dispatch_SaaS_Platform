@@ -56,7 +56,10 @@ async def list_dispatch_candidates_v2(
     work_order_id: str = Query(...),
     skills: list[str] | None = Query(default=None),
     areas: list[str] | None = Query(default=None),
-    levels: list[str] | None = Query(default=None),
+    levels: list[str] | None = Query(
+        default=None,
+        description="⚠ 尚未實作：目前收下但不生效（TC-DISPATCH-01）。等級語意待業主定義後補。",
+    ),
     exclude_circuit: bool = Query(default=True),
     rating_min: float | None = Query(default=None, ge=0.0, le=5.0),
     user: CurrentUser = Depends(role_required(*DISPATCH_ROLES)),

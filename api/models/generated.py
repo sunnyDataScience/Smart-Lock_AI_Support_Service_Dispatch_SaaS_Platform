@@ -195,7 +195,11 @@ class WorkOrder(BaseModel):
     document_number: constr(max_length=30) | None = Field(
         None, description='WorkOrder 編號 WO-YYYYMMDD-NNNN（ERP 引用號）'
     )
-    problem_card_id: UUID
+    # 2026-08-02：原為必填 UUID，但 DB 的 work_orders.problem_card_id **可為 NULL**
+    # （手建工單不由問題卡衍生；scratch 庫實測 629 張中有 50 張是 NULL）。
+    # 型別不放寬的話，只要租戶裡出現一張這樣的工單，**整支列表端點就 500**
+    # ——症狀是整頁壞掉而不是單筆異常，與 ProblemCard.media_urls 同一類問題。
+    problem_card_id: UUID | None = None
     technician_id: UUID | None = None
     status: WorkOrderStatus
     district: str

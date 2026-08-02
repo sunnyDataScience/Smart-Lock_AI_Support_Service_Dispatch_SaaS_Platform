@@ -91,3 +91,26 @@ def mask_tail(value: str | None, visible: int) -> str | None:
     if len(value) <= visible:
         return value
     return "•" * (len(value) - visible) + value[-visible:]
+
+
+def mask_email_for_log(value: str | None) -> str:
+    """log 專用的 email 遮蔽：保留首字元與網域（a***@example.com）。
+
+    **與 mask_tail 的差別**：mask_tail 是給「UI 顯示已知全值」用的；本函式是給
+    **log／稽核輸出**用的，目標是「夠讓營運把同一個人的多筆 log 對起來，但單看
+    log 還原不出完整地址」。
+
+    2026-08-02（TC-COMPLIANCE-03）：探針實跑打 request-password-reset 後掃容器 log，
+    直接掃到完整 email 明文。log 會被集中收集、保存期常比業務資料長、
+    存取控制也比 DB 鬆——PII 落進 log 等於繞過了所有資料面的保護。
+
+    None／空字串 → "(none)"；沒有 @ 的字串一律只留首字元（不假設格式）。
+    """
+    if not value or not value.strip():
+        return "(none)"
+    value = value.strip()
+    if "@" not in value:
+        return value[0] + "***"
+    local, _, domain = value.partition("@")
+    head = local[0] if local else ""
+    return f"{head}***@{domain}"

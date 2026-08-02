@@ -74,7 +74,14 @@ def _wo_row_to_dict(row: tuple) -> dict:
     address = row[5] or ""
     out: dict = {
         "id": str(row[0]),
-        "problem_card_id": str(row[1]),
+        # 2026-08-02：原為無條件 str(row[1]) —— problem_card_id 為 NULL 時會變成字串
+        # 'None'，回應模型是 UUID 型別 → ValidationError → **整支列表端點 500**。
+        # 這與 problem_card_service._pc_row_to_dict 的 conversation_id 是同一個坑
+        # （該處註解「UAT P1-1:手建卡無對話 → None(str(None) 會變 'None' 字串炸
+        # response model)」已修，工單這支漏了）。
+        # 實測 scratch 庫 629 張工單有 50 張 problem_card_id 為 NULL；prod 若出現
+        # 手建工單（不由問題卡衍生）就會踩到，且症狀是整頁列表壞掉而非單筆異常。
+        "problem_card_id": str(row[1]) if row[1] is not None else None,
         "status": _coerce_status(row[3]),
         "district": _parse_district(address),
         "address": address,

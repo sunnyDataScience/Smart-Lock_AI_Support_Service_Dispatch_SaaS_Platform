@@ -17,7 +17,8 @@ operationId 對齊 openapi.yaml：listDispatchCandidates
   - availability_eta_minutes：available=15, busy=60, 其他 None
   - exclude_circuit (default true)：本 phase technicians 表無 circuit_breaker_until 欄
       故只能用 status='inactive' / 'on_leave' 過濾，不會誤剔
-  - filters：skills（任一命中）、areas（任一命中）、levels（DB 暫無 level → 不過濾）、rating_min
+  - filters：skills（任一命中）、areas（任一命中）、rating_min
+  - **levels 目前不生效**（見 levels_filter 參數說明）
   - auto_dispatch_attempts：暫回 [] — 待 dispatch_logs 表完整接入
 """
 
@@ -483,12 +484,26 @@ async def list_dispatch_candidates(
     work_order_id: str,
     skills_filter: list[str] | None = None,
     areas_filter: list[str] | None = None,
+    # ⚠ 2026-08-02（TC-DISPATCH-01）：**本參數目前完全不生效** —— 收下但從未傳給
+    # _score_rows（該函式簽名也沒有 levels）。原 docstring 稱「DB 暫無 level」已過期：
+    # CR-0060 的 technician_skill 表已有 level 欄（A/B/C）。
+    #
+    # 刻意**不猜語意**直接實作：`levels=['A']` 是指「持有任一 A 級技能」還是
+    # 「特定技能達 A 級」？後者需要與 skills 交叉，語意由業主定，屬派工媒合的
+    # 業務規則（FR-TEC-03），猜了會做出錯的過濾且不易察覺。
+    # 現況處置：保留參數不破壞呼叫端，但使用時記 warning，讓「有人真的在用」浮上來。
     levels_filter: list[str] | None = None,
     exclude_circuit: bool = True,
     rating_min: float | None = None,
 ) -> dict:
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
+
+    if levels_filter:
+        logger.warning(
+            "dispatch 候選查詢帶了 levels=%s，但該過濾尚未實作（TC-DISPATCH-01）"
+            "——回傳結果未依等級篩選", levels_filter,
+        )
 
     # 取工單的 brand / district 作為匹配依據
     cur = await db_module._conn.execute(
