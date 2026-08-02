@@ -25,6 +25,24 @@ Verify → Request → Receive → Verify again → Done
 - Review early, review often.
 - Technical correctness over social comfort.
 
+### 流程 vs 內容 — 本 skill 只管流程
+
+這三個階段規範的是**怎麼審**（紀律），不是**該找什麼**（內容）。
+
+實際要找哪些缺陷 → **`references/defect-patterns.md`**（需要時才展開）：
+
+| 節 | 內容 | 何時讀 |
+|---|---|---|
+| **§B** | 權限缺失／IDOR、多租戶隔離、fail-open、閘門真空通過 | **任何回傳資料或做准入判斷的端點——優先於 §A** |
+| **§C** | 本專案硬規矩：migration-first、M18 config FK、對照組、假基線 | 動 migration／config／agent／測試基線時 |
+| **§A** | 通用 Python：例外、邊界、資源、併發、效能 | 一般 code 變更 |
+
+總原則是 **precision > recall**：只在確信是真缺陷時提出。
+本輪 6 個 FAIL 經覆核只有 2 個成立——**誤報率 67%**，誤報比漏報更傷信任。
+
+> §B 是通用 reviewer **不會幫你看**的那半（2026-08-02 實測確認），
+> 而本專案最嚴重的缺陷全部落在那裡。
+
 ---
 
 ## Phase 1: Verify Before Completion
