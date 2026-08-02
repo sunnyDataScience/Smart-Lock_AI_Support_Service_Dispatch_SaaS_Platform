@@ -72,11 +72,15 @@ consumer 不啟動。redpanda 容器有在跑、topic（`commission.accrued`／
 1. 三個 API 容器補 `KAFKA_BOOTSTRAP` 指向 redpanda 並重啟
 2. CQRS consumer 需真的起來（目前 `event_bus.enabled()` 為 False 時整條 no-op）
 3. 「停擺 30 分鐘後重播」需可控地停/起 consumer
-4. 對帳閘門要有 v2 路徑的事件——**目前只有 legacy `approve_reconciliation` 會發
-   `commission.accrued`**，v2 與月結兩條寫入路徑都不發，投影永遠沒有 v2 資料
+4. 對帳閘門要有可比對的事件——見下方更正
 
-> ⚠️ 第 4 點是既有的設計缺口（0727 紅隊審查已記錄），不是環境問題。
-> 貿然開啟 `reconcile_gate_enforce` 會讓每次月結永久 409。
+> ⚠️ **第 4 點已於 2026-08-02 更正**：原記載「v2 與月結兩條寫入路徑都不發」
+> **只對了一半**。實查現行 code，v2 對帳核准
+> （`reconciliation_v2_service.py:303-356`）**已經會發**——CR-0189 補的，含 outbox。
+> 真正還缺的只有**月結批次**（`monthly_settlement_service.py:200`，全檔 0 處 publish）。
+> 加上閘門查 legacy `settlements` 而月結寫 `saas.settlement` 的表分裂，
+> 貿然開啟 `reconcile_gate_enforce` 仍會讓每次月結永久 409。
+> 已開 **CR-0198** 追蹤，該 CR 內有完整的三路徑比對表與修法選項。
 
 ### B. Refinery 服務（3 條）
 
