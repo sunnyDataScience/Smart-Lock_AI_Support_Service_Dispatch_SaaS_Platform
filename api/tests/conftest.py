@@ -240,3 +240,99 @@ async def audit_privileged_exec(sql: str, params: tuple = ()) -> None:
         await db_module._conn.execute(sql, params)
     finally:
         await db_module._conn.execute("SET session_replication_role = 'origin'")
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# 測試庫 schema 同步守衛（2026-08-02）
+#
+# **為什麼要這個**：2026-08-02 追 SC-13～19 探針時，全套失敗數長期停在 129 支，
+# 一直被當成「既有失敗清單」。實際補上測試庫缺的 migration 122/125 之後，
+# 失敗數掉到 26 —— **那 100 支根本不是 code 壞，是測試庫 schema 落後 repo**。
+#
+# 假基線比沒有基線更糟：它讓真正的新回歸藏在一片紅裡看不出來，
+# 而且每個人都以為「本來就這樣」。
+#
+# 本守衛在 session 開始時比對測試庫的 public.schema_migrations 與
+# SQL/migrations/*.sql，落後就**直接中止**並印出補法。
+# 逃生門：ALLOW_TEST_DB_DRIFT=1（給刻意要在舊 schema 上重現問題的情境）。
+# ─────────────────────────────────────────────────────────────────────────
+
+_MIGRATIONS_DIR = Path(__file__).resolve().parents[2] / "SQL" / "migrations"
+
+
+def _repo_migration_versions(target: str = "brand") -> set[str]:
+    """repo 內**落庫目標含 `target`** 的 migration 版本號。
+
+    必須尊重檔頭的 `-- migrate-targets:` 宣告，否則會把 platform／tech 專屬的
+    migration 也要求品牌測試庫套用 —— 初版就犯了這個錯，被 121
+    service-principal-credentials（platform 專屬）打臉。
+    未標注者依 apply-schema-routed.sh 的慣例視為 brand（向下相容）。
+    """
+    import re as _re
+
+    out: set[str] = set()
+    if not _MIGRATIONS_DIR.is_dir():
+        return out
+    for f in sorted(_MIGRATIONS_DIR.glob("*.sql")):
+        head = f.name.split("-", 1)[0]
+        if not head.isdigit():
+            continue
+        targets = {"brand"}
+        try:
+            for line in f.read_text(encoding="utf-8").splitlines()[:5]:
+                if "migrate-targets:" in line:
+                    raw = line.split("migrate-targets:", 1)[1].strip()
+                    raw = _re.split(r"[^a-zA-Z,]", raw, maxsplit=1)[0]
+                    targets = {t.strip() for t in raw.split(",") if t.strip()}
+                    break
+        except OSError:
+            pass
+        if target in targets:
+            out.add(str(int(head)))
+    return out
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _assert_test_db_schema_synced():
+    """測試庫 schema 落後 repo → 中止並說明，不讓假基線繼續長大。"""
+    if os.environ.get("ALLOW_TEST_DB_DRIFT") == "1":
+        return
+    uri = os.environ.get("POSTGRES_URI", "")
+    if not uri:
+        return  # 沒有 DB 的純單元測試情境不干涉
+
+    try:
+        import psycopg
+
+        with psycopg.connect(uri, connect_timeout=10) as conn, conn.cursor() as cur:
+            cur.execute("SELECT to_regclass('public.schema_migrations')")
+            if cur.fetchone()[0] is None:
+                applied: set[str] = set()
+            else:
+                cur.execute("SELECT version FROM public.schema_migrations")
+                applied = {str(r[0]).lstrip("0") or "0" for r in cur.fetchall()}
+    except Exception as exc:  # noqa: BLE001 — 連不上 DB 不該由本守衛決定成敗
+        print(f"\n[test-db-guard] 略過 schema 同步檢查（DB 不可用：{exc!r}）")
+        return
+
+    missing = sorted(_repo_migration_versions("brand") - applied, key=int)
+    if not missing:
+        return
+
+    pytest.exit(
+        "\n"
+        "══════════════════════════════════════════════════════════════\n"
+        " 測試庫 schema 落後 repo，測試結果不可信 —— 已中止\n"
+        "══════════════════════════════════════════════════════════════\n"
+        f"  未套用的 migration（{len(missing)} 支）：{', '.join(missing)}\n"
+        "\n"
+        "  為什麼硬擋：2026-08-02 的實例——測試庫缺 migration 122/125 讓全套失敗數\n"
+        "  虛報成 129 支（實際 26 支）。假基線會把真正的新回歸藏在一片紅裡。\n"
+        "\n"
+        "  補法（對測試庫執行）：\n"
+        "    POSTGRES_URI=<測試庫> ./scripts/db/apply-schema-routed.sh\n"
+        "\n"
+        "  若刻意要在舊 schema 上重現問題：ALLOW_TEST_DB_DRIFT=1 pytest ...\n"
+        "══════════════════════════════════════════════════════════════",
+        returncode=3,
+    )
