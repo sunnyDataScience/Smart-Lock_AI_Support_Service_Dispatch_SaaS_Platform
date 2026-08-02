@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import os
-import os
 import re
 import tomllib
 from dataclasses import dataclass
@@ -83,7 +82,14 @@ def load_config(path: str | Path | None = None) -> AppConfig:
         vertex_location=_auto_vertex_location(model, vx.get("location", "")),
         credentials_path=creds_path,
         tenant=mem.get("tenant", "locksmart"),
-        backend=str(mem.get("backend", "sqlite")).strip().lower(),
+        # 2026-08-02 掃描：原本只讀 toml，**無 runtime 覆寫路徑**。config.toml 硬寫
+        # backend="sqlite" 表示每個 instance 各自一份本地 DB——目前 Cloud Run 是
+        # MIN=MAX=1 單實例所以影響未實現，但一旦調高 max-instances，per-user 記憶
+        # 會依使用者被路由到哪個 instance 而時有時無，且不會有任何錯誤訊息。
+        # 加 env 覆寫讓部署層可切換，預設行為不變（env 未設就照 toml）。
+        backend=str(
+            os.environ.get("AGENT_MEMORY_BACKEND") or mem.get("backend", "sqlite")
+        ).strip().lower(),
         db_path=mem.get("db_path", ":memory:"),
         postgres_uri_env=mem.get("postgres_uri_env", "POSTGRES_URI"),
         extractor=str(mem.get("extractor", "llm")).strip().lower(),

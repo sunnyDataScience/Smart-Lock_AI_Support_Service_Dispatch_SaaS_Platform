@@ -208,6 +208,75 @@ async def list_work_orders_v2(
     }
 
 
+class WorkOrderSearchBody(BaseModel):
+    """`:search` 的 body —— 與 listWorkOrdersV2 的 query 參數一一對應。
+
+    存在的唯一理由是**不要讓 PII 進 URL**（見下方端點的 docstring）。
+    欄位語意與 GET 版完全相同，共用同一個 service 呼叫。
+    """
+
+    cursor: str | None = None
+    limit: int = Field(default=20, ge=1, le=100)
+    problem_card_id: str | None = None
+    technician_id: str | None = None
+    status: list[str] | None = None
+    brand: str | None = None
+    created_after: str | None = None
+    keyword: str | None = Field(
+        default=None, description="關鍵字搜尋（客戶姓名/地址/電話模糊）"
+    )
+
+
+@router.post(
+    "/tenants/{tenantId}/work-orders:search",
+    operation_id="searchWorkOrdersV2",
+    summary="工單搜尋 v2（POST；關鍵字含 PII 時用此端點避免寫進 access log）",
+    response_model=WorkOrderPage,
+    tags=["M06 WorkOrder"],
+)
+async def search_work_orders_v2(
+    body: WorkOrderSearchBody,
+    tenantId: str = Path(...),
+    user: CurrentUser = Depends(require_tenant),
+) -> dict:
+    """與 listWorkOrdersV2 完全等價，差別只在參數走 body 而非 query string。
+
+    2026-08-02 掃描：`keyword` 搜尋的是
+    `customer_name / customer_address / customer_phone`（work_order_service.py:252），
+    而客服的日常操作就是拿客戶電話來找單。走 GET 時那串電話會明文出現在
+    **兩層** Cloud Run 的 `httpRequest.requestUrl`——brand-portal 一份、
+    上游 API 一份（proxy 原樣轉發 `nextUrl.search`），預設保留 30 天。
+
+    結果是任何持 `roles/logging.viewer` 的 GCP 帳號都讀得到客戶 PII，
+    **完全繞過應用層 RBAC，而且不會產生任何 audit_events**——
+    誰查過哪個客戶的電話，營運端查不出來。
+
+    GET 版**保留不動**（既有呼叫端與書籤不受影響）；前端的搜尋框改打這支。
+    """
+    _cross_tenant_read(user, tenantId)
+
+    # 與 GET 版同一道收斂：師傅站也可能用搜尋，技師 token 不得列出全租戶工單
+    technician_id = await work_order_service.technician_scope_filter(
+        actor_role=user.role, actor_user_id=user.user_id, requested=body.technician_id
+    )
+    page = await work_order_service.list_orders(
+        tenant_id=tenantId,
+        cursor=body.cursor,
+        limit=body.limit,
+        problem_card_id=body.problem_card_id,
+        technician_id=technician_id,
+        status=body.status,
+        brand=body.brand,
+        created_after=body.created_after,
+        keyword=body.keyword,
+    )
+    return {
+        "items": [WorkOrder(**w).model_dump(mode="json") for w in page["items"]],
+        "next_cursor": page["next_cursor"],
+        "has_more": page["has_more"],
+    }
+
+
 @router.get(
     "/tenants/{tenantId}/work-orders/{id}",
     operation_id="getWorkOrderV2",

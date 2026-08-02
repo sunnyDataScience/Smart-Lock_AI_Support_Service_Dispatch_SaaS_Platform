@@ -73,6 +73,9 @@ export default function DisputesPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [media, setMedia] = useState<DisputeMediaFile[]>([]);
+  // 2026-08-02 掃描：證據載入失敗原本 catch → setMedia([])，畫面顯示「尚無證據檔案／0 個檔案」。
+  // 「沒有證據」與「載不到證據」是完全不同的結論，而客服要據此裁決賠償金額。
+  const [mediaError, setMediaError] = useState(false);
 
   const [resolutionNote, setResolutionNote] = useState("");
   const [resolutionAmount, setResolutionAmount] = useState<string>("");
@@ -127,9 +130,16 @@ export default function DisputesPage() {
         const res = await api.get<DisputeMediaPage>(
           tenantPath(`/disputes/${encodeURIComponent(selectedId)}/media`),
         );
-        if (alive) setMedia(res.items ?? []);
+        if (alive) {
+          setMedia(res.items ?? []);
+          setMediaError(false);
+        }
       } catch {
-        if (alive) setMedia([]);
+        // 不可退化成「沒有證據」——保持空清單但標記載入失敗，由 UI 明說
+        if (alive) {
+          setMedia([]);
+          setMediaError(true);
+        }
       }
     })();
     return () => {
@@ -367,12 +377,14 @@ export default function DisputesPage() {
                 titleColor="#2563EB"
                 title={t("evidence.customer")}
                 files={customerEvidence}
+                loadFailed={mediaError}
               />
               <div className="w-px bg-[var(--border)]" />
               <EvidenceSection
                 titleColor="#D97706"
                 title={t("evidence.technician")}
                 files={technicianEvidence}
+                loadFailed={mediaError}
               />
             </div>
           )}
@@ -479,10 +491,13 @@ function EvidenceSection({
   title,
   titleColor,
   files,
+  loadFailed,
 }: {
   title: string;
   titleColor: string;
   files: DisputeMediaFile[];
+  /** 證據載入失敗——必須與「真的沒有證據」分開顯示，客服要據此裁決賠償金額 */
+  loadFailed?: boolean;
 }) {
   return (
     <div className="flex flex-1 flex-col gap-3 p-5">
@@ -491,10 +506,16 @@ function EvidenceSection({
           {title}
         </span>
         <span className="text-[11px] text-[var(--text-secondary)]">
-          {files.length} 個檔案
+          {loadFailed ? "—" : `${files.length} 個檔案`}
         </span>
       </div>
-      {files.length === 0 ? (
+      {loadFailed ? (
+        <div className="flex h-[90px] items-center justify-center rounded-md bg-[#FEF2F2]">
+          <span className="text-[12px] text-[var(--text-warning)]">
+            證據載入失敗，請重新整理後再裁決
+          </span>
+        </div>
+      ) : files.length === 0 ? (
         <div className="flex h-[90px] items-center justify-center rounded-md bg-[#F8FAFC]">
           <span className="text-[12px] text-[var(--text-secondary)]">尚無證據檔案</span>
         </div>

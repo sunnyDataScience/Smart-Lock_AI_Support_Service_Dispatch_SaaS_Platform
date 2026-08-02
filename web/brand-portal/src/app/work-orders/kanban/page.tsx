@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search,
   List,
@@ -73,26 +73,39 @@ export default function WorkOrdersKanbanPage() {
     return q;
   }, [statusFilter, periodFilter, brandFilter, keyword]);
 
+  // 2026-08-02 掃描：搜尋框逐鍵觸發 fetch 且無取消，較舊查詢的回應會覆蓋較新的
+  // → 看板顯示與搜尋字不符的工單。用遞增序號丟棄過期回應（比 AbortController 簡單，
+  // 且不需要 api 層支援 signal）。
+  const reqIdRef = useRef(0);
+
   const fetchOrders = async () => {
+    const myId = ++reqIdRef.current;
     setLoading(true);
     setError(null);
     try {
       const res = await api.get<WorkOrderPage>(tenantPath("/work-orders"), {
         query: queryObj,
       });
-      const newItems: WorkOrder[] = res.items ?? [];
-      setItems(newItems);
+      if (myId !== reqIdRef.current) return; // 已有更新的查詢在跑 → 丟棄本次結果
+      setItems(res.items ?? []);
     } catch (e) {
+      if (myId !== reqIdRef.current) return; // 過期查詢的錯誤也不該蓋掉畫面
       setError(
         friendlyError(e),
       );
     } finally {
-      setLoading(false);
+      if (myId === reqIdRef.current) setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOrders();
+    // keyword 逐鍵變動 → debounce 減少無謂請求；其餘篩選是點選，即時觸發。
+    // 注意 debounce 只是減量，正確性仍靠上面的 reqIdRef 序號守衛。
+    const delay = keyword.trim() ? 300 : 0;
+    const timer = setTimeout(() => {
+      fetchOrders();
+    }, delay);
+    return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, periodFilter, brandFilter, keyword]);
 

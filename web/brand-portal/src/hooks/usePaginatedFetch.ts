@@ -48,10 +48,25 @@ export interface PaginatedResponse<T> {
 export interface UsePaginatedFetchOptions {
   /** API path，如 tenantPath("/work-orders") */
   path: string;
+  /**
+   * 走 POST 並把分頁/篩選參數放進 body，而非 query string（預設 false = 維持 GET）。
+   *
+   * 2026-08-02 掃描：當篩選條件含 PII（如工單搜尋的 keyword 會比對
+   * customer_name / customer_address / customer_phone）時，走 GET 會讓那串值明文
+   * 出現在**兩層** Cloud Run 的 httpRequest.requestUrl——前端站台一份、上游 API 一份，
+   * 預設保留 30 天，任何持 roles/logging.viewer 的帳號都讀得到，繞過應用層 RBAC
+   * 且不產生 audit_events。
+   *
+   * 只有「篩選條件本身是敏感資料」的清單才需要開；一般清單維持 GET（可快取、可書籤）。
+   * 後端需有對應的 `:search` 端點（見 searchWorkOrdersV2）。
+   */
+  searchViaPost?: boolean;
   /** 每頁筆數，預設 20 */
   pageSize?: number;
   /** 額外 query params（不含 limit / cursor — hook 自動加） */
-  query?: Record<string, string | number | boolean | undefined>;
+  // string[]：多值參數（如 status 可重複帶）。api.ts 的序列化早就支援
+  // （Array.isArray → searchParams.append），只是這裡的型別漏了。
+  query?: Record<string, string | number | boolean | string[] | undefined>;
   /**
    * 觸發重新載入的 key（query 變動時請改本字串，hook 會偵測並 refresh）。
    * 範例：`queryKey={`status=${filter}`}`。缺省時只在 mount 載入一次。
@@ -145,6 +160,7 @@ export function usePaginatedFetch<T>(
 ): UsePaginatedFetchResult<T> {
   const {
     path,
+    searchViaPost = false,
     pageSize = DEFAULT_PAGE_SIZE,
     query,
     queryKey,
@@ -184,13 +200,16 @@ export function usePaginatedFetch<T>(
       setLoading(true);
       setError(null);
       try {
-        const q: Record<string, string | number | boolean | undefined> = {
+        const q: Record<string, string | number | boolean | string[] | undefined> = {
           ...queryRef.current,
           limit: pageSize,
         };
         if (afterCursor) q.cursor = afterCursor;
 
-        const res = await api.get<PaginatedResponse<T>>(path, { query: q });
+        // searchViaPost：參數走 body，避免 PII 進 access log（見 options 的 searchViaPost 說明）
+        const res = searchViaPost
+          ? await api.post<PaginatedResponse<T>>(path, q)
+          : await api.get<PaginatedResponse<T>>(path, { query: q });
         const rawItems = res.items ?? [];
         const newItems = (mapItem ? rawItems.map(mapItem) : rawItems) as T[];
         setItems((prev) => (append ? [...prev, ...newItems] : newItems));
@@ -210,7 +229,7 @@ export function usePaginatedFetch<T>(
         setLoading(false);
       }
     },
-    [path, pageSize, enabled, formatError],
+    [path, pageSize, enabled, formatError, searchViaPost],
   );
 
   const loadMore = useCallback(async () => {

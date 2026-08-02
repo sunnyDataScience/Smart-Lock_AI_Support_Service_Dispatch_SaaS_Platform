@@ -87,8 +87,18 @@ export default function WorkOrdersPage() {
         p.set("created_after", since.toISOString());
       }
     }
-    const qs = p.toString();
-    return qs ? `?${qs}` : "";
+    // 2026-08-02：改走 POST :search，參數放 body。
+    // keyword 比對的是 customer_name / customer_address / customer_phone，
+    // 走 GET 時那串客戶電話會明文進兩層 Cloud Run access log（保留 30 天），
+    // 繞過應用層 RBAC 且不產生 audit_events。
+    const obj: Record<string, string | string[]> = {};
+    for (const [k, v] of p.entries()) {
+      const prev = obj[k];
+      if (prev === undefined) obj[k] = v;
+      else if (Array.isArray(prev)) prev.push(v);
+      else obj[k] = [prev, v];   // status 可重複帶多值
+    }
+    return obj;
   }, [statusFilter, brandFilter, periodFilter, keyword]);
 
   // P3：全 cutover 至 tenant-scoped v2 路徑（tenantPath 同步解析 tenantId）。
@@ -101,7 +111,9 @@ export default function WorkOrdersPage() {
   }, [searchParams]);
 
   const { items, cursor, hasMore, loading, error, loadMore, refresh } = usePaginatedFetch<WorkOrder>({
-    path: `${tenantPath("/work-orders")}${queryParams}`,
+    path: `${tenantPath("/work-orders")}:search`,
+    query: queryParams,
+    searchViaPost: true,
     pageSize: PAGE_SIZE,
     formatError: formatWorkOrderError,
   });
