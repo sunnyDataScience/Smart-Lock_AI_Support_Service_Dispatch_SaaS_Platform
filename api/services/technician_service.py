@@ -98,8 +98,11 @@ async def list_technicians(
 ) -> dict:
     """GET /technicians — 管理員視角，cursor 分頁。
 
-    availability / level 為 OpenAPI 欄位但 DB 沒對應實值；本 phase 不做實際過濾。
-    新增 4 個實際 DB-backed filter (status/capability/service_region/rating_min)。
+    2026-08-02 更正：原註解寫「availability / level 為 OpenAPI 欄位但 DB 沒對應實值，
+    本 phase 不做實際過濾」——**該說法已過時**，實查 technicians 表兩個欄位都在
+    （`availability`、`level`）。收下參數卻不過濾比不支援更糟：呼叫端看 OpenAPI
+    以為生效，拿到的卻是未過濾全表。已補上實際 WHERE 條件。
+    其餘 DB-backed filter：status/capability/service_region/rating_min。
     CR-0114 R4：師傅身分讀共用師傅庫 authority（require_tech_conn;單庫 fallback
     同顆連線,SQL 不變）;清單附 authorized_brands（該師傅已授權的鎖品牌 chips）。
     """
@@ -111,6 +114,15 @@ async def list_technicians(
     if status:
         where.append("t.status = %s")
         args.append(status)
+
+    # CR：availability / level 原本收下即丟（見 docstring）
+    if availability:
+        where.append("t.availability = %s")
+        args.append(availability)
+
+    if level:
+        where.append("t.level = %s")
+        args.append(level)
 
     if capability:
         # capabilities 是 jsonb array, 用 @> 檢查包含

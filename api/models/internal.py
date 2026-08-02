@@ -141,8 +141,12 @@ class RefundSodResult(BaseModel):
     refund_id: str
     work_order_id: str | None = None
     amount: str  # decimal string with 2 decimals
-    tier: str  # L1 / L2 / L3 / L4 / L5
-    refund_class: str
+    # 2026-08-02：原為必填 str，但 `refund_requests.tier` 與 `refund_class` 在 DB
+    # **都是 nullable**，而 legacy／agent 建立的退款不寫這兩欄——一筆這種資料就讓
+    # getRefundSod 在 Pydantic 驗證階段 500。與 CR-0199 那批的 problem_card_id 同類：
+    # 型別宣告寫的是期望，DB 存的是現實，改型別前要查寫入端實際存什麼。
+    tier: str | None = None  # L1 / L2 / L3 / L4 / L5；legacy 資料可能為 NULL
+    refund_class: str | None = None
     state: str  # pending / approved / executed / rejected
     initiator_user_id: str | None = None
     approver_user_ids: list[str] = Field(default_factory=list)

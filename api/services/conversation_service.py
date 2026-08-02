@@ -593,19 +593,31 @@ async def send_message(
     )
 
     # 5. LINE Push（F-018 closeout）— fail-soft；推送失敗不阻斷客服訊息寫入
+    #
+    # 2026-08-02 掃描：原本這裡是 try/except Exception + logger.warning，但
+    # `line_push_service.push_text` 的 docstring 明寫 **"Never raises — callers can
+    # rely on the boolean"**——它永遠回 bool 而不拋例外，所以那個 except 是**死碼**，
+    # 而唯一的失敗訊號（回傳值）被丟棄。結果是推送失敗完全無痕跡，客服卻收到
+    # 201「已送出」，客戶其實沒收到。改為檢查回傳值。
+    #
+    # 記 ERROR 而非 WARNING：這是**使用者可見**的失敗（客服以為回覆送出了），
+    # 與那些純內部的 fail-soft 副作用不同，需要能被告警規則挑出來。
+    # 本路徑目前無 outbox 可補送（CR-0172 的 outbox 只涵蓋派工推播），
+    # 所以至少要讓它在 log 裡叫得出來。
     if line_user_id:
-        try:
-            from services import line_push_service
+        from services import line_push_service
 
-            await line_push_service.push_text(
-                line_user_id=line_user_id,
-                text=content,
-                actor_user_id=sender_user_id,
-                tenant_id=tenant_id,
-            )
-        except Exception:  # noqa: BLE001 — must never break handover write
-            logger.warning(
-                "LINE push failed during handover (conv=%s)", conv_id, exc_info=True
+        delivered = await line_push_service.push_text(
+            line_user_id=line_user_id,
+            text=content,
+            actor_user_id=sender_user_id,
+            tenant_id=tenant_id,
+        )
+        if not delivered:
+            logger.error(
+                "LINE push FAILED during handover — 訊息已入庫但客戶未收到 "
+                "(conv=%s sender=%s line_user=%s)",
+                conv_id, sender_user_id, line_user_id,
             )
     else:
         logger.info(

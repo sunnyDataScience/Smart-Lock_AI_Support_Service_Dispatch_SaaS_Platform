@@ -189,27 +189,50 @@ def _accounting_to_rows(items: list[dict]) -> list[list[str]]:
 # =============================================================================
 
 
+def _date_range_notice(from_date: str | None, to_date: str | None) -> str:
+    """呼叫端傳了日期區間但本服務不支援時的可見標注（2026-08-02 掃描）。
+
+    `from` / `to` 在 openapi 宣告為 `format: date`，前端的 ReportExportModal 也真的
+    會把它們帶進 query string，但四種報表的下游（kpi / revenue / technician_ranking /
+    accounting）**沒有任何一個吃日期區間**——參數收下即丟，匯出的一直是全期間資料。
+
+    直接回 422 會打壞前端既有的日期篩選 UI；靜默忽略則讓使用者拿著全期間資料
+    以為是選定區間。折衷是**讓它看得見**：標注進報表 subtitle 並記 warning。
+    真正支援日期區間需要改四個下游 service 的查詢，屬 API contract 變更（要走 CIA）。
+    """
+    if not from_date and not to_date:
+        return ""
+    logger.warning(
+        "report export 收到未支援的日期區間 from=%s to=%s——匯出的是全期間資料",
+        from_date, to_date,
+    )
+    return f"　⚠ 日期區間（{from_date or '不限'}～{to_date or '不限'}）尚未支援，本報表為全期間"
+
+
 async def _build_rows(
     *,
     tenant_id: str,
     report_type: str,
     period: str | None,
+    from_date: str | None = None,
+    to_date: str | None = None,
 ) -> tuple[list[list[str]], dict]:
     """回傳 (rows, meta)。meta 用於 PDF 標題顯示（例如 period / generated_at）。"""
+    _notice = _date_range_notice(from_date, to_date)
     if report_type == "kpi":
         report = await kpi_service.get_kpi_report(
             tenant_id=tenant_id, period=period or "30d"
         )
         return _kpi_to_rows(report), {
             "title": "KPI 報表 (KPI Report)",
-            "subtitle": f"period: {report.get('period', '')}",
+            "subtitle": f"period: {report.get('period', '')}" + _notice,
         }
 
     if report_type == "revenue":
         report = await revenue_service.get_revenue_summary(tenant_id=tenant_id)
         return _revenue_to_rows(report), {
             "title": "營收報表 (Revenue Report)",
-            "subtitle": f"granularity: {report.get('granularity', '')}",
+            "subtitle": f"granularity: {report.get('granularity', '')}" + _notice,
         }
 
     if report_type == "technician_ranking":
@@ -231,7 +254,7 @@ async def _build_rows(
         )
         return _technician_ranking_to_rows(items), {
             "title": "技師排行報表 (Technician Ranking)",
-            "subtitle": f"technicians: {len(items)}"
+            "subtitle": f"technicians: {len(items)}" + _notice
             + (" (truncated)" if page.get("has_more") else ""),
         }
 
@@ -246,7 +269,7 @@ async def _build_rows(
         items = result.get("items") or []
         return _accounting_to_rows(items), {
             "title": "結算報表 (Accounting / Settlements)",
-            "subtitle": f"records: {len(items)}"
+            "subtitle": f"records: {len(items)}" + _notice
             + (" (truncated)" if result.get("has_more") else ""),
         }
 
@@ -267,14 +290,16 @@ async def stream_csv(
     tenant_id: str,
     report_type: str,
     period: str | None = None,
-    from_date: str | None = None,  # noqa: ARG001 - 預留 future 使用
-    to_date: str | None = None,    # noqa: ARG001
+    from_date: str | None = None,
+    to_date: str | None = None,
 ) -> AsyncIterator[str]:
     """產生 CSV 行 generator。"""
     rows, _meta = await _build_rows(
         tenant_id=tenant_id,
         report_type=report_type,
         period=period,
+        from_date=from_date,
+        to_date=to_date,
     )
     for row in rows:
         yield _csv_line(row)
@@ -417,14 +442,16 @@ async def render_pdf(
     tenant_id: str,
     report_type: str,
     period: str | None = None,
-    from_date: str | None = None,  # noqa: ARG001 - 預留 future 使用
-    to_date: str | None = None,    # noqa: ARG001
+    from_date: str | None = None,
+    to_date: str | None = None,
 ) -> bytes:
     """回傳完整 PDF bytes。"""
     rows, meta = await _build_rows(
         tenant_id=tenant_id,
         report_type=report_type,
         period=period,
+        from_date=from_date,
+        to_date=to_date,
     )
     return _render_pdf(rows, meta)
 

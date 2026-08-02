@@ -446,7 +446,10 @@ async def health():
 
 from fastapi import WebSocket, WebSocketDisconnect, Query  # noqa: E402
 
-from realtime.ws_hub import hub, verify_ws_token, authorize_channel, WSAuthError  # noqa: E402
+from collections.abc import Awaitable, Callable  # noqa: E402
+from realtime.ws_hub import (  # noqa: E402
+    hub, verify_ws_token, authorize_channel, WSAuthError, WSAuth,
+)
 
 
 # admin 類頻道允許的角色（依需求調整）
@@ -460,6 +463,43 @@ _ADMIN_OR_SUPPORT = {"admin", "operations_manager", "support_agent"}
 _SLA_ALERT_ROLES = {"admin", "operations_manager", "dispatcher", "customer_service"}
 
 
+async def _assert_ws_work_order_tenant(wo_id: str, auth_tenant_id: str) -> None:
+    """訂閱工單 WS 頻道前驗證該工單屬於連線者的租戶（2026-08-02 資安掃描）。
+
+    原問題：`/realtime/work-orders/{wo_id}` 的頻道名**沒有租戶命名空間**，
+    而 `_ws_authorized_subscribe` 在此處**沒帶任何約束參數**
+    （無 path_user_id / path_tech_id / allowed_roles），
+    `verify_ws_token` 的租戶比對又只在 client **自願**附上 `tenant_id` query 時才跑。
+    三者疊加＝任何登入者只要知道 wo_id 就能訂閱他租戶的工單事件，
+    收到的 payload 含未遮罩的客戶 PII。
+
+    改頻道名（加租戶前綴）才是根治，但那會同時打壞 3 處 publish 與前端既有連線，
+    屬 breaking change；此處改為訂閱時驗歸屬，行為等價而不動契約。
+
+    平台級 token（`tenant_id` 為空）不在此擋——那是跨租戶治理身分，
+    其權限邊界由 ADR-035 的 platform principal 規範，不是這裡的職責。
+    """
+    if not auth_tenant_id:
+        return
+    import core.db as db_module
+    if not await db_module._ensure_conn():
+        raise WSAuthError(1011, "db_unavailable")
+    cur = await db_module._conn.execute(
+        "SELECT COALESCE(wo.tenant_id, u.tenant_id) "
+        "FROM work_orders wo LEFT JOIN users u ON wo.created_by = u.id "
+        "WHERE wo.id = %s::uuid",
+        (wo_id,),
+    )
+    row = await cur.fetchone()
+    # 查無此單也擋——回同一個 reason，不透露該 id 是否存在
+    if not row or (row[0] and str(row[0]) != str(auth_tenant_id)):
+        logger.warning(
+            "cross-tenant WS subscribe blocked wo=%s owner=%s caller=%s",
+            wo_id, (row[0] if row else None), auth_tenant_id,
+        )
+        raise WSAuthError(1008, "not_found")
+
+
 async def _ws_authorized_subscribe(
     ws: WebSocket,
     channel: str,
@@ -469,8 +509,13 @@ async def _ws_authorized_subscribe(
     path_user_id: str | None = None,
     path_tech_id: str | None = None,
     allowed_roles: set[str] | None = None,
+    extra_check: Callable[[WSAuth], Awaitable[None]] | None = None,
 ) -> None:
-    """驗 token + 通道授權 → accept → subscribe → 等待 disconnect → unsubscribe。"""
+    """驗 token + 通道授權 → accept → subscribe → 等待 disconnect → unsubscribe。
+
+    `extra_check` 供需要查 DB 才能判斷歸屬的頻道使用（如工單頻道要驗該單的租戶）。
+    它在 accept **之前**跑，丟 WSAuthError 就直接關閉，不會有已 accept 的連線收到資料。
+    """
     try:
         auth = await verify_ws_token(
             access_token=access_token
@@ -484,6 +529,8 @@ async def _ws_authorized_subscribe(
             path_tech_id=path_tech_id,
             allowed_roles=allowed_roles,
         )
+        if extra_check is not None:
+            await extra_check(auth)
     except WSAuthError as e:
         await ws.close(code=e.code, reason=e.reason)
         return
@@ -522,12 +569,15 @@ async def ws_work_orders(
     access_token: str | None = Query(default=None),
     tenant_id: str | None = Query(default=None),
 ):
-    # tenant 內任何登入者都可訂閱該工單事件（後續若需精細 ACL 再擴充）
+    # tenant 內任何登入者都可訂閱該工單事件（後續若需精細 ACL 再擴充），
+    # 但 CR：必須真的是**該 tenant 的**工單——頻道名無租戶命名空間，
+    # 不驗就等於跨租戶可訂閱（見 _assert_ws_work_order_tenant）。
     await _ws_authorized_subscribe(
         websocket,
         f"/realtime/work-orders/{wo_id}",
         access_token,
         tenant_id,
+        extra_check=lambda auth: _assert_ws_work_order_tenant(wo_id, auth.tenant_id),
     )
 
 

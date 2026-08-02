@@ -2969,10 +2969,21 @@ async def record_scope_change(
         )
     technician_id = str(row[0])
     original_price = float(row[1]) if row[1] is not None else 0.0
-    try:
-        new_price = float(total_estimate) if total_estimate else None
-    except (TypeError, ValueError):
+    # 2026-08-02：原本 except 直接吞成 None。那讓「填了但格式無效」與「根本沒填」
+    # 變成同一件事——而後者是合法的（不改價），前者則會讓下面的 _classify_scope_tier
+    # 拿不到加價金額而誤判成 minor（不需主管核准），客戶端看到的加價也變成 0。
+    # 沒填仍是 None（合法）；填了無效值改回 422，讓呼叫端知道自己傳錯。
+    if total_estimate is None or total_estimate == "":
         new_price = None
+    else:
+        try:
+            new_price = float(total_estimate)
+        except (TypeError, ValueError) as e:
+            raise ApiError(
+                "VALIDATION_ERROR",
+                f"total_estimate 不是有效金額：{total_estimate!r}",
+                422,
+            ) from e
 
     # CR-0038 桶4 / BR-M08-02：金額分級（config 驅動）；major 標 requires_supervisor
     tier_info = await _classify_scope_tier(original_price, new_price)

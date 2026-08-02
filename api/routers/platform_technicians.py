@@ -48,7 +48,13 @@ class TechnicianCreateBody(BaseModel):
 
     display_name: str = Field(..., description="師傅顯示姓名")
     coverage_areas: list[str] = Field(..., description="服務覆蓋區域")
-    phone: str | None = Field(default=None, description="聯絡電話（選填）")
+    # 2026-08-02：原本無格式驗證，但讀取端的 Technician.phone 是
+    # constr(pattern=r"^09\d{8}$")（models/generated.py:757）——寫入端放行任意字串，
+    # 一筆髒資料就讓整支師傅列表 500。同 repo 的 auth.py / platform_vendors.py /
+    # platform_brand_applications.py 都有這個 pattern，此處是漏的。
+    phone: str | None = Field(
+        default=None, pattern=r"^09\d{8}$", description="聯絡電話（選填，格式 09xxxxxxxx）"
+    )
     email: str | None = Field(default=None, description="電子郵件（選填）")
     capabilities: list[str] | None = Field(default=None, description="可服務品牌/技能碼")
 
@@ -57,7 +63,8 @@ class TechnicianUpdateBody(BaseModel):
     """編輯師傅主檔（部分更新，皆選填）。"""
 
     display_name: str | None = None
-    phone: str | None = None
+    # 同 TechnicianCreateBody：編輯路徑也要擋，否則建立時擋住的髒資料可從這裡進來
+    phone: str | None = Field(default=None, pattern=r"^09\d{8}$")
     email: str | None = None
     coverage_areas: list[str] | None = None
     capabilities: list[str] | None = None

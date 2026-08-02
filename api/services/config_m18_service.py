@@ -599,6 +599,20 @@ async def rollback(
         raise ApiError("CONFIG_NOT_FOUND", f"rollout {rollout_id} 不存在", 404)
 
     _rid, version_id, current_stage, ver_tenant, namespace, key, parent_vid = row
+
+    # 2026-08-02 資安掃描：這裡本來就 SELECT 出了 v.tenant_id（ver_tenant），卻從不比對——
+    # 呼叫端只要知道 rollout_id 就能回滾**別的租戶**的 config 版本。
+    # 回 404 而非 403：403 會確認該 rollout 存在，可被用來列舉。
+    #
+    # ver_tenant 為 NULL＝全域設定（tenant_id IS NULL），維持既有行為不在此擋——
+    # 那類的權限邊界屬 platform principal（ADR-035），與本函式的租戶收斂是兩件事。
+    if ver_tenant is not None and str(ver_tenant) != str(tenant_id):
+        logger.warning(
+            "cross-tenant config rollback blocked rollout=%s owner=%s caller=%s",
+            rollout_id, ver_tenant, tenant_id,
+        )
+        raise ApiError("CONFIG_NOT_FOUND", f"rollout {rollout_id} 不存在", 404)
+
     version_id_str = str(version_id)
     parent_vid_str = str(parent_vid) if parent_vid else None
 
