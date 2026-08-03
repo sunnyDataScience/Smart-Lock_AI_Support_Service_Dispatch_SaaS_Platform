@@ -194,8 +194,7 @@ API_BASE=http://localhost:8000 ./scripts/ci/contract-schemathesis.sh
 
 ## 測試（Makefile）
 
-對應 [`docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md`](../docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md)
-§5.2 測試金字塔分層。從專案根目錄執行：
+測試金字塔分層。從專案根目錄執行：
 
 ```bash
 make help              # 列出所有 target
@@ -210,8 +209,6 @@ make coverage          # 產生 coverage HTML / XML（diff-cover 用）
 make mock-up / mock-down  # Prism mock @ :4010 背景啟停
 make clean             # 清理 __pycache__ / .pytest_cache / coverage data
 ```
-
-詳見 [`tests/README.md`](../tests/README.md)（金字塔規範 + Mock 光譜 + marker 選擇）。
 
 ---
 

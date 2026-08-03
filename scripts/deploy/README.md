@@ -257,5 +257,3 @@ printf '%s' "<SMTP_PASSWORD>" | gcloud secrets create SMTP_PASSWORD --data-file=
 ## 相關文件
 
 - [`../README.md`](../README.md) — scripts/ 全景與情境 A/B
-- [`../../agent/docs/manuals/cloud_run_deploy.md`](../../agent/docs/manuals/cloud_run_deploy.md) — agent 部署細節
-- [`../../docs/04-deliver/E9--deployment-and-operations-guide.md`](../../docs/04-deliver/E9--deployment-and-operations-guide.md) — 整體運維手冊

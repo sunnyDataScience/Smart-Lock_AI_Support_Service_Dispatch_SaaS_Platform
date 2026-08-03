@@ -103,7 +103,3 @@ V1 scaffold 翻譯涵蓋：
 
 未來若需要 ICU 或 SSR 預載入，遷移為 next-intl 的工作集中在 `LocaleProvider.tsx` + `lib/translate.ts`，**components 的 `useTranslations(...)` callsite 零改動**。
 
-## 相關文件
-
-- 設計決策：[`docs/02-design/specs/i18n-strategy.md`](../../../docs/02-design/specs/i18n-strategy.md)
-- E7x readiness：[`docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md`](../../../docs/_flows-bdd-test/v-model-right/E7x--test-plan-and-readiness.md) §4.2
