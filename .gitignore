@@ -91,6 +91,13 @@ cloud-sql-proxy
 # Playwright MCP local cache（瀏覽器自動化工具的本地暫存）
 .playwright-mcp/
 
+# CodeGraph MCP 索引（tree-sitter 解析的本機知識圖譜，約 54 MB，可由
+# `codegraph init` 重建）。工具會自帶一份 .codegraph/.gitignore，但它只排除
+# *.db / *.db-wal / *.db-shm / *.log / cache/ / .dirty，漏掉 daemon.pid 與
+# 自己，所以整個目錄仍會出現在 git status。在根層整包排除，且不去改工具
+# 自帶那份——它會在重建索引時被覆蓋。
+.codegraph/
+
 # UAT 驗證指南（本地教學產物，含測試帳密，不進版控）
 uat-guides/
 
