@@ -16,8 +16,7 @@
 ├── settings.json              # 專案設定（權限、StatusLine、Model）
 ├── settings.local.json        # 個人設定（MCP 啟用）-- 不入 Git
 ├── WORKFLOW.md                # 開發流程指南
-├── statusline.sh              # StatusLine bash 腳本（Windows）
-├── statusline-linux.sh        # StatusLine bash 腳本（Linux）
+├── statusline.sh              # StatusLine bash 腳本
 │
 ├── agents/       (13 個)      # 專業 Agent 定義
 ├── commands/     (12 個)      # Slash Command
@@ -112,13 +111,12 @@
 
 ```
 hooks/
-├── hook-utils.sh          # 共用工具函數庫（非 hook）
 ├── session-start.sh       # 會話啟動：偵測模板、提示初始化
 ├── user-prompt-submit.sh  # 用戶輸入：攔截 /task-* 命令
 ├── pre-tool-use.sh        # 工具前置：TaskMaster 狀態提示
 ├── post-write.sh          # 寫入後置：文檔審查通知
 ├── agent-monitor.sh       # Agent 監控：記錄 subagent 活動
-└── watch-agents.sh        # 監控工具：即時追蹤 agent log
+└── architecture-lock.sh   # 架構鎖：攔截違反 Architecture Lock 的寫入
 ```
 
 #### Hook 註冊對照表
@@ -139,15 +137,7 @@ hooks/
 - `agent-activity.log` — 人類可讀格式（prompt、結果、時間戳）
 - `agent-activity.jsonl` — 結構化 JSON（適合程式分析）
 
-即時監控（開另一個終端機）：
-
-```bash
-bash .claude/hooks/watch-agents.sh           # 即時追蹤
-bash .claude/hooks/watch-agents.sh --json    # JSON 格式
-bash .claude/hooks/watch-agents.sh --last 30 # 最近 30 行
-bash .claude/hooks/watch-agents.sh --summary # 統計摘要
-bash .claude/hooks/watch-agents.sh --clear   # 清除 log
-```
+即時監控（開另一個終端機）：`tail -f .claude/logs/agent-activity.log`
 
 #### 複製到其他專案
 
