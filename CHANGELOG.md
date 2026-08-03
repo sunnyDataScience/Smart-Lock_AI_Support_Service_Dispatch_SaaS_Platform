@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — 2026-Q2 Tactical Refactor
 
+### Operations
+
+- **🔴 prod 目前處於刻意停機狀態（2026-08-02 起，帳務封鎖止血）**——任何人接手前先讀這條，否則會把「服務全掛」誤判為程式缺陷去追。還原用 [`scripts/ops/opsday-20260802-restore-from-cost-shutdown.sh`](scripts/ops/opsday-20260802-restore-from-cost-shutdown.sh)。
+  - **觸發事件**：2026-08-02 05:53 UTC 起 Vertex AI 對本專案回 403 `"Lightning dunning decision is deny for project: projects/1083648618124"`（dunning ＝ Google 催繳／風控流程）。症狀是 LINE 客戶收到 fallback 訊息「系統暫時無法回應」。
+  - **確認**不是本輪部署造成：封鎖最早出現於 05:53 UTC，`15e57944` 的 agent 部署在 12:26 UTC，晚 6.5 小時；且用業主自己的 access token 直打 Vertex API 同樣 403 → 專案層級封鎖，與 code、SA 權限無關。
+  - **封鎖範圍是分級的，不是全面停權**：實測 8 個 API，僅 Vertex AI（生成與列模型）被拒；Cloud SQL Admin／Cloud Run Admin／Secret Manager／Artifact Registry／Cloud Storage／Cloud Logging 全部正常。
+  - **根因無法從本專案排除**：專案綁在帳單帳戶 `017423-B4EDC9-A75ABB`，而 `sunny@funngo.ai` 對它**無讀取權限**（`gcloud billing accounts list` 只回 `017946-89EC36-B9324D`，兩者不同，且後者底下不含本專案）。付款狀態須由對該帳戶有權限者查。與用量無關——Vertex AI 七月僅 NT$113 且**較六月下降 30%**。
+  - **止血動作**：22:48 業主自 Console 停 Cloud SQL（`activationPolicy=NEVER`，稽核紀錄 `cloudsql.instances.update` / `sunny@funngo.ai` / IP `123.192.206.61`）；23:0x 將 4 個 `min-instances=1` 的 Cloud Run 服務改為 0，並替 `smart-lock-agent` 恢復 CPU throttling。**服務未刪除，設定可逆。**
+  - **計費層已驗證生效**（不只看設定）：Monitoring `billable_instance_time` 每服務兩條序列——舊 revision 恆定 `1.00`（24/7 常駐），新 revision `0.01`–`0.13`（僅探測時起來）。
+  - **殘留計費**：停機的 Cloud SQL 仍收 10 GB PD_SSD ＋ 21 份備份 ＋ 7 天 PITR 日誌；Artifact Registry 5.2 GB／551 版本（NT$9/月）；Secret Manager 27 版本（NT$26/月）。**備份不可刪**——帳單帳戶若被完全停權，GCP 流程是 30 天後可能刪除資源，那是唯一的資料安全網。
+  - **遺漏複查已做**：無 Compute Engine VM／永久磁碟／保留靜態 IP／Cloud Storage 值區／Cloud Scheduler／Pub/Sub；Cloud Functions、Cloud Build、GKE、Serverless VPC 連接器的 API 根本未啟用；7 個服務全在 `asia-east1` 無跨區。完整性佐證＝七月帳單只有 5 個服務有金額，未上榜者即零成本。
+  - **對外仍活著**：`smart-lock-agent` health 回 200，LINE 客戶傳訊息仍會收到 fallback 訊息（非已讀不回）。若需完全靜默須另行處理 webhook。
+  - **順帶釐清幣別**：帳單為 **TWD 非 USD**（`gcloud billing accounts list` 回 `currencyCode: TWD`；另以三項本專案實測反推交叉驗證——單台 `db-custom-2-8192` 若為美金等於 US$4.58/hr、Artifact Registry 需 93 GB 實際僅 5.2 GB、Secret Manager 需 440 版本實際 27，美金假設一律差 16–30 倍）。七月 NT$5,185 ≈ US$160，此規模撞不到信用額度，故「欠款金額過大致停權」不成立。
+  - **成本歸因**：七月 +104% 的兩個大頭是 Cloud SQL NT$3,342（64%，單台 2vCPU/8GB 的正常價）與 Cloud Run NT$1,695（**+522%**）。後者主因為 4 個服務 `min-instances=1` 常駐計費，其中 `smart-lock-agent` 又帶 `--no-cpu-throttling`（CPU 永遠配置，閒置也全速計費）。**還原腳本刻意不還原該旗標**——LINE gateway 是請求驅動的，spool flush 也在請求週期內完成，不需 CPU 常駐。
+
 ### Decisions
 
 - **OD-002 refinery 資料進入契約定版（2026-07-28 業主裁決 → [ADR-042](smartlock-docs/enterprise/14_ADR/ADR-042_refinery資料進入契約定版受控API.md)）**：定版**受控 API 為 refinery 唯一主入口**。此裁決**推翻**了 OD-002 原記載的技術建議（「M2 用唯讀 DB、M3 切 Kafka」）——該建議的前提是 refinery 為內部工具，而業主確認它是**要賣給品牌的收費附加服務且已列入 roadmap**，觸發 OD-002 自身的 decision gate。理由：①每品牌物理分庫下直讀＝每開一站多配一組憑證與網路路徑（撞 WBS 3.3.1／3.5.1）②收費需逐租戶計量，DB 連線無計量點 ③賣出後 schema 即成契約，品牌端 migration 會靜默打壞付費產品 ④DPA 需逐筆 provenance 與刪除語義。**成本比想像低**：refinery 寫回路徑早已走受控 API + `X-Service-Credential`（`apply_behavior.py`），本裁決是把讀取路徑收尾。直讀 DB（`REFINERY_POSTGRES_URI`，現讀 messages／problem_cards／knowledge_drafts／tenant）比照 `X-Internal-Token` 加 usage counter、歸零才移除；Kafka 降為傳輸優化而非契約載體。新增 WBS 3.2.2。
