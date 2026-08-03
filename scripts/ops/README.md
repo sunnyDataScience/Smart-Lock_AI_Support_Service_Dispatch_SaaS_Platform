@@ -20,6 +20,7 @@
 | [`p4_stage7_delete_v1_dry_run.py`](#p4_stage7_delete_v1_dry_runpy) | Stage 7 簽完 ops 跑 audit | on-demand | stdlib |
 | [`export_openapi.py`](#export_openapipy) | Backend OpenAPI schema → JSON | dev | backend deps |
 | [`sync-technicians-roster.sh`](#sync-technicians-rostersh) | 技師名冊同步 | manual | shell |
+| [`diagnose-conversations.sh`](#diagnose-conversationssh) | 唯讀診斷：對話為何不進後台 | on-demand | cloud-sql-proxy + psql |
 
 ---
 
@@ -192,6 +193,25 @@ uv run python scripts/ops/export_openapi.py \
 ### `sync-technicians-roster.sh`
 
 技師名冊同步（與 production DB）— 細節見 script 內 header。
+
+### `diagnose-conversations.sh`
+
+唯讀診斷：LINE 對話明明有進 DB，品牌後台 `/conversations` 卻看不到。
+
+原理是後台列表的查詢為 `conversations c JOIN users u ON c.user_id = u.id
+WHERE u.tenant_id = <租戶>`——**對話存在不代表看得見**，還要它關聯的 user
+掛在正確的租戶下。這支直接驗這條 join，五段輸出並附判讀對照：
+
+```bash
+./scripts/ops/diagnose-conversations.sh                  # 預設租戶
+TENANT=<uuid> ./scripts/ops/diagnose-conversations.sh    # 指定租戶
+```
+
+判讀：② 租戶欄為 NULL 或非目標租戶 → user 沒掛對租戶，後台 join 不到（主因）；
+③ 為 0 但 ② 有資料 → 同上；③ > 0 → 資料看得到，問題在前端或登入身分。
+
+前置：`cloud-sql-proxy` 已安裝、`gcloud` 已登入。連 prod 走 `--gcloud-auth`
+（ADC 常撞 `invalid_rapt`）。全部 SELECT，不寫入。
 
 ---
 

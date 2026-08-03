@@ -5,7 +5,6 @@
 ```
 .claude/hooks/
 ├── README.md                    # 本文件：Hooks 系統說明
-├── hook-utils.sh               # 共用工具函數庫
 ├── session-start.sh            # 會話開始 Hook
 ├── user-prompt-submit.sh       # 用戶輸入提交 Hook
 ├── pre-tool-use.sh            # 工具使用前 Hook
@@ -78,16 +77,6 @@
 - VibeCoding 範本
 - TaskMaster 核心檔案
 - Hooks 配置檔案
-
-### 5. `hook-utils.sh`
-**功能**: 共用工具函數庫
-
-**提供函數**:
-- 日誌函數 (`log_info`, `log_success`, `log_warning`, `log_error`)
-- 狀態檢查 (`check_taskmaster_status`, `check_required_files`)
-- 檔案類型判斷 (`is_document_file`, `is_project_document`)
-- 駕駛員通知 (`show_driver_notification`)
-- 環境驗證 (`validate_environment`)
 
 ## 🔧 設定和使用
 
@@ -174,24 +163,22 @@ chmod +x .claude/hooks/my-custom-hook.sh
 # 2. 加入基本結構
 cat << 'EOF' > .claude/hooks/my-custom-hook.sh
 #!/bin/bash
+set -euo pipefail
 
-# 載入共用工具函數
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/hook-utils.sh"
 
 # Hook 主邏輯
-log_info "自定義 Hook 執行中..."
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] 自定義 Hook 執行中..."
 EOF
 
 # 3. 在 settings.local.json 中註冊
 ```
 
 ### Hook 最佳實踐
-1. **總是載入 `hook-utils.sh`** 使用共用函數
-2. **適當的日誌記錄** 便於除錯和監控
-3. **錯誤處理** 使用 `set -e` 和適當的錯誤檢查
-4. **效能考慮** hooks 應該快速執行，避免阻塞
-5. **狀態檢查** 在執行動作前檢查必要條件
+1. **適當的日誌記錄** 便於除錯和監控
+2. **錯誤處理** 使用 `set -e` 和適當的錯誤檢查
+3. **效能考慮** hooks 應該快速執行，避免阻塞
+4. **狀態檢查** 在執行動作前檢查必要條件
 
 ## 🔍 除錯和監控
 

@@ -348,14 +348,17 @@ echo '{"model":{"display_name":"Test"},"context_window":{"context_window_size":1
 
 ### 方法 2：抓取 Claude Code 真實 JSON
 
+原本這一節需要一支 `statusline-debug.sh` 輔助腳本，已於 2026-08-03 清理移除。
+改用 `tee` 直接串接即可，好處是**擷取的同時 statusline 照常顯示**，不必來回改設定：
+
 1. 把 settings.json 的 statusline command 改為：
    ```json
-   "command": "bash .claude/statusline-debug.sh"
+   "command": "tee /tmp/statusline-input.json | bash .claude/statusline.sh"
    ```
 
 2. 互動一次後查看：
    ```bash
-   cat /tmp/statusline-debug.json
+   cat /tmp/statusline-input.json
    ```
 
 3. 確認完改回：

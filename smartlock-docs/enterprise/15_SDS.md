@@ -257,7 +257,7 @@ SLA 宣告於 flow DSL（如 `{"state":"dispatched","due":"PT2H","on_breach":["b
 
 ### 4.4 現場報價修正輪的跨系統發起（ADR-027）
 
-報價 bounded context 在**品牌 api（品牌庫）**，技師身分與工作台在**跨租戶 technician-platform**——修正輪的發起走「**技師平台 command → 品牌 api 權威**」邊界（完整決策見 [../14_ADR/ADR-027](../14_ADR/ADR-027_現場報價修正發起邊界_技師平台command_品牌api權威.md)）：
+報價 bounded context 在**品牌 api（品牌庫）**，技師身分與工作台在**跨租戶 technician-platform**——修正輪的發起走「**技師平台 command → 品牌 api 權威**」邊界（完整決策見 [./14_ADR/ADR-027](./14_ADR/ADR-027_現場報價修正發起邊界_技師平台command_品牌api權威.md)）：
 
 ```mermaid
 sequenceDiagram
@@ -404,7 +404,7 @@ stateDiagram-v2
 
 **Escalation 轉真人（含兜底）**：cs-sop 紅線（金錢/要真人/急件/派工）→ LLM 呼叫 `transfer_to_human(reason, brand, model, symptom)` → 拉 per-user facts + 偵測 `is_explicit` → 寫 EscalationStore → 回核對表單（原封不動回覆客戶）。**兜底路徑**：LLM 生成「已為您安排師傅」話術卻未呼叫工具時，gateway 偵測承諾話術 + 本輪 escalation 未新增 → deterministic 補抽品牌/型號/症狀/手機 → 程式補一筆 escalation。2026-07-27 as-built 改為位置感知判定：只有 marker 前的條件／評估語氣才抑制；同子句否定與徵詢問句不算承諾；真承諾後的時間修飾不得漏接。兩路皆 `POST /internal/escalations/ingest` → api 建 AI 草擬問題卡（→ 客服 → 工單 → 派工）。
 
-**LINE postback 微格式契約**（客戶點 Flex 按鈕 → agent `/callback` 依前綴 deterministic fan-out 旁路呼 api，見 [CR-0121](../../docs/4-exploration/CR-0121-line-webhook-routing.md) 方案 A / ADR-011 類別 2）：
+**LINE postback 微格式契約**（客戶點 Flex 按鈕 → agent `/callback` 依前綴 deterministic fan-out 旁路呼 api，見 CR-0121（探索文件已依 0707 決議清除，查 git 歷史） 方案 A / ADR-011 類別 2）：
 
 | postback 前綴 | 語義 | 旁路端點 |
 |---|---|---|

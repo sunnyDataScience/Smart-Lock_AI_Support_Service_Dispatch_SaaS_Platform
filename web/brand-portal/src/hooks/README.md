@@ -58,7 +58,7 @@ wo.mutate(prev => prev.map(m => m.id === id ? { ...m, status: "done" } : m));
 
 ## 規劃中（Phase 3.3 backlog）
 
-詳見 [docs/4-exploration/WBS-0003-phase-3.3-backlog-2026-q2.md](../../../../docs/4-exploration/WBS-0003-phase-3.3-backlog-2026-q2.md)：
+原規劃文件 WBS-0003 已於 2026-08-03 清理（查 git 歷史）。剩餘項目：
 - 10 個 page 待遷移（admin/customers、refunds、warranty-claims、sentiment-alerts 等）
 - 1 個 hook 擴展待評估（非分頁版 `useFetch` for inventory）
 

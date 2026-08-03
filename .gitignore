@@ -88,8 +88,24 @@ cloud-sql-proxy
 .claude/skills/
 .dev-logs/
 
+# 第三方外掛 skill 的本機安裝（vendored copy，非本專案產物）。
+# 同層的 .agents/skills/plane-qa/ 是自建 skill，仍在版控中——只排除外部安裝的。
+# 安裝來源與雜湊記在 skills-lock.json，需要時可重新拉取（package-lock 與
+# node_modules 的關係）。
+.agents/skills/hallmark/
+
+# macOS Finder 產生的目錄中繼資料（2026-08-03 清理時掃出 13 個散落各處）
+.DS_Store
+
 # Playwright MCP local cache（瀏覽器自動化工具的本地暫存）
 .playwright-mcp/
+
+# CodeGraph MCP 索引（tree-sitter 解析的本機知識圖譜，約 54 MB，可由
+# `codegraph init` 重建）。工具會自帶一份 .codegraph/.gitignore，但它只排除
+# *.db / *.db-wal / *.db-shm / *.log / cache/ / .dirty，漏掉 daemon.pid 與
+# 自己，所以整個目錄仍會出現在 git status。在根層整包排除，且不去改工具
+# 自帶那份——它會在重建索引時被覆蓋。
+.codegraph/
 
 # UAT 驗證指南（本地教學產物，含測試帳密，不進版控）
 uat-guides/
