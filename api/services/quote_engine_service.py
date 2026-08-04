@@ -782,10 +782,15 @@ async def customer_respond_to_quote(
     # FR-API-02：冪等——客戶重複點同一決定（已在對應終態）→ 回既有成功，不 409
     # （防 LIFF 連點/重送造成 STATE_CONFLICT；效果等同 Idempotency-Key 對同決定去重）。
     _terminal = {"accept": "accepted", "reject": "rejected"}
-    cur_state = ((await (await _conn()).execute(
+    # ⚠️ await 必須在最外層包住 fetchone()——psycopg AsyncCursor.fetchone() 是
+    #    coroutine，漏 await 時 `coroutine or [None]` 因 coroutine truthy 而直接
+    #    取到 coroutine，再 [0] 就是 TypeError，且發生在下方 try 之前＝整個函式炸。
+    #    2026-07-21 (2f5cab17) 曾漏掉外層 await，客戶在 LINE 點同意/拒絕全數失敗。
+    #    形式對齊同檔 :381-383 / :391-397 等 20 處慣例。
+    cur_state = ((await (await (await _conn()).execute(
         "SELECT state FROM quote WHERE id = %s::uuid "
         "AND (tenant_id = %s::uuid OR tenant_id IS NULL)",
-        (quote_id, tenant_id))).fetchone() or [None])[0]
+        (quote_id, tenant_id))).fetchone()) or [None])[0]
     if cur_state == _terminal[decision]:
         return {"quote_id": quote_id, "state": cur_state,
                 "decision": decision, "idempotent_replay": True}
