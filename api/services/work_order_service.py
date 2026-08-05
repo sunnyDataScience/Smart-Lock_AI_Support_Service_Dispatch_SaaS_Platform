@@ -3260,8 +3260,24 @@ async def record_arrival(
         )
     # 補到場時點（started_at；COALESCE 不覆蓋既有，arrival KPI 用）
     # CR-0199：到場回報的前提是單仍在 _SUBFLOW_FROM，期間被取消就不該再記到場
+    #
+    # CR-0205 D1(a)：到場同時把 accepted → in_progress。
+    # 為什麼要改：`in_progress` 在此之前是**死值**——正常工單走
+    # assigned → accepted → completed，`_WO_TRANSITIONS:917` 的 accepted→in_progress
+    # 那條邊沒有任何人走。連帶三個可觀測的資料錯誤：
+    #   ① 統計桶（:590-604）的「施工中」恆為 0
+    #   ② technician_service.py:512-518 的 online 判定把「人在現場施工」的師傅算成可派
+    #   ③ requote_service._ALLOWED_WO_STATUS 針對 in_progress 的分支永遠走不到
+    # 業主已於 `15_SDS.md:221` 裁決 `on_site ≡ in_progress`，「到場即施工中」是對該裁決
+    # 最直接的落地。CASE 寫在同一句 UPDATE 內＝原子，不會有「started_at 寫了但 status 沒轉」。
+    #
+    # `assigned` 狀態下到場**刻意維持不動**——那代表技師還沒接單就到場，
+    # 屬異常流程，要不要補 assigned→in_progress 這條邊是另一個決策（CR-0205 D1 已標另議）。
+    # `in_progress` 重複到場則 CASE 落到 ELSE，維持原狀（冪等）。
     _cur = await db_module._conn.execute(
-        "UPDATE work_orders SET started_at = COALESCE(started_at, NOW()), updated_at = NOW() "
+        "UPDATE work_orders SET started_at = COALESCE(started_at, NOW()), "
+        "  status = CASE WHEN status = 'accepted' THEN 'in_progress' ELSE status END, "
+        "  updated_at = NOW() "
         "WHERE id = %s::uuid AND status = ANY(%s)",
         (wo_id, sorted(_SUBFLOW_FROM)),
     )
