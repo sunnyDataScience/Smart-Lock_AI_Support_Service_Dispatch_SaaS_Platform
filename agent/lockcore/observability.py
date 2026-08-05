@@ -31,6 +31,12 @@ _tracer: Any = None
 # 順序有意義:LINE uid 先於 token(U 開頭 33 字元);電話先於地址(門牌數字)。
 _LINE_UID_RE = re.compile(r"\bU[0-9a-f]{32}\b")
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+# 台灣身分證字號（CR-0209 TC-NFR-OBS-01 補漏）。
+# api 側的 pii_scrub.py:27 一直有這條，agent 側**漏了** —— 而 agent 才是直接
+# 面對客人自由輸入的那一端（客人在 LINE 打身分證字號辦保固並不罕見），
+# 少了它等於 trace 裡會留下明碼身分證。順序放在 email/phone 之前：
+# 身分證形狀（1 英文 + 9 數字）不會與其他 regex 衝突，先遮先安全。
+_NATIONAL_ID_RE = re.compile(r"\b[A-Z][12]\d{8}\b")
 # 台灣手機(09xxxxxxxx / +8869xxxxxxxx,容忍 - 或空白分隔)與市話(0x-xxxxxxxx)
 _PHONE_RE = re.compile(
     r"(?:\+886[-\s]?9\d{2}|09\d{2})[-\s]?\d{3}[-\s]?\d{3}"
@@ -53,6 +59,7 @@ def scrub_text(value: str) -> str:
     token 以占位符取代。非 PII 內容原樣保留。"""
     value = _LINE_UID_RE.sub(_hash_line_uid, value)
     value = _TOKEN_PARAM_RE.sub(r"\1[TOKEN]", value)
+    value = _NATIONAL_ID_RE.sub("[ID]", value)
     value = _EMAIL_RE.sub("[EMAIL]", value)
     value = _PHONE_RE.sub("[PHONE]", value)
     value = _ADDR_RE.sub("[ADDR]", value)
