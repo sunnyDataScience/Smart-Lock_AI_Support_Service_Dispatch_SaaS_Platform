@@ -88,7 +88,7 @@
 | testing | 80%+ 覆蓋率、TDD |
 | performance | 模型選擇、Context 管理 |
 | patterns | Repository Pattern、API 格式 |
-| change-governance | 變更治理 — CIA hard gate |
+| change-governance | 變更治理 — CIA gate（2026-08-05 起僅金流適用）+ Source of Truth 仲裁 + rewrite/refactor 打分 |
 | context-stability | 6 tier 文件穩定性 |
 | primitive-selection | command/skill/output-style 決策 |
 | subagent-context | 子代理產出持久化 |

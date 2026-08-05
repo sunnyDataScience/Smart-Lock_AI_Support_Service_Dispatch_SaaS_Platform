@@ -4,67 +4,66 @@
 
 ---
 
-## TL;DR — three lines
+## ⚠️ CIA gate 於 2026-08-05 縮限為「只有跟錢有關的才保留」
 
-1. **變更涉及 flow / contract / data / architecture → 先跑 Change Impact Analysis (CIA)**，不可直接改 code。
-2. **CIA §8 列出「Human Decisions Required」→ 等使用者決策後才動 code**。
-3. **文件衝突或文件 status: deprecated/superseded → 停下來回報，不腦補**。
+本檔原本的第一條規則是：
 
----
+> 變更涉及 flow / contract / data / architecture → **先產出 Change Impact Analysis (CIA)
+> 至 `docs/4-exploration/CR-NNNN-*.md`，🛑 停下等業主裁決 §8「Human Decisions Required」
+> 後才可動 code。**
 
-## Hard Gate — When CIA is required
+縮限的實證理由（不是嫌麻煩）：2026-08-03 的 UAT 靜態走查回查證出 83 個確認缺口，
+其中 **75 個命中 gate 而無法動工，實際修復率只有 9%**（8/83）。產出的 11 張 CIA
+（CR-0201～0211，6,777 行）本身是有品質的分析，但對非金流變更而言，
+它們把「修好問題」變成了「等一輪裁決」——治理成本超過它防止的風險。
 
-AI 在實作 code 變更前，若任務涉及以下任一面向，**必須**先產出 CIA（skill `sunnydata-change-impact-analysis` 未安裝時依本檔流程與 §CIA 結構手工產出——gate 的效力在「產出 CIA 並等裁決」，不在 skill 本身）：
+錢不一樣：算錯或被錯誤核准之後，補救成本遠高於事前確認一次，所以這一類保留 gate。
 
-| 觸發面向 | 涵蓋範圍 |
+### 💰 仍需 CIA 的範圍（金流）
+
+以下**仍須產出 CIA → 🛑 停下等業主裁決 §8 → 依 §9 實作**：
+
+| 範圍 | 具體例子 |
 |---|---|
-| **User flow / Business flow** | 新增/修改 BF/UF/SF；改變主流程或例外流程 |
-| **API contract** | 新增/刪除 endpoint；request/response schema 變動；error code 變動；版本升級 |
-| **Domain model** | 新增 entity / value object；改變既有 entity 的 invariant、關聯、生命週期 |
-| **DB schema** | 新增/刪除 table、column、index；任何需要 migration 的變更 |
-| **External integration** | 新接 vendor；改變既有 vendor 的 callback rule、retry policy、auth 機制 |
-| **Test plan** | 新增測試類別；改變覆蓋率目標；改變 CI quality gate |
-| **Architecture boundary** | 新增 module / service；移動 bounded context 邊界；引入新 infra（queue、cache、search）|
+| 退款 | 退款建立/核准/執行、SoD 三維、金額分層與核准權限、雙簽門檻 |
+| 結算 | 月結批次、技師抽成計算、結算狀態機、期末對帳閘門 |
+| 傳票／分錄 | voucher 產生、紅字沖銷、hash chain、借貸科目 |
+| 對帳 | reconciliation、差異處理、gate_pass 判定 |
+| 報價金額與計費 | 定價規則、折扣、免費保固、完工比例、取消費率、稅務 |
+| 發票 | invoice 產生、作廢、金額與稅額 |
 
-### Exempted（不需 CIA）
+判準：**這個變更會不會改變「誰付多少錢給誰」或「誰有權核准付錢」**。會 → 走 CIA。
 
-- 純 typo、註解、log message 字面修改
-- 無語意的格式調整（縮排、引號、import 排序）
-- 純內部 refactor，**且**無 contract 變動，**且**有現有測試覆蓋
-- 修 bug，**且** bug 範圍明確在單一 function 內，**且**無 contract 影響
-- Documentation-only 編輯到 tier-3 process guide
+### 其餘一律直接實作
 
----
+**不產 CIA、不停下等裁決。** 動到下列面向時仍要格外小心，
+但那是「做得更仔細」而不是「停下來」：
+User/Business flow、API contract、Domain model、DB schema、External integration、
+Test plan、Architecture boundary。
 
-## Workflow when CIA fires
+取代 gate 的自我要求（這些是實質品質保證，不是流程儀式）：
 
-```
-使用者描述變更
-    │
-    ▼
-AI 偵測到觸發面向 → 呼叫 sunnydata-change-impact-analysis skill
-    │
-    ▼
-skill 產出 CIA → 寫入 docs/4-exploration/CR-NNNN-<short>.md
-    │
-    ▼
-AI 顯示 CIA + 🛑 等待人類決策
-    │
-    ▼
-使用者填寫 §8 「Human Decisions Required」
-    │
-    ▼
-AI 依 §9 「Suggested Implementation Order」逐步實作
-    │
-    ▼
-實作完成 → 更新 TM-0000-traceability-matrix.template.md 對應 row
-    │
-    ▼
-跑 sunnydata-doc-freshness 確認 tier-2 contract 都同步
-```
+1. **先查清現況再改** —— 打開實際的 `檔案:行號` 確認，不靠印象或文件轉述。
+2. **測試要雙向驗證** —— 新增的測試必須確認「對修復前的版本會紅、對修復後會綠」。
+   只會綠的測試等於沒測（2026-08-05 的 `TC-QUOTE-09` 就是例子：既有測試涵蓋了
+   出問題的路徑，但需要 live DB 而 CI 跑不到，於是 bug 帶著「有測試」的外觀上線兩週）。
+3. **回歸要對基線** —— 跑全套前先 stash 建立基線，比對失敗清單是否相同，
+   不要把既有失敗誤認成自己造成的、也不要把自己造成的藏在既有失敗裡。
+4. **commit message 寫清 WHY 與影響範圍**，破壞性變更明確標記。
+
+### 既有 CR 文件的地位
+
+`docs/4-exploration/` 下已產出的 CR（CR-0170 / 0197 / 0198 / 0201～0211）
+**不因本裁決作廢**——它們仍是有效的背景分析、證據記錄與決策軌跡，實作時該讀。
+
+差別在於還要不要等 §8 被填答：
+
+- **非金流 CR**（0201 / 0204 / 0205 / 0206 / 0207 / 0208 / 0209 / 0210 / 0211）
+  → 不必等，直接依 §9 的順序實作；§8 的建議選項當作預設決定。
+- **金流 CR**（**CR-0203** 結算/傳票/退款/SoD；**CR-0202** 中涉及報價金額與計費規則的項目；
+  **CR-0211** 中的完工比例與取消費率）→ **仍須等業主填答 §8 才動工**。
 
 ---
-
 ## Source of Truth Conflict — 處理規則
 
 當文件之間或文件與 code 矛盾：
@@ -107,7 +106,8 @@ AI 依 §9 「Suggested Implementation Order」逐步實作
 
 ## Rewrite vs Refactor — 三層決策
 
-不是所有變更都該用 CIA + 局部修改處理。當變動規模大時，先跑這個打分表決定是要**修文件**、**重組模組**、還是**開新主幹**。
+不是所有變更都該用「局部修改」處理。當變動規模大時，先跑這個打分表決定是要**修文件**、**重組模組**、還是**開新主幹**。
+（CIA gate 已移除，但這張表仍然有用——它回答的是「這件事的規模對不對」，與要不要產文件無關。）
 
 ### 打分維度（每項 0-2 分）
 
@@ -127,22 +127,21 @@ AI 依 §9 「Suggested Implementation Order」逐步實作
 
 | 總分 | 行動 |
 |---|---|
-| **0–6 分** | 改文件 + 局部重構（CIA + 一次性實作） |
+| **0–6 分** | 改文件 + 局部重構（一次性實作即可） |
 | **7–12 分** | 架構重審 + 模組拆分（多 CR + 跨 sprint） |
 | **13 分以上** | 考慮新專案 / 新主幹（freeze 舊系統，重建） |
 
 「**改文件只是修正地圖；當地圖描述的世界已經不是原本那個世界，就要開新專案**」。13 分以上不是逃避，是承認原本的產品假設已經死了。
 
 ---
-
 ## How AI signals change-governance awareness
 
-- ✅ "This change touches `API-0003` schema → invoking `sunnydata-change-impact-analysis` skill before implementing."
 - ✅ "Read `BF-0001` and `SF-0001` — they conflict on inventory timing. Stopping to report (see above)."
 - ✅ "Document `docs/2-contracts/legacy-payment.md` is `status: superseded` → following pointer to `payment-v2.md` instead."
+- ✅ "This touches the quote state machine — opened `quote_engine_service.py:459-520` to confirm the actual transitions before changing anything, rather than trusting the spec table."
 - ❌ Silently reconciling conflicting docs by writing "the obviously correct" code
-- ❌ Implementing a feature that touches `BF-0001` without producing a CIA first
 - ❌ Updating an `status: deprecated` document instead of its replacement
+- ❌ Adding a test that only proves the fixed version passes, without checking it fails against the broken one
 
 ---
 
@@ -150,24 +149,17 @@ AI 依 §9 「Suggested Implementation Order」逐步實作
 
 | Anti-pattern | Why bad | What to do instead |
 |---|---|---|
-| AI sees a CR and starts coding immediately | Skips the gate; produces drift | Invoke CIA skill first, stop at §8 |
-| CR touches API but skips contract update | Code & spec diverge silently | CIA §4 forces explicit API entry |
-| Implementer skips updating traceability matrix | Coverage view rots; "CI green = OK" lie | CIA §9 step "update traceability" is mandatory |
+| 依文件表格改 code，沒開實際檔案確認 | 文件常落後於實作；2026-08-05 查證 94 支 TC 有 36 支引用的行號有誤 | 每個結論都要有實開過的 `檔案:行號` |
+| 新增測試只驗「修好之後會過」 | 只會綠的測試等於沒測 | 對修復前的版本跑一次，確認會紅且指出正確位置 |
+| 跑全套測試後把既有失敗當成自己造成的（或反之） | 兩個方向都會導致誤判 | stash 建立基線，比對失敗清單是否相同 |
+| 把「用詞不同」當成「功能沒實作」 | 2026-08-05 走查 11 支判重全是這個模式 | 先確認語意是否等價，再判斷是 code 該改還是文件該改 |
 | Editing a `status: deprecated` doc | Effort wasted; downstream still confused | Edit the `superseded_by` doc; or write new ADR if reviving |
-| "Just one more field" without CIA | 50 small changes = 1 silent contract break | Even single-field additions need CIA when on tier-2 contract |
 
 ---
 
 ## See also
 
-> ⚠️ 以下 `VibeCoding_Workflow_Templates/*` 模板與 `docs/4-exploration` 既有文件已於 2026-07-08
-> 大掃除刪除（查 git 歷史）。CIA gate 流程本身仍有效：產出 CIA 時於 `docs/4-exploration/` 重建
-> 目錄即可（驗收後依 0707 決議清除）。
-
-- `rules/context-stability.md` — what tier each artifact lives in (CIA outputs go to tier-4)
-- `rules/primitive-selection.md` — when CIA, when skill, when command
-- `skills/sunnydata-change-impact-analysis/SKILL.md` — gate execution skill
-- `VibeCoding_Workflow_Templates/0-principles/PRIN-0001-flow-id-conventions.md` — Flow ID system used in CIA
-- `VibeCoding_Workflow_Templates/4-exploration/CIA-0000-change-impact-analysis.template.md` — CIA structure
-- `VibeCoding_Workflow_Templates/2-contracts/TM-0000-traceability-matrix.template.md` — must be updated post-implementation
-- `VibeCoding_Workflow_Templates/3-process/QG-0000-quality-gates.md` — gates that change-governance interacts with
+- `rules/context-stability.md` — 各類產出住在哪個 tier、衝突時誰贏
+- `rules/testing.md` — 測試要求與 TDD 流程
+- `docs/4-exploration/` — 既有 CR（CR-0170 / 0197 / 0198 / 0201～0211）。
+  CIA gate 已移除，但這些文件仍是有效的背景分析與決策記錄，動到相關領域時該讀。

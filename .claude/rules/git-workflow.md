@@ -129,7 +129,7 @@ PR 是 review 與風險控制工具，不是每個修改的固定儀式。詳細
 
 必須同時符合：
 
-- 不觸發 CIA 的 flow／contract／data／architecture 七面向。
+- 不動到 flow／contract／data／architecture 七面向（見 `change-governance.md`；CIA gate 已於 2026-08-05 縮限為僅金流適用，但七面向仍是「這件事風險較高」的判準）。
 - 不涉及權限、個資、加密、金流、部署、production 或破壞性操作。
 - 範圍集中、容易回復、沒有其他協作者正在修改同一區域。
 - 有明確且可在約 10 分鐘內完成的 scoped／quick verification。
@@ -142,7 +142,8 @@ PR 是 review 與風險控制工具，不是每個修改的固定儀式。詳細
 
 #### L2：強制短命分支與 PR
 
-- 命中 `.claude/rules/change-governance.md` 的 CIA 條件。
+- 動到 `.claude/rules/change-governance.md` 所列的七個高風險面向（CIA gate 已縮限為僅金流適用，分級判準仍在）。
+- **金流類變更**（退款／結算／傳票／對帳／計費）—— 這類另須先產 CIA 並等業主裁決，見 `change-governance.md` §💰。
 - API／DB／domain／外部整合／架構邊界變動。
 - auth、RBAC、個資、加密、金流、派工安全或 deployment／infra。
 - 跨團隊 ownership、難以回復或要合入 `main`／`master`。

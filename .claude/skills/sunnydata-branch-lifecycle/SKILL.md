@@ -29,7 +29,7 @@ Read `.claude/rules/git-workflow.md` first.
 | Dirty workspace or target branch unclear | Stop and report; do not hide the state with stash |
 | `main`/`master` | Continue to Phase 1; PR is mandatory |
 
-Do not classify by line count alone. CIA triggers, security, data, money, deployment, and architecture are always L2.
+Do not classify by line count alone. The seven high-risk surfaces in `.claude/rules/change-governance.md` (flow / API contract / domain model / DB schema / external integration / test plan / architecture boundary), plus security, data, money, and deployment, are always L2. (The CIA gate was narrowed 2026-08-05 to money-related changes only — refunds, settlements, vouchers, reconciliation, pricing. Everything else: no document, no waiting. The risk classification stands regardless.)
 
 **Announce at start of Phase 1:** "I'm using the branch-lifecycle skill for this L1/L2 short-lived branch."
 **Announce at start of Phase 2:** "I'm using the branch-lifecycle skill to complete this work."

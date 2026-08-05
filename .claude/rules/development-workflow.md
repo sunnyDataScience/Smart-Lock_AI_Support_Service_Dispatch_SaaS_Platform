@@ -14,7 +14,7 @@ git status --short --branch
 1. 確認目標分支與工作區狀態。
 2. 依 `.claude/rules/git-workflow.md` 判斷 L0／L1／L2 風險。
 3. L0 走授權整合分支快速通道；L1／L2 才建立短命分支。
-4. 任何命中 `.claude/rules/change-governance.md` CIA 條件的變更，一律視為 L2，不得因程式碼很少而降級。
+4. 動到 `.claude/rules/change-governance.md` 七個高風險面向的變更，一律視為 L2，不得因程式碼很少而降級。（CIA gate 已於 2026-08-05 縮限為**僅金流適用**——非金流類不必產文件、不必停下等裁決，但**這不表示風險降低**，分級與驗證要求不變。）
 
 | 當前狀態 | 行動 |
 | :--- | :--- |
@@ -54,7 +54,7 @@ git status --short --branch
 ```text
 確認基底
 → 建立短命分支（必要時 worktree）
-→ 規劃／CIA（若觸發）
+→ 規劃（動到高風險面向時先查清現況；金流類須先產 CIA 等裁決，其餘直接做）
 → TDD 或對應驗證
 → code review
 → full／pre-PR verify

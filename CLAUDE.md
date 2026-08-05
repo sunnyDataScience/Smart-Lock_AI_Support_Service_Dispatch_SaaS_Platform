@@ -80,11 +80,23 @@ cd agent && python scripts/line_gateway.py               # LINE webhook 通道�
 </important>
 
 <important if="動 flow / contract / data / architecture">
-- **7 觸發面向**（命中任一就跑 CIA）：User/Business flow、API contract、Domain model、DB schema、External integration、Test plan、Architecture boundary
-- **豁免**：純 typo / 註解 / format / 單一 function 內 bug fix（無 contract 影響）/ tier-3 process doc 編輯
-- 觸發即產出 CIA 至 `docs/4-exploration/CR-NNNN-<short>.md`（有安裝 `sunnydata-change-impact-analysis` skill 則用之；**該 skill 目前未安裝**，依 `.claude/rules/change-governance.md` 的 CIA 結構手工產出即可）→ 🛑 等業主裁決 §8「Human Decisions Required」→ 依 §9 順序實作
-- 文件衝突或讀到 `status: deprecated`/`superseded` → 停下回報 + **引用具體 ID**（BF-/UF-/API-/TC-/ADR-/CR-），絕不腦補「合理版本」
-- 完整規則：`.claude/rules/change-governance.md`（CIA gate、rewrite vs refactor 打分表、6 tier 衝突仲裁）
+> **2026-08-05 業主裁決：CIA gate 縮限為「只有跟錢有關的才保留」。**
+> 原規則是「命中七面向 → 產出 CIA 文件 → 🛑 停下等業主裁決 → 才實作」。
+> 縮限原因：該 gate 讓 UAT 走查查出的 83 個確認缺口中有 75 個卡住無法動工（修復率 9%），
+> 對非金流變更而言治理成本超過它防止的風險。
+> 既有的 CR-0170/0197/0198/0201～0211 保留為背景分析與決策記錄，不因本裁決作廢。
+
+- **💰 金流類變更 → CIA gate 仍然有效**：退款、結算、傳票／分錄、對帳、報價金額與計費規則、
+  發票、技師抽成、金額分層與核准權限（SoD）。這類**仍須產出 CIA 至 `docs/4-exploration/CR-NNNN-*.md`
+  → 🛑 停下等業主裁決 §8 → 依 §9 實作**。錢一旦算錯或被錯誤核准，事後補救成本遠高於事前確認。
+- **其餘高風險面向 → 直接實作，不產 CIA、不停下等裁決**：User/Business flow、API contract、
+  Domain model、DB schema、External integration、Test plan、Architecture boundary。
+  動到這些仍要格外小心，但那是「做得更仔細」而不是「停下來」。
+- 取代 gate 的自我要求（非金流類）：先查清現況再改（不靠印象，要打開實際 `檔案:行號` 確認）、
+  新增測試須驗證過「對修復前的版本會紅、修復後會綠」、跑全套要對基線比對失敗清單、
+  commit message 寫清 WHY 與影響範圍、破壞性變更明確標記
+- 文件衝突或讀到 `status: deprecated`/`superseded` → 停下回報 + **引用具體 ID**（BF-/UF-/API-/TC-/ADR-/CR-），絕不腦補「合理版本」（這條與 CIA 無關，仍然有效）
+- 相關規則：`.claude/rules/change-governance.md`（Source of Truth 衝突仲裁、rewrite vs refactor 打分表、6 tier 分層）
 </important>
 
 <important if="完成一個 step / 準備 commit">
