@@ -10,8 +10,20 @@
 （`@router.get|post|put|patch|delete`）。只切 `@router.get(` 會讓區塊吃進後續 POST/PUT，
 把該 POST 的 `role_required` 誤認成 GET 的守衛 → 漏洞被誤判為已修（假陰性）。
 
-用法：python scripts/ci/endpoint-guard-audit.py [--json]
-退出碼 0=無不對稱；1=偵測到（CI 可當 gate）。EXEMPT 為經人工判定的合法例外。
+**第三類檢查（CR-0206 D4(b)，2026-08-05 新增）**：
+
+  C. **新增的無守衛端點**：既有 51 條 tenant-only／無守衛端點逐條查過都不是金流／派工／
+     設定的敏感寫入（CR-0206 §5.4 補償控制表），所以不強制回頭補。但真正的缺口不是
+     那 51 條，是**沒有任何機制阻止第 52 條靜默長出來**——本檢查用 baseline 快照把
+     「現況」凍住，新增的無守衛端點一律 fail，逼作者要嘛加守衛、要嘛顯式登記進 baseline
+     並寫理由。做法比照 `v1-freeze-check.py` 的凍結 baseline。
+
+用法：
+  python scripts/ci/endpoint-guard-audit.py [--json]     # 稽核（CI gate）
+  python scripts/ci/endpoint-guard-audit.py --write-baseline  # 重新產生 baseline
+
+退出碼 0=無不對稱且無新增無守衛端點；1=偵測到（CI 可當 gate）。
+EXEMPT 為經人工判定的合法例外。
 """
 from __future__ import annotations
 
@@ -22,6 +34,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ROUTERS = ROOT / "api" / "routers"
+BASELINE = Path(__file__).with_name("endpoint-guard-baseline.json")
 
 # 以所有 method 裝飾器為界（見 docstring：只切 get 會產生假陰性）
 _SPLIT_RE = re.compile(r"(?=@router\.(?:get|post|put|patch|delete)\()")
@@ -96,8 +109,45 @@ def audit() -> list[dict]:
     return findings
 
 
+def unguarded() -> list[str]:
+    """所有「完全無角色守衛」的端點（guard == 'other'），排序後回穩定字串清單。
+
+    格式 `<router 檔名>::<VERB> <正規化路徑>`，與 baseline JSON 直接可比。
+    """
+    out: list[str] = []
+    for p in sorted(ROUTERS.glob("*.py")):
+        if p.name == "__init__.py":
+            continue
+        for (verb, path), g in _guards(p).items():
+            if g == "other":
+                out.append(f"{p.name}::{verb} {path}")
+    return sorted(out)
+
+
+def _load_baseline() -> set[str]:
+    if not BASELINE.exists():
+        return set()
+    return set(json.loads(BASELINE.read_text(encoding="utf-8"))["unguarded"])
+
+
 def main() -> int:
+    if "--write-baseline" in sys.argv:
+        items = unguarded()
+        BASELINE.write_text(json.dumps({
+            "_comment": (
+                "CR-0206 D4(b)：無角色守衛端點的凍結 baseline。"
+                "新增端點若無守衛會讓 endpoint-guard-audit 失敗——"
+                "請優先補守衛；確有正當理由才把它加進本清單，並在 PR 描述說明為什麼。"
+            ),
+            "generated_by": "scripts/ci/endpoint-guard-audit.py --write-baseline",
+            "count": len(items),
+            "unguarded": items,
+        }, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"✅ baseline 已寫入 {BASELINE.name}（{len(items)} 條）")
+        return 0
+
     findings = audit()
+    new_unguarded = sorted(set(unguarded()) - _load_baseline())
     if "--json" in sys.argv:
         print(json.dumps(findings, ensure_ascii=False, indent=2))
     elif findings:
@@ -111,7 +161,15 @@ def main() -> int:
                       f"（同檔 {f['list_path']} 有守衛，明細無）")
     else:
         print("✅ 端點守衛稽核：無 v2/legacy 或 list/detail 不對稱")
-    return 1 if findings else 0
+
+    if new_unguarded and "--json" not in sys.argv:
+        print(f"\n❌ 偵測到 {len(new_unguarded)} 個**新增**的無角色守衛端點：")
+        for e in new_unguarded:
+            print(f"  - {e}")
+        print("\n請加上 role_required(...)；若確有正當理由不加，"
+              "跑 `--write-baseline` 把它登記進 baseline 並在 PR 說明原因。")
+
+    return 1 if (findings or new_unguarded) else 0
 
 
 if __name__ == "__main__":

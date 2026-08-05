@@ -1,0 +1,40 @@
+name: Endpoint Guard Audit
+
+# CR-0206 D4(b)：端點角色守衛守門。
+#
+# 這支腳本 2026-07-27 就寫好了（CR-0183 補漏時建的），但**一直沒接進 CI**——
+# 工具存在不等於有人在跑它，所以守衛退步了也不會有人知道。本 workflow 補上那一步。
+#
+# 三類檢查（見 scripts/ci/endpoint-guard-audit.py docstring）：
+#   A. v2/legacy 孿生不對稱 —— 同一份資料兩條路徑，一條沒守衛等於全都沒守衛
+#   B. list/detail 不對稱 —— 列表有守衛、明細沒有 = 知道 ID 就讀得到
+#   C. 新增的無守衛端點 —— 以 baseline 凍住現況（91 條，逐條查過都不是金流／派工／
+#      設定的敏感寫入），**新長出來的一律擋**
+#
+# 不需要 DB、不需要 secrets：純靜態解析 api/routers/*.py。
+on:
+  push:
+    branches: [dev, main, dev-ding]
+    paths:
+      - 'api/routers/**'
+      - 'scripts/ci/endpoint-guard-audit.py'
+      - 'scripts/ci/endpoint-guard-baseline.json'
+      - '.github/workflows/endpoint-guard-audit.yml'
+  pull_request:
+    paths:
+      - 'api/routers/**'
+      - 'scripts/ci/endpoint-guard-audit.py'
+      - 'scripts/ci/endpoint-guard-baseline.json'
+
+jobs:
+  endpoint-guard:
+    name: 端點角色守衛守門
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      # 純 stdlib（json / re / pathlib），不裝任何相依
+      - name: Run endpoint guard audit
+        run: python scripts/ci/endpoint-guard-audit.py

@@ -327,7 +327,7 @@ upstream:
 
 | ID | 對應來源 | 前置 | 步驟 | 預期 | 優先級 |
 |---|---|---|---|---|---|
-| TC-SEC-RBAC-01 | api SA-01 / A-01 | technician / vendor token | 打金流、派工、設定等敏感寫入端點（約 80 個）| 一律 **403**；授權矩陣（12 角色 × 12 資源 × 4 動作）與端點守衛一致，deny log 清零 | **P0** |
+| TC-SEC-RBAC-01 | api SA-01 / A-01 | technician / vendor token | 打金流、派工、設定等敏感寫入端點（約 80 個）| 一律 **403**；授權矩陣（12 角色 × 12 資源 × 4 動作）與端點守衛一致，deny log 清零〔標注 2026-08-05（CR-0206 D2）：**「12 角色」已被 CR-0130 推翻，現行正典是 7 角色**——`admin` / `operations_manager` / `reviewer` / `customer_service` / `dispatcher` / `technician` / `line_user`（`api/services/role_service.py:38-46` 的 `ROLE_HIERARCHY`，測試 `api/tests/test_cr_0130_rbac_enforce.py:87-95` 釘死）。CR-0130（業主裁決 2026-07-09）移除了 6 個 legacy 角色，程式碼註解記於 `role_service.py:171-174`。另「授權矩陣與端點守衛一致」目前**無法驗收**：矩陣尚未成為端點授權的真正來源（端點守衛是寫死的角色元組 `api/core/deps.py:293-304`），兩者的落差筆數現為 0 筆資料——CR-0206 D1 建議先鋪 `permission_shadow` log-only 蒐集實際落差，再決定要不要收斂。本 TC 在那之前只能驗前半（敏感寫入一律 403），後半的「一致」無從判定。〕| **P0** |
 | TC-SEC-RBAC-02 | ADR-P006 | 各角色 token × 全端點矩陣 | 矩陣掃描（自動生成案例）| 僅矩陣允許之組合通過；未列組合 deny-by-default | P0 |
 | TC-SEC-RBAC-03 | CR 治理 | 任意登入者 | 修改 config namespace（payment_gate / discount_policy 等）| 僅 namespace 之 owner 角色可改；其餘 403 | P0 |
 | TC-SEC-RBAC-04 | api C-04 | 帳號被停權 / 改密後 | 用舊 token 打 API | 停權 → 403 `ACCOUNT_DISABLED`；改密 → 401 `TOKEN_STALE`（每請求安全狀態重查）| P0 |
