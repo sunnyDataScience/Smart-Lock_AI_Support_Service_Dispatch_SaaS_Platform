@@ -29,8 +29,20 @@ MIG_DIR = ROOT / "SQL" / "migrations"
 REGISTRY = MIG_DIR / "MIGRATION_REGISTRY.md"
 
 _FNAME_RE = re.compile(r"^(\d{3})-[\w-]+\.sql$")
+
+# NFR-Sch-003 forward-only：migration 只准往前，不得夾帶 down/rollback。
+# 原本只靠慣例——`_FNAME_RE` 的 `[\w-]+` 對 `128-rollback-foo.sql` 完全放行
+# （目前 125 支裡剛好 0 支 down/rollback，所以沒出過事）。
+# 資料庫的向下遷移在多租戶＋append-only 稽核的架構下特別危險：
+# 一旦有人合進來、CI 又不擋，回滾腳本會在某次事故處理時被當成「官方支援的做法」執行。
+_FORWARD_ONLY_BANNED = re.compile(r"(?:^|-)(rollback|down|revert|undo|downgrade)(?:-|$)", re.I)
 _TARGETS_RE = re.compile(r"^--\s*migrate-targets:\s*", re.IGNORECASE)
 _VER_RE = re.compile(r"^\d{3}$")  # 幽靈列只比對真編號（排除 000-baseline 等 marker）
+
+
+def _assert_forward_only(names: list[str]) -> list[str]:
+    """回傳違反 forward-only 的檔名（NFR-Sch-003）。"""
+    return [n for n in names if _FORWARD_ONLY_BANNED.search(n.removesuffix(".sql"))]
 
 
 def _targets_of(fn: str) -> set[str]:
@@ -93,6 +105,15 @@ def main() -> int:
         if ver in versions:
             errors.append(f"編號重複 {ver}：{versions[ver]} vs {fn}")
         versions[ver] = fn
+
+    # NFR-Sch-003 forward-only：不得夾帶 down/rollback migration
+    for bad in _assert_forward_only(files):
+        errors.append(
+            f"違反 forward-only（NFR-Sch-003）：{bad}"
+            " —— migration 只准往前。需要回退請新開一支往前的修正 migration，"
+            "不要提供向下腳本（多租戶＋append-only 稽核下，回滾腳本一旦存在，"
+            "就會在某次事故處理時被當成官方支援的做法執行）。"
+        )
 
     # 連續性（允許歷史缺口——僅檢查「新增是否往後接續」以已知起點為基準）
     nums = sorted(int(v) for v in versions)

@@ -1,0 +1,60 @@
+name: Agent Tests (Architecture Lock 守線)
+
+# CR-0209 B 群：**`agent/tests/` 從來沒有在 CI 跑過**。
+#
+# 20 支既有 workflow 對 agent 測試零命中——`test-suite.yml` 只跑 `cd api && pytest -m unit`，
+# 唯一碰到 agent 的 `forbidden-eval-gate.yml` 跑的是 eval 腳本不是測試套件。
+#
+# 為什麼這件事要緊：CLAUDE.md 的 🔒 Architecture Lock 是本專案的硬性約束
+# （agent 核心只能在 lockcore/、skill 不得離開 lockcore/skills/、內建工具白名單
+# 只能在 app_config.py 統一控），而**專門守這些約束的測試從未被執行過**：
+#   · test_tool_allowlist.py          —— CS_TOOL_ALLOWLIST 的值域守線
+#   · test_mcp_allowlist_boundary.py  —— MCP 不受白名單約束的時序行為（ADR-010 刻意設計）
+#   · test_skills_loaded.py           —— 兩個 builtin skill 的載入
+#   · test_reply_guard*.py            —— ADR-025 出口 guard（價格/型號/轉接/影像/讓利）
+#   · test_fallback_reply_no_handoff.py —— 兜底話術不得觸發轉真人（犯過兩次的雷）
+# 守線測試不執行 = 沒有守線。
+#
+# 排除的 4 個檔需要 live postgres（CI 無 DB，這裡不為它們起服務——
+# 它們的價值在整合驗證，屬 component-nightly 的範圍，不是本 gate 的目的）。
+on:
+  push:
+    branches: [dev, main, dev-ding]
+    paths:
+      - 'agent/**'
+      - '.github/workflows/agent-tests.yml'
+  pull_request:
+    paths:
+      - 'agent/**'
+
+jobs:
+  agent-tests:
+    name: agent 單元測試與 Architecture Lock 守線
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Sync deps
+        run: uv sync --frozen
+      - name: Run agent tests (excluding live-DB suites)
+        working-directory: agent
+        run: |
+          uv run pytest -q \
+            --ignore=tests/test_memory_postgres.py \
+            --ignore=tests/test_skill_sync.py \
+            --ignore=tests/test_webhook_idempotency.py \
+            --ignore=tests/test_cr_0086_ai_intake_live.py
+
+      # 把 Architecture Lock 那幾支單獨再跑一次並顯式列名。
+      # 理由：上面那道若日後有人加 --ignore 或改 testpaths，守線可能被靜默排除掉；
+      # 這道寫死檔名，少了任何一支就會 collection error。
+      - name: Architecture Lock guards (explicit)
+        working-directory: agent
+        run: |
+          uv run pytest -q \
+            tests/test_tool_allowlist.py \
+            tests/test_mcp_allowlist_boundary.py \
+            tests/test_skills_loaded.py \
+            tests/test_reply_guard.py \
+            tests/test_fallback_reply_no_handoff.py
