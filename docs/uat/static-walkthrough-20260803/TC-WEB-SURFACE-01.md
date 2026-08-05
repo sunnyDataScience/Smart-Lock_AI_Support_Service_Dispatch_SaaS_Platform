@@ -1,5 +1,22 @@
 # TC-WEB-SURFACE-01 — 四站台 build 的路徑白名單與跨站導向
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 判定基準「只呈現白名單路徑**或**安全導向」是**選言**，兩層機制都齊：
+> ①安全導向：`crossModeRedirect` 對四種 APP_MODE 都有完整規則，由 AuthGuard 於 effect 首行呼叫；未配置 PEER/DISPATCH_PORTAL_URL 時退回站內登入頁，不會導到空 URL。
+> ②不得載入非本站頁面：四站的 `src/app` 是四棵**實體獨立**的檔案樹，brand-portal 下根本不存在 tech/platform 的頁面檔——沒有「非本站頁面」可載。
+> （查證期間另發現 tech-portal 與 platform-console 的 `/auth/sso-complete` 未列入放行清單，導致該兩站 SSO 回跳被自家 guard 擋掉，已於 commit `5b5f7f2a` 修復。）
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

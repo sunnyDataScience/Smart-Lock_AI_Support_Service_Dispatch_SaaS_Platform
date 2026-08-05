@@ -1,5 +1,21 @@
 # TC-WO-02 — 問題卡缺服務地址時轉工單
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 兩條判定基準全數落地，差異只在 error_code 字面：實作回 422 `ADDRESS_REQUIRED_FOR_CONVERT`（`api/services/work_order_service.py:593-599`），TC 寫的是 `ADDRESS_REQUIRED`。正典＝`api/openapi.yaml:5370-5371` 的 enum，**TC 該改的是自己的字面**。
+> 前端亦已落地：轉工單彈窗 `canSubmit = address.trim().length > 0 && !pending`（`web/brand-portal/src/app/problem-cards/[id]/page.tsx:1323`）＋必填星號文案（:1343-1352），四站錯誤字典皆有對映。
+> UAT fixture 提醒：缺地址的問題卡必須先備妥 accepted 報價，否則會先撞報價 gate 425 `QUOTE_NOT_CUSTOMER_CONFIRMED`（`work_order_service.py:586-587`）而拿不到 422；既有測試就是這樣做的（`api/tests/test_pc_convert_to_wo.py:204` `seed_accepted_quote`）。
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

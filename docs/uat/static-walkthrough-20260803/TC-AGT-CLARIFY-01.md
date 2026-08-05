@@ -1,5 +1,22 @@
 # TC-AGT-CLARIFY-01 — Clarify gate：三輪未釐清轉真人、已釐清寫 confirmation、低相似度不假稱命中
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「不一致」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 判定基準①②所依據的 FR-AGT-03 舊版需求**已被業主撤回**。ADR-033（`status: active`，業主 2026-07-22 裁決）把「連續三輪硬計數」改為 SOP 情境式紅線，`smartlock-docs/enterprise/04_SRS.md:590-595` 明文標注「三輪硬計數廢止（正典讓步於 SOP 演進）」「`clarification_attempts` 計數器 agent/api/DB 皆未實作（**欄位為文件孤兒**）」。
+> 本文件雖引了那段，結論仍下「不一致」——把已被正典撤回的需求記成 code 缺口。
+> 現行實作：SOP 紅線在 `agent/lockcore/skills/locksmith-cs-sop/SKILL.md:33-34`，runtime 兜底在 `agent/lockcore/agent/loop.py:1468-1519`；基準③（低相似度不假稱命中）亦已實作（`agent/rag/rag/store.py:126` SQL 閾值 + `server.py:69` 空清單語意 + `reply_guard.py:143-153` 出口 guard）。
+> **不要為此補三輪計數器**——那會推翻 ADR-033。TC 判定基準應改寫為 ADR-033 的紅線判準，屬 Test plan 變更需走 CIA。
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

@@ -1,5 +1,21 @@
 # TC-WO-11 — 高風險異常暫停工單（422 HIGH_RISK_HOLD）與 return_path 解除
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 兩條判定基準全數落地、錯誤碼與狀態碼字面相符、且有實跑通過的測試。**本文件自己也寫「此處為前置條件的識別碼落差，非判定基準本身」，卻仍判部分實作**，屬判重。
+> 逐項核對：`HIGH_RISK_HOLD` 422 唯一 raise 點 `api/services/work_order_service.py:2072-2075`；`_assert_not_high_risk_hold` 定義於 :2061，掛在完工（:1765）與派工（:2213）兩條路徑，涵蓋 TC 步驟的 assign/complete；hold 設定於 `api/services/exception_service.py:97-101`。
+> as-built 提醒（建議寫進 20_Test_Cases.md 的 TC-WO-11 前置）：高風險 = `severity ∈ {high, critical}`（`exception_service.py:24`），**與 exception_type 名稱無關**；`safety` 不是 ExceptionType 十值之一，UAT 請以任一型別＋`severity=high` 開立。
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

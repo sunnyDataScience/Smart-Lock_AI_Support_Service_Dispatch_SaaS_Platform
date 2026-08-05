@@ -1,5 +1,21 @@
 # TC-SETTLE-07 — 稽核 ledger append-only 與 hash chain 抽驗
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 兩條判定基準（UPDATE/DELETE 遭拒、抽驗 hash 全數相符）在 `audit_events` 上都完整實作：`SQL/migrations/100-audit-events-append-only.sql:18-27` 為 BEFORE UPDATE OR DELETE 無條件 RAISE；`api/services/audit_log_service.py:60-61` 的 `sha256(f"{prev_hash}|{content}")` 正是 TC 寫的前綴形式；`:152-204` 的 `verify_audit_chain` 提供抽 N 筆驗證，`api/routers/audit_v2.py:79-104` 已接上 API。
+> 本文件判部分實作的唯一理由是**欄位名**（實作 `entry_hash`/`prev_hash` vs TC 寫的 `hash_self`/`hash_prev`）——屬命名差異，非缺口。
+> （查證期間另發現 `api/openapi.yaml` 的 `hash_self` 描述把演算法寫錯（`sha256(hash_prev + serialize(row))`，實際 hash_prev 在最後），已於 commit `fddbbffe` 勘誤。）
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

@@ -1,5 +1,21 @@
 # TC-REF-SPLIT-01 — 提煉分流：事實／行為兩軌、惡意覆寫 prompt、re-refine
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 三條判定基準逐條成立：①事實/行為的落點由 **code** 決定不由 LLM 決定（`refine.py` 兩段各自 append 的固定分支，payload 欄位不交叉；DB CHECK `draft_type IN ('case_entry','behavior')` 於 `094:19`；`review.py:97-105` 依 draft_type 分流）②未核可 draft 不改既有內容（publisher 全檔只在 approve 內被呼叫，reject / re_refine 只轉狀態）③重跑 append-only 可回溯。
+> 本文件扣分的「惡意覆寫 prompt 是否被 LLM 忽略」**不在判定基準內**，且靜態走查與注入 fake generate 的單元測試本來就測不到——那需要 live-LLM 的 red-team 測項，應另立。
+> （查證期間另發現 `target_skill` 直接採信 LLM 回傳值，已於 commit `fddbbffe` 收斂為常數＋加 schema enum。）
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

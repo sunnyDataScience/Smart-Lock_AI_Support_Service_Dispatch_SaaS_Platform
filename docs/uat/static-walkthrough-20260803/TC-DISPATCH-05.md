@@ -1,5 +1,20 @@
 # TC-DISPATCH-05 — 技師工單投影的欄位最小化
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 判定基準「投影**僅含**摘要/地址/狀態/時窗/金額/該技師派工；不含品牌敏感全量資料（欄位最小化）」是**上界**約束，不是六項必備清單。`technician_workorder_projection` 10 欄（`SQL/tech_authority/Schema_cqrs_projection.sql:10-23`）全落在該集合內，且不含 `work_orders` 的 `customer_name` / `customer_phone` / `customer_address` / `service_report` / `photos`（`SQL/Schema.sql:471-479`）——欄位最小化成立。
+> 本文件扣分的「金額不在此表」不成立：金額在同一份 read-model 的姊妹表 `technician_commission_projection.amount`（同檔 :31）。
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

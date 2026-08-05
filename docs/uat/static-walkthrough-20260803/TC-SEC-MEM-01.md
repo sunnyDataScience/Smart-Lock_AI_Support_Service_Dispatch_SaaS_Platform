@@ -1,5 +1,22 @@
 # TC-SEC-MEM-01 — 記憶讀寫的 default deny 與 kind 限制
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 判定基準原文是「default deny raise；kind 僅限 profile/preference/fact/issue/dispatch（**對齊 test_memory.py**）」——**那個括號就是仲裁基準**。
+> 實查 `agent/tests/test_memory.py`：`test_default_deny_on_missing_scope`（:39-46）用 `pytest.raises(ValueError)` 斷言的是**缺 scope**；`test_cross_user_isolation`（:16-27）與 `test_cross_tenant_isolation`（:30-35）對跨 scope 讀取斷言的是**回空清單**（`assert store.search(...) == []`），**不是 raise**。
+> 也就是說「跨 user/tenant 讀取回空清單」正是該基準定義的期望行為，code 與之逐條相符。
+> 若業主真要跨 scope 讀取拋例外，那是把身分比對上移到 UserMemoryManager／呼叫端的架構變更（需同時傳入 session 身分與請求 scope 才比得起來），命中 Architecture boundary 須另開 CIA。
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

@@ -1,5 +1,22 @@
 # TC-DISPATCH-08 — 急件補審任務建立與 SLA 逾時升級
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 三條子基準都有對應實作，扣分點是**把用詞不同當成沒實作**：
+> · 「onsite 結束」＝完工回報 `complete_order`，`_start_retrospective_audit_timer` 正是在該處呼叫（`api/services/work_order_service.py:1823-1824`），寫 `audit_due_at = NOW() + INTERVAL '1 hour' * hours`，hours 預設 4（:1499-1507）。`record_arrival` 是 onsite **開始**，不是結束。
+> · 任務載體用佔位報價而非獨立 task 表，是白紙黑字的設計決定（`SQL/migrations/092-retrospective-audit-engine.sql:11-12`「佔位報價本身即補審任務（不建獨立 task 表）」）。
+> 建議在 TC 或 15_SDS §4.5 補一行用詞對照表（onsite 結束＝complete_order／retrospective_audit 任務＝retrospective_audit_only 佔位報價／同品牌＝同租戶 tenant_id），避免下一輪走查再判一次。
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

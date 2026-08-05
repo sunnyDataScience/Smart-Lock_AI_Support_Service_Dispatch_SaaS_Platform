@@ -1,5 +1,20 @@
 # TC-WO-03 — 報價未經客戶確認時開工單
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 兩條判定基準全數落地且有測試：非急件無「客戶已確認」報價 → 425 `QUOTE_NOT_CUSTOMER_CONFIRMED`、全數失效 → 409 `QUOTE_STATE_INVALID`（`api/services/quote_engine_service.py:162-188`）；急件 `pc.emergency_class` 非空整段跳過（`api/services/work_order_service.py:586-587`）並建 `retrospective_audit_only` 佔位報價＋audit `emergency_bypass`（:695-714）。
+> `accepted` 就是「客戶確認」的落地態——transition 表 `"accept": ({"sent"}, "accepted")`（`quote_engine_service.py:35`），客戶側入口為 LIFF / LINE 的 `customer_respond_to_quote`。屬命名差異，非缺口。
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |

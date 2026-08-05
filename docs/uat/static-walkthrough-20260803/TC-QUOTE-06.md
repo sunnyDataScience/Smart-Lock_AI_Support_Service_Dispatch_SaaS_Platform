@@ -1,5 +1,20 @@
 # TC-QUOTE-06 — 急件完工後 4h 內補 retrospective quote
 
+> ## 🔄 判定更正（2026-08-05 回程式碼查證）
+>
+> **原判定「部分實作」→ 更正為「一致」。以下原文保留未改動。**
+>
+> 本文件引用逐一覆核無誤，但判定基準的「audit_lag 檢核」在實作中是以 `quote.audit_due_at` 逾窗檢核的形式落地（`api/services/quote_engine_service.py:238` 的 overdue 與 `api/realtime/sla_monitor.py:250-272` 的 `audit_overdue` 告警），而非一個叫 audit_lag 的數值指標。語意等價，屬命名差異。
+> 若業主確實要一個數值型 audit_lag 指標，那是新增需求，需另開 CR（會命中 API contract）。
+>
+> 更正依據：對本文件引用的每個 `檔案:行號` 逐一開檔覆核、對宣稱「零命中」的識別碼
+> 以多種命名寫法重跑 grep。走查基準 commit 與查證當下 HEAD 之間，
+> `api/` `agent/` `web/` `SQL/` 原始碼零差異，故原引用仍然有效。
+>
+> **此更正不需要改動任何 code。**
+
+---
+
 ## 結果
 
 | 項目 | 內容 |
