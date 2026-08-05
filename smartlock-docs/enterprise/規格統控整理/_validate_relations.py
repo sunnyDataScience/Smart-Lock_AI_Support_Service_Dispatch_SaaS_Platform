@@ -9,6 +9,9 @@
     V9  declared SC x RQ vs derived RQ -> SC mismatch           -> finding
     V10 P0 requirements missing failure/recovery coverage       -> finding
     V11 SC with no primary persona, or persona embodied by no SC -> finding
+    V12 primary: true 只能標在 role: essential 的邊上            -> error
+    V13 同一條需求最多一條 primary: true                          -> error
+    V14 FR 在拆解樹上判不出 parent（無唯一 essential／無 primary／非 global） -> finding
 
 Errors block generation. Findings do not block, but are always printed and
 carried into 規格統控規劃書 ② 缺口清單 -- a gap that blocks generation just gets
@@ -212,6 +215,66 @@ def check_sc_persona(rep: Report, scenarios: dict, personas: dict, rel: C.Relati
             rep.finding("V11", per, f"Persona 未被任何旅程體現（裝飾性節點：{name[:20]}）", "BA")
 
 
+def check_primary_axis(rep: Report, reqs: dict, rel: C.Relations) -> None:
+    """V12/V13/V14 —— 拆解樹上的 parent 判不判得出來。
+
+    追溯是 M:N（一條需求可以同時服務多條旅程），拆解樹上的 parent 卻只能有一個。
+    `primary` 這個可選欄只解決這個載體落差，它不是第四條追溯邊——所以兩個邊界必須守住：
+    只能標在關鍵路徑（essential）的邊上（V12），且一條需求只能有一個（V13）。
+    兩者都是 error：一個標錯位置或標了兩次的宣告，等於把 parent 交給讀取順序決定。
+
+    V14 是這條軸的缺口面：機器推不出、人也還沒宣告的 FR，在拆解樹上會落進「沒有 parent」
+    那一組。列為 finding 而非 error，理由同 V8——擋下生成只會逼人隨手挑一條旅程填平，
+    而掛錯旅程的需求比沒掛的更難發現：它在畫面上長得跟正確答案一模一樣。
+    """
+    declared: dict[str, list[str]] = {}
+    for i, e in enumerate(rel.sc_rq, 1):
+        if "primary" not in e:
+            continue
+        loc = f"sc_requires_rq.yaml:edge#{i}"
+        value, sc, rq, role = e.get("primary"), e.get("scenario"), e.get("requirement"), e.get("role")
+        if not isinstance(value, bool):
+            # 寫成 "true" 或直接寫 SC 代號都會被判定邏輯靜默忽略，
+            # 結果是「明明宣告了卻還躺在 V14 清單裡」——那種錯沒有人查得出來。
+            rep.error(f"{loc} primary `{value}` 不是布林值（V12：值域只有 true / false）")
+            continue
+        if value is False:
+            continue
+        if role != "essential":
+            rep.error(f"{loc} primary: true 標在 role `{role}` 的邊上"
+                      f"（V12：parent 只能是這條需求的關鍵路徑，supporting 撐不起拆解樹）")
+            continue
+        if not str(rq).startswith("FR-"):
+            # NFR 一律掛地板 Feature，不看 SC 邊（規格 §3.4）。標了不會生效，
+            # 而一個永遠不生效的宣告會讓人以為問題已經解決。
+            rep.error(f"{loc} primary: true 標在 `{rq}` 上（V12：NFR 不掛旅程，一律走地板 Feature）")
+            continue
+        declared.setdefault(rq, []).append(sc)
+
+    for rq, scs in sorted(declared.items()):
+        if len(scs) > 1:
+            rep.error(f"sc_requires_rq.yaml {rq} 有 {len(scs)} 條 primary: true（{'、'.join(scs)}）"
+                      f"（V13：parent 是單值，宣告兩個等於沒宣告）")
+
+    global_ids = C.global_requirements()
+    for rq in sorted(reqs):
+        if not rq.startswith("FR-"):
+            continue
+        if C.primary_scenario(rq) or rq in global_ids:
+            continue
+        # 一律 .get()：缺欄的邊由 V2 報成 error，不該在這裡先 KeyError 炸掉整份報告。
+        mine = [e for e in rel.sc_rq if e.get("requirement") == rq]
+        essential = sorted({str(e.get("scenario")) for e in mine if e.get("role") == "essential"})
+        supporting = sorted({str(e.get("scenario")) for e in mine if e.get("role") == "supporting"})
+        if essential:
+            detail = (f"{len(essential)} 條 essential 邊（{'、'.join(essential)}）分不出主旅程，"
+                      f"請於其中一條標 primary: true")
+        else:
+            detail = (f"沒有任何 essential 邊（只有 supporting：{'、'.join(supporting) or '無'}），"
+                      f"要先把某一條升為 essential 才能標 primary，或改宣告 global")
+        rep.finding("V14", rq, f"拆解樹上會沒有 parent——{detail}", "BA")
+
+
 # --------------------------------------------------------------------------
 
 def run() -> tuple[Report, dict]:
@@ -234,6 +297,7 @@ def run() -> tuple[Report, dict]:
     check_rq_tc(rep, reqs, rel)
     check_coverage(rep, scenarios, by_sc, rel)
     check_sc_persona(rep, scenarios, personas, rel)
+    check_primary_axis(rep, reqs, rel)
 
     counters = {
         "sc": len(scenarios),
@@ -247,6 +311,9 @@ def run() -> tuple[Report, dict]:
         "rq_covered_by_sc": len({e["requirement"] for e in rel.sc_rq}),
         "rq_covered_by_tc": len({e["requirement"] for e in rel.rq_tc}),
         "rq_total": len(reqs),
+        # 拆解軸的健康度。追溯覆蓋率再高，FR 掛不進樹一樣看不出旅程進度。
+        "fr_with_parent": sum(1 for r in reqs if C.primary_scenario(r)),
+        "fr_on_floor": len({r for r in reqs if r.startswith("FR-")} & C.global_requirements()),
     }
     return rep, counters
 
@@ -260,6 +327,9 @@ def main() -> int:
     print(f"  SC x RQ  {n['sc_rq']:>4} 條（涵蓋 {n['rq_covered_by_sc']}/{n['rq_total']} 條需求）")
     print(f"  RQ x TC  {n['rq_tc']:>4} 條（涵蓋 {n['rq_covered_by_tc']}/{n['rq_total']} 條需求）")
     print(f"  SC x TC  {n['sc_tc']:>4} 條")
+    print("拆解軸（parent）：")
+    print(f"  FR 掛得上旅程 {n['fr_with_parent']}/{n['fr']} 條"
+          f"（另 {n['fr_on_floor']} 條宣告 global 走地板；其餘見 V14）")
 
     if rep.errors:
         print(f"\nERROR ({len(rep.errors)}) —— 擋下生成")

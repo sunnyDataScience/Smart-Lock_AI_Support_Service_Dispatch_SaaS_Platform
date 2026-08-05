@@ -1,13 +1,15 @@
 """Smart Lock enterprise 四書的靜態展示資料。
 
-只放「讀 Markdown 推不出來的人工判斷」：顯示分群、元件投影、codebase 掃描結果、
-標籤定義、階段歸屬。需求、NFR、TC、ADR、WBS 一律由生成器讀 enterprise 正典。
+只放「讀 Markdown 推不出來的人工判斷」：價值線命名、能力群分群、元件投影、
+codebase 掃描結果、標籤定義、階段歸屬。需求、NFR、TC、ADR、WBS 一律由生成器讀
+enterprise 正典；**拆解樹的父子關係一律由 `_canon` 推導，不在這裡手列**。
 
 2026-07-27 重構後仍被消費的鍵（其餘為既有 QA/術語素材，暫留待重新歸位）：
 
     GENERATED_ON / CODEBASE_SNAPSHOT   產出日與掃描基線
-    SUBSYSTEMS / MODULES               BOM 的 L1 / L2 顯示分群
-    MODULE_ARCH / MODULE_STATUS        L2 -> 正式元件、SAD/SDS、路徑、code reality
+    VALUE_LINES / GLOBAL_EPIC          拆解軸 L1：五條價值線 Epic ＋ 跨旅程地板 Epic
+    SUBSYSTEMS / MODULES               排程軸 Module 切面 ＋ FR -> 架構投影的分群鍵
+    MODULE_ARCH / MODULE_STATUS        能力群 -> 正式元件、SAD/SDS、路徑、code reality
     COMPONENT_GLOSSARY                 受控標籤字典
     PHASE_BY_ID                        FR -> M1/M2/M3+ 歸屬
     SCENARIOS                          19_Test_Plan 的 TS-01..12 基線
@@ -28,6 +30,60 @@ CODEBASE_SNAPSHOT = {
     "scope": "agent、api、web 四站、knowledge-pipeline/refinery、SQL、infra、scripts 與 enterprise 正典",
 }
 
+# 拆解軸 L1 —— 五條價值線 Epic（《Plane QA 工程守則 v1.3》B1；階層 V2 §3.1）。
+#
+# key 是 28_Scenarios.md §1 的分線代號，也就是 `Scenario.line` 的值：SC 歸哪條價值線
+# 是機械可推的，**這裡不得手列 SC**——手列等於在 28_Scenarios 之外開第二個可寫入的地方。
+#
+# 為什麼 Epic 不是子系統（2026-08-05 換裝）：子系統（AGT/API/WEB…）是技術切法，
+# 一個 sprint 交付的價值橫跨多個子系統。拿它當 Epic，roll-up 出來的數字回答的是
+# 「agent 這包做完幾成」，而管理層問的是「哪幾條客戶旅程跑得通」——後者沒有載體。
+# 子系統改走排程軸的 Module 切面（見下方 SUBSYSTEMS）。
+VALUE_LINES = {
+    "L1-CUS": {
+        "epic": "E-CUS",
+        "name": "終端客戶價值線",
+        "description": "客戶自助解決、報修建卡、報價、派工到完工結案的完整感知面。",
+    },
+    "L1-OPS": {
+        "epic": "E-OPS",
+        "name": "品牌營運價值線",
+        "description": "品牌方的派工營運、例外處理、報表與稽核治理。",
+    },
+    "L1-TEC": {
+        "epic": "E-TEC",
+        "name": "簽約師傅價值線",
+        "description": "師傅的身分與授權、接單媒合、現場作業到結算。",
+    },
+    "L1-KNW": {
+        "epic": "E-KNW",
+        "name": "知識治理價值線",
+        "description": "素材汲取、LLM 提煉、HITL 審核與雙路發佈的知識生命週期。",
+    },
+    "L1-PLT": {
+        "epic": "E-PLT",
+        "name": "平台治理價值線",
+        "description": "平台方的租戶開通、配置治理、隱私與跨租戶隔離。",
+    },
+}
+
+# 拆解軸 L1 的第六張 —— 跨旅程地板（階層 V2 §3.3）。
+# 底下不是旅程而是「地板屬性群」Feature：地板-功能（global: 區塊的 FR）與
+# 地板-<Category>（NFR 依 05_NFR 的 ID category 分群）。
+# kind 是 quality：拿掉任何一條旅程它依然必須成立，那就不是某條旅程的功能。
+GLOBAL_EPIC = {
+    "epic": "E-GLB",
+    "name": "跨旅程地板（Global Baseline）",
+    "description": "所有旅程共用的地板：全域 FR 與全部 NFR。不對應任何單一客戶旅程。",
+}
+
+# 排程軸 Module 切面（階層 V2 §4）—— 7 個子系統。
+#
+# ⚠️ 2026-08-05 起 **子系統不再是 Epic**（L1 換成價值線，見上）。這份常數留下來有兩個
+# 各自獨立的理由，刪任何一個都會斷：
+#   ① 排程軸的 Module 分組（切面，M:N，與階層正交），BOM ② 的「Module 切面」欄；
+#   ② `MODULE_ARCH` / `MODULE_STATUS` 的主鍵前半段（`AGT.CHN` 的 `AGT`）——
+#      FR 的正式元件名稱、SAD/SDS 定位、實作路徑、code reality 全部由它查出來。
 SUBSYSTEMS = {
     "AGT": {
         "name": "agent（LockCore AI 客服）",
@@ -94,7 +150,12 @@ SUBSYSTEMS = {
     },
 }
 
-# L2 僅是四書顯示群組，不是新增的追溯主鍵。追溯一律使用 SRS FR ID。
+# 能力群 —— 子系統底下的 FR 分群。追溯一律使用 SRS FR ID，這裡不是主鍵。
+#
+# ⚠️ 2026-08-05 起 **能力群不再是 L2 Feature**（L2 換成 SC 旅程，機械可推，
+# 不需要這層人工判斷）。它現在只剩一個職責：把 FR 對到 `MODULE_ARCH` 的架構投影
+# （`prefix.code` → 元件 / SAD / SDS / 路徑 / code reality），並在 BOM ② 的
+# 「Module 切面」欄顯示。members 是 FR 尾號集合，改 04_SRS 的編號要同步改這裡。
 MODULES = {
     "AGT": [
         ("CHN", "通道與 Turn 編排", {"01", "02", "10"}),
@@ -144,8 +205,8 @@ MODULES = {
     ],
 }
 
-# L2 能力群→正式 SAD/SDS 元件的人工投影。
-# 元件名稱沿用 12_SAD / 15_SDS 用語；L2 不是新的架構元件或追溯主鍵。
+# 能力群→正式 SAD/SDS 元件的人工投影。
+# 元件名稱沿用 12_SAD / 15_SDS 用語；能力群不是新的架構元件或追溯主鍵。
 MODULE_ARCH = {
     "AGT.CHN": {
         "component": "line_gateway; Photo Guide resolver; Quote postback message mapper; WebhookIdempotencyStore; AgentLoop; AgentRunner",

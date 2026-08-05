@@ -79,16 +79,23 @@ def main() -> int:
     print(f"靶心 {p.base} / {p.slug} / {p.project_id}")
     print(f"id_map {path.name}")
     print(f"待刪 work_items={len(work_items)} modules={len(state.get('modules') or {})} "
+          f"cycles={len(state.get('cycles') or {})} "
           f"milestones={len(state.get('milestones') or {})} "
           f"properties={len(state.get('properties') or {})}"
           + (f"（另有 {len(adopted)} 張認領卡只退出登記、不刪）" if adopted else ""))
 
     total = 0
-    # 先卡後容器：卡還在時刪 module/milestone 只是解除歸屬，順序反了會留下孤兒關聯。
+    # 先卡後容器：卡還在時刪 module/milestone/cycle 只是解除歸屬，順序反了會留下孤兒關聯。
     total += _sweep("work items", sorted(work_items.items()), p.delete_work_item,
                     state.get("work_items"), save)
     total += _sweep("modules", sorted((state.get("modules") or {}).items()), p.delete_module,
                     state.get("modules"), save)
+    # cycles 與 module 同層（都是排程軸的切面容器），刪除時機也一樣。
+    # 舊版 id_map 沒有這個 bucket，`.get(...) or {}` 讓它安全地掃出 0 筆——
+    # 缺這一輪的後果是 rollback 之後 Sprint 01–06 變成沒人認領的孤兒，
+    # 下次重匯因為名稱衝突會沿用它們，而那批 cycle 已經不在任何 id_map 的回收範圍內。
+    total += _sweep("cycles", sorted((state.get("cycles") or {}).items()), p.delete_cycle,
+                    state.get("cycles"), save)
     total += _sweep("milestones", sorted((state.get("milestones") or {}).items()),
                     p.delete_milestone, state.get("milestones"), save)
     total += _sweep("自訂欄位", sorted((k, v["id"]) for k, v in

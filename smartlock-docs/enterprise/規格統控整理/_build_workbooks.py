@@ -20,11 +20,18 @@ Colour is load-bearing: yellow = a human must fill this in, grey = derived,
 never hand-edit. Everything else came from the canon Markdown.
 
     python3 _build_workbooks.py
+
+⚠️ 已知技術債（2026-08-05 刻意留下，不是沒看到）：本檔已超過專案 800 行上限。
+自然的抽出點是 `PlaneTree` 與它的 TreeNode／floor_code／NO_PARENT 那一段——它是純
+資料推導，與 openpyxl 樣式無關，搬成 `_plane_tree.py` 不會動到「單一產出者」這件事
+（產出者指的是產物只有一個生成入口，不是程式碼只能有一個檔）。本輪範圍鎖在階層 V2
+換裝，抽檔留待下一輪；在那之前新增功能請優先往既有 helper 收，不要再讓本檔長。
 """
 
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -36,7 +43,7 @@ import _canon as C
 import _render_bdd as BDD
 import _validate_relations as V
 from _plane.snapshot import Snapshot
-from _spec_data import CODEBASE_SNAPSHOT, COMPONENT_GLOSSARY, MODULES, SUBSYSTEMS
+from _spec_data import CODEBASE_SNAPSHOT, GLOBAL_EPIC, VALUE_LINES
 
 # Plane 回寫快照。缺檔時所有 Plane 欄位顯示 "—"，四書照樣 build ——
 # Plane 是附加視圖，不是四書的前置依賴。
@@ -159,25 +166,40 @@ GLOSSARY_HEAD = [
      "跨系統討論一律用右欄的名字——同一件事兩個名字，是對帳失敗最常見的起點。"),
 ]
 
-# 階層四層。這四個名字在 Plane 是 work item type 的身分（level 0–3），
+# 階層三層 ＋ 工作包。這幾個名字在 Plane 是 work item type 的身分（level 0–3），
 # 不是顯示標籤——覆蓋率沿 Issue.parent roll-up 時，上層數字全部繼承自下層。
+# 2026-08-05 對標守則 v1.3：型別由六個收斂為五個，L1/L2 裝的東西整個換掉。
 GLOSSARY_HIERARCHY = [
-    ("  L1 Epic", "Plane 的 Epic（work item type，level 0，is_epic=true）。8 張：7 個子系統 ＋ NFR 全域品質地板。"),
-    ("  L2 Feature", "Plane 的 Feature（level 1）。32 張能力群。"),
-    ("  L3 ＝ Story", "FR 在 Plane 是 Story（level 2）。「驗收契約掛在這一層」，上面兩層的數字都是繼承來的。"),
-    ("  L3 ＝ Quality requirement",
-     "NFR 在 Plane 是 Quality requirement，「與 Story 同階、不是子層」。"
-     "NFR 橫跨所有層級，做成子層會逼它選一個歸屬，而「Feature 層的效能要求」就無處可放。"),
-    ("  WBS 工作包", "Plane 的 Task（level 3），列在《規格統控規劃書》③。它是工程任務，不是 User Story。"),
+    ("  L1 Epic",
+     "Plane 的 Epic（work item type，level 0，is_epic=true）。6 張：5 條價值線"
+     "（E-CUS 終端客戶／E-OPS 品牌營運／E-TEC 簽約師傅／E-KNW 知識治理／E-PLT 平台治理）"
+     "＋ 跨旅程地板 E-GLB。⚠️ 2026-08-05 前裝的是 7 個子系統，已作廢。"),
+    ("  L2 Feature",
+     "Plane 的 Feature（level 1）。19 條 SC 旅程 ＋ E-GLB 底下的地板屬性群"
+     "（地板-功能、地板-Perf、地板-Sec…）。⚠️ 2026-08-05 前裝的是 32 個能力群，已作廢。"),
+    ("  L3 Story",
+     "FR 與 NFR 在 Plane 都是 Story（level 2）。「驗收契約掛在這一層」，"
+     "上面兩層的數字全部繼承自這裡，沒有獨立來源。"),
+    ("  requirement_kind",
+     "需求性質欄（Issue 欄位）：FR＝functional、NFR＝quality、Task/Bug＝none。"
+     "守則 v1.3 廢除了 Quality requirement 這個型別——讓 type 兼管性質，"
+     "type 數量會變成「層數 × 性質數」。性質是欄位，不是型別。"
+     "⚠️ none ≠ 空白：它的意思是「這張卡不是需求」，不是「還沒填」。"),
+    ("  WBS 工作包",
+     "Plane 的 Task（level 3），列在《規格統控規劃書》③。它是工程任務，不是 User Story，"
+     "且 needs_acceptance 必須顯式關掉——平台預設 true，不關會讓 49 張工作包整批顯示未覆蓋。"),
 ]
 
 GLOSSARY_SCENARIO = [
     ("  旅程 SC",
-     "Plane 的 Scenario 型別卡。「刻意不進 Epic/Feature/Story 階層樹」——一張卡只能有一個 parent，"
-     "而旅程橫跨多個子系統，硬掛進樹會逼它選一個歸屬。它改為直接持有自己的驗收契約。"),
+     "Plane 的 Feature（level 1），**在拆解樹上**（2026-08-05 形狀變更）。"
+     "舊版讓它留在樹外，理由是「一張卡只有一個 parent，而旅程橫跨多個子系統」；"
+     "Epic 換成價值線之後這個理由消失了——旅程本來就只屬於一條價值線。"
+     "覆蓋率因此沿 Story → SC → 價值線 roll-up，管理層才答得出「哪幾條旅程跑得通」。"
+     "它既有的「直接持有驗收契約」不變，與 parent 鏈並存。"),
     ("  分線 L1-CUS…",
-     "Plane 的 Module（範疇分組）。⚠️ 敏捷文獻常把這種價值主軸叫 Epic，"
-     "但本專案的 Epic 另有所指（＝子系統，見上），兩者不可混用。"),
+     "Plane 的 Epic（E-CUS…E-PLT，level 0，is_epic=true）。"
+     "⚠️ 2026-08-05 前寫的是「Plane 的 Module」，已作廢——Module 現在是 7 個子系統。"),
 ]
 
 GLOSSARY_CONTRACT = [
@@ -213,6 +235,162 @@ COMMON_HOWTO = [
 ]
 
 
+# ---------------------------------------------------------------- 拆解樹（階層 V2）
+
+# 地板 Feature 的代號規則。地板不是旅程，所以不能借用 SC 的號碼段；
+# 前綴固定「地板-」讓它在任何一張表裡都一眼可辨。
+FLOOR_FUNCTIONAL = "地板-功能"
+NO_PARENT = "⚠ 無 parent"
+
+
+def floor_code(category: str) -> str:
+    """NFR category → 地板 Feature 代號。category 取 _canon 已解析的 NFR.category，不另寫正則。"""
+    return f"地板-{category}"
+
+
+@dataclass(frozen=True)
+class TreeNode:
+    """拆解樹上的一張非需求卡（Epic 或 Feature）。
+
+    frozen：樹算完就不再變。要改形狀請重算整棵，不要就地改一張卡——
+    改一張的結果是 roll-up 路徑與卡片內容各說各話。
+    """
+
+    code: str
+    name: str
+    kind: str      # requirement_kind：functional / quality
+    parent: str    # 空字串＝樹根（Epic）
+    upstream: str  # 「上游規則 / 目標」欄
+    origin: str    # 出處（寫進「驗收摘要 / 出處」欄尾）
+    note: str      # 這張卡憑什麼存在
+
+
+class PlaneTree:
+    """Epic 價值線 → Feature 旅程／地板 → Story 需求（《Plane QA 工程守則 v1.3》B1）。
+
+    與 2026-07-28 版只差一句話：**Epic 裝的不再是子系統**。子系統是技術切法，
+    一個 sprint 交付的價值橫跨多個子系統，拿它當 Epic 會讓 roll-up 讀不出
+    「哪幾條客戶旅程跑得通」——而那是管理層唯一會問的問題。
+
+    parent 的真相源只有一個：FR 走 `_canon.primary_scenario()`（唯一 essential 邊，
+    或人工 `primary: true` 宣告），其次是 `global:` 區塊，兩者都判不出來就**留空**。
+    留空不是漏算，是守則 B0 要的結果——階層跳級刻意不掩蓋。塞一個預設 parent 只會
+    讓 roll-up 的數字看起來完整而實際是假的，那比缺口本身更糟。
+
+    NFR 一律掛 E-GLB 底下依 category 分的地板 Feature，**不看 SC 邊**：NFR 天生是
+    所有旅程共用的地板，把有 SC 邊的那 20 條掛進旅程，旅程覆蓋率會被品質地板稀釋，
+    同一屬性的 NFR 也會散在各處。SC × NFR 的邊仍留在 yaml 作追溯，只是不由 parent 表達。
+    """
+
+    def __init__(self, scenarios: list, frs: list, nfrs: list) -> None:
+        sc_by_id = {s.sc_id: s for s in scenarios}
+        globals_ = C.global_requirements()
+
+        parent_of: dict[str, str] = {}
+        orphans: list[str] = []
+        for q in frs:
+            sc = C.primary_scenario(q.req_id)
+            if sc in sc_by_id:
+                parent_of[q.req_id] = sc
+            elif q.req_id in globals_:
+                parent_of[q.req_id] = FLOOR_FUNCTIONAL
+            else:
+                orphans.append(q.req_id)
+        for n in nfrs:
+            parent_of[n.req_id] = floor_code(n.category)
+
+        members: dict[str, list[str]] = {}
+        for rid, code in parent_of.items():
+            members.setdefault(code, []).append(rid)
+
+        epics: list[TreeNode] = []
+        features: dict[str, list[TreeNode]] = {}
+        epic_of_sc: dict[str, str] = {}
+        for line, meta in VALUE_LINES.items():
+            scs = sorted((s for s in scenarios if s.line == line), key=lambda s: s.sc_id)
+            epic = TreeNode(
+                code=meta["epic"], name=meta["name"], kind="functional", parent="",
+                upstream=f"28_Scenarios.md §1 分線 {line}", origin="28_Scenarios.md §1",
+                note=meta["description"],
+            )
+            epics.append(epic)
+            features[epic.code] = [
+                TreeNode(
+                    code=s.sc_id, name=s.name, kind="functional", parent=epic.code,
+                    upstream=s.done, origin=f"28_Scenarios.md {s.sc_id}",
+                    note=f"主要 Actor：{s.actor}｜優先級 {s.priority}",
+                )
+                for s in scs
+            ]
+            epic_of_sc.update({s.sc_id: epic.code for s in scs})
+
+        glb = TreeNode(
+            code=GLOBAL_EPIC["epic"], name=GLOBAL_EPIC["name"], kind="quality", parent="",
+            upstream="sc_requires_rq.yaml §global ＋ 05_NFR.md 全部",
+            origin="_relations/sc_requires_rq.yaml、05_NFR.md",
+            note=GLOBAL_EPIC["description"],
+        )
+        epics.append(glb)
+        features[glb.code] = self._floor_features(glb.code, members, nfrs)
+
+        self.epics = tuple(epics)
+        self.features = {code: tuple(nodes) for code, nodes in features.items()}
+        self.epic_of_sc = epic_of_sc
+        self.parent_of = parent_of
+        self.orphan_frs = tuple(orphans)
+        self._members = {code: tuple(sorted(ids)) for code, ids in members.items()}
+
+    @staticmethod
+    def _floor_features(epic: str, members: dict[str, list[str]], nfrs: list) -> list[TreeNode]:
+        """E-GLB 底下的地板屬性群：功能地板 1 張 ＋ NFR category 各 1 張。"""
+        nodes: list[TreeNode] = []
+        if members.get(FLOOR_FUNCTIONAL):
+            nodes.append(TreeNode(
+                code=FLOOR_FUNCTIONAL, name="跨旅程功能地板", kind="functional", parent=epic,
+                upstream="sc_requires_rq.yaml §global（FR）",
+                origin="_relations/sc_requires_rq.yaml §global",
+                note="判準：拿掉任何一條旅程，它依然必須成立。所以不逐條偽造 SC 邊。",
+            ))
+        heading_of = {n.category: n.heading for n in nfrs}
+        for category in sorted({n.category for n in nfrs}):
+            nodes.append(TreeNode(
+                code=floor_code(category), name=f"{category} 品質地板", kind="quality", parent=epic,
+                upstream=f"05_NFR.md {heading_of.get(category, '')}",
+                origin=f"05_NFR.md {heading_of.get(category, '')}",
+                note="NFR 不掛旅程：掛進去會讓旅程覆蓋率被品質地板稀釋，同屬性的需求也會散在各處。",
+            ))
+        return nodes
+
+    def members_of(self, code: str) -> tuple[str, ...]:
+        """掛在這張 Feature 底下的需求 ID（已排序）。Epic 沒有直接子需求，回空。"""
+        return self._members.get(code, ())
+
+    def parent_cell(self, req_id: str) -> str:
+        """需求在「parent 代號」欄該顯示什麼。判不出來的顯示告警，不填預設值。"""
+        return self.parent_of.get(req_id) or NO_PARENT
+
+    def feature_position(self, sc_id: str) -> str:
+        """這條旅程在拆解樹上的位置，給《業務邏輯驗收控制表》標示用。"""
+        epic = self.epic_of_sc.get(sc_id)
+        if not epic:
+            return "⚠ 分線不在 28_Scenarios §1 五分線表"
+        name = next((e.name for e in self.epics if e.code == epic), "")
+        return f"Feature {sc_id} ⊂ {epic} {name}"
+
+    def counts(self) -> dict[str, int]:
+        features = sum(len(v) for v in self.features.values())
+        return {
+            "epic": len(self.epics),
+            "feature": features,
+            "journey": sum(1 for nodes in self.features.values()
+                           for n in nodes if n.code.startswith("SC-")),
+            "floor": sum(1 for nodes in self.features.values()
+                         for n in nodes if n.code.startswith("地板-")),
+            "story": len(self.parent_of) + len(self.orphan_frs),
+            "orphan": len(self.orphan_frs),
+        }
+
+
 # ---------------------------------------------------------------- derivations
 
 class Model:
@@ -230,8 +408,8 @@ class Model:
         self.wbs = C.load_wbs()
         self.ts = C.load_test_scenarios()
         self.uat_scripts = C.load_uat_scripts()
-        self.sprint_plan = C.load_sprint_plan()
         self.report, self.counts = V.run()
+        self.tree = PlaneTree(self.scenarios, self.frs, self.nfrs)
 
         self.sc_by_id = {s.sc_id: s for s in self.scenarios}
         self.per_by_id = {p.per_id: p for p in self.personas}
@@ -323,7 +501,12 @@ def build_acceptance(m: Model) -> None:
          "驗收腳本＝這條旅程在 UAT 有沒有腳本。三個都綠才代表「可以開始驗收」，不代表「已驗收」。"),
         ("不在這本裡的東西",
          "可用性、稽核鏈、安全矩陣、migration 可重現、效能降級——這些沒有對應的客戶旅程，"
-         "為它們硬掰一段客戶語言就是造假。它們宣告為 scope: global，在《整合測試計畫》③ 獨立成段。"),
+         "為它們硬掰一段客戶語言就是造假。它們宣告為 scope: global，掛在《模組功能 BOM》"
+         "的跨旅程地板 E-GLB 底下，並在《整合測試計畫》③ 獨立成段。"),
+        ("② 的「Plane Feature」欄是什麼（2026-08-05 新增）",
+         "旅程在 Plane 從「樹外的獨立卡」改成拆解樹上的 Feature，掛在自己那條價值線 Epic 底下。"
+         "這欄標明它的位置。意義在覆蓋率：數字現在沿 需求 → 旅程 → 價值線 往上加總，"
+         "「哪幾條客戶旅程跑得通」才第一次有載體答得出來。旅程既有的驗收契約不受影響。"),
         *GLOSSARY_HEAD,
         *GLOSSARY_SCENARIO,
         ("  關鍵需求 / 支援需求",
@@ -353,6 +536,10 @@ def build_acceptance(m: Model) -> None:
         ("未結缺口", 9, "derived"),
         ("驗收狀態", 13, "human"), ("驗收日", 11, "human"), ("簽核人", 11, "human"),
         ("裁決備註", 28, "human"),
+        # 2026-08-05：SC 升格為 Plane 的 Feature，掛在自己那條價值線 Epic 底下。
+        # 這欄標明它在拆解樹上的位置——本表一列一條旅程，所以這裡才是它的歸屬；
+        # 掛在 ④（persona 邊）會讓 19 個值散在 30 列上，讀起來像 persona 的屬性。
+        ("Plane Feature", 30, "derived"),
         # 軸④ 在 Plane 的即時值。與左邊人填的「驗收狀態」並列而不取代 ——
         # 兩者 owner 相同但載體不同，讓差異看得見才好對帳。
         ("Plane 驗收狀態", 14, "derived"),
@@ -370,9 +557,13 @@ def build_acceptance(m: Model) -> None:
             m.engineering_of(s.sc_id), m.test_of(s.sc_id), m.script_of(s.sc_id),
             gaps or "",
             "", "", "", "",
+            m.tree.feature_position(s.sc_id),
             PLANE.acceptance_of(s.sc_id), PLANE.script_of(s.sc_id),
         ], kinds, tint=LINE_TINT.get(s.line), height=68)
-    dropdown(ws, "O", 2, len(m.scenarios) + 1,
+    # 下拉綁在「驗收狀態」那一欄，欄序改動時不會靜默綁錯欄——寫死字母的下場是
+    # 有人在左邊插一欄之後，驗收狀態變成自由輸入，而沒有任何地方會報錯。
+    dropdown(ws, get_column_letter([h[0] for h in headers].index("驗收狀態") + 1),
+             2, len(m.scenarios) + 1,
              "Not Accepted,Verified,Accepted,Deferred", "只能填四種驗收狀態之一")
     finish(ws, len(headers), len(m.scenarios) + 1)
     ws.freeze_panes = "C2"
@@ -424,7 +615,8 @@ def build_acceptance(m: Model) -> None:
             C.plain(e.get("note", "")),
         ], kinds, tint=LINE_TINT.get(sc.line if sc else ""), height=28)
         if e.get("role") == "primary":
-            ws.cell(r, 6).font = Font(name=FONT, size=10, bold=True, color="C00000")
+            role_col = [h[0] for h in headers].index("角色") + 1
+            ws.cell(r, role_col).font = Font(name=FONT, size=10, bold=True, color="C00000")
     finish(ws, len(headers), len(pedges) + 1)
 
     # -- ⑤ BDD 行為情境：由 SC 卡 + Persona 生成（_render_bdd.py）
@@ -465,8 +657,55 @@ def terminal_milestone(phase: str) -> str:
 
 
 def requirement_kind(req_id: str) -> str:
-    """守則 B2：需求性質由 work item type 承載，Story 與 Quality requirement 同階。"""
-    return "Quality requirement" if str(req_id).startswith("NFR") else "Story"
+    """守則 v1.3 B2：需求性質由 `Issue.requirement_kind` 承載，**不由 work item type**。
+
+    v1.2 之前 NFR 是獨立的 `Quality requirement` 型別，v1.3 廢除它——讓 type 兼管性質，
+    type 數量會長成「層數 × 性質數」。FR 與 NFR 現在同為 Story，差別只在本欄的值。
+
+    非需求的卡（WBS Task、執行期產生的 Bug）是 `none`。`none` ≠ 空白：
+    它的意思是「這張卡不是需求」，不是「性質還沒填」——兩者混在一起，
+    「該填而沒填」這個真缺口就看不見了。
+    """
+    rid = str(req_id)
+    if rid.startswith("NFR-"):
+        return "quality"
+    if rid.startswith("FR-"):
+        return "functional"
+    return "none"
+
+
+# -- BOM ② 的 L1/L2 彙總欄。子需求的事實往上收，不另建一份人工描述——
+# 手寫的彙總保證會在下游需求異動時漂掉。
+
+def reality_mix(reqs: list) -> str:
+    """這批需求的 code reality 分佈。上層不宣稱自己的狀態，只複述底下的分佈。"""
+    counts = Counter(C.architecture_for(q)["status"].split("（", 1)[0].strip() for q in reqs)
+    if not counts:
+        return "—"
+    return " / ".join(f"{k} {v}" for k, v in sorted(counts.items()))
+
+
+def components_of(reqs: list) -> str:
+    """這批需求觸及的受控元件標籤（去重、保序）。標籤一律回查 ③ 元件標籤字典。"""
+    labels: list[str] = []
+    for q in reqs:
+        for label in (p.strip() for p in C.architecture_for(q)["component"].split(";")):
+            if label and label not in labels:
+                labels.append(label)
+    return "; ".join(labels) or "—"
+
+
+def docs_of(reqs: list, key: str) -> str:
+    return " ｜ ".join(sorted({C.architecture_for(q)[key] for q in reqs})) or "—"
+
+
+def modules_of(reqs: list) -> str:
+    """這批需求橫跨哪幾個子系統（排程軸 Module）。跨得越多，越不該拿子系統當 Epic。"""
+    return "、".join(sorted({q.prefix for q in reqs})) or "—"
+
+
+def milestones_of(reqs: list) -> str:
+    return "、".join(sorted({terminal_milestone(C.phase_for(q)) for q in reqs}))
 
 
 def evidence_key(nfr) -> str:
@@ -480,35 +719,117 @@ def evidence_key(nfr) -> str:
     return ""
 
 
+# 一張表三種列（Epic / Feature / Story）共用同一組欄位——欄位對不齊的樹，
+# 匯入器只能靠位置猜，而位置是最先漂掉的東西。
+BOM_HEADERS = [
+    ("層級", 12, ""), ("代號（FR/NFR 為主鍵）", 20, ""),
+    ("parent 代號", 20, "derived"), ("requirement_kind", 16, "derived"),
+    ("名稱 / 功能", 32, ""),
+    ("上游規則 / 目標", 32, ""), ("Module 切面（排程軸）", 22, "derived"),
+    ("正式元件名稱", 54, ""),
+    ("SAD 定位", 26, ""), ("SDS 定位", 30, ""),
+    ("Code reality", 22, "derived"), ("實作證據路徑", 52, ""),
+    ("服務旅程", 18, "derived"), ("需求狀態", 18, "derived"),
+    ("目標里程碑", 12, "derived"), ("節點範圍", 12, "derived"),
+    ("NFR 驗證形態", 18, "derived"), ("ReleaseEvidence key", 22, "derived"),
+    ("驗收摘要 / 出處", 50, ""),
+]
+
+
+def story_values(m: Model, rid: str, parent: str) -> list:
+    """L3 Story 的一列。FR 走架構投影，NFR 走驗證形態，其餘欄位共用。
+
+    兩者同為 Story（守則 v1.3 廢除了 Quality requirement 型別），差別只在
+    requirement_kind 與這幾格灰欄的來源——那正是「性質是欄位不是型別」的具體長相。
+    """
+    q = m.fr_by_id.get(rid)
+    if q is not None:
+        arch = C.architecture_for(q)
+        code, module_name = C.module_for(q)
+        phase = C.phase_for(q)
+        return [
+            "L3 Story", q.req_id, parent, requirement_kind(q.req_id),
+            q.name, q.trace, f"{q.prefix}·{code} {module_name}", arch["component"],
+            arch["sad"], arch["sds"], arch["status"], arch["path"],
+            m.journeys_of(q.req_id), C.spec_status(q),
+            terminal_milestone(phase), phase, "", "",
+            f"驗收：{q.acceptance} ｜ 出處：04_SRS.md:{q.source_line}",
+        ]
+    n = m.nfr_by_id[rid]
+    return [
+        "L3 Story", n.req_id, parent, requirement_kind(n.req_id),
+        n.name, n.target, "—", "—", "05_NFR.md", "—", "—", "—",
+        m.journeys_of(n.req_id), n.tier, "", "",
+        C.nfr_form(n.verification), evidence_key(n),
+        f"驗證：{n.verification} ｜ 出處：05_NFR.md:{n.source_line}",
+    ]
+
+
+def bom_story(ws, r: int, kinds: list[str], cols: dict[str, int],
+              m: Model, rid: str, parent: str) -> None:
+    """寫一列 L3，並把兩種缺口標紅：沒有旅程的需求、沒有 parent 的需求。"""
+    values = story_values(m, rid, parent)
+    row(ws, r, values, kinds, height=26)
+    if str(values[cols["服務旅程"] - 1]).startswith("⚠"):
+        ws.cell(r, cols["服務旅程"]).font = Font(name=FONT, size=10, bold=True, color="C00000")
+    if parent == NO_PARENT:
+        ws.cell(r, cols["parent 代號"]).font = Font(name=FONT, size=10, bold=True, color="C00000")
+    ws.row_dimensions[r].outlineLevel = 2
+
+
 def build_bom(m: Model) -> None:
     wb = new_book("Smart Lock 模組功能 BOM")
     howto(wb, [
         ("這本給誰", "架構師 / RD Lead。業務端、QA 端、經營層各有專屬活頁簿。"),
         ("只回答一個問題", "每條需求由哪個元件實作、現在到哪了？"),
         ("怎麼下手",
-         "② 是 L1 Epic（子系統）→ L2 Feature（能力群）→ L3 Story/Quality requirement（需求）的三層樹"
-         "（Excel 群組可摺疊）。先看 L2 的 Code reality 找出 PARTIAL/TO-BE 的能力群，再展開該群的 L3。"),
+         "② 是 L1 Epic（價值線）→ L2 Feature（SC 旅程／品質地板）→ L3 Story（FR、NFR）的三層樹"
+         "（Excel 群組可摺疊）。先看 L2 的 Code reality 找出 PARTIAL/TO-BE 的旅程，再展開該旅程的 L3。"),
+        ("🛑 L1/L2 裝的東西換了（2026-08-05 對標守則 v1.3）",
+         "L1 從「7 個子系統」換成「5 條價值線 ＋ 跨旅程地板 E-GLB」；"
+         "L2 從「32 個能力群」換成「19 條 SC 旅程 ＋ 地板屬性群」。"
+         "原因是 roll-up 讀不出東西：子系統是技術切法，一個 sprint 交付的價值橫跨多個子系統，"
+         "沿子系統 roll-up 只答得出「agent 這包做完幾成」，而管理層問的是「哪幾條客戶旅程跑得通」。"
+         "子系統沒有消失，它降為排程軸的 Module 切面（見「Module 切面」欄）。"),
         ("L1/L2 是真的卡，但不是 join key",
-         "這兩件事要分開：①「它們在 Plane 是真的 work item」（8 張 Epic、32 張 Feature），"
-         "有 parent 鏈、有沿鏈 roll-up 的覆蓋率數字，不再只是 Excel 上的顯示分群；"
-         "②「唯一主鍵仍是 L3 的 FR / NFR ID」——L2 代號帶「（顯示）」尾綴就是這個意思，"
-         "任何跨表對照一律用 ID，不要用 L2 名稱當鍵。"),
+         "這兩件事要分開：①「它們在 Plane 是真的 work item」（6 張 Epic、19+N 張 Feature），"
+         "有 parent 鏈、有沿鏈 roll-up 的覆蓋率數字，不是 Excel 上的顯示分群；"
+         "②「唯一主鍵仍是 L3 的 FR / NFR ID」——L1/L2 的代號會隨旅程改名，"
+         "任何跨表對照一律用 ID，不要用 Feature 名稱當鍵。"),
+        ("「服務旅程」欄 ≠「parent 代號」欄",
+         "服務旅程是 M:N 的**全部**旅程（一條 FR 常同時服務三條旅程），來源是 sc_requires_rq.yaml；"
+         "parent 是單值載體只能挑的**那一條**。追溯一律看服務旅程，roll-up 才看 parent，兩者不可互推。"),
         ("「服務旅程」欄怎麼用",
          "這是 SA 的反向檢查：一條需求如果無法解釋「它為了哪段旅程存在」，那條需求就是想像出來的。"
          "標 ⚠ 無旅程 的列要嘛補 SC 邊、要嘛宣告 scope: global、要嘛刪掉。"),
-        ("NFR 為什麼在最後一段",
+        ("NFR 為什麼全掛在 E-GLB 底下",
          "NFR 天生不掛在單一旅程上——「可用性 99.9%」不對應任何一段客戶旅程，它是所有旅程共用的地板。"
-         "所以 NFR 獨立成 L1 區塊，只有客戶感知得到的那幾條才會顯示旅程。"),
+         "所以 NFR 一律掛「跨旅程地板 E-GLB」底下依屬性分的地板 Feature（地板-Perf、地板-Sec…），"
+         "**不看它有沒有 SC 邊**。把有 SC 邊的那 20 條掛進旅程，旅程覆蓋率會被品質地板稀釋，"
+         "同一屬性的 NFR 也會散在各處。SC × NFR 的邊仍在 yaml 裡作追溯，只是不由 parent 表達。"),
         ("元件名稱從哪來",
          "③ 元件標籤字典是受控詞彙表，每個標籤都有定義、責任邊界、SAD/SDS 定位與實作路徑。"
          "不要在這裡發明 LockCore runtime 這種無法回查的概括詞。"),
         ("「parent 代號」為什麼要有",
-         "Plane 的覆蓋率是沿 work item 的父子鏈 roll-up 出來的——L2 能力群與 L1 子系統的數字，"
+         "Plane 的覆蓋率是沿 work item 的父子鏈 roll-up 出來的——L2 旅程與 L1 價值線的數字，"
          "全部繼承自它們底下 L3 的驗收契約，沒有獨立來源。樹若只靠列序隱含，匯入器就推不出父子關係，"
          "上層會全部顯示未覆蓋。這欄是那條鏈的唯一機器可讀來源。"),
-        ("「需求型別」對應 Plane 的什麼",
-         "Story（FR）與 Quality requirement（NFR）在 Plane 是同階的兩種 work item type，不是上下層。"
-         "NFR 橫跨所有層級，做成子層會逼它選一個歸屬，而「Feature 層的效能要求」就無處可放。"),
+        ("標「⚠ 無 parent」的列要怎麼辦",
+         "那條 FR 判不出唯一的 parent 旅程：它有多條 essential 邊（服務多條旅程），"
+         "或只有 supporting 邊，且沒宣告 scope: global。**這裡刻意不猜、不填預設值**——"
+         "塞一個 parent 只會讓 roll-up 的數字看起來完整而實際是假的，那比缺口本身更糟（守則 B0）。"
+         "要關掉它：由 BA 在 _relations/sc_requires_rq.yaml 對應的那條 essential 邊加 `primary: true`，"
+         "宣告「這條 FR 在拆解樹上跟這條旅程走」。⚠️ 這欄禁止 AI 代填——它是人工判斷的痕跡。"),
+        ("「requirement_kind」是什麼",
+         "需求性質欄：FR＝functional、NFR＝quality、非需求的卡（Task / Bug）＝none。"
+         "守則 v1.3 廢除了 Quality requirement 這個 work item type——讓型別兼管性質，"
+         "型別數量會長成「層數 × 性質數」，一個 workspace 因此長到九個 type。"
+         "所以 FR 與 NFR 現在同為 Story，差別只在本欄的值。"
+         "⚠️ 舊版本欄名為「需求型別」、值為 Story / Quality requirement，已作廢。"),
+        ("「Module 切面」欄怎麼讀",
+         "子系統（AGT/API/WEB/DAT/REF/TEC/PLT）與能力群。它是**排程軸的切面，不是階層**——"
+         "一條 Story 可以同時屬於「子系統 API」、掛在 M2 里程碑、排進 Sprint 03，誰也不包含誰。"
+         "2026-08-05 前它是本表的 L1/L2，現在階層讓給價值線與旅程，它回到自己該在的軸上。"),
         ("Story 不等於「User Story」",
          "守則的 Story 是「需求層級的身分」（level 2，契約掛這裡），不是敏捷慣用的價值切片協商佔位符。"
          "FR 說「系統該有什麼」，User Story 說「這個迭代要做出什麼」——本專案沒有後者那一層，"
@@ -520,6 +841,10 @@ def build_bom(m: Model) -> None:
         ("NFR 的「目標里程碑」為什麼是空的",
          "106 條 NFR 目前一條都沒有節點歸屬，代表每一道驗收閘都不含任何非功能需求。"
          "這是已知缺口，要靠「NFR 驗證形態」分類後才能決定哪幾條進閘門、哪幾條走持續量測。"),
+        ("L1/L2 列的灰欄是「彙總」不是「宣稱」",
+         "Epic 與 Feature 的 Code reality、元件、SAD/SDS、節點範圍全部由底下 L3 收上來，"
+         "上層不宣稱自己的狀態。看到 L2 寫「AS-IS 3 / PARTIAL 2」就是那條旅程的 5 條 FR 的分佈，"
+         "不是誰對這條旅程下的整體判斷。"),
         ("「NFR 驗證形態」怎麼讀",
          "分類軸是「證據從哪來」，不是「屬於哪個品質類別」——同一個 Security 需求，"
          "寫成「TLS 1.2+」是可掃描的，寫成「租戶隔離設計正確」就只能審查。所以先問證據來源。"
@@ -535,47 +860,34 @@ def build_bom(m: Model) -> None:
          "⚠️ 這個端點只在內部 API，API 金鑰打不進去——只能人工在 Plane 網頁上輸入。"),
         *GLOSSARY_HEAD,
         *GLOSSARY_HIERARCHY,
-        ("  服務旅程", "Plane 的 Scenario 卡（SC）。它不在本表的三層樹上——旅程橫跨多個子系統，"
-                    "掛不進單一 parent，改為直接持有自己的驗收契約。"),
-        ("  子系統 / 能力群", "同時是兩件事：在「拆解軸」是 Epic/Feature 卡（本表的 L1/L2），"
-                        "在「排程軸」是 Plane 的 Module（範疇分組）。兩軸正交，不是同一個東西的兩個名字。"),
+        ("  服務旅程", "Plane 的 Feature 卡（SC）。2026-08-05 起它**就在本表的三層樹上**（L2），"
+                    "本欄列的是這條需求服務的全部旅程（M:N），與單值的 parent 欄不是同一件事。"),
+        ("  地板 Feature", "E-GLB 底下的屬性群卡：地板-功能（sc_requires_rq.yaml 的 global: FR）與"
+                        "地板-<Category>（NFR 依 05_NFR 的 ID category 分群）。它們是真的 Feature，"
+                        "不是「其他」收容所——判準是「拿掉任何一條旅程它依然必須成立」。"),
+        ("  子系統 / 能力群", "Plane 的 Module（排程軸的範疇分組），本表的「Module 切面」欄。"
+                        "⚠️ 2026-08-05 前它同時是拆解軸的 Epic/Feature，已作廢——拆解軸現在走價值線與旅程。"),
         *COMMON_HOWTO,
     ])
 
-    headers = [
-        ("層級", 12, ""), ("代號（FR/NFR 為主鍵）", 20, ""),
-        ("parent 代號", 20, "derived"), ("需求型別", 18, "derived"),
-        ("名稱 / 功能", 32, ""),
-        ("上游規則 / 目標", 32, ""), ("正式元件名稱", 54, ""),
-        ("SAD 定位", 26, ""), ("SDS 定位", 30, ""),
-        ("Code reality", 22, "derived"), ("實作證據路徑", 52, ""),
-        ("服務旅程", 18, "derived"), ("需求狀態", 18, "derived"),
-        ("目標里程碑", 12, "derived"), ("節點範圍", 12, "derived"),
-        ("NFR 驗證形態", 18, "derived"), ("ReleaseEvidence key", 22, "derived"),
-        ("驗收摘要 / 出處", 50, ""),
-    ]
+    headers = BOM_HEADERS
     ws = table(wb, "② 需求 → 元件 BOM", headers)
     kinds = [h[2] for h in headers]
-    journey_col = [h[0] for h in headers].index("服務旅程") + 1
+    cols = {h[0]: i for i, h in enumerate(headers, 1)}
+    tree = m.tree
     r = 2
 
-    for prefix, meta in SUBSYSTEMS.items():
-        subsystem_reqs = [q for q in m.frs if q.prefix == prefix]
-        if not subsystem_reqs:
-            continue
-        phases = {C.phase_for(q) for q in subsystem_reqs}
-        labels: list[str] = []
-        for code, _, _ in MODULES.get(prefix, []):
-            for label in (p.strip() for p in C.module_arch(prefix, code)["component"].split(";")):
-                if label and label not in labels:
-                    labels.append(label)
-        l1_code = meta["name"].split("（")[0]
+    for epic in tree.epics:
+        features = tree.features.get(epic.code, ())
+        under = [m.fr_by_id[rid] for f in features for rid in tree.members_of(f.code)
+                 if rid in m.fr_by_id]
+        journeys = "、".join(f.code for f in features if f.code.startswith("SC-")) or "全域地板"
         row(ws, r, [
-            "L1 Epic", l1_code, "", "Epic", meta["name"], "", "; ".join(labels),
-            meta["sad"], meta["sds"], "MIXED（見 L2）", meta["path"], "", "—",
-            "", "、".join(sorted({terminal_milestone(p) for p in phases})),
-            "", "",
-            meta["description"],
+            "L1 Epic", epic.code, "", epic.kind, epic.name, epic.upstream,
+            modules_of(under), "跨子系統（價值線不對應單一元件，見 L2）", "—", "—",
+            reality_mix(under), "見 L2 / L3",
+            journeys, "—", "", milestones_of(under), "", "",
+            f"{epic.note} ｜ {len(features)} 張 Feature ｜ 出處：{epic.origin}",
         ], kinds, height=24)
         for cell in ws[r]:
             cell.fill = L1_FILL
@@ -583,20 +895,20 @@ def build_bom(m: Model) -> None:
         ws.row_dimensions[r].outlineLevel = 0
         r += 1
 
-        for code, module_name, _ in MODULES.get(prefix, []):
-            module_reqs = [q for q in subsystem_reqs if C.module_for(q)[0] == code]
-            if not module_reqs:
-                continue
-            arch = C.module_arch(prefix, code)
-            phases = {C.phase_for(q) for q in module_reqs}
-            l2_code = f"{prefix}·{code}（顯示）"
+        for f in features:
+            ids = tree.members_of(f.code)
+            frs = [m.fr_by_id[rid] for rid in ids if rid in m.fr_by_id]
+            # 掛 0 條不代表這條旅程沒有需求——它的 FR 全數服務多條旅程，parent 還沒裁決。
+            # 不寫清楚的話，讀者會把「待裁決」讀成「這條旅程沒東西要做」。
+            load = (f"掛載 {len(ids)} 條需求" if ids
+                    else "掛載 0 條需求（其 FR 皆服務多條旅程，parent 待 BA 宣告 primary）")
             row(ws, r, [
-                "L2 Feature", l2_code, l1_code, "Feature", module_name, "", arch["component"],
-                arch["sad"], arch["sds"], arch["status"], arch["path"], "",
-                "—",
-                "", "、".join(sorted({terminal_milestone(p) for p in phases})),
-                "", "",
-                f"{len(module_reqs)} 條 FR",
+                "L2 Feature", f.code, f.parent, f.kind, f.name, f.upstream,
+                modules_of(frs), components_of(frs), docs_of(frs, "sad"), docs_of(frs, "sds"),
+                reality_mix(frs), "見 L3" if frs else "—",
+                f.code if f.code.startswith("SC-") else "全域地板", "—",
+                "", milestones_of(frs), "", "",
+                f"{f.note} ｜ {load} ｜ 出處：{f.origin}",
             ], kinds, height=22)
             for cell in ws[r]:
                 cell.fill = L2_FILL
@@ -604,46 +916,23 @@ def build_bom(m: Model) -> None:
             ws.row_dimensions[r].outlineLevel = 1
             r += 1
 
-            for q in module_reqs:
-                arch = C.architecture_for(q)
-                phase = C.phase_for(q)
-                journeys = m.journeys_of(q.req_id)
-                row(ws, r, [
-                    "L3", q.req_id, l2_code, requirement_kind(q.req_id),
-                    q.name, q.trace, arch["component"],
-                    arch["sad"], arch["sds"], arch["status"], arch["path"],
-                    journeys, C.spec_status(q),
-                    terminal_milestone(phase), phase, "", "",
-                    f"驗收：{q.acceptance} ｜ 出處：04_SRS.md:{q.source_line}",
-                ], kinds, height=26)
-                if journeys.startswith("⚠"):
-                    ws.cell(r, journey_col).font = Font(name=FONT, size=10, bold=True, color="C00000")
-                ws.row_dimensions[r].outlineLevel = 2
+            for rid in ids:
+                bom_story(ws, r, kinds, cols, m, rid, f.code)
                 r += 1
 
-    row(ws, r, [
-        "L1 Epic", "NFR", "", "Epic", "全域品質地板（非功能需求）", "", "跨子系統", "05_NFR.md", "—",
-        "—", "—", "多數為 scope: global", "—", "", "", "", "",
-        "NFR 天生不掛單一旅程；只有客戶感知得到的才顯示 SC。",
-    ], kinds, height=24)
-    for cell in ws[r]:
-        cell.fill = L1_FILL
-        cell.font = Font(name=FONT, color="FFFFFF", bold=True, size=10)
-    ws.row_dimensions[r].outlineLevel = 0
-    r += 1
-    for n in sorted(m.nfrs, key=lambda x: x.req_id):
-        journeys = m.journeys_of(n.req_id)
-        row(ws, r, [
-            "L3", n.req_id, "NFR", requirement_kind(n.req_id),
-            n.name, n.target, "—", "05_NFR.md", "—", "—", "—",
-            journeys, n.tier, "", "",
-            C.nfr_form(n.verification), evidence_key(n),
-            f"驗證：{n.verification} ｜ 出處：05_NFR.md:{n.source_line}",
-        ], kinds, height=24)
-        if journeys.startswith("⚠"):
-            ws.cell(r, journey_col).font = Font(name=FONT, size=10, bold=True, color="C00000")
-        ws.row_dimensions[r].outlineLevel = 2
+    # -- 判不出 parent 的 FR。刻意獨立成段而不是塞進某張 Feature：
+    # 它們在 Plane 上真的沒有 parent，落進 None 組。表上看得見，匯入後才不會憑空消失。
+    if tree.orphan_frs:
+        banner(ws, r, len(headers), (
+            f"{NO_PARENT} —— {len(tree.orphan_frs)} 條 FR 判不出唯一的 parent 旅程"
+            "（多條 essential 邊、或只有 supporting 邊，且未宣告 global）。"
+            "等 BA 在 sc_requires_rq.yaml 加 primary: true；在那之前這裡不猜、不填預設值。"
+        ))
+        ws.row_dimensions[r].outlineLevel = 0
         r += 1
+        for rid in tree.orphan_frs:
+            bom_story(ws, r, kinds, cols, m, rid, NO_PARENT)
+            r += 1
 
     finish(ws, len(headers), r - 1)
 
@@ -874,6 +1163,7 @@ RULE_MEANING = {
     "V8": "孤兒節點：沒有任何邊",
     "V9": "驗收覆蓋缺口：宣告需要，腳本沒跑到",
     "V10": "P0 旅程的需求缺失敗／回復路徑",
+    "V14": "拆解樹上沒有 parent——待 BA 宣告 primary",
 }
 
 
@@ -892,13 +1182,6 @@ def build_planning(m: Model) -> None:
          "擋生成只會讓人用假資料把洞填平，那比洞本身更糟。缺口一律放行、一律列出、一律有名有姓。"),
         ("③ 是什麼",
          "M1–M5 的 WBS 與已定案 ADR。缺口要排進哪個里程碑、動到哪條架構決策，在這裡對照。"),
-        ("③ 與 ④ 差在哪",
-         "③ 回答「有哪些工作」，④ 回答「哪一週做」。排程算不出來——前置依賴只給得出"
-         "「不能早於」，給不出「應該在哪一週」，所以 ④ 的來源是宣告檔 "
-         "_relations/sprint_plan.yaml，一列一個決定。"),
-        ("④ 底下那兩段紅字要看",
-         "「待裁決」是卡在人身上、不是卡在工程；「明確排除」是範圍砍掉的決定。"
-         "兩者都刻意指名——不指名的話，期末沒做完會被讀成滑期，而它從一開始就不在範圍內。"),
         *GLOSSARY_HEAD,
         ("  里程碑 M1–M5", "Plane 的 Milestone（Issue.milestone，單值，所以一張卡只能掛一個節點）。"),
         ("  階段一 / 階段二", "Plane 的 Initiative（workspace 級，掛專案而非掛卡）。"),
@@ -908,9 +1191,16 @@ def build_planning(m: Model) -> None:
          "本表 ② 是「規格側」的追溯缺口（V2/V7/V8/V9/V10，設計有沒有接好）；"
          "Plane 出貨閘門的 blocker 是「執行側」的五類（failed／blocked／未結缺陷／未執行／"
          "已排程卻零契約）。兩套各自成立、不得互推——設計全綠不代表跑得過，反之亦然。"),
-        ("  本專案目前沒有 Cycle",
-         "Plane 的 Cycle 是迭代時間盒。本專案的排程只到 Milestone 層，尚未建任何 cycle；"
-         "在那之前「這個 sprint 交付什麼」這個問題沒有載體。"),
+        ("  Cycle（sprint 容器）",
+         "Plane 的 Cycle 是迭代時間盒。2026-08-05 起由 _plane/import_spine.py 建 Sprint 01–06"
+         "（各 2 週、連續不重疊、冪等）——在那之前全庫 cycle 出現 0 次，"
+         "「這個 sprint 交付什麼」這個問題根本沒有載體。"
+         "⚠️ 但**不自動把需求塞進 cycle**：排程是 PM 的決策，agent 只建容器。"),
+        ("  ② 的 V14 是什麼",
+         "那條 FR 在 Plane 的拆解樹上沒有 parent：它有多條 essential 邊（服務多條旅程），"
+         "或只有 supporting 邊，且未宣告 scope: global，所以推不出唯一的 parent 旅程。"
+         "它是 finding 不是 error——擋生成只會逼人亂挑一條。要關掉它，"
+         "由 BA 在 _relations/sc_requires_rq.yaml 對應的 essential 邊加 primary: true。"),
         *COMMON_HOWTO,
     ])
 
@@ -924,7 +1214,9 @@ def build_planning(m: Model) -> None:
     ws = table(wb, "② 缺口與決策清單", headers)
     kinds = [h[2] for h in headers]
     r = 2
-    rank = {"V9": 0, "V10": 1, "V8": 2, "V2": 3, "V7": 4}
+    # 排序＝「先看哪一類」。V14 排在孤兒節點之後、命名慣例誤植之前：
+    # 它是一次性的人工宣告缺口（BA 補 primary 就關掉），不像 V9/V10 那樣代表驗收不了。
+    rank = {"V9": 0, "V10": 1, "V8": 2, "V14": 3, "V2": 4, "V7": 5}
     findings = sorted(m.report.findings, key=lambda f: (rank.get(f.rule, 9), f.subject))
     for f in findings:
         subject = f.subject.split(" × ")[0]
@@ -984,63 +1276,6 @@ def build_planning(m: Model) -> None:
         r += 1
     finish(ws, len(headers), r - 1)
 
-    # -- ④ 迭代計畫：③ 是「有哪些工作」，這裡是「哪一週做」。
-    # 排程算不出來（前置只給「不能早於」），所以來源是宣告檔 _relations/sprint_plan.yaml。
-    plan = m.sprint_plan
-    wbs_by_id = {str(r[1]): r for r in m.wbs}
-    headers = [
-        ("衝刺", 10, ""), ("期間", 22, ""), ("衝刺目標", 40, ""),
-        ("WBS", 8, ""), ("里程碑", 8, "derived"), ("工作包", 46, "derived"),
-        ("目前狀態", 12, "derived"), ("前置", 20, "derived"),
-        ("本衝刺完成？", 13, "human"), ("實際完成日", 12, "human"), ("備註", 26, "human"),
-    ]
-    ws = table(wb, "④ 迭代計畫（每週衝刺）", headers)
-    kinds = [h[2] for h in headers]
-    r = 2
-    for sp in plan.get("sprints", []):
-        period = f"{sp.get('start')} ~ {sp.get('end')}"
-        for wid in sp.get("items", []):
-            src = wbs_by_id.get(str(wid))
-            row(ws, r, [
-                sp.get("id", ""), period, C.plain(sp.get("goal")),
-                wid,
-                (src[0].split()[0] if src else "—"),
-                (src[3] if src else "⚠ 找不到這個工作包"),
-                ((src[2] or "")[:40] or "—" if src else "—"),
-                (src[5] if src else "—"),
-                "", "", "",
-            ], kinds, height=30)
-            if not src:
-                ws.cell(r, 6).font = Font(name=FONT, size=10, bold=True, color="C00000")
-            r += 1
-
-    # 排不進去的要指名。不指名的話，8 月底沒做完會被讀成滑期，
-    # 而它從一開始就不在範圍內——範圍砍掉是決定，不是失敗。
-    if plan.get("blocked"):
-        banner(ws, r, len(headers), "🛑 不排進衝刺 —— 待裁決，裁決下來才插隊")
-        r += 1
-        for b in plan["blocked"]:
-            src = wbs_by_id.get(str(b.get("id")))
-            row(ws, r, [
-                "—", "待裁決", C.plain(b.get("reason")), b.get("id", ""),
-                b.get("milestone", ""), (src[3] if src else "—"),
-                ((src[2] or "")[:40] or "—" if src else "—"), C.plain(b.get("unblock")), "", "", "",
-            ], kinds, height=48)
-            ws.cell(r, 1).font = Font(name=FONT, size=10, bold=True, color="C00000")
-            r += 1
-    for o in plan.get("out_of_scope", []):
-        banner(ws, r, len(headers), f"⬜ 明確排除 —— {o.get('milestone', '')}：{C.plain(o.get('reason'))[:70]}")
-        r += 1
-        for wid in o.get("ids", []):
-            src = wbs_by_id.get(str(wid))
-            row(ws, r, [
-                "—", "不在本期範圍", C.plain(o.get("why_declared")), wid,
-                o.get("milestone", ""), (src[3] if src else "—"),
-                ((src[2] or "")[:40] or "—" if src else "—"), "—", "", "", "",
-            ], kinds, height=36)
-            r += 1
-    finish(ws, len(headers), r - 1)
-
     wb.save(OUTPUTS["planning"])
 
 
@@ -1052,7 +1287,7 @@ def write_glossary_md() -> None:
         "",
         f"> 產出日：{C.GENERATED_ON}<br>",
         "> 用途：讓 BOM、驗收表與測試計畫中的每個架構標籤，都能回查正式定義、責任邊界、SAD/SDS 與實作路徑。<br>",
-        "> 規則：本字典由 `_spec_data.py` 的受控標籤單向生成；`AGT·RES` 等 L2 是顯示群組，不是正式元件。",
+        "> 規則：本字典由 `_spec_data.py` 的受控標籤單向生成；`AGT·RES` 等能力群是 Module 切面的分群，不是正式元件。",
         "",
     ]
     for label, alias, definition, boundary, modules, reality, sad, sds, path in \
@@ -1155,14 +1390,27 @@ def write_health_md(m: Model) -> None:
         for rule, count in sorted(by_rule.items())
     )
     open_od = [d for d in m.open_decisions if d.get("status") == "open"]
+    # V14 是「等人裁決」不是「追溯接錯」，兩者混在一句話裡會讓真正的追溯缺口被稀釋掉。
+    trace_findings = [f for f in m.report.findings if f.rule != "V14"]
     qa_status = (
-        "追溯設計檢查為 0 finding；這只表示案例與 UAT 選案已定義，所有案例的執行結果仍須在 SIT/UAT 填寫。"
-        if not m.report.findings else
+        "追溯設計檢查（V2/V7/V8/V9/V10）為 0 finding；這只表示案例與 UAT 選案已定義，"
+        "所有案例的執行結果仍須在 SIT/UAT 填寫。"
+        if not trace_findings else
         "仍有追溯設計缺口，須先在關聯真相源修正。"
     )
+    if by_rule.get("V14"):
+        qa_status += (
+            f"\n\n另有 **V14 {by_rule['V14']} 筆**：追溯是通的，缺的是拆解樹上的 parent 宣告"
+            "（一條 FR 服務多條旅程時要選一條當 parent）。它不影響追溯，只影響 roll-up 路徑，"
+            "且只有 BA 能裁決。"
+        )
     open_od_summary = "、".join(
         f"`{d.get('id')}` {C.plain(d.get('title'))}" for d in open_od
     ) or "無"
+    t = m.tree.counts()
+    floor_groups = "、".join(f.code for f in m.tree.features.get(m.tree.epics[-1].code, ()))
+    on_floor = sum(1 for p in m.tree.parent_of.values() if p == FLOOR_FUNCTIONAL)
+    on_journey = len(m.frs) - t["orphan"] - on_floor
 
     HEALTH_MD.write_text(f"""# Smart Lock 規格四書產出健康報告
 
@@ -1185,7 +1433,7 @@ def write_health_md(m: Model) -> None:
 | 業務邏輯驗收控制表 | 業務 / PM | 客戶的哪幾條旅程算不算驗收通過？ | SC | 5 |
 | 模組功能 BOM | 架構師 / RD | 每條需求由誰實作、現在到哪了？ | FR / NFR | 3 |
 | 整合測試計畫 | QA | 我今天要跑哪些案例、怎麼判定過？ | TC | 5 |
-| 規格統控規劃書 | 經營層 / PM | 哪裡有洞、哪裡卡決策、什麼時候做？ | 缺口（差集） | 4 |
+| 規格統控規劃書 | 經營層 / PM | 哪裡有洞、哪裡卡決策、什麼時候做？ | 缺口（差集） | 3 |
 
 ## 節點與邊
 
@@ -1196,6 +1444,28 @@ def write_health_md(m: Model) -> None:
   - `SC × TC` **{n['sc_tc']} 條**（{len(m.rel.sc_tc)} 條旅程驗收腳本；歸屬 22_UAT_Report 的 9 支走查 UAT-01–UAT-09）
 - 三條邊各自宣告、互不推導。`SC × RQ` 與 `RQ × TC ∘ TC × SC` 的差，就是 V9 驗收覆蓋缺口——
   若第三條邊由前兩條算出，V9 會恆等於零，等於沒有檢查。
+
+## Plane 拆解樹（階層 V2，對標《Plane QA 工程守則 v1.3》B1）
+
+節點沒有變，**裝節點的容器換了**：Epic 從 7 個子系統改為 5 條價值線 ＋ 跨旅程地板，
+Feature 從 32 個能力群改為 19 條 SC 旅程 ＋ 地板屬性群。覆蓋率因此沿
+`需求 → 旅程 → 價值線` roll-up，「哪幾條客戶旅程跑得通」第一次有載體答得出來。
+
+| 層 | Plane type | 張數 | 裝什麼 |
+|---|---|---:|---|
+| L1 | `Epic`（level 0, is_epic）| {t['epic']} | 5 條價值線 `E-CUS`/`E-OPS`/`E-TEC`/`E-KNW`/`E-PLT` ＋ 地板 `E-GLB` |
+| L2 | `Feature`（level 1）| {t['feature']} | {t['journey']} 條 SC 旅程 ＋ {t['floor']} 個地板屬性群 |
+| L3 | `Story`（level 2）| {t['story']} | FR {n['fr']} ＋ NFR {n['nfr']}；驗收契約掛這一層 |
+
+- 地板屬性群：{floor_groups}
+- **FR 的 parent 判定**（`_canon.primary_scenario()`，先中先贏）：唯一 `essential` 邊
+  **{on_journey} 條**自動推出旅程 → `global:` 區塊 **{on_floor} 條**掛功能地板 →
+  其餘 **{t['orphan']} 條留空**（V14 finding）。
+- **留空是刻意的**（守則 B0）：多條 `essential` 邊或只有 `supporting` 邊的 FR，載體只容得下一個
+  parent，猜一個會讓 roll-up 的數字看起來完整而實際是假的。要關掉它，由 BA 在
+  `_relations/sc_requires_rq.yaml` 對應的 `essential` 邊加 `primary: true`——**AI 不得代填**。
+- **NFR 一律不掛旅程**：全部進 `E-GLB` 底下依 category 分的地板 Feature。把有 SC 邊的那些掛進旅程，
+  旅程覆蓋率會被品質地板稀釋，同屬性的需求也會散在各處。SC × NFR 的邊仍在 yaml 裡作追溯。
 
 ## 缺口（{len(m.report.findings)} 筆，全部進規劃書 ②）
 
@@ -1211,6 +1481,9 @@ def write_health_md(m: Model) -> None:
   就是想像出來的需求。要嘛補 SC 邊、要嘛宣告 global、要嘛刪。
 - **V10 {by_rule.get('V10', 0)} 筆**：P0 旅程的需求只有正向案例或完全沒案例。
   只問「happy path」的訪談產出的規格就長這樣，代價在 UAT 前兩週結清。
+- **V14 {by_rule.get('V14', 0)} 筆**：FR 在拆解樹上沒有 parent（2026-08-05 隨階層 V2 新增）。
+  這不是回歸，是本來就存在、只是先前沒有載體看得見的缺口——一條 FR 服務多條旅程時，
+  「它主要為哪條旅程存在」始終沒人裁決過。等 BA 逐條宣告 `primary: true` 後歸零。
 
 ## 開放架構決策（{len(open_od)} 筆）
 
@@ -1228,7 +1501,9 @@ def write_health_md(m: Model) -> None:
 3. **推導欄不得手寫**（V6）：`scenarios` / `covered_by` / `uat` 這類欄位若出現在 `_relations/*.yaml`
    會直接擋下生成——手寫的推導值保證會漂。
 4. **NFR 不硬掛旅程**：「可用性 99.9%」不對應任何一段客戶旅程，它是所有旅程共用的地板。
-   為它硬掰一段 VOC 是造假，不是文案問題。
+   為它硬掰一段 VOC 是造假，不是文案問題。拆解樹上它們一律掛 `E-GLB` 的地板 Feature。
+6. **判不出來的 parent 留空**：階層跳級刻意不掩蓋（守則 B0）。塞預設值會讓 roll-up 看起來
+   完整而實際是假的——那比缺口本身更糟。
 5. **xlsx 單向**：改上游正典 → 重跑 `_build_workbooks.py`。永遠不要改 xlsx 再往回抄。
 """, encoding="utf-8")
 

@@ -9,6 +9,17 @@
 #                supporting 影響體驗或治理，但旅程仍可完成
 #   note         **這條邊憑什麼成立**。說不出來的邊不要建。
 #                這一欄禁止由 AI 代寫成套話——它是人工判斷留在專案裡的唯一痕跡。
+#   primary      可選的布林欄，只允許標在 role: essential 的 FR 邊上。
+#                語意：這條需求在**拆解樹**上的 parent 選這條旅程。
+#                它不是第四條追溯邊——追溯仍然是本表這張 M:N 的網，primary 只解決
+#                「拆解樹的 parent 是單值」這一個載體限制，加了它不代表其他 SC 邊變弱。
+#                  要填：一條 FR 有兩條以上 essential 邊，機器分不出主旅程時（V14 會點名）。
+#                  不用填：只有一條 essential 邊（自動推得）、或已列在檔尾 §global。
+#                  不能填：supporting 邊、NFR（NFR 一律掛地板，不看 SC 邊）。
+#                ⚠ 與 note 同一條規矩——**這一欄禁止由 AI 代填**。從 M:N 挑一條當主旅程
+#                是產品判斷，不是可推導的事實；AI 猜出來的 parent 在畫面上跟正確答案
+#                長得一模一樣，沒有人會發現它掛錯了。
+#                待裁決清單見同目錄 PENDING_PRIMARY.md（由 V14 產生，勾完寫回本檔即可丟）。
 #
 # scope: global 的需求（所有旅程共用的地板）另列於檔尾 §global，
 # 不逐條偽造 SC 邊。判準：拿掉任何一條旅程，它依然必須成立。
@@ -16,8 +27,12 @@
 # 驗證（由 _validate_relations.py 執行）：
 #   V2 兩端節點都必須存在      V3 (scenario, requirement) 不得重複
 #   V4 role 值域封閉           V8 沒有任何邊的 SC / FR 列為 finding
+#   V12 primary 只能標在 role: essential 的 FR 邊上，且值必須是布林（error）
+#       —— 標錯位置或寫成字串會被判定邏輯靜默忽略，結果是「明明宣告了卻還躺在 V14 清單裡」
+#   V13 同一條需求最多一條 primary: true（error）—— parent 是單值，宣告兩個等於沒宣告
+#   V14 FR 既無唯一 essential、又無 primary、又不在 §global → 拆解樹上會沒有 parent（finding）
 #
-# last_updated: 2026-07-27
+# last_updated: 2026-08-05
 
 version: 1
 

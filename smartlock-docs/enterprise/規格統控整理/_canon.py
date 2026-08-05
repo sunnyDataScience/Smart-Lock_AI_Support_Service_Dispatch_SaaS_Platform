@@ -22,6 +22,7 @@ from __future__ import annotations
 import re
 from collections import Counter, defaultdict
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 
 import yaml
@@ -457,24 +458,6 @@ def load_test_scenarios() -> dict[str, dict]:
     return rows
 
 
-def load_sprint_plan() -> dict:
-    """迭代計畫（`_relations/sprint_plan.yaml`）。
-
-    與四條邊同為宣告制——排程算不出來，前置只給「不能早於」，給不出「該在哪一週」。
-    但它**不是邊**：不進 `_validate_relations.py` 的檢查，也不影響四書的節點與追溯。
-    只有《規格統控規劃書》④ 與 `_plane` 的 cycles 階段讀它。
-    """
-    path = RELATIONS / "sprint_plan.yaml"
-    if not path.exists():
-        return {"sprints": [], "blocked": [], "out_of_scope": [], "cadence": {}}
-    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    data.setdefault("sprints", [])
-    data.setdefault("blocked", [])
-    data.setdefault("out_of_scope", [])
-    data.setdefault("cadence", {})
-    return data
-
-
 @dataclass
 class UatScript:
     """One UAT-01..UAT-09 walkthrough from 22_UAT_Report section 4.
@@ -611,6 +594,90 @@ def load_relations() -> Relations:
         sc_no_script=_yaml(sc_tc, "no_script"),
         sc_per=_yaml(sc_per, "edges"),
     )
+
+
+# ---------------------------------------------------------------- 拆解軸（parent）
+
+# 追溯是 M:N —— 一條需求可以同時服務多條旅程，而拆解樹上的 parent 只能有一個。
+# 以下兩個函式是「這條需求掛在誰底下」的唯一答案，規則出自階層 V2 規格 §3.4，
+# 順序固定、先中先贏：
+#
+#   ① 唯一一條 role: essential 的邊   → 那條旅程（機械可推，不需要人）
+#   ② 該邊上人工宣告 primary: true    → 那條旅程（M:N 拆不出唯一解時的人工裁決）
+#   ③ 其餘                             → None
+#
+# ③ 是刻意不猜：不取編號最小的 SC、不比命名相似度、不套預設值。猜出來的 parent 會把
+# 「這條需求掛錯旅程」變成沒有人會發現的錯誤——它在畫面上長得跟正確答案一模一樣；
+# 留空則會在 V14 finding 與拆解樹的「無 parent」那一組裡自己現形，那才修得掉。
+#
+# NFR 不走這條軸：它天生是所有旅程共用的地板，parent 一律是地板 Feature（規格 §3.4）。
+
+
+@lru_cache(maxsize=1)
+def _fr_parent_index() -> dict[str, str]:
+    """FR → parent SC。判不出來的不進索引（不是存成 None，是根本不存在這個鍵）。
+
+    快取的是一次執行內的解析結果：primary_scenario() 會被逐條需求呼叫 65 次，
+    每次重解一份 yaml 沒有意義。同一個 process 內改了 yaml 想重讀，先 cache_clear()。
+    回傳的 dict 就是快取本身，呼叫端不得就地修改。
+    """
+    rel = load_relations()
+    fr_ids = {r.req_id for r in load_requirements()}
+
+    essential: dict[str, set[str]] = {}
+    declared: dict[str, str] = {}
+    for e in rel.sc_rq:
+        rq, sc = e.get("requirement"), e.get("scenario")
+        # 標在非 essential 邊上的 primary 由 V12 擋成 error，這裡同樣不採信：
+        # 校驗沒跑的場合（例如下游直接 import 本模組）不該讓一條違規宣告靜默生效。
+        if rq not in fr_ids or e.get("role") != "essential":
+            continue
+        essential.setdefault(rq, set()).add(sc)
+        # 兩條以上 primary 由 V13 擋成 error。這裡取先出現的那條，只為讓校驗跑得完，
+        # 不代表它是有效裁決——V13 沒關掉之前這個索引值本來就不該被信任。
+        if e.get("primary") is True and rq not in declared:
+            declared[rq] = sc
+
+    index: dict[str, str] = {}
+    for rq in sorted(fr_ids):
+        hits = essential.get(rq) or set()
+        if len(hits) == 1:
+            index[rq] = next(iter(hits))
+        elif rq in declared:
+            index[rq] = declared[rq]
+    return index
+
+
+def primary_scenario(req_id: str) -> str | None:
+    """這條需求在拆解樹上的 parent 旅程（如 "SC-04"），判不出來回 None。
+
+    判定順序見本節開頭：唯一 essential → primary 宣告 → None。
+    NFR 一律回 None（不掛旅程，走地板 Feature）；不在正典裡的 ID 也是 None——
+    符合命名慣例不會讓一個 ID 變成節點。
+    """
+    if not str(req_id).startswith("FR-"):
+        return None
+    return _fr_parent_index().get(req_id)
+
+
+@lru_cache(maxsize=1)
+def _global_ids() -> frozenset[str]:
+    rel = load_relations()
+    canon_ids = [r.req_id for r in load_requirements()] + [n.req_id for n in load_nfrs()]
+    return frozenset(rq for rq in canon_ids if rel.global_matches(rq))
+
+
+def global_requirements() -> set[str]:
+    """sc_requires_rq.yaml §global 展開成實際存在的需求 ID。
+
+    檔內半數是萬用字元列（`NFR-Avail-*`）——比對規則沿用 Relations.global_matches()，
+    不另寫一套；展開的對象是正典本身，所以一條匹配不到任何 ID 的 pattern 展開後就是空的，
+    不會憑空生出節點。
+
+    每次回傳新的 set：呼叫端拿它做差集、再 discard 幾個是很自然的用法，
+    那不該動到快取裡的那一份。
+    """
+    return set(_global_ids())
 
 
 # ---------------------------------------------------------------- architecture
@@ -772,7 +839,7 @@ __all__ = [
     "Persona", "Scenario", "Requirement", "NFR", "TestCase", "UatScript", "Relations",
     "load_personas", "load_scenarios", "load_requirements", "load_nfrs", "load_test_cases",
     "load_adrs", "load_wbs", "load_test_scenarios", "load_uat_scripts", "load_relations",
-    "load_sprint_plan",
+    "primary_scenario", "global_requirements",
     "module_for", "module_arch", "architecture_for", "phase_for", "spec_status",
     "component_glossary_rows", "plain",
     "ROLE_DOMAIN", "KIND_DOMAIN", "PERSONA_ROLE_DOMAIN", "DERIVED_KEYS",

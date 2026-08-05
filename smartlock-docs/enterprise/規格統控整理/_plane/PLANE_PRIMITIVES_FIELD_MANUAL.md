@@ -4,7 +4,8 @@
 > 六大原語的**每一個欄位**，並說明其**設計之初的目的**。用途是讓人與 agent 在寫入前知道
 > 「這個欄位是幹嘛的、誰在寫它、寫了會不會被覆蓋」。
 >
-> 建立：2026-07-28 ｜ status: `active` ｜ sync-source: `code`（fork 原始碼 + live 實例雙向對證）
+> 建立：2026-07-28 ｜ 修訂：2026-08-05（守則 v1.3：型別五個 + `needs_acceptance`、
+> `requirement_kind`、Cycle 實作陷阱）｜ status: `active` ｜ sync-source: `code`（fork 原始碼 + live 實例雙向對證）
 >
 > **取證方式（每個欄位都可回溯）**：
 > 1. **DB 模型** —— `plane-QA-management/apps/api/plane/db/models/*.py`（fork commit `a083141d8`）
@@ -127,6 +128,7 @@ AuditModel（TimeAuditModel + UserAuditModel + SoftDeleteModel）
 | ✅ `point` | Integer 0–12 | null | **legacy 故事點**，已被 `estimate_point` 取代。保留只為相容舊資料 |
 | ✅ `estimate_point` | FK EstimatePoint (SET_NULL) | null | 現行估點。⚠️ 但 **estimates 端點在本 fork 未掛載（§8）**，只能經 UI 設定 |
 | ✅ `type` / ✅ `type_id` | FK IssueType (SET_NULL) | null | 工作項型別（含 Epic）。**API 同一個值回兩個鍵**，`type_id` 是 fork 加的扁平版 |
+| ✅ `requirement_kind` | Char(20)：`none` / `functional` / `quality` | `none` | **fork 擴充**。需求的**性質**，與 `type`（廣度）正交。刻意用 `none` 而非 null：Epic 彙整需求、Task 實作需求，兩者都不「是」需求，這與「還沒分類」是不同的話。⚠️ **app tree serializer 略掉它，web UI 完全看不到**，只有 `/api/v1` 寫得進去 |
 | ✅ `milestone` | FK Milestone (SET_NULL) | null | **fork 擴充**。里程碑歸屬，`related_name="work_items"` |
 | ✅ `custom_properties` | dict `{property_id: value}` | `{}` | **fork 擴充**。把 `WorkItemPropertyValue` 攤平內嵌，省一次查詢。鍵是 property 的 UUID |
 | ✅ `description_html` | Text | `"<p></p>"` | 富文本正文（HTML）。**這是寫入用的欄位** |
@@ -207,15 +209,21 @@ AuditModel（TimeAuditModel + UserAuditModel + SoftDeleteModel）
 
 ```json
 { "id": "<ProjectIssueType id>", "level": 0, "is_default": false,
-  "type": { "id": "<IssueType id>", "name": "NFR", "description": "05_NFR 的非功能需求 NFR-*",
-            "is_epic": false, "is_default": false, "is_active": true, "level": 0.0, ... } }
+  "type": { "id": "<IssueType id>", "name": "Story", "description": "需求：FR 與 NFR",
+            "is_epic": false, "is_default": false, "is_active": true,
+            "needs_acceptance": true, "level": 2.0, ... } }
 ```
+
+**五個型別**（實測 workspace 現況）：`Epic`（level 0，`is_epic`）／`Feature`(1)／`Story`(2)／
+`Task`(3)／`Bug`(2)。需求是功能還是品質**不開第六個型別**，走 `Issue.requirement_kind`——
+折進型別的話型別數會變成「層數 × 性質數」。
 
 | 欄位 | 設計目的 |
 |---|---|
 | `is_epic` | **Epic 就是 `is_epic=true` 的型別**，沒有獨立的 epic 模型（MCP server instructions 亦如此說明）。實際被邏輯讀到的只有一處：封存清單排除 epic 卡（`app/views/issue/archive.py:99`）|
 | `is_active` | 停用而不刪除，既有卡片保留型別 |
 | `level` | 階層深度（`FloatField`，用 float 是為了日後在既有層之間插層）。**宣告用，不強制** —— 全庫只被型別清單的 `order_by("level", "name")` 讀到（`api/views/work_item_type.py:22,94`），不驗證父子關係，也**不參與覆蓋率計算** |
+| `needs_acceptance` | **這個是真的會算數的**：只有它為真的型別才在覆蓋率報表產生一列。**model 預設 `True`** —— 刻意的（沒被分類過的型別寧可吵，也不要從報表上消失），代價是**實作型必須顯式送 `false`**，否則工作包會整批被要求驗收契約並顯示為未覆蓋。刻意不從型別名推導：型別是 workspace 擁有、可以被改名與翻譯，用名字比對會在有人把 Story 改成中文的那天靜默失準 |
 | `is_default` | 未指定型別時的落點；`ProjectIssueType.is_default` 是**專案級覆寫** |
 
 > ⚠️ **兩個 `level` 不是同一個**：外層 `ProjectIssueType.level` 是 `PositiveIntegerField`
@@ -284,7 +292,12 @@ LOCK 現有 11 個自訂欄位，例：`canonical_id`（「四書正典編號」
 另有 `/archived-cycles/`、`/cycles/{id}/archive/`、`/cycle-issues/`、`/transfer-issues/`
 
 > **設計目的**：Cycle = 時間盒（sprint）。與 Module 的分野是 **Cycle 依時間切、Module 依範疇切**。
-> LOCK 目前 0 個 cycle；下表樣本取自 ACMEG。
+>
+> 2026-08-05 起匯入器會建 `Sprint 01`–`Sprint 06`（各 2 週、連續不重疊，見 `README.md` §3.5），
+> 但**不自動把卡塞進去** —— 排程是 PM 決策。兩個實作陷阱：專案要先開 `cycle_view`
+> （serializer 直接擋），且 `start_date`/`end_date` 是 **DateTimeField**，送純日期字串會 400
+> （`"Expected a datetime but got a date."`），送 `Z` 結尾的 UTC 午夜則會被
+> `astimezone(專案時區)` 推成前一天。送 naive local ISO（`2026-08-10T00:00:00`）才對得上日曆。
 
 | 欄位 | 型別 | 空值 / 預設 | 設計目的 |
 |---|---|---|---|
@@ -322,7 +335,8 @@ LOCK 現有 11 個自訂欄位，例：`canonical_id`（「四書正典編號」
 `GET/POST /api/v1/workspaces/{slug}/projects/{pid}/modules/`
 另有 `/archived-modules/`、`/modules/{id}/archive/`、`/module-issues/`
 
-> **設計目的**：Module = 範疇分組（feature / 子系統），**不綁時間盒**。LOCK 有 12 個。
+> **設計目的**：Module = 範疇分組（feature / 子系統），**不綁時間盒**。
+> 本專案 2026-08-05 起只留 **7 個子系統 Module**（原本另有 5 條分線 module，分線升格成 Epic 後刪除——同一件事有兩個入口，而 Module 與階層的統計口徑不同）。
 
 | 欄位 | 型別 | 空值 / 預設 | 設計目的 |
 |---|---|---|---|
@@ -492,19 +506,7 @@ API 另回 `work_item_ids`（追溯連結）、`latest_status`、`current`（**�
 | `description` | JSON | 說明，實測形如 `{"text": "…"}` |
 | `preconditions` | JSON | 前置條件 |
 | `priority` | `urgent`/`high`/`medium`/`low`/`none` | 與 issue 同一組值域 |
-| `case_type` | `functional` / `performance` / `security` / `reliability` / `compliance`（預設 `functional`）| **「這個契約用什麼方式驗」，不是「需求是功能還是非功能」**——見下 |
 | `tags` | JSON list | 自由標籤，實測用來放 `["P0","SC-02","TC-CS-AI-01","happy"]` |
-
-> 🟥 **`case_type` 最容易被誤用成 FR/NFR 分類**（2026-07-29 實際踩到，送
-> `"non_functional"` 直接 400）。模型自己的註解寫得很清楚：
->
-> > *acceptance conditions, so this never doubles as an FR/NFR classification —
-> > that lives on the work item.*
->
-> 需求是功能還是非功能，屬於**需求管理**，落在 work item（本專案用 `kind:fr` /
-> `kind:nfr` 標籤）；`case_type` 屬於**測試管理**，回答「這條契約靠效能量測、
-> 靠安全掃描、還是靠合規稽核來驗」。這正是守則 B2 明文警告的「不要用同一個欄位
-> 表達兩件事」——一條功能需求的驗收條件完全可能包含一個效能門檻。
 
 **不可變**：`save()` 在非新增時擲「Published test case versions are immutable.」
 另：`project_id` / `workspace_id` 由父 case 自動帶入，不用給。
@@ -643,8 +645,8 @@ XML 上限 **5 MiB**，解析前拒絕 DTD / entity 宣告（XXE 防護）。
 
 | 旗標 | 模型預設 | 管什麼 | **LOCK 實測值** |
 |---|---|---|---|
-| `cycle_view` | `false` | Cycles 分頁 | **`true`**（但目前 0 個 cycle）|
-| `module_view` | `false` | Modules 分頁 | **`true`**（12 個 module）|
+| `cycle_view` | `false` | Cycles 分頁 | **`true`** —— ⚠️ 不只管 UI：關著時 `CycleCreateSerializer.validate()` 會擋掉建立（"Cycles are not enabled for this project"），API 也建不出 cycle |
+| `module_view` | `false` | Modules 分頁 | **`true`**（7 個子系統 module）|
 | `issue_views_view` | `false` | **Views 分頁** | **`true`**（僅 UI 可用，見 §5）|
 | `page_view` | **`true`** | **Pages 分頁** | **`true`**（目前 0 頁，僅 UI 可用，見 §6）|
 | `intake_view` | `false` | Intake 收件匣 | `false` |

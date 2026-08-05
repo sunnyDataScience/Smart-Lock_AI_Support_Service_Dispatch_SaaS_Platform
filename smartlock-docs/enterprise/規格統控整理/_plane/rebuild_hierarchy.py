@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
-"""建拆解軸：把平坦的卡片接成 Epic → Feature → Story 三層 `parent` 鏈。
+"""建拆解軸：把平坦的卡片接成 Epic → Feature → Story → Task 的 `parent` 鏈。
 
 **為什麼要有這支**：覆蓋率與出貨閘門是沿 `Issue.parent` roll-up 出來的——
 `report.py` 的 `inherited()` 讓父卡收集自己與所有後代的契約，子卡不繼承父卡。
 `import_spine.py` 只建卡與容器、不建 parent，單跑它會得到一張平的板：
 Epic / Feature 層覆蓋率全空，**而 Epic 正是管理層唯一會看的那層**。
 
-形狀的真相源是 `README.md` §2.1（層級表）與 §9（匯入順序）；本檔的
-`TYPE_LEVELS` 與 `EXPECTED` 是那兩節的機器可讀複本，對不上時 verify 階段會紅。
+拆解軸自 2026-08-05 起是**價值線**，不是技術層（階層 V2 規格 §3）：
+Epic ＝ 5 條價值線 + 跨旅程地板（E-GLB），Feature ＝ 19 條 SC 旅程 + 地板屬性群。
+子系統（AGT/API/…）降為 Module——一個 sprint 交付的價值橫跨多個子系統，
+拿它當 Epic 會讓 roll-up 讀不出旅程進度。
 
-**不是重新匯入**：只新增 L1/L2 兩層卡，並回填既有 L3 卡的 parent。
+形狀的真相源是 `README.md` §2.1（層級表）與 §9（匯入順序）；型別宣告直接讀
+`import_spine.TYPES`（同一份，不另抄一張表），`EXPECTED` 是 §2.1 的機器可讀複本。
+
+**不是重新匯入**：只新增 Epic 與地板 Feature 兩種卡，其餘一律只回填 parent。
 既有卡的標題、本文、測試連結、自訂欄位、milestone 一律不動。
 
     PLANE_PROJECT_ID=<uuid> python3 _plane/rebuild_hierarchy.py [--dry-run] [--only=STAGE]
@@ -38,24 +43,26 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import _canon as C  # noqa: E402
+from _plane.import_spine import (  # noqa: E402
+    TYPES, load_disposition, type_drift, wbs_requirement,
+)
 from _plane.plane_client import Plane, PlaneError  # noqa: E402
-from _spec_data import MODULES, SUBSYSTEMS  # noqa: E402
+from _spec_data import GLOBAL_EPIC, VALUE_LINES  # noqa: E402
 
-# 守則 B1 的階層定義。level 與 is_epic 是階層語意的唯一載體。
-TYPE_LEVELS = {
-    "Work Group": {"level": 0, "is_epic": True},   # 8 個 L1 子系統的落點（Epic）
-    "Feature": {"level": 1, "is_epic": False},     # 32 個 L2 能力群
-    "Requirement": {"level": 2, "is_epic": False},  # 65 條 FR＝Story
-    "NFR": {"level": 2, "is_epic": False},          # 106 條＝Quality requirement，與 Story 同階
-    "Scenario": {"level": 0, "is_epic": False},     # 旅程，刻意不進 parent 樹（見下）
-    "Work Package": {"level": 3, "is_epic": False},  # 工程任務，Story 之下
-}
+# 型別的 level / is_epic / needs_acceptance 只宣告一次，在 import_spine.TYPES。
+# 兩支腳本各抄一張表的下場是它們會分頭漂移，而漂移的那一刻沒有任何測試會紅。
+TYPE_ATTRS = {name: attrs for name, _, attrs in TYPES}
 
-# 旅程（SC）為什麼不進 parent 樹：一張卡只能有一個 parent，而 L1/L2/L3 已經佔用了它。
-# 旅程橫跨多個子系統，硬掛進樹會逼它選一個歸屬。SC 改為直接持有自己的驗收契約
-# （該旅程的 UAT 腳本涵蓋的案例），由 sclinks 階段建立。
-
-NFR_EPIC_TITLE = "NFR 全域品質地板（非功能需求）"
+# Epic 的代號與中文標題來自 `_spec_data.VALUE_LINES` / `GLOBAL_EPIC` —— **與四書 xlsx
+# 同一份常數**。在這裡另抄一份，哪天有人改了標題，xlsx 與 Plane 卡片就會分頭走，
+# 而沒有任何測試會紅。本檔只負責「哪條 SC 屬於哪條線」，而那是問 canon 的
+# （`Scenario.line`，源自 28_Scenarios.md §1），同樣不手列。
+#
+# `地板-*` 沒有搬進 `_spec_data`：它是 **Plane 端專屬的落點名稱**（一張卡的標題前綴），
+# 四書那邊的地板是 BOM 的一個分組概念、沒有對應的卡，硬拉成共用常數只會讓
+# 「這個字串在哪一側有意義」變模糊。
+FLOOR_FUNCTIONAL = "地板-功能"      # global: 區塊裡的 FR 掛這張
+FLOOR_PREFIX = "地板-"              # 其餘依 NFR category 分群：地板-Perf / 地板-Sec …
 
 
 def log(msg: str) -> None:
@@ -124,9 +131,6 @@ class Rebuilder:
                 self._canon_prop = None
         return self._canon_prop
 
-    def by_title(self) -> dict[str, dict]:
-        return {str(w.get("name", "")).strip(): w for w in self.items()}
-
     def save(self) -> None:
         """只有真的建過東西才落盤。
 
@@ -151,37 +155,29 @@ class Rebuilder:
         return {r["type"]["name"]: r["type"] for r in rows}
 
     def stage_types(self) -> None:
-        log("\n▸ types：設定型別階層（level / is_epic）")
+        """對齊五個型別的 level / is_epic / needs_acceptance。
+
+        建立與掛載是 `import_spine.py` 步驟①的事；這裡只做對齊，讓單獨重跑本檔也能把
+        被人在 UI 上改歪的型別扳回來。**存在不等於設定對**——Epic/Feature/Story/Task/Bug
+        多半是平台出廠型別，出廠的 Task 一樣 `needs_acceptance=true`。
+        """
+        log("\n▸ types：對齊型別的 level / is_epic / needs_acceptance")
         ws = self.ws_types()
         attached = self.project_types()
-
-        # Feature 在 workspace 已經存在（守則 DEMO 建的），再 create 會長出同名重複。
-        # 缺的只是「掛到這個專案」這一步。
-        if "Feature" not in attached:
-            t = ws.get("Feature")
-            if t:
-                log("    Feature 型別已在 workspace，掛到本專案")
-                if not self.dry:
-                    self.pc.attach_type(t["id"])
-            else:
-                log("    workspace 沒有 Feature，建立並掛載")
-                if not self.dry:
-                    t = self.pc.create_type("Feature", "一組連貫的系統能力（L2 能力群）")
-                    self.pc.attach_type(t["id"])
-            if t:
-                attached["Feature"] = t
-
-        for name, want in TYPE_LEVELS.items():
+        for name, want in TYPE_ATTRS.items():
             t = ws.get(name)
             if not t:
-                log(f"    ⚠ 型別 {name} 不存在，跳過")
+                log(f"    ⚠ 型別 {name} 不存在——先跑 import_spine.py --until=types")
                 continue
-            now_level, now_epic = t.get("level"), t.get("is_epic")
-            if float(now_level or 0) == float(want["level"]) and bool(now_epic) == want["is_epic"]:
-                log(f"    = {name:<14} level={want['level']} is_epic={want['is_epic']}")
+            if name not in attached:
+                log(f"    ＋ {name} 在 workspace 但沒掛到本專案，補掛")
+                if not self.dry:
+                    self.pc.attach_type(t["id"])
+            drift = type_drift(t, want)     # 比對規則也只寫一次，見 import_spine
+            if not drift:
+                log(f"    = {name:<8} {want}")
                 continue
-            log(f"    ✎ {name:<14} level {now_level}→{want['level']}  "
-                f"is_epic {now_epic}→{want['is_epic']}")
+            log(f"    ✎ {name:<8} 現值 {drift} → {want}")
             if not self.dry:
                 self.touched = True
                 self.pc.update_type(t["id"], **want)
@@ -189,122 +185,160 @@ class Rebuilder:
     def _type_id(self, name: str) -> str:
         t = self.ws_types().get(name)
         if not t:
-            raise SystemExit(f"找不到型別 {name}，先跑 --only=types")
+            raise SystemExit(f"找不到型別 {name}，先跑 import_spine.py --until=types")
         return t["id"]
 
-    def _epic_type_id(self) -> str:
-        return self._type_id("Work Group")
+    def _make_card(self, title: str, type_name: str, kind: str,
+                   description: str, parent: str | None = None) -> str | None:
+        """建一張本檔自己的卡（Epic / 地板 Feature），並寫上 canonical_id。
 
-    def _feature_type_id(self) -> str:
-        return self._type_id("Feature")
+        標題前綴（`E-CUS `、`地板-Perf `）就是它的正典編號：這兩種卡不是四書節點，
+        沒有上游 ID，但下次重跑仍要認得出來。`canonical_id` 自訂欄位比標題可靠——
+        標題會被人潤稿，機器欄位不會（README §7）。
+        """
+        code = title.split(" ", 1)[0]
+        prop = (self.state.get("properties") or {}).get("canonical_id")
+        card = self.pc.create_work_item(
+            name=title, type_id=self._type_id(type_name), requirement_kind=kind,
+            description_html=f"<p>{description}</p>",
+            **({"parent": parent} if parent else {}),
+            **({"properties": {prop["id"]: code}} if prop else {}),
+        )
+        return card["id"]
 
     def stage_epics(self) -> None:
-        log("\n▸ epics：建立 L1 子系統卡（Epic）")
-        frs = C.load_requirements()
-        type_id = self._epic_type_id() if not self.dry else "<dry-run>"
-        titles = self.by_title()
+        """6 張價值線 Epic。分線清單由 canon 推，只有標題是人給的。"""
+        log("\n▸ epics：建立價值線 Epic（5 分線 + 跨旅程地板）")
+        lines = {sc.line for sc in C.load_scenarios()}
+        unknown = sorted(lines - set(VALUE_LINES))
+        if unknown:
+            # 靜默跳過會讓那條線的 SC 全部沒有 Epic 可掛，而 verify 只會說「少了幾張」。
+            raise SystemExit(f"28_Scenarios 出現未知分線 {unknown}：先在 _spec_data.VALUE_LINES 補")
+        # 用 canonical_id 索引而非整個標題比對：標題（`E-CUS 終端客戶價值線`）會被人潤稿，
+        # 比整串就會判成「不存在」而再開一張同代號的 Epic。by_code() 認的是前綴 `E-CUS`。
+        cards = self.by_code()
+        wanted = [(VALUE_LINES[line], "functional") for line in VALUE_LINES if line in lines]
+        wanted.append((GLOBAL_EPIC, "quality"))
         made = 0
-        for prefix, meta in SUBSYSTEMS.items():
-            if not any(q.prefix == prefix for q in frs):
-                continue
-            title = meta["name"]
-            if title in titles:
-                self.hier["epics"][prefix] = titles[title]["id"]
+        for meta, kind in wanted:
+            code, title = meta["epic"], f"{meta['epic']} {meta['name']}"
+            if code in cards:
+                self.hier["epics"][code] = cards[code]["id"]
                 log(f"    = {title}（已存在）")
                 continue
             log(f"    + {title}")
             made += 1
             if not self.dry:
                 self.touched = True
-                card = self.pc.create_work_item(
-                    name=title, type_id=type_id,
-                    description_html=f"<p>{meta.get('description', '')}</p>")
-                self.hier["epics"][prefix] = card["id"]
-        # NFR 在 BOM 是獨立的 L1 區塊，沒有 L2，106 條直接掛它
-        if NFR_EPIC_TITLE in titles:
-            self.hier["epics"]["NFR"] = titles[NFR_EPIC_TITLE]["id"]
-            log(f"    = {NFR_EPIC_TITLE}（已存在）")
-        else:
-            log(f"    + {NFR_EPIC_TITLE}")
-            made += 1
-            if not self.dry:
-                card = self.pc.create_work_item(
-                    name=NFR_EPIC_TITLE, type_id=type_id,
-                    description_html="<p>NFR 天生不掛單一旅程，是所有旅程共用的地板。</p>")
-                self.hier["epics"]["NFR"] = card["id"]
+                self.hier["epics"][code] = self._make_card(
+                    title, "Epic", kind, meta.get("description", ""))
         self.save()
         log(f"    小計：新增 {made}，共 {len(self.hier['epics'])} 個 Epic")
 
     def stage_features(self) -> None:
-        log("\n▸ features：建立 L2 能力群卡（Feature），parent 指向其 Epic")
-        frs = C.load_requirements()
-        type_id = self._feature_type_id() if not self.dry else "<dry-run>"
-        titles = self.by_title()
+        """地板屬性群 Feature（E-GLB 底下）。
+
+        19 張 SC 旅程卡本身是 `import_spine.py` 建的（型別已是 Feature），這裡只在
+        parents 階段接上 Epic；本階段只建四書裡沒有節點對應的地板群：
+          地板-功能        `sc_requires_rq.yaml` global: 區塊的 FR（functional）
+          地板-<Category>  NFR 依 `NFR.category` 分群（quality）
+        category 直接取 canon 已解析好的欄位，不在這裡重寫一次 ID 正則。
+        """
+        log("\n▸ features：建立地板屬性群（SC 旅程卡由 import_spine 建，這裡不重建）")
+        glb = self.hier["epics"].get(GLOBAL_EPIC["epic"])
+        if not glb and not self.dry:
+            raise SystemExit(f"找不到 {GLOBAL_EPIC['epic']} Epic，先跑 --only=epics")
+        cards = self.by_code()          # 同 stage_epics：認代號前綴，不整串比標題
+        groups = [(FLOOR_FUNCTIONAL, "全域功能地板", "functional",
+                   "所有旅程共用的功能地板：sc_requires_rq.yaml global: 區塊列的 FR。")]
+        groups += [(f"{FLOOR_PREFIX}{cat}", "品質地板", "quality",
+                    f"{cat} 類非功能需求：拿掉任何一條旅程它依然必須成立。")
+                   for cat in sorted({n.category for n in C.load_nfrs()})]
         made = 0
-        for prefix, mods in MODULES.items():
-            epic_id = self.hier["epics"].get(prefix)
-            if not epic_id:
+        for key, label, kind, desc in groups:
+            title = f"{key} {label}"
+            if key in cards:
+                self.hier["features"][key] = cards[key]["id"]
                 continue
-            for code, module_name, _ in mods:
-                if not any(q.prefix == prefix and C.module_for(q)[0] == code for q in frs):
-                    continue
-                key = f"{prefix}·{code}"
-                title = f"{key} {module_name}"
-                if title in titles:
-                    self.hier["features"][key] = titles[title]["id"]
-                    continue
-                log(f"    + {title}")
-                made += 1
-                if not self.dry:
-                    self.touched = True
-                    card = self.pc.create_work_item(
-                        name=title, type_id=type_id, parent=epic_id)
-                    self.hier["features"][key] = card["id"]
+            log(f"    + {title}")
+            made += 1
+            if not self.dry:
+                self.touched = True
+                self.hier["features"][key] = self._make_card(title, "Feature", kind, desc,
+                                                             parent=glb)
         self.save()
-        log(f"    小計：新增 {made}，共 {len(self.hier['features'])} 個 Feature")
+        log(f"    小計：新增 {made}，共 {len(self.hier['features'])} 個地板 Feature")
+
+    def _reparent(self, card: dict | None, want: str | None, stats: Counter, label: str) -> None:
+        """把一張卡的 parent 設成 want。找不到卡、找不到父都記帳，不靜默跳過。"""
+        if not card:
+            stats[f"{label}｜找不到卡"] += 1
+            return
+        if not want:
+            stats[f"{label}｜找不到 parent 卡"] += 1
+            return
+        if card.get("parent") == want:
+            stats[f"{label}｜已正確"] += 1
+            return
+        stats[f"{label}｜回填"] += 1
+        if not self.dry:
+            self.touched = True
+            self.hier["parents_before"].setdefault(card["id"], card.get("parent"))
+            self.pc.update_work_item(card["id"], parent=want)
 
     def stage_parents(self) -> None:
-        log("\n▸ parents：回填 L3 需求卡的 parent（roll-up 的前提）")
+        """回填四種 parent。FR 的判定（規格 §3.4 規則 1+2）住在 `_canon`，這裡不重刻。
+
+        規則順序是「先中先贏」，第 4 條刻意什麼都不做：掛不上去的 FR 就讓它沒有 parent，
+        在看板上看得見。塞一個預設父卡只會把「這條需求還沒決定屬於哪條旅程」這件事
+        變成一個看起來很正常的位置（守則 B0 的 None 組同理）。
+        """
+        log("\n▸ parents：回填 parent（SC→Epic、FR→旅程/地板、NFR→地板、Task→Story）")
         self.items(refresh=True)
         cards = self.by_code()
-        patched = skipped = missing = 0
+        stats: Counter[str] = Counter()
+
+        for sc in C.load_scenarios():
+            code = VALUE_LINES[sc.line]["epic"]
+            self._reparent(cards.get(sc.sc_id), self.hier["epics"].get(code), stats, "SC→Epic")
+
+        floor_fr = self.hier["features"].get(FLOOR_FUNCTIONAL)
+        globals_ = C.global_requirements()
         for q in C.load_requirements():
-            card = cards.get(q.req_id)
-            if not card:
-                missing += 1
-                continue
-            key = f"{q.prefix}·{C.module_for(q)[0]}"
-            want = self.hier["features"].get(key)
-            if not want:
-                missing += 1
-                continue
-            if card.get("parent") == want:
-                skipped += 1
-                continue
-            patched += 1
-            if not self.dry:
-                self.touched = True
-                self.hier["parents_before"].setdefault(card["id"], card.get("parent"))
-                self.pc.update_work_item(card["id"], parent=want)
-        nfr_epic = self.hier["epics"].get("NFR")
+            sc_id = C.primary_scenario(q.req_id)          # 規則 1（唯一 essential）+ 2（primary）
+            if sc_id:
+                self._reparent(cards.get(q.req_id), (cards.get(sc_id) or {}).get("id"),
+                               stats, "FR→旅程")
+            elif q.req_id in globals_:                    # 規則 3（global: 區塊）
+                self._reparent(cards.get(q.req_id), floor_fr, stats, "FR→地板-功能")
+            else:                                         # 規則 4：不猜
+                stats["FR｜無 parent（待 BA 宣告 primary）"] += 1
+
+        # NFR 一律進地板，**不看 SC 邊**：把有邊的 20 條掛進旅程 Feature，會讓旅程
+        # 覆蓋率被品質地板稀釋，同一個屬性的 NFR 也會散在各處。SC×NFR 的追溯仍在 yaml。
         for n in C.load_nfrs():
-            card = cards.get(n.req_id)
-            if not card or not nfr_epic:
-                missing += 1
+            self._reparent(cards.get(n.req_id),
+                           self.hier["features"].get(f"{FLOOR_PREFIX}{n.category}"),
+                           stats, "NFR→地板")
+
+        for wid, item in sorted(load_disposition().items()):
+            if item.get("disposition") == "archive":
+                continue        # 沒匯入的卡不必找 parent
+            req = wbs_requirement(item)
+            if not req:
+                stats["Task｜無 parent（delivers 非唯一 FR）"] += 1
                 continue
-            if card.get("parent") == nfr_epic:
-                skipped += 1
-                continue
-            patched += 1
-            if not self.dry:
-                self.touched = True
-                self.hier["parents_before"].setdefault(card["id"], card.get("parent"))
-                self.pc.update_work_item(card["id"], parent=nfr_epic)
+            self._reparent(cards.get(wid), (cards.get(req) or {}).get("id"), stats, "Task→Story")
+
         self.save()
-        log(f"    回填 {patched}，已正確 {skipped}，找不到對應 {missing}")
+        for label, count in sorted(stats.items()):
+            log(f"    {label:<34} {count:>4}")
 
     def stage_sclinks(self) -> None:
-        log("\n▸ sclinks：把旅程的 UAT 腳本案例連上 SC 卡（19 張 uncovered → covered）")
+        """SC 卡直接持有的驗收契約。旅程進了拆解樹（現在是 Feature）之後這條**照舊**：
+        parent 說它在樹的哪裡，契約說它憑什麼算完成，兩者並存不互相取代。
+        """
+        log("\n▸ sclinks：把旅程的 UAT 腳本案例連上 SC 卡（19 張 Feature）")
         rel = C.load_relations()
         cards = self.by_code()
         cases = self.pc.list_test_cases()
@@ -348,8 +382,8 @@ class Rebuilder:
     def stage_verify(self) -> None:
         """對帳：實際建出來的東西是否等於 README §2.1 宣告的形狀。
 
-        數量寫死在這裡是刻意的——canon 增減需求時這裡會紅，逼人回頭更新 README，
-        而不是讓兩邊靜默分歧。
+        結構數量寫死是刻意的——canon 增減節點時這裡會紅，逼人回頭更新 README，
+        而不是讓兩邊靜默分歧。唯一算出來的是 `parented`，理由見 `expected_parented()`。
         """
         log("\n▸ verify：對帳 README §2.1 宣告的形狀")
         self.items(refresh=True)
@@ -362,17 +396,17 @@ class Rebuilder:
                 parented += 1
         ok = True
         for label, got, want in [
-            ("Epic（Work Group）", counts.get("Work Group", 0), EXPECTED["epics"]),
-            ("Feature", counts.get("Feature", 0), EXPECTED["features"]),
-            ("Story（Requirement）", counts.get("Requirement", 0), EXPECTED["stories"]),
-            ("Quality req.（NFR）", counts.get("NFR", 0), EXPECTED["quality"]),
-            ("Scenario", counts.get("Scenario", 0), EXPECTED["scenarios"]),
-            ("有 parent 的卡", parented, EXPECTED["parented"]),
+            ("Epic（價值線）", counts.get("Epic", 0), EXPECTED["epics"]),
+            ("Feature（SC + 地板）", counts.get("Feature", 0), EXPECTED["features"]),
+            ("Story（FR + NFR）", counts.get("Story", 0), EXPECTED["stories"]),
+            ("Task（WBS，非 archive）", counts.get("Task", 0), EXPECTED["tasks"]),
+            ("有 parent 的卡", parented, expected_parented()),
         ]:
             mark = "✅" if got == want else "❌"
             if got != want:
                 ok = False
-            log(f"    {mark} {label:<22} 實際 {got:>4}   README {want:>4}")
+            log(f"    {mark} {label:<22} 實際 {got:>4}   宣告 {want:>4}")
+        log(f"    ·  Bug 目前 {counts.get('Bug', 0)} 張（匯入不建，執行期才產生，不對帳）")
         if not ok:
             log("    ⚠ 有數字對不上：不是 canon 變了（那要更新 README §2.1），"
                 "就是某個階段沒跑完")
@@ -380,13 +414,28 @@ class Rebuilder:
 
 # README §2.1 宣告的形狀。改 canon 導致這裡變動時，README 要同步改。
 EXPECTED = {
-    "epics": 8,        # 7 子系統 + 1 NFR 全域區塊
-    "features": 32,    # BOM L2 能力群
-    "stories": 65,     # 04_SRS 的 FR
-    "quality": 106,    # 05_NFR
-    "scenarios": 19,   # 28_Scenarios，不進 parent 樹
-    "parented": 203,   # 171 條 L3 + 32 個 Feature
+    "epics": 6,        # 5 條價值線 + E-GLB
+    "features": 37,    # 19 SC 旅程 + 地板-功能 + 17 個 NFR category 地板
+    "stories": 171,    # 65 FR + 106 NFR，同型別、性質看 requirement_kind
+    "tasks": 28,       # 49 個工作包扣掉 wbs_disposition 標 archive 的 21 個
 }
+
+
+def expected_parented() -> int:
+    """該有 parent 的卡數。**這個數字不寫死。**
+
+    它會隨 BA 在 `sc_requires_rq.yaml` 補 `primary` 而上升——每補一條，就有一條 FR
+    從「無 parent」搬進某條旅程底下。寫死只會讓每次人工裁決都把 verify 弄紅，
+    然後有人把常數改大；形狀檢查於是退化成橡皮圖章。上面四個結構數量仍寫死，
+    因為那是 README 宣告的形狀，變動代表 canon 真的變了。
+    """
+    globals_ = C.global_requirements()
+    fr = sum(1 for q in C.load_requirements()
+             if C.primary_scenario(q.req_id) or q.req_id in globals_)
+    task = sum(1 for item in load_disposition().values()
+               if item.get("disposition") != "archive" and wbs_requirement(item))
+    floors = 1 + len({n.category for n in C.load_nfrs()})
+    return len(C.load_scenarios()) + floors + fr + len(C.load_nfrs()) + task
 
 STAGES = ["types", "epics", "features", "parents", "sclinks", "verify"]
 

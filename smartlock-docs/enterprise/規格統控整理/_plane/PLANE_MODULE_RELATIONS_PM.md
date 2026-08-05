@@ -4,7 +4,7 @@
 > [`PLANE_PRIMITIVES_FIELD_MANUAL.md`](PLANE_PRIMITIVES_FIELD_MANUAL.md)；
 > 四書怎麼投影進來看 [`README.md`](README.md)。
 >
-> 建立：2026-07-28 ｜ status: `active` ｜ 依據：`plane-QA-management/docs/process/plane-qa-guideline.md`
+> 建立：2026-07-28 ｜ 修訂：2026-08-05（守則 v1.3：level 2 只有 Story/Bug，拆解軸改走價值線）｜ status: `active` ｜ 依據：`plane-QA-management/docs/process/plane-qa-guideline.md`
 > Part B ＋ fork 原始碼 ＋ live 實打
 >
 > **一句話**：這不是一棵樹，是**四個正交的軸**。壓成一棵樹會遺失資訊，
@@ -37,9 +37,10 @@
    ┌────┴────┐                │ Issue.milestone (FK)
    │ Feature │ level 1  ◄─────┘
    └────┬────┘
-   ┌────┴──────────────────┐
-   │  Story  │  品質需求   │ level 2   ◄── 唯一的直接量測點
-   └────┬──────────────────┘
+   ┌────┴────┬────────┐
+   │  Story  │  Bug   │ level 2   ◄── Story 是唯一的直接量測點
+   └────┬────┴────────┘           功能／品質之分走 Issue.requirement_kind，
+        │                          不是第二個型別（守則 B2）
    ┌────┴────┐
    │  Task   │ level 3
    └─────────┘
@@ -69,6 +70,18 @@
 **② 最常被誤讀成階層。** Cycle 與 Module 是 M:N join table，一個 Story 可以同時在 Sprint 12、
 屬於「查詢能力」模組、掛在 M2 里程碑下。它們是同一批卡的三種切法，誰也不包含誰。
 把 Module 當成 Epic 的下層會立刻矛盾——一個 Epic 的需求往往散在多個 Module 裡。
+
+**本專案在每一層放什麼**（2026-08-05 起，形狀真相源＝[`README.md`](README.md) §2.1）：
+
+| 層 | 裝什麼 | 數量 |
+|---|---|---|
+| Epic | **5 條價值線**（E-CUS/OPS/TEC/KNW/PLT）＋ 跨旅程地板 E-GLB | 6 |
+| Feature | **19 條 SC 旅程** ＋ 18 個地板屬性群 | 37 |
+| Story | 65 FR（`functional`）＋ 106 NFR（`quality`）| 171 |
+| Task | WBS 工作包（扣掉已封存的歷史紀錄）| 28 |
+
+⚠️ **Epic 不是子系統。** AGT/API/WEB/… 是技術切法，一個 sprint 交付的價值橫跨多個子系統；
+拿它當 Epic，roll-up 出來的數字就讀不出「哪條客戶旅程跑得通」。子系統落在 ② 排程軸的 Module。
 
 ### 接合點才是承重結構
 
@@ -201,10 +214,10 @@ WORKSPACE                          ← 跨專案共享層，改這裡會波及�
 | 層 | 決策 | 數字來源 |
 |---|---|---|
 | Initiative | 要不要投資 | 跨專案彙總 |
-| Epic | 能力投入是否見效 | **roll-up** 覆蓋率 |
-| Feature | 價值交付到什麼程度 | **roll-up** 覆蓋率 + 最差狀態 |
-| **Story / 品質需求** | **驗收（DoR / DoD）** | **契約 pass / fail —— 直接量測** |
-| Task | 分工 | — |
+| Epic | 這條**價值線**投入是否見效 | **roll-up** 覆蓋率 |
+| Feature | 這條**旅程**交付到什麼程度 | **roll-up** 覆蓋率 + 最差狀態 |
+| **Story**（功能與品質需求同層） | **驗收（DoR / DoD）** | **契約 pass / fail —— 直接量測** |
+| Task | 分工 | —（`needs_acceptance=false`，不產生覆蓋率列）|
 | Cycle | 這個時間箱交付什麼 | run scorecard |
 | Release | 能不能出貨 | 閘門的五類 blocker |
 

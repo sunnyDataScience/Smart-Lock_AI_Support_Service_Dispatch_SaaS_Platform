@@ -2,8 +2,8 @@
 title: 05 非功能需求（NFR）— Smart Lock AI 客服與派工 SaaS 平台
 version: 1.0
 status: active
-owner: 架構師 + SRE
-last-updated: 2026-07-07
+owner: 目標值＝系統分析（SA）｜實現與量測＝架構師 + SRE　（分工見 §0）
+last-updated: 2026-08-05
 upstream:
   - smartlock-docs/00_platform/P2/04_adr/ADR-P002_SigNoz_單一可觀測性平台.md
   - smartlock-docs/00_platform/P2/04_adr/ADR-P003_Casdoor_統一IdP_租戶_License.md
@@ -33,6 +33,23 @@ NFR 不是「越高越好」，而是「目標 tier 與產品 tier 對齊」。�
 | DORA | High | Lead time < 1d / CFR < 15% / MTTR < 1d |
 
 **編號規則**：`NFR-<屬性>-NNN`。每條 NFR 三欄必備：**目標值 / 驗證方式 / 分層**。量化目標為**設計目標值**；標 `[待確認]` 者表示尚無實測基線，量測方法以「驗證方式」欄為準。子系統內部 NFR ID（如 api `NFR-PERF-01`）與平台級指標的映射見 §13。
+
+### §0.1 誰擁有哪一欄（2026-08-05 業主裁決）
+
+本檔原記 `owner: 架構師 + SRE`——**需求與實現同一個 owner**，等於「達不到就自己把目標調低」在流程上無人可擋。裁決拆為兩層，逐欄指名：
+
+| 欄／段 | Owner | 改動視同 |
+|:---|:---|:---|
+| **目標值**、**分層**（合約下限／營運目標） | **系統分析（SA）**（價值面回 PM） | **需求變更**——走 `.claude/rules/change-governance.md` 的 CIA gate |
+| **驗證方式**、各節末「策略」段、`§12 Failure Modes`、`§13 子系統對照` | **架構師 + SRE** | 設計變更——重大者開 ADR |
+
+三條操作規則：
+
+1. **架構師不得自行調降目標值。** 評估後認為達不到，回 SA／PM 走 [`14_ADR/OPEN_DECISIONS.md`](./14_ADR/OPEN_DECISIONS.md) 的 decision gate，由 PM 裁決「降標」或「加預算／延範圍」。
+2. **SA 不得在目標值欄寫實現手段。** 「要用 Redis」不是 NFR，「快取命中後讀延遲 < X ms」才是。
+3. **`[待確認]` 是 SRE 的待辦，不是 SA 的。** 它表示目標已定、實測基線未建立；補基線不需要 CIA。
+
+此拆分只動 owner 歸屬與本節，**不改任何一條既有 NFR 的目標值、驗證方式或分層**。
 
 ## §1 Performance 效能
 
