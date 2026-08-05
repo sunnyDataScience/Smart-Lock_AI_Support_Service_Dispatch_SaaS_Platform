@@ -247,6 +247,18 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-Id", "RateLimit-Limit", "RateLimit-Remaining", "RateLimit-Reset"],
 )
+# CR-0209 TC-PERF-04：限流 middleware。`[rate_limit]` 設定自始就在、也被 config 讀進來，
+# 但此前**沒有任何 middleware 消費它**——限流是一段完整的死設定，
+# `RateLimit-*` 三個 header 也從來沒被任何人設定過（main.py 只是把它們加進 CORS expose）。
+# **預設維持 enabled=false**：要不要開、門檻多少是營運決策，翻 config 一個值即生效。
+from core.rate_limit import RateLimitMiddleware
+
+_rl = getattr(cfg, "rate_limit", None) or {}
+app.add_middleware(
+    RateLimitMiddleware,
+    enabled=bool(_rl.get("enabled", False)),
+    requests_per_minute=int(_rl.get("requests_per_minute", 120)),
+)
 app.add_middleware(RequestIdMiddleware)
 # CR-0154:http 請求各借一條池連線(scoped),交易語意同 task 同連線;池未啟用=直通
 from core.db import DBPoolScopeMiddleware
