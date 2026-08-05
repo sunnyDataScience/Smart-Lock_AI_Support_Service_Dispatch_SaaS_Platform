@@ -79,6 +79,51 @@ def _validate_rel_path(rel_path: str) -> None:
             raise ApiError("INVALID_FILE_PATH", f"非法檔案路徑元件：{rel_path!r}", 422)
 
 
+
+# ── 受保護段落（CR-0210 D3(b) / FR-PLT-08 / ADR-012:44）─────────────────────
+#
+# 問題：租戶 admin 可以發佈一版把安全規則整段刪掉，`validate_publishable` 不檢查，
+# 而 CR-0167 的 SkillSync **60 秒內就對真實 LINE 客戶生效**。
+# 這是唯一一條「租戶的日常操作能直接降低對真實客戶的安全護欄」的路徑，
+# 而且因為熱更新，錯誤生效的速度比其他任何缺口都快。
+# FR-PLT-08（`04_SRS.md:388`）與 ADR-012:44 都明文要求「受保護層不可 override」。
+#
+# **本檢查是輕量版（D3(b)）**：只擋「整段消失」，不擋「留標題改內容」。
+# 完整解是 protected block 機制（受保護段落存 hash、逐段比對，D3(a)），
+# 但那需要先定義完整的受保護段落清單，屬領域決策。先擋掉最可能發生的意外
+# ——編輯時整段誤刪——不讓完整解卡住這個。
+#
+# 只對 builtin skill 生效：新建的自訂 skill 沒有這些段落是正常的。
+_PROTECTED_ANCHORS: dict[str, tuple[str, ...]] = {
+    "locksmith-product-knowledge": (
+        "## Domain safety rules",   # 五條領域安全鐵律（不編造步驟／報價轉真人／結構性故障派工…）
+    ),
+    "locksmith-cs-sop": (
+        "## Step 1 — Classify intent",  # 紅線分流：什麼情況必須轉真人
+        "## 話術原則",                   # 話術邊界（不報價、不承諾、不編造）
+        "transfer_to_human",            # 唯一的轉真人出口——消失＝AI 沒有交棒的方法
+    ),
+}
+
+
+def _assert_protected_anchors(skill_name: str, skill_md: str) -> None:
+    """builtin skill 的安全段落錨點不得消失。缺 → 422。"""
+    anchors = _PROTECTED_ANCHORS.get(skill_name)
+    if not anchors:
+        return
+    missing = [a for a in anchors if a not in skill_md]
+    if missing:
+        raise ApiError(
+            "PROTECTED_SECTION_MISSING",
+            "SKILL.md 缺少受保護的安全段落："
+            + "、".join(repr(m) for m in missing)
+            + "。這些段落是對客戶的安全護欄（FR-PLT-08 / ADR-012），"
+              "發佈後 60 秒內就會對真實客戶生效，不可移除。"
+              "若確有需要調整，請保留段落標題並修改內文。",
+            422,
+        )
+
+
 def validate_publishable(skill_name: str, files: dict) -> None:
     """發佈閘：publish / rollback 前強制。draft 暫存不跑此閘（可存半成品）。"""
     validate_skill_name(skill_name)
@@ -102,6 +147,7 @@ def validate_publishable(skill_name: str, files: dict) -> None:
             422,
         )
     _validate_frontmatter(skill_md)
+    _assert_protected_anchors(skill_name, skill_md)
 
 
 def _reject_path_collisions(files: dict) -> None:
