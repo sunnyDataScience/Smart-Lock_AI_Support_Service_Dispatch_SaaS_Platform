@@ -182,3 +182,25 @@ def turn_span(name: str, **attrs: Any):
     except Exception:  # noqa: BLE001 — 建 span 失敗不可癱瘓主流程
         logger.warning("observability: 建立 span 失敗 → 本次降級 no-op")
         return nullcontext()
+
+
+def inject_trace_headers(headers: dict[str, str] | None = None) -> dict[str, str]:
+    """把目前 span 的 W3C traceparent 注入 headers（CR-0209 TC-NFR-OBS-01）。
+
+    為什麼需要：agent 有 `line.webhook` / `agent.turn` 兩個 span，api 有
+    FastAPI 自動埋點，但**兩邊的 trace 是斷開的**——agent 打給 api 的 httpx
+    請求沒帶 traceparent，所以 SigNoz 上看到的是兩棵互不相關的樹。
+    一則客人訊息從 webhook 進來、轉發到 api 建卡、再由 worker 推播出去，
+    這條鏈在 trace 上完全串不起來，出事時只能靠時間戳猜。
+
+    未啟用 observability（env 未設／套件缺）時原樣回傳，零行為變化、絕不 raise。
+    """
+    out = dict(headers or {})
+    if not _enabled:
+        return out
+    try:
+        from opentelemetry.propagate import inject
+        inject(out)
+    except Exception:  # noqa: BLE001 — trace 傳播失敗不可影響主流程
+        pass
+    return out

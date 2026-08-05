@@ -22,6 +22,7 @@ import logging
 import os
 
 import core.db as db_module
+from core.observability import job_span
 from core.db import _ensure_conn
 from core.distributed_lock import ensure_leader as _ensure_leader
 
@@ -99,48 +100,50 @@ class ConfigCanaryAdvanceCron:
 
     async def run_once(self) -> dict:
         """掃所有 due rollout → 呼 service.advance；回 summary。"""
-        if not await _ensure_conn():
-            return {"skipped": "db_unavailable", "advanced": 0, "errors": 0}
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.config_canary_advance"):
+            if not await _ensure_conn():
+                return {"skipped": "db_unavailable", "advanced": 0, "errors": 0}
 
-        cur = await db_module._conn.execute(
-            """
-            SELECT id FROM saas.config_rollout
-            WHERE strategy = 'canary_5_50_100'
-              AND current_stage IN ('5%', '50%')
-              AND next_stage_eta IS NOT NULL
-              AND next_stage_eta < NOW()
-            ORDER BY next_stage_eta
-            LIMIT 100
-            """,
-        )
-        rows = await cur.fetchall()
-        advanced = 0
-        errors = 0
-        for row in rows:
-            rollout_id = str(row[0])
+            cur = await db_module._conn.execute(
+                """
+                SELECT id FROM saas.config_rollout
+                WHERE strategy = 'canary_5_50_100'
+                  AND current_stage IN ('5%', '50%')
+                  AND next_stage_eta IS NOT NULL
+                  AND next_stage_eta < NOW()
+                ORDER BY next_stage_eta
+                LIMIT 100
+                """,
+            )
+            rows = await cur.fetchall()
+            advanced = 0
+            errors = 0
+            for row in rows:
+                rollout_id = str(row[0])
+                try:
+                    from services import config_m18_service
+                    result = await config_m18_service._advance_canary_stage(
+                        rollout_id=rollout_id,
+                    )
+                    advanced += 1
+                    logger.info(
+                        "canary advanced: rollout=%s new_stage=%s",
+                        rollout_id[:8], result["new_stage"],
+                    )
+                except Exception:  # noqa: BLE001
+                    errors += 1
+                    logger.exception("canary advance failed: rollout=%s", rollout_id)
+            # CR-0059 / BR-M18-02：順帶啟用到期的排程 config（effective_at<=now 的 draft）
+            scheduled = 0
             try:
                 from services import config_m18_service
-                result = await config_m18_service._advance_canary_stage(
-                    rollout_id=rollout_id,
-                )
-                advanced += 1
-                logger.info(
-                    "canary advanced: rollout=%s new_stage=%s",
-                    rollout_id[:8], result["new_stage"],
-                )
+                scheduled = await config_m18_service.activate_due_scheduled()
+                if scheduled:
+                    logger.info("scheduled config activated: %d", scheduled)
             except Exception:  # noqa: BLE001
-                errors += 1
-                logger.exception("canary advance failed: rollout=%s", rollout_id)
-        # CR-0059 / BR-M18-02：順帶啟用到期的排程 config（effective_at<=now 的 draft）
-        scheduled = 0
-        try:
-            from services import config_m18_service
-            scheduled = await config_m18_service.activate_due_scheduled()
-            if scheduled:
-                logger.info("scheduled config activated: %d", scheduled)
-        except Exception:  # noqa: BLE001
-            logger.exception("activate_due_scheduled failed")
-        return {"advanced": advanced, "errors": errors, "scheduled_activated": scheduled}
+                logger.exception("activate_due_scheduled failed")
+            return {"advanced": advanced, "errors": errors, "scheduled_activated": scheduled}
 
 
 # Singleton — main.py lifespan 引用

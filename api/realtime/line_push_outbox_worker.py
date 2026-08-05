@@ -20,6 +20,7 @@ from collections import deque
 from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
+from core.observability import job_span
 from core.db import _ensure_conn
 from core.distributed_lock import ensure_leader as _ensure_leader
 
@@ -154,28 +155,30 @@ class LinePushOutboxWorker:
 
     async def _poll_once(self) -> None:
         """取一批 pending row → 逐一處理。"""
-        if not await _ensure_conn():
-            logger.warning("DB not available, skip outbox poll")
-            return
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("worker.line_push_outbox"):
+            if not await _ensure_conn():
+                logger.warning("DB not available, skip outbox poll")
+                return
 
-        # SELECT FOR UPDATE SKIP LOCKED 防多 worker 競爭（雖然當前 single instance
-        # in-process worker，但 future cluster deploy 也安全）。
-        cur = await db_module._conn.execute(
-            "SELECT id, tenant_id, push_kind, target_line_id, reference_id, "
-            "       reference_table, payload, attempts, max_attempts, created_at "
-            "FROM line_push_outbox "
-            "WHERE status = 'pending' AND next_attempt_at <= NOW() "
-            "ORDER BY next_attempt_at ASC "
-            "LIMIT %s "
-            "FOR UPDATE SKIP LOCKED",
-            (BATCH_SIZE,),
-        )
-        rows = await cur.fetchall()
-        if not rows:
-            return
+            # SELECT FOR UPDATE SKIP LOCKED 防多 worker 競爭（雖然當前 single instance
+            # in-process worker，但 future cluster deploy 也安全）。
+            cur = await db_module._conn.execute(
+                "SELECT id, tenant_id, push_kind, target_line_id, reference_id, "
+                "       reference_table, payload, attempts, max_attempts, created_at "
+                "FROM line_push_outbox "
+                "WHERE status = 'pending' AND next_attempt_at <= NOW() "
+                "ORDER BY next_attempt_at ASC "
+                "LIMIT %s "
+                "FOR UPDATE SKIP LOCKED",
+                (BATCH_SIZE,),
+            )
+            rows = await cur.fetchall()
+            if not rows:
+                return
 
-        for row in rows:
-            await self._process_row(row)
+            for row in rows:
+                await self._process_row(row)
 
     async def get_job_sli(self) -> dict[str, float | int]:
         """由 durable outbox 量測 backlog；不是只看本 process 成功樣本。"""

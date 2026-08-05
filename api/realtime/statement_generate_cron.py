@@ -24,6 +24,7 @@ import os
 from datetime import date
 
 import core.db as db_module
+from core.observability import job_span
 from core.db import _ensure_conn
 from core.distributed_lock import ensure_leader as _ensure_leader
 
@@ -120,57 +121,59 @@ class StatementGenerateCron:
 
         Returns: {"period": "YYYY-MM", "candidates": N, "generated": M, "errors": E}
         """
-        if not await _ensure_conn():
-            return {"skipped": "db_unavailable"}
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.statement_generate"):
+            if not await _ensure_conn():
+                return {"skipped": "db_unavailable"}
 
-        year, month = _previous_month(today or date.today())
-        start, nxt = _month_bounds(year, month)
+            year, month = _previous_month(today or date.today())
+            start, nxt = _month_bounds(year, month)
 
-        # 候選：期間內有完工單的 (tenant, technician)；排除已有該期 statement 者
-        cur = await db_module._conn.execute(
-            "SELECT DISTINCT wo.tenant_id, wo.technician_id "
-            "FROM work_orders wo "
-            "WHERE wo.technician_id IS NOT NULL "
-            "  AND wo.completion_status = ANY(%s) "
-            "  AND wo.completed_at >= %s AND wo.completed_at < %s "
-            "  AND NOT EXISTS ("
-            "    SELECT 1 FROM saas.technician_statement s "
-            "    WHERE s.tenant_id = wo.tenant_id "
-            "      AND s.technician_id = wo.technician_id "
-            "      AND s.period_year = %s AND s.period_month = %s"
-            "  )",
-            (_COMPLETED_STATUSES, start, nxt, year, month),
-        )
-        rows = await cur.fetchall()
+            # 候選：期間內有完工單的 (tenant, technician)；排除已有該期 statement 者
+            cur = await db_module._conn.execute(
+                "SELECT DISTINCT wo.tenant_id, wo.technician_id "
+                "FROM work_orders wo "
+                "WHERE wo.technician_id IS NOT NULL "
+                "  AND wo.completion_status = ANY(%s) "
+                "  AND wo.completed_at >= %s AND wo.completed_at < %s "
+                "  AND NOT EXISTS ("
+                "    SELECT 1 FROM saas.technician_statement s "
+                "    WHERE s.tenant_id = wo.tenant_id "
+                "      AND s.technician_id = wo.technician_id "
+                "      AND s.period_year = %s AND s.period_month = %s"
+                "  )",
+                (_COMPLETED_STATUSES, start, nxt, year, month),
+            )
+            rows = await cur.fetchall()
 
-        generated = 0
-        errors = 0
-        # lazy import 避免啟動期循環相依
-        from services import technician_statement_service
+            generated = 0
+            errors = 0
+            # lazy import 避免啟動期循環相依
+            from services import technician_statement_service
 
-        for tenant_id, technician_id in rows:
-            try:
-                await technician_statement_service.generate_statement(
-                    tenant_id=str(tenant_id),
-                    technician_id=str(technician_id),
-                    period_year=year,
-                    period_month=month,
-                    # gross/completed 省略 → 依 CR-0106 佣金口徑自動計算
-                    notes="[系統月結自動產生]",
-                )
-                generated += 1
-            except Exception:  # noqa: BLE001 — 單一技師失敗不擋整批
-                errors += 1
-                logger.exception(
-                    "auto-generate statement failed tech=%s %d-%02d",
-                    str(technician_id)[:8], year, month,
-                )
-        return {
-            "period": f"{year}-{month:02d}",
-            "candidates": len(rows),
-            "generated": generated,
-            "errors": errors,
-        }
+            for tenant_id, technician_id in rows:
+                try:
+                    await technician_statement_service.generate_statement(
+                        tenant_id=str(tenant_id),
+                        technician_id=str(technician_id),
+                        period_year=year,
+                        period_month=month,
+                        # gross/completed 省略 → 依 CR-0106 佣金口徑自動計算
+                        notes="[系統月結自動產生]",
+                    )
+                    generated += 1
+                except Exception:  # noqa: BLE001 — 單一技師失敗不擋整批
+                    errors += 1
+                    logger.exception(
+                        "auto-generate statement failed tech=%s %d-%02d",
+                        str(technician_id)[:8], year, month,
+                    )
+            return {
+                "period": f"{year}-{month:02d}",
+                "candidates": len(rows),
+                "generated": generated,
+                "errors": errors,
+            }
 
 
 # Singleton — main.py lifespan 引用

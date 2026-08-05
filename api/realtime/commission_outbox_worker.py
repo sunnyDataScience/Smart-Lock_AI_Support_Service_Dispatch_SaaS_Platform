@@ -27,6 +27,7 @@ from collections import deque
 from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
+from core.observability import job_span
 from core.db import _ensure_conn
 from core.distributed_lock import ensure_leader as _ensure_leader
 
@@ -152,28 +153,30 @@ class CommissionOutboxWorker:
 
     async def _poll_once(self) -> None:
         """取一批到期 pending row → 逐一重送。"""
-        if not await _ensure_conn():
-            logger.warning("DB not available, skip commission outbox poll")
-            return
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("worker.commission_outbox"):
+            if not await _ensure_conn():
+                logger.warning("DB not available, skip commission outbox poll")
+                return
 
-        # 刻意不用 FOR UPDATE SKIP LOCKED：共用連線是 autocommit，列鎖在語句結束即釋放，
-        # 寫了也擋不住任何東西（既有 line_push_outbox_worker 就是這個誤導性寫法）。
-        # 真正的互斥來自上方 ensure_leader；殘餘重複由消費端 event_id dedup 承接。
-        cur = await db_module._conn.execute(
-            # created_at 用於算 outbox → 事件骨幹 lag（NFR-Perf-009，見 _LAG_SAMPLES）
-            "SELECT id, event_id, topic, event_key, payload, attempts, max_attempts, created_at "
-            "FROM commission_event_outbox "
-            "WHERE status = 'pending' AND next_attempt_at <= NOW() "
-            "ORDER BY next_attempt_at ASC "
-            "LIMIT %s",
-            (BATCH_SIZE,),
-        )
-        rows = await cur.fetchall()
-        if not rows:
-            return
+            # 刻意不用 FOR UPDATE SKIP LOCKED：共用連線是 autocommit，列鎖在語句結束即釋放，
+            # 寫了也擋不住任何東西（既有 line_push_outbox_worker 就是這個誤導性寫法）。
+            # 真正的互斥來自上方 ensure_leader；殘餘重複由消費端 event_id dedup 承接。
+            cur = await db_module._conn.execute(
+                # created_at 用於算 outbox → 事件骨幹 lag（NFR-Perf-009，見 _LAG_SAMPLES）
+                "SELECT id, event_id, topic, event_key, payload, attempts, max_attempts, created_at "
+                "FROM commission_event_outbox "
+                "WHERE status = 'pending' AND next_attempt_at <= NOW() "
+                "ORDER BY next_attempt_at ASC "
+                "LIMIT %s",
+                (BATCH_SIZE,),
+            )
+            rows = await cur.fetchall()
+            if not rows:
+                return
 
-        for row in rows:
-            await self._process_row(row)
+            for row in rows:
+                await self._process_row(row)
 
     async def get_job_sli(self) -> dict[str, float | int]:
         """由 durable outbox 讀 oldest pending 與 dead-letter 累計。"""

@@ -17,6 +17,7 @@ import logging
 import os
 
 import core.db as db_module
+from core.observability import job_span
 from core.db import _ensure_conn
 from core.distributed_lock import ensure_leader as _ensure_leader
 
@@ -88,30 +89,32 @@ class FamilyReviewSlaCron:
 
     async def run_once(self) -> int:
         """掃逾時未審草稿，逐筆升級（audit + 通知），回升級筆數。"""
-        if not await _ensure_conn():
-            return 0
-        cur = await db_module._conn.execute(
-            "SELECT sd.id, sd.tenant_id, sd.title, sd.reviewed_at "
-            "FROM sop_drafts sd "
-            "WHERE LOWER(sd.status) = 'approved' "
-            "  AND sd.reviewed_at IS NOT NULL "
-            "  AND sd.reviewed_at < NOW() - (%s * INTERVAL '1 hour') "
-            "  AND NOT EXISTS ("
-            "    SELECT 1 FROM family_reviews fr WHERE fr.sop_draft_id = sd.id"
-            "  ) "
-            "  AND NOT EXISTS ("
-            "    SELECT 1 FROM audit_events ae "
-            "    WHERE ae.action = 'sop.family_review_overdue' "
-            "      AND ae.target_id = sd.id"
-            "  )",
-            (SLA_HOURS,),
-        )
-        rows = await cur.fetchall()
-        escalated = 0
-        for draft_id, tenant_id, title, reviewed_at in rows:
-            await self._escalate_one(str(draft_id), str(tenant_id), title or "", reviewed_at)
-            escalated += 1
-        return escalated
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.family_review_sla"):
+            if not await _ensure_conn():
+                return 0
+            cur = await db_module._conn.execute(
+                "SELECT sd.id, sd.tenant_id, sd.title, sd.reviewed_at "
+                "FROM sop_drafts sd "
+                "WHERE LOWER(sd.status) = 'approved' "
+                "  AND sd.reviewed_at IS NOT NULL "
+                "  AND sd.reviewed_at < NOW() - (%s * INTERVAL '1 hour') "
+                "  AND NOT EXISTS ("
+                "    SELECT 1 FROM family_reviews fr WHERE fr.sop_draft_id = sd.id"
+                "  ) "
+                "  AND NOT EXISTS ("
+                "    SELECT 1 FROM audit_events ae "
+                "    WHERE ae.action = 'sop.family_review_overdue' "
+                "      AND ae.target_id = sd.id"
+                "  )",
+                (SLA_HOURS,),
+            )
+            rows = await cur.fetchall()
+            escalated = 0
+            for draft_id, tenant_id, title, reviewed_at in rows:
+                await self._escalate_one(str(draft_id), str(tenant_id), title or "", reviewed_at)
+                escalated += 1
+            return escalated
 
     async def _escalate_one(self, draft_id, tenant_id, title, reviewed_at) -> None:
         from services import audit_log_service

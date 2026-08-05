@@ -20,10 +20,14 @@ import os
 logger = logging.getLogger("api.observability")
 
 _enabled = False
+_tracer: object | None = None
 
 # ── PII scrubbing ─────────────────────────────────────────────────────────
 # CR-0166 R1-8：regex 與 scrub_text 昇格至 core/pii_scrub.py（共用），此處 re-export
 # 保持既有 import 相容（OTel span 遮蔽仍用全遮蔽版 scrub_text）。
+from contextlib import nullcontext
+from typing import Any
+
 from core.pii_scrub import scrub_text  # noqa: E402,F401 — re-export 相容
 
 
@@ -97,6 +101,8 @@ def setup_observability(app, *, service_name: str = "lock-ai-api") -> bool:
             BatchSpanProcessor(_PIIScrubExporter(OTLPSpanExporter(endpoint=endpoint)))
         )
         trace.set_tracer_provider(provider)
+        global _tracer
+        _tracer = trace.get_tracer(__name__)
         # excluded_urls：health / metrics 不產 span（噪音）
         FastAPIInstrumentor.instrument_app(app, excluded_urls="health,metrics,docs,openapi.json,redoc")
         _enabled = True
@@ -108,3 +114,29 @@ def setup_observability(app, *, service_name: str = "lock-ai-api") -> bool:
     except Exception:  # noqa: BLE001 — 可觀測性初始化失敗不可癱瘓服務
         logger.exception("observability: OTel 初始化失敗 → 降級停用")
         return False
+
+
+# ── 背景 job 的 span（CR-0209 TC-NFR-OBS-01）──────────────────────────────
+#
+# FastAPIInstrumentor 只涵蓋 **HTTP 請求**。`api/realtime/` 的 11 支 worker/cron
+# 是 lifespan 起的背景迴圈，完全在 HTTP 之外 —— 此前全樹零 span，
+# 也就是「結算沒跑出來」「推播卡住」這類問題在 trace 上完全看不到。
+#
+# 設計與 agent 側的 `turn_span` 對齊（同樣的 nullcontext 降級、同樣絕不 raise）：
+# 未啟用 observability 時回 nullcontext，零行為變化、零效能成本。
+def job_span(name: str, **attrs: Any):
+    """背景 job 的 span context manager。未啟用時回 nullcontext，絕不 raise。
+
+    用法（每支 worker/cron 的入口）：
+        async def run_once(self):
+            with job_span("cron.auto_confirm"):
+                ...
+    """
+    if not _enabled or _tracer is None:
+        return nullcontext()
+    try:
+        clean = {k: (scrub_text(v) if isinstance(v, str) else v) for k, v in attrs.items()}
+        return _tracer.start_as_current_span(name, attributes=clean)
+    except Exception:  # noqa: BLE001 — 建 span 失敗不可癱瘓背景 job
+        logger.warning("observability: 建立 job span 失敗 → 本次降級 no-op")
+        return nullcontext()

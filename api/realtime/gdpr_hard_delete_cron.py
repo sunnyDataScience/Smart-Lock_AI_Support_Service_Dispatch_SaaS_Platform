@@ -16,6 +16,7 @@ import logging
 import os
 
 import core.db as db_module
+from core.observability import job_span
 from core.db import _ensure_conn
 from core.distributed_lock import ensure_leader as _ensure_leader
 
@@ -96,50 +97,52 @@ class GdprHardDeleteCron:
 
     async def run_once(self) -> dict:
         """掃 soft_deleted + cooldown 過 → 呼 service.hard_delete。"""
-        if not await _ensure_conn():
-            return {"skipped": "db_unavailable", "processed": 0, "errors": 0}
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.gdpr_hard_delete"):
+            if not await _ensure_conn():
+                return {"skipped": "db_unavailable", "processed": 0, "errors": 0}
 
-        cur = await db_module._conn.execute(
-            # tenant_id 必須一起撈 —— hard_delete 是 keyword-only 必填，
-            # 漏了它整支 cron 每次執行都 TypeError（見下方呼叫處註解）。
-            "SELECT id, tenant_id FROM saas.forget_request "
-            "WHERE status = 'soft_deleted' "
-            "  AND hard_delete_eligible_at IS NOT NULL "
-            "  AND hard_delete_eligible_at <= NOW() "
-            "ORDER BY hard_delete_eligible_at ASC "
-            "LIMIT %s",
-            (self._batch_size,),
-        )
-        rows = await cur.fetchall()
-        processed = 0
-        errors = 0
-        for row in rows:
-            request_id = str(row[0])
-            try:
-                from services import gdpr_forget_service
-                await gdpr_forget_service.hard_delete(
-                    request_id=request_id,
-                    # ⚠️ 2026-08-05 修（CR-0207 步驟 0-1）：原本漏傳 tenant_id，
-                    # 而 hard_delete 的簽名是 `*, request_id, tenant_id, actor_user_id=None`
-                    # —— tenant_id 是 keyword-only **必填**。也就是這支 cron
-                    # **每次執行都拋 TypeError，GDPR 硬刪從來沒有成功過**。
-                    # 測試沒抓到是因為 test_gdpr_hard_delete_cron.py 的三個 fake
-                    # 簽名也漏了 tenant_id（fake 與真實簽名不一致＝測試在說謊），
-                    # 已於同一 commit 一併修正。
-                    tenant_id=str(row[1]),
-                    actor_user_id=None,  # NULL 表系統自動
-                )
-                processed += 1
-                logger.info(
-                    "GDPR hard-deleted forget_request=%s (cron auto)",
-                    request_id[:8],
-                )
-            except Exception:  # noqa: BLE001
-                errors += 1
-                logger.exception(
-                    "hard-delete failed for forget_request=%s", request_id,
-                )
-        return {"processed": processed, "errors": errors}
+            cur = await db_module._conn.execute(
+                # tenant_id 必須一起撈 —— hard_delete 是 keyword-only 必填，
+                # 漏了它整支 cron 每次執行都 TypeError（見下方呼叫處註解）。
+                "SELECT id, tenant_id FROM saas.forget_request "
+                "WHERE status = 'soft_deleted' "
+                "  AND hard_delete_eligible_at IS NOT NULL "
+                "  AND hard_delete_eligible_at <= NOW() "
+                "ORDER BY hard_delete_eligible_at ASC "
+                "LIMIT %s",
+                (self._batch_size,),
+            )
+            rows = await cur.fetchall()
+            processed = 0
+            errors = 0
+            for row in rows:
+                request_id = str(row[0])
+                try:
+                    from services import gdpr_forget_service
+                    await gdpr_forget_service.hard_delete(
+                        request_id=request_id,
+                        # ⚠️ 2026-08-05 修（CR-0207 步驟 0-1）：原本漏傳 tenant_id，
+                        # 而 hard_delete 的簽名是 `*, request_id, tenant_id, actor_user_id=None`
+                        # —— tenant_id 是 keyword-only **必填**。也就是這支 cron
+                        # **每次執行都拋 TypeError，GDPR 硬刪從來沒有成功過**。
+                        # 測試沒抓到是因為 test_gdpr_hard_delete_cron.py 的三個 fake
+                        # 簽名也漏了 tenant_id（fake 與真實簽名不一致＝測試在說謊），
+                        # 已於同一 commit 一併修正。
+                        tenant_id=str(row[1]),
+                        actor_user_id=None,  # NULL 表系統自動
+                    )
+                    processed += 1
+                    logger.info(
+                        "GDPR hard-deleted forget_request=%s (cron auto)",
+                        request_id[:8],
+                    )
+                except Exception:  # noqa: BLE001
+                    errors += 1
+                    logger.exception(
+                        "hard-delete failed for forget_request=%s", request_id,
+                    )
+            return {"processed": processed, "errors": errors}
 
 
 # Singleton — main.py lifespan 引用

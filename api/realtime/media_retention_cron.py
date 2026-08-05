@@ -11,6 +11,7 @@ import asyncio
 import logging
 import os
 from core.distributed_lock import ensure_leader as _ensure_leader
+from core.observability import job_span
 
 logger = logging.getLogger("api.media_retention_cron")
 
@@ -75,9 +76,11 @@ class MediaRetentionCron:
 
     async def run_once(self) -> int:
         """軟刪過期 media，回筆數。"""
-        from services import media_service
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.media_retention"):
+            from services import media_service
 
-        return await media_service.soft_delete_expired_media()
+            return await media_service.soft_delete_expired_media()
 
 
 # Singleton — main.py lifespan 引用

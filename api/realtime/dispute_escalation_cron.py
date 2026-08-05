@@ -19,6 +19,7 @@ import logging
 import os
 
 import core.db as db_module
+from core.observability import job_span
 from core.db import _ensure_conn
 from core.distributed_lock import ensure_leader as _ensure_leader
 
@@ -95,33 +96,35 @@ class DisputeEscalationCron:
 
     async def run_once(self, *, tenant_id: str | None = None) -> int:
         """跑一次 60d escalation；回傳升級筆數。可供 admin manual trigger。"""
-        if not await _ensure_conn():
-            return 0
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.dispute_escalation"):
+            if not await _ensure_conn():
+                return 0
 
-        where_clauses = [
-            "status IN ('filed', 'in_review', 'mediation')",
-            "sla_deadline < NOW()",
-        ]
-        args: list = []
-        if tenant_id:
-            where_clauses.append("tenant_id = %s::uuid")
-            args.append(tenant_id)
+            where_clauses = [
+                "status IN ('filed', 'in_review', 'mediation')",
+                "sla_deadline < NOW()",
+            ]
+            args: list = []
+            if tenant_id:
+                where_clauses.append("tenant_id = %s::uuid")
+                args.append(tenant_id)
 
-        sql = (
-            "UPDATE saas.dispute SET "
-            "  status = 'escalated', "
-            "  escalated_to = 'ops_director', "
-            "  escalated_at = NOW() "
-            f"WHERE {' AND '.join(where_clauses)}"
-        )
-        cur = await db_module._conn.execute(sql, tuple(args))
-        count = cur.rowcount if hasattr(cur, "rowcount") else 0
-        if count > 0:
-            logger.info(
-                "dispute auto-escalation: %d disputes (tenant=%s)",
-                count, tenant_id,
+            sql = (
+                "UPDATE saas.dispute SET "
+                "  status = 'escalated', "
+                "  escalated_to = 'ops_director', "
+                "  escalated_at = NOW() "
+                f"WHERE {' AND '.join(where_clauses)}"
             )
-        return count
+            cur = await db_module._conn.execute(sql, tuple(args))
+            count = cur.rowcount if hasattr(cur, "rowcount") else 0
+            if count > 0:
+                logger.info(
+                    "dispute auto-escalation: %d disputes (tenant=%s)",
+                    count, tenant_id,
+                )
+            return count
 
 
 # Singleton — main.py lifespan 引用

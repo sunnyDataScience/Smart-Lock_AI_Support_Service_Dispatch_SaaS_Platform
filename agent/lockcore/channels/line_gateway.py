@@ -68,6 +68,7 @@ _IMAGE_DOWNLOAD_FAIL_REPLY = "照片好像沒有傳送成功,麻煩您再傳一�
 
 # CR-0201：與 reply_guard 共用同一個標記，避免措辭一改就讓守衛悄悄失效。
 from lockcore.agent.reply_guard import PHOTO_TURN_SENTINEL  # noqa: E402
+from lockcore.observability import inject_trace_headers  # noqa: E402
 
 
 def _photo_notice_for_model(count: int) -> str:
@@ -113,9 +114,17 @@ def _bridge_credential() -> str:
 
 
 def _bridge_auth_headers(credential: str) -> dict[str, str]:
-    if (os.environ.get("AGENT_API_SERVICE_CREDENTIAL") or "").strip():
-        return {"X-Service-Credential": credential}
-    return {"X-Internal-Token": credential}
+    """agent → api 的服務間認證 header，**並注入 W3C traceparent**。
+
+    CR-0209 TC-NFR-OBS-01：此前 agent 與 api 的 trace 是兩棵斷開的樹——
+    一則客人訊息從 webhook 進來、轉發到 api 建卡、再由 worker 推播出去，
+    這條鏈在 SigNoz 上完全串不起來，出事時只能靠時間戳猜。
+    注入點放這裡是因為五個呼叫端有四個共用本函式，一改全中。
+    """
+    base = ({"X-Service-Credential": credential}
+            if (os.environ.get("AGENT_API_SERVICE_CREDENTIAL") or "").strip()
+            else {"X-Internal-Token": credential})
+    return inject_trace_headers(base)
 
 
 def _should_notify_handover(session_key: str) -> bool:
@@ -971,10 +980,12 @@ async def _forward_ops_postback_safe(raw_body: str, signature: str, data: str) -
             resp = await client.post(
                 f"{base_url.rstrip('/')}/api/v1/line/webhook",
                 content=raw_body.encode("utf-8"),
-                headers={
+                # CR-0209：這條沒走 _bridge_auth_headers（它是 LINE 簽章轉發），
+                # 所以單獨注入 traceparent
+                headers=inject_trace_headers({
                     "Content-Type": "application/json",
                     "X-Line-Signature": signature or "",
-                },
+                }),
             )
         if resp.status_code >= 400:
             logger.warning("ops postback 轉發回 {}", resp.status_code)

@@ -21,6 +21,7 @@ import logging
 import os
 
 import core.db as db_module
+from core.observability import job_span
 from core.db import _ensure_conn
 from core.distributed_lock import ensure_leader as _ensure_leader
 
@@ -108,20 +109,22 @@ class StatementAutoApprovalCron:
 
         Returns: {table_name: count, ...}
         """
-        if not await _ensure_conn():
-            return {"skipped": "db_unavailable"}
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.statement_auto_approval"):
+            if not await _ensure_conn():
+                return {"skipped": "db_unavailable"}
 
-        summary: dict = {}
-        for table in _STATEMENT_TABLES:
-            try:
-                count = await self._auto_approve_table(table)
-                summary[table] = count
-            except Exception:  # noqa: BLE001
-                logger.exception("auto-approve failed for table %s", table)
-                summary[table] = 0
-                summary.setdefault("errors", 0)
-                summary["errors"] += 1
-        return summary
+            summary: dict = {}
+            for table in _STATEMENT_TABLES:
+                try:
+                    count = await self._auto_approve_table(table)
+                    summary[table] = count
+                except Exception:  # noqa: BLE001
+                    logger.exception("auto-approve failed for table %s", table)
+                    summary[table] = 0
+                    summary.setdefault("errors", 0)
+                    summary["errors"] += 1
+            return summary
 
     async def _auto_approve_table(self, table: str) -> int:
         """UPDATE 單表所有過期 row → approved。返回 rowcount。"""

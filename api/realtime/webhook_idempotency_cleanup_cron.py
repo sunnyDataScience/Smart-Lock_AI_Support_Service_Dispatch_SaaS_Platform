@@ -15,6 +15,7 @@ import logging
 import os
 
 from core.distributed_lock import ensure_leader as _ensure_leader
+from core.observability import job_span
 
 logger = logging.getLogger("api.webhook_idempotency_cleanup_cron")
 
@@ -82,17 +83,19 @@ class WebhookIdempotencyCleanupCron:
 
     async def run_once(self) -> int:
         """刪除過期 webhook_idempotency 列，回筆數。"""
-        import core.db as db_module
-        from core.db import _ensure_conn
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.webhook_idempotency_cleanup"):
+            import core.db as db_module
+            from core.db import _ensure_conn
 
-        if not await _ensure_conn():
-            return 0
-        cur = await db_module._conn.execute(
-            "DELETE FROM webhook_idempotency "
-            "WHERE processed_at < NOW() - (%s * INTERVAL '1 day')",
-            (RETENTION_DAYS,),
-        )
-        return cur.rowcount or 0
+            if not await _ensure_conn():
+                return 0
+            cur = await db_module._conn.execute(
+                "DELETE FROM webhook_idempotency "
+                "WHERE processed_at < NOW() - (%s * INTERVAL '1 day')",
+                (RETENTION_DAYS,),
+            )
+            return cur.rowcount or 0
 
 
 # Singleton — main.py lifespan 引用

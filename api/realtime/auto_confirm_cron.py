@@ -12,6 +12,7 @@ import asyncio
 import logging
 import os
 from core.distributed_lock import ensure_leader as _ensure_leader
+from core.observability import job_span
 
 logger = logging.getLogger("api.auto_confirm_cron")
 
@@ -76,9 +77,11 @@ class AutoConfirmCron:
 
     async def run_once(self) -> int:
         """自動結案逾期 completed WO，回筆數。"""
-        from services import work_order_service
+        # CR-0209 TC-NFR-OBS-01：背景 job 此前全樹零 span
+        with job_span("cron.auto_confirm"):
+            from services import work_order_service
 
-        return await work_order_service.auto_confirm_stale_completed()
+            return await work_order_service.auto_confirm_stale_completed()
 
 
 # Singleton — main.py lifespan 引用
