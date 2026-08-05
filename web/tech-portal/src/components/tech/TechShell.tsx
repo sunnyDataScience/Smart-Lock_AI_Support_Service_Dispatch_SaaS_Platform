@@ -93,7 +93,11 @@ export default function TechShell({
             {tabs && <div className={`mx-auto w-full ${columnWidth}`}>{tabs}</div>}
           </header>
         )}
-        <main className="flex-1 overflow-y-auto">
+        {/* WCAG 2.4.1 Bypass Blocks：SkipLink.tsx 的 href="#main-content" 需要這個
+            錨點才跳得到。tabIndex={-1} 不可省——沒有它 <main> 不可聚焦，skip link
+            只會捲動而不移動鍵盤焦點，等於沒作用。掛在 shell 而非逐頁，一次覆蓋
+            全部師傅端頁面（brand-portal 是逐頁掛，只有 3 頁有）。 */}
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto">
           <div
             className={`mx-auto w-full ${
               wide ? columnWidth : `min-h-full bg-[var(--bg-surface)] shadow-[var(--tech-shadow-sm,0_1px_2px_rgba(0,0,0,0.05))] ${columnWidth}`

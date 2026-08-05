@@ -71,10 +71,19 @@
    * 鋪到白底或深底都不合格。過去這類文字硬編 #059669 / #15803D / #B45309，
    * 白底只有 3.5–5.0、深色模式更掉到 2.9 → 這就是「背景色跟文字顏色太像」。
    * 對比(量測值)：light 白底 / 深色 #1E293B 卡片底
-   *   --text-money    #047857 5.48 / #34D399 7.61
+   *   --text-money    #065F46 7.68 / #34D399 7.61
    *   --text-success  #15803D 5.02 / #4ADE80 8.40
-   *   --text-warning  #B45309 5.02 / #FBBF24 8.76 */
-  --text-money: #047857;
+   *   --text-warning  #B45309 5.02 / #FBBF24 8.76
+   *
+   * ⚠️ --text-money 的門檻是 7:1 而非 4.5:1 —— 業主正典
+   *    smartlock-docs/enterprise/19_Test_Plan.md:199 明訂
+   *    「對比 ≥ 4.5:1（**金額文字升級 7:1**）」，對應 NFR-A11y-002。
+   *    原值 #047857 只有 5.48（白底）/ 5.24（--bg-page）/ 5.11（.tech-soft 頁底），
+   *    三個底色都不到 7，改用 emerald-800 #065F46 = 7.68 / 7.34 / 7.16 全數達標，
+   *    且是達標色階中離原值最近的一階（視覺變動最小）。
+   *    深色 #34D399 對 --bg-page #0F172A 為 9.29，本來就過。
+   *    守線見 tests/unit/themeContrast.test.ts 的 AA_MONEY 斷言。 */
+  --text-money: #065F46;
   --text-success: #15803D;
   --text-warning: #B45309;
 

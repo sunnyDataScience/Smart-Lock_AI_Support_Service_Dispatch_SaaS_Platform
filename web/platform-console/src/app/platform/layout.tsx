@@ -94,7 +94,12 @@ export default function PlatformLayout({
           </div>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8">{children}</main>
+      {/* WCAG 2.4.1 Bypass Blocks：SkipLink.tsx 的 href="#main-content" 需要這個
+          錨點才跳得到。tabIndex={-1} 不可省——沒有它 <main> 不可聚焦，skip link
+          只會捲動而不移動鍵盤焦點，等於沒作用。 */}
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-8">
+        {children}
+      </main>
     </div>
   );
 }

@@ -148,7 +148,10 @@ export default function Home() {
         </div>
       </header>
 
-      <main>
+      {/* WCAG 2.4.1 Bypass Blocks：LocaleChrome.tsx 的 href="#main-content" 需要
+          這個錨點才跳得到。tabIndex={-1} 不可省——沒有它 <main> 不可聚焦，
+          skip link 只會捲動而不移動鍵盤焦點，等於沒作用。 */}
+      <main id="main-content" tabIndex={-1}>
         {/* ── Hero + 雙 CTA ── */}
         <section className="relative overflow-hidden">
           {/* 柔和色塊背景(裝飾) */}

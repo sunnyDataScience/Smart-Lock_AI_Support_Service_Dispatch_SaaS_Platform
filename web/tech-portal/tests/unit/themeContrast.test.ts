@@ -78,6 +78,8 @@ function contrast(fg: string, bg: string): number {
 }
 
 const AA_BODY = 4.5;
+/** 金額文字專用門檻——見 19_Test_Plan.md:199「金額文字升級 7:1」（NFR-A11y-002）。 */
+const AA_MONEY = 7;
 
 const root = tokensIn(":root");
 const dark = tokensIn('[data-theme="dark"]');
@@ -104,6 +106,27 @@ describe("師傅站語意彩字（金額 / 完成 / 待補）對比度", () => {
   it.each(cases)("%s（%s）深色模式鋪在卡片底 / 頁底都要過 AA", (token) => {
     for (const bg of [darkEffective["--bg-surface"], darkEffective["--bg-page"]]) {
       expect(contrast(darkEffective[token], bg)).toBeGreaterThanOrEqual(AA_BODY);
+    }
+  });
+
+  // 金額文字的門檻比一般本文高 —— 業主正典
+  // smartlock-docs/enterprise/19_Test_Plan.md:199：「對比 ≥ 4.5:1
+  //（**金額文字升級 7:1**）」，對應 NFR-A11y-002 / TC-A11Y-02。
+  // 上面兩支只驗 AA_BODY=4.5，所以 --text-money 長期停在 5.48 也一直是綠的，
+  // 靜態走查（2026-08-03 TC-A11Y-02）才發現門檻根本沒被守。
+  it("--text-money（金額）淺色模式需達 7:1，比一般本文更嚴", () => {
+    for (const bg of ["#FFFFFF", lightEffective["--bg-page"]]) {
+      expect(contrast(lightEffective["--text-money"], bg)).toBeGreaterThanOrEqual(
+        AA_MONEY,
+      );
+    }
+  });
+
+  it("--text-money（金額）深色模式需達 7:1", () => {
+    for (const bg of [darkEffective["--bg-surface"], darkEffective["--bg-page"]]) {
+      expect(contrast(darkEffective["--text-money"], bg)).toBeGreaterThanOrEqual(
+        AA_MONEY,
+      );
     }
   });
 });
