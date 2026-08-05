@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections import deque
 from datetime import datetime, timedelta, timezone
 
 import core.db as db_module
@@ -36,6 +37,64 @@ BATCH_SIZE = int(os.getenv("COMMISSION_OUTBOX_WORKER_BATCH", "50"))
 # Exponential backoff seconds 對應 attempts=1..6：30s / 2min / 8min / 30min / 2hr / 6hr
 # max_attempts 預設 8（migration 119）→ 末兩次沿用 6hr，總覆蓋約 21 小時。
 _BACKOFF_SECONDS_BY_ATTEMPT = [30, 120, 480, 1800, 7200, 21600]
+
+
+
+# ── NFR-Perf-009：Outbox → 事件骨幹 lag（p99 ≤ 30s / p99.9 ≤ 2min）────────────
+#
+# ⚠️ **這裡才是 NFR-Perf-009 該量的地方。** 該指標定義是「Outbox → **事件骨幹** lag」
+# （05_NFR.md:49，:231 把它與 Kafka consumer lag 綁定），而全系統唯一走事件骨幹的
+# outbox 就是 commission_event_outbox（本檔 → publish_event → Kafka）。
+#
+# 此前這裡零取樣，唯一有 percentile 的是 line_push_outbox_worker——但那個 outbox
+# **不走事件骨幹**（它是 LINE 推播），且它的 p95 是 FR-API-05b 的派工 SLO，
+# 是另一條需求。也就是 p99 一直量在錯的 outbox 上。
+#
+# get_job_sli() 的 oldest_pending_seconds 是瞬時 gauge，算不出分佈——
+# p99/p99.9 需要逐筆樣本。
+_LAG_SAMPLES: deque[float] = deque(maxlen=2000)
+
+# NFR-Perf-009 門檻
+_LAG_SLO_P99 = 30.0
+_LAG_SLO_P999 = 120.0
+
+
+def record_backbone_lag_seconds(seconds: float | None) -> None:
+    """記一筆 outbox → 事件骨幹的送達延遲（秒）。負值/None 忽略。"""
+    if seconds is not None and seconds >= 0:
+        _LAG_SAMPLES.append(float(seconds))
+
+
+def _percentile(sorted_vals: list[float], p: float) -> float:
+    n = len(sorted_vals)
+    idx = min(n - 1, max(0, int(round((p / 100.0) * (n - 1)))))
+    return sorted_vals[idx]
+
+
+def get_backbone_lag_metrics() -> dict:
+    """NFR-Perf-009 指標：p50/p99/p99.9 + SLO 判定。
+
+    樣本為 in-process 滾動視窗（maxlen=2000）。多實例部署時各自獨立——
+    真正的跨實例聚合要等 metrics 出口接上（SigNoz），本函式是那之前的可讀出口，
+    也是接上之後的取樣來源。
+    """
+    vals = sorted(_LAG_SAMPLES)
+    n = len(vals)
+    if n == 0:
+        return {"count": 0, "p50_seconds": None, "p99_seconds": None,
+                "p999_seconds": None, "slo_p99_seconds": _LAG_SLO_P99,
+                "slo_p999_seconds": _LAG_SLO_P999, "slo_met": True}
+    p99 = round(_percentile(vals, 99), 3)
+    p999 = round(_percentile(vals, 99.9), 3)
+    return {
+        "count": n,
+        "p50_seconds": round(_percentile(vals, 50), 3),
+        "p99_seconds": p99,
+        "p999_seconds": p999,
+        "slo_p99_seconds": _LAG_SLO_P99,
+        "slo_p999_seconds": _LAG_SLO_P999,
+        "slo_met": p99 <= _LAG_SLO_P99 and p999 <= _LAG_SLO_P999,
+    }
 
 
 class CommissionOutboxWorker:
@@ -101,7 +160,8 @@ class CommissionOutboxWorker:
         # 寫了也擋不住任何東西（既有 line_push_outbox_worker 就是這個誤導性寫法）。
         # 真正的互斥來自上方 ensure_leader；殘餘重複由消費端 event_id dedup 承接。
         cur = await db_module._conn.execute(
-            "SELECT id, event_id, topic, event_key, payload, attempts, max_attempts "
+            # created_at 用於算 outbox → 事件骨幹 lag（NFR-Perf-009，見 _LAG_SAMPLES）
+            "SELECT id, event_id, topic, event_key, payload, attempts, max_attempts, created_at "
             "FROM commission_event_outbox "
             "WHERE status = 'pending' AND next_attempt_at <= NOW() "
             "ORDER BY next_attempt_at ASC "
@@ -140,6 +200,7 @@ class CommissionOutboxWorker:
         payload = row[4] if isinstance(row[4], dict) else {}
         attempts = int(row[5])
         max_attempts = int(row[6])
+        created_at = row[7] if len(row) > 7 else None
 
         try:
             from core.event_bus import publish_event
@@ -149,6 +210,14 @@ class CommissionOutboxWorker:
             ok, err = False, f"{type(exc).__name__}: {exc}"
 
         if ok:
+            # NFR-Perf-009 取樣：created_at → 成功投遞事件骨幹的秒數。
+            if created_at is not None:
+                try:
+                    from datetime import datetime, timezone
+                    now = datetime.now(created_at.tzinfo or timezone.utc)
+                    record_backbone_lag_seconds((now - created_at).total_seconds())
+                except Exception:  # noqa: BLE001 — 量測絕不可影響投遞
+                    pass
             await self._mark_sent(outbox_id)
             logger.info(
                 "commission outbox 重送成功: id=%s topic=%s event_id=%s",
