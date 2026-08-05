@@ -1,7 +1,7 @@
 ---
 id: CR-0208
 title: AI 客服行為規格——prompt 層與 runtime 確定性層的分界要畫在哪
-status: draft
+status: partially-implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [User/Business flow, Domain model, External integration, Architecture boundary, Test plan]
@@ -9,6 +9,13 @@ related: [TC-CS-AI-03, TC-CS-AI-05, TC-CS-AI-06, TC-CS-AI-11, TC-CS-AI-12, TC-AG
 ---
 
 # CR-0208 — AI 客服行為規格（建卡、話術紅線、RAG 引用、急迫判定）
+
+> **實作進度（2026-08-05）**：業主裁決「CIA gate 縮限為僅金流適用」後，本 CR 的非金流項依 §8 各題**建議選項**實作。
+>
+> **已完成**：D1(a) S2（BR-Quote-002 補齊兩條 guardrail）、S0（RAG 門檻文件）（commit 見 CHANGELOG [Unreleased]）。
+>
+> **未完成**：其餘決策為架構／規格取捨，或涉及金流（依裁決仍走 CIA）、或需外部工具與業主授權。各節內已逐項註明。
+
 
 ## 1. 一句話
 

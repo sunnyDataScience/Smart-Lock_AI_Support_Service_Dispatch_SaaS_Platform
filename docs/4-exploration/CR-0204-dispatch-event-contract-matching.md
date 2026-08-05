@@ -1,7 +1,7 @@
 ---
 id: CR-0204
 title: 派工事件契約與媒合演算法 —— 六支 TC 的契約 drift、演算法空轉與規則缺口
-status: draft
+status: partially-implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [API contract, User/Business flow, Domain model, DB schema, External integration, Architecture boundary, Test plan]
@@ -9,6 +9,13 @@ related: [TC-DISPATCH-01, TC-DISPATCH-02, TC-DISPATCH-03, TC-DISPATCH-04, TC-DIS
 ---
 
 # CR-0204 — 派工事件契約與媒合演算法
+
+> **實作進度（2026-08-05）**：業主裁決「CIA gate 縮限為僅金流適用」後，本 CR 的非金流項依 §8 各題**建議選項**實作。
+>
+> **已完成**：D7（派工覆寫傳參 + FR-API-06 audit）（commit 見 CHANGELOG [Unreleased]）。
+>
+> **未完成**：其餘決策為架構／規格取捨，或涉及金流（依裁決仍走 CIA）、或需外部工具與業主授權。各節內已逐項註明。
+
 
 **查證基準 commit：`01114100`（2026-08-05）**。本文所有 `檔案:行號` 皆於此 commit 逐一開檔覆核；
 與 2026-08-03 走查文件（基準 `c8687f5d`）的行號差異已就地更新，不沿用舊值。

@@ -1,7 +1,7 @@
 ---
 id: CR-0210
 title: 平台營運與知識庫功能的規格落地缺口（含尚未開發的工單積木引擎）
-status: draft
+status: partially-implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [User/Business flow, API contract, Domain model, DB schema, External integration, Architecture boundary, Test plan]
@@ -9,6 +9,13 @@ related: [TC-PLT-CFG-01, TC-PLT-PROV-01, TC-PLT-FLOW-01, TC-TEC-LIFE-01, TC-TEC-
 ---
 
 # CR-0210 — 平台營運與知識庫功能的規格落地缺口
+
+> **實作進度（2026-08-05）**：業主裁決「CIA gate 縮限為僅金流適用」後，本 CR 的非金流項依 §8 各題**建議選項**實作。
+>
+> **已完成**：S0（refinery 批次中斷 + docstring 對齊）（commit 見 CHANGELOG [Unreleased]）。
+>
+> **未完成**：其餘決策為架構／規格取捨，或涉及金流（依裁決仍走 CIA）、或需外部工具與業主授權。各節內已逐項註明。
+
 
 > **走查基準**：Luca 2026-08-03 靜態走查（commit `2cfeca92`）→ 2026-08-04/05 回程式碼查證。
 > **本文件證據基準**：commit `01114100`（本文所有 `檔案:行號` 皆於此 commit 重新開檔覆核；

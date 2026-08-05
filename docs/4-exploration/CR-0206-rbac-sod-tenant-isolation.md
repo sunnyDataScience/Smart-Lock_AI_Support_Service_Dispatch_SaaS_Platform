@@ -1,7 +1,7 @@
 ---
 id: CR-0206
 title: RBAC 授權來源、職責分離、租戶隔離稽核與 web 安全邊界（UAT 靜態走查 7 支安全 TC 分流）
-status: draft
+status: partially-implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [Architecture boundary, API contract, Domain model, User/Business flow, Test plan]
@@ -9,6 +9,13 @@ related: [TC-SEC-RBAC-01, TC-SEC-RBAC-02, TC-SEC-SOD-01, TC-SEC-TENANT-01, TC-SE
 ---
 
 # CR-0206 — RBAC 授權來源、職責分離、租戶隔離稽核與 web 安全邊界
+
+> **實作進度（2026-08-05）**：業主裁決「CIA gate 縮限為僅金流適用」後，本 CR 的非金流項依 §8 各題**建議選項**實作。
+>
+> **已完成**：D4(b)（端點守衛 CI gate + 無守衛 baseline）、D2（正典標注）（commit 見 CHANGELOG [Unreleased]）。
+>
+> **未完成**：其餘決策為架構／規格取捨，或涉及金流（依裁決仍走 CIA）、或需外部工具與業主授權。各節內已逐項註明。
+
 
 ## 1. 一句話
 

@@ -1,7 +1,7 @@
 ---
 id: CR-0207
 title: 稽核鏈、法遵與個資保護 —— 7 支合規 TC 回查證後的缺口分流與裁決
-status: draft
+status: partially-implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [User/Business flow, API contract, Domain model, DB schema, External integration, Test plan, Architecture boundary]
@@ -9,6 +9,13 @@ related: [TC-NFR-AUD-01, TC-NFR-PRIV-01, TC-COMPLIANCE-01, TC-COMPLIANCE-02, TC-
 ---
 
 # CR-0207 — 稽核鏈、法遵與個資保護
+
+> **實作進度（2026-08-05）**：業主裁決「CIA gate 縮限為僅金流適用」後，本 CR 的非金流項依 §8 各題**建議選項**實作。
+>
+> **已完成**：步驟 0 全數（GDPR 硬刪 cron 修復 + 個資進 log + 兩處過期註解）（commit 見 CHANGELOG [Unreleased]）。
+>
+> **未完成**：其餘決策為架構／規格取捨，或涉及金流（依裁決仍走 CIA）、或需外部工具與業主授權。各節內已逐項註明。
+
 
 > 本 CR 命中 CIA 全部 **7 個觸發面向**。這本身就是訊號：它不該當成一張 CR 一次做完。
 > §6 打分 **10 分**（7–12 區間）＝「架構重審 + 模組拆分（多 CR + 跨 sprint）」。

@@ -1,7 +1,7 @@
 ---
 id: CR-0209
 title: 可觀測性、可靠度、效能與例外處理 —— 16 支 TC 的量測缺口與四條真實資料遺失路徑
-status: draft
+status: partially-implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [Test plan, Architecture boundary, DB schema, API contract, External integration, User/Business flow]
@@ -9,6 +9,13 @@ related: [TC-NFR-AVAIL-01, TC-NFR-DORA-01, TC-NFR-DQ-01, TC-NFR-MAINT-01, TC-NFR
 ---
 
 # CR-0209 — 可觀測性、可靠度、效能與例外處理
+
+> **實作進度（2026-08-05）**：業主裁決「CIA gate 縮限為僅金流適用」後，本 CR 的非金流項依 §8 各題**建議選項**實作。
+>
+> **已完成**：B 群部分（agent 測試接 CI + migration forward-only gate）（commit 見 CHANGELOG [Unreleased]）。
+>
+> **未完成**：其餘決策為架構／規格取捨，或涉及金流（依裁決仍走 CIA）、或需外部工具與業主授權。各節內已逐項註明。
+
 
 ## 1. 一句話
 

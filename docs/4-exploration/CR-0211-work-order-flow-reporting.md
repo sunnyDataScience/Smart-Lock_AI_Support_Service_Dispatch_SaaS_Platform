@@ -1,7 +1,7 @@
 ---
 id: CR-0211
 title: 工單流程細節與報表顯示 —— 四支 TC 的缺口分流與裁決
-status: draft
+status: partially-implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [User/Business flow, API contract, DB schema, Test plan]
@@ -9,6 +9,13 @@ related: [TC-WO-07, TC-WO-10, TC-WO-12, TC-WEB-REPORT-01, FR-API-07, FR-API-08, 
 ---
 
 # CR-0211 — 工單流程細節與報表顯示
+
+> **實作進度（2026-08-05）**：業主裁決「CIA gate 縮限為僅金流適用」後，本 CR 的非金流項依 §8 各題**建議選項**實作。
+>
+> **已完成**：D1（listScheduledReports 角色閘門）（commit 見 CHANGELOG [Unreleased]）。
+>
+> **未完成**：其餘決策為架構／規格取捨，或涉及金流（依裁決仍走 CIA）、或需外部工具與業主授權。各節內已逐項註明。
+
 
 ## 1. 一句話
 

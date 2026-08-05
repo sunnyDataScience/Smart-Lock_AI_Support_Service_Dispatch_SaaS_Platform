@@ -1,7 +1,7 @@
 ---
 id: CR-0205
 title: 現場作業流程完整性——「施工中」狀態不可達，加價流有兩套並存路徑
-status: draft
+status: partially-implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [User/Business flow, API contract, Domain model, DB schema, Test plan]
@@ -9,6 +9,13 @@ related: [TC-ONSITE-01, TC-ONSITE-02, TC-ONSITE-03, TC-ONSITE-04, TC-ONSITE-05, 
 ---
 
 # CR-0205 — 現場作業流程完整性（抵達、施工、驗收、簽名）
+
+> **實作進度（2026-08-05）**：業主裁決「CIA gate 縮限為僅金流適用」後，本 CR 的非金流項依 §8 各題**建議選項**實作。
+>
+> **已完成**：S1/D1(a)（到場即開工，啟用死值 in_progress）（commit 見 CHANGELOG [Unreleased]）。
+>
+> **未完成**：其餘決策為架構／規格取捨，或涉及金流（依裁決仍走 CIA）、或需外部工具與業主授權。各節內已逐項註明。
+
 
 ## 1. 一句話
 
