@@ -36,6 +36,45 @@ DEFAULT_STARTUP_DELAY_S = int(os.getenv(
 ))
 
 
+async def _latest_slo_says_halt(rollout_id: str) -> bool:
+    """該 rollout 最近一次 SLO 檢查是否結論為「該 halt」（CR-0210 D4(b)）。
+
+    為什麼要查這個：現況是**一邊自動推、一邊不自動停**——canary cron 純依 ETA
+    推進（不讀任何 SLO），而 `check_slo_halt` 只回建議、不真實 halt
+    （`config_m18_service.py:985-986` 明文，那是「避免自動 trigger 風險」的刻意設計）。
+    淨效果：admin 已經看到指標破線、跑過檢查、系統也把「should_halt=true」寫進 audit 了，
+    **cron 下一輪照樣把壞版本推到 50% / 100%**。
+
+    本檢查**不自動 halt、不改 rollout 狀態**（維持人工 rollback 的設計），
+    只是「破線就不要再往前推」——壞版本停在原 stage 等人處理，而不是自己爬到全量。
+    這是 D4(b) 的誠實版：cron 沒有 metrics 來源可以自己算 SLO
+    （那是 A 群的缺口，綁 SigNoz），但它讀得到人已經做過的判斷。
+
+    查不到紀錄／查詢失敗 → 回 False（維持既有推進行為，fail-open）。
+    理由：這道檢查是額外保護，不該因為它自己壞掉而讓正常 rollout 全部卡住。
+    """
+    try:
+        cur = await db_module._conn.execute(
+            """
+            SELECT a.diff
+            FROM saas.config_audit a
+            JOIN saas.config_rollout r ON r.config_version_id = a.config_version_id
+            WHERE r.id = %s::uuid
+              AND a.diff->>'slo_check' = 'true'
+            ORDER BY a.ts DESC
+            LIMIT 1
+            """,
+            (rollout_id,),
+        )
+        row = await cur.fetchone()
+    except Exception:  # noqa: BLE001 — 保護性檢查失敗不可卡住正常 rollout
+        logger.warning("canary: SLO 檢查查詢失敗，維持既有推進行為 rollout=%s", rollout_id)
+        return False
+    if not row or not isinstance(row[0], dict):
+        return False
+    return bool(row[0].get("should_halt"))
+
+
 class ConfigCanaryAdvanceCron:
     def __init__(
         self,
@@ -97,45 +136,6 @@ class ConfigCanaryAdvanceCron:
                 return
             except asyncio.TimeoutError:
                 continue
-
-
-async def _latest_slo_says_halt(rollout_id: str) -> bool:
-    """該 rollout 最近一次 SLO 檢查是否結論為「該 halt」（CR-0210 D4(b)）。
-
-    為什麼要查這個：現況是**一邊自動推、一邊不自動停**——canary cron 純依 ETA
-    推進（不讀任何 SLO），而 `check_slo_halt` 只回建議、不真實 halt
-    （`config_m18_service.py:985-986` 明文，那是「避免自動 trigger 風險」的刻意設計）。
-    淨效果：admin 已經看到指標破線、跑過檢查、系統也把「should_halt=true」寫進 audit 了，
-    **cron 下一輪照樣把壞版本推到 50% / 100%**。
-
-    本檢查**不自動 halt、不改 rollout 狀態**（維持人工 rollback 的設計），
-    只是「破線就不要再往前推」——壞版本停在原 stage 等人處理，而不是自己爬到全量。
-    這是 D4(b) 的誠實版：cron 沒有 metrics 來源可以自己算 SLO
-    （那是 A 群的缺口，綁 SigNoz），但它讀得到人已經做過的判斷。
-
-    查不到紀錄／查詢失敗 → 回 False（維持既有推進行為，fail-open）。
-    理由：這道檢查是額外保護，不該因為它自己壞掉而讓正常 rollout 全部卡住。
-    """
-    try:
-        cur = await db_module._conn.execute(
-            """
-            SELECT a.diff
-            FROM saas.config_audit a
-            JOIN saas.config_rollout r ON r.config_version_id = a.config_version_id
-            WHERE r.id = %s::uuid
-              AND a.diff->>'slo_check' = 'true'
-            ORDER BY a.ts DESC
-            LIMIT 1
-            """,
-            (rollout_id,),
-        )
-        row = await cur.fetchone()
-    except Exception:  # noqa: BLE001 — 保護性檢查失敗不可卡住正常 rollout
-        logger.warning("canary: SLO 檢查查詢失敗，維持既有推進行為 rollout=%s", rollout_id)
-        return False
-    if not row or not isinstance(row[0], dict):
-        return False
-    return bool(row[0].get("should_halt"))
 
     async def run_once(self) -> dict:
         """掃所有 due rollout → 呼 service.advance；回 summary。"""
