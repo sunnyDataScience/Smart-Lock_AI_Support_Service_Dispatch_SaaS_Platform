@@ -35,10 +35,17 @@ from pipeline.silver_to_knowledge._provenance import (  # noqa: E402
     ROOT_DIR,
     chunk_id,
     resolve_bronze,
+    sha256_file,
 )
 
 SILVER_DIR = ROOT_DIR / "storage" / "silver"
 CORPUS_DIR = ROOT_DIR / "storage" / "corpus"
+CONFIG_PATH = ROOT_DIR / "config.toml"
+
+
+def _config_sha256() -> str | None:
+    """產出當下的 config.toml 指紋；檔案不在就回 None（不讓它擋住 emit）。"""
+    return sha256_file(CONFIG_PATH) if CONFIG_PATH.exists() else None
 
 # 來源 → 軌道（Phase A 確定性 rubric；見模組 docstring 表）
 SOURCE_TRACK = {
@@ -150,6 +157,11 @@ def main() -> int:
     report = {
         "run_at": run_at,
         "schema_version": SCHEMA_VERSION,
+        # NFR-Rep-001：TC-NFR-REP-01 的步驟含「變更 config」後重跑。原本報告只記
+        # run_at + schema_version，事後拿到一份 corpus 無從得知它是哪一版 config
+        # 產出的——「相同輸入產同結構結果」這條就驗不了（連「輸入是否相同」都判斷不出）。
+        # 記 config 檔的 sha256 而非內容：不外洩任何設定值，又能精確比對是否同一版。
+        "config_sha256": _config_sha256(),
         "totals": {k: len(v) for k, v in tracks.items()},
         "by_brand": {},
         "by_category": {},

@@ -81,6 +81,21 @@ def main() -> None:
         candidates = sorted(set(mov_files + mp4_files))
 
     found = len(candidates)
+
+    # NFR-Rep-002「保存不足時明確阻擋」：raw 目錄空掉時不可安靜成功。
+    # 原本只 log「共 0 支影片待處理」然後正常結束 exit 0 —— 呼叫端（人或 CI）
+    # 看到成功就以為 rebuild 過了，實際上 bronze 一個字都沒重建，
+    # 而下游 silver / corpus 仍拿得到舊檔，於是「重跑 pipeline」得到的是
+    # 上一輪的產物，追溯鏈從這裡斷掉且無人察覺。
+    # --file 模式不套用：那是明確指名單檔，找不到會在下方迴圈以 failed 記錄。
+    # 形式對齊 bronze_to_silver/process_video.py:178 的既有寫法。
+    if found == 0 and not args.file:
+        sys.exit(
+            f"No source media (*.mov / *.mp4) found in {RAW_DIR} —— "
+            "原始資產保存不足，拒絕 rebuild（NFR-Rep-002）。"
+            "若確認要跳過影片來源，請顯式指定 --file。"
+        )
+
     logger.info(f"共 {found} 支影片待處理")
 
     processed = 0

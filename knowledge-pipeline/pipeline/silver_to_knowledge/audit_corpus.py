@@ -7,12 +7,16 @@
   4. 基本欄位：id/brand/model/category/text 非空
   5. id 唯一
 
+稽核結論同時寫入 `storage/corpus/_audit.json`（run_at / passed / 全量 violations），
+供事後追溯——CI log 會輪替，只印在 stdout 等於沒保留（NFR-Rep-002「保留稽核」）。
+
 用法：
   cd knowledge-pipeline && uv run python -m pipeline.silver_to_knowledge.audit_corpus
 """
 
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -65,6 +69,11 @@ def main() -> int:
             elif sha256_file(bronze) != bs:
                 violations.append(f"{where} — bronze 內容已漂移（sha256 不符）：{bp}")
 
+    # NFR-Rep-002「保存不足時明確阻擋並**保留稽核**」：結果落檔,不只印在 stdout。
+    # 原本稽核結論只存在於當次終端輸出,CI log 輪替後就查不到「上一次跑是什麼時候、
+    # 過了沒、違規哪幾項」——追溯鏈缺一環。exit code 行為完全不變(此處只多寫一個檔)。
+    _write_audit_report(violations, facts_count=len(facts), behavior_count=len(behavior))
+
     if violations:
         print(f"❌ 稽核失敗（{len(violations)} 項違規）：")
         for v in violations[:30]:
@@ -76,6 +85,27 @@ def main() -> int:
     print(f"✅ 稽核通過：facts={len(facts)} behavior={len(behavior)}，"
           f"provenance 完整、bronze 未漂移、紅線無違規")
     return 0
+
+
+def _write_audit_report(violations: list[str], *, facts_count: int, behavior_count: int) -> None:
+    """把稽核結論寫成 storage/corpus/_audit.json（best-effort,寫檔失敗不影響 gate）。
+
+    violations 全量保留（不像 stdout 只印前 30 項）——事後追溯時要看得到全部。
+    """
+    report = {
+        "run_at": datetime.now(timezone.utc).isoformat(),
+        "passed": not violations,
+        "facts_count": facts_count,
+        "behavior_count": behavior_count,
+        "violation_count": len(violations),
+        "violations": violations,
+    }
+    try:
+        CORPUS_DIR.mkdir(parents=True, exist_ok=True)
+        (CORPUS_DIR / "_audit.json").write_text(
+            json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except OSError as exc:  # 寫不進去也不該讓品質 gate 的判定失真
+        print(f"⚠️  稽核報告寫檔失敗（不影響判定）：{exc}")
 
 
 if __name__ == "__main__":
