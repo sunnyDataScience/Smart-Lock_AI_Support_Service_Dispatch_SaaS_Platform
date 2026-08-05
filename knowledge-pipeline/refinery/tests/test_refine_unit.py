@@ -90,3 +90,38 @@ def test_no_behavior_candidates_ok():
     drafts = refine_card(CARD, [], generate=gen)
     assert len(drafts) == 1 and drafts[0]["draft_type"] == "case_entry"
     assert drafts[0]["provenance"]["message_count"] == 0
+
+
+# ── target_skill 不採信 LLM 回傳值（TC-REF-SPLIT-01 hardening）────────────
+#
+# 對話逐字稿是外部輸入，會一路進 LLM prompt。若模型被注入而在 target_skill
+# 填了任意字串，原本會直接落進 draft payload → DB → 審核流程。行為草稿只有
+# locksmith-cs-sop 一個合法標的，這個欄位不該由模型決定。
+
+
+def _injected_generate(prompt: str, system_prompt: str, schema: dict) -> dict:
+    """模擬被注入：target_skill 被塞成別的東西。"""
+    base = _fake_generate(prompt, system_prompt, schema)
+    base["behavior_candidates"][0]["target_skill"] = "../../etc/passwd"
+    return base
+
+
+def test_target_skill_is_coerced_not_taken_from_llm(capsys):
+    drafts = refine_card(
+        CARD, TRANSCRIPT, generate=_injected_generate,
+        llm_model="fake/model", refined_at="2026-07-10T00:00:00+00:00",
+    )
+    bh = drafts[1]
+    assert bh["draft_type"] == "behavior"
+    # 收斂為常數，不採信模型輸出
+    assert bh["payload"]["target_skill"] == "locksmith-cs-sop"
+    # 提案本體保留（收斂而非丟棄——仍要送人工審核）
+    assert bh["payload"]["proposal"] == "遇硬體脫落類,先確認型號,再走 L3 派工"
+    # 異常必須看得見
+    assert "target_skill 非預期值" in capsys.readouterr().out
+
+
+def test_schema_pins_target_skill_enum():
+    """schema 這層也釘住值域——雙保險，且讓支援 enum 的供應商在生成時就受限。"""
+    props = REFINE_SCHEMA["properties"]["behavior_candidates"]["items"]["properties"]
+    assert props["target_skill"]["enum"] == ["locksmith-cs-sop"]

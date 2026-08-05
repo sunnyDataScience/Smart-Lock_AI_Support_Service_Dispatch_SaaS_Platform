@@ -15,6 +15,10 @@ from typing import Any
 
 from .llm import GenerateJson
 
+# 行為草稿唯一合法標的（builtin skill 名，見 agent/lockcore/skills/locksmith-cs-sop/）。
+# 用常數而非讓 LLM 決定：對話內容是外部輸入，被注入時模型可能回任意字串。
+_TARGET_SKILL = "locksmith-cs-sop"
+
 # LLM 輸出 schema(litellm JSON schema 強制;fake 注入時亦依此驗)
 REFINE_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -36,7 +40,10 @@ REFINE_SCHEMA: dict[str, Any] = {
                 "properties": {
                     "title": {"type": "string"},
                     "proposal": {"type": "string"},
-                    "target_skill": {"type": "string"},
+                    # 值域收斂到唯一合法值：prompt 雖已寫「固定 locksmith-cs-sop」,
+                    # 但那只是「叫」模型照做,不是保證。落地端另有確定性收斂
+                    # （見下方 _TARGET_SKILL 的用法）——schema 這層擋不住的由 code 擋。
+                    "target_skill": {"type": "string", "enum": ["locksmith-cs-sop"]},
                     "rationale": {"type": "string"},
                     "confidence": {"type": "number"},
                 },
@@ -130,9 +137,22 @@ def refine_card(
     })
 
     for bc in result.get("behavior_candidates", []):
+        # ⚠️ target_skill 不採信 LLM 回傳值 —— 行為草稿只有 locksmith-cs-sop 一個
+        #    合法標的（見上方 SCHEMA 的 enum 與 prompt）。原本直接把模型輸出塞進
+        #    payload，等於讓 payload 承載任意 LLM 字串；對話內容是外部輸入，
+        #    被注入時這個欄位會跟著跑掉，一路進 DB 與審核流程。
+        #    採「收斂＋記錄」而非「丟棄」：提案本體仍要送人工審核，
+        #    不因單一欄位被污染就損失一筆候選，但異常必須看得見。
+        llm_target = bc.get("target_skill")
+        if llm_target != _TARGET_SKILL:
+            print(
+                f"⚠️  behavior candidate 的 target_skill 非預期值 "
+                f"{llm_target!r}（已收斂為 {_TARGET_SKILL!r}）—— "
+                f"card={card['id']}",
+            )
         bc_payload = {
             "proposal": bc["proposal"],
-            "target_skill": bc["target_skill"],
+            "target_skill": _TARGET_SKILL,
             "rationale": bc["rationale"],
         }
         drafts.append({

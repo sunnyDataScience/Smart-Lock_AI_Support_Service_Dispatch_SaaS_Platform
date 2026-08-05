@@ -5673,7 +5673,7 @@ components:
           enum: [TAX_ACT_§38, BIZ_ACCT_§11_1, BOTH]
           description: 'ADR-VCH-002 保存期法源'
         hash_prev: { type: string, description: 'Hash chain: 前一筆 row 的 hash_self' }
-        hash_self: { type: string, description: 'sha256(hash_prev + serialize(row)); 不可竄改保證' }
+        hash_self: { type: string, description: 'HD-VCH-001 hash chain V1：sha256(voucher_no|amount|debit|credit|reverses_voucher_id|hash_prev)，各欄位為 None 時以空字串代入。不可竄改保證。（2026-08-05 勘誤：原描述寫 sha256(hash_prev + serialize(row)) 與實作不符——hash_prev 在**最後**而非最前，且是這六個欄位以 | 串接而非整列序列化；照原描述實作驗證會算出不同的 hash。正典＝api/services/voucher_void_service.py:76-90）' }
         reverses_voucher_id:
           type: string
           nullable: true

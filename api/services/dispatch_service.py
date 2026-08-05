@@ -316,7 +316,16 @@ async def brand_auth_enforced() -> bool:
     為什麼要開關而不是直接 fail-closed：prod 的 `technician_brand_authorization`
     只有 CR-0060 留下的 `is_mock` seed（Generic/Kaadas/Philips/Samsung/Yale 各 13 筆），
     營運從未填過真實資料；實際在用的 Chatlock/Dormakaba/美樂/Xiaomi/Gateman 一筆都沒有。
-    硬性啟用會讓這些品牌無法自動派工，而目前**平台後台還沒有維護授權名單的 UI**。
+    硬性啟用會讓這些品牌無法自動派工。
+
+    **2026-08-05 更新**：原文此處寫「而目前平台後台還沒有維護授權名單的 UI」——
+    該前提已解除。維護 UI 於 2026-08-02 落地（commit a38e5f80，
+    `web/platform-console/src/components/technicians/BrandAuthorizationPanel.tsx`，
+    掛於 `platform/technicians/[id]/page.tsx:358`，打
+    `/api/v1/platform/technicians/{id}/brand-authorizations`）。
+    也就是「閘門能開」的最後一個 code 前提已經沒有了，剩下的是**營運動作**：
+    補齊各品牌授權名單 → 逐租戶把 brand_auth_enforce 打開。開關本身維持預設 off
+    不變（要不要開、何時開是業主/營運的決定，不是 code 的決定）。
 
     config 讀取失敗一律視為「未啟用」—— 這是 default-off 開關，讀不到設定時
     採現況行為才是安全的（比照 _assert_reconcile_gate 的 except 分支）。
@@ -351,10 +360,19 @@ async def _brand_authorized_ids(brand: str | None) -> set[str] | None:
     Philips / Samsung / Yale 五個品牌,但**所有** work_order 的 brand 都是 Chatlock
     → 修正前這道閘門對真實資料完全沒有作用。
 
-    改後語意（三態收斂為兩態）：
-      brand 為空       → None（**沒有品牌可判**,與「判了但沒人符合」不同,維持不阻擋;
-                         品牌必填另由 _assert_dispatch_ready 把關）
-      有 brand         → 一律回集合。查無授權列 = 空集合 = **誰都不符** = fail-closed。
+    現行語意（**2026-08-05 更新**：下面原本寫「有 brand → 一律回集合」,那是
+    CR-0197 把 fail-closed 改成 M18 開關可控**之前**的敘述,與現在的函式體矛盾
+    ——查無授權列且開關未啟用時實際回的是 None。照舊文讀會誤以為閘門已在擋）：
+
+      brand 為空                    → None（**沒有品牌可判**,與「判了但沒人符合」
+                                      不同,維持不阻擋;品牌必填另由
+                                      _assert_dispatch_ready 把關）
+      有 brand 且查得到授權列        → 該品牌的授權技師集合
+      有 brand 但查無授權列：
+        · brand_auth_enforce = on   → 空集合 = **誰都不符** = fail-closed
+        · brand_auth_enforce = off  → None = 不判斷 = 維持 CR-0060 以來的放行
+                                      （**預設 off**,CR-0197 D1(c) 業主裁決：
+                                      待營運補齊各品牌授權名單後再逐租戶開啟）
 
     安全閥不變：手動派工仍可由主管帶 override_reason 強制通過
     （work_order_service._assert_brand_authorized,與報價 gate / 熔斷同一機制）。
