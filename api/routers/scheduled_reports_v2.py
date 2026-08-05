@@ -68,7 +68,11 @@ async def list_scheduled_reports(
     tenantId: str = Path(...),
     report_type: str | None = Query(default=None),
     active_only: bool = Query(default=True),
-    user: CurrentUser = Depends(require_tenant),
+    # CR-0211 D1：原本只有 require_tenant（任何已登入的同租戶使用者都讀得到），
+    # 同檔的 create（:41）與 cancel（:95）都掛 OPS_ROLES —— 三支裡只有 list 沒掛，
+    # 這種不對稱是漏設而非設計。回傳內容含 `recipients`（收件人 email 清單）＝PII，
+    # 任何技師或客服帳號都能列出整個租戶的報表收件人。
+    user: CurrentUser = Depends(role_required(*OPS_ROLES)),
 ) -> dict:
     if user.tenant_id and user.tenant_id != tenantId:
         raise ApiError(
