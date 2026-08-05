@@ -83,6 +83,7 @@ CORRECTIVE_INSTRUCTION = (
     "（系統修正指示，客戶看不到）你上一則草稿違反話術邊界："
     "回覆不得包含任何價格金額數字（報價一律轉真人），"
     "不得講出客戶未提過的具體型號代碼（不確定型號就開放式詢問）；"
+    "不得承諾折扣、優惠或免費保固／免費維修（讓利一律由專員決定，BR-Quote-002）；"
     "若你聲稱「已轉接／會有專員聯繫」，就必須在本輪實際呼叫 transfer_to_human 工具"
     "（只說不呼叫＝案子蒸發）。"
     "請重寫回覆：移除違規內容，必要時使用 transfer_to_human 工具轉真人。"
@@ -124,6 +125,59 @@ def _codes(text: str) -> set[str]:
 def price_violation(reply: str, *, escalated: bool) -> bool:
     """回覆含價格數字且本 turn 未轉真人 → 違規（已轉真人時允許話術帶語境）。"""
     return bool(_PRICE_RE.search(reply or "")) and not escalated
+
+
+# ── BR-Quote-002 的另外兩條規則（CR-0208 D1(a)）────────────────────────────
+#
+# 正典 04_SRS.md:449：「Guardrail 三規則（NTD 數字無修飾語 / **折扣關鍵字** /
+# **保固免費**）→ regen」。此前只實作了第一條（_PRICE_RE），另兩條只存在於
+# prompt 層——也就是「叫模型別答應」，不是「模型答應了會被擋下來」。
+#
+# ⚠️ 設計上的關鍵取捨：**不能用裸關鍵字比對**。
+# forbidden_corpus 的 discount/warranty_free 各 30 題是**客人的問法**
+# （「給我打八折可以嗎」），AI 的合規回應本來就會提到那些詞
+# （「折扣的部分我無法決定，會請專員與您聯繫」）。裸比對會把合規回覆判成違規，
+# 而違規的終局是把客人推去人工 —— 誤攔成本很高（NFR-Sec-006 要誤攔率 < 1%）。
+#
+# 所以抓的是**承諾的形狀**：承諾動詞 + 概念詞在近距離內同現，
+# 且回覆中沒有推託/轉介的字樣。
+_COMMIT_VERB = r"(可以|能夠|能|會|幫您|幫你|給您|給你|算您|算你|保證|承諾|沒問題|OK|好的)"
+_CONCESSION = r"(折|優惠|特價|便宜|免費|不收費|免收|不用錢|不收錢)"
+
+# 承諾動詞與讓利詞在 12 字內同現 → 疑似 AI 答應了讓利。
+_PROMISE_RE = re.compile(rf"{_COMMIT_VERB}.{{0,12}}{_CONCESSION}")
+
+# 明確的讓利承諾形態（不需承諾動詞也成立）。
+_EXPLICIT_CONCESSION_RE = re.compile(
+    r"免費(保固|維修|更換|安裝|檢測|到府|處理)"
+    r"|終身保固"
+    r"|打[0-9一二三四五六七八九]\s*折"
+    r"|折扣碼"
+)
+
+# 推託/轉介字樣：出現代表 AI 是在說「我不能決定」，不是在答應。
+_DEFERRAL_RE = re.compile(
+    r"無法|不能|沒辦法|不便|需要?.{0,6}(確認|評估|報價)"
+    r"|(由|請|轉|交給).{0,4}(專員|客服|人員|同事)"
+    r"|實際.{0,4}(費用|價格|金額)"
+    r"|以.{0,6}(報價|現場|實際).{0,4}為準"
+)
+
+
+def concession_promise_violation(reply: str, *, escalated: bool) -> bool:
+    """AI 承諾折扣或免費保固 → 違規（BR-Quote-002 規則 2、3）。
+
+    `escalated=True` 時不判——已轉真人的話術本來就會帶語境
+    （「費用與優惠由專員為您說明」），與 price_violation 同一套豁免邏輯。
+
+    推託語存在時不判：那代表 AI 在說「我不能決定」，正是我們要的行為。
+    """
+    text = reply or ""
+    if escalated or not text:
+        return False
+    if _DEFERRAL_RE.search(text):
+        return False
+    return bool(_PROMISE_RE.search(text) or _EXPLICIT_CONCESSION_RE.search(text))
 
 
 def unsourced_model_codes(reply: str, customer_text: str) -> list[str]:
@@ -197,6 +251,8 @@ def guard_violations(
         out.append("unsourced_model:" + ",".join(codes[:5]))
     if claimed_transfer_violation(reply, escalated=escalated):
         out.append("claimed_transfer_without_tool")
+    if concession_promise_violation(reply, escalated=escalated):
+        out.append("concession_promise")
     if vision_claim_violation(reply, has_media=has_media):
         out.append("vision_claim_without_capability")
     return out

@@ -2,7 +2,7 @@
 
 工具（agent 端經 lockcore mcp_servers 註冊為 mcp_locksmith-rag_<tool>，Phase C 接線）：
   search_product_manual(brand, model, query) — 手冊事實語料 cosine 檢索
-  search_similar_cases(symptom, brand?, model?) — 案例史檢索（similarity ≥ 0.85）
+  search_similar_cases(symptom, brand?, model?) — 案例史檢索（similarity ≥ 0.70 預設值）
 
 治理：
   - 查詢必帶 tenant_id（RAG_TENANT_ID env；default deny）
@@ -58,7 +58,9 @@ def search_product_manual(brand: str, model: str, query: str) -> list[dict]:
 @mcp.tool()
 def search_similar_cases(symptom: str, brand: str | None = None,
                          model: str | None = None) -> list[dict]:
-    """以症狀描述檢索歷史案例（症狀 → 解法），只回相似度 ≥ 0.85 的高信心案例。
+    """以症狀描述檢索歷史案例（症狀 → 解法），只回相似度 ≥ 門檻的高信心案例。
+
+    （ADR-010 原訂 0.85 係按 text-embedding-004 設想；CR-0124 換 multilingual-002 後實測改為預設 0.70，見 store.py:15-17 的 as-built 說明。env `RAG_CASE_SIM_THRESHOLD` 可調）。
 
     Args:
         symptom: 客戶症狀描述（自然語言）

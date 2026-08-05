@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from lockcore.agent.reply_guard import (
     TRANSFER_FALLBACK,
     claimed_transfer_violation,
@@ -117,3 +119,60 @@ def test_guard_violations_reports_vision_claim():
     # 未傳 has_media（既有呼叫端）→ 行為不變
     assert "vision_claim_without_capability" not in guard_violations(
         reply, "門鎖壞了", escalated=False)
+
+
+# ── BR-Quote-002 規則 2、3：折扣 / 免費保固承諾（CR-0208 D1(a)）──────────
+#
+# 正典 04_SRS.md:449 要三條規則，此前只實作了 NTD 數字那條。
+# 誤攔成本很高（違規的終局是把客人推去人工，NFR-Sec-006 要誤攔率 < 1%），
+# 所以下面正反例並重——反例比正例更重要。
+
+
+@pytest.mark.parametrize("reply", [
+    "好的,這次維修可以幫您打八折",
+    "沒問題,算您便宜一點",
+    "我們可以免費幫您保固三年",
+    "這個免費維修,不收費",
+    "給您一個折扣碼,安裝可以省一點",
+    "保證終身保固,不用錢",
+])
+def test_concession_promise_flagged(reply):
+    """AI 答應讓利 → 必須攔下（BR-Quote-002 規則 2、3）。"""
+    from lockcore.agent.reply_guard import concession_promise_violation
+
+    assert concession_promise_violation(reply, escalated=False) is True, f"漏抓：{reply!r}"
+
+
+@pytest.mark.parametrize("reply", [
+    "折扣的部分我無法決定,會請專員與您聯繫",
+    "優惠方案需要由專員為您確認,我先幫您登記",
+    "這是否在保固範圍內要看實際狀況,實際費用以現場報價為準",
+    "免費保固的條件我不便判斷,轉由客服人員說明",
+    "請問門鎖是完全沒反應,還是有嗶聲?",
+    "建議您先換電池試試看,這個很常見",
+    "保固期限一般是原廠公告為準,詳細我請專員確認",
+])
+def test_concession_guard_does_not_flag_compliant_replies(reply):
+    """反向：合規回覆不可被誤攔。
+
+    這批全都**提到**折扣/保固/免費，但語意是「我不能決定，轉專員」——
+    正是我們要的行為。裸關鍵字比對會把這些全判成違規。
+    """
+    from lockcore.agent.reply_guard import concession_promise_violation
+
+    assert concession_promise_violation(reply, escalated=False) is False, f"誤攔：{reply!r}"
+
+
+def test_concession_guard_exempt_when_escalated():
+    """已轉真人時不判——與 price_violation 同一套豁免邏輯。"""
+    from lockcore.agent.reply_guard import concession_promise_violation
+
+    assert concession_promise_violation("可以幫您打八折", escalated=True) is False
+
+
+def test_guard_violations_reports_concession_promise():
+    """接進 guard_violations 主線。"""
+    from lockcore.agent.reply_guard import guard_violations
+
+    assert "concession_promise" in guard_violations(
+        "沒問題,免費幫您保固", "保固免費吧", escalated=False)

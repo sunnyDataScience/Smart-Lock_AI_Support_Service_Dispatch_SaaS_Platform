@@ -3,7 +3,8 @@
 治理（ADR-010）：
   - 每條查詢 WHERE 必帶 tenant_id（default deny：無 tenant 直接拒絕）
   - manual 檢索帶品牌/型號 gating（brand/model 相符或 'general' 通用列）
-  - case 檢索閾值 similarity ≥ 0.85、排除 is_active=false / deleted_at 非空
+  - case 檢索閾值 similarity ≥ CASE_SIMILARITY_THRESHOLD（預設 **0.70**，非 ADR-010 原訂的
+    0.85——換 embedding 模型後 0.85 恆不命中，詳 :15-17）、排除 is_active=false / deleted_at 非空
 """
 
 import json
@@ -102,7 +103,9 @@ def search_manual(query_vec: list[float], *, brand: str, model: str,
 
 def search_cases(query_vec: list[float], *, brand: str | None = None,
                  model: str | None = None, top_k: int = DEFAULT_TOP_K) -> list[dict]:
-    """案例史 cosine 檢索；similarity ≥ 0.85（ADR-010），brand/model 可選過濾。
+    """案例史 cosine 檢索；similarity ≥ CASE_SIMILARITY_THRESHOLD（預設 0.70），brand/model 可選過濾。
+
+    （ADR-010 原訂 0.85 係按 text-embedding-004 設想；CR-0124 換 multilingual-002 後實測改為預設 0.70，見 store.py:15-17 的 as-built 說明。env `RAG_CASE_SIM_THRESHOLD` 可調）。
 
     表為 kb-v2 形狀（Schema.sql）＋095 併形欄（CR-0140）：欄名 problem_description /
     solution，以別名輸出 symptom / resolution 維持 MCP 工具契約不變。
