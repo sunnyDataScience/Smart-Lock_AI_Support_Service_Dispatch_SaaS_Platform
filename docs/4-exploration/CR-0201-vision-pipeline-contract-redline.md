@@ -1,7 +1,7 @@
 ---
 id: CR-0201
 title: 合約紅線：客戶照片不得進 vision 管線（SOW-2.1(4) 在 prod 持續被違反）
-status: draft
+status: implemented
 created: 2026-08-05
 author: Claude（UAT 靜態走查 2026-08-03 回查證後分流）
 triggers: [User/Business flow, External integration, Architecture boundary, Test plan]
@@ -409,6 +409,36 @@ SkillSync 只能回退 builtin，但那是三週前的狀態，**本 CR 未連 p
 **CR-0200 已建立了正確的範式**（見 VENDOR.md「本地改動紀錄」）：
 在 `ContextBuilder.__init__` 加可選旗標、預設值選一邊、把理由寫進 VENDOR.md。
 差別是 CR-0200 的預設值選「上游行為」，而本案的預設值**必須選安全側**（見 §8 D5）。
+
+---
+
+## 8-進度. ✅ 已實作（2026-08-05，commit `8b0b5749`）
+
+業主 2026-08-05 裁決「CIA gate 縮限為僅金流適用」→ 本 CR 非金流，依 §8 各題的
+**建議選項**實作：D1(c) / D2(b) / D3(b) / D4(b) / D5(b) / D6(a) / D7(b)。
+
+| 階段 | 狀態 |
+|---|---|
+| 1.1 反轉 test_line_gateway 兩支斷言 | ✅ |
+| 1.2 新增 `_build_user_content` 守線 | ✅（含 allow_vision=True 的反向驗證）|
+| 1.3 持久化旁路回歸保險 | ✅ 已驗 `:1179` 未受影響 |
+| 2.1 runtime gate（`allow_vision=False`）| ✅ |
+| 2.2 webhook gate（`handle_text_turn` 剝圖 + 注入文字事實）| ✅ |
+| 2.3 reply_guard 第四條（contextual + 收窄 marker）| ✅ 含誤判反證測試 |
+| 3.1 照片佔位話術常數 | ✅ 三個約束（帶張數/不含轉接承諾/不含金額）皆驗 |
+| 3.2 改把違規寫成設計的註解 | ✅ 檔頭 + `:1296` 兩處 |
+| 3.4 VENDOR.md 本地改動紀錄 | ✅ 兩條 |
+| 4.1 全套回歸 | ✅ 對基線失敗清單相同，passed 347 → 353 |
+| 4.2 靜態掃描複驗 | ✅ 客服請求路徑違規產生點歸零 |
+| 0.2 / D7 正典標注 | ✅ 21_Traceability_Matrix FR-0025 |
+
+**未做（需業主授權，不是遺漏）**：
+- §9 階段 0.1（查 prod skill 發佈狀態）與 3.3（改 SOP 收尾話術）—— 需 gcloud
+- 階段 4.3（K8 forbidden eval live 跑）—— 需 `GEMINI_API_KEY`，且 Vertex 目前被帳單封鎖
+- 階段 4.4（端到端實傳照片）—— 需部署
+
+**D1 仍待業主決定的部分**：本次做的是 (c) 的「止血」半邊。
+另一半「啟動合約協商」是業主/法務（Irene）的動作——若決定不談，現況即等同 D1(a)。
 
 ---
 
