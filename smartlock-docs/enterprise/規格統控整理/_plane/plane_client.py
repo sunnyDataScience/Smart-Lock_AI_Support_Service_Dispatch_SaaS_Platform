@@ -163,20 +163,31 @@ class Plane:
     def list_types(self) -> list[dict]:
         return self.paged(self._ws("/work-item-types/"))
 
-    def create_type(self, name: str, description: str = "", is_epic: bool = False) -> dict:
+    def create_type(self, name: str, description: str = "", is_epic: bool = False,
+                    **fields) -> dict:
+        """建立 workspace 級型別。`level` / `needs_acceptance` 走 **fields 一起帶。
+
+        **建立時就要帶齊，不能事後再補**：`IssueType.needs_acceptance` 的 model 預設是
+        `True`（平台刻意選的——沒被分類過的型別寧可吵，也不要從覆蓋率報表上消失）。
+        實作型（Task / Bug）不顯式送 `false`，49 張工作包會整批被要求驗收契約、
+        在覆蓋率報表上顯示為未覆蓋，而工程工作包本來就不該有驗收契約。
+        """
         return self._call("POST", self._ws("/work-item-types/"),
-                          {"name": name, "description": description, "is_epic": is_epic})
+                          {"name": name, "description": description, "is_epic": is_epic,
+                           **fields})
 
     def attach_type(self, type_id: str) -> dict:
         # 此 fork 的欄位名是 type_id（不是 work_item_type_id）
         return self._call("POST", self._proj("/work-item-types/"), {"type_id": type_id})
 
     def update_type(self, type_id: str, **fields) -> dict:
-        """改型別的 level / is_epic。
+        """改型別的 level / is_epic / needs_acceptance。
 
-        階層語意靠這兩個欄位表達：Epic = level 0 + is_epic、Feature = level 1、
-        Story 與 Quality requirement 同為 level 2。序列化器把 level 與 is_epic
-        都列在可寫欄位（read_only 只有 id/workspace/時間戳），所以 PATCH 得動。
+        階層語意靠 level 與 is_epic 表達：Epic = level 0 + is_epic、Feature = level 1、
+        Story（含品質需求）= level 2、Task = level 3。覆蓋率語意靠 needs_acceptance：
+        只有它為真的型別才會在覆蓋率報表產生一列。序列化器把三者都列在可寫欄位
+        （read_only 只有 id/workspace/時間戳），所以既有型別 PATCH 得動——
+        Epic/Feature/Story/Task/Bug 多半已是 workspace 的出廠型別，**存在不等於設定對**。
         """
         return self._call("PATCH", self._ws(f"/work-item-types/{type_id}/"), fields)
 
@@ -213,6 +224,31 @@ class Plane:
 
     def create_milestone(self, name: str, description: str = "") -> dict:
         return self._call("POST", self._proj("/milestones/"), {"name": name, "description": description})
+
+    # Cycle 與 Module 同屬排程切面（M:N），不是階層的一層。兩個前置條件會讓建立整批失敗：
+    #   ① 專案要開 `cycle_view`，否則 CycleCreateSerializer.validate() 直接回
+    #      「Cycles are not enabled for this project」（見 import_spine.REQUIRED_FEATURES）
+    #   ② start_date 與 end_date 要嘛都給、要嘛都不給（views/cycle.py 的 post 明文擋）
+
+    def list_cycles(self) -> list[dict]:
+        return self.paged(self._proj("/cycles/"))
+
+    def create_cycle(self, name: str, start: str, end: str, description: str = "") -> dict:
+        """`start` / `end` 收 `YYYY-MM-DD`，送出前補成「當地午夜」的 ISO datetime。
+
+        後端欄位是 `DateTimeField`：DRF 收到純日期字串會回 400（"Expected a datetime
+        but got a date."）。而補成帶 `Z` 的 UTC 午夜也不對——serializer 會先
+        `astimezone(專案時區)` 再取 `.date()`，負時區的專案因此整批位移一天。
+        送 naive（不帶時區）讓後端用專案時區補齊，才會落在我們算出來的那一天。
+        """
+        return self._call("POST", self._proj("/cycles/"), {
+            "name": name, "description": description,
+            "start_date": f"{start}T00:00:00", "end_date": f"{end}T00:00:00",
+        })
+
+    def add_cycle_issues(self, cycle_id: str, issue_ids: list[str]) -> dict:
+        return self._call("POST", self._proj(f"/cycles/{cycle_id}/cycle-issues/"),
+                          {"issues": issue_ids})
 
     def list_initiatives(self) -> list[dict]:
         return self.paged(self._ws("/initiatives/"))
@@ -275,6 +311,11 @@ class Plane:
 
     def delete_milestone(self, milestone_id: str) -> None:
         self._call("DELETE", self._proj(f"/milestones/{milestone_id}/"))
+
+    def delete_cycle(self, cycle_id: str) -> None:
+        # ⚠️ `rollback_target.py` 目前還沒掃 id_map 的 `cycles` 區塊（見 README §7），
+        # 回復時 6 個 sprint 容器會留著。提供這個方法是為了讓那支接上時不必再改 client。
+        self._call("DELETE", self._proj(f"/cycles/{cycle_id}/"))
 
     def delete_property(self, property_id: str) -> None:
         self._call("DELETE", self._proj(f"/work-item-properties/{property_id}/"))

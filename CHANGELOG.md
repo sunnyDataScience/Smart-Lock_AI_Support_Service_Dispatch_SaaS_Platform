@@ -24,6 +24,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **順帶釐清幣別**：帳單為 **TWD 非 USD**（`gcloud billing accounts list` 回 `currencyCode: TWD`；另以三項本專案實測反推交叉驗證——單台 `db-custom-2-8192` 若為美金等於 US$4.58/hr、Artifact Registry 需 93 GB 實際僅 5.2 GB、Secret Manager 需 440 版本實際 27，美金假設一律差 16–30 倍）。七月 NT$5,185 ≈ US$160，此規模撞不到信用額度，故「欠款金額過大致停權」不成立。
   - **成本歸因**：七月 +104% 的兩個大頭是 Cloud SQL NT$3,342（64%，單台 2vCPU/8GB 的正常價）與 Cloud Run NT$1,695（**+522%**）。後者主因為 4 個服務 `min-instances=1` 常駐計費，其中 `smart-lock-agent` 又帶 `--no-cpu-throttling`（CPU 永遠配置，閒置也全速計費）。**還原腳本刻意不還原該旗標**——LINE gateway 是請求驅動的，spool flush 也在請求週期內完成，不需 CPU 常駐。
 
+### Changed
+
+- **規格四書 → Plane 投影全面對齊《Plane QA 工程守則 v1.3》（2026-08-05 業主裁決不跑 CIA、直接動工）**：既有投影停在守則 v1.2 之前的模型，四處與現行守則衝突，且**沒有 sprint 容器**（`_plane/*.py` 全庫 `cycle` 出現 0 次），迭代無從談起。本輪一次改齊：
+  - **work item type 六改五**：`Epic` / `Feature` / `Story` / `Task` / `Bug`，廢除 `Work Group` / `Requirement` / `NFR` / `Scenario` / `Work Package`。原設計 level 0 有兩個型別、level 2 有兩個型別，正是守則 A5 點名的病症——type 兼管「多寬」與「什麼性質」會讓數量變成 `層數 × 性質數`。**需求性質改由 `Issue.requirement_kind`（`functional` / `quality` / `none`）承載**，既不是 type 也不是 property。
+  - **`needs_acceptance` 顯式關閉 Task 與 Bug**：平台預設 `true`，不關會讓 WBS 工作包整批被要求驗收契約、集體顯示為未覆蓋（守則 B1 明文警告，原匯入器全庫未出現此欄）。連帶把 `ensure_types` 從「id_map 有 key 就 skip」改為 **create-or-align**——實測這五個名字就是平台的出廠型別，skip 會讓出廠 `Task` 的 `needs_acceptance=true` 原封不動留著，等於這條修正對既有 workspace 完全不生效。
+  - **Task 匯入 28 張而非 49 張**：`wbs_disposition.yaml` 標 `archive` 的 21 張不進 Plane（規格 §3.5）。
+  - **Epic 從「7 個子系統」換成「5 條價值線 ＋ E-GLB 地板」**：子系統是技術切法，一個 sprint 交付的價值橫跨多個子系統，拿它當 Epic 會讓 roll-up 讀不出「哪幾條客戶旅程跑得通」——而那是管理層唯一會問的問題。子系統降為 Module（M:N 切面）。
+  - **SC 旅程從樹外升格為 `Feature`**：原本刻意不進 parent 樹（理由是旅程橫跨多個子系統、掛不進單一 parent）；Epic 換成價值線之後該理由消失——旅程與價值線是一對多。覆蓋率因此沿 `Story → SC → 價值線` roll-up。
+  - **新增 Cycle（sprint 容器）**：`Sprint 01`–`Sprint 06`，各 14 天連續不重疊，冪等比對名稱、不改既有起訖日。**不自動把 Story 塞進 cycle**——排程是 PM 決策（守則六個 human gate 之一），agent 只建容器；`--seed-cycle-from-milestone` 預設關閉。過程中確認 Plane 的三個實作細節：`cycle_view` feature flag 關著時 serializer 直接擋、`start_date`/`end_date` 是 `DateTimeField`（純日期字串回 400）、帶 `Z` 的 UTC 午夜會被推成前一天（改送 naive local ISO）。`rollback_target.py` 同步補掃 `cycles` bucket——建得出來卻回收不掉，rollback 就是破的。
+  - **`sc_requires_rq.yaml` 新增可選欄 `primary: true`**：解決「`Issue.parent` 是單值，而 `SC × FR` 是 M:N」的載體落差。**它不是第五條追溯邊**，追溯語意不變。新增 V12（primary 只能標在 `role: essential` 的 FR 邊上）、V13（一條需求最多一條 primary）為 error，V14（判不出 parent）為 finding。
+  - **65 條 FR 的 parent 分帳**：27 條由唯一 `essential` 邊自動推、6 條走 `§global` 地板、**32 條判不出來列入待裁決**（`_relations/PENDING_PRIMARY.md`，21 條有多條 essential 挑一條即可、11 條只有 supporting 須先升級）。判不出來一律留空、不猜——猜錯的 parent 在畫面上與正確答案長得一模一樣，只是該旅程覆蓋率多算一條、真正該扛它的旅程少算一條；留空則會在 V14 與樹上的「無 parent」組自己現形。**AI 全程未代填任何 `primary`**（該檔檔頭明訂人工判斷欄禁止 AI 代寫）。
+  - **缺口總數 0 → 32**：V14 的 32 筆 finding 進《規格統控規劃書》② 缺口清單，四書與產出健康報告的數字隨之變動。**這是新校驗生效，不是回歸。**
+  - 節點數全程不變：SC 19 / FR 65 / NFR 106 / TC 130 / Persona 10。
+
 ### Decisions
 
 - **NFR owner 拆為「目標值＝SA／實現＝架構師 + SRE」（2026-08-05 業主裁決 → [05_NFR §0.1](smartlock-docs/enterprise/05_NFR.md)）**：原 frontmatter 記 `owner: 架構師 + SRE`，需求與實現同一 owner，「達不到就自己把目標調低」在流程上無人可擋。現逐欄指名——**目標值＋分層**歸 SA（改動＝需求變更，走 CIA gate），**驗證方式＋各節策略段＋§12 Failure Modes＋§13 子系統對照**歸架構師 + SRE；架構師評估達不到時回 PM 走 `OPEN_DECISIONS` decision gate 裁決「降標 vs 加預算」，不得自行調降。此裁決同時修正一處既有不一致：`規格統控整理/_canon.py` 檔頭早已記載 `05_NFR.md NFR-* (SA writes)`，生成層一直當 SA 是 owner，只有 frontmatter 沒對齊。**不改任何一條 NFR 的目標值／驗證方式／分層**；106 條節點數與 `_validate_relations.py` 全綠不變，四書無須重生。

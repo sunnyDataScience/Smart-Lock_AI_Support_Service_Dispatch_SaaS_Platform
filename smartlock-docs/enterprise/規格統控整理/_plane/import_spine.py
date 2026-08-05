@@ -1,4 +1,9 @@
-"""把四書脊椎推進 Plane 的 LOCK 專案（README §8 的九步）。
+"""把四書脊椎推進 Plane 的規格靶心（階段清單見 README §9）。
+
+⚠️ 已知技術債（2026-08-05 刻意留下，不是沒看到）：本檔 820 行，超過專案 800 行上限 20 行。
+   天然切點是 Cycle 那三個函式（`ensure_cycles` / 日期推算 / seed，約 90 行）——它們只依賴
+   `plane_client` 與參數，與其餘階段沒有共用狀態。本輪範圍鎖在階層 V2 換裝，抽檔留待下一輪；
+   在那之前新增功能請優先往既有 helper 收，不要讓它繼續長。
 
 單向：markdown/YAML 是規格 SSOT，本腳本只讀不寫上游。
 冪等：所有建立都先查 id_map，命中就跳過／PATCH，未命中才 POST。
@@ -7,11 +12,15 @@
 用法：
     cd smartlock-docs/enterprise/規格統控整理
     PLANE_PROJECT_ID=<uuid> python3 _plane/import_spine.py [--dry-run] [--until=STAGE]
+                                   [--sprint-start=YYYY-MM-DD] [--seed-cycle-from-milestone]
 
-`--until` 在指定階段做完後收工（階段名見 PIPELINE）。分段是為了讓人在卡片長相、
+`--until` 在指定階段做完後收工（階段名見 main() 的 pipeline）。分段是為了讓人在卡片長相、
 自訂欄位、追溯連結各自落地後有機會在 UI 上驗一次再往下推——Plane 沒有批次刪除，
 一次推完 500 個物件而形狀錯了，清理成本遠高於分兩次跑。續跑冪等，直接再跑一次
 即可，已建的會從 id_map 命中跳過。
+
+本檔只建**平的**卡片與容器；`Issue.parent` 的拆解樹（Epic → Feature → Story → Task）
+一律由 `rebuild_hierarchy.py` 建，兩支都跑完才是完整的守則 v1.3 模型。
 """
 
 from __future__ import annotations
@@ -21,16 +30,19 @@ import json
 import os
 import re
 import sys
+from datetime import date, datetime, timedelta
 from pathlib import Path
+
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import _canon as canon  # noqa: E402
 from _plane.plane_client import Plane, PlaneError, doc  # noqa: E402
 
-HERE = Path(__file__).resolve().parent
 ID_MAP: Path | None = None   # per-target，main() 依 Plane.state_file() 決定
 DRY = "--dry-run" in sys.argv
+SEED_CYCLES = "--seed-cycle-from-milestone" in sys.argv
 
 PRIORITY = {"P0": "urgent", "P1": "high", "P2": "medium", "": "none"}
 SPEC_STATUS = {
@@ -64,15 +76,31 @@ def wbs_state(status: str) -> str:
     print(f"    ! 未知的 WBS 狀態記號 {text[:20]!r} → 暫置 Backlog", file=sys.stderr)
     return "Backlog"
 
+# 守則 v1.3 B1 的五個型別，也是 `rebuild_hierarchy.py` 讀的同一份宣告（單一真相源）。
+#
+# **不准開第六個。** 需求的「性質」由 `Issue.requirement_kind` 承載，開成型別會讓型別數
+# 變成「層數 × 性質數」——這個 workspace 曾經因此長到九個型別。
+#
+# 三個屬性一次帶齊、不事後補：`level` 是階層語意的唯一載體（不靠型別名比對）、
+# `is_epic` 只有 Epic 為真、`needs_acceptance` 決定誰欠驗收契約。
+# **Task / Bug 必須顯式送 false**——model 預設 True，不關掉的話工作包會整批被要求
+# 驗收契約並顯示為未覆蓋。
 TYPES = [
-    ("Scenario", "28_Scenarios 的情境脊椎 SC-*", False),
-    ("Requirement", "04_SRS 的功能需求 FR-*", False),
-    ("NFR", "05_NFR 的非功能需求 NFR-*", False),
-    ("Work Package", "27_Product_Roadmap_WBS 的工作包", False),
-    ("Work Group", "WBS 工作群（1.1 / 2.3 …）", True),
+    ("Epic",    "價值線：5 條分線 + 跨旅程地板（E-*）",
+     {"level": 0, "is_epic": True,  "needs_acceptance": True}),
+    ("Feature", "SC 旅程（28_Scenarios）與地板屬性群",
+     {"level": 1, "is_epic": False, "needs_acceptance": True}),
+    ("Story",   "需求：04_SRS 的 FR 與 05_NFR 的 NFR（性質看 requirement_kind）",
+     {"level": 2, "is_epic": False, "needs_acceptance": True}),
+    ("Task",    "27_Product_Roadmap_WBS 的工作包（實作工作，不是需求）",
+     {"level": 3, "is_epic": False, "needs_acceptance": False}),
+    ("Bug",     "缺陷：由失敗結果產生，匯入時 0 張",
+     {"level": 2, "is_epic": False, "needs_acceptance": False}),
 ]
 
 SUBSYSTEMS = ["AGT", "API", "WEB", "DAT", "REF", "TEC", "PLT"]
+# 五分線只留給 `value_line` 自訂欄位的值域。**不再建同名 Module**：分線已升格成 Epic
+# （代號與標題見 `_spec_data.VALUE_LINES`），兩邊都留會讓同一件事在看板上有兩個入口。
 LINES = ["L1-CUS", "L1-OPS", "L1-TEC", "L1-KNW", "L1-PLT"]
 MILESTONES = [
     ("M1", "M1 上線硬化"), ("M2", "M2 身分・知識・技師平台"),
@@ -80,13 +108,16 @@ MILESTONES = [
 ]
 INITIATIVES = [("階段一", "階段一：鎖匠垂直深耕（單品牌）"), ("階段二", "階段二：規模化與平台化橫向展開")]
 
+SPRINTS = 6          # Sprint 01–06
+SPRINT_DAYS = 14     # 每個 sprint 兩週，連續不重疊
+
 
 # ---------------------------------------------------------------- state ---
 
 def load_state() -> dict:
     if ID_MAP.exists():
         return json.loads(ID_MAP.read_text(encoding="utf-8"))
-    return {k: {} for k in ("types", "properties", "modules", "milestones",
+    return {k: {} for k in ("types", "properties", "modules", "milestones", "cycles",
                             "initiatives", "work_items", "folders", "test_cases", "test_runs")}
 
 
@@ -109,9 +140,11 @@ def tick(done: int, total: int, label: str) -> None:
 
 # ------------------------------------------------------------- schema ----
 
-# 沒開這兩個旗標，自訂 type 與 Module 在 API 上會建得起來、在 UI 上卻看不到，
+# 沒開這幾個旗標，自訂 type 與 Module 在 API 上會建得起來、在 UI 上卻看不到，
 # 是最難察覺的一種「匯入成功但沒東西」。開靶前先對齊。
-REQUIRED_FEATURES = {"is_issue_type_enabled": True, "module_view": True}
+# `cycle_view` 比另外兩個更硬：關著時 CycleCreateSerializer.validate() 直接回
+# 「Cycles are not enabled for this project」，6 個 sprint 容器一個都建不出來。
+REQUIRED_FEATURES = {"is_issue_type_enabled": True, "module_view": True, "cycle_view": True}
 
 
 def ensure_project_features(p: Plane) -> None:
@@ -129,25 +162,51 @@ def ensure_project_features(p: Plane) -> None:
     print(f"    已開啟 {sorted(missing)}")
 
 
+def type_drift(found: dict, want: dict) -> dict:
+    """回傳型別上與宣告不符的欄位（{欄位: 現值}）。沒有漂移回空 dict。
+
+    `level` 是 FloatField 要轉 float 比；另兩個用 bool() 收斂 None/0 這些「沒設定」的
+    表示法，免得每次跑都判成漂移而白送 PATCH。
+    """
+    out: dict = {}
+    for key, value in want.items():
+        now = found.get(key)
+        drifted = float(now or 0) != float(value) if key == "level" else bool(now) != bool(value)
+        if drifted:
+            out[key] = now
+    return out
+
+
 def ensure_types(p: Plane, state: dict) -> None:
-    step("① work item types")
-    existing = {t["name"]: t["id"] for t in p.list_types()}
-    for name, desc, is_epic in TYPES:
-        if name in state["types"]:
+    """建立／對齊五個型別並掛到專案。
+
+    **不能因為查得到同名型別就跳過。** Epic / Feature / Story / Task / Bug 多半是平台的
+    出廠型別，但**存在不等於設定對**（出廠的 Task 一樣 `needs_acceptance=true`）。
+    一律先比對再決定 PATCH，讓型別長相重跑一次就能自我修正。
+    """
+    step("① work item types（5 個：Epic / Feature / Story / Task / Bug）")
+    existing = {t["name"]: t for t in p.list_types()}
+    for name, desc, attrs in TYPES:
+        found = existing.get(name)
+        drift = type_drift(found, attrs) if found else {}
+        if DRY:
+            now = "尚未建立" if not found else (f"漂移 {drift}" if drift else "設定已相符")
+            print(f"    [dry] {name}：{now} → {attrs}，並確保掛到本專案")
             continue
-        tid = existing.get(name)
-        if not tid:
-            if DRY:
-                print(f"    [dry] create type {name}")
-                continue
-            tid = p.create_type(name, desc, is_epic)["id"]
+        if not found:
+            found = p.create_type(name, desc, attrs["is_epic"], level=attrs["level"],
+                                  needs_acceptance=attrs["needs_acceptance"])
+        elif drift:
+            print(f"    ✎ {name} 現值 {drift} → {attrs}")
+            found = p.update_type(found["id"], **attrs)
         try:
-            p.attach_type(tid)
+            p.attach_type(found["id"])
         except PlaneError as exc:
             if exc.status not in (400, 409):  # 已關聯
                 raise
-        state["types"][name] = tid
-        print(f"    {name} -> {tid}")
+        state["types"][name] = found["id"]
+        print(f"    {name} -> {found['id']}  level={attrs['level']} "
+              f"is_epic={attrs['is_epic']} needs_acceptance={attrs['needs_acceptance']}")
     save_state(state)
 
 
@@ -188,9 +247,14 @@ def ensure_properties(p: Plane, state: dict, personas: list) -> None:
 
 
 def ensure_containers(p: Plane, state: dict) -> None:
+    """Module（7 子系統）/ Milestone（M1–M5）/ Initiative（階段一・二）。
+
+    Module 只留子系統。分線升格成 Epic 後同名 Module 就刪了——Module 是 M:N 切面、
+    Epic 是階層，兩者統計口徑不同，同一個「分線」有兩個入口只會讓人對不上帳。
+    """
     step("③ Module / Milestone / Initiative")
     mods = {m["name"]: m["id"] for m in p.list_modules()}
-    for name in LINES + [f"子系統 {s}" for s in SUBSYSTEMS]:
+    for name in [f"子系統 {s}" for s in SUBSYSTEMS]:
         if name in state["modules"]:
             continue
         if DRY:
@@ -216,6 +280,80 @@ def ensure_containers(p: Plane, state: dict) -> None:
     print(f"    modules={len(state['modules'])} milestones={len(state['milestones'])} "
           f"initiatives={len(state['initiatives'])}")
     save_state(state)
+
+
+# -------------------------------------------------------------- cycles ---
+
+def sprint_start() -> date:
+    """`--sprint-start=YYYY-MM-DD`；沒給就取執行日**之後**的第一個週一。
+
+    「之後」是嚴格的：今天正好是週一時取下週一。讓 sprint 從今天開跑，第一格先少半天，
+    之後每個邊界都跟著歪，燃盡圖從第一天起就對不上日曆。
+    """
+    raw = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--sprint-start=")), "")
+    if raw:
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d").date()
+        except ValueError:
+            raise SystemExit(f"--sprint-start 需為 YYYY-MM-DD，收到 {raw!r}")
+    today = date.today()
+    return today + timedelta(days=(7 - today.weekday()) % 7 or 7)
+
+
+def ensure_cycles(p: Plane, state: dict) -> None:
+    """Sprint 01–06，各 2 週、連續不重疊。
+
+    冪等是**比對名稱**：同名 cycle 已存在就沿用 id、不改起訖日——日期排定後是 PM 與 RD
+    的共識，匯入器重跑不該把別人挪過的 sprint 拉回自己算的那一天。
+    """
+    step(f"④ Cycle（Sprint 01–{SPRINTS:02d}，各 {SPRINT_DAYS // 7} 週）")
+    cycles = state.setdefault("cycles", {})
+    existing = {} if DRY else {c["name"]: c["id"] for c in p.list_cycles()}
+    first = sprint_start()
+    for i in range(SPRINTS):
+        name = f"Sprint {i + 1:02d}"
+        begin = first + timedelta(days=SPRINT_DAYS * i)
+        end = begin + timedelta(days=SPRINT_DAYS - 1)
+        if name in cycles:
+            continue
+        if DRY:
+            print(f"    [dry] cycle {name} {begin} → {end}")
+            continue
+        hit = existing.get(name)
+        cycles[name] = hit or p.create_cycle(name, begin.isoformat(), end.isoformat())["id"]
+        print(f"    {name} {begin} → {end}{'（沿用既有）' if hit else ''}")
+    save_state(state)
+
+
+def seed_cycles(p: Plane, state: dict) -> None:
+    """`--seed-cycle-from-milestone`（預設關）：M1 的 Story 依 WBS 順序填進 Sprint 01–02。
+
+    **預設不做是刻意的**：哪張卡進哪個 sprint 是 PM 決策（守則六個 human gate 之一），
+    agent 只建容器。這條路徑只為 demo／驗收時燃盡圖不是空的，因此只碰 M1。
+    「M1 的 Story」得經 WBS 轉一手——有 milestone 的是工作包，Story 沒有，
+    所以順序也就是 WBS 的順序。
+    """
+    if not SEED_CYCLES:
+        return
+    step("⑩ seed：M1 Story → Sprint 01–02（--seed-cycle-from-milestone）")
+    disposition = load_disposition()
+    ordered: list[str] = []
+    for row in canon.load_wbs():
+        wid = (row[1] or "").strip()
+        item = disposition.get(wid)
+        if not wid.startswith("1.") or not item or item.get("disposition") == "archive":
+            continue
+        rec = state["work_items"].get(wbs_requirement(item) or "")
+        if rec and rec["id"] not in ordered:
+            ordered.append(rec["id"])
+    half = -(-len(ordered) // 2)
+    for name, ids in (("Sprint 01", ordered[:half]), ("Sprint 02", ordered[half:])):
+        cid = state.get("cycles", {}).get(name)
+        if DRY or not cid or not ids:
+            print(f"    {name}: {len(ids)} 張 Story（未寫入：dry-run／cycle 不存在／無卡）")
+            continue
+        p.add_cycle_issues(cid, ids)
+        print(f"    {name}: {len(ids)} 張 Story")
 
 
 # ---------------------------------------------------------- work items ---
@@ -258,13 +396,17 @@ def _set_props(p: Plane, state: dict, issue_id: str, values: dict) -> None:
 
 
 def _upsert(p: Plane, state: dict, key: str, name: str, type_name: str,
-            description_html: str, priority: str = "none",
+            description_html: str, requirement_kind: str, priority: str = "none",
             props: dict | None = None, fields: dict | None = None) -> dict:
     """建立或取回一張卡。
 
     自訂欄位走 create 的 inline `properties`（serializer 支援，見
     IssueSerializer._validate_properties）—— 每張卡因此只花 1 次 API 呼叫而不是
     1+N 次。後端限速 60/min，這個差別是整份匯入 40 分鐘 vs 7 分鐘。
+
+    `requirement_kind` 是 `Issue` 的**原生欄位**（不是自訂欄位），刻意不給預設值：
+    每個呼叫端都要說清楚這張卡是功能需求、品質需求，還是根本不是需求。守則 B2 的
+    `none` ≠ null——Task 實作需求但不「是」需求，這與「還沒分類」是兩件事。
 
     額外的原生欄位（state / milestone / parent…）走 `fields` dict 而不是 **kwargs：
     Plane 的欄位名 `state` 會和本函式的 `state` 參數撞名。
@@ -282,6 +424,7 @@ def _upsert(p: Plane, state: dict, key: str, name: str, type_name: str,
     item = p.create_work_item(
         name=name[:250], type_id=state["types"][type_name],
         description_html=description_html, priority=priority,
+        requirement_kind=requirement_kind,
         properties=_by_uuid(state, props or {}), **(fields or {}),
     )
     rec = {"id": item["id"], "sequence_id": item["sequence_id"], "type": type_name}
@@ -292,13 +435,19 @@ def _upsert(p: Plane, state: dict, key: str, name: str, type_name: str,
 
 
 def import_scenarios(p: Plane, state: dict, rel, personas) -> None:
-    step("④a 情境卡 SC（19）")
+    """19 張旅程卡。**型別是 Feature**——旅程從樹外的獨立節點搬進拆解樹了。
+
+    覆蓋率因此沿 `SC → 分線 Epic` roll-up，管理層才答得出「哪幾條客戶旅程跑得通」。
+    SC 既有的驗收契約（145 條）保留、與 parent 鏈並存——一個答「憑什麼算完成」，一個答
+    「它在樹的哪裡」。parent 由 `rebuild_hierarchy.py` 回填。
+    """
+    step("⑤a 情境卡 SC（19，Feature）")
     scenarios = canon.load_scenarios()
     for i, sc in enumerate(scenarios, 1):
-        _upsert(p, state, sc.sc_id, f"{sc.sc_id} {sc.name}", "Scenario",
+        _upsert(p, state, sc.sc_id, f"{sc.sc_id} {sc.name}", "Feature",
                 _html(("主要 Actor", sc.actor), ("觸發", sc.trigger),
                       ("主要步驟", sc.steps), ("完成判定", sc.done), ("失敗與例外", sc.fail)),
-                PRIORITY.get(sc.priority, "none"),
+                "functional", PRIORITY.get(sc.priority, "none"),
                 props={
                     "canonical_id": sc.sc_id,
                     "source_doc": "28_Scenarios.md",
@@ -311,12 +460,17 @@ def import_scenarios(p: Plane, state: dict, rel, personas) -> None:
 
 
 def import_requirements(p: Plane, state: dict, rel) -> None:
-    step("④b 功能需求 FR（65）")
+    """171 張需求卡全是 Story，FR 與 NFR 的差別走 `requirement_kind`。
+
+    NFR 不再有自己的型別：性質是欄位、層級才是型別（守則 B1/B2）。
+    """
+    step("⑤b 功能需求 FR（65，Story / functional）")
     reqs = canon.load_requirements()
     for i, r in enumerate(reqs, 1):
-        _upsert(p, state, r.req_id, f"{r.req_id} {r.name}", "Requirement",
+        _upsert(p, state, r.req_id, f"{r.req_id} {r.name}", "Story",
                 _html(("前置條件", r.precondition), ("主流程", r.flow),
                       ("後置條件與驗收", r.acceptance), ("追溯", r.trace)),
+                "functional",
                 props={
                     "canonical_id": r.req_id,
                     "source_doc": f"04_SRS.md {r.heading}",
@@ -331,11 +485,12 @@ def import_requirements(p: Plane, state: dict, rel) -> None:
         tick(i, len(reqs), "FR")
     save_state(state)
 
-    step("④c 非功能需求 NFR（106）")
+    step("⑤c 非功能需求 NFR（106，Story / quality）")
     nfrs = canon.load_nfrs()
     for i, n in enumerate(nfrs, 1):
-        _upsert(p, state, n.req_id, f"{n.req_id} {n.name}", "NFR",
+        _upsert(p, state, n.req_id, f"{n.req_id} {n.name}", "Story",
                 _html(("目標值", n.target), ("驗證方式", n.verification), ("分層", n.tier)),
+                "quality",
                 props={
                     "canonical_id": n.req_id,
                     "source_doc": f"05_NFR.md {n.heading}",
@@ -353,14 +508,13 @@ def import_requirements(p: Plane, state: dict, rel) -> None:
 
 
 def attach_modules(p: Plane, state: dict) -> None:
-    step("④d 掛 Module（分線 / 子系統）")
+    """FR 掛子系統 Module。SC 不再掛——分線已是它的 Epic，再掛同名 Module 是同一件事
+    講兩次；旅程的分線資訊仍留在 `value_line` 自訂欄位。
+    """
+    step("⑤d 掛 Module（子系統）")
     if DRY:
         return
     buckets: dict[str, list[str]] = {}
-    for sc in canon.load_scenarios():
-        rec = state["work_items"].get(sc.sc_id)
-        if rec:
-            buckets.setdefault(sc.line, []).append(rec["id"])
     for r in canon.load_requirements():
         rec = state["work_items"].get(r.req_id)
         if rec:
@@ -375,7 +529,7 @@ def attach_modules(p: Plane, state: dict) -> None:
 
 
 def import_relations(p: Plane, state: dict, rel) -> None:
-    step("⑤ sc_requires_rq relation（132，relates_to 供導航）")
+    step("⑥ sc_requires_rq relation（132，relates_to 供導航）")
     if DRY:
         return
     done = state.setdefault("relations_done", [])
@@ -402,20 +556,42 @@ def import_relations(p: Plane, state: dict, rel) -> None:
 WBS_TITLE = re.compile(r"^(\d+\.\d+(?:\.\d+)?)\s")
 
 
+def load_disposition() -> dict[str, dict]:
+    """WBS 工作包的處置對照（`_relations/wbs_disposition.yaml`），以 WBS 編號為鍵。
+
+    人的判斷，匯入器只讀不推：`archive` 是已交付的歷史紀錄，**不匯入**（進了看板就進
+    覆蓋率分母，逼人替三個月前做完的事補驗收契約）；`delivers` 是交付哪幾條 FR——WBS 與
+    FR 編號之間沒有任何命名關係，猜出來的對映會安靜地把 Task 掛到錯的 Story 底下。
+    """
+    data = yaml.safe_load((canon.RELATIONS / "wbs_disposition.yaml").read_text(encoding="utf-8"))
+    return {str(item["wbs"]): item for item in ((data or {}).get("items") or [])}
+
+
+def wbs_requirement(item: dict) -> str | None:
+    """工作包對到的**唯一** FR；0 條或 2 條以上一律回 None——挑第一條當代表等於用擲骰子
+    決定這張 Task 掛在誰底下，寧可留空讓缺口在看板上看得見。
+    """
+    delivers = [d for d in (item.get("delivers") or []) if d]
+    return delivers[0] if len(delivers) == 1 else None
+
+
 def adopt_existing_wbs(p: Plane, state: dict) -> None:
     """把「不是本匯入器建的」既有 WBS 卡認領進 id_map。
 
     遠端 LOCK 早於本管線就在跑交付看板，1.1.1 / 2.4.3 這些工作包已是人工開的卡。
-    不認領就會被 ⑥ 當成未建、再開一張同號的——同一個工作包在看板上長出兩張卡，
+    不認領就會被 ⑦ 當成未建、再開一張同號的——同一個工作包在看板上長出兩張卡，
     而 Plane 的寫入沒有冪等可以擋。標題前綴的編號就是它的 canonical_id，直接拿來
-    對號入座；認領後補上 type / milestone，讓人工卡與匯入卡在資料模型上齊平。
+    對號入座；認領後補上 type / milestone / requirement_kind，讓人工卡與匯入卡齊平。
+    標為 `archive` 的不認領——本管線不建它就不接管它，否則等於把別人的歷史卡默默
+    納入回復範圍。
     """
-    step("⑥a 認領既有 WBS 卡")
+    step("⑦a 認領既有 WBS 卡")
     if DRY:
         return
+    disposition = load_disposition()
     known = {rec["id"] for rec in state["work_items"].values()}
     adopted = state.setdefault("adopted", [])
-    hit = 0
+    hit = skipped = 0
     for it in p.list_work_items():
         m = WBS_TITLE.match(it.get("name") or "")
         if not m or it["id"] in known:
@@ -423,9 +599,12 @@ def adopt_existing_wbs(p: Plane, state: dict) -> None:
         key = f"WBS-{m.group(1)}"
         if key in state["work_items"]:
             continue
+        if disposition.get(m.group(1), {}).get("disposition") == "archive":
+            skipped += 1
+            continue
         state["work_items"][key] = {"id": it["id"], "sequence_id": it["sequence_id"],
-                                    "type": "Work Package"}
-        fields = {"type_id": state["types"]["Work Package"]}
+                                    "type": "Task"}
+        fields = {"type_id": state["types"]["Task"], "requirement_kind": "none"}
         ms = state["milestones"].get(f"M{m.group(1).split('.')[0]}")
         if ms:
             fields["milestone"] = ms
@@ -435,16 +614,23 @@ def adopt_existing_wbs(p: Plane, state: dict) -> None:
             print(f"    ! adopt {key}: {exc}", file=sys.stderr)
         adopted.append(key)
         hit += 1
-    print(f"    認領 {hit} 張既有卡（不再重複建立）")
+    print(f"    認領 {hit} 張既有卡（不再重複建立）；略過 archive {skipped} 張")
     save_state(state)
 
 
 def import_wbs(p: Plane, state: dict) -> None:
-    step("⑥ WBS 工作包")
+    """WBS 工作包 → Task 卡（archive 的不進來）。parent 不在這裡設：拆解樹一律由
+    `rebuild_hierarchy.py` 負責，「唯一 FR 才掛、對不到就留空」的判定在那邊。
+    """
+    step("⑦ WBS 工作包（Task，needs_acceptance=false）")
+    disposition = load_disposition()
     rows = [r for r in canon.load_wbs() if re.fullmatch(r"\d+\.\d+(\.\d+)?", (r[1] or "").strip())]
+    kept = [r for r in rows
+            if disposition.get((r[1] or "").strip(), {}).get("disposition") != "archive"]
+    print(f"    源檔 {len(rows)} 個工作包，略過 archive {len(rows) - len(kept)} 個 → 匯入 {len(kept)}")
     states = {s["name"]: s["id"] for s in p.paged(
         f"/api/v1/workspaces/{p.slug}/projects/{p.project_id}/states/")} if not DRY else {}
-    for i, row in enumerate(rows, 1):
+    for i, row in enumerate(kept, 1):
         group, wid, status, name, owner, deps, deliver = (row + [""] * 7)[:7]
         key = f"WBS-{wid}"
         fields: dict = {}
@@ -455,15 +641,16 @@ def import_wbs(p: Plane, state: dict) -> None:
             ms = state["milestones"].get(f"M{wid.split('.')[0]}")
             if ms:
                 fields["milestone"] = ms
-        _upsert(p, state, key, f"{wid} {name}", "Work Package",
+        _upsert(p, state, key, f"{wid} {name}", "Task",
                 _html(("狀態原文", status), ("負責", owner), ("前置", deps),
                       ("交付物 / 驗收依據", deliver), ("里程碑", group)),
+                "none",
                 props={
                     "canonical_id": wid,
                     "source_doc": "27_Product_Roadmap_WBS.md",
                     "owner_role": "PM",
                 }, fields=fields)
-        tick(i, len(rows), "WBS")
+        tick(i, len(kept), "WBS")
     save_state(state)
 
 
@@ -497,7 +684,7 @@ def ensure_folder(p: Plane, state: dict, path: str) -> str | None:
 
 
 def import_test_cases(p: Plane, state: dict, rel) -> None:
-    step("⑦ 測試案例 TC（130）+ 追溯連結（273）")
+    step("⑧ 測試案例 TC（130）+ 追溯連結（273）")
     cases = canon.load_test_cases()
     sc_of_tc: dict[str, str] = {}
     for s in rel.sc_tc:
@@ -551,7 +738,7 @@ def import_test_cases(p: Plane, state: dict, rel) -> None:
 
 
 def import_test_runs(p: Plane, state: dict, rel) -> None:
-    step("⑧ 驗收腳本 TestRun（19）")
+    step("⑨ 驗收腳本 TestRun（19）")
     for s in rel.sc_tc:
         sc_id = s["scenario"]
         if sc_id in state["test_runs"] or DRY:
@@ -572,17 +759,20 @@ def import_test_runs(p: Plane, state: dict, rel) -> None:
 
 
 def verify(p: Plane, state: dict) -> None:
-    step("⑨ 驗收對帳")
+    step("⑪ 驗收對帳")
     if DRY:
         return
     cov = p.requirement_coverage()
     reqs = {r.req_id for r in canon.load_requirements()} | {n.req_id for n in canon.load_nfrs()}
     print(f"    work items      : {len(state['work_items'])}")
+    print(f"    cycles          : {len(state.get('cycles') or {})}")
     print(f"    test cases      : {len(state['test_cases'])}")
     print(f"    test runs       : {len(state['test_runs'])}")
     print(f"    coverage total  : {cov.get('total')}  covered={cov.get('covered')} "
           f"uncovered={cov.get('uncovered')}")
     print(f"    需求基線 (FR+NFR): {len(reqs)}")
+    # 分母只算 needs_acceptance 的型別；它若接近「全部卡數」多半是 ① 沒關掉 Task 的旗標。
+    print("    ※ 分母應為 Epic+Feature+Story（不含 Task）；接著跑 rebuild_hierarchy.py 建 parent")
 
 
 def main() -> int:
@@ -601,6 +791,7 @@ def main() -> int:
         ("types",        lambda: ensure_types(p, state)),
         ("properties",   lambda: ensure_properties(p, state, personas)),
         ("containers",   lambda: ensure_containers(p, state)),
+        ("cycles",       lambda: ensure_cycles(p, state)),
         ("scenarios",    lambda: import_scenarios(p, state, rel, personas)),
         ("requirements", lambda: import_requirements(p, state, rel)),
         ("modules",      lambda: attach_modules(p, state)),
@@ -608,6 +799,8 @@ def main() -> int:
         ("wbs",          lambda: (adopt_existing_wbs(p, state), import_wbs(p, state))),
         ("testing",      lambda: import_test_cases(p, state, rel)),
         ("runs",         lambda: import_test_runs(p, state, rel)),
+        # seed 排在卡片全部建完之後：它要拿 Story 的 id，且預設不做（見 seed_cycles）
+        ("seed",         lambda: seed_cycles(p, state)),
         ("verify",       lambda: verify(p, state)),
     ]
     names = [n for n, _ in pipeline]
@@ -623,7 +816,8 @@ def main() -> int:
         run()
         if name == until:
             break
-    print(f"\n完成（至 {until}）。{ID_MAP.name} 已落盤。")
+    # dry-run 什麼都沒寫，說「已落盤」會讓人以為 id_map 更新了而不再重跑
+    print(f"\n完成（至 {until}）。{'（dry-run，未寫入任何東西）' if DRY else ID_MAP.name + ' 已落盤。'}")
     return 0
 
 
