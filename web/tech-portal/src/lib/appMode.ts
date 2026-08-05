@@ -50,6 +50,9 @@ const TECH_BUILD_ALLOWED = [
   "/upload-docs", // W3-6 師傅補件連結公開頁(師傅身分歸 tech 站,同 /tech-register)
   "/forgot-password",
   "/reset-password",
+  // CR-0146 OIDC 授權碼流過渡落地頁——本站確實有 src/app/auth/sso-complete/page.tsx,
+  // 漏列會讓 tech build 把 SSO 回跳導走,登入流程走不完。
+  "/auth/sso-complete",
   ...TECH_APP_PREFIXES,
 ];
 

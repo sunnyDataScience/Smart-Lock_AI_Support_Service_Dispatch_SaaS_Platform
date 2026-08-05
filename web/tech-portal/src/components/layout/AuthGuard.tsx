@@ -34,6 +34,11 @@ const PUBLIC_PATHS = new Set([
   "/reset-password",
   "/platform/login", // CR-0114 平台 console 登入（漏列 → 平台管理員到不了登入頁）
   "/platform/apply", // 品牌/經銷/鎖店「申請導入平台」公開頁（未登入必須可達）
+  // CR-0146 OIDC 授權碼流過渡落地頁：SSO 回跳到此頁時 localStorage 還沒有 token，
+  // 漏列 → `!session && !isPublic` → 被導走 → SSO 登入永遠走不完。
+  // brand-portal 的 AuthGuard 早已放行（AuthGuard.tsx:38），本站與
+  // platform-console 漏跟上；三站都有 src/app/auth/sso-complete/page.tsx。
+  "/auth/sso-complete",
 ]);
 const PUBLIC_PREFIXES = [
   "/track/",

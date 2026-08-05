@@ -66,6 +66,10 @@ function matchPrefix(pathname: string, prefix: string): boolean {
 export function crossModeRedirect(pathname: string): string | null {
   if (APP_MODE === "all") return null;
   if (APP_MODE === "platform") {
+    // CR-0146 OIDC 授權碼流過渡落地頁不在 /platform 頁群下,但本站確實有
+    // src/app/auth/sso-complete/page.tsx——不放行會讓 SSO 回跳被導去登入頁,
+    // 授權碼還沒換成 token 就被丟掉,登入流程永遠走不完。
+    if (matchPrefix(pathname, "/auth/sso-complete")) return null;
     // 平台 console 只服務 /platform 頁群;其餘一律導 console 登入頁。
     if (matchPrefix(pathname, "/platform")) return null;
     return "/platform/login";
