@@ -140,8 +140,55 @@ def claimed_transfer_violation(reply: str, *, escalated: bool) -> bool:
     return not escalated and any(m in (reply or "") for m in _CLAIMED_TRANSFER_MARKERS)
 
 
-def guard_violations(reply: str, customer_text: str, *, escalated: bool) -> list[str]:
-    """回傳違規原因清單（空＝通過）。"""
+# CR-0201 D3(b)：宣稱看到影像內容的字樣。**刻意收窄**——
+# 只留「幾乎不可能在無圖語境自然出現」的說法。
+#
+# 被排除的候選與理由：「我看到」「看起來是」在故障排除對話裡每天都會出現
+# （「看起來是電池沒電」），無條件納入會把大量正常文字對話推去人工。
+# 違規的終局是把客人推給真人，誤判成本很高，所以寧可漏抓也不誤傷。
+_VISION_CLAIM_MARKERS: tuple[str, ...] = (
+    "照片中", "照片裡", "圖片中", "圖片裡", "圖中",
+    "照片顯示", "圖片顯示", "從照片", "從圖片", "照片上",
+)
+
+
+# 通道層注入「本輪有照片」的穩定標記。定義在守衛這一側是刻意的：
+# 偵測契約由使用者（guard）擁有，通道只是照著產生，避免措辭一改就悄悄失效。
+# 照片被剝除後（CR-0201），這是 loop 唯一還能知道「本輪有照片」的線索。
+PHOTO_TURN_SENTINEL = "[系統事實] 客人本輪傳了"
+
+
+def turn_had_photo(customer_text: str) -> bool:
+    """從客人訊息文字判定本輪是否附了照片（配合 PHOTO_TURN_SENTINEL）。"""
+    return PHOTO_TURN_SENTINEL in (customer_text or "")
+
+
+def vision_claim_violation(reply: str, *, has_media: bool) -> bool:
+    """本 turn 有照片、且回覆宣稱看到照片內容 → 違規（合約紅線 SOW-2.1(4)）。
+
+    **contextual 判定**：`has_media=False` 時一律不判。理由是純文字對話裡
+    「照片中」這類字樣要嘛是客人自己提到照片、要嘛是模型幻覺，兩者都不是
+    「AI 解讀了影像」——而後者已由 nightly 的 K8 forbidden eval 覆蓋
+    （`agent/scripts/forbidden_eval.py` 的 image_moderation 題組）。
+    做法與該檔一致：只在 `expect == "no_vision"` 的情境下套用，不是新發明。
+
+    這條的價值不在攔截（前兩道 gate 已讓模型物理上看不到影像），
+    而在**提供 runtime 的 violation 計數點** —— NFR-Sec-009 / NFR-Comp-003
+    要求 violation count = 0 且需可稽核，沒有計數點就無從舉證。
+    """
+    if not has_media:
+        return False
+    return any(m in (reply or "") for m in _VISION_CLAIM_MARKERS)
+
+
+def guard_violations(
+    reply: str, customer_text: str, *, escalated: bool, has_media: bool = False,
+) -> list[str]:
+    """回傳違規原因清單（空＝通過）。
+
+    has_media：本 turn 客人是否傳了照片。預設 False＝維持既有呼叫端行為不變
+    （CR-0201 新增；只影響 vision_claim 這一條）。
+    """
     out: list[str] = []
     if price_violation(reply, escalated=escalated):
         out.append("price_utterance")
@@ -150,4 +197,6 @@ def guard_violations(reply: str, customer_text: str, *, escalated: bool) -> list
         out.append("unsourced_model:" + ",".join(codes[:5]))
     if claimed_transfer_violation(reply, escalated=escalated):
         out.append("claimed_transfer_without_tool")
+    if vision_claim_violation(reply, has_media=has_media):
+        out.append("vision_claim_without_capability")
     return out

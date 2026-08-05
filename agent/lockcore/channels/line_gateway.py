@@ -9,8 +9,12 @@
 
 訊息型別(2026-07-03 VLN 修復):
   - 文字 → 原有 turn 流程。
-  - 照片 → 以 Blob API 下載到 get_media_dir("line") → InboundMessage(media=[路徑])
-    → context 既有 vision 管線(base64 image_url)交給 LLM 理解。
+  - 照片 → 以 Blob API 下載到 get_media_dir("line"),**只走持久化旁路**
+    (_encode_media_for_persist → internal ingest → media_files → 品牌後台對話時間軸,
+    供客服人員檢視);模型面只收到「客人傳了 N 張照片」這個文字事實,看不到內容。
+    ⚠️ 合約紅線 SOW-2.1(4) 禁止 AI 影像辨識(04_SRS.md:528/:535「違反 = block release」)。
+    此處原本寫「→ context 既有 vision 管線(base64 image_url)交給 LLM 理解」——
+    那是把違約行為記成設計,2026-08-05 依 CR-0201 修正。
   - 其他(貼圖/語音/影片/檔案/位置)→ 回友善話術(原本是靜默丟棄=已讀不回)。
 
 身分:user_id 直接用 LINE 的 userId(per official-account 穩定);tenant 先固定單一店家。
@@ -61,6 +65,30 @@ _UNSUPPORTED_MEDIA_REPLY = (
     "麻煩您用文字描述問題,或直接拍一張門鎖的照片傳給我,我馬上為您服務!"
 )
 _IMAGE_DOWNLOAD_FAIL_REPLY = "照片好像沒有傳送成功,麻煩您再傳一次,謝謝 🙏"
+
+# CR-0201：與 reply_guard 共用同一個標記，避免措辭一改就讓守衛悄悄失效。
+from lockcore.agent.reply_guard import PHOTO_TURN_SENTINEL  # noqa: E402
+
+
+def _photo_notice_for_model(count: int) -> str:
+    """餵給模型的照片事實(CR-0201)——**這不是給客人看的話術**,是模型的輸入。
+
+    合約紅線 SOW-2.1(4) 禁止 AI 解讀影像,所以模型拿到的是「有幾張照片」這個事實,
+    不是照片內容。目的是讓它知道客人已經傳了圖、不要再叫人重傳,並主動引導改用文字描述。
+
+    措辭三個約束(都有實際教訓):
+      · 不可含轉接承諾字樣 —— 會命中 CR-0097 兜底 → 補 escalation → 客人 AI 永久靜音
+        (line_gateway.py:1167 犯過兩次,2026-08-02 與 2026-08-05)
+      · 不可含金額數字 —— 會命中 reply_guard 的 _PRICE_RE
+      · 明說「無法查看內容」而非「看不清楚」—— 後者會誘導模型說「請重拍清楚一點」,
+        那對客人是無效指示(重拍幾次都一樣看不到)
+    """
+    return (
+        f"{PHOTO_TURN_SENTINEL} {count} 張照片。"
+        "依服務條款,你無法查看照片內容,照片已另存供客服人員檢視。"
+        "請據此回覆:告訴客人照片已收到並會由客服人員查看,"
+        "同時請客人用文字描述症狀(例如面板有無亮燈、是否有嗶聲、卡片或密碼哪一種失效)。"
+    )
 
 # 對話已升級為人工接管、客人又傳訊息時的自動安撫語(AI 暫停期間唯一會送的話)。
 # 純文字(LINE 不 render markdown);不承諾時間、不報價。
@@ -988,15 +1016,33 @@ async def handle_text_turn(
 ) -> str:
     """跑一輪客服 turn,回傳要回給客人的文字('' = 不回)。
 
-    media:本輪附帶的本機圖片路徑(VLN 2026-07-03)。loop/context 既有 vision 管線
-    (InboundMessage.media → _build_user_content base64 image_url)自動接手;
-    history 重播只留 [image: path] 文字麵包屑,不重讀檔案。
+    media:本輪附帶的本機圖片路徑。
+
+    ⚠️ **照片不會進到模型面**(合約紅線 SOW-2.1(4),CR-0201)。此處只把「收到幾張照片」
+    化為文字事實餵給模型,讓它知道有附件、但看不到內容,才能引導客人改用文字描述症狀。
+    照片本體另循 `_encode_media_for_persist` → internal ingest → media_files 落庫,
+    客服在品牌後台對話時間軸看得到 —— **那條旁路不可動**,它就是 TC-CS-AI-07 判定基準③
+    「照片入 evidence 供人工檢視」的實作。
+
+    正典:04_SRS.md:528(🔴 SOW-2.1(4))、:535「合約紅線 100% pass(違反 = block release)」、
+    05_NFR.md:107/:215(標「合約下限」)、02_BRD.md:242(webhook 入口攔截)。
+
+    原本此處把路徑塞進 InboundMessage.media,由 context._build_user_content base64 成
+    image_url 送模型 —— 那是自 2026-07-03 VLN 修復起持續違約的產生點。
+    gate 放在函式內部而非呼叫端,是為了讓**所有**呼叫端一次覆蓋。
+    第二道 gate 在 ContextBuilder(allow_vision 預設 False)。
     """
     if not (text or "").strip() and not media:
         return ""
+    content = text or ""
+    if media:
+        notice = _photo_notice_for_model(len(media))
+        content = f"{content}\n{notice}" if content.strip() else notice
     msg = InboundMessage(
         channel="line", sender_id=user_id, chat_id=user_id,
-        content=text or "", media=list(media) if media else [],
+        content=content,
+        # 恆為空 —— 見上方 docstring。不是漏傳,是合約紅線。
+        media=[],
     )
     out = await loop._process_message(msg, session_key=f"{tenant}:{user_id}")
     content = (getattr(out, "content", None) or "") if out is not None else ""
@@ -1254,7 +1300,8 @@ def build_webapp(
                 _, user_id = resolve_identity("line", native_id, tenant)
 
                 # ── 訊息型別分派(VLN 2026-07-03)──────────────────────
-                # 文字 → 原有流程;照片 → 下載後走 vision 管線;其他型別 → 友善話術
+                # 文字 → 原有流程;照片 → 下載後只走持久化旁路(不進模型面,見檔頭與
+                # handle_text_turn 的合約紅線說明);其他型別 → 友善話術
                 # (原本 471-472 對非文字一律 continue = 已讀不回,連對話管理都看不到)。
                 media_paths: list[str] = []
                 if isinstance(event.message, TextMessageContent):

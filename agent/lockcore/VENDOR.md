@@ -68,6 +68,31 @@
   - 測試:`../tests/test_workspace_history_isolation.py`(含「開著時確實會洩漏」的反證)。
 - **`agent/loop.py` `AgentLoop`**(CR-0200):`__init__` 新增可選
   `inject_workspace_history=True`,直接轉給 ContextBuilder。
+- **`agent/context.py` `ContextBuilder`**(CR-0201,**行為與上游相反,刻意**):
+  - `__init__` 新增可選 `allow_vision=False`(**預設關閉,與上游行為相反**)。
+  - 為 False 時 `_build_user_content` 不產出任何 `image_url` 區塊,改回文字佔位
+    (`[image: <path>]`),即模型看得到「有附件」但看不到內容。
+  - 理由:合約 SOW-2.1(4) 禁止 AI 影像辨識,`04_SRS.md:528` 標 🔴、`:535` 定
+    「違反 = block release」、`05_NFR.md:107`/`:215` 標「合約下限」。
+    上游 nanobot 是通用 agent,把圖片餵給多模態模型是它的正常能力;
+    本 fork 服務的客戶簽了禁止該能力的合約,所以必須反過來。
+  - **保留旗標而非刪除分支**:若日後取得客戶書面豁免,放行成本就只是翻一個值。
+    刻意**不做成 config/env 開關**——合約下限不能靠設定值,一個「可以關掉紅線」
+    的設定在稽核上等於沒有紅線(CR-0201 D2 已否決該方案)。
+  - 這是第二道 gate;第一道在 `channels/line_gateway.handle_text_turn`
+    (照片根本不進 `InboundMessage.media`,改注入「客人傳了 N 張照片」的文字事實)。
+    兩道都在是 defence in depth:日後新增通道或有人繞過 gateway 直呼 loop,
+    模型面仍然看不到影像。
+  - 測試:`../tests/test_line_gateway.py` 的
+    `test_build_user_content_never_emits_image_url_by_default`(預設關)與
+    `test_build_user_content_allows_image_url_only_when_explicitly_opted_in`
+    (旗標開時上游行為仍在——證明是關閉不是閹割)。
+- **`agent/reply_guard.py`**(CR-0201):新增第四條守線 `vision_claim_violation`
+  ——本輪有照片且回覆宣稱看到照片內容 → 記 violation。
+  contextual 判定(無照片時一律不判)且 marker 刻意收窄(不含「我看到」「看起來是」,
+  那在故障排除語境每天都出現,誤判會把客人推去人工)。
+  價值不在攔截(前兩道 gate 已讓模型物理上看不到),而在提供 runtime 的 violation
+  計數點——NFR-Sec-009 / NFR-Comp-003 要 violation count = 0 且需可稽核。
 - **`agent/context.py` `build_messages`**:呼叫 `build_system_prompt` 時帶入 `user_id=sender_id`、
   `memory_query=current_message` —— 這是 loop 實際呼叫的方法,讓 BUILD 自動注入該客人記憶。
 - **`agent/loop.py` `AgentLoop`**:

@@ -535,23 +535,115 @@ class _FakeMediaLoop(_FakeLoop):
         return _FakeOut(self._reply)
 
 
-def test_handle_text_turn_carries_media_paths():
-    """帶 media 的 turn:路徑進 InboundMessage.media(vision 管線入口)。"""
-    loop = _FakeMediaLoop("照片裡是 Dormakaba 面板")
+def test_handle_text_turn_does_not_feed_media_to_model():
+    """合約紅線 SOW-2.1(4):客人照片**不得**進 vision 管線。
+
+    正典依據:`smartlock-docs/enterprise/04_SRS.md:528`(🔴 SOW-2.1(4))、
+    `:535`「合約紅線 100% pass(違反 = block release)」、
+    `05_NFR.md:107`/`:215`(標「合約下限」)。
+
+    本測試原本斷言的是相反的事(「路徑進 InboundMessage.media(vision 管線入口)」)——
+    等於把違約行為釘死成規格。2026-08-05 依 CR-0201 反轉方向。
+
+    照片本身**仍要保留**給人工檢視(見
+    test_handle_text_turn_media_still_reaches_persistence),這裡擋的只有模型面。
+    """
+    loop = _FakeMediaLoop("請問門鎖是完全沒反應,還是有嗶聲?")
     out = asyncio.run(
         handle_text_turn(loop, "locksmart", "U1", "", media=["/tmp/img.jpg"])
     )
-    assert out == "照片裡是 Dormakaba 面板"
-    assert loop.seen["media"] == ["/tmp/img.jpg"]
-    assert loop.seen["content"] == ""
+    assert out == "請問門鎖是完全沒反應,還是有嗶聲?"
+    # 核心斷言:模型收到的 InboundMessage 不得帶任何影像路徑
+    assert loop.seen["media"] == [], (
+        f"照片路徑進了模型面 {loop.seen['media']!r} —— 違反合約紅線 SOW-2.1(4)"
+    )
+    # 但模型要知道「有照片進來、你看不到」,否則無法引導客人改用文字描述
+    assert "照片" in loop.seen["content"]
 
 
 def test_handle_text_turn_media_only_not_skipped():
-    """純圖片(無文字)不可被空訊息 guard 擋掉。"""
+    """純圖片(無文字)不可被空訊息 guard 擋掉。
+
+    這條在剝圖後特別要緊:若剝圖時連文字佔位都不給,純圖片訊息會變成空 turn
+    被 `:995` 的 guard 擋下 → **客人傳照片後完全收不到回覆**。
+    """
     loop = _FakeMediaLoop("ok")
     out = asyncio.run(handle_text_turn(loop, "locksmart", "U1", "  ", media=["/tmp/a.png"]))
     assert out == "ok"
-    assert loop.seen["media"] == ["/tmp/a.png"]
+    assert loop.seen["media"] == []
+    assert loop.seen["content"].strip(), "剝圖後 content 不可為空,否則 turn 會被 guard 跳過"
+
+
+def test_photo_marker_carries_count_and_no_forbidden_tokens():
+    """給模型的照片佔位:要帶張數,且不可命中價格 regex 或轉接承諾 marker。
+
+    教訓來自 `line_gateway.py:1167` —— 兜底話術含「由專員與您聯繫」命中
+    `_SOFT_HANDOFF_MARKERS`,導致 CR-0097 兜底補 escalation、客人的 AI 永久靜音。
+    任何新增的系統注入文字都要過這一關。
+    """
+    from lockcore.channels.line_gateway import (
+        _DEFINITIVE_HANDOFF_MARKERS,
+        _SOFT_HANDOFF_MARKERS,
+        _photo_notice_for_model,
+    )
+
+    one = _photo_notice_for_model(1)
+    three = _photo_notice_for_model(3)
+    assert "1" in one and "3" in three
+    for text in (one, three):
+        hits = [m for m in _DEFINITIVE_HANDOFF_MARKERS + _SOFT_HANDOFF_MARKERS if m in text]
+        assert not hits, f"照片佔位命中轉接承諾 marker {hits} → 會觸發 CR-0097 兜底"
+
+
+def test_build_user_content_never_emits_image_url_by_default():
+    """runtime gate(第二道):ContextBuilder 預設不得產出 image_url 區塊。
+
+    這是 defence in depth —— 就算日後有人繞過 gateway 直接呼叫 loop,
+    或新增了別的通道,模型面仍然看不到影像。
+    """
+    import tempfile
+    from pathlib import Path as _P
+
+    from lockcore.agent.context import ContextBuilder
+
+    with tempfile.TemporaryDirectory() as td:
+        # 造一張真的 PNG(否則會被 mime 檢查濾掉,測不到 gate)
+        png = _P(td) / "x.png"
+        png.write_bytes(base64.b64decode(
+            b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        ))
+        cb = ContextBuilder(workspace=_P(td))
+        content = cb._build_user_content("門鎖沒反應", [str(png)])
+
+    if isinstance(content, list):
+        kinds = [b.get("type") for b in content if isinstance(b, dict)]
+        assert "image_url" not in kinds, (
+            f"ContextBuilder 產出了 image_url 區塊 {kinds} —— 違反合約紅線 SOW-2.1(4)"
+        )
+    else:
+        assert isinstance(content, str)
+
+
+def test_build_user_content_allows_image_url_only_when_explicitly_opted_in():
+    """旗標的反向驗證:allow_vision=True 時上游行為仍在(未把能力刪掉,只是預設關閉)。
+
+    這條讓「合約談成後要放行」的成本維持在翻一個旗標,而不是重寫管線(CR-0201 D5)。
+    """
+    import tempfile
+    from pathlib import Path as _P
+
+    from lockcore.agent.context import ContextBuilder
+
+    with tempfile.TemporaryDirectory() as td:
+        png = _P(td) / "x.png"
+        png.write_bytes(base64.b64decode(
+            b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        ))
+        cb = ContextBuilder(workspace=_P(td), allow_vision=True)
+        content = cb._build_user_content("門鎖沒反應", [str(png)])
+
+    assert isinstance(content, list)
+    assert any(b.get("type") == "image_url" for b in content if isinstance(b, dict))
 
 
 def test_handle_text_turn_no_text_no_media_skips():

@@ -43,7 +43,7 @@ upstream:
 | FR-0001 | LINE 進線 → 對話 → 建案 | `../agent/P1/05` §7.1；ADR-P013 受保護層 | TC-CS-AI-01/02 | ✅ |
 | FR-0018 | 轉真人接管（escalation）| `../agent/P1/05` §7.2；`transfer_to_human` 唯一出口 | TC-CS-AI-04/10 | ✅ |
 | FR-0024 | LINE webhook 高可用（dedup + retry）| agent ADR-005（單 channel fan-out）| TC-CS-AI-09、TC-EXC-01 | ✅ |
-| FR-0025 | 多模態進線（影像不辨識，僅存證）| 合約 SOW 2.1(4)；agent P3 C-05 | TC-CS-AI-07、TC-COMPLIANCE-06 | ✅ |
+| FR-0025 | 多模態進線（影像不辨識，僅存證）| 合約 SOW 2.1(4)；agent P3 C-05 | TC-CS-AI-07、TC-COMPLIANCE-06 | ✅〔標注 2026-08-05：**此 ✅ 在 2026-07-03 至 2026-08-05 期間並不成立**——當時 `line_gateway` 把客人照片放進 `InboundMessage.media`，由 `context._build_user_content` base64 成 `image_url` 直送多模態 LLM，即「影像不辨識」被實際違反且無人察覺（TC-COMPLIANCE-06 / TC-CS-AI-07 於 2026-08-03 靜態走查揪出）。CR-0201 已補兩道 gate：①`handle_text_turn` 不再把路徑放進 media，改注入「客人傳了 N 張照片、你無法查看內容」的文字事實 ②`ContextBuilder(allow_vision=False)` 為預設，第二道防線。「僅存證」那半原本就成立且未受影響（`_encode_media_for_persist` → `media_files` → 品牌後台對話時間軸）。守線測試見 `agent/tests/test_line_gateway.py` 的 `test_handle_text_turn_does_not_feed_media_to_model` 與 `test_build_user_content_never_emits_image_url_by_default`〕|
 | FR-0026 | debounce 1.5s / dedup 24h | agent P3 C-05 / FA-05 | TC-CS-AI-08/09 | 🟡（debounce 接線 🔜 規劃中）|
 | FR-0027 | 品牌 profile resolver（多租戶配置）| ADR-P013 Agent Config Studio | `[待確認：依 04_SRS 定版]` | 🔜 規劃中 |
 | FR-0028 | Skill 驅動 agent（LockCore）| `../agent/P1/05` §4；agent ADR-001~003 | TC-CS-AI-03、`test_skills_loaded.py` | ✅ |

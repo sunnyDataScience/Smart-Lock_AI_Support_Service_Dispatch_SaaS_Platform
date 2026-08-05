@@ -1450,7 +1450,7 @@ class AgentLoop:
         流出部分內容——LINE 主通道為整則出站不受影響；stream-gate 另議。
         """
         from .reply_guard import (
-            CORRECTIVE_INSTRUCTION, TRANSFER_FALLBACK, guard_violations,
+            CORRECTIVE_INSTRUCTION, TRANSFER_FALLBACK, guard_violations, turn_had_photo,
         )
 
         def _customer_text() -> str:
@@ -1466,8 +1466,11 @@ class AgentLoop:
 
         customer_text = _customer_text()
         escalated = "transfer_to_human" in (tools_used or [])
+        # CR-0201：照片已在 gateway 被剝除，loop 拿不到 media；
+        # 改由客人訊息裡的 PHOTO_TURN_SENTINEL 判定本輪是否附了照片。
+        had_photo = turn_had_photo(customer_text)
         violations = guard_violations(
-            final_content or "", customer_text, escalated=escalated
+            final_content or "", customer_text, escalated=escalated, has_media=had_photo
         )
         if not violations:
             return final_content, tools_used, all_msgs
@@ -1500,7 +1503,8 @@ class AgentLoop:
         ]
         merged_tools = list(dict.fromkeys((tools_used or []) + (new_tools or [])))
         escalated2 = "transfer_to_human" in merged_tools
-        if not guard_violations(new_content or "", customer_text, escalated=escalated2):
+        if not guard_violations(new_content or "", customer_text,
+                                escalated=escalated2, has_media=had_photo):
             return new_content, merged_tools, new_msgs
 
         # regen 仍違規 → server-generated 轉真人話術＋記 escalation（可稽核）

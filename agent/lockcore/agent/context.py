@@ -18,6 +18,7 @@ from lockcore.session.goal_state import goal_state_runtime_lines
 from lockcore.utils.helpers import (
     current_time_str,
     detect_image_mime,
+    image_placeholder_text,
     truncate_text,
 )
 from lockcore.utils.prompt_templates import render_template
@@ -60,9 +61,18 @@ class ContextBuilder:
 
     def __init__(self, workspace: Path, timezone: str | None = None, disabled_skills: list[str] | None = None,
                  memory_manager=None, tenant: str = "locksmart", skills_dir: Path | None = None,
-                 inject_workspace_history: bool = True):
+                 inject_workspace_history: bool = True, allow_vision: bool = False):
         self.workspace = workspace
         self.timezone = timezone
+        # [lock-cs-agent] 合約紅線 SOW-2.1(4)：客人照片不得進 vision 管線。
+        # 上游 nanobot 的 _build_user_content 會把圖片 base64 成 image_url 餵給模型；
+        # 本 fork **預設關閉**該行為（CR-0201 D5(b)）。
+        # 正典：04_SRS.md:528（🔴 SOW-2.1(4)）、:535「違反 = block release」、
+        #       05_NFR.md:107/:215（標「合約下限」，非營運目標）。
+        # 刻意保留旗標而不刪除分支：若日後取得客戶書面豁免，放行成本就只是翻一個值，
+        # 不必重寫管線。**不要接成 config/env 開關**——合約下限不能靠設定值
+        # （CR-0201 D2 已否決 (c) 方案：一個「可以關掉紅線」的設定，稽核上等於沒有紅線）。
+        self.allow_vision = allow_vision
         self.memory = MemoryStore(workspace)
         # [lock-cs-agent] skills_dir 可注入,指向我們的 skills 目錄(locksmith-*);
         # 預設 None → SkillsLoader 用上游 BUILTIN_SKILLS_DIR。
@@ -259,9 +269,21 @@ class ContextBuilder:
         return messages
 
     def _build_user_content(self, text: str, media: list[str] | None) -> str | list[dict[str, Any]]:
-        """Build user message content with optional base64-encoded images."""
+        """Build user message content with optional base64-encoded images.
+
+        [lock-cs-agent] `allow_vision=False`（預設）時**不產出任何 image_url 區塊**，
+        改以文字佔位描述「有附件但不解讀內容」——合約紅線 SOW-2.1(4)，見 __init__。
+        這是第二道 gate；第一道在 `line_gateway.handle_text_turn`（照片根本不會進到
+        InboundMessage.media）。兩道都在是刻意的 defence in depth：日後若有人新增通道
+        或繞過 gateway 直接呼叫 loop，模型面仍然看不到影像。
+        """
         if not media:
             return text
+
+        if not self.allow_vision:
+            # 佔位只描述「有附件」，不含檔名以外的任何內容判讀。
+            placeholder = "\n".join(image_placeholder_text(p) for p in media)
+            return f"{text}\n{placeholder}" if text else placeholder
 
         images = []
         for path in media:
