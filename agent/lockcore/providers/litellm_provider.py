@@ -106,13 +106,66 @@ class LiteLLMProvider(LLMProvider):
         try:
             resp = await litellm.acompletion(**kwargs)
         except Exception as e:  # noqa: BLE001 — 映射成可被 retry policy 判讀的 error 回應
-            return LLMResponse(
-                content=f"[litellm error] {e}",
-                finish_reason="error",
-                error_kind="connection",
-                error_type=type(e).__name__,
-            )
+            return self._error_response(e)
         return self._to_llm_response(resp)
+
+    # ── 錯誤映射 ────────────────────────────────────────────────────────
+    #
+    # ⚠️ 這裡填的欄位直接決定 base._is_transient_response 要不要重試。
+    #    原本無論什麼例外都寫死 error_kind="connection",而 "connection" 落在
+    #    base._TRANSIENT_ERROR_KINDS 裡 → **每一種錯誤都被判成暫時性、一律重試**:
+    #      · 401/403 認證或帳務封鎖 → 重試到死(絕無可能成功)
+    #      · 429 配額耗盡        → 重試(base 本來備了 _NON_RETRYABLE_429_ERROR_TOKENS
+    #                              要擋這種,但沒有 status_code/code 就走不到那條分支)
+    #      · 400 參數錯誤        → 重試
+    #    症狀是「LLM 一有問題,客人就要等完整個重試預算才收到罐頭回覆」。
+    #
+    #    修法是把 litellm 例外本身帶的結構化欄位取出來填好,讓 base 的既有判定
+    #    邏輯真的能用上——base 那套分級本來就寫對了,只是拿不到資料。
+
+    # 真正屬於「重試有機會成功」的例外類名片段(litellm 例外多沿用 openai 命名)
+    _CONNECTION_ERROR_HINTS = ("timeout", "connection", "apiconnection", "internalserver")
+
+    @classmethod
+    def _error_response(cls, exc: Exception) -> LLMResponse:
+        """把 litellm 例外映射成帶結構化 metadata 的 error LLMResponse。
+
+        litellm 的例外沿用 openai SDK 的形狀,常見帶 status_code / code / type;
+        缺哪個就留 None,由 base 自行往下一層(kind → 文字 marker)判定。
+        """
+        status = cls._coerce_status(getattr(exc, "status_code", None))
+        code = cls._coerce_token(getattr(exc, "code", None))
+        # openai 系例外的 .type 常是 "insufficient_quota" 這類語意 token,
+        # 比類名精確;沒有才退回類名(維持原行為,不讓既有文字判定失效)。
+        etype = cls._coerce_token(getattr(exc, "type", None)) or type(exc).__name__
+
+        name = type(exc).__name__.lower()
+        is_conn = any(h in name for h in cls._CONNECTION_ERROR_HINTS)
+
+        return LLMResponse(
+            content=f"[litellm error] {exc}",
+            finish_reason="error",
+            # 只有真的是連線/逾時類才給 "connection";其餘留 None,避免把
+            # 認證/配額/參數錯誤一併灌成暫時性錯誤。
+            error_kind="connection" if is_conn else None,
+            error_type=etype,
+            error_status_code=status,
+            error_code=code,
+        )
+
+    @staticmethod
+    def _coerce_status(value: Any) -> int | None:
+        try:
+            return int(value) if value is not None else None
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _coerce_token(value: Any) -> str | None:
+        if value is None:
+            return None
+        token = str(value).strip()
+        return token or None
 
     @staticmethod
     def _to_llm_response(resp: Any) -> LLMResponse:
