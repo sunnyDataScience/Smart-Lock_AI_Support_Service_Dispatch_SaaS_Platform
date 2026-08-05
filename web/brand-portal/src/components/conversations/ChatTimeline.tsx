@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Headset, ImageOff, Sparkles } from "lucide-react";
-import { AuthImage } from "@/components/media/AuthImage";
+import { AuthImage, AuthImageLightbox } from "@/components/media/AuthImage";
 import { formatRelative } from "@/lib/format";
 import type { components } from "@/types/api.generated";
 
@@ -14,11 +14,20 @@ type Message = components["schemas"]["Message"];
  * CR-0178 輪次 C：fetch→blob 邏輯抽至共用 <AuthImage>（media/AuthImage.tsx），
  * 此處僅保留深色泡泡配色的佔位（thin wrapper，避免同款程式碼第 4 份複本）。
  */
-function AuthChatImage({ url, alt }: { url: string; alt: string }) {
+function AuthChatImage({
+  url,
+  alt,
+  onClick,
+}: {
+  url: string;
+  alt: string;
+  onClick?: () => void;
+}) {
   return (
     <AuthImage
       url={url}
       alt={alt}
+      onClick={onClick}
       className="max-h-[240px] rounded-md"
       errorNode={
         <div className="flex items-center gap-1 rounded-md bg-white/15 px-3 py-2 text-[12px] text-white/80">
@@ -35,7 +44,15 @@ function AuthChatImage({ url, alt }: { url: string; alt: string }) {
   );
 }
 
-function CustomerMessage({ msg, idx }: { msg: Message; idx: number }) {
+function CustomerMessage({
+  msg,
+  idx,
+  onPreview,
+}: {
+  msg: Message;
+  idx: number;
+  onPreview: (url: string, alt: string) => void;
+}) {
   // 照片已顯示時，「[照片]」佔位文字是冗餘（無 media_url 的歷史訊息仍顯示文字）
   const showText =
     !!msg.content && !(msg.media_url && msg.content.trim() === "[照片]");
@@ -48,6 +65,9 @@ function CustomerMessage({ msg, idx }: { msg: Message; idx: number }) {
               <AuthChatImage
                 url={msg.media_url}
                 alt={`客人上傳的照片 #${idx + 1}`}
+                onClick={() =>
+                  onPreview(msg.media_url!, `客人上傳的照片 #${idx + 1}`)
+                }
               />
             </div>
           )}
@@ -130,6 +150,10 @@ interface Props {
 
 export default function ChatTimeline({ messages, loading = false }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  // TC-WEB-MEDIA-01 判定基準要求三個畫面（對話 / 問題卡 / 工單）都能「放大、關閉並
+  // revoke」。問題卡頁與工單頁早就接了 AuthImageLightbox，只有對話頁沒接——
+  // 客服在對話裡點照片沒有任何反應，看不清楚客人拍的鎖具細節。
+  const [preview, setPreview] = useState<{ url: string; alt: string } | null>(null);
   // API returns DESC; render ASC for natural chat flow.
   const ordered = [...messages].reverse();
   // 自動捲到最底：初次載入、refetch、客服送出新訊息（messages 變動）都觸發。
@@ -155,20 +179,36 @@ export default function ChatTimeline({ messages, loading = false }: Props) {
     );
   }
   return (
-    <div
-      ref={scrollRef}
-      role="log"
-      aria-label="對話訊息列表"
-      aria-live="polite"
-      aria-relevant="additions"
-      className="flex flex-1 flex-col gap-6 overflow-auto bg-[var(--bg-page)] p-6"
-    >
-      {ordered.map((m, idx) => {
-        if (m.role === "user")
-          return <CustomerMessage key={m.id} msg={m} idx={idx} />;
-        if (m.role === "assistant") return <AiMessage key={m.id} msg={m} />;
-        return <SystemMessage key={m.id} msg={m} />;
-      })}
-    </div>
+    <>
+      <div
+        ref={scrollRef}
+        role="log"
+        aria-label="對話訊息列表"
+        aria-live="polite"
+        aria-relevant="additions"
+        className="flex flex-1 flex-col gap-6 overflow-auto bg-[var(--bg-page)] p-6"
+      >
+        {ordered.map((m, idx) => {
+          if (m.role === "user")
+            return (
+              <CustomerMessage
+                key={m.id}
+                msg={m}
+                idx={idx}
+                onPreview={(url, alt) => setPreview({ url, alt })}
+              />
+            );
+          if (m.role === "assistant") return <AiMessage key={m.id} msg={m} />;
+          return <SystemMessage key={m.id} msg={m} />;
+        })}
+      </div>
+      {preview && (
+        <AuthImageLightbox
+          url={preview.url}
+          alt={preview.alt}
+          onClose={() => setPreview(null)}
+        />
+      )}
+    </>
   );
 }

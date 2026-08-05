@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ImageOff } from "lucide-react";
-import { auth } from "@/lib/api";
+import { auth, tryRefreshAccessToken } from "@/lib/api";
 import { apiBaseUrl } from "@/lib/runtimeConfig";
 
 /**
@@ -48,20 +48,39 @@ export function AuthImage({
     const token = auth.getAccessToken();
 
     (async () => {
-      try {
-        const res = await fetch(`${baseUrl}${url}`, {
+      const fetchWith = (bearer: string | null) =>
+        fetch(`${baseUrl}${url}`, {
           headers: {
-            Authorization: token ? `Bearer ${token}` : "",
+            Authorization: bearer ? `Bearer ${bearer}` : "",
             "X-Tenant-ID": auth.getTenantId(),
           },
           signal: ac.signal,
         });
+
+      try {
+        let res = await fetchWith(token);
+
+        // access token 過期時要跟著刷新重試一次——api.ts 的 request() 對一般
+        // API 呼叫早就這樣做（:417-425），但本元件當初是自己裸 fetch，沒接這條。
+        // 少了它的症狀是：token 一過期，頁面其他資料照常（自動刷新過了），
+        // 只有圖片全部變成「照片載入失敗」，要重整才回來。
+        if (res.status === 401 && !cancelled) {
+          const refreshed = await tryRefreshAccessToken();
+          if (refreshed && !cancelled) res = await fetchWith(auth.getAccessToken());
+        }
+
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
+        // ⚠️ 必須在 createObjectURL **之前**判 cancelled：cleanup 已經跑過的話，
+        //    它當時看到的 objectUrlRef 還是 null（fetch 尚未回來），這裡再建一個
+        //    塞進 ref 就沒有人會 revoke 它了 —— blob 會留到整頁卸載為止。
+        if (cancelled) return;
         const objUrl = URL.createObjectURL(blob);
         objectUrlRef.current = objUrl;
-        if (!cancelled) setSrc(objUrl);
+        setSrc(objUrl);
       } catch {
+        // 刷新失敗、403、網路錯誤都落在這裡 → 失敗佔位（TC-WEB-MEDIA-01 判定基準：
+        // 「401/403 顯示失敗佔位，不裸露 token 或造成整頁崩潰」）。
         if (!cancelled) setFailed(true);
       }
     })();

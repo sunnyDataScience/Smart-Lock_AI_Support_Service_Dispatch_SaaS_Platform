@@ -684,8 +684,14 @@ function buildEvents(
 ): TimelineEvent[] {
   if (!order) return [];
   const list: TimelineEvent[] = [];
+  // ⚠️ 要用 trim 後判空而非 `??`：`??` 只接 null/undefined，接不到 "" 或 "   "。
+  //    後端 Technician.name 在 shared-contract 是必填非可空 string
+  //    （web/shared-contract/src/api-generated.ts），所以缺姓名時回的是空字串
+  //    而不是 null —— 用 `??` 會讓 shortId fallback 失效，時間軸就真的空白了，
+  //    與上方「永不空白」的宣稱不符。（不改後端回 null：那是 API contract 變更。）
+  const trimmedName = technicianName?.trim();
   const techName =
-    technicianName ?? (order.technician_id ? order.technician_id.slice(0, 8) : null);
+    (trimmedName || null) ?? (order.technician_id ? order.technician_id.slice(0, 8) : null);
 
   list.push({
     color: "#94A3B8",
@@ -768,6 +774,7 @@ function WorkTimeline({
   const t = useTranslations("pages.workOrderDetail.timeline");
   const tCommon = useTranslations("common");
   const tStatus = useTranslations("status.workOrder");
+  // 同上：`?? null` 擋不掉空字串，交給 buildEvents 內的 trim 判空統一處理。
   const events = buildEvents(order, (s) => tStatus(s), technician?.name ?? null);
   return (
     <div className="flex flex-col gap-4 bg-[var(--bg-surface)] px-8 py-6">
