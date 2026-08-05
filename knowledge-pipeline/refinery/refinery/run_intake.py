@@ -48,8 +48,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"[refinery] 跳過 {card['id'][:8]}:無關聯對話")
                 skipped += 1
                 continue
-            transcript = intake.fetch_transcript(conn, card["conversation_id"])
             try:
+                # ⚠️ fetch_transcript 必須在 try **內**（CR-0210 S0-1）：
+                # 它原本在外面，而下方 except 的註解寫著「單卡失敗不中斷批次」——
+                # 名實不符。單一對話讀取失敗（DB 逾時、該對話被刪、編碼異常）會炸掉
+                # 整批煉製，前面已成功的卡也一起沒了。
+                transcript = intake.fetch_transcript(conn, card["conversation_id"])
                 drafts = refine_card(
                     card, transcript,
                     generate=generate_json,

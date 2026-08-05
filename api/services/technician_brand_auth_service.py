@@ -105,7 +105,16 @@ async def revoke_brand_authorization(
     *, tenant_id: str, technician_id: str, brand: str,
     actor_user_id: str | None = None, reason: str = "platform revoke",
 ) -> dict:
-    """撤銷技師某品牌授權（軟撤 authorized=FALSE，保留歷史；查無列 404；重複撤 200 no-op）。"""
+    """撤銷技師某品牌授權（軟撤 authorized=FALSE，保留歷史；查無列 404）。
+
+    ⚠️ 「重複撤」的行為**不是 no-op**（CR-0210 S0-2 修正原描述）：
+    UPDATE 的 WHERE 只比對 technician_id + brand，不看目前的 authorized 值，
+    所以對已經是 FALSE 的列再撤一次仍會 RETURNING 到該列 → 回 200，
+    但**同時會再寫一筆 `brand_auth_revoked` audit 並觸發一次 mirror**。
+    對呼叫端而言結果冪等（狀態不變），對稽核軌跡而言不是——
+    重複呼叫會在 audit 留下多筆撤銷紀錄。若需要真正的 no-op，
+    WHERE 要加 `AND authorized = TRUE`（那會讓重複撤變成 404，屬行為變更，另議）。
+    """
     if not await _ensure_conn():
         raise ApiError("DB_UNAVAILABLE", "Database unavailable", 503)
     brand = (brand or "").strip()
