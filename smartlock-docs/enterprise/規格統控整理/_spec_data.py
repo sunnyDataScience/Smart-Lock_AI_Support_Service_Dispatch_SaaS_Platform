@@ -77,6 +77,51 @@ GLOBAL_EPIC = {
     "description": "所有旅程共用的地板：全域 FR 與全部 NFR。不對應任何單一客戶旅程。",
 }
 
+# 地板 Feature 的中文名稱 —— **xlsx 與 Plane 共用這一份**。
+#
+# 2026-08-05 前兩邊各寫各的：xlsx 寫「Sec 品質地板」（`_build_workbooks`）、Plane 寫
+# 「地板-Sec 品質地板」（`rebuild_hierarchy`），同一張卡在兩個系統兩個名字，而且 17 個
+# category 共用「品質地板」這個字串——卡片標題等於只有代號在傳達資訊。
+#
+# 名稱取 05_NFR.md 各段標題的中文。§2 / §8 / §11 一段標題涵蓋多個 category
+# （Avail+Rel+SLA、DQ+Rep+PUB+Sch、Comp+DORA），逐一拆開給名字，不共用。
+FLOOR_FUNCTIONAL_NAME = "跨旅程功能地板"
+FLOOR_NAMES = {
+    "A11y":  "可及性地板",       # §10 Accessibility
+    "Aud":   "稽核性地板",       # §7  Auditability
+    "Avail": "可用性地板",       # §2  Availability
+    "Comp":  "合規地板",         # §11 Compliance
+    "DORA":  "交付效能地板",     # §11 DORA
+    "DQ":    "資料品質地板",     # §8  Data Quality
+    "Maint": "可維護性地板",     # §9  Maintainability
+    "Obs":   "可觀測性地板",     # §6  Observability
+    "PUB":   "知識發布地板",     # §8  未核可零落地／append-only／語料隔離
+    "Perf":  "效能地板",         # §1  Performance
+    "Priv":  "隱私地板",         # §5  Privacy
+    "Rel":   "可靠性地板",       # §2  Reliability
+    "Rep":   "可重現性地板",     # §8  Reproducibility
+    "SLA":   "服務等級地板",     # §2  SLA breach / alert fallback
+    "Scal":  "可擴展性地板",     # §3  Scalability
+    "Sch":   "Schema 演進地板",  # §8  Migration 可重套／演進策略
+    "Sec":   "安全性地板",       # §4  Security
+}
+
+
+def floor_name(category: str) -> str:
+    """NFR category → 地板 Feature 名稱。查不到就炸，不回預設值。
+
+    05_NFR.md 新增一個 category 時這裡會 KeyError，逼人回來命名。回一個
+    `f"{category} 品質地板"` 之類的預設看起來很體貼，實際是讓新屬性以一個
+    沒人讀得懂的名字混進看板，而且兩邊各補一次預設就又分岔了。
+    """
+    try:
+        return FLOOR_NAMES[category]
+    except KeyError:
+        raise SystemExit(
+            f"05_NFR.md 出現未命名的 NFR category「{category}」："
+            f"先在 _spec_data.FLOOR_NAMES 補中文名稱再重跑。"
+        ) from None
+
 # 排程軸 Module 切面（階層 V2 §4）—— 7 個子系統。
 #
 # ⚠️ 2026-08-05 起 **子系統不再是 Epic**（L1 換成價值線，見上）。這份常數留下來有兩個

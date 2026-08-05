@@ -151,7 +151,9 @@ def write_feature_files(features: dict[str, str]) -> int:
         if stale.name not in keep:
             stale.unlink()
     for sc, text in features.items():
-        (BDD_DIR / f"{sc}.feature").write_text(text, encoding="utf-8")
+        # newline="\n"：生成物一律 LF，否則同一份 feature 在 Windows 與 Linux 上跑
+        # 會差出「每行一個位元組」，diff 全紅而內容其實沒動。
+        (BDD_DIR / f"{sc}.feature").write_text(text, encoding="utf-8", newline="\n")
     return len(features)
 
 
@@ -175,7 +177,7 @@ def inject_scenarios_md(features: dict[str, str]) -> None:
         return body.rstrip() + block
 
     text = re.sub(r"(#### (SC-\d\d).*?)(?=\n#### |\n### |\n## |\Z)", repl, text, flags=re.S)
-    SCENARIO_MD.write_text(text, encoding="utf-8")
+    SCENARIO_MD.write_text(text, encoding="utf-8", newline="\n")
 
 
 def generate() -> dict[str, str]:

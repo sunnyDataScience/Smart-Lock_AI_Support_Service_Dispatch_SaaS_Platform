@@ -47,7 +47,8 @@ from _plane.import_spine import (  # noqa: E402
     TYPES, load_disposition, type_drift, wbs_requirement,
 )
 from _plane.plane_client import Plane, PlaneError  # noqa: E402
-from _spec_data import GLOBAL_EPIC, VALUE_LINES  # noqa: E402
+from _spec_data import (FLOOR_FUNCTIONAL_NAME, GLOBAL_EPIC,  # noqa: E402
+                        VALUE_LINES, floor_name)
 
 # 型別的 level / is_epic / needs_acceptance 只宣告一次，在 import_spine.TYPES。
 # 兩支腳本各抄一張表的下場是它們會分頭漂移，而漂移的那一刻沒有任何測試會紅。
@@ -58,9 +59,10 @@ TYPE_ATTRS = {name: attrs for name, _, attrs in TYPES}
 # 而沒有任何測試會紅。本檔只負責「哪條 SC 屬於哪條線」，而那是問 canon 的
 # （`Scenario.line`，源自 28_Scenarios.md §1），同樣不手列。
 #
-# `地板-*` 沒有搬進 `_spec_data`：它是 **Plane 端專屬的落點名稱**（一張卡的標題前綴），
-# 四書那邊的地板是 BOM 的一個分組概念、沒有對應的卡，硬拉成共用常數只會讓
-# 「這個字串在哪一側有意義」變模糊。
+# `地板-*` 的**代號**留在本檔（Plane 端的落點，四書那邊是 BOM 的一個分組概念），
+# 但**名稱**已於 2026-08-05 搬進 `_spec_data.FLOOR_NAMES`：兩邊各寫各的，同一張卡在
+# xlsx 叫「Sec 品質地板」、在 Plane 叫「地板-Sec 品質地板」，而 17 個 category 還共用
+# 「品質地板」這一個字串。名稱共用、代號各自持有，是因為前者要對得起來、後者不必。
 FLOOR_FUNCTIONAL = "地板-功能"      # global: 區塊裡的 FR 掛這張
 FLOOR_PREFIX = "地板-"              # 其餘依 NFR category 分群：地板-Perf / 地板-Sec …
 
@@ -249,9 +251,11 @@ class Rebuilder:
         if not glb and not self.dry:
             raise SystemExit(f"找不到 {GLOBAL_EPIC['epic']} Epic，先跑 --only=epics")
         cards = self.by_code()          # 同 stage_epics：認代號前綴，不整串比標題
-        groups = [(FLOOR_FUNCTIONAL, "全域功能地板", "functional",
+        # 名稱一律問 `_spec_data`，本檔不自己拼字串：這裡與 `_build_workbooks` 是同一張
+        # 卡的兩個投影，各拼各的就會像 2026-08-05 前那樣長出兩個名字。
+        groups = [(FLOOR_FUNCTIONAL, FLOOR_FUNCTIONAL_NAME, "functional",
                    "所有旅程共用的功能地板：sc_requires_rq.yaml global: 區塊列的 FR。")]
-        groups += [(f"{FLOOR_PREFIX}{cat}", "品質地板", "quality",
+        groups += [(f"{FLOOR_PREFIX}{cat}", floor_name(cat), "quality",
                     f"{cat} 類非功能需求：拿掉任何一條旅程它依然必須成立。")
                    for cat in sorted({n.category for n in C.load_nfrs()})]
         made = 0
@@ -328,7 +332,9 @@ class Rebuilder:
             if not req:
                 stats["Task｜無 parent（delivers 非唯一 FR）"] += 1
                 continue
-            self._reparent(cards.get(wid), (cards.get(req) or {}).get("id"), stats, "Task→Story")
+            # `WBS-` 前綴：匯入卡與認領卡的 canonical_id 都是這個形式（import_spine ⑦/⑦a）。
+            self._reparent(cards.get(f"WBS-{wid}"), (cards.get(req) or {}).get("id"),
+                           stats, "Task→Story")
 
         self.save()
         for label, count in sorted(stats.items()):

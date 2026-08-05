@@ -43,7 +43,8 @@ def replace_block(path: Path, start: str, end: str, body: str) -> None:
         raise RuntimeError(f"{path.name} 缺少生成區塊標記")
     before, remainder = text.split(start, 1)
     _, after = remainder.split(end, 1)
-    path.write_text(f"{before}{start}\n{body.rstrip()}\n{end}{after}", encoding="utf-8")
+    path.write_text(f"{before}{start}\n{body.rstrip()}\n{end}{after}", encoding="utf-8",
+                    newline="\n")
 
 
 def render_plan_baseline(rel: C.Relations) -> str:

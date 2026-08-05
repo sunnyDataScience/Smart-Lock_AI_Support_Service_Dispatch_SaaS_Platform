@@ -165,7 +165,7 @@ Valuable（對終端使用者不構成可感知價值）三條。它是 PMBOK �
 
 | 欄位 | kind | 選項 | 掛在 |
 |---|---|---|---|
-| `canonical_id` | text | — | 全部（`SC-01` / `FR-AGT-01` / `NFR-Sec-001` / `1.2.3` / `E-CUS` / `地板-Perf`）|
+| `canonical_id` | text | — | 全部（`SC-01` / `FR-AGT-01` / `NFR-Sec-001` / `WBS-1.2.3` / `E-CUS` / `地板-Perf`）|
 | `source_doc` | text | — | 全部（回指出處，如 `04_SRS.md §3.1`）|
 | `subsystem` | select | AGT / API / WEB / DAT / REF / TEC / PLT | FR Story · Task |
 | `nfr_category` | select | Perf / Avail / Rel / SLA / Scal / Sec / Priv / Obs / Aud / DQ / PUB / Sch / Rep / Maint / A11y / Comp / DORA（17） | NFR Story |
@@ -358,6 +358,11 @@ Plane 一般寫入**沒有**冪等機制，重跑會建重複卡。對策：
 2. 維護 `id_map/<slug>__<project_id>.json`（**入 git**）：`{"FR-AGT-01": {"issue_id": "...", "sequence_id": 12}, ...}`
 3. 匯入器一律 check-then-create：先查 id_map，命中就 PATCH，未命中才 POST
 4. id_map 遺失時的復原：以 `canonical_id` 欄位值反查重建（比標題前綴比對更可靠）
+
+> **WBS 卡的前綴（2026-08-05）**：匯入器建的工作包標題是 `WBS-1.2.3 …`，`canonical_id`
+> 同值。**唯一例外是 §9 認領進來的人工卡**——標題留原樣（`1.1.3 …`，那是別人寫的，
+> 認領只接管型別與歸屬、不改寫措辭），但 `canonical_id` 一樣補成 `WBS-1.1.3`，
+> 讓兩批卡走同一條反查路徑。`WBS_TITLE` 正則因此把前綴設為可選。
 
 **id_map 是 per-target 的。** UUID 只在單一 workspace+project 內有意義，同一份四書卻會推到多個實例。
 共用單一 `id_map.json` 會讓 check-then-create 在換靶時**全部假命中**——查得到 key、拿到的卻是別的

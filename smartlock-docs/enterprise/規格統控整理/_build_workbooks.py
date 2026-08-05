@@ -43,7 +43,8 @@ import _canon as C
 import _render_bdd as BDD
 import _validate_relations as V
 from _plane.snapshot import Snapshot
-from _spec_data import CODEBASE_SNAPSHOT, GLOBAL_EPIC, VALUE_LINES
+from _spec_data import (CODEBASE_SNAPSHOT, FLOOR_FUNCTIONAL_NAME, GLOBAL_EPIC,
+                        VALUE_LINES, floor_name)
 
 # Plane 回寫快照。缺檔時所有 Plane 欄位顯示 "—"，四書照樣 build ——
 # Plane 是附加視圖，不是四書的前置依賴。
@@ -346,7 +347,7 @@ class PlaneTree:
         nodes: list[TreeNode] = []
         if members.get(FLOOR_FUNCTIONAL):
             nodes.append(TreeNode(
-                code=FLOOR_FUNCTIONAL, name="跨旅程功能地板", kind="functional", parent=epic,
+                code=FLOOR_FUNCTIONAL, name=FLOOR_FUNCTIONAL_NAME, kind="functional", parent=epic,
                 upstream="sc_requires_rq.yaml §global（FR）",
                 origin="_relations/sc_requires_rq.yaml §global",
                 note="判準：拿掉任何一條旅程，它依然必須成立。所以不逐條偽造 SC 邊。",
@@ -354,7 +355,7 @@ class PlaneTree:
         heading_of = {n.category: n.heading for n in nfrs}
         for category in sorted({n.category for n in nfrs}):
             nodes.append(TreeNode(
-                code=floor_code(category), name=f"{category} 品質地板", kind="quality", parent=epic,
+                code=floor_code(category), name=floor_name(category), kind="quality", parent=epic,
                 upstream=f"05_NFR.md {heading_of.get(category, '')}",
                 origin=f"05_NFR.md {heading_of.get(category, '')}",
                 note="NFR 不掛旅程：掛進去會讓旅程覆蓋率被品質地板稀釋，同屬性的需求也會散在各處。",
@@ -1304,7 +1305,10 @@ def write_glossary_md() -> None:
             f"- **實作證據路徑**：`{path}`",
             "",
         ]
-    GLOSSARY_MD.write_text("\n".join(lines), encoding="utf-8")
+    # newline="\n"：Windows 的文字模式會把 \n 翻成 \r\n，同一份生成物在 Windows 與
+    # Linux 上跑會差出「每行一個位元組」——健康報告記的 byte 數因此在兩個平台之間
+    # 來回跳，看起來像內容變了。生成物一律寫 LF。
+    GLOSSARY_MD.write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
 def write_open_decisions_md(m: Model) -> None:
@@ -1370,7 +1374,7 @@ def write_open_decisions_md(m: Model) -> None:
             f"- **拍板後必回填**：{'、'.join(d.get('affected_artifacts') or [])}",
             f"- **受影響情境**：{'、'.join(d.get('affected_scenarios') or [])}",
         ]
-    OPEN_DECISIONS_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    OPEN_DECISIONS_MD.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
 def write_health_md(m: Model) -> None:
@@ -1505,7 +1509,7 @@ Feature 從 32 個能力群改為 19 條 SC 旅程 ＋ 地板屬性群。覆蓋�
 6. **判不出來的 parent 留空**：階層跳級刻意不掩蓋（守則 B0）。塞預設值會讓 roll-up 看起來
    完整而實際是假的——那比缺口本身更糟。
 5. **xlsx 單向**：改上游正典 → 重跑 `_build_workbooks.py`。永遠不要改 xlsx 再往回抄。
-""", encoding="utf-8")
+""", encoding="utf-8", newline="\n")
 
 
 # ----------------------------------------------------------------

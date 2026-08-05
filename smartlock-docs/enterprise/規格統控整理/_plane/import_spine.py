@@ -553,7 +553,10 @@ def import_relations(p: Plane, state: dict, rel) -> None:
     save_state(state)
 
 
-WBS_TITLE = re.compile(r"^(\d+\.\d+(?:\.\d+)?)\s")
+# 前綴可選：遠端 LOCK 早於本管線就有人工開的 WBS 卡，標題是裸號「1.1.1 …」；本管線
+# 2026-08-05 起改建「WBS-1.1.1 …」。兩種都要認得——只認一種，id_map 遺失後的認領路徑
+# 就會漏掉其中一批，然後 ⑦ 把它們當成沒建過再開一次。
+WBS_TITLE = re.compile(r"^(?:WBS-)?(\d+\.\d+(?:\.\d+)?)\s")
 
 
 def load_disposition() -> dict[str, dict]:
@@ -612,6 +615,10 @@ def adopt_existing_wbs(p: Plane, state: dict) -> None:
             p.update_work_item(it["id"], **fields)
         except PlaneError as exc:
             print(f"    ! adopt {key}: {exc}", file=sys.stderr)
+        # 人工卡沒有 canonical_id，補上它才能與匯入卡走同一條反查路徑
+        # （`rebuild_hierarchy.by_code()` 優先讀這個欄位）。**標題不動**——那是別人的卡，
+        # 認領是接管它的型別與歸屬，不是改寫它的措辭。
+        _set_props(p, state, it["id"], {"canonical_id": key})
         adopted.append(key)
         hit += 1
     print(f"    認領 {hit} 張既有卡（不再重複建立）；略過 archive {skipped} 張")
@@ -641,12 +648,16 @@ def import_wbs(p: Plane, state: dict) -> None:
             ms = state["milestones"].get(f"M{wid.split('.')[0]}")
             if ms:
                 fields["milestone"] = ms
-        _upsert(p, state, key, f"{wid} {name}", "Task",
+        # 標題帶 `WBS-` 前綴（2026-08-05）：其餘四層的標題首個 token 都是有命名空間的
+        # 正典編號（SC-01 / FR-AGT-01 / E-CUS / 地板-Sec），只有工作包是裸號「1.2」——
+        # 在看板上看不出是什麼，`by_code()` 退回標題比對時切出的 token 也與別層不同構。
+        # canonical_id 同步帶前綴，維持 README §7 的不變式：標題前綴 == canonical_id。
+        _upsert(p, state, key, f"{key} {name}", "Task",
                 _html(("狀態原文", status), ("負責", owner), ("前置", deps),
                       ("交付物 / 驗收依據", deliver), ("里程碑", group)),
                 "none",
                 props={
-                    "canonical_id": wid,
+                    "canonical_id": key,
                     "source_doc": "27_Product_Roadmap_WBS.md",
                     "owner_role": "PM",
                 }, fields=fields)
