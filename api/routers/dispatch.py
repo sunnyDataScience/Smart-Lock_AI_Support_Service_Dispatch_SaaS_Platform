@@ -117,7 +117,25 @@ async def assign_dispatch(
         work_order_id=str(body.work_order_id),
         technician_id=str(body.technician_id),
         override_reason=body.override_reason,
+        # CR-0204 D7：報價 gate 覆寫需要這兩個值才判得起來，原本漏傳 →
+        # 主管帶 override_reason 急修派工完全不生效、照樣被 409 擋死。
+        actor_role=user.role,
+        actor_user_id=user.user_id,
     )
+    # CR-0204 D7 / FR-API-06（04_SRS.md:297 明文驗收）：覆寫必須留 who/why。
+    # 比照 work_orders_v2.assignWorkOrderV2:531-541 的既有做法。
+    # 注意：**帶了 override 就記**，不論最終有沒有生效——被 409 擋下的嘗試
+    # 同樣需要稽核軌跡（那正是「誰想繞過報價 gate」的證據）。
+    if body.override_reason and body.override_reason.strip():
+        await audit_log_service.log_event(
+            event_type="dispatch_decision",
+            actor_id=user.user_id,
+            actor_role=user.role,
+            action="quote_gate_override",
+            target_type="work_order",
+            target_id=str(body.work_order_id),
+            payload={"endpoint": "assignDispatch", "override_reason": body.override_reason.strip()},
+        )
     # PM Q6=A — 客服繞過自動派工必須留稽核軌跡
     if user.role in _BYPASS_ROLES:
         await audit_log_service.log_event(

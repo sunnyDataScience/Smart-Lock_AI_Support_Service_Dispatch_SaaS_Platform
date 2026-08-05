@@ -653,10 +653,27 @@ async def assign_dispatch(
     work_order_id: str,
     technician_id: str,
     override_reason: str | None = None,
+    actor_role: str | None = None,
+    actor_user_id: str | None = None,
 ) -> dict:
     """assignDispatch — body 版本的指派；複用 work_order_service.assign_order。
 
     語義對齊 /work-orders/{id}/assign，差別僅在工單 id 來源。
+
+    ⚠️ **2026-08-05 修正（CR-0204 D7）**：此處原本把 `override_reason` 當成
+    `reason_text` 傳下去，且完全不傳 `actor_role` / `actor_user_id`——
+    而 `assign_order` 的報價 gate 覆寫判定同時需要這三個值
+    （`override_reason` 有值 **且** `actor_role in _QUOTE_GATE_OVERRIDE_ROLES`）。
+    淨效果：**主管透過這兩個端點帶 override_reason 急修派工，覆寫完全不生效、
+    照樣被 409 擋死**，而 `override_reason` 只是被當備註寫進 reason_text。
+
+    三個入口只有 `work_orders_v2.assignWorkOrderV2` 傳對了（:528-530），
+    `dispatch_v2.assignDispatch` 與 `dispatch.assign_dispatch` 兩條都漏傳。
+
+    **`_QUOTE_GATE_OVERRIDE_ROLES` 維持不變**（仍只有 admin / operations_manager）——
+    本次只修傳參，不擴權。dispatcher 帶 override 仍會被擋，但那次嘗試會留 audit
+    （見 router 側的 quote_gate_override 記錄）。要不要給派工小編覆寫權是另一件事，
+    需單獨裁決（CR-0204 D7 已明確把 (b) 擴權方案排除）。
     """
     from services.work_order_service import assign_order
 
@@ -666,6 +683,9 @@ async def assign_dispatch(
         technician_id=technician_id,
         reason_code="other",
         reason_text=override_reason,
+        actor_role=actor_role,
+        actor_user_id=actor_user_id,
+        override_reason=override_reason,
     )
 
 
