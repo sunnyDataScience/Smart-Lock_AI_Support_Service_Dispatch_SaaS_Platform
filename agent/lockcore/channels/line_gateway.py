@@ -1164,7 +1164,15 @@ def build_webapp(
             )
         except Exception:
             logger.exception("LINE turn 失敗")
-            reply = "不好意思,系統忙線中,請稍後再試,或留言由專員與您聯繫 🙏"
+            # ⚠️ 必須用 _FALLBACK_REPLY 常數,不可自寫字面量——2026-08-02 已把常數
+            #    改成不含轉接承諾字樣,但這裡漏改,留著舊句「…由專員與您聯繫」,
+            #    仍會命中 _SOFT_HANDOFF_MARKERS('由專員'/'專員與您')→ CR-0097 兜底
+            #    判定「AI 承諾轉接卻沒呼叫 transfer_to_human」→ 補 escalation
+            #    → 建卡 → 對話翻 escalated → **該客人的 AI 從此永久靜音**。
+            #    亦即一次暫時性 LLM 失敗就永久廢掉一個客人的 AI 客服。
+            #    守線見 agent/tests/test_fallback_reply_no_handoff.py（已擴為掃全檔
+            #    所有指派給 reply 的字面量,不再只驗常數本身）。
+            reply = _FALLBACK_REPLY
         # CR-0179:剝除樣本圖標記(乾淨文字流向送出/持久化/兜底三下游,標記不外洩)
         reply, guide_urls = _extract_photo_guides(reply, photo_guides)
         if reply or guide_urls:
