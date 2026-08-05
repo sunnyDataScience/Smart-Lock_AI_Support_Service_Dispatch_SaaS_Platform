@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **65 條 FR 的 parent 分帳**：27 條由唯一 `essential` 邊自動推、6 條走 `§global` 地板、**32 條判不出來列入待裁決**（`_relations/PENDING_PRIMARY.md`，21 條有多條 essential 挑一條即可、11 條只有 supporting 須先升級）。判不出來一律留空、不猜——猜錯的 parent 在畫面上與正確答案長得一模一樣，只是該旅程覆蓋率多算一條、真正該扛它的旅程少算一條；留空則會在 V14 與樹上的「無 parent」組自己現形。**AI 全程未代填任何 `primary`**（該檔檔頭明訂人工判斷欄禁止 AI 代寫）。
   - **缺口總數 0 → 32**：V14 的 32 筆 finding 進《規格統控規劃書》② 缺口清單，四書與產出健康報告的數字隨之變動。**這是新校驗生效，不是回歸。**
   - 節點數全程不變：SC 19 / FR 65 / NFR 106 / TC 130 / Persona 10。
+  - **卡片標題命名守則補齊（2026-08-05 後續）**：上一輪裁決的是「哪一層叫什麼」（Epic/Feature/Story 的語彙對照），**沒裁決「一張卡的標題長什麼樣」**——標題格式只活在生成器的四個 `_upsert` 呼叫裡，因此靜默分歧了兩處。守則寫進《四書關係與產出指南》§0：**`<正典編號> <正典名稱>`，空格前鎖死、空格後隨便潤**。這不是風格偏好，是 `by_code()` 的索引契約（優先讀 `canonical_id` 自訂欄位，讀不到才退回標題首個 token）；也因此**要把 Story 改寫成「作為…我想要…」句型技術上做得到**，前綴留著即可。隨守則修掉三項違規：①**Task 標題補 `WBS-` 前綴**（其餘四層首個 token 都是有命名空間的正典編號，只有工作包是裸號「1.2」，看板上看不出是什麼）——`canonical_id` 同值以維持「標題前綴 == canonical_id」不變式，`WBS_TITLE` 正則把前綴設為**可選**（遠端人工卡是裸號，兩種都要認得，否則 id_map 遺失後的認領路徑會漏掉一批），認領時補寫人工卡的 `canonical_id` 但**標題不動**（別人的卡只接管型別與歸屬）②**地板 Feature 名稱收斂成單一出處** `_spec_data.FLOOR_NAMES`（原本 17 個 category 共用「品質地板」一個字串，且 xlsx 與 Plane 各寫一套），改用 05_NFR 各段標題的中文；未命名的 category 直接 `SystemExit`，不回預設值 ③**§0 對照表 Task 數量 49 → 28**（49 是源檔數，`_plane/README §2.1` 早就寫 28）。順帶修 `Path.write_text` 在 Windows 把 `\n` 翻成 `\r\n` 的平台相依——生成物一律 `newline="\n"`，否則健康報告記的 byte 數會在兩個平台之間來回跳。**節點、邊與 V14 缺口 32 全部不變**；產出物實際變動只有 BOM 的 18 個地板名稱。
 
 ### Decisions
 
