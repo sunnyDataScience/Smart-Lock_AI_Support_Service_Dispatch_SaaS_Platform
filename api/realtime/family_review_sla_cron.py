@@ -1,6 +1,6 @@
 """家族覆核 SLA 逾時升級 cron — CR-0166 R1（合約 4.4(d) / BR-SOP-002）。
 
-家族覆核端點宣稱 reviewer SLA 24h，但逾時無任何升級機制。本 cron 每日掃
+家族覆核端點宣稱 reviewer SLA 24h，但逾時無任何升級機制。本 cron 每小時掃（interval=3600，見 :25；原註解寫「每日」與實作不符）
 sop_drafts.reviewed_at（管理員初審通過時間）超過 24h、仍未有 family_reviews
 紀錄的草稿 → 寫 audit event（sop.family_review_overdue）＋通知該租戶管理層。
 

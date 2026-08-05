@@ -120,7 +120,9 @@ async def record_consents(
             "  accepted = EXCLUDED.accepted, accepted_at = EXCLUDED.accepted_at, "
             "  text_version = EXCLUDED.text_version, ip_address = EXCLUDED.ip_address",
             (work_order_id, ctype, bool(accepted), now if accepted else None, TEXT_VERSION, ip_address))
-    logger.info("consents recorded: wo=%s types=%s ip=%s", work_order_id, list(consents), ip_address)
+    # ip_address 是個資（NFR-Priv-008 個資最小化）——只記「有沒有帶」不記值。
+    logger.info("consents recorded: wo=%s types=%s ip_present=%s",
+                work_order_id, list(consents), bool(ip_address))
     return await get_consents(work_order_id=work_order_id, tenant_id=tenant_id)
 
 

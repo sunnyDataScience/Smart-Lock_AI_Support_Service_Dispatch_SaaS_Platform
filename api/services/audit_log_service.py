@@ -5,7 +5,13 @@ mapping 成 OpenAPI `AuditLogEntry` schema：
   - event_type → log_type（enum 不在白名單時 fallback 'admin_action'）
   - actor_id / action / payload(→details) / created_at 直接對應
 
-audit_events 沒有 tenant_id，本期不做 tenant 過濾（audit 為部署層級事件）。
+audit_events 沒有 tenant_id 欄。
+
+⚠️ 上面那句原本接「本期不做 tenant 過濾（audit 為部署層級事件）」——**該敘述已過期**。
+CR-0183（跨面 RBAC 收斂）的方向是逐端點收緊可見範圍，而 audit list/export 兩個端點
+目前仍讓任何後台角色讀到**全部租戶**的稽核事件。這是 CR-0207 D1 的待裁決項
+（(a) 補 tenant_id 欄但 backfill 需繞過 append-only 防護 / (b) 先收緊角色止血）。
+在裁決前不要把這句話當成「設計如此」——它只是還沒處理。
 """
 
 from __future__ import annotations

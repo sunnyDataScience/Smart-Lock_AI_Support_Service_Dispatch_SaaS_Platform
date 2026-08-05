@@ -386,7 +386,7 @@ async def _post_ingest(base_url: str, token: str, payload: dict) -> bool:
                 headers=_bridge_auth_headers(token),
             )
             if resp.status_code >= 400:
-                logger.warning("對話持久化回 {}:{}", resp.status_code, resp.text[:160])
+                logger.warning("對話持久化回 {}", resp.status_code)
                 return False
             return True
     except Exception as e:  # noqa: BLE001 — 持久化絕不可影響客服回覆
@@ -484,12 +484,14 @@ async def _post_escalation(base_url: str, token: str, payload: dict) -> bool:
         # 4xx 多半是 payload 本身有問題，重試也不會好 → 不留 spool（避免無限累積）；
         # 5xx / 逾時才是「對方暫時不行」，值得補送。
         if 400 <= resp.status_code < 500:
+            # 只記 status code，不記回應內文 —— 我方 API 的錯誤訊息會回帶欄位值
+            # （客人姓名/電話/地址），寫進 log 等於個資外流到日誌系統（CR-0207 步驟 0-3）。
             logger.error(
-                "[ESCALATION_ALERT] escalation 遭拒（{}），payload 有問題不重試：{}",
-                resp.status_code, resp.text[:200],
+                "[ESCALATION_ALERT] escalation 遭拒（{}），payload 有問題不重試",
+                resp.status_code,
             )
             return True  # 視為終局，不再佔用 spool
-        logger.warning("escalation 轉發回 {}:{}", resp.status_code, resp.text[:160])
+        logger.warning("escalation 轉發回 {}", resp.status_code)
         return False
     except Exception as e:  # noqa: BLE001
         logger.warning("escalation 轉發失敗（將落 spool 補送）: {!r}", e)
@@ -564,7 +566,7 @@ async def _handover_active_safe(tenant: str, user_id: str) -> bool:
                 headers=_bridge_auth_headers(token),
             )
             if resp.status_code >= 400:
-                logger.warning("查接管狀態回 {}:{}", resp.status_code, resp.text[:160])
+                logger.warning("查接管狀態回 {}", resp.status_code)
                 return False
             return bool(resp.json().get("data", {}).get("escalated", False))
     except Exception as e:  # noqa: BLE001 — 查詢失敗不可阻斷客人，預設 AI 照常回
@@ -930,7 +932,7 @@ async def _route_quote_postback_safe(tenant: str, user_id: str, data: str) -> st
                 headers=_bridge_auth_headers(token),
             )
         if resp.status_code >= 400:
-            logger.warning("報價回覆轉發回 {}:{}", resp.status_code, resp.text[:160])
+            logger.warning("報價回覆轉發回 {}", resp.status_code)
             try:
                 err_body = resp.json()
                 if not isinstance(err_body, dict):
@@ -975,7 +977,7 @@ async def _forward_ops_postback_safe(raw_body: str, signature: str, data: str) -
                 },
             )
         if resp.status_code >= 400:
-            logger.warning("ops postback 轉發回 {}:{}", resp.status_code, resp.text[:160])
+            logger.warning("ops postback 轉發回 {}", resp.status_code)
             return "您的回覆可能未送達，請稍後再試或洽客服 🙏"
     except Exception:  # noqa: BLE001 — 轉發絕不可影響客人
         logger.warning("ops postback 轉發失敗（已略過）", exc_info=True)
@@ -1267,7 +1269,10 @@ def build_webapp(
                 if idempotency_store is not None:
                     eid = getattr(event, "webhook_event_id", None)
                     if eid and idempotency_store.mark_seen(eid, tenant):
-                        logger.info("LINE webhook 重送 event %s 已去重跳過", eid)
+                        # loguru 用 {} 不吃 %s —— 原本寫 "%s" 會印出字面的 %s，
+                        # event id 從來沒進過 log，去重診斷訊息等於是廢的
+                        # （2026-06-22 CR-0095 引入，2026-08-05 掃 logger 格式時抓到）。
+                        logger.info("LINE webhook 重送 event {} 已去重跳過", eid)
                         continue
                 # CR-0095：客戶在 LINE 點報價「同意/拒絕」（postback）→ 旁路呼 api
                 # 走報價狀態機，並用 reply_token 即時回覆確認（不阻塞、fail-soft）。

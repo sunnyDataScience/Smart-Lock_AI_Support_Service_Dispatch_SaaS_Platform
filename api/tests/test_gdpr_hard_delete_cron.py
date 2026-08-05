@@ -6,6 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+TID = "00000000-0000-0000-0000-000000000001"
+
 from realtime.gdpr_hard_delete_cron import (
     DEFAULT_BATCH_SIZE,
     DEFAULT_INTERVAL_S,
@@ -43,7 +45,7 @@ async def test_run_once_processes_eligible_rows(monkeypatch):
 
     class FakeCur:
         async def fetchall(self):
-            return [("req-1",), ("req-2",), ("req-3",)]
+            return [("req-1", TID), ("req-2", TID), ("req-3", TID)]
 
     class FakeConn:
         async def execute(self, sql, args):
@@ -57,7 +59,10 @@ async def test_run_once_processes_eligible_rows(monkeypatch):
 
     processed_ids = []
 
-    async def fake_hard_delete(*, request_id, actor_user_id):
+    async def fake_hard_delete(*, request_id, tenant_id, actor_user_id):
+        # tenant_id 必須出現在簽名裡 —— 少了它 fake 就與真實的
+        # gdpr_forget_service.hard_delete 不一致，測試會綠但 cron 實跑 TypeError
+        assert tenant_id == TID
         processed_ids.append(request_id)
         return {"id": request_id, "status": "hard_deleted"}
 
@@ -79,7 +84,7 @@ async def test_run_once_passes_actor_none_for_system_auto(monkeypatch):
 
     class FakeCur:
         async def fetchall(self):
-            return [("req-1",)]
+            return [("req-1", TID)]
 
     class FakeConn:
         async def execute(self, sql, args):
@@ -93,7 +98,7 @@ async def test_run_once_passes_actor_none_for_system_auto(monkeypatch):
 
     captured = {}
 
-    async def fake_hard_delete(*, request_id, actor_user_id):
+    async def fake_hard_delete(*, request_id, tenant_id, actor_user_id):
         captured["actor"] = actor_user_id
 
     from services import gdpr_forget_service
@@ -112,7 +117,7 @@ async def test_run_once_per_row_error_isolated(monkeypatch):
 
     class FakeCur:
         async def fetchall(self):
-            return [("req-1",), ("req-2",), ("req-3",)]
+            return [("req-1", TID), ("req-2", TID), ("req-3", TID)]
 
     class FakeConn:
         async def execute(self, sql, args):
@@ -124,7 +129,7 @@ async def test_run_once_per_row_error_isolated(monkeypatch):
     monkeypatch.setattr(mod, "_ensure_conn", fake_ensure)
     db_module._conn = FakeConn()
 
-    async def fake_hard_delete(*, request_id, actor_user_id):
+    async def fake_hard_delete(*, request_id, tenant_id, actor_user_id):
         if request_id == "req-2":
             raise RuntimeError("DELETE failed")
 
