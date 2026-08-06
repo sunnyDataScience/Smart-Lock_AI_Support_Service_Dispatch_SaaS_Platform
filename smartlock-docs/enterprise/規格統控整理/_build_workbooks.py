@@ -5,11 +5,12 @@
     ────────────────────────────────────────────────────────────────────────────────
     業務邏輯驗收控制表     業務 / PM     客戶的哪幾條旅程算不算驗收通過？    SC
     模組功能 BOM           架構師 / RD   每條需求由誰實作、現在到哪了？      FR / NFR
-    整合測試計畫           QA            我今天要跑哪些案例、怎麼判定過？    TC
+    整合測試計畫           PM/SA/SD/QA   需求是否已收斂成可進 Plane 的契約？ Story/AC/Task/TC
     規格統控規劃書         經營層 / PM   哪裡有洞、哪裡卡決策、什麼時候做？  缺口
 
-Each book has one role, one question, one state axis, and three or four sheets.
-The four state axes may never推 each other:
+The integration workbook is now a lightweight cross-role alignment template;
+the other three books remain role-specific generated views.  The four state
+axes may never推 each other:
 
     需求定版  (SRS 文字說的)      ← SA
     工程證據  (掃描器說的)        ← RD / 架構師
@@ -42,6 +43,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 import _canon as C
 import _render_bdd as BDD
 import _validate_relations as V
+from _build_alignment_workbook import build_alignment_workbook
 from _plane.snapshot import Snapshot
 from _spec_data import (CODEBASE_SNAPSHOT, FLOOR_FUNCTIONAL_NAME, GLOBAL_EPIC,
                         VALUE_LINES, floor_name)
@@ -204,16 +206,17 @@ GLOSSARY_SCENARIO = [
 ]
 
 GLOSSARY_CONTRACT = [
-    ("  驗收契約",
+    ("  TC＝驗的單位",
      "Plane 的 Test Case。守則把 FR／驗收條件／BDD／測試案例壓成「同一個物件」——"
-     "案例就是驗收條件，省掉一整層追蹤。所以本書講「案例」與講「契約」是同一件事。"),
-    ("  驗收腳本 ＝ 一條旅程一條",
-     "本欄就是這條 SC 在 Plane 的 Test Run（19 條 SC＝19 條 run），內容是該 SC 宣告的那批案例。"
+     "一列一個測試案例，回答 FR／NFR 的單一性質『對不對』。"),
+    ("  SC＝簽核的單位",
+     "一列一條服務旅程；在驗收執行映射上，每條 SC 各有一個 Plane Test Run（19 條 SC＝19 條 run），"
+     "內容是該 SC 獨立宣告的 TC 集合，回答整條旅程『順不順』。"
      "建立 run 時把每張案例釘在當時的版本，所以舊紀錄不會被日後改版影響。"),
-    ("  括號裡的 UAT-01…UAT-09",
-     "22_UAT_Report §4 的走查腳本編號，是「旅程的上層分組」：一支走查涵蓋 1–4 條旅程"
-     "（UAT-01 撐 SC-01/02/03、UAT-02 撐 SC-04–07）。它回答「這次 UAT 要走哪條路線」，"
-     "而旅程回答「路線裡的這一段」。⚠️ 它在 Plane 沒有對應物件，只被寫進 run 名稱當註記。"),
+    ("  UAT＝執行的單位",
+     "22_UAT_Report §4 的 UAT-01…UAT-09 是走查路線：一支走查分組 1–4 條 SC"
+     "（UAT-01＝SC-01/02/03、UAT-02＝SC-04–07）。它不是 SC 的父層，也不產生另一個簽核狀態；"
+     "它只回答『UAT 當天走哪條路線』。Plane 沒有對應物件，只寫進 Test Run 名稱當註記。"),
     ("  標「不走 UAT 走查」的旅程",
      "那條旅程宣告 uat: null——它一樣有自己的 run 與案例，只是不掛在任何一支走查腳本下。"
      "月結 cron、七帳本對帳這類後端受控驗收沒有人能「走一遍」給你看，硬編一支走查腳本只是造假。"
@@ -956,204 +959,14 @@ def build_bom(m: Model) -> None:
 # ---------------------------------------------------------------- book 3
 
 def build_test(m: Model) -> None:
-    wb = new_book("Smart Lock 整合測試計畫")
-    howto(wb, [
-        ("這本給誰", "QA / QA Lead。業務端、架構端、經營層各有專屬活頁簿。"),
-        ("只回答一個問題", "我今天要跑哪些案例、怎麼判定通過？"),
-        ("怎麼下手",
-         "② 是可執行清單：篩優先級與章節 → 逐列跑 → 在黃色欄填結果、日期、缺陷單。"
-         "③ 回答「這條需求測夠了沒」，④ 回答「這條旅程驗得完嗎」，⑤ 是 UAT 當天照著走的腳本。"),
-        ("④ 與 ⑤ 差在哪（最常被搞混）",
-         "④ 一列一條旅程（SC），是「簽核的單位」——19 條旅程各自算過或不過，"
-         "在 Plane 也各自是一條 Test Run。⑤ 一列一場走查（UAT-01–UAT-09），是「執行的單位」——"
-         "UAT 當天照著一支腳本從頭走到尾，一場會跑完 1–4 條旅程。兩者多對一，誰也取代不了誰："
-         "只有 ⑤ 答不出「自助解決那段到底過了沒」，只有 ④ 則沒人知道當天要怎麼走。"),
-        ("兩層測什麼不一樣",
-         "旅程測「順不順」——整條走得完、接縫不掉；需求測「對不對」——單一性質恆常成立。"
-         "兩層都要，缺一邊的測試計畫都會在 UAT 前兩週爆炸。"),
-        ("③ 的 kind 欄是重點",
-         "happy / boundary / failure / recovery。只有 happy 的需求等於沒測——"
-         "訪談只問 1–4 題（不問「什麼情況算失敗」）產出的規格就長這樣。"
-         "P0 旅程的需求若缺 failure/recovery，會在該列標紅並進規劃書缺口清單（V10）。"),
-        ("② 的「路徑類型」與「驗證面向」為什麼分兩欄",
-         "它們是正交的兩件事：路徑＝這個案例走哪條路（happy / failure / boundary / recovery / "
-         "timeout / 例外 / 狀態轉移），面向＝它在驗哪一種性質（功能 / 權限 / 非功能 / 冪等）。"
-         "一條功能需求的驗收條件完全可能包含一個效能門檻——用同一欄表達兩件事，"
-         "篩「所有失敗路徑」時就會漏掉標成「權限」的那些。"),
-        ("為什麼有 52 條標「⚠ 未標註」",
-         "那些案例的原始 kind 要嘛空白、要嘛只寫了面向（例如只寫「權限」而沒說走哪條路）。"
-         "不填預設值是刻意的——把它們預設成 happy 會讓「這條需求只測了正常路徑」這個真正的缺口消失。"),
-        ("④ 的缺口怎麼讀",
-         "V9＝這條旅程宣告需要某需求，但它的 UAT 腳本沒跑到任何驗證該需求的案例。"
-         "這是規格治理裡最容易漏報的狀態：在只有一欄「對應場景」的表裡，它永遠不會現形。"),
-        ("scope: global 的需求",
-         "可用性、稽核鏈、安全矩陣、migration 可重現、效能降級沒有客戶旅程，"
-         "不會出現在業務端的驗收控制表，但 QA 一樣要測——它們在 ③ 標成「全域地板」。"),
-        *GLOSSARY_HEAD,
-        *GLOSSARY_CONTRACT,
-        ("  執行結果", "Plane 的 Test Result。「只增不改」——重測是新增一筆，不覆寫前次失敗。"),
-        ("  缺陷", "Plane 的 Defect＝一張真的 work item，不是測試系統的內部物件；"
-                 "它回到拆解軸走一般流程，這也是整條鏈閉環的地方。"),
-        ("  ③ 的 kind 欄 ＝ DoR",
-         "守則的 Definition of Ready：一條 Story 不算 ready，除非至少連結一個 happy path "
-         "與一個 unhappy path 的契約。③ 的「涵蓋 kind」就是這條的檢查，V10 是它的告警。"),
-        *COMMON_HOWTO,
-    ])
+    """Build the lightweight pre-Plane alignment workbook.
 
-    headers = [
-        ("TC ID", 17, ""), ("章節", 26, ""), ("前置", 30, ""), ("步驟", 42, ""),
-        ("預期結果（判定基準）", 50, ""),
-        ("路徑類型", 13, "derived"), ("驗證面向", 11, "derived"), ("優先級", 8, ""),
-        ("驗證哪些需求", 26, "derived"), ("屬於哪條旅程腳本", 16, "derived"),
-        ("執行結果", 12, "human"), ("執行日", 11, "human"), ("執行人", 10, "human"),
-        ("缺陷（Defect）/ 備註", 26, "human"),
-        # 軸③ 在 Plane 的即時值（run_case latest_status），append-only 證據。
-        ("Plane 執行結果", 14, "derived"),
-    ]
-    ws = table(wb, "② 測試案例主表", headers)
-    kinds = [h[2] for h in headers]
-    names = [h[0] for h in headers]
-    reqs_col = names.index("驗證哪些需求") + 1
-    result_col = get_column_letter(names.index("執行結果") + 1)
-    script_of_case: dict[str, set] = {}
-    for s in m.rel.sc_tc:
-        for tc in s.get("cases") or []:
-            script_of_case.setdefault(tc, set()).add(s["scenario"])
-    for r, t in enumerate(m.cases, 2):
-        reqs = m.rel.reqs_of_case(t.tc_id)
-        path_type, aspect = C.case_dimensions(t.kind)
-        row(ws, r, [
-            t.tc_id, t.heading, t.precondition, t.steps, t.expected,
-            path_type, aspect, t.priority,
-            "、".join(reqs) if reqs else "⚠ 未被任何需求指定",
-            "、".join(sorted(script_of_case.get(t.tc_id, ()))) or "—",
-            "", "", "", "",
-            PLANE.execution_of(t.tc_id),
-        ], kinds, height=44)
-        if not reqs:
-            ws.cell(r, reqs_col).font = Font(name=FONT, size=10, bold=True, color="C00000")
-    dropdown(ws, result_col, 2, len(m.cases) + 1, "Pass,Fail,Blocked,N/A",
-             "只能填 Pass/Fail/Blocked/N/A")
-    finish(ws, len(headers), len(m.cases) + 1)
-    ws.freeze_panes = "B2"
-
-    headers = [
-        ("需求 ID", 14, ""), ("類別", 8, ""), ("需求名稱", 30, ""),
-        ("驗收條件 / 目標", 46, ""), ("服務旅程", 16, "derived"),
-        ("案例數", 8, "derived"), ("涵蓋 kind", 24, "derived"),
-        ("指定契約（TestCase）", 40, "derived"), ("覆蓋缺口", 30, "derived"),
-    ]
-    ws = table(wb, "③ 需求覆蓋（需求 × 案例）", headers)
-    kinds = [h[2] for h in headers]
-    p0 = m.p0_requirements()
-    r = 2
-    for rid in [q.req_id for q in m.frs] + [n.req_id for n in m.nfrs]:
-        fr = m.fr_by_id.get(rid)
-        nfr = m.nfr_by_id.get(rid)
-        cases = sorted(set(m.rel.cases_of(rid)))
-        covered = m.rel.kinds_of(rid)
-        gap = ""
-        if not cases:
-            gap = "⚠ 完全沒有案例"
-        elif rid in p0 and not covered & {"failure", "recovery"}:
-            gap = "⚠ V10：P0 旅程需要，卻只有正向案例"
-        row(ws, r, [
-            rid, "FR" if fr else "NFR",
-            m.req_title(rid),
-            fr.acceptance if fr else (nfr.target if nfr else ""),
-            m.journeys_of(rid), len(cases), m.coverage_of(rid),
-            "、".join(cases) or "—", gap,
-        ], kinds, height=26)
-        if gap:
-            ws.cell(r, 9).font = Font(name=FONT, size=10, bold=True, color="C00000")
-        r += 1
-    finish(ws, len(headers), r - 1)
-
-    headers = [
-        ("SC", 7, ""), ("旅程", 22, ""), ("P", 5, ""), ("UAT 走查腳本", 14, ""),
-        ("這段腳本跑哪些案例", 56, ""), ("腳本說明 / 缺口", 52, ""),
-        ("關鍵需求", 9, "derived"), ("腳本未觸及的關鍵需求", 40, "derived"),
-        ("旅程驗收結果", 14, "human"), ("執行日", 11, "human"), ("備註", 24, "human"),
-    ]
-    ws = table(wb, "④ 旅程驗收腳本", headers)
-    kinds = [h[2] for h in headers]
-    r = 2
-    no_script = {n["scenario"]: n for n in m.rel.sc_no_script}
-    for s in m.scenarios:
-        scripts = [x for x in m.rel.sc_tc if x["scenario"] == s.sc_id]
-        essential = m.rel.reqs_of(s.sc_id, "essential")
-        script_cases = m.rel.script_cases(s.sc_id)
-        untouched = [rid for rid in essential
-                     if m.rel.cases_of(rid) and not set(m.rel.cases_of(rid)) & script_cases]
-        if scripts:
-            for x in scripts:
-                row(ws, r, [
-                    s.sc_id, s.name, s.priority, x.get("uat") or "不走走查",
-                    "、".join(x.get("cases") or []), C.plain(x.get("note", "")),
-                    len(essential), "、".join(untouched) or "—",
-                    "", "", "",
-                ], kinds, tint=LINE_TINT.get(s.line), height=34)
-                if untouched:
-                    ws.cell(r, 8).font = Font(name=FONT, size=10, bold=True, color="C00000")
-                r += 1
-        else:
-            note = no_script.get(s.sc_id, {}).get("note", "尚未設計驗收腳本")
-            row(ws, r, [
-                s.sc_id, s.name, s.priority, "⚠ 無",
-                "—", f"V9 缺口：{C.plain(note)}",
-                len(essential), "（無腳本，無從比對）", "", "", "",
-            ], kinds, tint=LINE_TINT.get(s.line), height=34)
-            ws.cell(r, 4).font = Font(name=FONT, size=10, bold=True, color="C00000")
-            r += 1
-    dropdown(ws, "I", 2, r - 1, "Pass,Fail,Blocked,Not Run", "只能填 Pass/Fail/Blocked/Not Run")
-    finish(ws, len(headers), r - 1)
-
-    # -- ⑤ UAT 走查腳本：④ 是「一列一條旅程」，這裡是「一列一場走查」。
-    # 走查是 UAT 當天真正被執行的單位（一場跑完 1–4 條旅程），先前只活在
-    # 22_UAT_Report.md 裡，Excel 只看得到 S1–S9 這個編號、看不到要走什麼。
-    headers = [
-        ("走查腳本", 10, ""), ("名稱", 30, ""),
-        ("涵蓋旅程", 20, "derived"), ("旅程數", 8, "derived"), ("案例數", 8, "derived"),
-        ("步驟（逐項勾選）", 78, ""), ("驗收點", 46, ""),
-        ("走查結果", 12, "human"), ("執行日", 11, "human"), ("主持人", 10, "human"),
-        ("異常紀錄", 30, "human"),
-    ]
-    ws = table(wb, "⑤ UAT 走查腳本（UAT-01–UAT-09）", headers)
-    kinds = [h[2] for h in headers]
-    by_uat: dict[str, list[dict]] = {}
-    for x in m.rel.sc_tc:
-        by_uat.setdefault(x.get("uat") or "", []).append(x)
-    r = 2
-    for u in m.uat_scripts:
-        rows_of = by_uat.get(u.uat_id, [])
-        scs = sorted({x["scenario"] for x in rows_of})
-        cases = {c for x in rows_of for c in (x.get("cases") or [])}
-        row(ws, r, [
-            u.uat_id, u.name, "、".join(scs) or "⚠ 無旅程", len(scs), len(cases),
-            "\n".join(u.steps), u.acceptance,
-            "", "", "", "",
-        ], kinds, height=16 + 14 * max(len(u.steps), 2))
-        if not scs:
-            ws.cell(r, 3).font = Font(name=FONT, size=10, bold=True, color="C00000")
-        r += 1
-    # 沒有走查腳本的旅程也要現形，否則「19 條旅程」與「9 場走查」的差額會憑空消失。
-    off = sorted({x["scenario"] for x in by_uat.get("", [])})
-    if off:
-        off_cases = {c for x in by_uat.get("", []) for c in (x.get("cases") or [])}
-        banner(ws, r, len(headers), "不走 UAT 走查 —— 後端受控驗收，沒有人能「走一遍」給你看")
-        r += 1
-        row(ws, r, [
-            "—", "受控驗收（月結 cron、帳本對帳等）", "、".join(off), len(off), len(off_cases),
-            "無走查步驟：這些旅程宣告 uat: null，改由各自的案例與證據直接判定。",
-            "案例全綠且證據齊備即可簽核；不因缺走查腳本而視為缺口（V9 不報）。",
-            "", "", "", "",
-        ], kinds, height=44)
-        r += 1
-    dropdown(ws, "H", 2, r - 1, "Pass,Fail,Blocked,Not Run", "只能填 Pass/Fail/Blocked/Not Run")
-    finish(ws, len(headers), r - 1)
-    ws.freeze_panes = "C2"
-
-    wb.save(OUTPUTS["test"])
+    The former SC/TestRun/UAT projection was retired in 2026-08.  Excel now
+    converges Story value, FR/NFR acceptance criteria, delivery slices, and
+    test-case design.  Plane owns execution versions, runs, results, defects,
+    and sign-off.
+    """
+    build_alignment_workbook(m, OUTPUTS["test"], HERE)
 
 
 # ---------------------------------------------------------------- book 4
@@ -1423,20 +1236,23 @@ def write_health_md(m: Model) -> None:
 > Codebase 快照：`{CODEBASE_SNAPSHOT['branch']}@{CODEBASE_SNAPSHOT['commit']}`（統控基線 `{CODEBASE_SNAPSHOT['baseline']}`）<br>
 > 真相源：`../28_Scenarios.md`（SC）、`../04_SRS.md`（FR）、`../05_NFR.md`（NFR）、
 > `../20_Test_Cases.md`（TC）、`_relations/*.yaml`（三條邊）、`../14_ADR/open_decisions.yaml`（開放架構決策）。xlsx 一律單向快照。
+>
+> **2026-08-06 例外：**`SmartLock_整合測試計畫.xlsx` 已改為 Story/AC/Task/TC 四表收斂模板。
+> SC/UAT/Test Run/執行與簽核不再是該 Excel 的核心物件；Run/Result/Defect/簽核留在 Plane。
 
 ## 產出檔
 
 {outputs}
 
-## 脊椎
+## 四書與現行 Excel 例外
 
-以 **SC-\\*（情境）** 為脊椎，四書各取一段：
+舊的三本管理視圖仍保留 SC/FR/NFR 投影；整合測試計畫依現行收斂模型單獨改版：
 
 | 書 | 交給誰 | 只回答一個問題 | 列節點 | 分頁 |
 |---|---|---|---|---|
 | 業務邏輯驗收控制表 | 業務 / PM | 客戶的哪幾條旅程算不算驗收通過？ | SC | 5 |
 | 模組功能 BOM | 架構師 / RD | 每條需求由誰實作、現在到哪了？ | FR / NFR | 3 |
-| 整合測試計畫 | QA | 我今天要跑哪些案例、怎麼判定過？ | TC | 5 |
+| 整合測試計畫 | PM / SA / SD / QA | 需求是否已收斂成可進 Plane 的契約？ | Story / AC / Task / TC | 4 |
 | 規格統控規劃書 | 經營層 / PM | 哪裡有洞、哪裡卡決策、什麼時候做？ | 缺口（差集） | 3 |
 
 ## 節點與邊
@@ -1445,7 +1261,7 @@ def write_health_md(m: Model) -> None:
 - 邊：
   - `SC × RQ` **{n['sc_rq']} 條**（涵蓋 {n['rq_covered_by_sc']}/{n['rq_total']} 條需求，其餘宣告 `scope: global`）
   - `RQ × TC` **{n['rq_tc']} 條**（涵蓋 {n['rq_covered_by_tc']}/{n['rq_total']} 條需求）
-  - `SC × TC` **{n['sc_tc']} 條**（{len(m.rel.sc_tc)} 條旅程驗收腳本；歸屬 22_UAT_Report 的 9 支走查 UAT-01–UAT-09）
+  - `SC × TC` **{n['sc_tc']} 條**（{len(m.rel.sc_tc)} 個 SC Test Run 的獨立宣告集合；UAT 只分組 SC，不是這條邊的父層）
 - 三條邊各自宣告、互不推導。`SC × RQ` 與 `RQ × TC ∘ TC × SC` 的差，就是 V9 驗收覆蓋缺口——
   若第三條邊由前兩條算出，V9 會恆等於零，等於沒有檢查。
 
