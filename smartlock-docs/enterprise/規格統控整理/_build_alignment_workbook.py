@@ -7,6 +7,8 @@ append-only results, defects, and business sign-off belong in Plane.
 
 from __future__ import annotations
 
+import re
+import zipfile
 from collections import defaultdict
 from pathlib import Path
 from typing import Iterable
@@ -489,6 +491,53 @@ def _validate_workbook(wb: Workbook, model) -> None:
         raise ValueError("Alignment workbook preflight failed: " + "; ".join(errors))
 
 
+# openpyxl emits comment parts and worksheet relationships in a layout Excel
+# accepts but several JS readers do not.  This workbook is the only one of the
+# four carrying tables and cell comments, so it is the only one that trips them.
+#
+# Three divergences, all fixed by rewriting the archive in place:
+#   xl/comments/commentN.xml           -> xl/commentsN.xml
+#   xl/drawings/commentsDrawingN.vml   -> xl/drawings/vmlDrawingN.vml
+#   Target="/xl/..."  (absolute)       -> Target="../..."  (relative)
+#
+# The relative form is what Excel itself writes; openpyxl round-trips either.
+_PART_RENAMES = (
+    (re.compile(r"xl/comments/comment(\d+)\.xml"), r"xl/comments\1.xml"),
+    (re.compile(r"xl/drawings/commentsDrawing(\d+)\.vml"), r"xl/drawings/vmlDrawing\1.vml"),
+)
+
+
+def _normalize_ooxml_layout(path: Path) -> None:
+    """Rewrite the saved workbook into the conventional OOXML part layout."""
+    with zipfile.ZipFile(path) as zin:
+        items = [(item, zin.read(item.filename)) for item in zin.infolist()]
+
+    renames: dict[str, str] = {}
+    for item, _ in items:
+        for pattern, replacement in _PART_RENAMES:
+            if pattern.fullmatch(item.filename):
+                renames[item.filename] = pattern.sub(replacement, item.filename)
+                break
+
+    def _relative(match: "re.Match[str]") -> str:
+        target = renames.get(match.group(1).lstrip("/"), match.group(1).lstrip("/"))
+        # worksheet rels live in xl/worksheets/_rels/, so xl/ resolves to ../
+        return f'Target="../{target[3:] if target.startswith("xl/") else target}"'
+
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item, data in items:
+            name = item.filename
+            if name == "[Content_Types].xml":
+                body = data.decode("utf-8")
+                for old, new in renames.items():
+                    body = body.replace(f'PartName="/{old}"', f'PartName="/{new}"')
+                data = body.encode("utf-8")
+            elif name.startswith("xl/worksheets/_rels/") and name.endswith(".rels"):
+                body = re.sub(r'Target="(/[^"]+)"', _relative, data.decode("utf-8"))
+                data = body.encode("utf-8")
+            zout.writestr(renames.get(name, name), data)
+
+
 def build_alignment_workbook(model, output: Path, base_dir: Path) -> None:
     wb = _new_book()
     _build_story_sheet(wb, model)
@@ -497,3 +546,4 @@ def build_alignment_workbook(model, output: Path, base_dir: Path) -> None:
     _build_test_sheet(wb, model)
     _validate_workbook(wb, model)
     wb.save(output)
+    _normalize_ooxml_layout(output)
