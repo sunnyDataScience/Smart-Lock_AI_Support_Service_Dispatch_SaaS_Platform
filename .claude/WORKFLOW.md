@@ -1,9 +1,9 @@
 # 開發工作流指南
 
-> ⚠️ **2026-07-09 修繕註記**：本檔提及的 `vibecoding-*` skill（14 個）已於 2026-05-10 整併移除，
-> `sunnydata-change-impact-analysis`／`architecture-review`／`doc-freshness`／`auto-regen`／
-> `changelog-sync` 亦未安裝於 `.claude/skills/`（實裝清單見該目錄 INDEX.md，12 個 sunnydata-*）。
-> 讀到這些名稱時視為「概念流程」而非可呼叫 skill；本檔待整體改版。
+> ⚠️ **2026-08-06 註記**：`vibecoding-*` skill（14 個）已刪除，本檔引用已全數改指 `sunnydata-*`
+> （刪除理由見 `rules/primitive-selection.md` §Cleanup history）。
+> `.gitignore` 排除 `.claude/skills/`，其中 16 個 skill 只存在本機、不隨 repo 散佈；
+> 實裝清單與版控狀態見 `skills/INDEX.md`。
 
 ## 完整開發流程
 
@@ -30,8 +30,7 @@ sunnydata-testing           # skill: TDD（Red → Green → Refactor）
     |
 /build-fix                  # command: 修復建置錯誤（如有）
     |
-vibecoding-code-review      # skill: 程式碼審查（依 VibeCoding 模板）
-   或 sunnydata-code-review
+sunnydata-code-review       # skill: 程式碼審查
     |
 e2e-validation-specialist   # agent (Agent tool): E2E 測試
     |
@@ -71,7 +70,7 @@ L0 不建立功能分支或 PR。L1／L2 才使用 `sunnydata-branch-lifecycle`�
 | 入口類型 | 何時用 | 範例 |
 | :--- | :--- | :--- |
 | **command** (`/name`) | 觸碰 taskmaster/session/time-log 系統狀態，或有獨立程序邏輯 | `/save-session`, `/task-next`, `/verify`, `/build-fix` |
-| **skill** (auto-load 或 Skill tool) | **預設**。任何程序性知識 | `vibecoding-code-review`, `sunnydata-design`, `sunnydata-debugging` |
+| **skill** (auto-load 或 Skill tool) | **預設**。任何程序性知識 | `sunnydata-code-review`, `sunnydata-design`, `sunnydata-debugging` |
 | **output-style** (`/output-style`) | 整個 session 持續的人格切換 | `/output-style Vision-output`（視覺化模式） |
 
 **口訣**：預設用 skill；command 只給系統狀態工作流；output-style 只給人格切換。
@@ -102,9 +101,9 @@ L0 不建立功能分支或 PR。L1／L2 才使用 `sunnydata-branch-lifecycle`�
 | 舊 command | 新入口 |
 | :--- | :--- |
 | `/plan` | `sunnydata-design` skill |
-| `/tdd` | `sunnydata-testing` 或 `vibecoding-write-tdd` skill |
+| `/tdd` | `sunnydata-testing` skill |
 | `/e2e` | `e2e-validation-specialist` agent (via Agent tool) |
-| `/review-code` | `vibecoding-code-review` 或 `sunnydata-code-review` skill |
+| `/review-code` | `sunnydata-code-review` skill |
 | `/hub-delegate` | Agent tool 本身（已內建路由） |
 | `/check-quality` | `sunnydata-code-review` + `sunnydata-architecture-review` skills |
 
@@ -151,11 +150,11 @@ L0 不建立功能分支或 PR。L1／L2 才使用 `sunnydata-branch-lifecycle`�
 | Skill | 觸發時機 |
 | :--- | :--- |
 | `sunnydata-testing` | TDD Red-Green-Refactor 工作流 |
-| `vibecoding-write-tdd` | 撰寫 TDD 單元測試規格 |
+| `sunnydata-testing` | TDD 流程 + Unit/Integration/E2E |
 | `sunnydata-api-design` | API 設計（搭配 `2-contracts/API-0000-api-spec.template.md`） |
-| `vibecoding-code-review` | VibeCoding 模板式 code review |
+| `sunnydata-architecture-review` | 架構層 smells → principles → fixes |
 | `sunnydata-code-review` | 通用 code review 流程 |
-| `sunnydata-security` / `vibecoding-security-check` | 安全審查 |
+| `sunnydata-security` | 安全審查 |
 | `e2e-validation-specialist` (agent) | E2E 測試 |
 | `sunnydata-design` | 規劃實作步驟 |
 | `sunnydata-deep-research` | 複雜問題的多源研究 |

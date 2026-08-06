@@ -1,9 +1,9 @@
 # 🤖⚔️ 人機協作配置檔
 
-> ⚠️ **2026-07-09 修繕註記**：本檔提及的 `vibecoding-*` skill（14 個）已於 2026-05-10 整併移除，
-> `sunnydata-change-impact-analysis`／`architecture-review`／`doc-freshness`／`auto-regen`／
-> `changelog-sync` 亦未安裝於 `.claude/skills/`（實裝清單見該目錄 INDEX.md，12 個 sunnydata-*）。
-> 讀到這些名稱時視為「概念流程」而非可呼叫 skill；本檔待整體改版。
+> ⚠️ **2026-08-06 註記**：`vibecoding-*` skill（14 個）已刪除，本檔引用已全數改指 `sunnydata-*`
+> （刪除理由見 `rules/primitive-selection.md` §Cleanup history）。
+> `.gitignore` 排除 `.claude/skills/`，其中 16 個 skill 只存在本機、不隨 repo 散佈；
+> 實裝清單與版控狀態見 `skills/INDEX.md`。
 
 ## 🎛️ 建議模式設定
 
@@ -54,7 +54,7 @@
 | 入口 | 類型 | 實作方式 | 範例 |
 |------|------|---------|------|
 | `/suggest-mode [level]` | command | 更新此配置檔 | `/suggest-mode low` |
-| `vibecoding-code-review` | skill | 基於 VibeCoding 範本分析 | 自然語言觸發或 Skill tool |
+| `sunnydata-code-review` | skill | 驗證 → 發起 review → 消化回饋 | 自然語言觸發或 Skill tool |
 | `sunnydata-code-review` + `sunnydata-architecture-review` | skill | 通用品質與架構檢查 | Skill tool |
 | `/template-check [name]` | command | 檢查特定範本合規性 | `/template-check api` |
 

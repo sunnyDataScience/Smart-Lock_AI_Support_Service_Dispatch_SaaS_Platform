@@ -1,9 +1,9 @@
 # Output Styles
 
-> ⚠️ **2026-07-09 修繕註記**：本檔提及的 `vibecoding-*` skill（14 個）已於 2026-05-10 整併移除，
-> `sunnydata-change-impact-analysis`／`architecture-review`／`doc-freshness`／`auto-regen`／
-> `changelog-sync` 亦未安裝於 `.claude/skills/`（實裝清單見該目錄 INDEX.md，12 個 sunnydata-*）。
-> 讀到這些名稱時視為「概念流程」而非可呼叫 skill；本檔待整體改版。
+> ⚠️ **2026-08-06 註記**：`vibecoding-*` skill（14 個）已刪除，本檔引用已全數改指 `sunnydata-*`
+> （刪除理由見 `rules/primitive-selection.md` §Cleanup history）。
+> `.gitignore` 排除 `.claude/skills/`，其中 16 個 skill 只存在本機、不隨 repo 散佈；
+> 實裝清單與版控狀態見 `skills/INDEX.md`。
 
 > **See `.claude/rules/primitive-selection.md` for the full command vs skill vs output-style decision rule.**
 >
@@ -15,7 +15,7 @@ Output styles in Claude Code's harness **replace the system prompt** for the ent
 
 The original `01-prd-product-spec` through `14-ci-quality-gates` were really **task templates** that should activate when the user requests them, not stay active for the whole session. Forcing them through `output-style` meant constantly switching modes mid-conversation.
 
-In v4 they live as Skills under `.claude/skills/vibecoding-*/` — the Skill tool loads the right one on demand without changing your session mode.
+In v4 they were migrated to Skills under `.claude/skills/vibecoding-*/`. Those 14 skills were **deleted 2026-08-06** (their `VibeCoding_Workflow_Templates/` backing was removed in the 2026-07-08 cleanup, leaving empty shells). The conclusion still holds: task templates belong in skills or in direct writing, never in an output-style.
 
 ## What remains
 
@@ -26,26 +26,28 @@ In v4 they live as Skills under `.claude/skills/vibecoding-*/` — the Skill too
 
 Activate with `/output-style Vision-output` or `/output-style Apprentice-output`.
 
-## Migration map (old output-style → new skill)
+## Migration map (old output-style → today)
 
-| Old `/output-style` | New Skill | Triggers on |
-|---|---|---|
-| `01-prd-product-spec` | `vibecoding-write-prd` | "write PRD", "draft product spec" |
-| `02-bdd-scenario-spec` | `vibecoding-write-bdd` | "write BDD", "Gherkin scenarios" |
-| `03-architecture-design-doc` | `vibecoding-write-architecture` | "design architecture", "C4 diagram" |
-| `04-ddd-aggregate-spec` | `vibecoding-write-ddd-aggregate` | "DDD aggregate", "bounded context" |
-| `05-api-contract-spec` | `vibecoding-write-api-contract` | "API contract", "OpenAPI spec" |
-| `06-tdd-unit-spec` | `vibecoding-write-tdd` | "TDD spec", "unit test design" |
-| `07-code-review-checklist` | `vibecoding-code-review` | "review code", "PR review" |
-| `08-security-checklist` | `vibecoding-security-check` | "security check", "OWASP review" |
-| `09-database-schema-spec` | `vibecoding-write-db-schema` | "database schema", "DB design" |
-| `10-backend-python-impl` | `vibecoding-impl-backend-py` | "implement backend Python" |
-| `11-frontend-component-bdd` | `vibecoding-write-frontend-bdd` | "frontend BDD" |
-| `12-integration-contract-suite` | `vibecoding-write-integration-tests` | "integration tests" |
-| `13-data-contract-evolution` | `vibecoding-data-contract-evolution` | "schema migration plan" |
-| `14-ci-quality-gates` | `vibecoding-ci-quality-gates` | "CI quality gates", "pipeline design" |
+The 2026-05-10 `vibecoding-*` skills are gone (2026-08-06). Current routing:
 
-Each new Skill carries `template-ref:` frontmatter pointing to the canonical template under `VibeCoding_Workflow_Templates/<tier>/`.
+| Old `/output-style` | Today |
+|---|---|
+| `01-prd-product-spec` | Write directly (tier-4; see `rules/context-stability.md`) |
+| `02-bdd-scenario-spec` | `sunnydata-testing` |
+| `03-architecture-design-doc` | `sunnydata-architecture-review` / `architect` agent + a new ADR |
+| `04-ddd-aggregate-spec` | `architect` agent; write directly |
+| `05-api-contract-spec` | `sunnydata-api-design` + `api/openapi.yaml` (machine-readable SSOT) |
+| `06-tdd-unit-spec` | `sunnydata-testing` |
+| `07-code-review-checklist` | `sunnydata-code-review` |
+| `08-security-checklist` | `sunnydata-security` |
+| `09-database-schema-spec` | Write directly; CIA gate applies (`rules/change-governance.md`) |
+| `10-backend-python-impl` | Write directly, following `rules/coding-style.md` |
+| `11-frontend-component-bdd` | `sunnydata-testing` |
+| `12-integration-contract-suite` | `sunnydata-testing` |
+| `13-data-contract-evolution` | `sunnydata-api-design`; CIA gate applies |
+| `14-ci-quality-gates` | `sunnydata-infrastructure` |
+
+Lesson worth keeping: a skill whose whole value is "follow this external template" dies with the template. Skills must be self-contained.
 
 ## Adding a new output style
 

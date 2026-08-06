@@ -1,9 +1,9 @@
 # .claude 配置目錄
 
-> ⚠️ **2026-07-09 修繕註記**：本檔提及的 `vibecoding-*` skill（14 個）已於 2026-05-10 整併移除，
-> `sunnydata-change-impact-analysis`／`architecture-review`／`doc-freshness`／`auto-regen`／
-> `changelog-sync` 亦未安裝於 `.claude/skills/`（實裝清單見該目錄 INDEX.md，12 個 sunnydata-*）。
-> 讀到這些名稱時視為「概念流程」而非可呼叫 skill；本檔待整體改版。
+> ⚠️ **2026-08-06 註記**：`vibecoding-*` skill（14 個）已刪除，本檔引用已全數改指 `sunnydata-*`
+> （刪除理由見 `rules/primitive-selection.md` §Cleanup history）。
+> `.gitignore` 排除 `.claude/skills/`，其中 16 個 skill 只存在本機、不隨 repo 散佈；
+> 實裝清單與版控狀態見 `skills/INDEX.md`。
 
 > **版本:** v5.6 | **更新:** 2026-07-23
 
@@ -73,7 +73,7 @@
 | /suggest-mode | 建議密度 | 系統狀態 |
 | /release | 自動化發佈（CHANGELOG + tag + push） | 程序 |
 
-**已遷移至 skill 的舊 commands**：`/plan` → `sunnydata-design`；`/tdd` → `sunnydata-testing` 或 `vibecoding-write-tdd`；`/e2e` → `e2e-validation-specialist` agent；`/review-code` → `vibecoding-code-review`；`/hub-delegate` → Agent tool；`/check-quality` → `sunnydata-code-review` + `sunnydata-architecture-review`。
+**已遷移至 skill 的舊 commands**：`/plan` → `sunnydata-design`；`/tdd` → `sunnydata-testing`；`/e2e` → `e2e-validation-specialist` agent；`/review-code` → `sunnydata-code-review`；`/hub-delegate` → Agent tool；`/check-quality` → `sunnydata-code-review` + `sunnydata-architecture-review`。
 
 ### Rules（11 個，自動載入）
 
@@ -98,7 +98,7 @@
 放在 `skills/` 下。Skills 是 v4 之後的**預設原始元**——所有程序性知識都應走 skill。
 
 主要 skill 群組：
-- `vibecoding-*`（14 個）：對應 VibeCoding 模板的生成 skills（PRD、ADR、API 契約、TDD 等）
+- `community-*`（9 個）：外部前端／a11y 套組（僅本機，清單見 `skills/INDEX.md`）
 - `sunnydata-*`：通用工具（code-review、testing、security、debugging、design、doc-freshness 等）
 - `community-*`：社群貢獻（前端、a11y、UI 設計系統等）
 完整清單見 `.claude/skills/INDEX.md`。

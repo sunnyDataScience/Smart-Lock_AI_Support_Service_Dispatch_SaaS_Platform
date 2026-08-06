@@ -68,10 +68,10 @@
 
 When responding, name the primitive you're using if non-obvious:
 
-- ✅ "This is procedural — invoking `vibecoding-code-review` skill."
+- ✅ "This is procedural — invoking `sunnydata-code-review` skill."
 - ✅ "This needs to mutate session state — using `/save-session` command."
 - ✅ "User wants visualization mode for the rest of the chat — `/output-style Vision-output`."
-- ❌ "Switching to `/output-style 01-prd-product-spec` mode" *(deprecated; that's now `vibecoding-write-prd` skill)*
+- ❌ "Switching to `/output-style 01-prd-product-spec` mode" *(deprecated; PRD 直接撰寫，tier 歸屬見 `context-stability.md`)*
 - ❌ Implicitly switching modes mid-conversation without telling the user.
 
 ## Anti-patterns to refuse
@@ -88,6 +88,7 @@ When responding, name the primitive you're using if non-obvious:
 - **2026-05-10** — Removed 6 pure-indirection commands: `/plan`, `/tdd`, `/e2e`, `/review-code`, `/hub-delegate`, `/check-quality`. Replacements are skills (vibecoding-*, sunnydata-*) or the Agent tool itself.
 - **2026-05-10** — Removed `VibeCoding_Workflow_Templates/output_style.md` (424-line stale design doc that contradicted v4 by promoting output-styles for task templates).
 - **2026-05-10** — Removed 14 task-template output-styles; migrated to `vibecoding-*` skills. Only `Vision-output.md` remains as a legitimate session-wide persona mode.
+- **2026-08-06** — Removed all 14 `vibecoding-*` skills. 三個死因：(1) 每一個的 `template-ref` 都指向 `VibeCoding_Workflow_Templates/`，該樹已於 2026-07-08 大掃除刪除，skill 本體「照模板產出」失去依據；(2) 其中 5 個的 YAML `description` 含未 quote 的 `: ` 導致解析失敗，harness fallback 抓 body 第一行，AI 無從判斷觸發時機；(3) 與 `sunnydata-*` 正面重疊五組（code-review / security / api-design / architecture / testing）。任務模板類需求一律走 `sunnydata-*`。
 
 ## See also
 
