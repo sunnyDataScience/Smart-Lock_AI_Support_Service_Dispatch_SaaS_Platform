@@ -13,13 +13,14 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Iterable
 
-import yaml
 from openpyxl import Workbook
 from openpyxl.comments import Comment
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
+
+from _task_breakdown import build_enablers, build_tasks
 
 
 FONT = "Noto Sans CJK TC"
@@ -28,6 +29,10 @@ WHITE = "FFFFFF"
 HUMAN = "FFF2CC"
 DERIVED = "E7E6E6"
 BLOCKED = "FCE4D6"
+# 第四種底色：生成器寫了草稿，但人**必須**覆寫才算數。
+# 沒有這個色，Task 的「完成定義」只能二選一：留白（表看起來沒做完）或塗灰
+# （看起來是生成欄，於是沒人去改）。兩個都會讓那一欄失去意義。
+DRAFT = "DDEBF7"
 THIN = Side(style="thin", color="D9E1F2")
 BOX = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 WRAP = Alignment(wrap_text=True, vertical="top")
@@ -38,6 +43,7 @@ SHEET_SPECS = {
     "02_需求與驗收": "548235",
     "03_交付切片": "BF9000",
     "04_測試設計": "7030A0",
+    "05_技術地基": "808080",
 }
 
 
@@ -63,7 +69,8 @@ def _new_book() -> Workbook:
     wb.properties.title = "Smart Lock 需求收斂與驗收設計"
     wb.properties.subject = "Excel 快速對焦；Plane 承接排程、版本、執行證據與簽核"
     wb.properties.description = (
-        "四表模型：Story 需求收斂、AC 驗收定義、Task 交付切片、Test Case 測試設計。"
+        "Story 需求收斂、AC 驗收定義、Task 交付切片、Test Case 測試設計，"
+        "外加不掛 Story 的技術／品質地基（Enabler）。"
         "不含 Test Run、Test Result、Defect 或業務簽核狀態。"
     )
     return wb
@@ -98,6 +105,8 @@ def _write_row(ws, row_number: int, values: list[object], kinds: list[str], heig
             cell.fill = PatternFill("solid", fgColor=HUMAN)
         elif kinds[col - 1] == "derived":
             cell.fill = PatternFill("solid", fgColor=DERIVED)
+        elif kinds[col - 1] == "draft":
+            cell.fill = PatternFill("solid", fgColor=DRAFT)
         elif kinds[col - 1] == "blocked":
             cell.fill = PatternFill("solid", fgColor=BLOCKED)
     ws.row_dimensions[row_number].height = height
@@ -273,56 +282,99 @@ def _build_acceptance_sheet(wb: Workbook, model) -> None:
     _finish_table(ws, "AcceptanceCriteria", last_row, len(headers))
 
 
-def _load_task_candidates(base_dir: Path) -> dict[str, dict]:
-    path = base_dir / "_relations" / "wbs_disposition.yaml"
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    return {
-        str(item["wbs"]): item
-        for item in data.get("items", [])
-        if item.get("disposition") in {"enabler", "rebuild"}
-    }
+def _build_task_sheet(wb: Workbook, model) -> None:
+    """一列＝一個 Task（Plane level 3），從 Story 往下拆，不是舊 WBS 的殘骸。
 
-
-def _build_task_sheet(wb: Workbook, model, base_dir: Path) -> None:
+    2026-08-07 改版理由：舊版一列一個舊 WBS 工作包，16 列對 171 個 Story——
+    Task 少於 Story 一個數量級，在任何拆解模型下都不成立（Story 拆成 Task，數量只會
+    變多）。查證那 16 列後確認它們本來就不是 Task：8 列不掛任何 Story，3 列橫跨多個
+    Story。它們改列在 `05_技術地基`，正名為 Enabler。拆解規則見 `_task_breakdown.py`。
+    """
     headers = [
-        ("Task ID（草案）", 20, "human", "Plane level 3；確認後再建立。"),
-        ("Story Parent（唯一）", 22, "human", "Task 只能有一個 Story parent；多候選必須先拆分。"),
-        ("關聯 Story 候選（不匯入）", 34, "derived", "從舊 WBS delivers 擷取，僅供人工選 parent。"),
-        ("交付內容", 48, "human", "工程師明天可以開工的切片；不重寫 Story 價值。"),
-        ("Owner", 14, "human", "SD/DEV 實作 owner。"),
-        ("State", 14, "human", "匯入前先讀 Plane project states，不在 Excel 猜 UUID。"),
-        ("Cycle", 18, "human", "時間箱，與 parent 無關。"),
-        ("Module(s)", 24, "human", "能力切面，多值用 ; 分隔。"),
-        ("Milestone", 30, "human", "交付檢查點，單值 FK。"),
-        ("相依 Task ID", 22, "human", "不可自指或形成循環。"),
-        ("完成定義", 50, "human", "完成 Task 的工程判準，不等於 TC passed 或業務驗收通過。"),
-        ("舊處置", 12, "derived", "只保留 enabler/rebuild 候選；archive/merge 不重建為 Task。"),
-        ("可匯入（人工）", 16, "human", "Story parent 唯一且內容重審後才可選『是』。"),
-        ("來源追溯", 28, "derived", "舊 WBS ID/狀態，不直接當 Plane state。"),
+        ("Task ID（草案）", 22, "derived",
+         "格式 TASK-<Story ID>-<序>。一列＝一個工程層面的工作，不是一個舊 WBS 工作包。"
+         "『草案』＝尚未進 Plane；確認後才建立 level 3 work item。"),
+        ("Story Parent（唯一）", 18, "derived",
+         "Task 只能有一個 Story parent，且必存在於 01_需求收斂。"
+         "拆不出唯一 parent 的東西不是 Task——那是 Enabler，去 05_技術地基。"),
+        ("價值線 Epic", 26, "derived",
+         "由 Story 反查 SC → 價值線；全域需求歸 E-GLB。"
+         "『待定』＝該 Story 還沒掛旅程，是 01 的 Feature 欄整欄空白的同一個缺口。"),
+        ("任務類型", 14, "derived",
+         "這張卡屬於哪個工程層面：資料模型／API 契約／核心邏輯／事件／授權／前端／整合。"
+         "同一個 Story 穿過幾層就有幾張卡。"),
+        ("交付內容", 52, "draft",
+         "工程師明天可以開工的切片，附觸發它的正典原文。SD 需在此具體化到可估點，"
+         "但不得改寫『依據』那一行——那是這張卡存在的證據。"),
+        ("Owner", 12, "human", "SD/DEV 實作 owner。生成器只給層面預設（BE/FE），排到人是人的事。"),
+        ("State", 12, "human", "匯入前先讀 Plane project states，不在 Excel 猜 UUID。"),
+        ("Cycle", 14, "human", "時間箱，與 parent 無關；Excel 不預設，排程是 Plane 的職責。"),
+        ("Module(s)", 26, "derived", "子系統 / 能力群，由 Story 的 prefix 與 MODULES 推得。"),
+        ("Milestone", 24, "derived", "由 _canon.phase_for(Story) 推得的交付檢查點。"),
+        ("相依 Task ID", 22, "derived",
+         "同一 Story 內的層面順序：資料 → 契約 → 核心 → 其餘。跨 Story 相依請人工補。"),
+        ("完成定義（草案）", 52, "draft",
+         "**工程判準**，不等於 TC passed，更不等於業務驗收通過。"
+         "核心邏輯用 04_SRS 的後置與驗收原文；其餘是層面樣板，SD 必須替換成本卡的具體判準。"),
+        ("驗證線索（TC）", 26, "derived",
+         "驗這個 Story 的 TC。**TC 不是 Task 的完成定義**——它驗的是 Story 對不對，"
+         "不是這張卡做完沒。放這裡只是讓 SD 知道下游會怎麼驗。"),
+        ("拆解檢查", 18, "derived", "生成器看得出來的缺口：待掛旅程／待補 TC／待補驗收。"),
+        ("可匯入（人工）", 14, "human", "交付內容與完成定義都被 SD 具體化過，才可以選『是』。"),
+        ("來源追溯", 44, "derived",
+         "04_SRS 行號 | 觸發這張卡的關鍵詞 | 對應元件。"
+         "關鍵詞判錯就是規則錯，請改 _task_breakdown.py 的 ASPECTS，不要手改這一欄。"),
     ]
     ws = _sheet(wb, "03_交付切片", headers)
     kinds = [header[2] for header in headers]
-    candidates = _load_task_candidates(base_dir)
-    wbs_rows = {str(values[1]): values for values in model.wbs}
-    row_number = 2
-    for wbs_id in sorted(candidates, key=lambda value: [int(p) for p in value.split(".")]):
-        item = candidates[wbs_id]
-        values = wbs_rows.get(wbs_id, ["", wbs_id, item.get("state", ""), item.get("name", ""), "", "", ""])
-        milestone, _source_id, legacy_state, work_name, owner, dependency, done_definition = values
-        story_candidates = _unique(item.get("delivers") or [])
-        parent = story_candidates[0] if len(story_candidates) == 1 else ""
-        done_definition = item.get("contract_hint") or done_definition or item.get("note", "")
+    tasks = build_tasks(model)
+    for row_number, task in enumerate(tasks, 2):
         _write_row(ws, row_number, [
-            f"TASK-DRAFT-{wbs_id}", parent, "; ".join(story_candidates),
-            item.get("name") or work_name, owner, "", "", "", milestone,
-            dependency if dependency != "—" else "", done_definition,
-            item.get("disposition", ""), "", f"WBS {wbs_id} | 舊狀態: {legacy_state}",
-        ], kinds, height=50)
-        row_number += 1
-    last_row = row_number - 1
+            task.task_id, task.story, task.epic, task.label, task.content,
+            task.owner, "", "", task.module, task.milestone, task.depends,
+            task.done, task.verified_by, task.check, "", task.trace,
+        ], kinds, height=64)
+    last_row = len(tasks) + 1
     names = [header[0] for header in headers]
+    _dropdown(ws, names, "Owner", last_row, "BE,FE,BE+FE,OPS,QA,PM")
     _dropdown(ws, names, "可匯入（人工）", last_row, "是,否")
     _finish_table(ws, "DeliverySlices", last_row, len(headers))
+
+
+def _build_enabler_sheet(wb: Workbook, model, base_dir: Path) -> None:
+    """不掛 Story 的地基工作。它們是真工作，只是**不是 Task**。
+
+    兩類：舊 WBS 留下的技術地基（CD、雲端拓撲、cutover…），與 106 條 NFR 依驗證形態
+    收斂出的品質地基。後者刻意不逐條產卡——一套 k6 骨架服務 45 條門檻量測型 NFR，
+    逐條產會得到 106 張互相重複的卡。
+    """
+    headers = [
+        ("Enabler ID", 20, "derived", "ENB-WBS-* 來自舊 WBS；ENB-NFR-* 由 NFR 驗證形態收斂。"),
+        ("名稱", 42, "derived", "這件地基工作本身。"),
+        ("類型", 12, "derived", "技術地基（跑得起來）／品質地基（證得出來）。"),
+        ("為何不是 Task", 46, "derived",
+         "Task 的定義是『某個 Story 的零件』。掛不到唯一 Story 的東西放進 Task 表，"
+         "會讓 Story 覆蓋率與工程進度兩個數字同時失真。"),
+        ("涵蓋範圍", 40, "derived", "它服務哪些 Story 或 NFR；空的代表全體共用。"),
+        ("Owner", 14, "human", "地基通常是 OPS/平台組，不是功能組。"),
+        ("Milestone", 26, "derived", "來自舊 WBS 或預設 M1。"),
+        ("完成定義（草案）", 50, "draft", "工程判準；同樣需要負責人具體化。"),
+        ("可匯入（人工）", 14, "human", "進 Plane 時建議掛在 E-GLB 底下，不掛任何旅程。"),
+        ("來源追溯", 40, "derived", "舊 WBS ID 與處置，或 NFR 驗證形態。"),
+    ]
+    ws = _sheet(wb, "05_技術地基", headers)
+    kinds = [header[2] for header in headers]
+    enablers = build_enablers(model, base_dir)
+    for row_number, enabler in enumerate(enablers, 2):
+        _write_row(ws, row_number, [
+            enabler.enabler_id, enabler.name, enabler.kind, enabler.why,
+            enabler.covers, enabler.owner, enabler.milestone, enabler.done,
+            "", enabler.trace,
+        ], kinds, height=58)
+    last_row = len(enablers) + 1
+    names = [header[0] for header in headers]
+    _dropdown(ws, names, "可匯入（人工）", last_row, "是,否")
+    _finish_table(ws, "TechnicalEnablers", last_row, len(headers))
 
 
 ASPECT_BY_NFR_CATEGORY = {
@@ -456,12 +508,40 @@ def _validate_workbook(wb: Workbook, model) -> None:
     if len(ac_ids) != len(set(ac_ids)) or set(ac_story_ids) - set(story_ids):
         errors.append("AC IDs must be unique and every AC must reference a known Story")
 
+    # Task 層的守線。這幾條是 2026-08-07 那次「16 個 Task 對 171 個 Story」跑掉的原因——
+    # 舊 validator 只檢查了 ID 唯一與 parent 存在，對「數量關係整個反了」完全沉默。
     task_ids = _column_values(wb["03_交付切片"], "Task ID（草案）")
     task_parents = _column_values(wb["03_交付切片"], "Story Parent（唯一）")
+    task_depends = _column_values(wb["03_交付切片"], "相依 Task ID")
     if not all(task_ids) or len(task_ids) != len(set(task_ids)):
         errors.append("Task draft IDs must be non-empty and unique")
-    if {parent for parent in task_parents if parent} - set(story_ids):
+    if not all(task_parents):
+        errors.append("Every Task must name exactly one Story parent")
+    if set(task_parents) - set(story_ids):
         errors.append("A Task references an unknown Story parent")
+    # Story 拆成 Task，數量只會變多。反過來就代表那張表裝的不是 Task。
+    parented_stories = set(task_parents)
+    if len(task_ids) <= len(parented_stories):
+        errors.append(
+            f"Task count ({len(task_ids)}) must exceed the number of parented Stories "
+            f"({len(parented_stories)}) — a Task table smaller than its Story set is not "
+            f"a decomposition"
+        )
+    missing = {fr.req_id for fr in model.frs} - parented_stories
+    if missing:
+        errors.append(f"{len(missing)} FR Stories have no Task at all: {sorted(missing)[:5]}")
+    for task_id, depends in zip(task_ids, task_depends):
+        for dependency in (item.strip() for item in depends.split(";") if item.strip()):
+            if dependency == task_id:
+                errors.append(f"Task {task_id} depends on itself")
+            elif dependency not in set(task_ids):
+                errors.append(f"Task {task_id} depends on unknown {dependency}")
+
+    enabler_ids = _column_values(wb["05_技術地基"], "Enabler ID")
+    if not all(enabler_ids) or len(enabler_ids) != len(set(enabler_ids)):
+        errors.append("Enabler IDs must be non-empty and unique")
+    if set(enabler_ids) & set(task_ids):
+        errors.append("An Enabler ID collides with a Task ID")
 
     tc_ids = _column_values(wb["04_測試設計"], "TC ID")
     if len(tc_ids) != len(model.cases) or len(tc_ids) != len(set(tc_ids)):
@@ -542,8 +622,9 @@ def build_alignment_workbook(model, output: Path, base_dir: Path) -> None:
     wb = _new_book()
     _build_story_sheet(wb, model)
     _build_acceptance_sheet(wb, model)
-    _build_task_sheet(wb, model, base_dir)
+    _build_task_sheet(wb, model)
     _build_test_sheet(wb, model)
+    _build_enabler_sheet(wb, model, base_dir)
     _validate_workbook(wb, model)
     wb.save(output)
     _normalize_ooxml_layout(output)
