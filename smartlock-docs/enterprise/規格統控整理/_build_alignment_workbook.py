@@ -20,6 +20,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.table import Table, TableStyleInfo
 
+import _canon as C
 from _task_breakdown import build_enablers, build_tasks
 
 
@@ -174,12 +175,17 @@ def _coverage_check(kinds: set[str]) -> str:
     return "可進開發"
 
 
+_TAXONOMY = C.load_taxonomy()
+
+
 def _build_story_sheet(wb: Workbook, model) -> None:
     headers = [
-        ("Epic ID（選填）", 14, "human", "Plane level 0。沒有確認的策略成果就留白。"),
-        ("Epic 名稱", 22, "human", "同一 Epic ID 的名稱必須一致。"),
-        ("Feature ID（必要）", 16, "human", "Plane level 1，是 Story 的唯一 parent；不得由舊 SC 自動帶入。"),
-        ("Feature 名稱", 24, "human", "以功能能力分組，不是測試情境或執行批次。"),
+        ("Epic ID", 14, "derived", "Plane level 0，業務域。由 Feature 反查，不另宣告一份。"),
+        ("Epic 名稱", 22, "derived", "同一 Epic ID 的名稱必須一致，取自 _feature_taxonomy.yaml。"),
+        ("Feature ID（必要）", 16, "derived",
+         "Plane level 1，是 Story 的唯一 parent。真相源 `_feature_taxonomy.yaml`（階層 V3，"
+         "2026-08-08 審核通過）——以業務能力分組，**不是**由舊 SC 帶入。"),
+        ("Feature 名稱", 24, "derived", "以業務能力分組，不是測試情境或執行批次。"),
         ("Story ID", 18, "", "Plane 的唯一直接量測點；沿用現有 FR/NFR 編號作穩定外部 ID。"),
         ("Story 標題", 28, "", "一列一個可驗收的價值切片。"),
         ("目標角色", 24, "human", "從舊業務旅程與 Persona 預填，由 PM/SA 確認。"),
@@ -210,8 +216,19 @@ def _build_story_sheet(wb: Workbook, model) -> None:
             value = f"為了保障 {target_actor} 在「{item.name}」的服務品質，系統需達成 {item.target}"
             requirement = item.target
             scope_in = item.target
+        # 階層 V3：Story → 能力群 → Epic 全部由 taxonomy 帶出。漏掛的留空並標記，
+        # 不填預設值——空欄修得掉，猜錯的 parent 在畫面上跟正確答案長得一模一樣。
+        cap = C.feature_of(item.req_id)
+        if cap:
+            capability = _TAXONOMY.capabilities[cap]
+            epic_id, epic_name = capability.epic, _TAXONOMY.epic_name(capability.epic)
+            feature_id, feature_name = capability.code, capability.name
+        else:
+            epic_id = epic_name = feature_name = ""
+            feature_id = "⚠ 未掛載"
         _write_row(ws, row_number, [
-            "", "", "", "", item.req_id, item.name, target_actor,
+            epic_id, epic_name, feature_id, feature_name,
+            item.req_id, item.name, target_actor,
             pains or "待 PM 補業務損失／痛點", value, kind,
             requirement, scope_in, "", "P0" if item.req_id in p0_requirements else "未定",
             "", "", "待釐清", legacy or "global（跨情境品質地板）",
@@ -297,9 +314,9 @@ def _build_task_sheet(wb: Workbook, model) -> None:
         ("Story Parent（唯一）", 18, "derived",
          "Task 只能有一個 Story parent，且必存在於 01_需求收斂。"
          "拆不出唯一 parent 的東西不是 Task——那是 Enabler，去 05_技術地基。"),
-        ("價值線 Epic", 26, "derived",
-         "由 Story 反查 SC → 價值線；全域需求歸 E-GLB。"
-         "『待定』＝該 Story 還沒掛旅程，是 01 的 Feature 欄整欄空白的同一個缺口。"),
+        ("業務域 Epic", 26, "derived",
+         "由 Story 反查能力群 → Epic（`_feature_taxonomy.yaml`，階層 V3）。"
+         "『待定』＝該 Story 不在 taxonomy 裡，屬 yaml 漏掛，跑 _validate_taxonomy.py 會列出。"),
         ("任務類型", 14, "derived",
          "這張卡屬於哪個工程層面：資料模型／API 契約／核心邏輯／事件／授權／前端／整合。"
          "同一個 Story 穿過幾層就有幾張卡。"),

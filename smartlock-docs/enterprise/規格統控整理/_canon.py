@@ -51,6 +51,7 @@ UAT_PATH = CANON / "22_UAT_Report.md"
 ADR_INDEX_PATH = CANON / "14_ADR" / "00_INDEX.md"
 OPEN_DECISIONS_PATH = CANON / "14_ADR" / "open_decisions.yaml"
 ROADMAP_PATH = CANON / "27_Product_Roadmap_WBS.md"
+TAXONOMY_PATH = HERE / "_feature_taxonomy.yaml"
 
 ROLE_DOMAIN = {"essential", "supporting"}
 KIND_DOMAIN = {"happy", "boundary", "failure", "recovery"}
@@ -596,8 +597,96 @@ def load_relations() -> Relations:
     )
 
 
-# ---------------------------------------------------------------- 拆解軸（parent）
+# ---------------------------------------------------------------- Feature 層（G3）
 
+# 拆解樹 L1/L2 的真相源：`_feature_taxonomy.yaml`（2026-08-08 審核通過）。
+#
+# 這裡只做「讀進來 + 建索引」，不做任何推導。171 條需求各自掛哪個能力群是人的判斷，
+# 機器唯一該做的事是檢查它蓋滿且不重複——那支檢查在 `_validate_taxonomy.py`，
+# 不在這裡：載入器要能載入一份有問題的 yaml，validator 才有東西可以報。
+
+
+@dataclass(frozen=True)
+class Capability:
+    """一個業務能力群（拆解樹 L2 的 Feature）。"""
+
+    code: str          # CAP-CONV
+    epic: str          # E-SERVE
+    name: str          # 智慧客服對話
+    description: str
+    fr: tuple[str, ...]
+    nfr: tuple[str, ...]
+
+    @property
+    def members(self) -> tuple[str, ...]:
+        """掛在這張 Feature 底下的 Story ID，FR 在前、NFR 在後（各自維持 yaml 內順序）。"""
+        return self.fr + self.nfr
+
+
+@dataclass(frozen=True)
+class Taxonomy:
+    """Epic（L1）→ Capability（L2）→ Story（L3）的完整拆解樹定義。"""
+
+    epics: dict[str, dict]                  # E-SERVE -> {name, description}
+    capabilities: dict[str, Capability]     # CAP-CONV -> Capability
+
+    def epic_name(self, epic: str) -> str:
+        return self.epics.get(epic, {}).get("name", "")
+
+    def of_epic(self, epic: str) -> list[Capability]:
+        """該 Epic 底下的能力群，維持 yaml 宣告順序——順序是人排的閱讀動線，不要改成字典序。"""
+        return [c for c in self.capabilities.values() if c.epic == epic]
+
+
+@lru_cache(maxsize=1)
+def load_taxonomy() -> Taxonomy:
+    data = yaml.safe_load(TAXONOMY_PATH.read_text(encoding="utf-8")) or {}
+    caps = {
+        code: Capability(
+            code=code,
+            epic=meta["epic"],
+            name=meta["name"],
+            description=meta.get("description", ""),
+            fr=tuple(meta.get("fr") or ()),
+            nfr=tuple(meta.get("nfr") or ()),
+        )
+        for code, meta in (data.get("features") or {}).items()
+    }
+    return Taxonomy(epics=data.get("epics") or {}, capabilities=caps)
+
+
+@lru_cache(maxsize=1)
+def _feature_index() -> dict[str, str]:
+    """Story ID → Feature 代號。重掛的以先宣告者為準（重掛由 V-TAX 擋，這裡不重複報錯）。"""
+    index: dict[str, str] = {}
+    for cap in load_taxonomy().capabilities.values():
+        for rid in cap.members:
+            index.setdefault(rid, cap.code)
+    return index
+
+
+def feature_of(req_id: str) -> str | None:
+    """這條需求在拆解樹上的 parent Feature（如 "CAP-CONV"），沒掛回 None。
+
+    沒掛＝ yaml 漏了，是要修的缺口，不是要補預設值的空欄。回 None 讓它在
+    `_validate_taxonomy.py` 的「漏掛」與四書的「無 parent」那一組裡現形。
+    """
+    return _feature_index().get(req_id)
+
+
+def epic_of(req_id: str) -> str | None:
+    """這條需求 roll-up 到哪個 Epic。經 Feature 推導，不另外宣告一份。"""
+    cap = feature_of(req_id)
+    return load_taxonomy().capabilities[cap].epic if cap else None
+
+
+# ---------------------------------------------------------------- 主旅程（追溯用）
+
+# ⚠ 2026-08-08 起，`primary_scenario()` **不再決定拆解樹的 parent**——parent 走上方
+# 的 Feature 層（G3 業務能力）。本節保留下來的理由是它回答另一個問題：這條需求主要
+# 服務哪條客戶旅程。那在 SC 覆蓋分析與《業務邏輯驗收控制表》裡仍然有用，只是不再是
+# 樹的骨架。因此「判不出主旅程」在 G3 之下不再是拆解樹的缺口。
+#
 # 追溯是 M:N —— 一條需求可以同時服務多條旅程，而拆解樹上的 parent 只能有一個。
 # 以下兩個函式是「這條需求掛在誰底下」的唯一答案，規則出自階層 V2 規格 §3.4，
 # 順序固定、先中先贏：
@@ -839,6 +928,7 @@ __all__ = [
     "Persona", "Scenario", "Requirement", "NFR", "TestCase", "UatScript", "Relations",
     "load_personas", "load_scenarios", "load_requirements", "load_nfrs", "load_test_cases",
     "load_adrs", "load_wbs", "load_test_scenarios", "load_uat_scripts", "load_relations",
+    "Capability", "Taxonomy", "load_taxonomy", "feature_of", "epic_of",
     "primary_scenario", "global_requirements",
     "module_for", "module_arch", "architecture_for", "phase_for", "spec_status",
     "component_glossary_rows", "plain",

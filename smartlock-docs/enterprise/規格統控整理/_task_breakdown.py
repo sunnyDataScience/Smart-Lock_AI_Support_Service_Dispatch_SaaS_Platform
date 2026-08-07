@@ -51,7 +51,7 @@ from pathlib import Path
 import yaml
 
 import _canon as C
-from _spec_data import GLOBAL_EPIC, PHASE_OVERVIEW, VALUE_LINES
+from _spec_data import PHASE_OVERVIEW
 
 
 # ------------------------------------------------------------------ 工程層面
@@ -219,22 +219,22 @@ def _matched(aspect: Aspect, req: C.Requirement) -> tuple[str, str, str]:
     return "", "", ""
 
 
-def _epic_for(req: C.Requirement, scenarios: dict[str, C.Scenario]) -> str:
-    """Story 屬於哪條價值線 Epic。
+def _epic_for(req: C.Requirement) -> str:
+    """Story 屬於哪個業務域 Epic（階層 V3）。
 
-    走 `primary_scenario`（SC → line → Epic）；沒掛旅程的全域需求歸地板 E-GLB。
-    兩者都不成立時回「待定」——**不猜**。65 支 FR 有 32 支落在這裡，那是既有的
-    掛載缺口（同一個缺口讓 `01_需求收斂` 的 Feature 欄整欄空白），不是本表的問題。
+    走 `_feature_taxonomy.yaml`：Story → 能力群 → Epic。2026-08-08 前這裡走
+    `primary_scenario`（SC → line → Epic），65 支 FR 有 32 支判不出主旅程而落到
+    「待定」，連帶讓 `01_需求收斂` 的 Feature 欄整欄空白。換錨點之後掛載是明確宣告的，
+    那 32 支全部有歸屬。
+
+    仍然保留「待定」分支：yaml 漏掛一條就該現形，不補預設值。
     """
-    sc_id = C.primary_scenario(req.req_id)
-    if sc_id and sc_id in scenarios:
-        line = scenarios[sc_id].line
-        value_line = VALUE_LINES.get(line)
-        if value_line:
-            return f"{value_line['epic']} {value_line['name']}"
-    if req.req_id in C.global_requirements():
-        return f"{GLOBAL_EPIC['epic']} {GLOBAL_EPIC['name']}"
-    return "待定（Story 尚未掛旅程）"
+    cap = C.feature_of(req.req_id)
+    if not cap:
+        return "待定（不在 _feature_taxonomy.yaml）"
+    tax = C.load_taxonomy()
+    epic = tax.capabilities[cap].epic
+    return f"{epic} {tax.epic_name(epic)}"
 
 
 def _done_for(aspect: Aspect, req: C.Requirement) -> str:
@@ -271,7 +271,7 @@ def tasks_for(req: C.Requirement, scenarios: dict[str, C.Scenario],
     milestone = " / ".join(
         PHASE_NAME.get(part, part) for part in re.split(r"→", milestone_raw)
     )
-    epic = _epic_for(req, scenarios)
+    epic = _epic_for(req)
     tc_ids = cases_by_requirement.get(req.req_id, [])
     verified_by = "; ".join(tc_ids) if tc_ids else "⚠️ 這個 Story 目前沒有 TC"
 

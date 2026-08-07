@@ -446,6 +446,26 @@ def expected_parented() -> int:
 STAGES = ["types", "epics", "features", "parents", "sclinks", "verify"]
 
 
+# 🛑 階層 V3 未移植守線（2026-08-08）
+#
+# 四書已於 2026-08-08 切到 G3 業務能力錨點（`_feature_taxonomy.yaml`：4 Epic / 18 `CAP-*`），
+# 本檔還停在 G2（5 條價值線 ＋ 地板屬性群、FR 走 primary_scenario）。讓它照跑會在 Plane
+# 建出一棵與四本 xlsx 不一致的樹——而且是靜默的：兩邊都「成功」，只是形狀不同。
+#
+# 沒有直接改寫的原因是它要動已存在的線上資料，而其中一個問題只有人能決定：
+# **19 張 SC Feature 卡（`import_spine.py` 建的）在 G3 之下不再是 Feature。**
+# 要把它們降級、改型別、封存、還是留著當追溯卡，各有代價，且都會動到別人看得到的看板。
+#
+# 移植這支之前要先回答的三件事：
+#   1. 既有 19 張 SC Feature 卡怎麼處置（降級 / 改型別 / archive / 保留為追溯卡）
+#   2. 既有 18 張地板 Feature（`地板-*`）怎麼處置——G3 沒有這一層
+#   3. Story 的 parent 從舊卡搬到 `CAP-*` 卡，是否要保留 `parents_before` 以便回滾
+#
+# 回答完之後：stage_epics 改讀 `C.load_taxonomy().epics`、stage_features 建 18 張
+# `CAP-*`、stage_parents 的 FR/NFR 分支合併成單一條 `C.feature_of()`。
+_V3_MIGRATION_PENDING = True
+
+
 def main() -> int:
     args = sys.argv[1:]
     dry = "--dry-run" in args
@@ -453,6 +473,17 @@ def main() -> int:
     if only and only not in STAGES:
         print(f"--only 只能是 {STAGES}", file=sys.stderr)
         return 2
+
+    if _V3_MIGRATION_PENDING and not dry:
+        print(
+            "🛑 本檔仍是階層 V2（價值線＋地板），四書已切到 V3（業務能力 CAP-*）。\n"
+            "   照跑會在 Plane 建出與 xlsx 不一致的樹，且兩邊都不會報錯。\n"
+            "   先決定 19 張 SC Feature 卡與 18 張地板 Feature 卡的處置，再移植本檔\n"
+            "   （見檔內 _V3_MIGRATION_PENDING 註解）。\n"
+            "   只想看它會做什麼：加 --dry-run。",
+            file=sys.stderr,
+        )
+        return 3
 
     rb = Rebuilder(dry)
     log(f"靶心：{rb.pc.slug} / {rb.pc.project_id}")

@@ -1,17 +1,24 @@
-# Feature 層重定義草案 — 業務能力錨點
+# Feature 層（G3）— 業務能力錨點。**拆解樹 L1/L2 的唯一真相源。**
 #
-# 狀態：draft，等 PM/SA 審。審過才進 _spec_data.py 成為常數。
+# 狀態：2026-08-08 審核通過，取代 G2（19 SC 旅程＋18 NFR 地板）。
 #
-# 為什麼重寫：G1（32 能力群＝子系統×模組）是技術切法、G2（19 SC 旅程＋18 NFR 地板）
-# 是情境切法＋品質屬性切法。三個都不是「以功能能力分組」（G3 欄位註解的要求）。
-# 本草案以**業務動詞**分組：這個平台「做什麼」，與哪個子系統實作、走哪條旅程無關。
+# 為什麼重寫：G1（32 能力群＝子系統×模組）是技術切法、G2 是情境切法＋品質屬性切法。
+# 兩個都不是「以功能能力分組」。本檔以**業務動詞**分組：這個平台「做什麼」，
+# 與哪個子系統實作、走哪條旅程無關。
 #
 # 硬約束（來自 canon，不是模型偏好）：
 #   1. 必須蓋滿 171 個 Story（65 FR + 106 NFR），一條一組，不重不漏
 #   2. 不可機械推導 —— FR ID 內建子系統（FR-AGT-01），自動分群必落回 G1
 #   3. FR 與 NFR 掛同一組（能力的功能面與品質面不分家），這是換錨點的主要收益
 #
-# 對帳：python3 _validate_taxonomy.py
+# 為什麼留在 yaml 而不搬進 _spec_data.py 當常數（審核時的原計畫）：
+# 這 171 條掛載有一支專屬 validator（_validate_taxonomy.py）擋漏掛／重掛／幽靈 ID。
+# 搬成 python 常數會讓同一份資料存在兩個地方，而 validator 只驗得到其中一份。
+# _spec_data.py 收的是「沒有機器可驗的人工判斷」，這份有，所以留在機讀格式。
+#
+# 消費者：_canon.load_taxonomy() → _build_workbooks.PlaneTree / _task_breakdown /
+#         _plane/rebuild_hierarchy。改這裡＝改四書與 Plane 的拆解樹，改完必須重跑：
+#             uv run python _validate_taxonomy.py && uv run python _build_workbooks.py
 
 epics:
   E-SERVE:

@@ -107,6 +107,7 @@ upstream:
 | [ADR-041](./ADR-041_跨品牌技師身分單一平台principal加品牌membership.md) | 跨品牌技師身分採單一平台 principal + 品牌 membership claim | 平台/security | Accepted（closes OD-004） | 004 · 005 · 035 |
 | [ADR-042](./ADR-042_refinery資料進入契約定版受控API.md) | knowledge-refinery 資料進入契約定版為受控 API | 平台/data | Accepted（closes OD-002）／intake 端點待實作 | 018 · 036 · 040 |
 | [ADR-043](./ADR-043_技師即時channel歸屬technician-platform.md) | 技師即時 channel 歸屬 technician-platform | 平台/realtime | Accepted（closes OD-003）／待 Redis/Kafka 取證 | 041 · 006 · 017 |
+| [ADR-044](./ADR-044_拆解樹Feature錨點改為業務能力.md) | 拆解樹 Feature 錨點改為業務能力（階層 V3） | 規格治理 | Accepted（2026-08-08）／Plane 投影未移植 | — |
 
 ## 依賴關係圖
 

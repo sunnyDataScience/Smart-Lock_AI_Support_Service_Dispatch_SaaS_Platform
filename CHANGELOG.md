@@ -26,6 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **拆解樹 Feature 錨點改為業務能力（階層 V3，2026-08-08 業主審核通過 → [ADR-044](smartlock-docs/enterprise/14_ADR/ADR-044_拆解樹Feature錨點改為業務能力.md)）**：Feature 層三個月內第三代。節點還是那 171 個，換的是**拿什麼分組**——G1 子系統（技術切法）→ G2 SC 旅程＋NFR 地板（情境＋品質屬性混用）→ **G3 業務能力 `CAP-*`（做什麼）**。真相源 [`_feature_taxonomy.yaml`](smartlock-docs/enterprise/規格統控整理/_feature_taxonomy.yaml)，對帳 `_validate_taxonomy.py`。
+  - **拆解樹 4 Epic / 18 Feature / 171 Story，orphan 歸零。**G2 有 32 條 FR 判不出 parent，成因是錨點與載體不匹配：追溯是 M:N（一條需求可服務多條旅程），但樹上 parent 只能有一個，於是每條橫跨多旅程的需求都要人硬選一條「主旅程」——那題本來就沒有非任意的答案。換錨點之後這個衝突不存在了，**不是填平缺口，是成因消失**。
+  - **FR 與 NFR 掛同一張卡**（G3 的主要收益）：18 個能力群裡有 16 個同時裝著功能面與品質面（另兩個是刻意單邊：`CAP-QUOTE` 無獨立品質門檻、`CAP-BASE` 是不對應功能的全系統基線）。G2 把 106 條 NFR 全數丟進 `E-GLB` 地板，於是「派工媒合做得夠不夠好」要在樹的兩個地方各看一半——功能面在 `SC-05`、品質面散在 `地板-Perf`／`地板-SLA`／`地板-Scal`。
+  - **下游三個缺口連帶關掉**：`01_需求收斂` 的 Epic/Feature 四欄從整欄空白（human 待填）改為 **derived 全填 171 列**；`03_交付切片` 173 個 Task 全部有業務域 Epic（原 32 支 FR 的 Task 顯示「待定」）；BOM `②` 分頁不再有「無 parent」段落。
+  - **V14 降級而非移除**：`primary_scenario()` 保留作 SC 覆蓋分析用，32 筆 finding 語意改為「SC 覆蓋歸屬未裁決」，**不阻擋交付、不需要逐條標 `primary: true`**。rule 說明與 finding 訊息已同步改寫——留著舊文案會讓下一個人把它讀成拆解樹的洞。
+  - **SC 旅程退出拆解樹但沒有消失**：仍是《業務邏輯驗收控制表》的列節點與 `SC × RQ`／`SC × TC` 的一端。BOM「服務旅程」欄改由追溯邊算出；驗收控制表「Plane Feature」欄改為「這條旅程的 essential 需求落在哪幾張能力群卡」——旅程卡關時直接指出要敲哪幾張卡。
+  - **🛑 Plane 投影尚未移植**：`_plane/rebuild_hierarchy.py` 仍是 G2，已加守線（非 `--dry-run` 直接 `exit 3`）。不直接改寫是因為要動線上資料，且其中一題只有人能決定——既有 19 張 SC Feature 卡與 18 張地板 Feature 卡如何處置（降級／改型別／archive／保留為追溯卡）。**在那之前 Plane 的樹與四書 xlsx 不一致，以 xlsx 為準。**
+  - 四本 xlsx 已重生並驗證可重現（連續兩次 checksum 相同）。**必須用 `uv run`**，裸 `python3` 缺 lxml 會產出等值但體積翻倍的 XML。
+
 - **規格四書 → Plane 投影全面對齊《Plane QA 工程守則 v1.3》（2026-08-05 業主裁決不跑 CIA、直接動工）**：既有投影停在守則 v1.2 之前的模型，四處與現行守則衝突，且**沒有 sprint 容器**（`_plane/*.py` 全庫 `cycle` 出現 0 次），迭代無從談起。本輪一次改齊：
   - **work item type 六改五**：`Epic` / `Feature` / `Story` / `Task` / `Bug`，廢除 `Work Group` / `Requirement` / `NFR` / `Scenario` / `Work Package`。原設計 level 0 有兩個型別、level 2 有兩個型別，正是守則 A5 點名的病症——type 兼管「多寬」與「什麼性質」會讓數量變成 `層數 × 性質數`。**需求性質改由 `Issue.requirement_kind`（`functional` / `quality` / `none`）承載**，既不是 type 也不是 property。
   - **`needs_acceptance` 顯式關閉 Task 與 Bug**：平台預設 `true`，不關會讓 WBS 工作包整批被要求驗收契約、集體顯示為未覆蓋（守則 B1 明文警告，原匯入器全庫未出現此欄）。連帶把 `ensure_types` 從「id_map 有 key 就 skip」改為 **create-or-align**——實測這五個名字就是平台的出廠型別，skip 會讓出廠 `Task` 的 `needs_acceptance=true` 原封不動留著，等於這條修正對既有 workspace 完全不生效。

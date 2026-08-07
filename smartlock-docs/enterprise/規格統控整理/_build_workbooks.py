@@ -45,8 +45,7 @@ import _render_bdd as BDD
 import _validate_relations as V
 from _build_alignment_workbook import build_alignment_workbook
 from _plane.snapshot import Snapshot
-from _spec_data import (CODEBASE_SNAPSHOT, FLOOR_FUNCTIONAL_NAME, GLOBAL_EPIC,
-                        VALUE_LINES, floor_name)
+from _spec_data import CODEBASE_SNAPSHOT
 
 # Plane 回寫快照。缺檔時所有 Plane 欄位顯示 "—"，四書照樣 build ——
 # Plane 是附加視圖，不是四書的前置依賴。
@@ -239,17 +238,9 @@ COMMON_HOWTO = [
 ]
 
 
-# ---------------------------------------------------------------- 拆解樹（階層 V2）
+# ---------------------------------------------------------------- 拆解樹（階層 V3）
 
-# 地板 Feature 的代號規則。地板不是旅程，所以不能借用 SC 的號碼段；
-# 前綴固定「地板-」讓它在任何一張表裡都一眼可辨。
-FLOOR_FUNCTIONAL = "地板-功能"
 NO_PARENT = "⚠ 無 parent"
-
-
-def floor_code(category: str) -> str:
-    """NFR category → 地板 Feature 代號。category 取 _canon 已解析的 NFR.category，不另寫正則。"""
-    return f"地板-{category}"
 
 
 @dataclass(frozen=True)
@@ -270,126 +261,118 @@ class TreeNode:
 
 
 class PlaneTree:
-    """Epic 價值線 → Feature 旅程／地板 → Story 需求（《Plane QA 工程守則 v1.3》B1）。
+    """Epic 業務域 → Feature 能力群 → Story 需求（階層 V3，2026-08-08 審核通過）。
 
-    與 2026-07-28 版只差一句話：**Epic 裝的不再是子系統**。子系統是技術切法，
-    一個 sprint 交付的價值橫跨多個子系統，拿它當 Epic 會讓 roll-up 讀不出
-    「哪幾條客戶旅程跑得通」——而那是管理層唯一會問的問題。
+    **G3 換的是錨點，不是節點。**171 個 Story 一條沒動，換掉的是「拿什麼分組」：
 
-    parent 的真相源只有一個：FR 走 `_canon.primary_scenario()`（唯一 essential 邊，
-    或人工 `primary: true` 宣告），其次是 `global:` 區塊，兩者都判不出來就**留空**。
-    留空不是漏算，是守則 B0 要的結果——階層跳級刻意不掩蓋。塞一個預設 parent 只會
-    讓 roll-up 的數字看起來完整而實際是假的，那比缺口本身更糟。
+        G1（子系統×模組）  技術切法——一個 sprint 的價值橫跨多個子系統
+        G2（SC 旅程＋NFR 地板）情境切法＋品質屬性切法——FR 與 NFR 被拆到樹的兩側
+        G3（業務能力）      這個平台「做什麼」，與誰實作、走哪條旅程無關
 
-    NFR 一律掛 E-GLB 底下依 category 分的地板 Feature，**不看 SC 邊**：NFR 天生是
-    所有旅程共用的地板，把有 SC 邊的那 20 條掛進旅程，旅程覆蓋率會被品質地板稀釋，
-    同一屬性的 NFR 也會散在各處。SC × NFR 的邊仍留在 yaml 作追溯，只是不由 parent 表達。
+    G3 的主要收益是 **FR 與 NFR 掛同一組**：一個能力的功能面與品質面不分家。
+    G2 把 106 條 NFR 全數丟進 `E-GLB` 地板，於是「派工媒合這件事做得夠不夠好」
+    要在樹的兩個地方各看一半——`CAP-DISP` 現在同時裝著它的 6 條 FR 與 6 條 NFR。
+
+    parent 的真相源只有一個：`_feature_taxonomy.yaml`（經 `_canon.feature_of()`）。
+    那是人明確宣告的掛載表，不是推導出來的——所以 G2 時代那 32 條「判不出主旅程」
+    的 FR 在這裡全部有 parent，V14 不再是拆解樹的缺口（見 `_canon` 主旅程一節）。
+
+    沒掛到的仍然留空、不猜：yaml 漏一條就該在 `_validate_taxonomy.py` 的「漏掛」
+    與本表的「無 parent」段落裡現形，塞預設值只會讓 roll-up 看起來完整而實際是假的。
     """
 
-    def __init__(self, scenarios: list, frs: list, nfrs: list) -> None:
-        sc_by_id = {s.sc_id: s for s in scenarios}
-        globals_ = C.global_requirements()
+    def __init__(self, scenarios: list, frs: list, nfrs: list, rel) -> None:
+        tax = C.load_taxonomy()
+        canon_ids = [q.req_id for q in frs] + [n.req_id for n in nfrs]
 
         parent_of: dict[str, str] = {}
         orphans: list[str] = []
-        for q in frs:
-            sc = C.primary_scenario(q.req_id)
-            if sc in sc_by_id:
-                parent_of[q.req_id] = sc
-            elif q.req_id in globals_:
-                parent_of[q.req_id] = FLOOR_FUNCTIONAL
+        for rid in canon_ids:
+            cap = C.feature_of(rid)
+            if cap:
+                parent_of[rid] = cap
             else:
-                orphans.append(q.req_id)
-        for n in nfrs:
-            parent_of[n.req_id] = floor_code(n.category)
+                orphans.append(rid)
 
-        members: dict[str, list[str]] = {}
-        for rid, code in parent_of.items():
-            members.setdefault(code, []).append(rid)
+        # 能力群底下的成員維持 yaml 宣告順序（FR 在前、NFR 在後），不排序：
+        # 那個順序是人排的閱讀動線——同一個能力先看做什麼、再看做得多好。
+        members = {
+            cap.code: tuple(rid for rid in cap.members if rid in set(canon_ids))
+            for cap in tax.capabilities.values()
+        }
 
         epics: list[TreeNode] = []
         features: dict[str, list[TreeNode]] = {}
-        epic_of_sc: dict[str, str] = {}
-        for line, meta in VALUE_LINES.items():
-            scs = sorted((s for s in scenarios if s.line == line), key=lambda s: s.sc_id)
-            epic = TreeNode(
-                code=meta["epic"], name=meta["name"], kind="functional", parent="",
-                upstream=f"28_Scenarios.md §1 分線 {line}", origin="28_Scenarios.md §1",
-                note=meta["description"],
-            )
-            epics.append(epic)
-            features[epic.code] = [
+        for code, meta in tax.epics.items():
+            caps = tax.of_epic(code)
+            epics.append(TreeNode(
+                code=code, name=meta["name"],
+                kind=self._kind_of(sum((list(c.fr) for c in caps), [])),
+                parent="",
+                upstream=f"_feature_taxonomy.yaml epics.{code}",
+                origin="_feature_taxonomy.yaml",
+                note=meta.get("description", ""),
+            ))
+            features[code] = [
                 TreeNode(
-                    code=s.sc_id, name=s.name, kind="functional", parent=epic.code,
-                    upstream=s.done, origin=f"28_Scenarios.md {s.sc_id}",
-                    note=f"主要 Actor：{s.actor}｜優先級 {s.priority}",
+                    code=c.code, name=c.name, kind=self._kind_of(c.fr), parent=code,
+                    upstream=f"_feature_taxonomy.yaml features.{c.code}",
+                    origin="_feature_taxonomy.yaml",
+                    note=c.description,
                 )
-                for s in scs
+                for c in caps
             ]
-            epic_of_sc.update({s.sc_id: epic.code for s in scs})
-
-        glb = TreeNode(
-            code=GLOBAL_EPIC["epic"], name=GLOBAL_EPIC["name"], kind="quality", parent="",
-            upstream="sc_requires_rq.yaml §global ＋ 05_NFR.md 全部",
-            origin="_relations/sc_requires_rq.yaml、05_NFR.md",
-            note=GLOBAL_EPIC["description"],
-        )
-        epics.append(glb)
-        features[glb.code] = self._floor_features(glb.code, members, nfrs)
 
         self.epics = tuple(epics)
         self.features = {code: tuple(nodes) for code, nodes in features.items()}
-        self.epic_of_sc = epic_of_sc
         self.parent_of = parent_of
         self.orphan_frs = tuple(orphans)
-        self._members = {code: tuple(sorted(ids)) for code, ids in members.items()}
+        self._members = members
+        self._rel = rel
+        self._tax = tax
 
     @staticmethod
-    def _floor_features(epic: str, members: dict[str, list[str]], nfrs: list) -> list[TreeNode]:
-        """E-GLB 底下的地板屬性群：功能地板 1 張 ＋ NFR category 各 1 張。"""
-        nodes: list[TreeNode] = []
-        if members.get(FLOOR_FUNCTIONAL):
-            nodes.append(TreeNode(
-                code=FLOOR_FUNCTIONAL, name=FLOOR_FUNCTIONAL_NAME, kind="functional", parent=epic,
-                upstream="sc_requires_rq.yaml §global（FR）",
-                origin="_relations/sc_requires_rq.yaml §global",
-                note="判準：拿掉任何一條旅程，它依然必須成立。所以不逐條偽造 SC 邊。",
-            ))
-        heading_of = {n.category: n.heading for n in nfrs}
-        for category in sorted({n.category for n in nfrs}):
-            nodes.append(TreeNode(
-                code=floor_code(category), name=floor_name(category), kind="quality", parent=epic,
-                upstream=f"05_NFR.md {heading_of.get(category, '')}",
-                origin=f"05_NFR.md {heading_of.get(category, '')}",
-                note="NFR 不掛旅程：掛進去會讓旅程覆蓋率被品質地板稀釋，同屬性的需求也會散在各處。",
-            ))
-        return nodes
+    def _kind_of(frs) -> str:
+        """requirement_kind：裝得到 FR 就是 functional，純 NFR 的（如 CAP-BASE）才是 quality。
+
+        機械推導而非手列——手列會在 yaml 增刪一條 FR 之後靜默過期。
+        """
+        return "functional" if frs else "quality"
 
     def members_of(self, code: str) -> tuple[str, ...]:
-        """掛在這張 Feature 底下的需求 ID（已排序）。Epic 沒有直接子需求，回空。"""
+        """掛在這張 Feature 底下的需求 ID。Epic 沒有直接子需求，回空。"""
         return self._members.get(code, ())
 
     def parent_cell(self, req_id: str) -> str:
-        """需求在「parent 代號」欄該顯示什麼。判不出來的顯示告警，不填預設值。"""
+        """需求在「parent 代號」欄該顯示什麼。沒掛到的顯示告警，不填預設值。"""
         return self.parent_of.get(req_id) or NO_PARENT
 
+    def journeys_of(self, code: str) -> str:
+        """這張卡底下的需求服務到哪幾條 SC 旅程（M:N 追溯，不是 parent）。
+
+        G3 之後 SC 不在樹上，但「這個能力群撐起哪幾條客戶旅程」仍是 BOM 要回答的問題，
+        差別只在它現在由追溯邊算出來，而不是由樹的形狀代言。
+        """
+        scs = {sc for rid in self.members_of(code) for sc in self._rel.scenarios_of(rid)}
+        return "、".join(sorted(scs)) or "—"
+
     def feature_position(self, sc_id: str) -> str:
-        """這條旅程在拆解樹上的位置，給《業務邏輯驗收控制表》標示用。"""
-        epic = self.epic_of_sc.get(sc_id)
-        if not epic:
-            return "⚠ 分線不在 28_Scenarios §1 五分線表"
-        name = next((e.name for e in self.epics if e.code == epic), "")
-        return f"Feature {sc_id} ⊂ {epic} {name}"
+        """這條旅程要跑通，得靠哪幾個能力群（給《業務邏輯驗收控制表》標示用）。
+
+        G2 時這一欄回答「SC 這張 Feature 掛在哪個 Epic 底下」——G3 之後 SC 不再是
+        Feature，那個問題沒有意義了。換成沿 essential 邊往下看：這條旅程的必要需求
+        落在哪幾張能力群卡上。旅程驗收卡關時，這一欄直接指出要去敲哪幾張卡。
+        """
+        caps = {C.feature_of(rid) for rid in self._rel.reqs_of(sc_id, "essential")}
+        caps.discard(None)
+        if not caps:
+            return "⚠ 無 essential 邊，無法定位能力群"
+        return "、".join(f"{c} {self._tax.capabilities[c].name}" for c in sorted(caps))
 
     def counts(self) -> dict[str, int]:
-        features = sum(len(v) for v in self.features.values())
         return {
             "epic": len(self.epics),
-            "feature": features,
-            "journey": sum(1 for nodes in self.features.values()
-                           for n in nodes if n.code.startswith("SC-")),
-            "floor": sum(1 for nodes in self.features.values()
-                         for n in nodes if n.code.startswith("地板-")),
+            "feature": sum(len(v) for v in self.features.values()),
             "story": len(self.parent_of) + len(self.orphan_frs),
             "orphan": len(self.orphan_frs),
         }
@@ -413,7 +396,7 @@ class Model:
         self.ts = C.load_test_scenarios()
         self.uat_scripts = C.load_uat_scripts()
         self.report, self.counts = V.run()
-        self.tree = PlaneTree(self.scenarios, self.frs, self.nfrs)
+        self.tree = PlaneTree(self.scenarios, self.frs, self.nfrs, self.rel)
 
         self.sc_by_id = {s.sc_id: s for s in self.scenarios}
         self.per_by_id = {p.per_id: p for p in self.personas}
@@ -864,13 +847,13 @@ def build_bom(m: Model) -> None:
          "⚠️ 這個端點只在內部 API，API 金鑰打不進去——只能人工在 Plane 網頁上輸入。"),
         *GLOSSARY_HEAD,
         *GLOSSARY_HIERARCHY,
-        ("  服務旅程", "Plane 的 Feature 卡（SC）。2026-08-05 起它**就在本表的三層樹上**（L2），"
-                    "本欄列的是這條需求服務的全部旅程（M:N），與單值的 parent 欄不是同一件事。"),
-        ("  地板 Feature", "E-GLB 底下的屬性群卡：地板-功能（sc_requires_rq.yaml 的 global: FR）與"
-                        "地板-<Category>（NFR 依 05_NFR 的 ID category 分群）。它們是真的 Feature，"
-                        "不是「其他」收容所——判準是「拿掉任何一條旅程它依然必須成立」。"),
-        ("  子系統 / 能力群", "Plane 的 Module（排程軸的範疇分組），本表的「Module 切面」欄。"
-                        "⚠️ 2026-08-05 前它同時是拆解軸的 Epic/Feature，已作廢——拆解軸現在走價值線與旅程。"),
+        ("  服務旅程", "這條需求（或這張卡底下的需求）服務的 SC 旅程，M:N 追溯邊算出來的。"
+                    "⚠️ 2026-08-08 起 SC **不再是 Feature 卡**——拆解軸走業務能力，旅程只作追溯。"),
+        ("  能力群 Feature", "`CAP-*` 卡，拆解軸 L2，真相源 `_feature_taxonomy.yaml`。"
+                        "以「這個平台做什麼」分組，**FR 與 NFR 掛同一張**——"
+                        "一個能力的功能面與品質面不分家，這是 G3 換錨點的主要收益。"),
+        ("  子系統 / 模組", "Plane 的 Module（排程軸的範疇分組），本表的「Module 切面」欄。"
+                        "⚠️ 它從來不是拆解軸的 Epic/Feature——拆解軸現在走業務域與能力群。"),
         *COMMON_HOWTO,
     ])
 
@@ -885,10 +868,12 @@ def build_bom(m: Model) -> None:
         features = tree.features.get(epic.code, ())
         under = [m.fr_by_id[rid] for f in features for rid in tree.members_of(f.code)
                  if rid in m.fr_by_id]
-        journeys = "、".join(f.code for f in features if f.code.startswith("SC-")) or "全域地板"
+        journeys = "、".join(sorted({
+            sc for f in features for sc in tree.journeys_of(f.code).split("、") if sc != "—"
+        })) or "—"
         row(ws, r, [
             "L1 Epic", epic.code, "", epic.kind, epic.name, epic.upstream,
-            modules_of(under), "跨子系統（價值線不對應單一元件，見 L2）", "—", "—",
+            modules_of(under), "跨子系統（業務域不對應單一元件，見 L2）", "—", "—",
             reality_mix(under), "見 L2 / L3",
             journeys, "—", "", milestones_of(under), "", "",
             f"{epic.note} ｜ {len(features)} 張 Feature ｜ 出處：{epic.origin}",
@@ -902,15 +887,15 @@ def build_bom(m: Model) -> None:
         for f in features:
             ids = tree.members_of(f.code)
             frs = [m.fr_by_id[rid] for rid in ids if rid in m.fr_by_id]
-            # 掛 0 條不代表這條旅程沒有需求——它的 FR 全數服務多條旅程，parent 還沒裁決。
-            # 不寫清楚的話，讀者會把「待裁決」讀成「這條旅程沒東西要做」。
+            # 掛 0 條在 G3 之下就是 yaml 漏了——taxonomy 是明確宣告的掛載表，
+            # 不像 G2 的旅程 parent 會因為判不出主旅程而合法地空著。
             load = (f"掛載 {len(ids)} 條需求" if ids
-                    else "掛載 0 條需求（其 FR 皆服務多條旅程，parent 待 BA 宣告 primary）")
+                    else "掛載 0 條需求 ⚠ _feature_taxonomy.yaml 漏掛，跑 _validate_taxonomy.py")
             row(ws, r, [
                 "L2 Feature", f.code, f.parent, f.kind, f.name, f.upstream,
                 modules_of(frs), components_of(frs), docs_of(frs, "sad"), docs_of(frs, "sds"),
                 reality_mix(frs), "見 L3" if frs else "—",
-                f.code if f.code.startswith("SC-") else "全域地板", "—",
+                tree.journeys_of(f.code), "—",
                 "", milestones_of(frs), "", "",
                 f"{f.note} ｜ {load} ｜ 出處：{f.origin}",
             ], kinds, height=22)
@@ -928,9 +913,9 @@ def build_bom(m: Model) -> None:
     # 它們在 Plane 上真的沒有 parent，落進 None 組。表上看得見，匯入後才不會憑空消失。
     if tree.orphan_frs:
         banner(ws, r, len(headers), (
-            f"{NO_PARENT} —— {len(tree.orphan_frs)} 條 FR 判不出唯一的 parent 旅程"
-            "（多條 essential 邊、或只有 supporting 邊，且未宣告 global）。"
-            "等 BA 在 sc_requires_rq.yaml 加 primary: true；在那之前這裡不猜、不填預設值。"
+            f"{NO_PARENT} —— {len(tree.orphan_frs)} 條需求不在 _feature_taxonomy.yaml 的任何能力群裡。"
+            "G3 的掛載是人明確宣告的，所以這一段有東西就代表 yaml 漏了（不是待裁決）。"
+            "跑 `uv run python _validate_taxonomy.py` 會列出同一份清單；補完 yaml 再重生。"
         ))
         ws.row_dimensions[r].outlineLevel = 0
         r += 1
@@ -1217,17 +1202,22 @@ def write_health_md(m: Model) -> None:
     )
     if by_rule.get("V14"):
         qa_status += (
-            f"\n\n另有 **V14 {by_rule['V14']} 筆**：追溯是通的，缺的是拆解樹上的 parent 宣告"
-            "（一條 FR 服務多條旅程時要選一條當 parent）。它不影響追溯，只影響 roll-up 路徑，"
-            "且只有 BA 能裁決。"
+            f"\n\n另有 **V14 {by_rule['V14']} 筆**：這條 FR 服務多條旅程、判不出唯一的「主旅程」。"
+            "⚠️ 2026-08-08 起它**不再是拆解樹的缺口**——parent 改由 `_feature_taxonomy.yaml` "
+            "明確宣告，171 條全部有 parent。V14 現在只影響 SC 覆蓋分析的歸屬解讀。"
         )
     open_od_summary = "、".join(
         f"`{d.get('id')}` {C.plain(d.get('title'))}" for d in open_od
     ) or "無"
     t = m.tree.counts()
-    floor_groups = "、".join(f.code for f in m.tree.features.get(m.tree.epics[-1].code, ()))
-    on_floor = sum(1 for p in m.tree.parent_of.values() if p == FLOOR_FUNCTIONAL)
-    on_journey = len(m.frs) - t["orphan"] - on_floor
+    tax = C.load_taxonomy()
+    epic_lines = "\n".join(
+        f"- `{code}` {meta['name']}：{len(tax.of_epic(code))} 個能力群／"
+        f"{sum(len(m.tree.members_of(c.code)) for c in tax.of_epic(code))} 條 Story"
+        f" —— {meta.get('description', '')}"
+        for code, meta in tax.epics.items()
+    )
+    cap_both = sum(1 for c in tax.capabilities.values() if c.fr and c.nfr)
 
     HEALTH_MD.write_text(f"""# Smart Lock 規格四書產出健康報告
 
@@ -1270,27 +1260,34 @@ def write_health_md(m: Model) -> None:
 - 三條邊各自宣告、互不推導。`SC × RQ` 與 `RQ × TC ∘ TC × SC` 的差，就是 V9 驗收覆蓋缺口——
   若第三條邊由前兩條算出，V9 會恆等於零，等於沒有檢查。
 
-## Plane 拆解樹（階層 V2，對標《Plane QA 工程守則 v1.3》B1）
+## Plane 拆解樹（階層 V3 業務能力錨點，2026-08-08 審核通過）
 
-節點沒有變，**裝節點的容器換了**：Epic 從 7 個子系統改為 5 條價值線 ＋ 跨旅程地板，
-Feature 從 32 個能力群改為 19 條 SC 旅程 ＋ 地板屬性群。覆蓋率因此沿
-`需求 → 旅程 → 價值線` roll-up，「哪幾條客戶旅程跑得通」第一次有載體答得出來。
+節點還是那 171 個，**換的是拿什麼分組**。三代錨點：
+
+| 代 | Feature 的定義 | 退場原因 |
+|---|---|---|
+| G1（2026-07-30）| 32 個 `子系統·模組` 能力群 | 技術切法，一個 sprint 的價值橫跨多個子系統 |
+| G2（2026-08-05）| 19 條 SC 旅程 ＋ 18 個 NFR category 地板 | 情境切法＋品質屬性切法，FR 與 NFR 被拆到樹的兩側 |
+| **G3（本版）** | **18 個業務能力群 `CAP-*`** | — |
 
 | 層 | Plane type | 張數 | 裝什麼 |
 |---|---|---:|---|
-| L1 | `Epic`（level 0, is_epic）| {t['epic']} | 5 條價值線 `E-CUS`/`E-OPS`/`E-TEC`/`E-KNW`/`E-PLT` ＋ 地板 `E-GLB` |
-| L2 | `Feature`（level 1）| {t['feature']} | {t['journey']} 條 SC 旅程 ＋ {t['floor']} 個地板屬性群 |
+| L1 | `Epic`（level 0, is_epic）| {t['epic']} | 業務域：`E-SERVE`/`E-SUPPLY`/`E-TENANT`/`E-CORE` |
+| L2 | `Feature`（level 1）| {t['feature']} | 業務能力群 `CAP-*`，FR 與 NFR 掛同一張 |
 | L3 | `Story`（level 2）| {t['story']} | FR {n['fr']} ＋ NFR {n['nfr']}；驗收契約掛這一層 |
 
-- 地板屬性群：{floor_groups}
-- **FR 的 parent 判定**（`_canon.primary_scenario()`，先中先贏）：唯一 `essential` 邊
-  **{on_journey} 條**自動推出旅程 → `global:` 區塊 **{on_floor} 條**掛功能地板 →
-  其餘 **{t['orphan']} 條留空**（V14 finding）。
-- **留空是刻意的**（守則 B0）：多條 `essential` 邊或只有 `supporting` 邊的 FR，載體只容得下一個
-  parent，猜一個會讓 roll-up 的數字看起來完整而實際是假的。要關掉它，由 BA 在
-  `_relations/sc_requires_rq.yaml` 對應的 `essential` 邊加 `primary: true`——**AI 不得代填**。
-- **NFR 一律不掛旅程**：全部進 `E-GLB` 底下依 category 分的地板 Feature。把有 SC 邊的那些掛進旅程，
-  旅程覆蓋率會被品質地板稀釋，同屬性的需求也會散在各處。SC × NFR 的邊仍在 yaml 裡作追溯。
+{epic_lines}
+
+- **parent 的真相源＝`_feature_taxonomy.yaml`**，經 `_canon.feature_of()` 讀取。那是人明確
+  宣告的掛載表，不是推導出來的——所以 **171 條全部有 parent，orphan {t['orphan']} 條**。
+- **G3 的主要收益：FR 與 NFR 掛同一張卡。**{cap_both}/{t['feature']} 個能力群同時裝著功能面與品質面。
+  G2 把 106 條 NFR 全數丟進 `E-GLB` 地板，於是「派工媒合這件事做得夠不夠好」要在樹的兩個
+  地方各看一半；現在 `CAP-DISP` 自己就裝著它的 6 條 FR 與 6 條 NFR。
+- **G2 的 32 條「判不出主旅程」FR 不再是拆解樹缺口。**那 32 條的成因是「一條 FR 服務多條旅程，
+  但樹上 parent 只能有一個」——G3 換掉錨點之後這個衝突消失了，不需要 BA 逐條裁決 `primary`。
+  `primary_scenario()` 保留作 SC 覆蓋分析用，不再決定樹的形狀。
+- **SC 旅程退出拆解樹，但沒有消失**：19 條旅程仍是《業務邏輯驗收控制表》的列節點與
+  `SC × RQ` / `SC × TC` 兩條追溯邊的一端。BOM 的「服務旅程」欄改由追溯邊算出來。
 
 ## 缺口（{len(m.report.findings)} 筆，全部進規劃書 ②）
 
@@ -1306,9 +1303,10 @@ Feature 從 32 個能力群改為 19 條 SC 旅程 ＋ 地板屬性群。覆蓋�
   就是想像出來的需求。要嘛補 SC 邊、要嘛宣告 global、要嘛刪。
 - **V10 {by_rule.get('V10', 0)} 筆**：P0 旅程的需求只有正向案例或完全沒案例。
   只問「happy path」的訪談產出的規格就長這樣，代價在 UAT 前兩週結清。
-- **V14 {by_rule.get('V14', 0)} 筆**：FR 在拆解樹上沒有 parent（2026-08-05 隨階層 V2 新增）。
-  這不是回歸，是本來就存在、只是先前沒有載體看得見的缺口——一條 FR 服務多條旅程時，
-  「它主要為哪條旅程存在」始終沒人裁決過。等 BA 逐條宣告 `primary: true` 後歸零。
+- **V14 {by_rule.get('V14', 0)} 筆**：FR 服務多條旅程、判不出唯一的「主旅程」。
+  ⚠️ 2026-08-08 隨階層 V3 降級——它**不再代表拆解樹缺 parent**（parent 已由
+  `_feature_taxonomy.yaml` 明確宣告）。剩下的意義是 SC 覆蓋分析裡「這條需求主要算在
+  哪條旅程頭上」尚未裁決，不阻擋交付，也不需要為了關掉它而逐條標 `primary: true`。
 
 ## 開放架構決策（{len(open_od)} 筆）
 

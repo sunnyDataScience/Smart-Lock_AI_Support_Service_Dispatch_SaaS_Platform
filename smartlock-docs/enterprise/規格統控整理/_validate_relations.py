@@ -11,7 +11,8 @@
     V11 SC with no primary persona, or persona embodied by no SC -> finding
     V12 primary: true 只能標在 role: essential 的邊上            -> error
     V13 同一條需求最多一條 primary: true                          -> error
-    V14 FR 在拆解樹上判不出 parent（無唯一 essential／無 primary／非 global） -> finding
+    V14 FR 判不出主旅程（無唯一 essential／無 primary／非 global） -> finding
+        ⚠ 2026-08-08 起不再代表拆解樹缺 parent，見 check_primary_axis()
 
 Errors block generation. Findings do not block, but are always printed and
 carried into 規格統控規劃書 ② 缺口清單 -- a gap that blocks generation just gets
@@ -216,16 +217,20 @@ def check_sc_persona(rep: Report, scenarios: dict, personas: dict, rel: C.Relati
 
 
 def check_primary_axis(rep: Report, reqs: dict, rel: C.Relations) -> None:
-    """V12/V13/V14 —— 拆解樹上的 parent 判不判得出來。
+    """V12/V13/V14 —— 「這條需求主要服務哪條旅程」判不判得出來。
 
-    追溯是 M:N（一條需求可以同時服務多條旅程），拆解樹上的 parent 卻只能有一個。
-    `primary` 這個可選欄只解決這個載體落差，它不是第四條追溯邊——所以兩個邊界必須守住：
-    只能標在關鍵路徑（essential）的邊上（V12），且一條需求只能有一個（V13）。
-    兩者都是 error：一個標錯位置或標了兩次的宣告，等於把 parent 交給讀取順序決定。
+    ⚠ 2026-08-08（階層 V3）起本節**不再決定拆解樹的 parent**。parent 改由
+    `_feature_taxonomy.yaml` 明確宣告（`_canon.feature_of()`），171 條全部掛得到。
+    本節退回它原本的問題：SC 覆蓋分析要把一條需求算在哪條旅程頭上。
 
-    V14 是這條軸的缺口面：機器推不出、人也還沒宣告的 FR，在拆解樹上會落進「沒有 parent」
-    那一組。列為 finding 而非 error，理由同 V8——擋下生成只會逼人隨手挑一條旅程填平，
-    而掛錯旅程的需求比沒掛的更難發現：它在畫面上長得跟正確答案一模一樣。
+    追溯是 M:N（一條需求可以同時服務多條旅程），主旅程卻只能有一個。`primary` 這個
+    可選欄只解決這個落差，它不是第四條追溯邊——所以兩個邊界仍要守住：只能標在關鍵
+    路徑（essential）的邊上（V12），且一條需求只能有一個（V13）。兩者都是 error：
+    一個標錯位置或標了兩次的宣告，等於把歸屬交給讀取順序決定。
+
+    V14 是缺口面：機器推不出、人也還沒宣告的 FR。**它在 V3 之下不阻擋任何交付**——
+    列為 finding 而非 error，理由同 V8：擋下生成只會逼人隨手挑一條旅程填平，
+    而算錯旅程的需求比沒算的更難發現，它在畫面上長得跟正確答案一模一樣。
     """
     declared: dict[str, list[str]] = {}
     for i, e in enumerate(rel.sc_rq, 1):
@@ -268,11 +273,15 @@ def check_primary_axis(rep: Report, reqs: dict, rel: C.Relations) -> None:
         supporting = sorted({str(e.get("scenario")) for e in mine if e.get("role") == "supporting"})
         if essential:
             detail = (f"{len(essential)} 條 essential 邊（{'、'.join(essential)}）分不出主旅程，"
-                      f"請於其中一條標 primary: true")
+                      f"要指定就於其中一條標 primary: true")
         else:
             detail = (f"沒有任何 essential 邊（只有 supporting：{'、'.join(supporting) or '無'}），"
-                      f"要先把某一條升為 essential 才能標 primary，或改宣告 global")
-        rep.finding("V14", rq, f"拆解樹上會沒有 parent——{detail}", "BA")
+                      f"要先把某一條升為 essential 才能標 primary")
+        # ⚠ 2026-08-08 降級：V14 **不再代表拆解樹缺 parent**。階層 V3 之後 parent 由
+        # `_feature_taxonomy.yaml` 明確宣告，171 條全部有 parent。剩下的意義是 SC 覆蓋
+        # 分析裡「這條需求主要算在哪條旅程頭上」尚未裁決——不阻擋交付，也不需要為了
+        # 關掉它而逐條標 primary。訊息照舊發，但不要再讀成拆解樹的洞。
+        rep.finding("V14", rq, f"SC 覆蓋歸屬未裁決（不影響拆解樹 parent）——{detail}", "BA")
 
 
 # --------------------------------------------------------------------------
