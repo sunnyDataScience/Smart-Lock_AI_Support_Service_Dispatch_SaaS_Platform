@@ -1,0 +1,180 @@
+# Feature 層重定義草案 — 業務能力錨點
+#
+# 狀態：draft，等 PM/SA 審。審過才進 _spec_data.py 成為常數。
+#
+# 為什麼重寫：G1（32 能力群＝子系統×模組）是技術切法、G2（19 SC 旅程＋18 NFR 地板）
+# 是情境切法＋品質屬性切法。三個都不是「以功能能力分組」（G3 欄位註解的要求）。
+# 本草案以**業務動詞**分組：這個平台「做什麼」，與哪個子系統實作、走哪條旅程無關。
+#
+# 硬約束（來自 canon，不是模型偏好）：
+#   1. 必須蓋滿 171 個 Story（65 FR + 106 NFR），一條一組，不重不漏
+#   2. 不可機械推導 —— FR ID 內建子系統（FR-AGT-01），自動分群必落回 G1
+#   3. FR 與 NFR 掛同一組（能力的功能面與品質面不分家），這是換錨點的主要收益
+#
+# 對帳：python3 _validate_taxonomy.py
+
+epics:
+  E-SERVE:
+    name: 服務交付鏈
+    description: 客戶從詢問到付款的完整服務履約。
+  E-SUPPLY:
+    name: 供給側能力
+    description: 交付所需的兩種供給——人（技師）與知識。
+  E-TENANT:
+    name: 租戶與治理
+    description: 品牌租戶的開通、權限、隱私與操作介面。
+  E-CORE:
+    name: 平台基座
+    description: 支撐上述能力的模型、資料、事件與交付工程。
+
+features:
+
+  # ── E-SERVE ──────────────────────────────────────────────
+  CAP-CONV:
+    epic: E-SERVE
+    name: 智慧客服對話
+    description: LINE 進線、對話編排、記憶、知識取用到轉真人的完整對話能力。
+    fr: [FR-AGT-01, FR-AGT-02, FR-AGT-03, FR-AGT-04, FR-AGT-05,
+         FR-AGT-06, FR-AGT-07, FR-AGT-09, FR-AGT-10]
+    nfr: [NFR-Perf-001, NFR-Perf-002, NFR-Perf-003, NFR-Perf-012,
+          NFR-Avail-003, NFR-Avail-004, NFR-Avail-005, NFR-Avail-006,
+          NFR-A11y-001, NFR-Sec-010, NFR-Comp-001]
+
+  CAP-CASE:
+    epic: E-SERVE
+    name: 報修建卡
+    description: 從對話收斂成一張確認過的問題卡，含 agent 旁路寫入。
+    fr: [FR-API-01, FR-API-13]
+    nfr: [NFR-Rel-003, NFR-Scal-004]
+
+  CAP-QUOTE:
+    epic: E-SERVE
+    name: 報價與計費
+    description: 報價生命週期、定價規則、保固判定與現場範圍變更後的重新報價。
+    fr: [FR-API-02, FR-API-03, FR-API-17, FR-TEC-07]
+    nfr: []
+
+  CAP-DISP:
+    epic: E-SERVE
+    name: 派工媒合
+    description: 工單成立、自動與手動派工、媒合演算、接單與 SLA 治理。
+    fr: [FR-API-04, FR-API-05, FR-API-06, FR-API-07, FR-TEC-03, FR-TEC-04]
+    nfr: [NFR-Perf-007, NFR-Perf-008, NFR-SLA-001, NFR-SLA-002, NFR-SLA-003,
+          NFR-Scal-008]
+
+  CAP-FIELD:
+    epic: E-SERVE
+    name: 現場作業與結案
+    description: 技師到府、存證、結案閘門與排班生命週期。
+    fr: [FR-API-08, FR-API-09, FR-TEC-05, FR-TEC-08]
+    nfr: [NFR-Aud-003, NFR-Scal-005]
+
+  CAP-MONEY:
+    epic: E-SERVE
+    name: 收付與結算
+    description: 消費者付款、退款取消、月結七帳本與技師佣金結算。
+    fr: [FR-API-10, FR-API-11, FR-API-12, FR-TEC-06]
+    nfr: [NFR-Aud-002]
+
+  CAP-EXCEPT:
+    epic: E-SERVE
+    name: 例外治理與稽核
+    description: 例外審批 SoD、急件事後補審、稽核軌跡的檢視與匯出。
+    fr: [FR-API-18, FR-API-19, FR-WEB-05]
+    nfr: [NFR-Aud-001, NFR-Aud-007]
+
+  # ── E-SUPPLY ─────────────────────────────────────────────
+  CAP-TECHID:
+    epic: E-SUPPLY
+    name: 技師身分與准入
+    description: 跨租戶技師身分、KYC 認證准入與撤銷停權。
+    fr: [FR-TEC-01, FR-TEC-02]
+    nfr: [NFR-Avail-007]
+
+  CAP-KNWLC:
+    epic: E-SUPPLY
+    name: 知識生命週期
+    description: 素材汲取、LLM 提煉、HITL 審核、雙路發佈與 SOP 雙審。
+    fr: [FR-REF-01, FR-REF-02, FR-REF-03, FR-REF-04, FR-REF-05]
+    nfr: [NFR-DQ-001, NFR-DQ-002, NFR-DQ-003, NFR-DQ-004,
+          NFR-PUB-001, NFR-PUB-002, NFR-PUB-003, NFR-PUB-004,
+          NFR-Rep-001, NFR-Rep-002, NFR-Comp-002, NFR-Aud-004, NFR-Maint-007]
+
+  # ── E-TENANT ─────────────────────────────────────────────
+  CAP-TENANT:
+    epic: E-TENANT
+    name: 租戶開通與治理
+    description: 品牌 License 開通、工單積木配置與平台維運 console。
+    fr: [FR-PLT-03, FR-PLT-07, FR-PLT-09]
+    nfr: [NFR-Scal-006, NFR-Scal-007, NFR-Perf-004]
+
+  CAP-IAM:
+    epic: E-TENANT
+    name: 身分與權限
+    description: 統一身分、RBAC enforce、路由授權與服務間認證加密。
+    fr: [FR-PLT-01, FR-PLT-02, FR-WEB-02, FR-DAT-06]
+    nfr: [NFR-Sec-001, NFR-Sec-002, NFR-Sec-003, NFR-Sec-004, NFR-Sec-011,
+          NFR-Sec-013, NFR-Sec-014, NFR-Avail-008, NFR-Avail-010, NFR-Scal-003]
+
+  CAP-PRIV:
+    epic: E-TENANT
+    name: 隱私與資料主體權利
+    description: PII 分類保存、GDPR 被遺忘權、跨租戶隔離與金鑰輪替。
+    fr: [FR-API-16]
+    nfr: [NFR-Priv-001, NFR-Priv-002, NFR-Priv-003, NFR-Priv-004, NFR-Priv-005,
+          NFR-Priv-006, NFR-Priv-007, NFR-Priv-008, NFR-Priv-009, NFR-Priv-010,
+          NFR-Comp-004]
+
+  CAP-WORKBENCH:
+    epic: E-TENANT
+    name: 營運與客戶介面
+    description: 多 portal 外殼、派工工作台、報表與消費者追蹤頁。
+    fr: [FR-WEB-01, FR-WEB-03, FR-WEB-04, FR-WEB-06, FR-WEB-07]
+    nfr: [NFR-A11y-002, NFR-A11y-003, NFR-A11y-004, NFR-A11y-005,
+          NFR-Perf-005, NFR-Perf-011, NFR-Maint-005]
+
+  # ── E-CORE ───────────────────────────────────────────────
+  CAP-MODEL:
+    epic: E-CORE
+    name: 模型與 AI 治理
+    description: 供應商路由、工具白名單、AI 紅線與租戶可調的 agent 配置。
+    fr: [FR-AGT-08, FR-AGT-11, FR-PLT-05, FR-PLT-08]
+    nfr: [NFR-Sec-005, NFR-Sec-006, NFR-Sec-007, NFR-Sec-008, NFR-Sec-009,
+          NFR-Sec-012, NFR-Comp-003, NFR-Aud-005, NFR-Aud-006,
+          NFR-Maint-002, NFR-Perf-010, NFR-Obs-005]
+
+  CAP-DATA:
+    epic: E-CORE
+    name: 資料基座
+    description: Medallion 分層、forward-only migration、三庫隔離與語料唯一事實。
+    fr: [FR-DAT-01, FR-DAT-02, FR-DAT-03, FR-DAT-04, FR-DAT-05]
+    nfr: [NFR-Sch-001, NFR-Sch-002, NFR-Sch-003]
+
+  CAP-EVENT:
+    epic: E-CORE
+    name: 事件與即時骨幹
+    description: Kafka 事件骨幹、Redis 即時層、WS 推播與背景批次。
+    fr: [FR-PLT-04, FR-API-14, FR-API-15]
+    nfr: [NFR-Avail-009, NFR-Avail-011, NFR-Perf-006, NFR-Perf-009, NFR-Rel-002]
+
+  CAP-OPS:
+    epic: E-CORE
+    name: 可觀測性與交付工程
+    description: OTel、告警、runbook、rollback 與測試／契約治理。
+    fr: [FR-PLT-06]
+    nfr: [NFR-Obs-001, NFR-Obs-002, NFR-Obs-003, NFR-Obs-004,
+          NFR-DORA-001, NFR-DORA-002, NFR-DORA-003,
+          NFR-Maint-001, NFR-Maint-003, NFR-Maint-004, NFR-Maint-006, NFR-Maint-008]
+
+  # ── 殘差（不是第二套品質分類）────────────────────────────
+  # 這 5 條是真的沒有歸屬能力的全系統基線：拿掉任何一個能力它們都還在。
+  # 與 G2 那 18 個「地板-<Category>」的差別：那是把 17 個 NFR category 各開一張卡
+  # ＝品質屬性的平行分類法；這裡是一個明確的殘差桶，只有 5 條，且不隨 category 增生。
+  # 若審核認為殘差桶本身就不該存在，替代做法是直接掛在 4 個 Epic 上（Plane 允許
+  # Story 的 parent 是 Epic），代價是拆解樹出現不等深的分支。
+  CAP-BASE:
+    epic: E-CORE
+    name: 全系統服務基線
+    description: 不屬於任何單一能力的全域可用性、併發與錯誤率門檻。
+    fr: []
+    nfr: [NFR-Avail-001, NFR-Avail-002, NFR-Scal-001, NFR-Scal-002, NFR-Rel-001]
