@@ -4,18 +4,23 @@
 > 大掃除消失、5 個 YAML description 解析失敗、與 `sunnydata-*` 五組正面重疊）。
 > 完整理由記錄於 `../rules/primitive-selection.md` §Cleanup history。
 
-實裝 **28 個**：`sunnydata-*` 19 個（團隊標準）+ `community-*` 9 個（外部前端／a11y 套組）。
+實裝 **29 個**：`sunnydata-*` 19 個（團隊標準）+ `community-*` 9 個（外部前端／a11y 套組）
++ `luca-*` 1 個（個人自建）。
 
-> ⚠️ **版控狀態**：`.gitignore:88` 排除整個 `.claude/skills/`。
+> ⚠️ **版控狀態**：`.gitignore` 排除 `.claude/skills/*`。
 > 只有 ignore 規則生效（2026-05-06, `967c382d`）之前就 tracked 的 12 個 `sunnydata-*` 留在 repo，
 > 其餘 16 個（7 個 sunnydata + 9 個 community）**只存在本機、clone 不會有**。
 > 下表「版控」欄標示之（✅ 進 repo／⬜ 僅本機）。要讓團隊共用需另行決策是否把 `.claude/skills/` 收回版控。
+>
+> `luca-*` 是例外：`!.claude/skills/luca-*/` 明確納回版控。注意排除規則必須寫成
+> `.claude/skills/*` 而非 `.claude/skills/`——git 不允許在已排除的**目錄**內重新納入檔案。
 
 ## 命名原則
 
 ```
 sunnydata-{lifecycle-phase}    SunnyData 團隊標準 skill
 community-{domain}             外部社群 skill，原樣引入不改寫
+luca-{method}                  個人自建 skill，由實際專案流程萃取
 ```
 
 ## 開發生命週期（sunnydata-*）
@@ -30,6 +35,7 @@ community-{domain}             外部社群 skill，原樣引入不改寫
 | VERIFY (安全) | **sunnydata-security** | OWASP 分類 + 實作 checklist + 語言特定實踐 | 安全審查、auth、輸入處理 | ✅ |
 | VERIFY (審查) | **sunnydata-code-review** | 驗證 → 發起 review → 消化回饋（line-level） | 完成任務、commit/PR 前 | ✅ |
 | VERIFY (架構) | **sunnydata-architecture-review** | smells → principles → fixes 三階段架構審查 | 評估重構、稽核模組邊界 | ⬜ |
+| VERIFY (走查) | **luca-static-walkthrough** | 不啟動服務，逐條把驗收條件比對到原始碼，產出證據文件與判定索引 | 驗收前盤點實作缺口、規格與程式碼疑似漂移（使用者觸發） | ✅ |
 | SHIP (基礎設施) | **sunnydata-infrastructure** | Docker + CI/CD + 部署策略 + 生產就緒 | 容器化、部署規劃 | ✅ |
 | SHIP (分支) | **sunnydata-branch-lifecycle** | L1/L2 短命分支 → 選用 worktree → 線性整合/PR/cleanup | 中高風險或並行工作；L0 不使用 | ✅ |
 | SHIP (發版) | **sunnydata-changelog-sync** | 由 commits + ADR + CR 產 Keep-a-Changelog | `/release`、產生 release notes | ⬜ |

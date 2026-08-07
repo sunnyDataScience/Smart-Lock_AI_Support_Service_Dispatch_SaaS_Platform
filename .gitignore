@@ -85,7 +85,10 @@ cloud-sql-proxy
 .claude/settings.local.json
 .claude/taskmaster-data/
 .claude/statusline-go.exe
-.claude/skills/
+# 用 /* 而非 /：git 不允許在已排除的目錄內重新納入檔案，寫成目錄就否定不了。
+.claude/skills/*
+# 自建 skill 仍進版控（同 .agents/skills/plane-qa 的原則：只排除外部安裝的）。
+!.claude/skills/luca-*/
 .dev-logs/
 
 # 第三方外掛 skill 的本機安裝（vendored copy，非本專案產物）。
